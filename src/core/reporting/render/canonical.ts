@@ -4,7 +4,7 @@ import {
   type ReportDocument,
   type ReportSection,
 } from '../../../shared/reportSchema'
-import { reportScrubber, type ReportRedaction } from './redaction'
+import { reportScrubber, scrubFields, type ReportRedaction } from './redaction'
 import { reportTimestamp } from './timestamp'
 
 /** Code-unit comparison, independent of the OS and installed language. */
@@ -42,20 +42,12 @@ function bytes(document: unknown): string {
   return `${JSON.stringify(document, undefined, 2)}\n`
 }
 
-/** Only the exact structural hash path is omitted; source strings get no exemption. */
+/** Scrub decoded values and keys; only the exact structural hash path is omitted. */
 function scrubCanonical(document: ReportDocument, options: ReportRedaction): ReportDocument {
   const { contentHash, ...header } = document.header
-  let clean: unknown
-  try {
-    clean = JSON.parse(reportScrubber(options)(bytes({ ...document, header })))
-  } catch {
-    throw new Error('Invalid scrubbed report')
-  }
-  if (typeof clean !== 'object' || clean === null) throw new Error('Invalid scrubbed report')
-  const cleanHeader: unknown = Reflect.get(clean, 'header')
-  if (typeof cleanHeader !== 'object' || cleanHeader === null)
-    throw new Error('Invalid scrubbed report header')
-  return ordered({ ...clean, header: { ...cleanHeader, contentHash } })
+  const clean = structuredClone({ ...document, header })
+  scrubFields(clean, reportScrubber(options))
+  return ordered({ ...clean, header: { ...clean.header, contentHash } })
 }
 
 function hash(document: ReportDocument): string {
@@ -121,7 +113,7 @@ export function canonicalReportJson(
   return bytes(verifyReport(document, options))
 }
 
-/** Scrub the JSON syntax before putting back only verified /header/contentHash. */
+/** Scrub formatted non-JSON output; canonical JSON is scrubbed before serialization. */
 export function scrubReportOutput(output: string, options: ReportRedaction): string {
   return reportScrubber(options)(output)
 }

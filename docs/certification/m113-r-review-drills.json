@@ -1,0 +1,87 @@
+[
+  {
+    "id": "RVM113R-P1-decoded-values",
+    "file": "src/core/reporting/render/canonical.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "scrubs decoded escaped passwords before serialization and rejects independently hashed unsafe saved reports",
+      "scrubs a Unicode-escaped password key after decoding saved input"
+    ],
+    "failedTests": [
+      "scrubs decoded escaped passwords before serialization and rejects independently hashed unsafe saved reports",
+      "scrubs a Unicode-escaped password key after decoding saved input",
+      "preserves complete workspace-relative Windows filenames before scrubbing and hashes equivalent paths identically",
+      "does not exempt a source cell named contentHash",
+      "scrubs canaries and every untrusted digest in json while preserving only verified hash metadata",
+      "scrubs canaries and every untrusted digest in text while preserving only verified hash metadata"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "746e8524fc176d6059a5318a8158ef57a38a462d2d8727722c6a2f2ec0453ce7",
+    "afterSha256": "746e8524fc176d6059a5318a8158ef57a38a462d2d8727722c6a2f2ec0453ce7",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R-P2-1-structured-serialization",
+    "file": "src/core/reporting/render/canonical.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "keeps already-redacted assignments valid JSON: password=\"fixture-value-8729\"",
+      "keeps already-redacted assignments valid JSON: META_API_KEY=fixture-value-8729"
+    ],
+    "failedTests": [
+      "scrubs decoded escaped passwords before serialization and rejects independently hashed unsafe saved reports",
+      "scrubs a Unicode-escaped password key after decoding saved input",
+      "keeps already-redacted assignments valid JSON: password=\"fixture-value-8729\"",
+      "keeps already-redacted assignments valid JSON: META_API_KEY=fixture-value-8729"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "746e8524fc176d6059a5318a8158ef57a38a462d2d8727722c6a2f2ec0453ce7",
+    "afterSha256": "746e8524fc176d6059a5318a8158ef57a38a462d2d8727722c6a2f2ec0453ce7",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R-P2-2-relative-separators",
+    "file": "src/core/reporting/render/redaction.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": [
+      "preserves complete workspace-relative Windows filenames before scrubbing and hashes equivalent paths identically"
+    ],
+    "failedTests": [
+      "preserves complete workspace-relative Windows filenames before scrubbing and hashes equivalent paths identically",
+      "matches Windows roots case-insensitively in both separators and refuses sibling-prefix matches"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
+    "afterSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R-P3-East-Asian-Width",
+    "file": "src/core/reporting/render/text.ts",
+    "testFile": "test/unit/render.text.test.ts",
+    "expectedFailedTests": [
+      "wraps Unicode East Asian Width fullwidth/wide characters and emoji at 80 cells: ￥",
+      "wraps Unicode East Asian Width fullwidth/wide characters and emoji at 80 cells: 　"
+    ],
+    "failedTests": [
+      "wraps long unbroken text, CJK and emoji at 80 cells and removes terminal controls",
+      "wraps Unicode East Asian Width fullwidth/wide characters and emoji at 80 cells: ￥",
+      "wraps Unicode East Asian Width fullwidth/wide characters and emoji at 80 cells: 　"
+    ],
+    "exitCode": 1,
+    "beforeSha256": "7370c1acd81a7a2170dcc645feeb5253885f86da021a1a46281c7f3b3151017c",
+    "afterSha256": "7370c1acd81a7a2170dcc645feeb5253885f86da021a1a46281c7f3b3151017c",
+    "restoredByteExact": true
+  },
+  {
+    "id": "RVM113R-structured-object-keys",
+    "file": "src/core/reporting/render/redaction.ts",
+    "testFile": "test/unit/reportRedaction.test.ts",
+    "expectedFailedTests": ["scrubs source dictionary keys and refuses collisions after redaction"],
+    "failedTests": ["scrubs source dictionary keys and refuses collisions after redaction"],
+    "exitCode": 1,
+    "beforeSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
+    "afterSha256": "2b51a4b0b799913b01ec9bfcffd60721674743fb58c3f343cfae0b04b99bc391",
+    "restoredByteExact": true
+  }
+]

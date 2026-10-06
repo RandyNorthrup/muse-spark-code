@@ -50,6 +50,20 @@ describe('report terminal text', () => {
     const output = RENDERERS.text(finalizeReport(document), 'en', REPORT_THEME)
     expect(output).toContain(`${emoji}e\u{301}${emoji}`)
   })
+  it.each(['\u{FFE5}', '\u{3000}', '😀'])(
+    'wraps Unicode East Asian Width fullwidth/wide characters and emoji at 80 cells: %s',
+    (char) => {
+      const document = renderFixture()
+      document.header.scope = char.repeat(90)
+      const output = RENDERERS.text(finalizeReport(document), 'en', REPORT_THEME)
+      for (const line of output.split('\n')) {
+        let columns = 0
+        for (const point of line) columns += point === char ? 2 : 1
+        expect(columns).toBeLessThanOrEqual(REPORT_TEXT_COLUMNS)
+      }
+      expect(output.split(char).length - 1).toBe(90)
+    },
+  )
   it.each(TABLE_LOCALES)(
     'uses the explicit %s table, numbers, money, units and counts without installing locale state',
     async (locale) => {

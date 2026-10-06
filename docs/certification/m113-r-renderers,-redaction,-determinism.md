@@ -26,13 +26,15 @@ This certifies lane R, not the whole M113 delivery or its editor wiring.
   scrub, exposed by the seven-line `createExportTextScrubber` factory.
 - `finalizeReport` validates the document, sorts rows/cell keys/source
   references/source records by code unit, puts typed timestamps and source
-  observations at the report offset, scrubs canonical bytes, then hashes.
+  observations at the report offset, scrubs decoded values/keys, serializes
+  canonically, then hashes (corrected after RVM113R below).
   The hash input has two-space schema order, LF and a final newline; it
   excludes exactly `/header/asOf` and `/header/contentHash`. Narrative
   lists and section/column order retain their declared meaning.
 - `verifyReport` validates saved input, checks its scrubbed canonical hash
-  and refuses unredacted content. Malformed input and scrub-parser failures
-  use fixed errors without quoting source text. A payload field named
+  and refuses unredacted content after re-walking decoded values/keys.
+  Malformed input and key collisions use fixed errors without quoting source
+  text. A payload field named
   `contentHash` and every source digest still get scrubbed. Only the
   structural hash is reinserted after the output scrub.
 - Markdown escapes table/markup syntax. HTML escapes entities and validates
@@ -200,3 +202,74 @@ All five typecheck projects and changed-file ESLint passed again after
 this correction. The production build passed again with the same shipped
 sizes and unchanged budgets. The full base-to-working-tree diff check now
 exits 0.
+
+## Review RVM113R corrections (FIXM113R, 2026-10-06)
+
+Authority: the current `C:/lanes/_ctx/M113R.rig.md` and the complete
+`C:/lanes/_ctx/codex/RVM113R.report.md`, starting from `9b83bc3b0`.
+All four findings are fixed; **no review finding is deferred**. These
+corrections supersede the earlier canonical-byte scrub and parser-failure
+drill claims. No schema, dependency, timeout, gate or budget was changed.
+
+| Finding                            | Fixed behavior and regression                                                                                                                                                                                                                                                                                                                                                                             | Red drill                                                                                    |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| P1, escaped password               | `scrubCanonical` walks cloned, decoded report values and object keys with the shared `scrubFields`/export scrubber before JSON serialization. Independently hashed unsafe saved input and every renderer refuse the reviewer's password; clean finalization removes it in all four formats. The Unicode-escaped password-key regression decodes the saved JSON and exercises the same boundary.           | Remove the structured walk: both named password regressions fail.                            |
+| P2-1, already-redacted assignments | Text scrubbing never runs on canonical JSON bytes. Source changelog `password="fixture-value-8729"` and `META_API_KEY=fixture-value-8729` scrub once, finalize, serialize as valid JSON, and round-trip through verification unchanged.                                                                                                                                                                   | Replace the structured walk with canonical-byte scrubbing: both named assignment cases fail. |
+| P2-2, Windows relative paths       | Map the complete known workspace path before the export scrub, normalize slash/backslash runs, and match Windows root case-insensitively. The spaced root `C:/Users/Private Person/work` retains exactly `./src/main.ts` through snapshot/finalization, all formats and saved verification; slash/backslash spellings yield identical documents/hashes. Home/sibling/outside paths remain fully redacted. | Remove relative separator normalization: the complete-filename/hash regression fails.        |
+| P3, terminal width                 | `text.ts` contains 122 generated Unicode 16.0.0 East Asian Width W/F ranges, including default wide unassigned ranges, from the rig's installed CPython 3.14.7 `unicodedata`. Existing emoji/grapheme handling remains. New cases cover U+FFE5, U+3000 and emoji, all at 80 terminal cells.                                                                                                               | Remove the W/F table check: both named fullwidth cases fail.                                 |
+
+An additional drill disables object-key scrubbing in the reused walker and
+fails `scrubs source dictionary keys and refuses collisions after redaction`.
+Every drill runs the complete owning test file, with repository-default
+timeouts and `--maxWorkers=3`. All five exit 1 on the expected named tests,
+restore the saved source bytes in `finally`, and compare equal SHA-256
+digests: [structured receipts](m113-r-review-drills.json).
+
+The retired JSON-parser-failure test mocked a parser that the structured
+pipeline no longer calls. The saved-input validation/error tests remain;
+the new assignment round trips prove serialization stays valid, and the
+password tests prove decoded verification rejects unsafe input. No gate
+or existing validation boundary was weakened.
+
+The width table is reproducible without a dependency or network access:
+enumerate code points `0..0x10ffff` with CPython's Unicode **16.0.0** database,
+retain `unicodedata.east_asian_width(chr(point)) in ('W', 'F')`, coalesce
+adjacent points into inclusive ranges, and emit each as a Unicode-flagged
+regex alternative. Each range has its own class so escaped combining marks
+cannot resemble a composed character in the regex source. The source
+version is also committed beside the table in `text.ts`.
+
+Initial default-timeout controls reproduced the review's escaped-password
+leak, both assignment parse failures, the lost Windows filename and both
+fullwidth overflow cases. The final scoped gate results follow below.
+
+### Final review-fix verification on win11
+
+- **176 tests passed** across the nine owned renderer/scrub/contract files,
+  in three runs of at most three files with `--maxWorkers=3`, default
+  repository timeouts and no filter/skip: redaction + JSON + text (**73**),
+  determinism + HTML + Markdown (**42**), and M84 session transfer + report
+  schema + report contracts (**61**). All 60 goldens and cross-process
+  TZ/LANG comparisons pass. After factoring duplicated password-fixture
+  setup, all five drills and the 73-test affected run pass again.
+- All five `npm run typecheck` projects pass; the unit project is rechecked
+  after the final test-only fixture factoring. Changed-file ESLint and
+  Prettier pass. jscpd initially detected that repeated setup, then passes
+  with **zero clones** after the fix, at the unchanged zero threshold.
+  Plain knip passes. The schema and help reference checks are current.
+- `npm run build` exits 0, including size, split, host-global and notices
+  checks. Extension **439.5/600 KiB**, Model API **446.9/475**, ACP
+  **821.5/850**, startup **797.7/900**, deferred JS **50.0/50**, shared
+  English **53.3/125**. R's renderer still has no shipped activation import;
+  W retains the joined reporting-engine bundle measurement/registration.
+- Localization still fails only on the **seven existing unused W-owned
+  report manifest keys**; all 14 UI tables pass. The host API inventory
+  still fails only on the already-recorded **`node:crypto` 46 to 47** row.
+  These are the original named W handoffs, not new review residuals.
+  PLAN §7 records the bounded certification and the lead's full-quality
+  integration obligation. No gate or inventory is edited to hide them.
+- No dependency/tool install, network request, credential read, live/paid
+  attempt, merge, rebase, push, stash or git-config write occurred. Product
+  README/CHANGELOG/catalogue and wiring remain the existing named W
+  handoff; this internal bug fix adds no command, setting or feature.
+  Commits use explicit file paths and the unchanged normal hooks.

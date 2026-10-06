@@ -7,16 +7,19 @@ export interface ReportRedaction {
   readonly localRoots?: readonly string[]
 }
 
-/** Known roots become portable paths; the export scrub removes unknown roots. */
+/** Workspace paths become portable; the export scrub removes outside paths. */
 export function reportScrubber(options: ReportRedaction = {}): (text: string) => string {
-  const scrub = createExportTextScrubber({ redact: true, localRoots: options.localRoots ?? [] })
-  const roots = [
-    { root: options.workspaceRoot, replacement: './' },
-    { root: options.homeRoot, replacement: '~/' },
-  ]
+  const scrub = createExportTextScrubber({
+    redact: true,
+    localRoots: [
+      ...(options.localRoots ?? []),
+      ...(options.homeRoot === undefined ? [] : [options.homeRoot]),
+    ],
+  })
+  const roots = [{ root: options.workspaceRoot, replacement: './' }]
     .flatMap(({ root, replacement }) => {
       if (root === undefined) return []
-      const normalized = root.replaceAll('\\', '/').replace(/\/+$/, '')
+      const normalized = root.replaceAll(/[\\/]+/g, '/').replace(/\/+$/, '')
       // Bare roots would match ordinary text. Unknown paths still pass the export scrub.
       if (normalized.split('/').filter(Boolean).length < 2) return []
       const escaped = normalized
@@ -26,25 +29,33 @@ export function reportScrubber(options: ReportRedaction = {}): (text: string) =>
       return [
         {
           pattern: new RegExp(
-            String.raw`(?<![\w./:])${escaped}(?=[\\/]|[\s"'<>]|$)[\\/]*`,
+            String.raw`(?<![\w./:])${escaped}(?=[\\/]|[\s"'<>]|$)(?:[\\/]+[^\s"'<>|?*]*)?`,
             /^[A-Za-z]:/.test(normalized) ? 'gi' : 'g',
           ),
           replacement,
+          rootLength: normalized.length,
         },
       ]
     })
     .toSorted((a, b) => b.pattern.source.length - a.pattern.source.length)
   return (text) => {
     let clean = text
-    for (const { pattern, replacement } of roots) {
-      clean = clean.replaceAll(pattern, () => replacement)
+    for (const { pattern, replacement, rootLength } of roots) {
+      clean = clean.replaceAll(
+        pattern,
+        (match) =>
+          `${replacement}${match
+            .replaceAll(/[\\/]+/g, '/')
+            .slice(rootLength)
+            .replace(/^\/+/, '')}`,
+      )
     }
     return scrub(clean)
   }
 }
 
-/** Clone preserves the normalized contract; every string value is scrubbed in place. */
-function scrubFields(value: unknown, scrub: (text: string) => string): void {
+/** Walk decoded strings and object keys in an already-cloned value tree. */
+export function scrubFields(value: unknown, scrub: (text: string) => string): void {
   if (typeof value !== 'object' || value === null) return
   for (const key of Object.keys(value)) {
     const field: unknown = Reflect.get(value, key)

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { REPORT_FORMATS } from '../../src/shared/constants'
@@ -19,7 +20,119 @@ const CANARY = `LLM_${'x'.repeat(32)}`
 const ACCOUNT = 'private.person@example.invalid'
 const DIGEST = 'a'.repeat(64)
 
+/** Saved input hashes are public; compute one without using the redacting finalizer. */
+function unsafePasswordReport(password: string) {
+  const document = renderFixture()
+  document.sections[0]!.rows[0]!.cells['name'] = {
+    type: 'text',
+    value: JSON.stringify({ password }),
+  }
+  const { asOf: _asOf, contentHash: _contentHash, ...header } = document.header
+  document.header.contentHash = createHash('sha256')
+    .update(`${JSON.stringify({ ...document, header }, undefined, 2)}\n`)
+    .digest('hex')
+  return document
+}
+
 describe('report snapshot and output scrub', () => {
+  it('scrubs decoded escaped passwords before serialization and rejects independently hashed unsafe saved reports', () => {
+    const password = 'fixture-value-8729'
+    const document = unsafePasswordReport(password)
+    const encoded = JSON.stringify(document)
+    const saved: unknown = JSON.parse(encoded)
+    expect(() => verifyReport(saved)).toThrow('Report content hash or redaction mismatch')
+    const renderers = createReportRenderers({ textForLocale: () => EN })
+    for (const format of REPORT_FORMATS) {
+      expect(() => renderers[format](document, 'en', REPORT_THEME)).toThrow(
+        'Report content hash or redaction mismatch',
+      )
+      const clean = finalizeReport(document)
+      const output = renderers[format](clean, 'en', REPORT_THEME)
+      expect(output).not.toContain(password)
+      expect(output).toContain('[redacted]')
+      expect(output).toContain(clean.header.contentHash)
+    }
+  })
+  it('scrubs a Unicode-escaped password key after decoding saved input', () => {
+    const password = 'fixture-unicode-8729'
+    const document = unsafePasswordReport(password)
+    const encoded = JSON.stringify(document).replaceAll('password', String.raw`pass\u0077ord`)
+    expect(encoded).not.toContain('password')
+    const saved: unknown = JSON.parse(encoded)
+    expect(saved).toEqual(document)
+    expect(() => verifyReport(saved)).toThrow('Report content hash or redaction mismatch')
+    const clean = finalizeReport(document)
+    expect(JSON.stringify(clean)).not.toContain(password)
+    expect(clean.sections[0]!.rows[0]!.cells['name']).toEqual({
+      type: 'text',
+      value: '{"password":"[redacted]"}',
+    })
+    expect(verifyReport(clean)).toEqual(clean)
+  })
+  it.each(['password="fixture-value-8729"', 'META_API_KEY=fixture-value-8729'])(
+    'keeps already-redacted assignments valid JSON: %s',
+    (assignment) => {
+      const snapshot = buildSourceSnapshot({
+        changelog: availableSource('changelog', {
+          sections: [{ version: 'Unreleased', date: null, lines: [assignment] }],
+        }),
+      })
+      const cleanSnapshot = scrubSourceSnapshot(snapshot)
+      const line = cleanSnapshot.sources.changelog.data?.sections[0]?.lines[0]
+      if (line === undefined) throw new Error('Changelog fixture is unavailable')
+      expect(line).not.toContain('fixture-value-8729')
+      const document = renderFixture()
+      document.sections[0]!.rows[0]!.cells['name'] = { type: 'text', value: line }
+      const clean = finalizeReport(document)
+      const output = createReportRenderers({ textForLocale: () => EN }).json(
+        clean,
+        'en',
+        REPORT_THEME,
+      )
+      const saved: unknown = JSON.parse(output)
+      expect(verifyReport(saved)).toEqual(clean)
+      expect(clean.sections[0]!.rows[0]!.cells['name']).toEqual({ type: 'text', value: line })
+    },
+  )
+  it('preserves complete workspace-relative Windows filenames before scrubbing and hashes equivalent paths identically', () => {
+    const options = {
+      workspaceRoot: 'C:/Users/Private Person/work',
+      homeRoot: 'C:/Users/Private Person',
+    }
+    const paths = [
+      String.raw`c:\users\PRIVATE PERSON\work\src\main.ts`,
+      'C:/Users/Private Person/work/src/main.ts',
+    ]
+    const reports = paths.map((file) => {
+      const snapshot = buildSourceSnapshot({
+        changelog: availableSource('changelog', {
+          sections: [{ version: 'Unreleased', date: null, lines: [file] }],
+        }),
+      })
+      const cleanSnapshot = scrubSourceSnapshot(snapshot, options)
+      const line = cleanSnapshot.sources.changelog.data?.sections[0]?.lines[0]
+      expect(line).toBe('./src/main.ts')
+      if (line === undefined) throw new Error('Changelog fixture is unavailable')
+      const document = renderFixture()
+      document.header.scope = file
+      document.sections[0]!.rows[0]!.cells['name'] = { type: 'text', value: line }
+      const clean = finalizeReport(document, options)
+      const renderers = createReportRenderers({ textForLocale: () => EN }, options)
+      for (const format of REPORT_FORMATS) {
+        const output = renderers[format](clean, 'en', REPORT_THEME)
+        expect(output).toContain('./src/main.ts')
+        expect(output).not.toContain('Private Person')
+      }
+      expect(verifyReport(clean, options)).toEqual(clean)
+      return clean
+    })
+    expect(reports[0]).toEqual(reports[1])
+    const scrub = reportScrubber(options)
+    expect(scrub(String.raw`C:\Users\Private Person\other\private.txt`)).not.toContain(
+      'private.txt',
+    )
+    expect(scrub(String.raw`D:\outside\private.txt`)).not.toContain('private.txt')
+  })
   it('scrubs the final formatted output boundary', () => {
     const output = scrubReportOutput(`<p>${CANARY} ${ACCOUNT} ${DIGEST}</p>`, {})
     for (const secret of [CANARY, ACCOUNT, DIGEST]) expect(output).not.toContain(secret)
@@ -181,7 +294,7 @@ describe('report snapshot and output scrub', () => {
       workspaceRoot: 'C:/Users/Private Person/work',
       homeRoot: 'C:/Users/Private Person',
     })
-    expect(scrub(String.raw`c:\users\PRIVATE PERSON\work\src\main.ts`)).toContain('./src')
+    expect(scrub(String.raw`c:\users\PRIVATE PERSON\work\src\main.ts`)).toBe('./src/main.ts')
     expect(scrub('C:/Users/Private Person/work/src/main.ts')).toBe('./src/main.ts')
     expect(scrub('C:/Users/Private Person/work-other/private.txt')).not.toContain('./-other')
     expect(scrub('/srv/unknown/private.txt')).not.toContain('/srv')

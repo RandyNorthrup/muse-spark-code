@@ -11375,8 +11375,11 @@ Needs: <items>.`).
 
 8. **Redaction on every renderer.** Every string from a source passes the
    export's scrub (credential shapes, the key digest, account ids, local
-   roots shown as `~` or the workspace's name) once when the snapshot is
-   taken, and each renderer's output passes it again. Paths are
+   workspace paths shown relative, outside paths redacted) once when the snapshot is
+   taken. Decoded report strings and object keys pass it again before
+   canonical serialization and hashing; saved input is decoded and re-walked
+   before verification. Text/Markdown/HTML output passes it again, but the
+   text scrub never runs on canonical JSON bytes (RVM113R, 2026-10-06). Paths are
    workspace-relative. Commit subjects, pull request titles and changelog
    lines are data: shown verbatim after the scrub, and escaped for each
    format (Markdown table pipes, HTML entities).
@@ -27556,6 +27559,19 @@ milestone. It lands in three deliveries:
   (M108), security (M109), fleet's devices and nodes (M100, M110a), the TUI
   (M110a0's lane T), Muse Desktop (M111b).
 
+**Lane R review corrections (RVM113R, 2026-10-06).** Fix the P1 and both
+P2 findings by scrubbing decoded report strings and object keys before
+canonical serialization and hashing, and re-walking decoded saved input
+during verification. Never apply the text scrubber to canonical JSON bytes;
+only `/header/contentHash` is exempt, and hashing still excludes that path
+and `/header/asOf`. Normalize known workspace paths before the shared scrub,
+with Windows case-insensitive root matching and portable relative separators.
+Fix P3 terminal widths using a generated Unicode East Asian Width W/F table
+with its source version, preserving graphemes and emoji width. No dependency
+or guard change. Every finding gets a default-timeout regression and a
+byte-exact red drill in the lane R certification; W retains the existing
+product-documentation and integration-gate handoffs.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
@@ -27646,7 +27662,8 @@ M110, and fake providers for every adapter.
     them. CI is a list of runs scoped to HEAD, default branch or release tag,
     each naming its ref, SHA, workflow, conclusion and URL. MHP 1.2 remains
     host-initiated; saved-id `reports/get` and two-id `reports/compare` share
-    history's workspace authorization. Scrub canonical output before hashing;
+    history's workspace authorization. Scrub decoded values before canonical
+    serialization and hashing (RVM113R, 2026-10-06);
     only the schema path `/header/contentHash` is exempt from scrubbing, and
     hashing excludes `/header/asOf` and `/header/contentHash`. Add token and
     current/lagging labels in all 14 languages. R owns the actual renderer;
@@ -28711,6 +28728,17 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-R-RVM113R bounded rig certification (2026-10-06).** The lane brief
+reserves full `npm run quality` to the lead and confines changes to R's
+files. Default-timeout regressions, byte-exact drills, all-project
+typechecking, scoped lint/format, schema/reference freshness, dead code,
+zero-clone duplication and production size/split/host-global/notices gates
+run directly on win11. The seven pre-existing unused report manifest keys
+and the existing `node:crypto` inventory mismatch (46 to 47) remain named
+W integration handoffs in `docs/certification/m113-r-renderers,-redaction,-determinism.md`;
+neither gate is weakened or claimed green. W's complete integration gate
+must pass before the milestone ships. RVM113R has no deferred finding.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -30079,6 +30107,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-R-review-RVM113R (2026-10-06).** The P1, both P2 findings and P3
+  are fixed with no review residuals. Report strings and object keys are
+  scrubbed as structured values, then serialized and hashed; saved input is
+  re-walked after decoding. Only `/header/contentHash` is exempt. Known
+  workspace paths retain normalized relative filenames, with Windows
+  case-insensitive root matching; paths outside the workspace remain
+  redacted. Terminal width uses a generated Unicode 16.0.0 W/F table and
+  emoji properties, preserving graphemes. Default-timeout tests and five
+  byte-exact red drills are recorded in
+  `docs/certification/m113-r-renderers,-redaction,-determinism.md` and
+  `docs/certification/m113-r-review-drills.json`. The existing shape-only
+  scrub limit and W's shipping, product-doc and integration-gate handoffs
+  remain; this lane adds no secret-free-prose claim or shipped command.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

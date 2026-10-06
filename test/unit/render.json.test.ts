@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { fromJSONSchema } from 'zod'
 import { toJSONSchema } from 'zod/mini'
 import schema from '../../docs/schemas/report-v1.schema.json'
@@ -13,17 +13,6 @@ import { GOLDEN_ROOT, RENDERERS, REPORT_THEME, renderFixture } from './reportRen
 import { valueFixture } from './reportRenderFixtures'
 
 describe('canonical report JSON and saved input', () => {
-  it('refuses a scrubbed JSON parse failure without quoting source text', () => {
-    const document = renderFixture()
-    const parser = vi.spyOn(JSON, 'parse').mockImplementation(() => {
-      throw new Error(`LLM_${'x'.repeat(32)}`)
-    })
-    try {
-      expect(() => finalizeReport(document)).toThrow(/^Invalid scrubbed report$/)
-    } finally {
-      parser.mockRestore()
-    }
-  })
   it('refuses malformed saved input without quoting source text', () => {
     const canary = `LLM_${'x'.repeat(32)}`
     expect(() => verifyReport({ ...renderFixture(), [canary]: true })).toThrow(
