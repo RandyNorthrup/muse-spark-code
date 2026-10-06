@@ -128,6 +128,11 @@ export const CONTEXT_KEYS = {
 } as const
 
 // Built-in VS Code commands the extension invokes.
+// Theia 1.57's reveal/visible-editor notification race (M103A2).
+export const EDITOR_REVEAL_MAX_MS = 2000
+export const EDITOR_REVEAL_POLL_MS = 50
+export const THEIA_SHOW_DOCUMENT_FAILURE = 'Failed to show text document '
+
 export const VSCODE_COMMANDS = {
   focusActiveEditorGroup: 'workbench.action.focusActiveEditorGroup',
   setContext: 'setContext',

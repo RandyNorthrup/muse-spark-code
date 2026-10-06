@@ -141,6 +141,7 @@ import {
   readNetworkFacts,
   readProxySettings,
 } from './host/networkPosture'
+import { showEditorDocument } from './host/editor/showDocument'
 import { openWalkthrough } from './host/commands/openWalkthrough'
 import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
@@ -2638,9 +2639,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
-          await vscode.window.showTextDocument(
-            await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)),
-          )
+          await showEditorDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)))
         },
         runInit: () => {
           check()

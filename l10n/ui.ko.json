@@ -1426,7 +1426,7 @@
   "renameCardMore": {
     "other": "{files} 외 파일 {count}개"
   },
-  "codeIntelNoService": "{path}에 응답한 언어 서비스가 없거나 파일에 선언된 기호가 없습니다.",
+  "codeIntelNoService": "{path}에 응답한 언어 서비스가 없거나 파일에 선언된 기호가 없습니다. 대신 search와 read_file을 사용하세요.",
   "codeIntelTimedOut": "언어 서비스가 {seconds}초 안에 응답하지 않았습니다.",
   "repoMapNoService": "작업 영역 기호에 응답한 언어 서비스가 없습니다.",
   "imageBuyTitle": "Muse가 이미지 {path} 생성을 요청합니다",

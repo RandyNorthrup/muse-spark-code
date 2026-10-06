@@ -166,7 +166,13 @@ async function callHierarchy(
 async function rename(uri: vscode.Uri, at: CodePosition, newName: string): Promise<RenameEdits> {
   const position = toPosition(at)
   // Rejects with the provider's reason ("You cannot rename this element.").
-  await run(VSCODE_COMMANDS.prepareRename, uri, position)
+  const commands = await vscode.commands.getCommands(true)
+  if (!commands.includes(VSCODE_COMMANDS.executeDocumentRenameProvider)) {
+    return { files: [], fileOperations: 'none' }
+  }
+  if (commands.includes(VSCODE_COMMANDS.prepareRename)) {
+    await run(VSCODE_COMMANDS.prepareRename, uri, position)
+  }
   const edit = await run<vscode.WorkspaceEdit>(
     VSCODE_COMMANDS.executeDocumentRenameProvider,
     uri,

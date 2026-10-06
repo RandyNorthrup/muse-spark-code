@@ -1520,7 +1520,7 @@
     "many": "{files} e mais {count} de arquivos",
     "other": "{files} e mais {count} arquivos"
   },
-  "codeIntelNoService": "Nenhum serviço de linguagem respondeu para {path}, ou o arquivo não declara símbolos.",
+  "codeIntelNoService": "Nenhum serviço de linguagem respondeu para {path}, ou o arquivo não declara símbolos. Use search e read_file em vez disso.",
   "codeIntelTimedOut": "O serviço de linguagem não respondeu em {seconds} segundos.",
   "repoMapNoService": "Nenhum serviço de linguagem respondeu com os símbolos do espaço de trabalho.",
   "imageBuyTitle": "O Muse quer criar a imagem {path}",

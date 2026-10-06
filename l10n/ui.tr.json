@@ -1473,7 +1473,7 @@
     "one": "{files} ve {count} dosya daha",
     "other": "{files} ve {count} dosya daha"
   },
-  "codeIntelNoService": "{path} için hiçbir dil hizmeti yanıt vermedi ya da dosya hiç sembol bildirmiyor.",
+  "codeIntelNoService": "{path} için hiçbir dil hizmeti yanıt vermedi ya da dosya hiç sembol bildirmiyor. Bunun yerine search ve read_file kullanın.",
   "codeIntelTimedOut": "Dil hizmeti {seconds} saniye içinde yanıt vermedi.",
   "repoMapNoService": "Çalışma alanı sembolleri için hiçbir dil hizmeti yanıt vermedi.",
   "imageBuyTitle": "Muse şu görüntüyü oluşturmak istiyor: {path}",

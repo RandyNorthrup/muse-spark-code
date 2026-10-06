@@ -19,6 +19,20 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Arduino IDE file reveals tolerate the measured Theia editor-notification
+  race. Temporary clean documents close through their own editor handle when
+  the host omits tab identities. Formatting validates the captured Monaco
+  edit shape and converts its one-based ranges to native Positions.
+- Semantic rename detects missing provider/prepare commands, with translated
+  search/read_file guidance when no language service answers. The real Arduino
+  follow-up passes 32/34 integration tests with explicit absent-TypeScript
+  expectations; two JSON diagnostics cases remain failing, so qualification
+  is incomplete.
+- Arduino qualification isolates CLI data/downloads and supports a public
+  cached offline run with external requests denied; runner logs survive a
+  slow IDE shutdown.
+
+
 - Hosts without the native walkthrough command get a local getting-started
   page with sign-in guidance, shortcuts and chat/rules actions. File opening
   passes the opened document to the editor API.

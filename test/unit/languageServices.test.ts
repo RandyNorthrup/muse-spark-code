@@ -54,6 +54,7 @@ const virtualUri = { scheme: 'untitled', fsPath: 'Untitled-1' }
 
 beforeEach(() => {
   answers.clear()
+  vi.mocked(vscode.commands.getCommands).mockResolvedValue(Object.values(VSCODE_COMMANDS))
   vi.mocked(vscode.commands.executeCommand).mockReset()
   vi.mocked(vscode.commands.executeCommand).mockImplementation(((
     command: string,
@@ -218,6 +219,29 @@ describe('vscodeLanguageServices', () => {
     expect(await services.callHierarchy(FILE, { line: 7, character: 0 }, 'incoming')).toMatchObject(
       { item: { location: { path: '/ws/b.ts' } }, otherItems: 2 },
     )
+  })
+
+  it('uses an available rename provider without requiring prepareRename, and refuses absent providers', async () => {
+    vi.mocked(vscode.commands.getCommands).mockResolvedValue([
+      VSCODE_COMMANDS.executeDocumentRenameProvider,
+    ])
+    answers.set(VSCODE_COMMANDS.prepareRename, () => {
+      throw new Error('unregistered command')
+    })
+    const edit = { range: range(0, 16, 21), newText: 'welcome' }
+    answers.set(VSCODE_COMMANDS.executeDocumentRenameProvider, () =>
+      vsCodeWorkspaceEdit([{ _type: 2, uri: fileUri, edit }]),
+    )
+    expect(await services.rename(FILE, AT, 'welcome')).toMatchObject({
+      files: [{ path: FILE }],
+      fileOperations: 'none',
+    })
+    vi.mocked(vscode.commands.getCommands).mockResolvedValue([])
+    vi.mocked(vscode.commands.executeCommand).mockRejectedValue(new Error('unregistered command'))
+    expect(await services.rename(FILE, AT, 'welcome')).toEqual({
+      files: [],
+      fileOperations: 'none',
+    })
   })
 
   it("reads a rename's edits, notices file operations, and passes a refusal on", async () => {

@@ -1426,7 +1426,7 @@
   "renameCardMore": {
     "other": "{files} 及另外 {count} 個檔案"
   },
-  "codeIntelNoService": "沒有語言服務對 {path} 作出回應，或者該檔案未宣告任何符號。",
+  "codeIntelNoService": "沒有語言服務對 {path} 作出回應，或者該檔案未宣告任何符號。 請改用 search 和 read_file。",
   "codeIntelTimedOut": "語言服務未在 {seconds} 秒內回應。",
   "repoMapNoService": "沒有語言服務對工作區符號作出回應。",
   "imageBuyTitle": "Muse 想要建立圖片 {path}",

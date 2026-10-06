@@ -347,12 +347,17 @@ The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Mus
 Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
 Node 20.14 and Chromium 124. Arduino supports themes officially; this full
 extension is an unsupported side-load. There is no extension store in the IDE.
-Qualification is still incomplete: the real IDE loaded the extension, but
-13 of 34 integration tests failed in language services, tabs, walkthroughs
-and machine-scoped settings. See [the Arduino certification record](docs/certification/m103-a.md)
-before using this experimental package. Machine-scoped settings are read from
-user/global settings even when the IDE accepts a workspace override; a
-repository cannot enable Bypass or paid features, or replace the CLI.
+Qualification is still incomplete: the follow-up real IDE run passes 32 of
+34 integration tests, with both JSON diagnostics cases still failing. Chat
+tabs, file opening, walkthroughs, formatting and settings scope now pass.
+Arduino has no TypeScript language service: semantic tools explain that
+limitation and direct the model to search and read_file; diagnostics with no
+report stay explicitly unchecked. Run your project's check command before
+relying on diagnostics in this experimental host. See [the follow-up
+certification record](docs/certification/m103-a2.md), including its explicit
+host expectations. Machine-scoped settings are read from user/global settings
+even when the IDE accepts a workspace override; a repository cannot enable
+Bypass or paid features, or replace the CLI.
 
 Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
 `~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
@@ -379,7 +384,12 @@ The typecheck installs pinned `@types/vscode` 1.96.0 into `temp/arduino-types/`
 and checks the shared host and integration sources without changing the
 regular project's declarations. Packaging runs the regular bundle-size,
 split, host-global, notices, localization and VSIX-size gates. The regular
-VS Code and ACP builds retain their existing floors.
+VS Code and ACP builds retain their existing floors. For offline maintainer
+qualification, the existing Arduino host runner accepts
+`MUSE_ARDUINO_OFFLINE_CACHE` pointing to a prior private test directory's
+public CLI cache. It copies only indexes, libraries and tools, isolates the
+new CLI directories, and denies external requests; it never copies account
+or credential files.
 
 #### ACP agent and editors
 

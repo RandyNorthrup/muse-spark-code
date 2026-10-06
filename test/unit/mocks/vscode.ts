@@ -110,7 +110,10 @@ export class TabInputText implements vscode.TabInputText {
   public constructor(public readonly uri: vscode.Uri) {}
 }
 
+const initiallyOpenDocuments: readonly vscode.TextDocument[] = []
+
 export const workspace = {
+  textDocuments: initiallyOpenDocuments,
   isTrusted: true,
   // The folders an export redacts (M84); none unless a test sets them.
   workspaceFolders: undefined as readonly vscode.WorkspaceFolder[] | undefined,

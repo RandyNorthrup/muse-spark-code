@@ -1,5 +1,6 @@
 // Install into a private test home's ~/.arduinoIDE/plugins/, then drive
 // the real IDE's extensionTestsPath hook. The user's IDE settings stay untouched.
+import { createServer } from 'node:http'
 import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -54,6 +55,7 @@ writeFileSync(
     'museSpark.museBinaryPath': fakeMuse,
     'security.workspace.trust.enabled': false,
     'museSpark.showWhatsNewOnUpdate': false,
+    'arduino.checkForUpdates': false,
   }),
 )
 writeFileSync(
@@ -80,6 +82,43 @@ await build({
 })
 const resultFile = path.join(work, 'integration-result.json')
 rmSync(resultFile, { force: true })
+// An explicit public CLI cache permits offline qualification. Copy only
+// board/tool/library assets and indexes, never account or credential files.
+const offlineCache = process.env.MUSE_ARDUINO_OFFLINE_CACHE
+let proxy
+let egress
+if (offlineCache !== undefined) {
+  for (const file of [
+    'package_index.json',
+    'package_index.json.sig',
+    'library_index.json',
+    'library_index.json.sig',
+  ]) {
+    const source = path.join(offlineCache, 'arduino-data', file)
+    if (!existsSync(source)) throw new Error(`Offline Arduino cache is missing ${file}`)
+    mkdirSync(path.join(work, 'arduino-data'), { recursive: true })
+    cpSync(source, path.join(work, 'arduino-data', file))
+  }
+  for (const folder of ['packages', 'libraries']) {
+    const source = path.join(offlineCache, 'arduino-data', folder)
+    if (existsSync(source))
+      cpSync(source, path.join(work, 'arduino-data', folder), { recursive: true })
+  }
+  const downloads = path.join(offlineCache, 'arduino-downloads')
+  if (existsSync(downloads))
+    cpSync(downloads, path.join(work, 'arduino-downloads'), { recursive: true })
+  egress = createServer((_request, response) => {
+    response.writeHead(403)
+    response.end()
+  })
+  egress.on('connect', (_request, socket) => {
+    socket.end('HTTP/1.1 403 Forbidden\r\n\r\n')
+  })
+  await new Promise((resolve) => egress.listen(0, '127.0.0.1', resolve))
+  const address = egress.address()
+  if (address === null || typeof address === 'string') throw new Error('No private egress address')
+  proxy = `http://127.0.0.1:${address.port}`
+}
 const app = await electron.launch({
   executablePath: path.resolve(executable),
   args: [
@@ -88,11 +127,24 @@ const app = await electron.launch({
     `--extensionTestsPath=${runner}`,
     '--no-sandbox',
     '--disable-gpu',
+    ...(proxy === undefined ? [] : [`--proxy-server=${proxy}`]),
     path.join(workspace, 'workspace.ino'),
   ],
   env: {
     ...process.env,
     THEIA_CONFIG_DIR: config,
+    ARDUINO_DIRECTORIES_DATA: path.join(work, 'arduino-data'),
+    ARDUINO_DIRECTORIES_DOWNLOADS: path.join(work, 'arduino-downloads'),
+    ARDUINO_DIRECTORIES_USER: path.join(testHome, 'Arduino'),
+    ...(proxy !== undefined && {
+      ARDUINO_NETWORK_PROXY: proxy,
+      HTTP_PROXY: proxy,
+      HTTPS_PROXY: proxy,
+      NO_PROXY: '127.0.0.1,localhost,::1',
+      http_proxy: proxy,
+      https_proxy: proxy,
+      no_proxy: '127.0.0.1,localhost,::1',
+    }),
     XDG_CONFIG_HOME: path.join(work, 'fake-muse/config'),
     MUSE_ARDUINO_RESULT: resultFile,
     MUSE_ARDUINO_TEST_CLI_RUNNER: testCliRunner,
@@ -102,9 +154,11 @@ const app = await electron.launch({
 const log = []
 app.process().stdout?.on('data', (bytes) => {
   log.push(bytes.toString())
+  writeFileSync(path.join(work, 'arduino.log'), log.join(''))
 })
 app.process().stderr?.on('data', (bytes) => {
   log.push(bytes.toString())
+  writeFileSync(path.join(work, 'arduino.log'), log.join(''))
 })
 try {
   const page = await app.firstWindow()
@@ -121,6 +175,17 @@ try {
   if (result.error || result.stats?.failures !== 0)
     throw new Error('Arduino integration tests failed')
 } finally {
-  await app.close()
   writeFileSync(path.join(work, 'arduino.log'), log.join(''))
+  const close = async () => {
+    await app.close()
+    return true
+  }
+  const isClosed = await Promise.race([close(), setTimeout(10_000, false, { ref: false })])
+  if (!isClosed) app.process().kill('SIGKILL')
+  if (egress !== undefined) {
+    egress.closeAllConnections()
+    await new Promise((resolve, reject) =>
+      egress.close((error) => (error ? reject(error) : resolve())),
+    )
+  }
 }

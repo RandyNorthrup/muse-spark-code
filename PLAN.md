@@ -15196,6 +15196,19 @@ compiler, both unchanged VSIX budgets and byte-exact red drills. No model,
 credential or physical-device calls; the lead owns the full quality gate.
 Evidence: `docs/certification/m103-a2.md`.
 
+Arduino 2.3.10 ships JSON/C++ services but no TypeScript language definition
+or provider, and no public rename-provider commands. Do not invent semantic
+answers. The TypeScript compiler from the installed VS Code is 17 MiB
+uncompressed and cannot be added within the existing 2.15 MiB VSIX cap;
+a consented language-server acquisition belongs to D84/M104's broker. For
+this host, the same named tests must prove explicit no-service refusals,
+no rename writes and an actionable translated search/file fallback; the
+verify test must prove that an unprovided language remains unchecked,
+while retaining real JSON diagnostics/formatting assertions. Record this
+as a capability limit, not proof of full TypeScript parity. No provider is
+silently installed and no test is skipped. Native VS Code expectations
+remain unchanged.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -15608,6 +15621,19 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M103A2 qualification (2026-10-05, macmini).** The lane brief assigns the
+complete quality/coverage gate to the lead; focused owning tests, all typechecks
+including the isolated 1.96 floor, lint, localization, host inventory, builds
+and both unchanged VSIX budgets run here. Arduino's missing TypeScript provider
+has explicit host expectations and translated search/read_file guidance, not
+invented semantic results. JSON diagnostics still fail after document reveal
+and installed-provider activation attempts; stop that path under the brief's
+two-failed-fixes rule. Remove the ineffective activation attempt and retain
+both failing assertions. No timeout, skip or diagnostics expectation is
+relaxed. Qualification stays incomplete. The editor-specific clean temporary
+document close uses the deprecated but present TextEditor.hide only when the
+host omits tab identities; §8 records this bounded exception.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -16092,6 +16118,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 ## 8. Escape hatches register
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M103A2 location                   | Escape hatch                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                          | Date       |
+| --------------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/editor/verifyEditor.ts` | Two `eslint-disable-next-line @typescript-eslint/no-deprecated` for `TextEditor.hide` | Arduino/Theia omits tab input identities. Its still-available editor-specific hide API closes only our new clean temporary editor, after recording whether its document was already open. Closing the active editor could close the user’s file. Native tabGroups.close remains preferred. Unit controls cover existing and dirty editors; the real IDE qualifies the fallback. | 2026-10-05 |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |

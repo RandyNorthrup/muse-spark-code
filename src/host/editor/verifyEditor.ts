@@ -15,6 +15,8 @@
 // never clean (the M68 review).
 
 import * as vscode from 'vscode'
+import * as z from 'zod/mini'
+import { showEditorDocument } from './showDocument'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry } from '../../core/diagnostics'
 import { redactSecrets } from '../../core/redact'
 import { isCodeLoading } from '../../core/verify/codeFiles'
@@ -27,6 +29,8 @@ import {
   DIAGNOSTICS_SETTLE_MAX_MS,
   DIAGNOSTICS_SETTLE_QUIET_MS,
   EDITOR_DEFAULT_TAB_SIZE,
+  EDITOR_REVEAL_MAX_MS,
+  EDITOR_REVEAL_POLL_MS,
   FORMAT_SYNC_MAX_MS,
   FORMAT_SYNC_POLL_MS,
   FORMAT_TIMEOUT_MS,
@@ -251,6 +255,8 @@ function tabsOf(key: string, platform: NodeJS.Platform): readonly vscode.Tab[] {
 interface OpenedTab {
   readonly key: string
   readonly column: vscode.ViewColumn
+  readonly editor?: vscode.TextEditor
+  readonly isNewDocument?: boolean
 }
 
 type Shown =
@@ -273,6 +279,9 @@ async function show(
   isAllowed?: () => boolean,
 ): Promise<Shown> {
   if (isAllowed?.() === false) return { ok: false, reason: 'notShown' }
+  const wasOpen = vscode.workspace.textDocuments.some(
+    (document) => uriKey(document.uri, deps.platform) === key,
+  )
   let document: vscode.TextDocument
   try {
     document = await vscode.workspace.openTextDocument(vscode.Uri.file(file.absolute))
@@ -295,17 +304,34 @@ async function show(
   const existing = tabsOf(key, deps.platform)
   const before = new Set(existing.map((tab) => tab.group.viewColumn))
   const reused = existing.find((tab) => !tab.group.isActive)
+  let shownEditor: vscode.TextEditor
   try {
-    await vscode.window.showTextDocument(document, {
-      viewColumn: reused?.group.viewColumn ?? vscode.ViewColumn.Beside,
-      preview: reused?.isPreview ?? false,
-      preserveFocus: true,
-    })
+    shownEditor = await showEditorDocument(
+      document,
+      {
+        viewColumn: reused?.group.viewColumn ?? vscode.ViewColumn.Beside,
+        preview: reused?.isPreview ?? false,
+        preserveFocus: true,
+      },
+      isAllowed,
+    )
   } catch (error: unknown) {
     deps.log.warn(`Verify: ${file.relative} could not be shown for diagnostics: ${describe(error)}`)
     return { ok: false, reason: 'notShown' }
   }
-  for (const tab of tabsOf(key, deps.platform)) {
+  const after = tabsOf(key, deps.platform)
+  // Arduino omits text input identities as well as webviews from tabGroups.
+  // The returned editor can hide exactly our new document; a document that
+  // was already open may be the user's hidden tab, so it is never hidden.
+  if (after.length === 0 && shownEditor.viewColumn !== undefined) {
+    opened.push({
+      key,
+      column: shownEditor.viewColumn,
+      editor: shownEditor,
+      isNewDocument: !wasOpen,
+    })
+  }
+  for (const tab of after) {
     if (!before.has(tab.group.viewColumn)) {
       opened.push({ key, column: tab.group.viewColumn })
     }
@@ -451,13 +477,34 @@ async function closeOpened(deps: VerifyEditorDeps, opened: readonly OpenedTab[])
   const tabs = opened.flatMap(({ key, column }) =>
     tabsOf(key, deps.platform).filter((tab) => tab.group.viewColumn === column && !tab.isDirty),
   )
-  if (tabs.length === 0) {
-    return
+  const hidden = opened.filter(
+    ({ key, column, editor, isNewDocument }) =>
+      editor !== undefined &&
+      isNewDocument === true &&
+      tabsOf(key, deps.platform).every((tab) => tab.group.viewColumn !== column),
+  )
+  if (tabs.length > 0) {
+    try {
+      await vscode.window.tabGroups.close([...tabs], true)
+    } catch (error: unknown) {
+      deps.log.warn(
+        `Verify: the files shown for diagnostics could not be closed: ${describe(error)}`,
+      )
+    }
   }
-  try {
-    await vscode.window.tabGroups.close([...tabs], true)
-  } catch (error: unknown) {
-    deps.log.warn(`Verify: the files shown for diagnostics could not be closed: ${describe(error)}`)
+  for (const { editor, key } of hidden) {
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Arduino omits tab inputs; hide is its only editor-specific close API. Never close the user's active editor instead.
+    if (editor === undefined || editor.document.isDirty || typeof editor.hide !== 'function')
+      continue
+    // eslint-disable-next-line @typescript-eslint/no-deprecated -- Only our newly opened, still-clean editor is hidden; the native tab close path stays preferred.
+    editor.hide()
+    const deadline = Date.now() + EDITOR_REVEAL_MAX_MS
+    const isVisible = () =>
+      vscode.window.visibleTextEditors.some(
+        (shown) => shown === editor && uriKey(shown.document.uri, deps.platform) === key,
+      )
+    while (isVisible() && Date.now() < deadline) await sleep(EDITOR_REVEAL_POLL_MS)
+    if (isVisible()) deps.log.warn('Verify: the editor did not close its temporary document')
   }
 }
 
@@ -619,6 +666,29 @@ function formattingOptions(document: vscode.TextDocument): vscode.FormattingOpti
   }
 }
 
+const positionSchema = z.object({
+  line: z.int().check(z.nonnegative()),
+  character: z.int().check(z.nonnegative()),
+})
+const formatEditsSchema = z.array(
+  z.union([
+    z.object({
+      newText: z.string(),
+      range: z.object({ start: positionSchema, end: positionSchema }),
+    }),
+    // Captured in Arduino IDE 2.3.10, host-api-capture.json (M103A2).
+    z.object({
+      text: z.string(),
+      range: z.object({
+        startLineNumber: z.int().check(z.positive()),
+        startColumn: z.int().check(z.positive()),
+        endLineNumber: z.int().check(z.positive()),
+        endColumn: z.int().check(z.positive()),
+      }),
+    }),
+  ]),
+)
+
 async function formatAfterEdit(
   deps: VerifyEditorDeps,
   absolutePath: string,
@@ -639,27 +709,44 @@ async function formatAfterEdit(
     deps.log.info(`Format on edit skipped ${absolutePath}: the editor did not show the new text`)
     return undefined
   }
-  const edits = await within(
-    vscode.commands.executeCommand<vscode.TextEdit[] | undefined>(
+  const rawEdits = await within(
+    vscode.commands.executeCommand(
       VSCODE_COMMANDS.formatDocument,
       uri,
       formattingOptions(document),
     ),
     timing.formatMs,
   )
-  if (edits === TIMED_OUT) {
+  if (rawEdits === TIMED_OUT) {
     deps.log.warn(
       `Format on edit skipped ${absolutePath}: the formatter did not answer in ${String(timing.formatMs)} ms`,
     )
     return undefined
   }
-  if (edits === undefined || edits.length === 0 || document.getText() !== expected) {
+  if (rawEdits === undefined || document.getText() !== expected) return undefined
+  const parsed = formatEditsSchema.safeParse(rawEdits)
+  if (!parsed.success) {
+    deps.log.warn(`Format on edit skipped ${absolutePath}: unsupported formatter response`)
     return undefined
   }
+  const edits = parsed.data.map((edit) =>
+    'newText' in edit
+      ? edit
+      : {
+          newText: edit.text,
+          range: {
+            start: { line: edit.range.startLineNumber - 1, character: edit.range.startColumn - 1 },
+            end: { line: edit.range.endLineNumber - 1, character: edit.range.endColumn - 1 },
+          },
+        },
+  )
+  if (edits.length === 0) return undefined
   const isCrlf = document.eol === vscode.EndOfLine.CRLF
   const offsets: OffsetEdit[] = edits.map((edit) => ({
-    start: document.offsetAt(edit.range.start),
-    end: document.offsetAt(edit.range.end),
+    start: document.offsetAt(
+      new vscode.Position(edit.range.start.line, edit.range.start.character),
+    ),
+    end: document.offsetAt(new vscode.Position(edit.range.end.line, edit.range.end.character)),
     newText: isCrlf ? edit.newText.replaceAll(LONE_LINE_FEED, () => CRLF) : edit.newText,
   }))
   const formatted = applyOffsetEdits(expected, offsets)

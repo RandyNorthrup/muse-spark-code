@@ -1473,7 +1473,7 @@
     "one": "{files} és még {count} fájl",
     "other": "{files} és még {count} fájl"
   },
-  "codeIntelNoService": "Egyetlen nyelvi szolgáltatás sem válaszolt erre: {path}, vagy a fájl nem deklarál szimbólumokat.",
+  "codeIntelNoService": "Egyetlen nyelvi szolgáltatás sem válaszolt erre: {path}, vagy a fájl nem deklarál szimbólumokat. Használja helyette a search és read_file eszközöket.",
   "codeIntelTimedOut": "A nyelvi szolgáltatás {seconds} másodpercen belül nem válaszolt.",
   "repoMapNoService": "A munkaterület szimbólumaira egyetlen nyelvi szolgáltatás sem válaszolt.",
   "imageBuyTitle": "A Muse létre szeretné hozni ezt a képet: {path}",

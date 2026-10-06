@@ -12,6 +12,7 @@ import {
   EndOfLine,
   FakeUri,
   languages,
+  Position,
   TabInputText,
   Uri,
   ViewColumn,
@@ -19,6 +20,9 @@ import {
   workspace,
 } from './mocks/vscode'
 import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
+import capture from '../../docs/certification/m103-a2/host-api-capture.json'
+import { showEditorDocument } from '../../src/host/editor/showDocument'
+import { EDITOR_REVEAL_MAX_MS, THEIA_SHOW_DOCUMENT_FAILURE } from '../../src/shared/constants'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { logLines } from './helpers/logText'
@@ -67,7 +71,12 @@ function fakeDocument(
       return state.eol ?? EndOfLine.LF
     },
     getText: () => state.text,
-    offsetAt: (position: vscode.Position) => offsetOf(state.text, position),
+    offsetAt: (position: vscode.Position) => {
+      // Arduino/Theia requires real API Position instances even when the
+      // formatter command returned plain range coordinates.
+      if (!(position instanceof Position)) throw new Error('Invalid argument')
+      return offsetOf(state.text, position)
+    },
   }
   // Only what the verify editor reads of a document; nothing else is touched.
   return document as unknown as vscode.TextDocument
@@ -180,6 +189,7 @@ function report(...paths: readonly string[]): void {
 }
 
 beforeEach(() => {
+  workspace.textDocuments = []
   groups.clear()
   window.tabGroups.all = []
   vi.mocked(workspace.openTextDocument).mockImplementation((uri) =>
@@ -220,6 +230,47 @@ afterEach(() => {
 })
 
 describe('diagnosticsAfterEdit', () => {
+  it('closes only its fresh clean editor when tabGroups omits document identities', async () => {
+    const { verify } = editor()
+    const uri = Uri.file(FILE.absolute)
+    const state: DocumentState = { text: '' }
+    const document = fakeDocument(state, uri)
+    const hide = vi.fn(() => {
+      window.visibleTextEditors = []
+    })
+    const shown = { ...fakeEditor(uri), document, viewColumn: 1, hide }
+    vi.mocked(workspace.openTextDocument).mockResolvedValue(document)
+    vi.mocked(shownDocument).mockImplementation(() => {
+      window.visibleTextEditors = [shown]
+      return Promise.resolve(shown)
+    })
+    const read = async () => {
+      const pending = verify.diagnosticsAfterEdit([FILE], new AbortController().signal)
+      setTimeout(() => {
+        report(FILE.absolute)
+      }, 10)
+      await pending
+    }
+    await read()
+    expect(hide).toHaveBeenCalledOnce()
+    expect(window.tabGroups.close).not.toHaveBeenCalled()
+    hide.mockClear()
+    workspace.textDocuments = [document]
+    await read()
+    expect(hide).not.toHaveBeenCalled()
+    window.visibleTextEditors = []
+    workspace.textDocuments = []
+    vi.mocked(shownDocument).mockImplementation(() => {
+      window.visibleTextEditors = [shown]
+      setTimeout(() => {
+        state.isDirty = true
+      }, 1)
+      return Promise.resolve(shown)
+    })
+    await read()
+    expect(hide).not.toHaveBeenCalled()
+  })
+
   it('does not open or read a file refused by the live caller predicate', async () => {
     const { verify } = editor()
     const files = await verify.diagnosticsAfterEdit(
@@ -718,6 +769,22 @@ function documentWith(state: DocumentState): void {
 }
 
 describe('formatAfterEdit', () => {
+  it('formats the live Arduino Monaco edits with real Position instances and rejects malformed responses', async () => {
+    const { verify, channel } = editor()
+    const text = '{"a":1,"b":[1,2]}'
+    documentWith({ text })
+    vi.mocked(commands.executeCommand).mockResolvedValue(capture.formatting)
+    const formatted = await verify.formatAfterEdit(FILE.absolute, text)
+    expect(formatted).toBe('{\n  "a": 1,\n  "b": [\n    1,\n    2\n  ]\n}')
+    const first = capture.formatting[0]
+    expect(first).toBeDefined()
+    vi.mocked(commands.executeCommand).mockResolvedValue([
+      { ...first, range: { ...first?.range, startColumn: 0 } },
+    ])
+    expect(await verify.formatAfterEdit(FILE.absolute, text)).toBeUndefined()
+    expect(logLines(channel).join('\n')).toContain('unsupported formatter response')
+  })
+
   it('applies the formatter’s edits to what the tool wrote, with the editor’s options', async () => {
     const { verify } = editor()
     documentWith({ text: 'let  a=1\nlet b=2\n' })
@@ -805,5 +872,68 @@ describe('formatAfterEdit', () => {
     expect(await verify.formatAfterEdit(FILE.absolute, 'same')).toBeUndefined()
     vi.mocked(commands.executeCommand).mockResolvedValueOnce([textEdit([0, 0], [0, 4], 'same')])
     expect(await verify.formatAfterEdit(FILE.absolute, 'same')).toBeUndefined()
+  })
+})
+
+describe('Theia document reveal race', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('waits for a successfully shown editor without revealing twice', async () => {
+    vi.useFakeTimers()
+    const uri = Uri.file(FILE.absolute)
+    const expected = fakeEditor(uri)
+    vi.mocked(shownDocument).mockRejectedValueOnce(
+      new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`),
+    )
+    const pending = showEditorDocument(fakeDocument({ text: '' }, uri), { preserveFocus: true })
+    setTimeout(() => {
+      window.visibleTextEditors = [expected]
+    }, 1)
+    await vi.advanceTimersByTimeAsync(100)
+    expect(await pending).toBe(expected)
+    expect(shownDocument).toHaveBeenCalledOnce()
+  })
+
+  it('propagates genuine failures even if the document is visible', async () => {
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(uri)]
+    const failure = new Error('permission denied')
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    await expect(showEditorDocument(fakeDocument({ text: '' }, uri))).rejects.toBe(failure)
+  })
+
+  it('never treats another file as the shown document and bounds a missing editor', async () => {
+    vi.useFakeTimers()
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(Uri.file(OTHER.absolute))]
+    const failure = new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`)
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    let isSettled = false
+    const shown = showEditorDocument(fakeDocument({ text: '' }, uri))
+    void shown
+      .then(() => {
+        isSettled = true
+      })
+      .catch(() => {
+        isSettled = true
+      })
+    const pending = expect(shown).rejects.toBe(failure)
+    await vi.advanceTimersByTimeAsync(EDITOR_REVEAL_MAX_MS - 100)
+    expect(isSettled).toBe(false)
+    await vi.advanceTimersByTimeAsync(100)
+    await pending
+    expect(shownDocument).toHaveBeenCalledOnce()
+  })
+
+  it('does not accept an editor after the caller revoked access', async () => {
+    const uri = Uri.file(FILE.absolute)
+    window.visibleTextEditors = [fakeEditor(uri)]
+    const failure = new Error(`${THEIA_SHOW_DOCUMENT_FAILURE}[object Object]`)
+    vi.mocked(shownDocument).mockRejectedValueOnce(failure)
+    await expect(showEditorDocument(fakeDocument({ text: '' }, uri), {}, () => false)).rejects.toBe(
+      failure,
+    )
   })
 })
