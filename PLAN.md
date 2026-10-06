@@ -22397,8 +22397,8 @@ Each joins when its dependency merges, and none blocks the others.
 **M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
 required merge baseline `33ef31aa2`, before T's changes, builds
 `dist/modelApi.js` at 486,485 bytes, 85 bytes above the unchanged 475 KiB
-(486,400-byte) cap. T adds strict conversion and restoration code; its final
-size and failing size gate are recorded in `docs/certification/m106-t.md`.
+(486,400-byte) cap. T's final bundle is 486,935 bytes: 450 bytes added and 535 bytes over the
+cap. The failing gate is recorded in `docs/certification/m106-t.md`.
 Baseline comparison restored all four owned source files byte-exact. No
 threshold is raised and no full build/quality pass is claimed. W owns the
 bundle layout and must reduce/split it before integration is certified.
