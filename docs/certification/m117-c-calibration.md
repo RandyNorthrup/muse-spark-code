@@ -300,3 +300,32 @@ the drills; all five TypeScript projects and scoped ESLint passed. Final checks
 and hook receipts follow below. Full quality and cross-rig integration remain
 with W/the lead under the lane brief; no cap or gate is changed. The previously
 recorded `M117-W-host-api-record` refresh remains W-owned.
+
+### Final repair checks and commit receipt
+
+All checks ran directly in `/Users/randy/lanes/M117C` on Mac mini. The repair
+commit is **`c1a36d41`**; its enabled hooks ran scoped ESLint/Prettier and
+staged gitleaks successfully. The production/test hashes above are unchanged
+after the hook. No other lane's file changed.
+
+| Check                                                                                                            | Result                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/estimatorCalibration.test.ts test/unit/estimatorHistoryJournal.test.ts --maxWorkers=3` | **52/52 passed** after all drills, no skips, default timeout; 26 calibration and 26 journal tests.                                                                                                        |
+| Repair red drills                                                                                                | **10/10**, 22 named assertion failures in total, each exit 1 and SHA-256-exact restore.                                                                                                                   |
+| `npm run typecheck`                                                                                              | **Pass**, all five projects on the committed repair.                                                                                                                                                      |
+| Scoped ESLint and Prettier; `git diff --check`                                                                   | **Pass**, zero lint warnings; hook formatting preserves both source hashes.                                                                                                                               |
+| `npm run deadcode`                                                                                               | **Pass**, existing vendor/axe-core configuration hints only.                                                                                                                                              |
+| `npx jscpd`                                                                                                      | **Pass**, zero clones across 1,194 files; unchanged threshold/ignores.                                                                                                                                    |
+| `node scripts/check-l10n.mjs`                                                                                    | **Pass**, 14 tables, 166 manifest strings, 612 source files, zero problems.                                                                                                                               |
+| `npm run check:reference`                                                                                        | **Pass**, current 53 features, 44 commands, 59 settings, 26 slash commands and 116 CLI entries.                                                                                                           |
+| `npm run check:host-api`                                                                                         | **Exit 1**, exactly the existing five import-count increments in `M117-W-host-api-record` above; no new difference from this repair. W must refresh its owned generated record before integrated quality. |
+| `npm run build`                                                                                                  | **Pass**, all unchanged size/split/global/notice gates; 83 bundled packages.                                                                                                                              |
+
+Measured budgets remain: activation **439.5/600 KiB**, Model API
+**446.9/475 KiB**, ACP **821.4/850 KiB**, shared English **55.0/125 KiB**,
+webview startup **797.1/900 KiB**, deferred webview code **50.0/50 KiB**.
+Calibration still has no shipped runtime entry on this branch; W owns lazy
+wiring and integrated measurements. Aggregate quality and cross-rig editor
+checks remain lead-owned. There is no accepted RVM117C residual and no owner
+choice was defaulted. Temporary repair drill scripts/reports/logs were removed
+only after preserving their named failures and hashes here.
