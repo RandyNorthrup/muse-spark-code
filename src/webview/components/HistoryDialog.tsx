@@ -36,12 +36,15 @@ export interface HistoryDialogProps {
   readonly now: () => number
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
+  /** Muse Code only. The host confirms deletion and waits for its terminal notification. */
+  readonly onDelete?: (sessionId: string) => void
   readonly onClose: () => void
 }
 
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
 const ARCHIVE_KEY = 'Delete'
+const DELETE_SHORTCUT = 'Shift+Delete'
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -87,6 +90,7 @@ function RowView({
   onHover,
   onResume,
   onSetArchived,
+  onDelete,
 }: {
   readonly row: SessionRow
   readonly isActive: boolean
@@ -96,6 +100,7 @@ function RowView({
   readonly onHover: () => void
   readonly onResume: () => void
   readonly onSetArchived: (isArchived: boolean) => void
+  readonly onDelete: (() => void) | undefined
 }) {
   const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
   return (
@@ -106,8 +111,12 @@ function RowView({
       isCurrent={isCurrent}
       meta={meta}
       // The row is the control: Delete (un)archives it from the search box.
-      keyShortcuts={ARCHIVE_KEY}
-      keyDescription={archiveLabel}
+      keyShortcuts={onDelete === undefined ? ARCHIVE_KEY : `${ARCHIVE_KEY} ${DELETE_SHORTCUT}`}
+      keyDescription={
+        onDelete === undefined
+          ? archiveLabel
+          : `${archiveLabel} (${ARCHIVE_KEY}) · ${UI_TEXT.memoryDeleteAction} (${DELETE_SHORTCUT})`
+      }
       action={
         <>
           {/* For the mouse only: a button inside an option is still reachable by
@@ -126,6 +135,22 @@ function RowView({
           >
             <CloseIcon />
           </span>
+          {onDelete !== undefined && (
+            <span
+              className="icon-button history-archive history-delete"
+              title={`${UI_TEXT.memoryDeleteAction} (${DELETE_SHORTCUT})`}
+              aria-hidden="true"
+              onMouseDown={(event) => {
+                event.preventDefault()
+              }}
+              onClick={(event) => {
+                event.stopPropagation()
+                onDelete()
+              }}
+            >
+              {UI_TEXT.memoryDeleteAction}
+            </span>
+          )}
         </>
       }
       onHover={onHover}
@@ -136,7 +161,7 @@ function RowView({
 
 export function HistoryDialog(props: HistoryDialogProps) {
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
-  const { onResume, onSetArchived, onClose } = props
+  const { onResume, onSetArchived, onDelete, onClose } = props
   const [query, setQuery] = useState('')
   const [isShowingArchived, setIsShowingArchived] = useState(false)
   const search = useRef<HTMLInputElement>(null)
@@ -189,7 +214,11 @@ export function HistoryDialog(props: HistoryDialogProps) {
       // Only on the highlighted row; with text selected, Delete edits it.
       if (activeRow !== undefined && event.currentTarget.value === '') {
         event.preventDefault()
-        onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
+        if (onDelete !== undefined && event.shiftKey) {
+          onDelete(activeRow.sessionId)
+        } else {
+          onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
+        }
       }
       return
     }
@@ -231,6 +260,13 @@ export function HistoryDialog(props: HistoryDialogProps) {
               onSetArchived={(isRowArchived) => {
                 onSetArchived(entry.row.sessionId, isRowArchived)
               }}
+              onDelete={
+                onDelete === undefined
+                  ? undefined
+                  : () => {
+                      onDelete(entry.row.sessionId)
+                    }
+              }
             />
           ),
         )}

@@ -79,18 +79,20 @@ describe('exec client: pinned ACP constructor seam with Muse Code SDK 1.4.2', ()
     const outgoing = new WritableStream<Uint8Array>()
     const connection = client.connect(acp.ndJsonStream(outgoing, incoming.readable))
     const writer = incoming.writable.getWriter()
-    for (const update of [
+    const updates = [
       { sessionUpdate: 'future_non_tool', extra: { retained: true } },
       { sessionUpdate: 'tool_future_update', rawOutput: 'withheld-tool' },
       { sessionUpdate: 'agent_message_chunk.v2', content: { text: 'withheld-message' } },
       { sessionUpdate: 'agent_thought_chunk', content: { text: 'withheld-thought' } },
-    ]) {
-      await writer.write(
-        new TextEncoder().encode(
-          `${JSON.stringify({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's', update } })}\n`,
-        ),
-      )
-    }
+    ]
+    const frames = updates.map((update) =>
+      JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'session/update',
+        params: { sessionId: 's', update },
+      }),
+    )
+    await writer.write(new TextEncoder().encode(`${frames.join('\n')}\n`))
     await writer.close()
     await connection.closed
     deps.lifecycle.dispose()

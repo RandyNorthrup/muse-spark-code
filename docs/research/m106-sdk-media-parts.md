@@ -1,6 +1,7 @@
 # Draft upstream comment — MSP video and audio input
 
-Target: `meta-models/muse-code-sdk#48` (the existing file-input request).
+Target: [meta-models/muse-code-sdk#48](https://github.com/meta-models/muse-code-sdk/issues/48)
+(the existing file-input request).
 This is a local draft, not a posted comment. The lead must check for a
 duplicate before filing; the lane brief prohibits network calls here.
 
@@ -42,3 +43,13 @@ before inference rather than silently treating it as text.
 
 Evidence: `docs/research/meta-coverage-2026-10-05.md` §§1b and 5;
 PLAN.md D86.7. Reconcile this draft with the lead's SDK capture before posting.
+
+## M106 S verification (2026-10-06)
+
+The lane installed the exact published 1.4.2 tarball in an isolated scratch
+directory and checked `dist/src/msp.d.ts`: `TurnInputPartType` still names
+only `text`, `image` and `skill`. No new input part or refusal frame is
+invented. The SDK is now pinned at 1.4.2 in the lane's manifest and lock.
+The local echo handshake and empty catalogue required zero model attempts;
+they provide no media-support evidence. The lead still owns the dedupe
+search and posting; this draft has not been submitted.

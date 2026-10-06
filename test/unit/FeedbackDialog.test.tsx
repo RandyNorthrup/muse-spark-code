@@ -1,0 +1,170 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  FeedbackDialog,
+  type FeedbackDialogProps,
+} from '../../src/webview/components/FeedbackDialog'
+import { UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
+
+function setup(overrides: Partial<FeedbackDialogProps> = {}) {
+  const submit = vi.fn().mockResolvedValue('trackingUncertain')
+  const props: FeedbackDialogProps = {
+    sessionId: 's',
+    classifications: [
+      { classification: 'badResult', label: 'Bad result' },
+      { classification: 'goodResult', label: 'Good result' },
+      { classification: 'bug', label: 'Bug' },
+      { classification: 'other', label: 'Other' },
+    ],
+    port: { submit },
+    onClose: vi.fn(),
+    ...overrides,
+  }
+  return { submit, props, ...render(<FeedbackDialog {...props} />) }
+}
+
+function files() {
+  return screen.getByRole('checkbox', { name: UI_TEXT.feedbackWithFiles })
+}
+function record() {
+  return screen.getByRole('checkbox', { name: UI_TEXT.feedbackAttachSessionRecord })
+}
+function send() {
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.feedbackSend }))
+}
+
+async function requestWithoutRecord(submit: ReturnType<typeof setup>['submit']): Promise<unknown> {
+  expect(record()).not.toBeChecked()
+  expect(record()).toBeDisabled()
+  send()
+  await waitFor(() => {
+    expect(submit).toHaveBeenCalledTimes(1)
+  })
+  return submit.mock.calls[0]?.[0]
+}
+
+describe('FeedbackDialog: disclosure consent', () => {
+  it('starts with both disclosures off, sends once, and displays the exact returned outcome', async () => {
+    const { submit } = setup()
+    expect(submit).not.toHaveBeenCalled()
+    expect(files()).not.toBeChecked()
+    expect(record()).not.toBeChecked()
+    expect(record()).toBeDisabled()
+    expect(screen.getByText(UI_TEXT.feedbackPrivacy)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: 'A note' } })
+    send()
+    await screen.findByText(fill(UI_TEXT.feedbackResult, { result: 'trackingUncertain' }))
+    expect(submit).toHaveBeenCalledExactlyOnceWith({
+      sessionId: 's',
+      classification: 'badResult',
+      note: 'A note',
+      withFiles: false,
+      attachSessionRecord: false,
+    })
+    expect(screen.queryByText(UI_TEXT.feedbackSubmitted)).not.toBeInTheDocument()
+  })
+
+  it('includes files and the record only after their separate checkboxes are selected', async () => {
+    const { submit } = setup()
+    fireEvent.click(files())
+    fireEvent.click(record())
+    send()
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledTimes(1)
+    })
+    expect(submit.mock.calls[0]?.[0]).toMatchObject({ withFiles: true, attachSessionRecord: true })
+  })
+
+  it('revokes record consent when files are unchecked', async () => {
+    const { submit } = setup()
+    fireEvent.click(files())
+    fireEvent.click(record())
+    fireEvent.click(files())
+    expect(await requestWithoutRecord(submit)).toMatchObject({
+      withFiles: false,
+      attachSessionRecord: false,
+    })
+  })
+
+  it('revokes record consent when the classification changes', async () => {
+    const { submit } = setup()
+    fireEvent.click(files())
+    fireEvent.click(record())
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackClassification), {
+      target: { value: 'goodResult' },
+    })
+    expect(await requestWithoutRecord(submit)).toMatchObject({
+      classification: 'goodResult',
+      attachSessionRecord: false,
+    })
+  })
+
+  it('does not submit twice while a receipt is pending', async () => {
+    const receipt = Promise.withResolvers<string>()
+    const submit = vi.fn(() => receipt.promise)
+    setup({ port: { submit } })
+    const form = screen.getByLabelText(UI_TEXT.feedbackNote).closest('form')
+    expect(form).not.toBeNull()
+    fireEvent.submit(form!)
+    fireEvent.submit(form!)
+    expect(submit).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: UI_TEXT.feedbackSending })).toBeDisabled()
+    receipt.resolve('futureOutcome')
+    await screen.findByText(fill(UI_TEXT.feedbackResult, { result: 'futureOutcome' }))
+  })
+
+  it('requires a nonblank note for a bug', () => {
+    const { submit } = setup()
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackClassification), {
+      target: { value: 'bug' },
+    })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: '  ' } })
+    expect(screen.getByRole('button', { name: UI_TEXT.feedbackSend })).toBeDisabled()
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('refuses dispatch without an offered classification', () => {
+    const { submit } = setup({ classifications: [] })
+    expect(screen.getByRole('button', { name: UI_TEXT.feedbackSend })).toBeDisabled()
+    const form = screen.getByLabelText(UI_TEXT.feedbackNote).closest('form')
+    fireEvent.submit(form!)
+    expect(submit).not.toHaveBeenCalled()
+  })
+
+  it('ignores an unsupported classification change', () => {
+    setup()
+    const choice = screen.getByLabelText(UI_TEXT.feedbackClassification)
+    fireEvent.change(choice, { target: { value: 'futureClassification' } })
+    expect(choice).toHaveValue('badResult')
+  })
+
+  it('shows a fixed failure without displaying raw receipt or error details', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error('/private/session-record'))
+    setup({ port: { submit } })
+    send()
+    await screen.findByText(UI_TEXT.feedbackFailed)
+    expect(screen.queryByText('/private/session-record')).not.toBeInTheDocument()
+  })
+
+  it('resets both consents and the note when the session changes', () => {
+    const { props, rerender } = setup()
+    fireEvent.click(files())
+    fireEvent.click(record())
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), {
+      target: { value: 'old session' },
+    })
+    rerender(<FeedbackDialog {...props} sessionId="other-session" />)
+    expect(files()).not.toBeChecked()
+    expect(record()).not.toBeChecked()
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveValue('')
+  })
+
+  it('closes with Escape without dispatching', () => {
+    const { props, submit } = setup()
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+    expect(props.onClose).toHaveBeenCalledTimes(1)
+    expect(submit).not.toHaveBeenCalled()
+  })
+})
