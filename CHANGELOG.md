@@ -19,6 +19,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JSON verification checks disk bytes and the editor generation even when stale
+  valid editor text and an empty diagnostics event would otherwise appear clean.
+  Arduino completion unit tests provide private fake artifacts and run without
+  an integration build.
+
 - JSONC verification rejects missing members/elements rather than erasing
   illegal commas. Stale editor text stays unchecked after an empty diagnostic
   event, and disposing verification stops active and queued diagnostic reads.

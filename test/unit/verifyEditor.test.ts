@@ -46,6 +46,7 @@ const USER_COLUMN = 1
 
 interface DocumentState {
   text: string
+  version?: number
   isDirty?: boolean
   eol?: (typeof EndOfLine)[keyof typeof EndOfLine]
   languageId?: string
@@ -66,6 +67,9 @@ function fakeDocument(
 ): vscode.TextDocument {
   const document = {
     uri,
+    get version() {
+      return state.version ?? 1
+    },
     get languageId() {
       return state.languageId ?? 'typescript'
     },
@@ -1115,6 +1119,93 @@ describe('JSON diagnostics without a native report', () => {
     expect(result?.unchecked).toBe('noReport')
     expect(result?.entries).toEqual([])
     expect(set).not.toHaveBeenCalled()
+  })
+
+  it('keeps stale valid editor text unchecked after an empty collection-clear event', async () => {
+    state.text = '{}'
+    const diskText = '{"new": 1 "broken": 2}'
+    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
+    const pending = editor().verify.diagnosticsAfterEdit(
+      [{ ...file, fingerprint: fingerprint(diskText) }],
+      new AbortController().signal,
+    )
+    setTimeout(() => {
+      report(file.absolute)
+    }, 5)
+    const [result] = await pending
+    expect(result?.unchecked).toBe('noReport')
+    expect(result?.entries).toEqual([])
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['snapshot read', 3],
+    ['publication admission', 4],
+    ['settled confinement', 5],
+    ['final disk comparison', 6],
+  ])(
+    'refuses a document generation change during %s even with identical text',
+    async (_phase, changeAt) => {
+      state.text = '{}'
+      state.version = 1
+      let reads = 0
+      vi.mocked(workspace.fs.readFile).mockImplementation(() => {
+        // A reload changes the editor generation, even when it ends on the same bytes.
+        if (++reads === changeAt) state.version = 2
+        return Promise.resolve(new TextEncoder().encode(state.text))
+      })
+      const [result] = await editor().verify.diagnosticsAfterEdit(
+        [{ ...file, fingerprint: fingerprint(state.text) }],
+        new AbortController().signal,
+      )
+      expect(result?.unchecked).toBe('noReport')
+      if (changeAt <= 4) expect(set).not.toHaveBeenCalled()
+      else expect(remove).toHaveBeenCalledWith(uri)
+    },
+  )
+
+  it('refuses a document generation change while the JSON fallback settles', async () => {
+    state.version = 1
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      report(file.absolute)
+      state.version = 2
+    })
+    const [result] = await editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+    )
+    expect(result?.unchecked).toBe('noReport')
+    expect(result?.entries).toEqual([])
+    expect(remove).toHaveBeenCalledWith(uri)
+  })
+
+  it('refuses JSON snapshot bytes that differ from the edited fingerprint', async () => {
+    let reads = 0
+    vi.mocked(workspace.fs.readFile).mockImplementation(() =>
+      Promise.resolve(new TextEncoder().encode(++reads === 3 ? '{}' : state.text)),
+    )
+    const [result] = await editor().verify.diagnosticsAfterEdit(
+      [{ ...file, fingerprint: fingerprint(state.text) }],
+      new AbortController().signal,
+    )
+    expect(result?.unchecked).toBe('changed')
+    expect(set).not.toHaveBeenCalled()
+  })
+
+  it('refuses a disk change while JSON fallback settles without an edited fingerprint', async () => {
+    set.mockImplementation((_uri, entries) => {
+      held = [...entries]
+      report(file.absolute)
+      vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('{}'))
+    })
+    const [result] = await editor().verify.diagnosticsAfterEdit(
+      [file],
+      new AbortController().signal,
+    )
+    expect(result?.unchecked).toBe('noReport')
+    expect(result?.entries).toEqual([])
+    expect(remove).toHaveBeenCalledWith(uri)
   })
 
   it('stops an active native wait on disposal without creating fallback resources', async () => {

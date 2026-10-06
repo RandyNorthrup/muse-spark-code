@@ -6,17 +6,34 @@ import { pack } from '@vscode/vsce/out/package.js'
 import { run as runArduinoTests } from '../hosts/arduino-test-runner.mjs'
 
 const launch = vi.hoisted(() => vi.fn())
+const fixture = vi.hoisted(() => ({ root: '' }))
 vi.mock('playwright-core', () => ({ _electron: { launch } }))
+vi.mock('node:fs', async (importOriginal) => {
+  const fs = await importOriginal()
+  return {
+    ...fs,
+    // Completion tests fake the editor and its receipt; supply only their
+    // private artifact fixture. Every other host copy uses the real fs.
+    cpSync: (source, destination, options) =>
+      fs.cpSync(
+        source === path.resolve('dist/test/integration')
+          ? path.join(fixture.root, 'integration')
+          : source,
+        destination,
+        options,
+      ),
+  }
+})
 // This runner only captures the optional board provider; no native editor.
 vi.mock('vscode', () => ({
   version: '0.0.0-test',
   extensions: { getExtension: vi.fn() },
 }))
 
-const fixture = { root: '' }
 beforeAll(async () => {
   mkdirSync('temp', { recursive: true })
   fixture.root = mkdtempSync(path.resolve('temp/m103a-host-unit-'))
+  mkdirSync(path.join(fixture.root, 'integration'))
   const source = path.join(fixture.root, 'source')
   mkdirSync(source)
   writeFileSync(

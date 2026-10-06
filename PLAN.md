@@ -15239,6 +15239,19 @@ call, credential access or device access. Scoped lane gates only; aggregate
 quality/coverage remain with the lead under the rig brief. Record corrections
 and any named residual in `docs/certification/m103-a3.md` and §9.
 
+**Confirmation-review corrections (FIXM103A2, 2026-10-05).** Own only
+RVM103MDA findings 2 and 3. For JSON verification, read the disk snapshot
+being certified, compare it with the editor and edited fingerprint, and
+check the document version (advanced by editor changes) across asynchronous
+admission and settlement before publishing or returning diagnostics. A stale
+valid editor plus an empty event must remain unchecked. Supply a private fake
+integration-artifact directory inside the Arduino unit fixture so all six
+receipt regressions run without an integration build, as in the clean unit
+CI job. Each finding gets a failing-before regression and byte-exact red
+drill in `docs/certification/m103-a.md`; scoped rig gates only, no dependency
+or guard relaxation. Finding 1 remains with lane D; existing native/editor
+qualification residuals are retained.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -15651,6 +15664,12 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM103A2 (2026-10-05, macmini).** Under the explicit rig/common rules,
+the lane runs scoped owning tests and static/build gates; aggregate quality
+and coverage remain with the lead. The clean-artifact Arduino unit run and
+six failing-on-purpose drills are recorded in `docs/certification/m103-a.md`.
+No test, gate, threshold, hook or dependency changes.
 
 **M103A3 (2026-10-05, macmini).** The rig brief forbids aggregate quality
 and assigns it to the lead. This lane runs focused files, compiler/lint gates,
@@ -16273,8 +16292,12 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **FIXM103A (2026-10-05):** all four RVM103A findings are corrected; no
-  reviewed P2/P3 is deferred. The earlier absent-TypeScript capability limit
+- **FIXM103A / FIXM103A2 (2026-10-05):** the confirmation review found the
+  first round's stale-valid-editor variant and clean-unit artifact gap still
+  open (RVM103MDA 2/3). FIXM103A2 corrects both with disk-snapshot/generation
+  checks and private unit artifacts; no lane-A P2/P3 is deferred. Evidence
+  in `docs/certification/m103-a.md` supersedes the first round's broader
+  closure claim in m103-a3. Finding 1 belongs to lane D. The earlier absent-TypeScript capability limit
   and lead-owned aggregate/Linux qualification remain as recorded in M103A3;
   these corrections do not claim a language broker or release certification.
 - **FIXM103A-ARDUINO-RECHECK (qualification pending, 2026-10-05):** the
