@@ -8,10 +8,11 @@ import type { TrustedPathVerifier } from './trustedPathPort'
  * https://github.com/openssh/openssh-portable/blob/master/misc.c (safe_path).
  * InheritOnly does not apply here. Only the drive root may grant folder-only
  * CreateDirectories/AppendData: it creates siblings, never replaces our child.
- * The same predicate checks Task Scheduler's folder security descriptor. */
-export const WINDOWS_TRUSTED_ACL_SCRIPT = `function Test-TrustedAcl($acl, [bool]$isRoot, [bool]$isDirectory) {
+ * Scheduler objects further restrict trusted SIDs to user/SYSTEM/Administrators. */
+export const WINDOWS_TRUSTED_ACL_SCRIPT = `function Test-TrustedAcl($acl, [bool]$isRoot, [bool]$isDirectory, [bool]$isTask = $false) {
   $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-  $trusted = @($identity.User.Value, 'S-1-5-18', 'S-1-5-32-544', 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464')
+  $trusted = @($identity.User.Value, 'S-1-5-18', 'S-1-5-32-544')
+  if (-not $isTask) { $trusted += 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464' }
   if ($trusted -notcontains $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value) { return $false }
   foreach ($ace in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
     if ($ace.AccessControlType -ne 'Allow' -or $trusted -contains $ace.IdentityReference.Value) { continue }

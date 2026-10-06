@@ -1,6 +1,19 @@
-import { copyFile, mkdtemp, mkdir, readFile, stat, writeFile, rm } from 'node:fs/promises'
+import {
+  copyFile,
+  mkdtemp,
+  mkdir,
+  readFile,
+  stat,
+  writeFile,
+  rm,
+  symlink,
+  lstat,
+  chmod,
+  realpath,
+} from 'node:fs/promises'
 import { ChildProcess, type SpawnOptions } from 'node:child_process'
 import os from 'node:os'
+import process from 'node:process'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
@@ -25,6 +38,7 @@ import {
   backgroundRegistrationId,
   backgroundWakeRecordSchema,
 } from '../../src/runtime/schedules/registration'
+import type { TrustedPathVerifier } from '../../src/runtime/trustedPathPort'
 
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {
   return { exitCode, stdout, stderr }
@@ -82,6 +96,8 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     sourcePath: '',
     taskXml: 'exported XML',
     taskFolderTrusted: true,
+    taskTrusted: true,
+    unitPaths: ['/home/rig/.config/systemd/user', '/etc/systemd/user'],
     actionPath: String.raw`C:\node.exe`,
   }
   const run = vi.fn((file: string, args: readonly string[]): Promise<BackgroundProcessResult> => {
@@ -117,6 +133,9 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
             xml: state.taskXml,
             actionPath: state.actionPath,
             folderTrusted: state.taskFolderTrusted,
+            ...(Buffer.from(args.at(-1) ?? '', 'base64')
+              .toString('utf16le')
+              .includes('$task.GetSecurityDescriptor(') && { taskTrusted: state.taskTrusted }),
           }),
         ),
       )
@@ -126,7 +145,19 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
         .toString('utf16le')
         .includes('GetSecurityDescriptor')
     )
-      return Promise.resolve(result(0, JSON.stringify(state.taskFolderTrusted)))
+      return Promise.resolve(
+        result(
+          0,
+          JSON.stringify(
+            state.taskFolderTrusted &&
+              (!state.registered ||
+                state.taskTrusted ||
+                !Buffer.from(args.at(-1) ?? '', 'base64')
+                  .toString('utf16le')
+                  .includes('(Test-TrustedAcl $taskAcl $false $false $true)')),
+          ),
+        ),
+      )
     if (file === 'powershell.exe')
       return Promise.resolve(
         state.queryFails
@@ -139,6 +170,7 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
           ? result(0, 'state = not running\n')
           : result(1, '', 'Could not find service'),
       )
+    if (file === 'systemd-analyze') return Promise.resolve(result(0, state.unitPaths.join('\n')))
     if (file === 'systemctl' && args[1] === 'show') {
       const unit = args.at(-1) ?? ''
       let fragment = ''
@@ -158,7 +190,12 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     }
     if (file === 'systemctl' && args[1] === 'is-active')
       return Promise.resolve(state.active ? result(0, 'active') : result(3, 'inactive'))
-    if (file === 'systemctl' && args[1] === 'stop' && !state.refusesStop) state.active = false
+    if (
+      file === 'systemctl' &&
+      (args[1] === 'stop' || args.includes('--now')) &&
+      !state.refusesStop
+    )
+      state.active = false
     if (args.includes('/Create') || args.includes('bootstrap') || args.includes('enable')) {
       if (state.createFails) return Promise.resolve(result(1, '', 'OS refused'))
       if (!state.silentCreate) state.registered = true
@@ -226,6 +263,120 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
   return { entry, files, state, run, trustedPath, prepare, authorization, deps }
 }
 describe('native background lifecycle', () => {
+  it.each(['root', 'unit', 'type', 'prefix'] as const)(
+    'refuses an empty writable systemd %s directory at registration, rearm and fire',
+    async (kind) => {
+      const { entry, state, deps, trustedPath, run } = setup('linux')
+      const id = backgroundRegistrationId(deps.homeDir)
+      const root = '/etc/systemd/user'
+      const names = {
+        root: '',
+        unit: `${id}.service.d`,
+        type: 'timer.d',
+        prefix: 'muse-.service.d',
+      }
+      const unsafe = path.posix.join(root, names[kind])
+      let shouldRefuse = true
+      trustedPath.mockImplementation((file) =>
+        file === unsafe && shouldRefuse ? Promise.reject(new Error(unsafe)) : Promise.resolve(file),
+      )
+      await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        unsafe,
+      )
+      expect(
+        run.mock.calls.some(([, args]) => args.includes('enable') || args.includes('restart')),
+      ).toBe(false)
+      shouldRefuse = false
+      await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+      expect(trustedPath).toHaveBeenCalledWith(
+        `${root}/${id}.timer.d`,
+        'linux',
+        1000,
+        'search-directory',
+      )
+      state.active = true
+      shouldRefuse = true
+      await expect(verifyRegisteredWake(deps)).rejects.toThrow(unsafe)
+      await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        unsafe,
+      )
+      expect(state.active).toBe(false)
+      expect(state.registered).toBe(false)
+      expect(run).toHaveBeenCalledWith('systemctl', ['--user', 'disable', '--now', `${id}.timer`])
+    },
+  )
+  it('refuses unavailable or malformed systemd search paths before activation and fire', async () => {
+    const { entry, state, deps, run } = setup('linux')
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    for (const paths of [
+      [],
+      ['relative'],
+      [String.raw`/safe\escape`],
+      ['/safe\nforged'],
+      ['/safe', '/safe'],
+    ]) {
+      state.unitPaths = paths
+      await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+      await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
+    }
+    const original = run.getMockImplementation()!
+    run.mockImplementation((file, args) =>
+      file === 'systemd-analyze' ? Promise.resolve(result(1)) : original(file, args),
+    )
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+  })
+  it('refuses an unsafe Windows task descriptor at registration and each fire', async () => {
+    const { entry, state, deps, run } = setup('win32')
+    state.registered = true // Existing task security must be checked before updating it.
+    state.taskTrusted = false
+    await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
+    expect(run.mock.calls.some(([, args]) => args.includes('/Create'))).toBe(false)
+    state.taskTrusted = true
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    expect(await verifyRegisteredWake(deps)).toEqual({ scheduledPrompts: false })
+    state.taskTrusted = false
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+    const scripts = run.mock.calls.map(([, args]) =>
+      Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le'),
+    )
+    expect(
+      scripts.some(
+        (script) =>
+          script.includes('$task.GetSecurityDescriptor(7)') &&
+          script.includes('Test-TrustedAcl $taskAcl $false $false $true'),
+      ),
+    ).toBe(true)
+  })
+  it('disables launchd before record publication and blocks a start after the final idle print', async () => {
+    const { entry, state, files, deps, run } = setup('darwin')
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const recordFile = backgroundRecordPath('darwin', deps.dataDir)
+    const original = run.getMockImplementation()!
+    let isDisabled = false
+    let wasFinalStartAttempted = false
+    run.mockImplementation((file, args) => {
+      if (args[0] === 'disable') {
+        const record = backgroundWakeRecordSchema.parse(JSON.parse(files.get(recordFile)!))
+        if (!isDisabled) expect(record.disabledAtMs).toBeUndefined()
+        isDisabled = true
+      }
+      if (args[0] === 'print' && state.now > 1000) {
+        wasFinalStartAttempted = true
+        if (!isDisabled) state.wakeActive = true
+      }
+      if (args[0] === 'bootout') expect(state.wakeActive).toBe(false)
+      return original(file, args)
+    })
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow(recordFile)
+    state.now += 60_000
+    await entry.remove()
+    expect(wasFinalStartAttempted).toBe(true)
+    expect(files.size).toBe(0)
+  })
+
   it.each(['drop-in', 'symlinked drop-in', 'writable drop-in directory'])(
     'refuses a Linux %s before activation and on every fire',
     async (kind) => {
@@ -248,6 +399,12 @@ describe('native background lifecycle', () => {
       await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
       state.dropIns = [dropIn]
       await expect(verifyRegisteredWake(deps)).rejects.toThrow(dropIn)
+      state.active = true
+      await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        dropIn,
+      )
+      expect(state.active).toBe(false)
+      expect(state.registered).toBe(false)
     },
   )
   it('refuses unaccounted systemd SourcePath and missing or malformed manager properties', async () => {
@@ -306,7 +463,7 @@ describe('native background lifecycle', () => {
         const record = backgroundWakeRecordSchema.parse(
           JSON.parse(files.get(backgroundRecordPath('darwin', deps.dataDir))!),
         )
-        expect(record.disabledAtMs).toBe(1000)
+        if (!hasStarted) expect(record.disabledAtMs).toBeUndefined()
         hasStarted = true
       }
       return hasStarted && args[0] === 'print'
@@ -335,8 +492,11 @@ describe('native background lifecycle', () => {
     await expect(entry.remove()).rejects.toThrow()
     const recordFile = backgroundRecordPath('darwin', deps.dataDir)
     expect(backgroundWakeRecordSchema.parse(JSON.parse(files.get(recordFile)!))).toMatchObject({
-      disabledAtMs: 1000,
+      nextWakeAtMs: 120_000,
     })
+    expect(
+      backgroundWakeRecordSchema.parse(JSON.parse(files.get(recordFile)!)).disabledAtMs,
+    ).toBeUndefined()
     state.now += 60_000
     run.mockImplementation(original)
     await expect(entry.remove()).rejects.toThrow(
@@ -358,9 +518,8 @@ describe('native background lifecycle', () => {
       return Promise.resolve()
     })
     await expect(entry.remove()).rejects.toThrow(recordFile)
-    expect(run.mock.calls.some(([, args]) => args[0] === 'disable' || args[0] === 'bootout')).toBe(
-      false,
-    )
+    expect(run.mock.calls.some(([, args]) => args[0] === 'disable')).toBe(true)
+    expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
   })
   it.each(['win32', 'darwin', 'linux'] as const)(
     'refuses a definition replaced or linked after publication before %s OS import',
@@ -487,6 +646,128 @@ describe('native background lifecycle', () => {
       }
     },
   )
+  it('natively refuses an empty writable systemd drop-in without leaving a disposable timer armed', async () => {
+    if (process.platform !== 'linux') return
+    const runNative = backgroundProcessRunner(process.env)
+    const manager = await runNative('systemctl', ['--user', 'show-environment'])
+    if (manager.exitCode !== 0) return
+    const directory = await mkdtemp(
+      path.join(process.env['XDG_RUNTIME_DIR'] ?? os.tmpdir(), 'm115-native-'),
+    )
+    const uid = process.getuid?.() ?? 0
+    const id = backgroundRegistrationId(directory)
+    const dropDirectory = path.join(
+      process.env['XDG_RUNTIME_DIR'] ?? `/run/user/${String(uid)}`,
+      'systemd',
+      'user',
+      `${id}.service.d`,
+    )
+    try {
+      const verifier: TrustedPathVerifier = {
+        async verify(file: string, options: { leafKind: 'file' | 'directory' }) {
+          let component = file
+          for (;;) {
+            const info = await lstat(component)
+            const isLeaf = component === file
+            if (
+              info.isSymbolicLink() ||
+              (info.uid !== 0 && info.uid !== uid) ||
+              (info.mode & 0o022) !== 0 ||
+              (isLeaf && options.leafKind === 'file' ? !info.isFile() : !info.isDirectory())
+            )
+              return { refused: true, component, reason: 'native fixture owner/mode/kind' }
+            const parent = path.dirname(component)
+            if (parent === component) return { ok: true, path: await realpath(file) }
+            component = parent
+          }
+        },
+      }
+      const files = nodeBackgroundFiles(verifier)
+      const agentFile = path.join(directory, 'agent.js')
+      await writeFile(agentFile, 'process.exitCode = 0', { mode: 0o600 })
+      await mkdir(dropDirectory, { recursive: true })
+      await chmod(dropDirectory, 0o777)
+      const deps: NativeBackgroundDeps = {
+        platform: 'linux',
+        homeDir: directory,
+        dataDir: directory,
+        executable: process.execPath,
+        agentFile,
+        uid,
+        effectiveUid: uid,
+        isWakeProcess: false,
+        now: Date.now,
+        files,
+        authorization: () => Promise.resolve({ scheduledPrompts: false }),
+        run: runNative,
+      }
+      const entry = new NativeScheduleBackground(deps)
+      const register = () =>
+        entry.register(Date.now() + 600_000, { choice: 'yes', decidedAtMs: Date.now() })
+      await expect(register()).rejects.toThrow(dropDirectory)
+      const active = await runNative('systemctl', ['--user', 'is-active', `${id}.timer`])
+      const enabled = await runNative('systemctl', ['--user', 'is-enabled', `${id}.timer`])
+      expect(active.exitCode).not.toBe(0)
+      expect(enabled.stdout.trim()).toBe('not-found')
+    } finally {
+      await runNative('systemctl', ['--user', 'disable', '--now', `${id}.timer`, `${id}.service`])
+      for (const extension of ['timer', 'service'])
+        await rm(path.join(path.dirname(dropDirectory), `${id}.${extension}`), { force: true })
+      await rm(dropDirectory, { recursive: true, force: true })
+      await rm(directory, { recursive: true, force: true })
+      await runNative('systemctl', ['--user', 'daemon-reload'])
+    }
+  })
+  it('verifies missing systemd directory ancestry and rejects links, wrong kinds and unsafe ancestors', async () => {
+    if (process.platform === 'win32') return
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'm115-search-'))
+    try {
+      const missing = path.join(directory, 'absent', 'unit.service.d')
+      const verify = vi.fn().mockResolvedValue({ ok: true, path: directory })
+      await trustedBackgroundPath(missing, 'linux', 1000, { verify }, 'search-directory')
+      expect(verify).toHaveBeenCalledWith(directory, { leafKind: 'directory' })
+      verify.mockResolvedValue({ refused: true, component: directory, reason: 'untrusted writer' })
+      await expect(
+        trustedBackgroundPath(missing, 'linux', 1000, { verify }, 'search-directory'),
+      ).rejects.toThrow(directory)
+      await expect(
+        trustedBackgroundPath(missing, 'linux', 1000, undefined, 'search-directory'),
+      ).rejects.toThrow(missing)
+      const linked = path.join(directory, 'linked')
+      await symlink(directory, linked, 'junction')
+      verify.mockImplementation(async (file: string) => {
+        const info = await lstat(file)
+        return info.isSymbolicLink() || !info.isDirectory()
+          ? { refused: true, component: file, reason: 'link or wrong kind' }
+          : { ok: true, path: file }
+      })
+      await expect(
+        trustedBackgroundPath(
+          path.join(linked, 'missing'),
+          'linux',
+          1000,
+          { verify },
+          'search-directory',
+        ),
+      ).rejects.toThrow(linked)
+      const plainFile = path.join(directory, 'plain')
+      await writeFile(plainFile, 'fixture')
+      await expect(
+        trustedBackgroundPath(plainFile, 'linux', 1000, { verify }, 'search-directory'),
+      ).rejects.toThrow(plainFile)
+      await expect(
+        trustedBackgroundPath(
+          path.join(plainFile, 'missing'),
+          'linux',
+          1000,
+          { verify },
+          'search-directory',
+        ),
+      ).rejects.toThrow(plainFile)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
   it('uses the shared TrustedPathVerifier for launchers and definitions and refuses missing POSIX bindings', async () => {
     const verify = vi.fn().mockResolvedValue({ ok: true, path: '/canonical/node' })
     const port = { verify }
@@ -540,7 +821,7 @@ describe('native background lifecycle', () => {
     deps.identity.mockResolvedValue(undefined)
     await expect(beginScheduleWake('/data', '/node', '/acp.js', deps)).rejects.toThrow()
   })
-  it('disables a macOS record first and refuses rearm without unloading a running wake', async () => {
+  it('disables macOS and its record before retirement and refuses rearm without unloading a running wake', async () => {
     const { entry, run, state, files, deps } = setup('darwin')
     state.wakeActive = true
     await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()

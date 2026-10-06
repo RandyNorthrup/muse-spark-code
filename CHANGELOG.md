@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Close the fourth M115 native adapter review: verify all systemd search and
+  applicable drop-in directories at registration and fire, disarm the timer
+  after refused reconciliation, check the Windows task object's own ACL,
+  and disable launchd before publishing its disabled record and retiring it.
+  Native macOS and ordinary-user Windows receipts remain integration work.
+
 - Redesign the internal native schedule trust checks: use the shared path
   verifier, inspect systemd's effective file set, hash Task Scheduler's
   exported XML and check its folder ACL, and disable launchd records before

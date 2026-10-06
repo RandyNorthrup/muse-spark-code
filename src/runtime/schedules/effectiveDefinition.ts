@@ -47,8 +47,30 @@ export async function scheduleWindowsOwner(run: DefinitionDeps['run']): Promise<
   return identity.sid
 }
 
+/** Absent search/drop-in directories require a trusted existing ancestor too. */
+export async function verifySystemdSearchDirectories(deps: DefinitionDeps): Promise<void> {
+  const result = await deps.run('systemd-analyze', ['--user', 'unit-paths'])
+  if (result.exitCode !== 0) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+  const roots = result.stdout.trim().split(/\r?\n/)
+  if (new Set(roots).size !== roots.length)
+    throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
+  for (const root of roots) {
+    if (!path.posix.isAbsolute(root) || /[\p{Cc}\\]/u.test(root)) throw unsafeScheduleLauncher(root)
+    await deps.trustedPath(root, 'linux', deps.uid, 'search-directory')
+    for (const extension of ['service', 'timer']) {
+      // systemd also searches type-wide and dash-truncated prefix drop-ins.
+      const names = [`${extension}.d`, `${deps.id}.${extension}.d`]
+      for (const match of deps.id.matchAll(/-/g))
+        names.push(`${deps.id.slice(0, match.index + 1)}.${extension}.d`)
+      for (const name of names)
+        await deps.trustedPath(path.posix.join(root, name), 'linux', deps.uid, 'search-directory')
+    }
+  }
+}
+
 /** Query the manager, not the generated file list. Unknown/ambiguous output refuses. */
 async function systemdFiles(deps: DefinitionDeps): Promise<string[]> {
+  await verifySystemdSearchDirectories(deps)
   const files: string[] = []
   for (const extension of ['service', 'timer']) {
     const result = await deps.run('systemctl', [
@@ -90,9 +112,9 @@ async function systemdFiles(deps: DefinitionDeps): Promise<string[]> {
   return files
 }
 
-/** Export through IRegisteredTask.Xml, and apply the shared ACL rule to its folder. */
+/** Export through IRegisteredTask.Xml and trust both folder and task descriptors. */
 async function windowsTask(deps: DefinitionDeps): Promise<string> {
-  const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, deps.id)}'); $task = $folder.GetTask('${deps.id}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); $actions = $task.Definition.Actions; if ($actions.Count -ne 1 -or $actions.Item(1).Type -ne 0) { throw 'invalid action' }; ConvertTo-Json -Compress -InputObject @{ xml = $task.Xml; actionPath = $actions.Item(1).Path; folderTrusted = (Test-TrustedAcl $acl $false $true) }`
+  const script = `$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, deps.id)}'); $task = $folder.GetTask('${deps.id}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); $taskAcl = [Security.AccessControl.FileSecurity]::new(); $taskAcl.SetSecurityDescriptorSddlForm($task.GetSecurityDescriptor(7)); $actions = $task.Definition.Actions; if ($actions.Count -ne 1 -or $actions.Item(1).Type -ne 0) { throw 'invalid action' }; ConvertTo-Json -Compress -InputObject @{ xml = $task.Xml; actionPath = $actions.Item(1).Path; folderTrusted = (Test-TrustedAcl $acl $false $true $true); taskTrusted = (Test-TrustedAcl $taskAcl $false $false $true) }`
   const result = await deps.run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -105,10 +127,12 @@ async function windowsTask(deps: DefinitionDeps): Promise<string> {
       xml: z.string().check(z.minLength(1)),
       actionPath: z.string(),
       folderTrusted: z.boolean(),
+      taskTrusted: z.boolean(),
     })
     .parse(JSON.parse(result.stdout))
   if (
     !task.folderTrusted ||
+    !task.taskTrusted ||
     normalized(task.actionPath, 'win32') !== normalized(deps.executable, 'win32')
   )
     throw unsafeScheduleLauncher(task.actionPath)

@@ -154,7 +154,7 @@ export async function trustedBackgroundPath(
   platform: NodeJS.Platform,
   _uid: number,
   verifier?: TrustedPathVerifier,
-  kind?: 'definition' | 'directory',
+  kind?: 'definition' | 'directory' | 'search-directory',
 ): Promise<string> {
   const trusted =
     verifier ??
@@ -162,8 +162,23 @@ export async function trustedBackgroundPath(
       ? windowsTrustedPathVerifier(backgroundProcessRunner(process.env))
       : undefined)
   if (trusted === undefined) throw unsafeScheduleLauncher(file)
-  const result = await trusted.verify(file, {
-    leafKind: kind === 'directory' ? 'directory' : 'file',
+  let target = file
+  if (kind === 'search-directory') {
+    if (platform !== 'linux' || !path.posix.isAbsolute(file) || /[\p{Cc}\\]/u.test(file))
+      throw unsafeScheduleLauncher(file)
+    for (const candidate of ancestors(path.posix, file)) {
+      try {
+        await lstat(candidate)
+      } catch (error: unknown) {
+        if (storeErrorCode(error) === 'ENOENT') continue
+        throw unsafeScheduleLauncher(candidate)
+      }
+      target = candidate
+      break
+    }
+  }
+  const result = await trusted.verify(target, {
+    leafKind: kind === 'directory' || kind === 'search-directory' ? 'directory' : 'file',
   })
   if ('refused' in result) throw unsafeScheduleLauncher(result.component)
   return result.path
@@ -256,6 +271,7 @@ export async function verifyScheduleWake(
 function systemProgram(file: string, env: NodeJS.ProcessEnv): string {
   if (file === 'launchctl') return '/bin/launchctl'
   if (file === 'systemctl') return '/usr/bin/systemctl'
+  if (file === 'systemd-analyze') return '/usr/bin/systemd-analyze'
   if (file !== 'powershell.exe' && file !== 'schtasks.exe') return file
   const root = Object.entries(env).find(([name]) => name.toUpperCase() === 'SYSTEMROOT')?.[1]
   if (root === undefined || !path.win32.isAbsolute(root) || /[\p{Cc}]/u.test(root))

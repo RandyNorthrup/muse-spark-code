@@ -30,6 +30,29 @@ const vectors = z
   )
 const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
 const verdicts: boolean[] = []
+const taskVectors = [
+  {
+    name: 'current user writer',
+    owner: 'S-1-5-21-1-2-3-1000',
+    writer: 'S-1-5-21-1-2-3-1000',
+    ok: true,
+  },
+  { name: 'SYSTEM writer', owner: 'S-1-5-18', writer: 'S-1-5-18', ok: true },
+  { name: 'Administrators writer', owner: 'S-1-5-32-544', writer: 'S-1-5-32-544', ok: true },
+  {
+    name: 'untrusted writer',
+    owner: 'S-1-5-21-1-2-3-1000',
+    writer: 'S-1-5-21-4-5-6-1000',
+    ok: false,
+  },
+  {
+    name: 'TrustedInstaller writer',
+    owner: 'S-1-5-21-1-2-3-1000',
+    writer: 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464',
+    ok: false,
+  },
+]
+const taskVerdicts: boolean[] = []
 beforeAll(async () => {
   if (process.platform !== 'win32') return
   // One native invocation for the complete shared table, within the default deadline.
@@ -38,7 +61,8 @@ beforeAll(async () => {
     '[Security.Principal.WindowsIdentity]::GetCurrent()',
     "[pscustomobject]@{ User = [pscustomobject]@{ Value = 'S-1-5-21-1-2-3-1000' } }",
   )
-  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $vectors = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${table}')) | ConvertFrom-Json; $results = @(); foreach ($vector in $vectors) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($vector.sddl); $results += (-not $vector.reparsePoint -and (Test-TrustedAcl $acl $vector.isRoot $vector.isDirectory)) }; ConvertTo-Json -Compress -InputObject $results`
+  const taskTable = Buffer.from(JSON.stringify(taskVectors)).toString('base64')
+  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $vectors = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${table}')) | ConvertFrom-Json; $results = @(); foreach ($vector in $vectors) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($vector.sddl); $results += (-not $vector.reparsePoint -and (Test-TrustedAcl $acl $vector.isRoot $vector.isDirectory)) }; $tasks = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${taskTable}')) | ConvertFrom-Json; foreach ($task in $tasks) { $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetSecurityDescriptorSddlForm(('O:' + $task.owner + 'D:P(A;;FA;;;' + $task.writer + ')')); $results += (Test-TrustedAcl $acl $false $false $true) }; ConvertTo-Json -Compress -InputObject $results`
   const result = await run('powershell.exe', [
     '-NoProfile',
     '-NonInteractive',
@@ -46,10 +70,50 @@ beforeAll(async () => {
     Buffer.from(script, 'utf16le').toString('base64'),
   ])
   expect(result.exitCode).toBe(0)
-  verdicts.push(...z.array(z.boolean()).parse(JSON.parse(result.stdout)))
+  const parsed = z.array(z.boolean()).parse(JSON.parse(result.stdout))
+  verdicts.push(...parsed.slice(0, vectors.windows.length))
+  taskVerdicts.push(...parsed.slice(vectors.windows.length))
+})
+
+beforeAll(async () => {
+  if (process.platform !== 'linux') return
+  const policy = WINDOWS_TRUSTED_ACL_SCRIPT.replace(
+    '[Security.Principal.WindowsIdentity]::GetCurrent()',
+    "[pscustomobject]@{ User = [pscustomobject]@{ Value = 'S-1-5-21-1-2-3-1000' } }",
+  )
+  const table = Buffer.from(JSON.stringify(taskVectors)).toString('base64')
+  // Linux has no native .NET ACL API. Fake descriptors exercise the exact predicate.
+  const script = `$ErrorActionPreference = 'Stop'; ${policy}; $tasks = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${table}')) | ConvertFrom-Json; $results = @(); foreach ($task in $tasks) { $acl = [pscustomobject]@{ Owner = $task.owner; Rules = @([pscustomobject]@{ AccessControlType = 'Allow'; IdentityReference = [pscustomobject]@{ Value = $task.writer }; FileSystemRights = [Security.AccessControl.FileSystemRights]::FullControl; PropagationFlags = [Security.AccessControl.PropagationFlags]::None; InheritanceFlags = [Security.AccessControl.InheritanceFlags]::None }) }; $acl | Add-Member -MemberType ScriptMethod -Name GetOwner -Value { param($kind) [pscustomobject]@{ Value = $this.Owner } }; $acl | Add-Member -MemberType ScriptMethod -Name GetAccessRules -Value { param($explicit, $inherited, $kind) $this.Rules }; $results += (Test-TrustedAcl $acl $false $false $true) }; ConvertTo-Json -Compress -InputObject $results`
+  let result
+  try {
+    result = await backgroundProcessRunner(process.env)('pwsh', [
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      Buffer.from(script, 'utf16le').toString('base64'),
+    ])
+  } catch (error: unknown) {
+    // PowerShell is optional on POSIX CI; real descriptors run on Windows above.
+    if (
+      error instanceof Error &&
+      error.cause instanceof Error &&
+      'code' in error.cause &&
+      error.cause.code === 'ENOENT'
+    )
+      return
+    throw error
+  }
+  expect(result.exitCode).toBe(0)
+  taskVerdicts.push(...z.array(z.boolean()).parse(JSON.parse(result.stdout)))
 })
 
 describe('shared Windows trusted-path vectors', () => {
+  it.each(taskVectors.map((vector, index) => ({ ...vector, index })))(
+    'scheduler task SID: $name',
+    (vector) => {
+      if (taskVerdicts.length > 0) expect(taskVerdicts[vector.index]).toBe(vector.ok)
+    },
+  )
   it.each(vectors.windows.map((vector, index) => ({ ...vector, index })))('$name', (vector) => {
     if (process.platform === 'win32') expect(verdicts[vector.index]).toBe(vector.ok)
     expect(vector.path.replaceAll('\\', '/')).toMatch(/^C:\//)

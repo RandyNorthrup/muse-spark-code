@@ -6845,6 +6845,25 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115X5 — RVM115X4 repair (2026-10-06)
+
+Keep the native adapter architecture and repair both P1 findings and the P2
+retirement finding. Ask `systemd-analyze --user unit-paths` for every search
+root and verify its existing ancestry plus every applicable unit/type/prefix
+drop-in directory, including absent directories, at registration and each
+launcher fire. Unknown definition files still refuse; failed Linux registration
+must disable/stop the timer. Verify Task Scheduler's task-object descriptor
+through `GetSecurityDescriptor` as well as its folder: only the user, SYSTEM
+and Administrators may own/write scheduler objects. macOS retirement disables
+the native job before publishing the disabled record, then retains the bounded
+grace/marker/idle-print barrier before bootout and plist removal.
+
+Each finding gets a failing regression and a byte-exact restored red drill.
+Run owned suites with repository deadlines, scoped static gates and build on
+Kubuntu. A disposable user unit may be exercised and must be removed; native
+macOS and ordinary-user Windows reruns remain owed. No dependency, merge,
+push, paid/model call, guard widening or aggregate quality run is authorized.
+
 ### REDM115X — Native launcher trust redesign (2026-10-06)
 
 Replace X's per-OS ancestry checks with the M104 `TrustedPathVerifier` port:
@@ -19659,6 +19678,29 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115X5 review repair supersedes REDM115X's search/task/retirement claims.**
+  Both RVM115X4 P1 findings and its P2 are fixed without deferral. Registration
+  and launcher fires query all systemd search roots and verify existing
+  ancestry for missing directories too, including unit, type and dash-prefix
+  drop-ins. Unaccounted effective files still refuse; failed reconciliation
+  disables/stops the timer. Windows verifies the task leaf descriptor and its
+  folder with user/SYSTEM/Administrators ownership/write rights; trusted path
+  verification retains its original OS-owner rule. macOS disables the native
+  job before publishing the verified disabled record, keeps the full grace
+  interval and refuses a live/starting/unknown instance before bootout.
+- **FIXM115X5-NATIVE-RECEIPTS.** Kubuntu natively refuses an empty writable
+  disposable drop-in directory and leaves no timer armed. Positive native
+  registration is blocked by the rig's existing writable
+  `/home/randy/.local/share` ancestry; its permissions were not changed and
+  no guard was weakened. Safe for now: the production POSIX binding remains
+  unbound and unsafe/missing paths refuse. Follow-up: W runs positive native
+  Linux registration/fire/removal on a trusted profile, Mac mini disable-first
+  interleavings, and ordinary-user Windows task-descriptor/update/wake tests.
+  The seam's atomic-disable model follows the lead's decision; a native macOS
+  receipt must confirm it. No unconditional native macOS race claim is made.
+  S/U/W production consent/admission/settlement and aggregate quality remain
+  required. No reviewed finding is silently retained.
 
 - **REDM115X supersedes the native trust/lifecycle claims below.** Native
   paths use `TrustedPathVerifier`; X supplies the Windows implementation

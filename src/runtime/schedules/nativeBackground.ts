@@ -3,7 +3,11 @@ import process from 'node:process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
-import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
+import {
+  effectiveBackgroundDefinition,
+  scheduleWindowsOwner,
+  verifySystemdSearchDirectories,
+} from './effectiveDefinition'
 import { WINDOWS_TRUSTED_ACL_SCRIPT } from '../windowsTrustedPath'
 import {
   scheduleBackgroundConsentSchema,
@@ -25,7 +29,7 @@ export interface BackgroundFilePort {
     file: string,
     platform: NodeJS.Platform,
     uid: number,
-    kind?: 'definition' | 'directory',
+    kind?: 'definition' | 'directory' | 'search-directory',
   ) => Promise<string>
   prepare(file: string, platform: NodeJS.Platform, uid: number): Promise<void>
   readonly hash: (file: string) => Promise<string | undefined>
@@ -141,14 +145,15 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       JSON.stringify(record.files) !== JSON.stringify(effective.files)
     )
       throw unsafeScheduleLauncher(this.stateFile)
-    if (record.disabledAtMs === undefined) {
-      record = { ...record, disabledAtMs: this.deps.now() }
-      await this.writeRecord(record)
-    }
-    // Suppress future starts too. Record publication precedes the OS restriction.
-    if (record.nativeDisabledAtMs === undefined) {
-      await this.succeeded('launchctl', ['disable', `gui/${String(this.deps.uid)}/${this.id}`])
-      record = { ...record, nativeDisabledAtMs: this.deps.now() }
+    // Disable first: prevent a new start between the final idle print and bootout.
+    // A wake already starting must observe the disabled record before admission.
+    await this.succeeded('launchctl', ['disable', `gui/${String(this.deps.uid)}/${this.id}`])
+    if (record.disabledAtMs === undefined || record.nativeDisabledAtMs === undefined) {
+      record = {
+        ...record,
+        disabledAtMs: record.disabledAtMs ?? this.deps.now(),
+        nativeDisabledAtMs: record.nativeDisabledAtMs ?? this.deps.now(),
+      }
       await this.writeRecord(record)
     }
     const disabledSince = record.nativeDisabledAtMs
@@ -237,106 +242,132 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       this.deps.platform,
       this.deps.uid,
     )
-    const registration = backgroundRegistration({
-      ...this.deps,
-      ...(windowsUserId !== undefined && { windowsUserId }),
-      executable,
-      agentFile,
-      nowMs: this.deps.now(),
-      nextWakeAtMs,
-    })
-    const firstFile = registration.files[0]
-    if (firstFile === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const recordInput = {
-      id: this.id,
-      nextWakeAtMs: registration.wakeAtMs,
-      executable,
-      agentFile,
-      scheduledPrompts: authorization.scheduledPrompts,
-      ...(authorization.maxBudgetUsd !== undefined && { maxBudgetUsd: authorization.maxBudgetUsd }),
-      files: registration.files.map((file) => ({
-        path: file.path,
-        sha256: createHash('sha256')
-          .update(
-            file.encoding === 'utf16le'
-              ? Buffer.from(`\u{FEFF}${file.text}`, 'utf16le')
-              : file.text,
-          )
-          .digest('hex'),
-      })),
-    }
-    for (const file of [...this.paths, this.stateFile])
-      await this.deps.files.prepare(file, this.deps.platform, this.deps.uid)
-    for (const file of registration.files)
-      await this.deps.files.write(file.path, file.text, file.encoding)
-    const verifyStaged = async () => {
-      for (const file of recordInput.files) {
-        await this.deps.files.trustedPath(
-          file.path,
-          this.deps.platform,
-          this.deps.uid,
-          'definition',
-        )
-        if ((await this.deps.files.hash(file.path)) !== file.sha256)
-          throw unsafeScheduleLauncher(file.path)
-      }
-    }
-    const saveRecord = async () => {
-      const effective = await this.definition(executable)
-      const record = backgroundWakeRecordSchema.parse({
-        ...recordInput,
-        files: effective.files,
-        definitionSha256: effective.sha256,
+    try {
+      if (this.deps.platform === 'linux')
+        await verifySystemdSearchDirectories({
+          ...this.deps,
+          id: this.id,
+          definitions: this.paths,
+          trustedPath: this.deps.files.trustedPath,
+          read: this.deps.files.read,
+          hash: this.deps.files.hash,
+        })
+      const registration = backgroundRegistration({
+        ...this.deps,
+        ...(windowsUserId !== undefined && { windowsUserId }),
+        executable,
+        agentFile,
+        nowMs: this.deps.now(),
+        nextWakeAtMs,
       })
-      await this.writeRecord(record)
-      return record
-    }
-    await verifyStaged()
-    let record
-    switch (this.deps.platform) {
-      case 'win32': {
-        // The standard Task Scheduler root permits creation by other users.
-        // Create our fixed per-user folder with a protected, trusted-SID DACL.
-        const folderScript = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -eq 0) { $null = $root.CreateFolder('${this.id}', 'O:${windowsUserId ?? ''}D:P(A;;FA;;;${windowsUserId ?? ''})(A;;FA;;;SY)(A;;FA;;;BA)') }; $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, this.id)}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); ConvertTo-Json -Compress -InputObject (Test-TrustedAcl $acl $false $true)`
-        if (!z.boolean().parse(await this.powershellJson(folderScript)))
-          throw unsafeScheduleLauncher(this.id)
-        await this.succeeded('schtasks.exe', [
-          '/Create',
-          '/TN',
-          path.win32.join(path.win32.sep, this.id, this.id),
-          '/XML',
-          firstFile.path,
-          '/F',
+      const firstFile = registration.files[0]
+      if (firstFile === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+      const recordInput = {
+        id: this.id,
+        nextWakeAtMs: registration.wakeAtMs,
+        executable,
+        agentFile,
+        scheduledPrompts: authorization.scheduledPrompts,
+        ...(authorization.maxBudgetUsd !== undefined && {
+          maxBudgetUsd: authorization.maxBudgetUsd,
+        }),
+        files: registration.files.map((file) => ({
+          path: file.path,
+          sha256: createHash('sha256')
+            .update(
+              file.encoding === 'utf16le'
+                ? Buffer.from(`\u{FEFF}${file.text}`, 'utf16le')
+                : file.text,
+            )
+            .digest('hex'),
+        })),
+      }
+      for (const file of [...this.paths, this.stateFile])
+        await this.deps.files.prepare(file, this.deps.platform, this.deps.uid)
+      for (const file of registration.files)
+        await this.deps.files.write(file.path, file.text, file.encoding)
+      const verifyStaged = async () => {
+        for (const file of recordInput.files) {
+          await this.deps.files.trustedPath(
+            file.path,
+            this.deps.platform,
+            this.deps.uid,
+            'definition',
+          )
+          if ((await this.deps.files.hash(file.path)) !== file.sha256)
+            throw unsafeScheduleLauncher(file.path)
+        }
+      }
+      const saveRecord = async () => {
+        const effective = await this.definition(executable)
+        const record = backgroundWakeRecordSchema.parse({
+          ...recordInput,
+          files: effective.files,
+          definitionSha256: effective.sha256,
+        })
+        await this.writeRecord(record)
+        return record
+      }
+      await verifyStaged()
+      let record
+      switch (this.deps.platform) {
+        case 'win32': {
+          // The standard Task Scheduler root permits creation by other users.
+          // Create our fixed per-user folder with a protected, trusted-SID DACL.
+          const folderScript = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -eq 0) { $null = $root.CreateFolder('${this.id}', 'O:${windowsUserId ?? ''}D:P(A;;FA;;;${windowsUserId ?? ''})(A;;FA;;;SY)(A;;FA;;;BA)') }; $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, this.id)}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); $tasksTrusted = $true; foreach ($existingTask in @($folder.GetTasks(1) | Where-Object { $_.Name -eq '${this.id}' })) { $taskAcl = [Security.AccessControl.FileSecurity]::new(); $taskAcl.SetSecurityDescriptorSddlForm($existingTask.GetSecurityDescriptor(7)); $tasksTrusted = $tasksTrusted -and (Test-TrustedAcl $taskAcl $false $false $true) }; ConvertTo-Json -Compress -InputObject ((Test-TrustedAcl $acl $false $true $true) -and $tasksTrusted)`
+          if (!z.boolean().parse(await this.powershellJson(folderScript)))
+            throw unsafeScheduleLauncher(this.id)
+          await this.succeeded('schtasks.exe', [
+            '/Create',
+            '/TN',
+            path.win32.join(path.win32.sep, this.id, this.id),
+            '/XML',
+            firstFile.path,
+            '/F',
+          ])
+          record = await saveRecord()
+          break
+        }
+        case 'darwin': {
+          record = await saveRecord()
+          await this.succeeded('launchctl', ['enable', `${registration.domain}/${this.id}`])
+          await this.succeeded('launchctl', ['bootstrap', registration.domain, firstFile.path])
+          break
+        }
+        case 'linux': {
+          await this.succeeded('systemctl', ['--user', 'daemon-reload'])
+          record = await saveRecord()
+          await this.succeeded('systemctl', ['--user', 'enable', '--now', `${this.id}.timer`])
+          // An already active one-shot timer must reread its changed calendar.
+          await this.succeeded('systemctl', ['--user', 'restart', `${this.id}.timer`])
+          break
+        }
+        default: {
+          throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+        }
+      }
+      if (!(await this.isRegistered())) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      await verifyStaged()
+      const effective = await this.definition(executable)
+      if (
+        record.definitionSha256 !== effective.sha256 ||
+        JSON.stringify(record.files) !== JSON.stringify(effective.files)
+      )
+        throw unsafeScheduleLauncher(this.stateFile)
+    } catch (error: unknown) {
+      if (this.deps.platform === 'linux') {
+        // Refused reconciliation must not leave the previous timer armed.
+        const result = await this.deps.run('systemctl', [
+          '--user',
+          'disable',
+          '--now',
+          `${this.id}.timer`,
         ])
-        record = await saveRecord()
-        break
+        if (result.exitCode !== 0 && !/not (?:loaded|found)|does not exist/.test(result.stderr))
+          throw new Error(UI_TEXT.scheduleV2.runtime.unavailable, { cause: error })
       }
-      case 'darwin': {
-        record = await saveRecord()
-        await this.succeeded('launchctl', ['enable', `${registration.domain}/${this.id}`])
-        await this.succeeded('launchctl', ['bootstrap', registration.domain, firstFile.path])
-        break
-      }
-      case 'linux': {
-        await this.succeeded('systemctl', ['--user', 'daemon-reload'])
-        record = await saveRecord()
-        await this.succeeded('systemctl', ['--user', 'enable', '--now', `${this.id}.timer`])
-        // An already active one-shot timer must reread its changed calendar.
-        await this.succeeded('systemctl', ['--user', 'restart', `${this.id}.timer`])
-        break
-      }
-      default: {
-        throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-      }
+      throw error
     }
-    if (!(await this.isRegistered())) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    await verifyStaged()
-    const effective = await this.definition(executable)
-    if (
-      record.definitionSha256 !== effective.sha256 ||
-      JSON.stringify(record.files) !== JSON.stringify(effective.files)
-    )
-      throw unsafeScheduleLauncher(this.stateFile)
   }
   async remove(): Promise<void> {
     if (this.deps.platform === 'darwin' && this.deps.isWakeProcess)
@@ -377,7 +408,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       if (await this.isRegistered()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
     }
     if (this.deps.platform === 'win32') {
-      const script = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -gt 0) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($found[0].GetSecurityDescriptor(7)); if (-not (Test-TrustedAcl $acl $false $true)) { throw 'unsafe task folder' }; $root.DeleteFolder('${this.id}', 0) }; ConvertTo-Json -Compress -InputObject $true`
+      const script = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -gt 0) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($found[0].GetSecurityDescriptor(7)); if (-not (Test-TrustedAcl $acl $false $true $true)) { throw 'unsafe task folder' }; $root.DeleteFolder('${this.id}', 0) }; ConvertTo-Json -Compress -InputObject $true`
       if (!z.boolean().parse(await this.powershellJson(script)))
         throw unsafeScheduleLauncher(this.id)
     }
