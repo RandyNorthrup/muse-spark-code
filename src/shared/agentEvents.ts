@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from './usd'
 // Backend-agnostic events a conversation emits. The MSP backend maps Muse
 // Session Protocol notifications onto these; the Model API backend (M7) will
 // map its own stream onto the same union. The webview renders only these, so
@@ -184,7 +185,7 @@ export const itemSnapshotFields = {
    * and only while its setting is on). Muse Code reports no per-reply
    * totals on its protocol, and its cost is never invented (PLAN.md D26).
    */
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   /**
    * `workflow` (M47, captured live 2026-09-25): the run as above, and the
    * reconciled message it ends with. Its `children` are taken as they come

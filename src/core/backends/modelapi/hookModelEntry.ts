@@ -1,3 +1,4 @@
+import { Usd } from '../../../shared/usd'
 // A prompt/agent hook's own model call (M91, PLAN.md D70, lane H): loaded
 // only after the paid-use popup allows it. One attempt, no retry, hooks off,
 // billed to the Model API key on the hookModels tally line, apart from the
@@ -338,7 +339,7 @@ async function requestHookStep(
     try {
       await claim?.settle(settlement.costUsd, settlement.isUnknown)
     } finally {
-      await dailyClaim?.settle(settlement.costUsd, settlement.isUnknown)
+      await dailyClaim?.settle(Usd.from(settlement.costUsd).toNumber(), settlement.isUnknown)
     }
   }
   return calls

@@ -58,7 +58,7 @@ describe('M80 structural headless paid policy', () => {
       log: logger(),
       headless: policy,
     })
-    expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBe(false)
+    expect(await paid.allows('/ws', 's', WEB_SEARCH, false)).toBeFalsy()
     expect(policy).not.toHaveBeenCalled()
   })
 })
@@ -70,6 +70,7 @@ describe('M80 structural headless paid policy', () => {
 
 const FOLDER = path.resolve('work', 'app')
 const OTHER = path.resolve('work', 'other')
+const WEB_SEARCH_QUOTE = { feature: 'webSearch', tariffUsd: '0.0025' }
 const WEB_SEARCH = { feature: 'webSearch', priceUsd: 0.0025 } as const
 const folders: string[] = []
 
@@ -175,6 +176,36 @@ function holdFirstRename(isHolding: (from: Fs.PathLike, to: Fs.PathLike) => bool
 }
 
 describe('AcpPaidUse', () => {
+  it('persists the quote ceiling across ACP restart and asks the current session at a higher tariff', async () => {
+    const file = grantsFile()
+    const first = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: fileStore(file),
+      log: logger(),
+    })
+    first.attach(() => Promise.resolve('always'))
+    await first.allows(FOLDER, 'old-session', WEB_SEARCH, false)
+    const second = new AcpPaidUse({
+      flagged: ['webSearch'],
+      canRemember: () => true,
+      grants: fileStore(file),
+      log: logger(),
+    })
+    const ask = vi.fn(() => Promise.resolve('once' as const))
+    second.attach(ask)
+    expect(await second.allows(FOLDER, 'new-session', WEB_SEARCH, false)).toMatchObject({
+      tariffUsd: '0.0025',
+    })
+    expect(ask).not.toHaveBeenCalled()
+    await second.allows(FOLDER, 'new-session', { feature: 'webSearch', priceUsd: '0.01' }, false)
+    expect(ask).toHaveBeenCalledWith(
+      'new-session',
+      expect.objectContaining({ quote: expect.objectContaining({ tariffUsd: '0.01' }) }),
+      true,
+    )
+  })
+
   it('denies every use until the agent attaches its way to ask', async () => {
     const log = logger()
     const paid = new AcpPaidUse({
@@ -183,14 +214,14 @@ describe('AcpPaidUse', () => {
       grants: memoryPaidGrants(),
       log,
     })
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: no editor to ask, so it is denied',
     )
     const asker = vi.fn(() => Promise.reject(new Error('the connection closed')))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(false)
-    expect(asker).toHaveBeenCalledWith('s1', WEB_SEARCH, true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBeFalsy()
+    expect(asker).toHaveBeenCalledWith('s1', expect.objectContaining(WEB_SEARCH), true)
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: the editor could not be asked, so it is denied: Error',
     )
@@ -207,17 +238,17 @@ describe('AcpPaidUse', () => {
     })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(1)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, true)).toBe(true)
-    expect(await paid.allows(OTHER, 's2', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, true)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(await paid.allows(OTHER, 's2', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(3)
-    expect(asker).toHaveBeenLastCalledWith('s2', WEB_SEARCH, true)
+    expect(asker).toHaveBeenLastCalledWith('s2', expect.objectContaining(WEB_SEARCH), true)
     isTrusted = false
     expect(paid.isRemembered(FOLDER, 'webSearch')).toBe(false)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
-    expect(asker).toHaveBeenLastCalledWith('s1', WEB_SEARCH, false)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
+    expect(asker).toHaveBeenLastCalledWith('s1', expect.objectContaining(WEB_SEARCH), false)
   })
 
   it('forgets "always" for every feature it starts without', async () => {
@@ -255,12 +286,12 @@ describe('AcpPaidUse', () => {
     const paid = new AcpPaidUse({ flagged: ['webSearch'], canRemember: () => true, grants, log })
     const asker = vi.fn(() => Promise.resolve('always' as const))
     paid.attach(asker)
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: read-only data folder',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
-    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toBe(true)
+    expect(await paid.allows(FOLDER, 's1', WEB_SEARCH, false)).toMatchObject(WEB_SEARCH_QUOTE)
     expect(asker).toHaveBeenCalledTimes(2)
   })
 

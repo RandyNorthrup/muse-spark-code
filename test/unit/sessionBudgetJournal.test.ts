@@ -1,3 +1,7 @@
+import { Usd, multiplyUsd } from '../../src/shared/usd'
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { PaidUsage } from '../../src/core/paid/paidFeatures'
+import { paidCostUsd, freezePaidQuote, searchSettlement } from '../../src/shared/paid'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
@@ -88,14 +92,17 @@ function budgetOf(store: ReturnType<typeof storeAt>) {
   return store.budget
 }
 
-async function expectSpent(total: Promise<{ readonly spentUsd: number }>, expected: number) {
+async function expectSpent(
+  total: Promise<{ readonly spentUsd: number | string }>,
+  expected: number,
+) {
   const current = await total
-  expect(current.spentUsd).toBeCloseTo(expected)
+  expect(current.spentUsd).toBe(Usd.from(expected).toAmount())
 }
 
 async function expectStoredSpend(store: ReturnType<typeof storeAt>, expected: number) {
   const current = await store.load(SESSION)
-  expect(current?.budgetSpentUsd).toBeCloseTo(expected)
+  expect(current?.budgetSpentUsd).toBe(Usd.from(expected).toAmount())
 }
 
 /** Failure before/after the real rename; permanent mode also rejects the owner's refund. */
@@ -198,6 +205,63 @@ function paidChild(paid: 'webSearch' | 'imageGeneration'): StoredChild {
 }
 
 describe('the real-disk session budget journal (M82)', () => {
+  it('preserves the reviewer tariff product through admission and persistence without binary ports', async () => {
+    const t = await setup()
+    const allowance = searchAllowanceUsd(3, '0.12345678901234566')
+    expect(allowance).toBe('0.37037036703703698')
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, allowance)
+    expect(() => claim.check('0.37037036703703696')).toThrow()
+    expect(claim.check(allowance).spentUsd).toBe(allowance)
+    const raw: unknown = JSON.parse(await readFile(claimFile(t.directory, claim.claimId), 'utf8'))
+    expect(raw).toMatchObject({ reservedUsd: allowance })
+  })
+
+  it('random charge sequences sum exactly and daily ledger session and tally agree', async () => {
+    const t = await setup()
+    const usage = new PaidUsage(new FakeLogOutputChannel())
+    const daily = createPaidDailyBudget({
+      directory: path.join(t.directory, 'property-daily'),
+      sleep: () => Promise.resolve(),
+      now: () => new Date(2026, 9, 6, 12).getTime(),
+      capUsd: () => 0.5,
+      isModelApi: () => true,
+    })
+    let random = 20_261_006
+    let expectedUnits = 0n
+    const tariff = '0.000033750123456789012345'
+    const quote = freezePaidQuote({
+      id: 'property',
+      feature: 'webSearch',
+      provider: 'verified-test',
+      model: 'test-model',
+      modelRevision: 0,
+      tariffUsd: Usd.from(tariff).toAmount(),
+      unit: 'search',
+      capturedAt: 0,
+    })
+    for (let index = 0; index < 40; index += 1) {
+      random = (random * 1_664_525 + 1_013_904_223) >>> 0
+      const units = (random % 20) + 1
+      expectedUnits += BigInt(units)
+      const settlement = searchSettlement(quote, units, true)
+      await t.budget.record(SESSION, ACCOUNT, settlement.costUsd)
+      const dailyClaim = await daily.reserveExact(settlement.costUsd)
+      await dailyClaim.settle(settlement.costUsd)
+      usage.add('webSearch', units, settlement)
+      // The oracle uses independent scaled integer arithmetic, never production addition.
+      const expected = String(33_750_123_456_789_012_345n * expectedUnits).padStart(25, '0')
+      const decimal = `${expected.slice(0, -24)}.${expected.slice(-24)}`
+        .replace(/0+$/, '')
+        .replace(/\.$/, '')
+      const sessionTotal = await t.budget.read(SESSION, ACCOUNT)
+      expect(sessionTotal.spentUsd).toBe(decimal)
+      const dailyTotal = await daily.latestDay()
+      expect(dailyTotal.spentUsd).toBe(decimal)
+      expect(paidCostUsd('webSearch', usage.current)).toBe(decimal)
+    }
+    expect(multiplyUsd(tariff, Number(expectedUnits))).toBe(paidCostUsd('webSearch', usage.current))
+  })
+
   it('settles 200 search fees to exactly USD 0.50 and admits the last search at the cap', async () => {
     const t = await setup()
     const fee = searchAllowanceUsd(1, 0.0025)
@@ -208,7 +272,7 @@ describe('the real-disk session budget journal (M82)', () => {
       await claim.settle(fee)
     }
     const total = await t.otherBudget.read(SESSION, ACCOUNT)
-    expect(total.spentUsd).toBe(0.5)
+    expect(total.spentUsd).toBe('0.5')
     const refused = await t.otherBudget.reserve(SESSION, ACCOUNT, fee)
     expect(() => refused.check(0.5)).toThrow()
     await refused.settle(0)
@@ -229,7 +293,7 @@ describe('the real-disk session budget journal (M82)', () => {
     await writeFile(seedFile, legacySeed)
     await writeFile(file, legacyClaim)
     const migrated = await t.otherBudget.read(SESSION, ACCOUNT)
-    expect(migrated.spentUsd).toBe(0.002500002)
+    expect(migrated.spentUsd).toBe('0.002500002')
     expect(await readFile(file, 'utf8')).toBe(legacyClaim)
     expect(await readFile(seedFile, 'utf8')).toBe(legacySeed)
     await claim.settle(0.000000002)
@@ -238,18 +302,22 @@ describe('the real-disk session budget journal (M82)', () => {
       settledUsd: '0.000000002',
     })
     const settled = await t.otherBudget.read(SESSION, ACCOUNT)
-    expect(settled.spentUsd).toBe(0.000000004)
+    expect(settled.spentUsd).toBe('0.000000004')
   })
 
   it('retains an over-bound fee on the original row across restart and closes it once', async () => {
     const t = await setup()
     const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.1)
     await claim.settle(0.1025, false, false)
-    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0.1025 })
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({
+      spentUsd: '0.1025',
+    })
     expect(await readdir(path.join(scope(t.directory), 'claims'))).toEqual([claim.claimId])
     await expect(claim.settle(0.1, false, false)).rejects.toThrow()
     await claim.settle(0.0026)
-    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0.0026 })
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({
+      spentUsd: '0.0026',
+    })
     await expect(claim.settle(0.003)).rejects.toThrow()
   })
 
@@ -273,18 +341,18 @@ describe('the real-disk session budget journal (M82)', () => {
     await one.settle(0)
     await expectSpent(t.budget.read(SESSION, ACCOUNT), 0.6)
     await two.settle(0)
-    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '0' })
     expect(await readdir(path.join(scope(t.directory), 'claims'))).toHaveLength(2)
   })
 
   it('keeps the previously admitted request and lets a later owner refund only its own row', async () => {
     const t = await setup()
     const earlier = await t.budget.reserve(SESSION, ACCOUNT, 0.6)
-    expect(earlier.check(1).spentUsd).toBeCloseTo(0.6)
+    expect(earlier.check(1).spentUsd).toBe('0.6')
     const later = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.6)
     expect(() => later.check(1)).toThrow()
     await later.settle(0)
-    expect(earlier.check(1).spentUsd).toBeCloseTo(0.6)
+    expect(earlier.check(1).spentUsd).toBe('0.6')
     expect(
       JSON.parse(await readFile(claimFile(t.directory, earlier.claimId), 'utf8')),
     ).toMatchObject({ reservedUsd: '0.6' })
@@ -316,7 +384,7 @@ describe('the real-disk session budget journal (M82)', () => {
       release.resolve(undefined)
     }
     const published = await reserving
-    expect(published.check(1).spentUsd).toBeCloseTo(0.4)
+    expect(published.check(1).spentUsd).toBe('0.4')
   })
 
   it('retains an unsettled request across new hosts and raw-session removal', async () => {
@@ -387,9 +455,9 @@ describe('the real-disk session budget journal (M82)', () => {
   it('checks the current cap synchronously without removing an owned liability', async () => {
     const t = await setup()
     const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.6)
-    expect(claim.check(1).spentUsd).toBeCloseTo(0.6)
+    expect(claim.check(1).spentUsd).toBe('0.6')
     expect(() => claim.check(0.5)).toThrow()
-    expect(claim.check(0).spentUsd).toBeCloseTo(0.6)
+    expect(claim.check(0).spentUsd).toBe('0.6')
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.6)
   })
 
@@ -397,21 +465,21 @@ describe('the real-disk session budget journal (M82)', () => {
     const t = await setup(snapshot({ budgetSpentUsd: 2 }))
     const claim = await t.budget.reserve(SESSION, ACCOUNT, 1)
     await t.second.save(snapshot({ budgetSpentUsd: 0 }))
-    await expect(t.second.load(SESSION)).resolves.toMatchObject({ budgetSpentUsd: 3 })
+    await expect(t.second.load(SESSION)).resolves.toMatchObject({ budgetSpentUsd: '3' })
     await claim.settle(1.5)
     await t.first.save(snapshot({ budgetSpentUsd: 99 }))
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 3.5 })
-    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 3.5 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '3.5' })
+    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '3.5' })
   })
 
   it('seeds fresh legacy spend and unknown fee evidence before a direct stale save erases rows', async () => {
     const t = await setup(snapshot({ budgetSpentUsd: 4, children: [paidChild('imageGeneration')] }))
     await t.second.save(snapshot({ budgetSpentUsd: 1, children: [] }))
     expect(await t.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 4,
+      spentUsd: '4',
       hasUnknownHistoricalFees: true,
     })
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 4 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '4' })
     const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.1)
     expect(() => claim.check(10)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     expect(claim.check(0).hasUnknownHistoricalFees).toBe(true)
@@ -430,7 +498,7 @@ describe('the real-disk session budget journal (M82)', () => {
       spentUsd: '0',
     })
     expect(await budgetOf(store).read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -462,7 +530,7 @@ describe('the real-disk session budget journal (M82)', () => {
     })
     const recorded = await setup(snapshot({ budgetSpentUsd: 3, usage, children: [tokenChild] }))
     expect(await recorded.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 3,
+      spentUsd: '3',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -477,7 +545,7 @@ describe('the real-disk session budget journal (M82)', () => {
     const firstLoad = await t.first.load(SESSION)
     expect(firstLoad?.budgetIsFreshFork).toBeUndefined()
     expect(await t.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
     await t.budget.record(SESSION, ACCOUNT, 0.3)
@@ -486,7 +554,7 @@ describe('the real-disk session budget journal (M82)', () => {
     const stored = await readRaw(t.directory)
     expect(stored.budgetIsFreshFork).toBeUndefined()
     expect(await t.otherBudget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0.3,
+      spentUsd: '0.3',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -553,7 +621,7 @@ describe('the real-disk session budget journal (M82)', () => {
         return current
       },
     })
-    await expect(journal.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 5 })
+    await expect(journal.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '5' })
     expect(reads).toBe(2)
   })
 
@@ -634,7 +702,7 @@ describe('the real-disk session budget journal (M82)', () => {
     await expect(claim.settle(0)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.5)
     isBlocked = false
-    await expect(claim.settle(0)).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(claim.settle(0)).resolves.toMatchObject({ spentUsd: '0' })
   })
 
   it.each(['before publication', 'after publication'])(
@@ -649,7 +717,7 @@ describe('the real-disk session budget journal (M82)', () => {
         UI_TEXT.sessionBudgetStoreUnavailable,
       )
       await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
-      expect(earlier.check(1).spentUsd).toBeCloseTo(0.3)
+      expect(earlier.check(1).spentUsd).toBe('0.3')
       expect(await readdir(path.join(scope(t.directory), 'claims'))).toHaveLength(2)
     },
   )
@@ -680,7 +748,7 @@ describe('the real-disk session budget journal (M82)', () => {
     await expect(
       t.second.save(snapshot({ accountId: OTHER_ACCOUNT, budgetSpentUsd: 0 })),
     ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 2 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '2' })
   })
 
   it('never overwrites an existing legacy balance when metadata access is denied', async () => {
@@ -696,7 +764,7 @@ describe('the real-disk session budget journal (M82)', () => {
     } finally {
       denied.mockRestore()
     }
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 3 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '3' })
   })
 
   it.each([-1, NaN, Infinity])(
@@ -724,7 +792,7 @@ describe('the real-disk session budget journal (M82)', () => {
   it('keeps an uncapped unknown-model cost marked unknown after stale saves and future capped claims', async () => {
     const t = await setup()
     expect(await t.budget.record(SESSION, ACCOUNT, 0.2, true)).toEqual({
-      spentUsd: 0.2,
+      spentUsd: '0.2',
       hasUnknownHistoricalFees: true,
     })
     await t.second.save(snapshot({ budgetSpentUsd: 0 }))
@@ -737,7 +805,7 @@ describe('the real-disk session budget journal (M82)', () => {
   it('blocks finite admission behind another host’s open uncapped request until known usage settles', async () => {
     const t = await setup()
     const uncapped = await t.budget.reserve(SESSION, ACCOUNT, 0, { isUnbounded: true })
-    expect(uncapped.check(0)).toEqual({ spentUsd: 0, hasUnknownHistoricalFees: true })
+    expect(uncapped.check(0)).toEqual({ spentUsd: '0', hasUnknownHistoricalFees: true })
     const capped = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
     expect(() => capped.check(1)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     await uncapped.settle(0.2, false)
@@ -763,7 +831,7 @@ describe('the real-disk session budget journal (M82)', () => {
     })
     await claim.settle(0, false)
     const next = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(next.check(1)).toEqual({ spentUsd: 0.1, hasUnknownHistoricalFees: false })
+    expect(next.check(1)).toEqual({ spentUsd: '0.1', hasUnknownHistoricalFees: false })
   })
 
   it('closes a failed uncapped publication as proven nonsent without retaining its unknown flag', async () => {
@@ -776,7 +844,7 @@ describe('the real-disk session budget journal (M82)', () => {
       budgetOf(failing).reserve(SESSION, ACCOUNT, 0, { isUnbounded: true, hasUnknownCost: true }),
     ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     expect(await t.otherBudget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
   })

@@ -1,3 +1,5 @@
+import { freezePaidQuote } from '../../src/shared/paid'
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   PaidUseConsent,
@@ -51,7 +53,48 @@ describe('paidUseQuestion: verified hosted-search tariffs', () => {
   })
 })
 
+const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.3') =>
+  ({
+    feature: 'webSearch',
+    priceUsd: tariff,
+    quote: freezePaidQuote({
+      id: tariff + provider + model,
+      feature: 'webSearch',
+      provider,
+      model,
+      modelRevision: 0,
+      tariffUsd: Usd.from(tariff).toAmount(),
+      unit: 'search',
+      capturedAt: 0,
+    }),
+  }) as const
+
 describe('PaidUseConsent (M58)', () => {
+  it('binds Always to provider/model and its exact approved tariff ceiling', async () => {
+    const t = consentWith({ answer: () => Promise.resolve('always') })
+    expect(await t.consent.allows(searchRequest('0.0025'))).toMatchObject({ tariffUsd: '0.0025' })
+    await t.consent.allows(searchRequest('0.0025'))
+    await t.consent.allows(searchRequest('0.001'))
+    expect(t.ask).toHaveBeenCalledOnce()
+    await t.consent.allows(searchRequest('0.01'))
+    expect(t.ask).toHaveBeenCalledTimes(2)
+    await t.consent.allows(searchRequest('0.001', 'another-provider'))
+    await t.consent.allows(searchRequest('0.001', 'meta', 'another-model'))
+    expect(t.ask).toHaveBeenCalledTimes(4)
+  })
+
+  it('refuses an Always answer when its quote became stale while open', async () => {
+    let isCurrent = true
+    const t = consentWith({
+      answer: () => {
+        isCurrent = false
+        return Promise.resolve('always')
+      },
+    })
+    expect(await t.consent.allows({ ...SEARCH, isCurrent: () => isCurrent })).toBeUndefined()
+    expect(t.grants().size).toBe(0)
+  })
+
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
     const log = new FakeLogOutputChannel()
     const consent = new PaidUseConsent({
@@ -62,7 +105,10 @@ describe('PaidUseConsent (M58)', () => {
       ask: () => Promise.resolve('always'),
       log,
     })
-    await expect(consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
     )
@@ -71,22 +117,28 @@ describe('PaidUseConsent (M58)', () => {
 
   it('refuses a feature that is off without asking', async () => {
     const t = consentWith({ on: [] })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.ask).not.toHaveBeenCalled()
   })
 
   it('asks each time for "once", and nothing is kept', async () => {
     const t = consentWith()
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(t.ask).toHaveBeenCalledTimes(2)
-    expect(t.ask).toHaveBeenCalledWith(SEARCH, true)
+    expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), true)
     expect(t.writes).toEqual([])
   })
 
   it('refuses on Deny', async () => {
     const t = consentWith({ answer: () => Promise.resolve('deny') })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.writes).toEqual([])
   })
 
@@ -94,19 +146,25 @@ describe('PaidUseConsent (M58)', () => {
     const t = consentWith({ answer: () => Promise.resolve('always') })
     const listener = vi.fn()
     t.consent.onDidChange(listener)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(t.writes).toEqual([['webSearch']])
     expect(listener).toHaveBeenCalledTimes(1)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
     expect(t.ask).toHaveBeenCalledTimes(1)
     expect(t.consent.remembered()).toEqual(['webSearch'])
   })
 
-  it('asks despite "always" when the use demands a question', async () => {
+  it('asks for an unpriced legacy always grant and when the use demands a question', async () => {
     const t = consentWith({ grants: ['webSearch'], answer: () => Promise.resolve('deny') })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    await expect(t.consent.allows(SEARCH, true)).resolves.toBe(false)
-    expect(t.ask).toHaveBeenCalledTimes(1)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
+    await expect(t.consent.allows(SEARCH, true)).resolves.toBeUndefined()
+    expect(t.ask).toHaveBeenCalledTimes(2)
   })
 
   it('refuses a use whose feature was turned off while the popup was open', async () => {
@@ -118,7 +176,7 @@ describe('PaidUseConsent (M58)', () => {
       },
     })
     holder.t = t
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.writes).toEqual([])
   })
 
@@ -129,8 +187,11 @@ describe('PaidUseConsent (M58)', () => {
       answer: () => Promise.resolve('always'),
     })
     expect(t.consent.isRemembered('webSearch')).toBe(false)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    expect(t.ask).toHaveBeenCalledWith(SEARCH, false)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: '0.0025',
+    })
+    expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), false)
     expect(t.writes).toEqual([])
   })
 

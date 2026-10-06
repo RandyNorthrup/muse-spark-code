@@ -1,3 +1,10 @@
+import {
+  freezePaidQuote,
+  isSamePaidQuote,
+  type PaidQuote,
+  type PaidUseDecision,
+  type SearchSettlement,
+} from '../../../shared/paid'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -289,8 +296,16 @@ import {
   SessionBudgetExceededError,
 } from './sessionBudget'
 import { uiLocale } from '../../../shared/l10n/text'
-import { estimateCostUsd, formatUsd } from '../../usage/insights'
-import { Usd, sumUsd, multiplyUsd } from '../../../shared/usd'
+import { estimateExactCostUsd as estimateCostUsd, formatUsd } from '../../usage/insights'
+import {
+  Usd,
+  sumUsd,
+  multiplyUsd,
+  negateUsd,
+  isPositiveUsd,
+  type LegacyUsd,
+  type UsdAmount,
+} from '../../../shared/usd'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import {
   afterAgentThoughtFields,
@@ -443,7 +458,11 @@ export interface ModelApiPaidHooks {
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
-  readonly notePaidUse: (feature: PaidFeature, units: number, searchPriceUsd?: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: LegacyUsd | SearchSettlement,
+  ) => void
   /**
    * The popup before a paid use (M58, PLAN.md D48): true when it is allowed
    * always in this workspace or allowed now. `requiresAsking` asks even then.
@@ -455,7 +474,7 @@ export interface ModelApiPaidHooks {
     request: PaidUseRequest,
     requiresAsking: boolean,
     sessionId: string,
-  ) => Promise<boolean>
+  ) => Promise<PaidUseDecision>
   /** Whether the feature is allowed always in this workspace, asking nothing. */
   readonly isPaidUseRemembered: (feature: PaidFeature) => boolean
   /** Child token cost is a subset of the parent's conversation estimate. */
@@ -507,7 +526,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts paid uses for the window's tally: searches made, images returned. */
-  readonly notePaidUse: (feature: PaidFeature, units: number, searchPriceUsd?: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: LegacyUsd | SearchSettlement,
+  ) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
@@ -773,6 +796,7 @@ interface ChildTaskGrant {
    * always in this workspace. A child never asks for itself.
    */
   readonly isWebSearchAllowed: boolean
+  readonly searchQuote?: PaidQuote
 }
 
 interface QueuedTurn {
@@ -837,11 +861,18 @@ interface StreamedCall {
   readonly postContexts: readonly string[]
 }
 
+/** A quote changed before fetch; refund nonsent claims and obtain current consent. */
+class PaidQuoteChangedError extends Error {
+  public constructor() {
+    super(UI_TEXT.sessionBudgetSearchUnavailable)
+  }
+}
+
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
   /** Returned search fees share this request's original durable claim. */
-  searchSpentUsd: number
-  readonly searchReservedUsd: number
+  searchSpentUsd: UsdAmount
+  readonly searchReservedUsd: UsdAmount
   hasTerminalSearchCount: boolean
   /** The model the body names: a base only while the session still uses it. */
   readonly modelId: string
@@ -881,7 +912,7 @@ interface ReplyUsageTally {
   readonly outputTokens: number
   readonly cachedTokens: number
   readonly reasoningTokens: number
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
 }
 
 interface Pending<T> {
@@ -2107,12 +2138,12 @@ export class ModelApiSession implements AgentSession {
    * of a request whose response began but never reported. A child session
    * keeps none of its own.
    */
-  private budgetSpentUsd = 0
+  private budgetSpentUsd = Usd.from(0).toAmount()
   private hasUnknownBudgetCost = false
   private budgetIsFreshFork = false
   private budgetAccountId: string | undefined
   private budgetWrites: Promise<void> = Promise.resolve()
-  private turnCostUsd = 0
+  private turnCostUsd = Usd.from(0).toAmount()
   /** The last reported request, which the next estimate starts from (M82). */
   private budgetBase: BudgetBase | undefined
   private modelRevision = 0
@@ -2126,8 +2157,9 @@ export class ModelApiSession implements AgentSession {
    * at that model's rates, whatever the session switched to meanwhile.
    */
   private sendingModelId: string | undefined
+  private approvedSearchQuote: PaidQuote | undefined
+  private sendingSearchQuote: PaidQuote | undefined
   private sendingSearchBound: number | undefined
-  private sendingSearchCalls = 0
   private chargedSearchCalls = 0
   /** Turns and compactions still running, by id: a closing window waits for them to save (M82). */
   private readonly unsettled = new Map<number, Promise<void>>()
@@ -2436,8 +2468,8 @@ export class ModelApiSession implements AgentSession {
         isNetworkAllowed: () =>
           this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
         isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
-        allowsHookModelUse: (request) =>
-          this.deps.allowsPaidUse(
+        allowsHookModelUse: async (request) =>
+          (await this.deps.allowsPaidUse(
             {
               feature: 'hookModels',
               event: request.event,
@@ -2449,7 +2481,7 @@ export class ModelApiSession implements AgentSession {
             },
             false,
             this.askingSessionId,
-          ),
+          )) === true,
         noteHookModelRun: () => {
           this.deps.notePaidUse('hookModels', 1)
         },
@@ -2846,7 +2878,7 @@ export class ModelApiSession implements AgentSession {
             modelId: body.model,
             ...(body.max_tool_calls !== undefined && {
               maxToolCalls: body.max_tool_calls,
-              searchPriceUsd: this.deps.client.searchPriceUsd(body.model),
+              searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
             }),
           })
         : {
@@ -2861,17 +2893,14 @@ export class ModelApiSession implements AgentSession {
                 },
                 body.model,
               ),
-              multiplyUsd(
-                this.deps.client.searchPriceUsd(body.model) ?? 0,
-                body.max_tool_calls ?? 0,
-              ),
+              multiplyUsd(this.approvedSearchQuote?.tariffUsd ?? 0, body.max_tool_calls ?? 0),
             ),
           }
     this.openReservation = {
       ...reservation,
-      searchSpentUsd: 0,
+      searchSpentUsd: Usd.from(0).toAmount(),
       searchReservedUsd: multiplyUsd(
-        this.deps.client.searchPriceUsd(body.model) ?? 0,
+        this.approvedSearchQuote?.tariffUsd ?? 0,
         body.max_tool_calls ?? 0,
       ),
       hasTerminalSearchCount: false,
@@ -2900,8 +2929,8 @@ export class ModelApiSession implements AgentSession {
    */
   private sending(body: CreateResponseBody): OpenReservation | undefined {
     this.sendingModelId = body.model
+    this.sendingSearchQuote = this.approvedSearchQuote
     this.sendingSearchBound = body.max_tool_calls
-    this.sendingSearchCalls = 0
     this.chargedSearchCalls = 0
     const reservation = this.openReservation
     if (reservation?.hasCap === true) {
@@ -2987,12 +3016,12 @@ export class ModelApiSession implements AgentSession {
 
   /** Each charge owns its journal entry; another host's snapshot cannot erase it. */
   private recordBudgetCost(
-    costUsd: number,
+    costUsd: LegacyUsd,
     claim: SessionBudgetClaim | undefined,
     hasUnknownCost = false,
     isFinal = true,
   ): void {
-    if (costUsd === 0 && claim === undefined && !hasUnknownCost) {
+    if (claim === undefined && !hasUnknownCost && !isPositiveUsd(costUsd)) {
       return
     }
     const owner = this.budgetOwner()
@@ -3037,6 +3066,7 @@ export class ModelApiSession implements AgentSession {
     this.openReservation = undefined
     this.sendingModelId = undefined
     this.sendingSearchBound = undefined
+    this.sendingSearchQuote = undefined
     if (reservation === undefined) {
       await this.budgetWrites
       return
@@ -3045,19 +3075,26 @@ export class ModelApiSession implements AgentSession {
       reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
         ? sumUsd(
             reservation.costUsd,
-            reservation.hasTerminalSearchCount
-              ? sumUsd(reservation.searchSpentUsd, -reservation.searchReservedUsd)
-              : Math.max(0, sumUsd(reservation.searchSpentUsd, -reservation.searchReservedUsd)),
+            reservation.hasTerminalSearchCount ||
+              Usd.from(
+                sumUsd(reservation.searchSpentUsd, negateUsd(reservation.searchReservedUsd)),
+              ).compare(Usd.from(0)) > 0
+              ? sumUsd(reservation.searchSpentUsd, negateUsd(reservation.searchReservedUsd))
+              : Usd.from(0).toAmount(),
           )
         : 0
-    if (costUsd > 0) {
-      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd, -reservation.searchSpentUsd)
+    if (isPositiveUsd(costUsd)) {
+      this.budgetSpentUsd = sumUsd(
+        this.budgetSpentUsd,
+        costUsd,
+        negateUsd(reservation.searchSpentUsd),
+      )
       this.warnUnknownCharge(costUsd)
       this.deps.log.warn(
         `Session budget: a response ended without its usage; its remaining reservation of ${String(costUsd)} USD counts as spent`,
       )
     }
-    this.recordBudgetCost(costUsd, reservation.claim, costUsd > 0 && !reservation.hasCap)
+    this.recordBudgetCost(costUsd, reservation.claim, isPositiveUsd(costUsd) && !reservation.hasCap)
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -3066,7 +3103,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** A conservative liability is visible without presenting it as verified billing. */
-  private warnUnknownCharge(costUsd: number): void {
+  private warnUnknownCharge(costUsd: LegacyUsd): void {
     this.emit({
       type: 'backendNotice',
       level: 'warning',
@@ -3393,14 +3430,13 @@ export class ModelApiSession implements AgentSession {
     const hosted = this.deps.modelCapabilities?.(this.modelId)?.hosted
     const price = this.deps.client.searchPriceUsd(this.modelId)
     return price !== undefined &&
-      price >= 0 &&
+      Usd.from(price).compare(Usd.from(0)) >= 0 &&
       hosted?.webSearch.state === 'yes' &&
       hosted.webSearch.value.tool === MODEL_API_WEB_SEARCH_TOOL &&
       hosted.maxToolCalls.state === 'yes' &&
       Number.isSafeInteger(this.searchMaxPerRequest) &&
       this.searchMaxPerRequest >= WEB_SEARCH_MIN_PER_REQUEST &&
-      this.searchMaxPerRequest <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT &&
-      Number.isFinite(price)
+      this.searchMaxPerRequest <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
       ? this.searchMaxPerRequest
       : undefined
   }
@@ -3420,30 +3456,82 @@ export class ModelApiSession implements AgentSession {
    * cannot come before each search; Deny sends the prompt without the tool.
    * A child task never asks: its grant carries its parent's answer.
    */
+  private quoteIsCurrent(quote: PaidQuote): boolean {
+    return (
+      quote.provider === this.deps.client.providerId(this.modelId) &&
+      quote.model === this.modelId &&
+      quote.modelRevision === this.modelRevision &&
+      quote.tariffUsd === this.deps.client.searchPriceUsd(this.modelId)
+    )
+  }
+
   private async webSearchConsent(signal: AbortSignal): Promise<boolean> {
-    if (!this.deps.isPaidFeatureOn('webSearch')) {
-      return false
-    }
-    const priceUsd = this.deps.client.searchPriceUsd(this.modelId)
-    if (
-      priceUsd === undefined ||
-      !Number.isFinite(priceUsd) ||
-      priceUsd < 0 ||
-      !this.canOfferWebSearch()
-    ) {
-      this.emit({
-        type: 'backendNotice',
-        level: 'warning',
-        text: UI_TEXT.sessionBudgetSearchUnavailable,
+    this.approvedSearchQuote = undefined
+    while (!signal.aborted && this.deps.isPaidFeatureOn('webSearch')) {
+      const priceUsd = this.deps.client.searchPriceUsd(this.modelId)
+      if (priceUsd === undefined || !this.canOfferWebSearch()) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: UI_TEXT.sessionBudgetSearchUnavailable,
+        })
+        return false
+      }
+      const quote = freezePaidQuote({
+        id: this.deps.newId(),
+        feature: 'webSearch',
+        provider: this.deps.client.providerId(this.modelId),
+        model: this.modelId,
+        modelRevision: this.modelRevision,
+        tariffUsd: priceUsd,
+        unit: 'search',
+        capturedAt: this.deps.now(),
       })
-      return false
-    }
-    return this.isSubagent
-      ? this.childTaskGrant?.isWebSearchAllowed === true
-      : await unlessStopped(
-          this.deps.allowsPaidUse({ feature: 'webSearch', priceUsd }, false, this.askingSessionId),
+      let decision: PaidUseDecision
+      if (this.isSubagent) {
+        const parentQuote = this.childTaskGrant?.searchQuote
+        decision =
+          this.childTaskGrant?.isWebSearchAllowed === true &&
+          parentQuote?.provider === quote.provider &&
+          parentQuote.model === quote.model &&
+          Usd.from(quote.tariffUsd).compare(Usd.from(parentQuote.tariffUsd)) <= 0
+            ? quote
+            : undefined
+      } else {
+        decision = await unlessStopped(
+          this.deps.allowsPaidUse(
+            {
+              feature: 'webSearch',
+              priceUsd,
+              quote,
+              isCurrent: () =>
+                !signal.aborted &&
+                !this.isDisposed &&
+                !this.isHostClosing() &&
+                this.quoteIsCurrent(quote),
+            },
+            false,
+            this.askingSessionId,
+          ),
           signal,
         )
+      }
+      // A stale answer cannot authorize the new model, even if it switched back.
+      if (!this.quoteIsCurrent(quote)) continue
+      if (typeof decision !== 'object' || !isSamePaidQuote(quote, decision)) return false
+      this.approvedSearchQuote = quote
+      return true
+    }
+    return false
+  }
+
+  private async refreshSearchConsent(signal: AbortSignal): Promise<void> {
+    if (
+      this.active?.isWebSearchAllowed === true &&
+      (this.approvedSearchQuote === undefined || !this.quoteIsCurrent(this.approvedSearchQuote))
+    ) {
+      this.active.isWebSearchAllowed = await this.webSearchConsent(signal)
+    }
   }
 
   /** The IDE tool or MCP server tool a function name is, when it is one (M50). */
@@ -3522,8 +3610,16 @@ export class ModelApiSession implements AgentSession {
       }
       if (
         body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL) &&
-        !this.isWebSearchOffered()
+        (!this.isWebSearchOffered() ||
+          this.sendingSearchQuote === undefined ||
+          !this.quoteIsCurrent(this.sendingSearchQuote))
       ) {
+        if (
+          this.deps.isPaidFeatureOn('webSearch') &&
+          this.sendingSearchQuote !== undefined &&
+          !this.quoteIsCurrent(this.sendingSearchQuote)
+        )
+          throw new PaidQuoteChangedError()
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       }
       // A cap enabled during key retrieval needs a new durable preflight.
@@ -3590,9 +3686,11 @@ export class ModelApiSession implements AgentSession {
     return Object.assign(guard, {
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
-      onSearchesReturned: (count: number) => {
-        if (reservation !== undefined) reservation.hasTerminalSearchCount = true
-        this.chargeBoundedSearches(count)
+      ...(this.sendingSearchQuote !== undefined && { searchQuote: this.sendingSearchQuote }),
+      onSearchesReturned: (settlement: SearchSettlement) => {
+        this.chargeBoundedSearches(settlement)
+        if (reservation !== undefined && settlement.isTerminal)
+          reservation.hasTerminalSearchCount = true
       },
       onRequestStarted: () => {
         if (this.isSubagent && this.childTaskGrant !== undefined) {
@@ -3804,13 +3902,9 @@ export class ModelApiSession implements AgentSession {
         this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
     }
     if (
-      [
-        ...Object.values(nextUsage),
-        nextUsage.inputTokens + nextUsage.outputTokens,
-        costUsd,
-        this.budgetSpentUsd + costUsd,
-        this.turnCostUsd + costUsd,
-      ].some((value) => !Number.isFinite(value))
+      [...Object.values(nextUsage), nextUsage.inputTokens + nextUsage.outputTokens].some(
+        (value) => !Number.isFinite(value),
+      )
     ) {
       this.deps.log.warn('Model API usage whose totals or cost are not finite was ignored')
       return
@@ -3848,7 +3942,7 @@ export class ModelApiSession implements AgentSession {
         cachedTokens: (shown?.cachedTokens ?? 0) + billable.cachedTokens,
         reasoningTokens:
           (shown?.reasoningTokens ?? 0) + (usage.output_tokens_details?.reasoning_tokens ?? 0),
-        costUsd: (shown?.costUsd ?? 0) + costUsd,
+        costUsd: sumUsd(shown?.costUsd ?? 0, costUsd),
       }
       // Saved now, even while a call waits for its output (M82).
       this.touch()
@@ -3979,8 +4073,6 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'itemCompleted', item: completed })
     this.recordTranscript(turnId, completed)
     if (this.sendingSearchBound !== undefined) {
-      this.sendingSearchCalls += 1
-      this.chargeBoundedSearches(this.sendingSearchCalls)
       return
     }
     // Legacy unbounded requests retain their old tally; bounded requests count returned calls.
@@ -3988,7 +4080,7 @@ export class ModelApiSession implements AgentSession {
       return
     }
     const units = searchUnits(item)
-    const price = this.deps.client.searchPriceUsd(this.sendingModelId ?? this.modelId)
+    const price = this.sendingSearchQuote?.tariffUsd
     if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
     this.deps.notePaidUse('webSearch', units, price)
     const costUsd = multiplyUsd(price, units)
@@ -3998,32 +4090,33 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Both item events and terminal-only calls count once, before the token claim settles. */
-  private chargeBoundedSearches(count: number): void {
+  private chargeBoundedSearches(settlement: SearchSettlement): void {
+    const count = settlement.returnedCalls
     if (this.sendingSearchBound === undefined || count <= this.chargedSearchCalls) return
-    const price = this.deps.client.searchPriceUsd(this.sendingModelId ?? this.modelId)
-    if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
     const units = count - this.chargedSearchCalls
+    const costUsd = Usd.from(settlement.costUsd)
+      .subtract(Usd.from(multiplyUsd(settlement.quote.tariffUsd, this.chargedSearchCalls)))
+      .toAmount()
+    // Publish returned liability synchronously before any fallible observer or pricing lookup.
     this.chargedSearchCalls = count
-    const costUsd = multiplyUsd(price, units)
-    this.deps.notePaidUse('webSearch', units, price)
-    if (this.openReservation !== undefined) {
-      this.openReservation.searchSpentUsd = multiplyUsd(price, count)
+    const reservation = this.openReservation
+    if (reservation !== undefined) {
+      reservation.searchSpentUsd = settlement.costUsd
+      if (settlement.isTerminal) reservation.hasTerminalSearchCount = true
     }
     this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
     this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
-    const reservation = this.openReservation
     if (reservation === undefined) {
       this.recordBudgetCost(costUsd, undefined)
-    } else if (
-      Usd.from(reservation.searchSpentUsd).compare(Usd.from(reservation.searchReservedUsd)) > 0
-    ) {
+    } else if (Usd.from(settlement.costUsd).compare(Usd.from(reservation.searchReservedUsd)) > 0) {
       this.recordBudgetCost(
-        sumUsd(reservation.costUsd, reservation.searchSpentUsd, -reservation.searchReservedUsd),
+        sumUsd(reservation.costUsd, settlement.costUsd, negateUsd(reservation.searchReservedUsd)),
         reservation.claim,
         reservation.hasUnknownCost,
         false,
       )
     }
+    this.deps.notePaidUse('webSearch', units, { ...settlement, returnedCalls: units, costUsd })
   }
 
   private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
@@ -4229,6 +4322,10 @@ export class ModelApiSession implements AgentSession {
         if (!signal.aborted) {
           this.settleCutShort(open, turnId)
         }
+        if (error instanceof PaidQuoteChangedError && !signal.aborted) {
+          await this.refreshSearchConsent(signal)
+          continue
+        }
         if (
           !(error instanceof RetryableStreamError) ||
           signal.aborted ||
@@ -4270,6 +4367,7 @@ export class ModelApiSession implements AgentSession {
     // nor shown to the hooks; the body sent is reserved afresh below, since
     // what it carries can change while the hooks run.
     await this.refreshBudgetSpend()
+    await this.refreshSearchConsent(signal)
     await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
@@ -4292,6 +4390,7 @@ export class ModelApiSession implements AgentSession {
       })
     }
     await this.refreshBudgetSpend()
+    await this.refreshSearchConsent(signal)
     const body = this.budgeted(this.body())
     this.lastJudgeBody = body
     const reservation = this.sending(body)
@@ -4796,14 +4895,15 @@ export class ModelApiSession implements AgentSession {
     ) {
       return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
     }
-    const isAllowed = await unlessStopped(
-      this.deps.allowsPaidUse(
-        { feature: 'autoReviewer', modelId, tool: call.name, action },
-        false,
-        this.askingSessionId,
-      ),
-      signal,
-    )
+    const isAllowed =
+      (await unlessStopped(
+        this.deps.allowsPaidUse(
+          { feature: 'autoReviewer', modelId, tool: call.name, action },
+          false,
+          this.askingSessionId,
+        ),
+        signal,
+      )) === true
     if (!isAllowed || !isCurrent()) {
       return undefined
     }
@@ -4949,9 +5049,11 @@ export class ModelApiSession implements AgentSession {
   ): Promise<boolean> {
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
-      return await unlessStopped(
-        this.deps.allowsPaidUse(paid, requiresUserApproval, this.askingSessionId),
-        signal,
+      return (
+        (await unlessStopped(
+          this.deps.allowsPaidUse(paid, requiresUserApproval, this.askingSessionId),
+          signal,
+        )) === true
       )
     } finally {
       stopNotifying()
@@ -6338,12 +6440,9 @@ export class ModelApiSession implements AgentSession {
           this.usage.reasoningTokens + latest.reasoningTokens - child.usage.reasoningTokens,
       }
       if (
-        [
-          ...Object.values(nextUsage),
-          nextUsage.inputTokens + nextUsage.outputTokens,
-          this.budgetSpentUsd + costUsd,
-          this.turnCostUsd + costUsd,
-        ].some((value) => !(Number.isFinite(value) && value >= 0))
+        [...Object.values(nextUsage), nextUsage.inputTokens + nextUsage.outputTokens].some(
+          (value) => !(Number.isFinite(value) && value >= 0),
+        )
       ) {
         this.deps.log.warn('Child usage whose totals or cost are not finite was ignored')
         child.usage = { ...latest }
@@ -6712,6 +6811,7 @@ export class ModelApiSession implements AgentSession {
       goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
+      ...(this.approvedSearchQuote !== undefined && { searchQuote: this.approvedSearchQuote }),
     }
   }
 
@@ -6861,12 +6961,12 @@ export class ModelApiSession implements AgentSession {
             async () => {
               // "Always" was given for the model the user saw priced: a child
               // on another one (an agent file named it) asks again (M76, D48).
-              const isAllowed = await this.deps.allowsPaidUse(
+              const decision = await this.deps.allowsPaidUse(
                 { feature: 'subagents', task },
                 task.modelId !== this.modelId,
                 this.askingSessionId,
               )
-              return isAllowed ? undefined : childTaskFailure('consentDeclined')
+              return decision === true ? undefined : childTaskFailure('consentDeclined')
             },
           ])
         : { refusal: childTaskFailure(gate) }
@@ -10412,7 +10512,7 @@ export class ModelApiSession implements AgentSession {
     this.settleNotes(turn.turnId)
     this.touch()
     const startedAt = this.deps.now()
-    this.turnCostUsd = 0
+    this.turnCostUsd = Usd.from(0).toAmount()
     // A reply line counts this turn's requests only (M82).
     this.unshownUsage = undefined
     let terminal = COMPLETED
@@ -10579,7 +10679,11 @@ export class ModelApiSession implements AgentSession {
     // The turn's cost against the cap, said once afterwards (M82).
     const budgetCapUsd = this.currentBudgetCap()
     const turnCostUsd = this.turnCostUsd
-    if (budgetCapUsd > 0 && turnCostUsd > 0 && !this.budgetOwner().hasUnknownBudgetCost) {
+    if (
+      budgetCapUsd > 0 &&
+      isPositiveUsd(turnCostUsd) &&
+      !this.budgetOwner().hasUnknownBudgetCost
+    ) {
       this.emit({
         type: 'backendNotice',
         level: 'info',
@@ -11991,7 +12095,7 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
-      ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
+      ...(isPositiveUsd(budgetSpentUsd) && { budgetSpentUsd }),
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
@@ -12054,7 +12158,7 @@ export class ModelApiSession implements AgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
-    this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
+    this.budgetSpentUsd = Usd.from(stored.budgetSpentUsd ?? 0).toAmount()
     this.budgetAccountId = stored.accountId
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.

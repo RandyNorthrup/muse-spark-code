@@ -1562,6 +1562,7 @@
   "paidAllowAlways": "在此工作区中始终允许",
   "paidDeny": "不允许",
   "paidUseWebSearchTitle": "允许 Muse 为此提示词搜索网页？",
+  "paidSearchQuote": "提供商：{provider} · 模型：{model}。",
   "paidUseWebSearchDetail": "Muse 在回答时可能会搜索网页。每次搜索都会按 {price} 计费到你的 Model API 密钥，另加搜索结果所增加的 token 费用。选择“不允许”将不使用网页搜索发送提示词。",
   "paidUseVoiceTitle": "使用 Muse Voice 录音？",
   "paidUseVoiceDetail": "Muse Voice 会转录此录音，按 {price} 计费到你的 Model API 密钥。选择“不允许”将保持麦克风关闭。",

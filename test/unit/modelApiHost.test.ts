@@ -1,3 +1,4 @@
+import { isPositiveUsd, legacyUsdSchema } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync } from 'node:fs'
@@ -561,8 +562,9 @@ function setup(
     allowsPaidUse: async (request, requiresAsking, sessionId) => {
       paidRequests.push({ request, requiresAsking })
       paidSessions.push(sessionId)
-      return await (options.allowsPaidUse?.(request, requiresAsking, sessionId) ??
+      const answer = await (options.allowsPaidUse?.(request, requiresAsking, sessionId) ??
         Promise.resolve(true))
+      return answer === true && request.feature === 'webSearch' ? request.quote : answer
     },
     isPaidUseRemembered: (feature) => options.remembered?.includes(feature) === true,
     noteSubagentUsage: (modelId, usage) => {
@@ -1718,7 +1720,7 @@ function heldBudgetStore(name: string, isFailure = false) {
   let hasHeld = false
   const store = budgetStoreIn(directory, async (from, to) => {
     const saved = parseStoredSession(JSON.parse(readFileSync(from, 'utf8')))
-    if (!hasHeld && saved.ok && (saved.session.budgetSpentUsd ?? 0) > 0) {
+    if (!hasHeld && saved.ok && isPositiveUsd(saved.session.budgetSpentUsd ?? 0)) {
       hasHeld = true
       if (isFailure) {
         throw new Error('reservation write refused')
@@ -2552,12 +2554,12 @@ function expectSavedBudget(
   sessionId: string,
   costUsd: number,
 ): void {
-  expect(store.saved.get(sessionId)?.budgetSpentUsd).toBeCloseTo(costUsd, 12)
+  expect(Number(store.saved.get(sessionId)?.budgetSpentUsd)).toBeCloseTo(costUsd, 12)
 }
 
 async function storedBudget(store: SessionStore, sessionId: string): Promise<number | undefined> {
   const session = await store.load(sessionId)
-  return session?.budgetSpentUsd
+  return session?.budgetSpentUsd === undefined ? undefined : Number(session.budgetSpentUsd)
 }
 
 describe('ModelApiSession: per-reply usage (M82)', () => {
@@ -2579,7 +2581,7 @@ describe('ModelApiSession: per-reply usage (M82)', () => {
           status: 'completed',
           text: 'Hello there',
           usage: { inputTokens: 1000, outputTokens: 200, cachedTokens: 100, reasoningTokens: 1 },
-          costUsd: standardCost(1000, 200, 100),
+          costUsd: String(standardCost(1000, 200, 100)),
         }),
       },
     ])
@@ -2603,7 +2605,10 @@ describe('ModelApiSession: per-reply usage (M82)', () => {
       text: 'All done.',
       usage: { inputTokens: 2200, outputTokens: 80, cachedTokens: 1000, reasoningTokens: 2 },
     })
-    expect(lines[0]?.costUsd).toBeCloseTo(standardCost(1000, 50) + standardCost(1200, 30, 1000), 12)
+    expect(Number(lines[0]?.costUsd)).toBeCloseTo(
+      standardCost(1000, 50) + standardCost(1200, 30, 1000),
+      12,
+    )
   })
 
   it('gives commentary before a tool call its own requests, and the reply the rest', async () => {
@@ -2799,9 +2804,11 @@ describe('ModelApiSession: session budget (M82)', () => {
       type: 'itemUpdated',
       item: {
         usage: { inputTokens: 10, outputTokens: 5 },
-        costUsd: estimateCostUsd(
-          { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
-          'muse-spark-1.3-contributor',
+        costUsd: String(
+          estimateCostUsd(
+            { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
+            'muse-spark-1.3-contributor',
+          ),
         ),
       },
     })
@@ -2836,7 +2843,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     expect(reserved).toBeDefined()
     const reservedUsd =
       standardCost(reserved?.input ?? 0, 0) + standardCost(0, reserved?.output ?? 0)
-    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(reservedUsd, 12)
+    expect(Number(store.saved.get(session.sessionId)?.budgetSpentUsd)).toBeCloseTo(reservedUsd, 12)
   })
 
   it('counts a request stopped after it was sent at its whole reservation', async () => {
@@ -2958,7 +2965,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     await turnDone()
     await first.host.close()
     // Standard tier: $1.25 + $4.25.
-    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(5.5, 10)
+    expect(Number(store.saved.get(session.sessionId)?.budgetSpentUsd)).toBeCloseTo(5.5, 10)
 
     const second = setup({ store, sessionBudgetUsd: 5.5 })
     await second.host.load()
@@ -2986,7 +2993,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     expect(reservations).toHaveBeenCalledTimes(
       t.api.responseBodies().length - t.subagentUsage.length,
     )
-    expect(store.saved.get(session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+    expect(Number(store.saved.get(session.sessionId)?.budgetSpentUsd)).toBeCloseTo(
       t.api.responseBodies().length * standardCost(10, 5),
       12,
     )
@@ -3031,7 +3038,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       held.resolve(undefined)
       await watched.turnDone()
       await t.host.close()
-      expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+      expect(Number(store.saved.get(watched.session.sessionId)?.budgetSpentUsd)).toBeCloseTo(
         standardCost(10, 5) + standardCost(1_000_000, 0) * 2,
         12,
       )
@@ -3059,7 +3066,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     await t.host.flush()
     const saved = store.saved.get(session.sessionId)
     // $1.25 spent; the call without its output is not in the file.
-    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+    expect(Number(saved?.budgetSpentUsd)).toBeCloseTo(1.25, 10)
     expect(saved?.usage.inputTokens).toBe(1_000_000)
     expect(saved?.replay.some((entry) => entry.item.type === 'function_call')).toBe(false)
     // A reload now cannot send what the real balance does not cover.
@@ -3108,7 +3115,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     const saved = store.saved.get(session.sessionId)
     // The stopped turn paired its call and saved it whole before close returned.
     expect(saved?.replay.some((entry) => entry.item.type === 'function_call_output')).toBe(true)
-    expect(saved?.budgetSpentUsd).toBeCloseTo(1.25, 10)
+    expect(Number(saved?.budgetSpentUsd)).toBeCloseTo(1.25, 10)
   })
 
   it('prices a request at the model it was sent to, and keeps no base across a switch', async () => {
@@ -3121,7 +3128,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     // The standard model's $1.25, not the contributor tier's $0.10.
     await budgetTurn(t, watched, 'again', { text: 'Again' })
     await t.host.close()
-    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+    expect(Number(store.saved.get(watched.session.sessionId)?.budgetSpentUsd)).toBeCloseTo(
       1.25 +
         estimateCostUsd(
           { inputTokens: 10, outputTokens: 5, cachedTokens: 0 },
@@ -3152,7 +3159,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       expect(saved.ok).toBe(true)
       const [reserved] = reservations(first)
       const liability = standardCost(reserved?.input ?? 0, reserved?.output ?? 0)
-      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(liability, 12)
+      expect(Number(saved.ok && saved.session.budgetSpentUsd)).toBeCloseTo(liability, 12)
       const reloaded = setup({ store, sessionBudgetUsd: liability })
       try {
         await reloaded.host.load()
@@ -3189,7 +3196,7 @@ describe('ModelApiSession: session budget (M82)', () => {
           readFileSync(path.join(disk.directory, `${watched.session.sessionId}.json`), 'utf8'),
         ),
       )
-      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(Number(saved.ok && saved.session.budgetSpentUsd)).toBeCloseTo(standardCost(10, 5), 12)
     } finally {
       disk.release.resolve(undefined)
       await t.host.close()
@@ -3382,14 +3389,14 @@ describe('ModelApiSession: session budget (M82)', () => {
       })
       expect(bound.attempt.api.responseBodies()).toHaveLength(1)
       const saved = await bound.store.load(bound.parentWatched.session.sessionId)
-      expect(saved?.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(Number(saved?.budgetSpentUsd)).toBeCloseTo(standardCost(10, 5), 12)
       expect(JSON.stringify(saved?.transcript)).not.toContain('temporary')
       expect(
         existsSync(path.join(bound.directory, `${bound.attemptWatched.session.sessionId}.json`)),
       ).toBe(false)
       expect(bound.scope.sessionId).toBe(bound.parentWatched.session.sessionId)
       const total = await bound.scope.journal.read(bound.scope.sessionId, bound.scope.accountId)
-      expect(total.spentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(Number(total.spentUsd)).toBeCloseTo(standardCost(10, 5), 12)
       const closing = bound.parent.host.close()
       expect(bound.scope.isStillAllowed(FAKE_MODEL_API_ACCOUNT_ID)).toBe(false)
       await expect(bound.parent.host.getOwnedBudgetScope(bound.scope.sessionId)).rejects.toThrow(
@@ -3459,7 +3466,7 @@ describe('ModelApiSession: session budget (M82)', () => {
           bound.scope.sessionId,
           bound.scope.accountId,
         )
-        expect(refunded.spentUsd).toBe(0)
+        expect(refunded.spentUsd).toBe('0')
       } finally {
         held.resolve(undefined)
         spy.mockRestore()
@@ -3620,7 +3627,10 @@ describe('ModelApiSession: session budget (M82)', () => {
       const saved = parseStoredSession(
         JSON.parse(readFileSync(path.join(pair.directory, `${stale.sessionId}.json`), 'utf8')),
       )
-      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(1_000_000, 0), 12)
+      expect(Number(saved.ok && saved.session.budgetSpentUsd)).toBeCloseTo(
+        standardCost(1_000_000, 0),
+        12,
+      )
     } finally {
       await pair.close()
     }
@@ -3653,7 +3663,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       )
       await t.host.flush()
       const initial = await store.load(fork.session.sessionId)
-      expect(initial?.budgetSpentUsd).toBe(0)
+      expect(initial?.budgetSpentUsd).toBe('0')
       expect(initial?.transcript.some(({ item }) => item.paid === 'imageGeneration')).toBe(true)
       expect(initial?.children?.length).toBeGreaterThan(0)
       expect(initial?.children?.every((child) => child.state === 'closed')).toBe(true)
@@ -3671,7 +3681,7 @@ describe('ModelApiSession: session budget (M82)', () => {
       const saved = parseStoredSession(
         JSON.parse(readFileSync(path.join(directory, `${fork.session.sessionId}.json`), 'utf8')),
       )
-      expect(saved.ok && saved.session.budgetSpentUsd).toBeCloseTo(standardCost(10, 5), 12)
+      expect(Number(saved.ok && saved.session.budgetSpentUsd)).toBeCloseTo(standardCost(10, 5), 12)
       expect(saved.ok && saved.session.budgetIsFreshFork).toBeUndefined()
       expect(await storedBudget(store, fork.session.sessionId)).toBeCloseTo(standardCost(10, 5), 12)
       await t.host.close()
@@ -3711,7 +3721,7 @@ describe('ModelApiSession: session budget (M82)', () => {
     await budgetTurn(t, watched, 'hi', { httpError: { status: 429 } }, { text: 'allowed' })
     await t.host.close()
     expect(t.api.responseBodies()).toHaveLength(2)
-    expect(store.saved.get(watched.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
+    expect(Number(store.saved.get(watched.session.sessionId)?.budgetSpentUsd)).toBeCloseTo(
       standardCost(10, 5),
       12,
     )
@@ -3848,11 +3858,13 @@ describe('ModelApiSession: session budget (M82)', () => {
         cachedTokens: 0,
         reasoningTokens: 0,
       })
-      expect(Number.isFinite(saved?.budgetSpentUsd)).toBe(true)
+      expect(legacyUsdSchema.safeParse(saved?.budgetSpentUsd).success).toBe(true)
       expect(
         watched.session
           .history()
-          .items.every((item) => item.costUsd === undefined || Number.isFinite(item.costUsd)),
+          .items.every(
+            (item) => item.costUsd === undefined || legacyUsdSchema.safeParse(item.costUsd).success,
+          ),
       ).toBe(true)
       const [reserved] = reservations(t)
       expectSavedBudget(
@@ -8228,7 +8240,10 @@ describe('ModelApiSession subagents (M48)', () => {
     }
     // The parent's web search popup, then the spawn's; the child asked nothing.
     expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
+      {
+        request: expect.objectContaining({ feature: 'webSearch', priceUsd: '0.0025' }),
+        requiresAsking: false,
+      },
       {
         request: {
           feature: 'subagents',
@@ -11390,6 +11405,13 @@ async function firstRequest(paid: readonly PaidFeature[]) {
   }
 }
 
+function searchPopupRequest() {
+  return {
+    request: expect.objectContaining({ feature: 'webSearch', priceUsd: '0.0025' }),
+    requiresAsking: false,
+  }
+}
+
 describe('ModelApiSession: web search, paid and loud (M33)', () => {
   it('keeps the search tool and its results out of every request while it is off', async () => {
     const { tools, include } = await firstRequest([])
@@ -11409,10 +11431,7 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
     await readAlphaTurn(t, session, turnDone)
     await answerFirst(t, session, turnDone)
     expect(t.api.responseBodies()).toHaveLength(3)
-    expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
-      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
-    ])
+    expect(t.paidRequests).toEqual(Array.from({ length: 2 }, searchPopupRequest))
     expect(hasApprovalCard(events)).toBe(false)
     for (const body of t.api.responseBodies()) {
       expect(webSearchTools(body)).toEqual([{ type: 'web_search' }])
@@ -11431,10 +11450,7 @@ describe('ModelApiSession: web search, paid and loud (M33)', () => {
     expect(denied?.['include']).toEqual(['reasoning.encrypted_content'])
     expect(webSearchTools(allowed)).toEqual([{ type: 'web_search' }])
     expect(allowed?.['include']).toEqual(['reasoning.encrypted_content', 'web_search_call.results'])
-    expect(t.paidRequests).toEqual([
-      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
-      { request: { feature: 'webSearch', priceUsd: 0.0025 }, requiresAsking: false },
-    ])
+    expect(t.paidRequests).toEqual(Array.from({ length: 2 }, searchPopupRequest))
   })
 
   it('never asks about web search while it is off (M58)', async () => {
@@ -16086,8 +16102,8 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
       ])
       const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
       expect(total?.hasUnknownHistoricalFees).toBe(false)
-      expect(total?.spentUsd).toBeGreaterThan(0)
-      expect(total?.spentUsd).toBeLessThan(1)
+      expect(Number(total?.spentUsd)).toBeGreaterThan(0)
+      expect(Number(total?.spentUsd)).toBeLessThan(1)
     } finally {
       await session.cancel()
       await t.host.close()
@@ -16134,7 +16150,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
         ])
         const total = await store.budget?.read(session.sessionId, FAKE_MODEL_API_ACCOUNT_ID)
         expect(total?.hasUnknownHistoricalFees).toBe(true)
-        expect(total?.spentUsd).toBeGreaterThan(0)
+        expect(Number(total?.spentUsd)).toBeGreaterThan(0)
         await answer(session, request, 'abort')
         await turnDone()
       } finally {

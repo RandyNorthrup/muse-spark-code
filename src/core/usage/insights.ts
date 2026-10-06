@@ -21,7 +21,7 @@ import {
 } from '../../shared/constants'
 import { formatUsd as formatMoney } from '../../shared/l10n/text'
 import type { UsageInsights } from '../../shared/usage'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 
 export interface TraceAttempt {
   readonly atMs: number
@@ -189,8 +189,13 @@ export interface BillableUsage {
 /**
  * Dollars for one conversation's tokens at Meta's published per-token
  * prices (the tier is the model's: contributor models carry the suffix).
+ * Legacy non-search adapter; search accounting uses the exact variant.
  */
 export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
+  return Usd.from(estimateExactCostUsd(usage, modelId)).toNumber()
+}
+
+export function estimateExactCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
   const prices = modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
     ? MODEL_API_PRICES_PER_MILLION.contributor
     : MODEL_API_PRICES_PER_MILLION.standard
@@ -201,7 +206,7 @@ export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
     .add(Usd.from(prices.cachedInput).times(cached))
     .add(Usd.from(prices.output).times(usage.outputTokens))
     .divide(TOKENS_PER_MILLION)
-    .toNumber()
+    .toAmount()
 }
 
 /** Conservative shared USD display, retaining four places for ordinary sub-dollar usage. */

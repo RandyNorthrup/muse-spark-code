@@ -7,8 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Paid prices and retained-charge warnings round upward and keep small positive charges visible, including sub-cent hosted-search tariffs.
-
 ### Added
 
 - M106 development contracts now include captured Meta hosted-search,
@@ -18,6 +16,11 @@ happened, not what was planned; superseded entries are kept.
   raw argument-delta payloads remain explicitly uncertified.
 
 ### Fixed
+
+- Paid prices and retained-charge warnings round upward and keep small positive charges visible, including sub-cent hosted-search tariffs.
+
+- Hosted-search consent binds an immutable provider/model/tariff quote; higher prices ask again, and returned searches settle at the dispatch price even when pricing changes or disappears.
+- Hosted-search budgets, saved replies and paid tallies retain exact decimal amounts through arithmetic and storage, including legacy migration.
 
 - Bounded hosted search preserves sub-cent retained liabilities in its
   settlement-pricing warning instead of displaying a positive charge as zero.

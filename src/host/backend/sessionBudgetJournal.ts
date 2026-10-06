@@ -18,7 +18,7 @@ import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd } from '../../shared/usd'
+import { Usd, type LegacyUsd, type UsdAmount } from '../../shared/usd'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
 
@@ -90,9 +90,9 @@ const claimSchema = z.pipe(
   }),
 )
 type ClaimView = Omit<Claim, 'reservedUsd' | 'settledUsd' | 'retainedUsd'> & {
-  readonly reservedUsd: number
-  readonly settledUsd?: number
-  readonly retainedUsd?: number
+  readonly reservedUsd: UsdAmount
+  readonly settledUsd?: UsdAmount
+  readonly retainedUsd?: UsdAmount
 }
 
 const claimFlagsSchema = z.object({
@@ -112,7 +112,9 @@ export type SessionBudgetJournalDeps = {
     }
   | {
       /** D78: an independent new daily scope has no earlier session history. */
-      readonly initialBudget: () => Promise<SessionBudgetTotal>
+      readonly initialBudget: () => Promise<
+        Omit<SessionBudgetTotal, 'spentUsd'> & { readonly spentUsd: LegacyUsd }
+      >
     }
 )
 
@@ -134,8 +136,11 @@ function unavailable(cause?: unknown): Error {
   return new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause })
 }
 
-function assertCost(costUsd: number): void {
-  if (!Number.isFinite(costUsd) || costUsd < 0) {
+function assertCost(costUsd: LegacyUsd): void {
+  if (
+    (typeof costUsd === 'number' && !Number.isFinite(costUsd)) ||
+    Usd.from(costUsd).compare(Usd.from(0)) < 0
+  ) {
     throw unavailable()
   }
 }
@@ -172,7 +177,8 @@ function hasHistoricalFlatFees(session: StoredSession): boolean {
 function hasUnknownHistory(session: StoredSession): boolean {
   if (session.budgetIsFreshFork === true) {
     if (
-      session.budgetSpentUsd !== 0 ||
+      session.budgetSpentUsd === undefined ||
+      Usd.from(session.budgetSpentUsd).compare(Usd.from(0)) !== 0 ||
       session.forkedFrom === undefined ||
       !SESSION_ID.test(session.forkedFrom)
     ) {
@@ -242,7 +248,7 @@ function totalFor(scope: Scope) {
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
-    assertCost(spent.toNumber())
+    assertCost(spent.toAmount())
     return { spent, hasUnknownHistoricalFees }
   } catch (error: unknown) {
     throw unavailable(error)
@@ -252,7 +258,7 @@ function totalFor(scope: Scope) {
 function projectedTotal(scope: Scope): SessionBudgetTotal {
   const total = totalFor(scope)
   return {
-    spentUsd: total.spent.toNumber(),
+    spentUsd: total.spent.toAmount(),
     hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
   }
 }
@@ -288,12 +294,15 @@ export function createSessionBudgetJournal(
       return readSeed(scope)
     }
     const loadBudget = async (shouldCheckHistory = true): Promise<SessionBudgetTotal> => {
-      if ('initialBudget' in deps) return await deps.initialBudget()
+      if ('initialBudget' in deps) {
+        const initial = await deps.initialBudget()
+        return { ...initial, spentUsd: Usd.from(initial.spentUsd).toAmount() }
+      }
       const session = await deps.loadSession(scope.sessionId)
       if (session?.sessionId !== scope.sessionId || session.accountId !== scope.accountId)
         throw unavailable()
       return {
-        spentUsd: session.budgetSpentUsd ?? 0,
+        spentUsd: Usd.from(session.budgetSpentUsd ?? 0).toAmount(),
         hasUnknownHistoricalFees: shouldCheckHistory && hasUnknownHistory(session),
       }
     }
@@ -339,7 +348,7 @@ export function createSessionBudgetJournal(
   const writeClaim = async (
     scope: Scope,
     seed: Seed,
-    costUsd: number,
+    costUsd: LegacyUsd,
     isNonsentReservation: boolean,
     flags: ClaimFlags = {},
   ): Promise<Claim> => {
@@ -399,7 +408,7 @@ export function createSessionBudgetJournal(
 
   const claimFor = (scope: Scope, seed: Seed, created: Claim): SessionBudgetClaim => {
     let settling: Promise<SessionBudgetTotal> | undefined
-    let settlingCost: number | undefined
+    let settlingCost: LegacyUsd | undefined
     let isSettlingCostUnknown: boolean | undefined
     let isSettlingFinal: boolean | undefined
     const owned = (): Claim => {
@@ -415,7 +424,7 @@ export function createSessionBudgetJournal(
       return claim
     }
     const settleEntry = async (
-      actualCostUsd: number,
+      actualCostUsd: LegacyUsd,
       hasUnknownCost: boolean,
       isFinal: boolean,
     ): Promise<SessionBudgetTotal> => {
@@ -450,7 +459,7 @@ export function createSessionBudgetJournal(
     }
     return {
       claimId: created.claimId,
-      reservedUsd: Usd.from(created.reservedUsd).toNumber(),
+      reservedUsd: Usd.from(created.reservedUsd).toAmount(),
       check(capUsd) {
         assertCost(capUsd)
         if (settling !== undefined) {
@@ -461,20 +470,23 @@ export function createSessionBudgetJournal(
           throw unavailable()
         }
         const total = totalFor(scope)
-        if (capUsd > 0 && total.hasUnknownHistoricalFees) {
+        if (Usd.from(capUsd).compare(Usd.from(0)) > 0 && total.hasUnknownHistoricalFees) {
           throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
         }
-        if (capUsd > 0 && total.spent.compare(Usd.from(capUsd)) > 0) {
+        if (
+          Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
+          total.spent.compare(Usd.from(capUsd)) > 0
+        ) {
           throw new Error(
             fill(UI_TEXT.sessionBudgetStopped, {
-              estimate: formatUsd(Usd.from(created.reservedUsd).toNumber()),
+              estimate: formatUsd(Usd.from(created.reservedUsd).toAmount()),
               cap: formatUsd(capUsd),
-              spent: formatUsd(total.spent.subtract(Usd.from(created.reservedUsd)).toNumber()),
+              spent: formatUsd(total.spent.subtract(Usd.from(created.reservedUsd)).toAmount()),
             }),
           )
         }
         return {
-          spentUsd: total.spent.toNumber(),
+          spentUsd: total.spent.toAmount(),
           hasUnknownHistoricalFees: total.hasUnknownHistoricalFees,
         }
       },
@@ -485,13 +497,13 @@ export function createSessionBudgetJournal(
           validated.hasUnknownCost ?? isSettlingCostUnknown ?? owned().hasUnknownCost === true
         if (
           settlingCost !== undefined &&
-          (settlingCost !== actualCostUsd ||
-            isSettlingCostUnknown !== isUnknown ||
-            isSettlingFinal !== isFinal)
+          (isSettlingCostUnknown !== isUnknown ||
+            isSettlingFinal !== isFinal ||
+            settlingCost !== Usd.from(actualCostUsd).toAmount())
         ) {
           throw unavailable()
         }
-        settlingCost = actualCostUsd
+        settlingCost = Usd.from(actualCostUsd).toAmount()
         isSettlingCostUnknown = isUnknown
         isSettlingFinal = isFinal
         settling ??= settleEntry(actualCostUsd, isUnknown, isFinal)
@@ -520,9 +532,9 @@ export function createSessionBudgetJournal(
       )
       return Promise.resolve({
         ...fields,
-        reservedUsd: Usd.from(reservedUsd).toNumber(),
-        ...(settledUsd !== undefined && { settledUsd: Usd.from(settledUsd).toNumber() }),
-        ...(retainedUsd !== undefined && { retainedUsd: Usd.from(retainedUsd).toNumber() }),
+        reservedUsd: Usd.from(reservedUsd).toAmount(),
+        ...(settledUsd !== undefined && { settledUsd: Usd.from(settledUsd).toAmount() }),
+        ...(retainedUsd !== undefined && { retainedUsd: Usd.from(retainedUsd).toAmount() }),
       })
     },
     async read(sessionId, accountId) {
@@ -564,7 +576,7 @@ export function createSessionBudgetJournal(
       }
       const total = totalFor(scope)
       const { budgetIsFreshFork: _initialFork, ...projected } = session
-      return { ...projected, budgetSpentUsd: total.spent.toNumber() }
+      return { ...projected, budgetSpentUsd: total.spent.toAmount() }
     },
   }
 }

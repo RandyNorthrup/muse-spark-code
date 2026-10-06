@@ -1562,6 +1562,7 @@
   "paidAllowAlways": "このワークスペースでは常に許可",
   "paidDeny": "許可しない",
   "paidUseWebSearchTitle": "このプロンプトで Muse に Web 検索を許可しますか？",
+  "paidSearchQuote": "プロバイダー: {provider} · モデル: {model}。",
   "paidUseWebSearchDetail": "Muse は応答中に Web を検索することがあります。検索の料金 ({price}) は Model API キーに請求され、検索結果で増えるトークンの料金も加算されます。「許可しない」を選ぶと、Web 検索なしでプロンプトを送信します。",
   "paidUseVoiceTitle": "Muse Voice で録音しますか？",
   "paidUseVoiceDetail": "Muse Voice がこの録音を文字起こしし、その料金 ({price}) は Model API キーに請求されます。「許可しない」を選ぶと、マイクはオフのままです。",

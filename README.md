@@ -195,6 +195,13 @@ cannot change today's policy. Switching backends preserves accepted prices
 and workspace **Allow always** grants; explicitly turning a feature off
 withdraws them. Packing adds recall only when a request carries packed output,
 so enabling unused packing keeps the ordinary request and cache key unchanged.
+Hosted-search approvals bind the provider, model and quoted price. A model
+change while the question is open asks again. A higher price also asks again;
+an equal or lower price can use the workspace's approval for that same model
+and provider. A dispatched request settles at its original quote. Accounting
+keeps exact decimal amounts, and paid displays round upward so a positive
+charge is never shown as free. Hosted-search product wiring remains subject
+to the verified billing-bound availability described above.
 Tab's $1/day cap is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.

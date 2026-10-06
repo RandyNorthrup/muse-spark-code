@@ -1,3 +1,4 @@
+import { Usd, sumUsd, isPositiveUsd, type LegacyUsd } from '../../../src/shared/usd'
 // An in-memory SessionStore for the Model API host tests: what was saved,
 // by id, and a switch that makes the next save fail.
 
@@ -10,12 +11,12 @@ import type { SessionBudgetTotal } from '../../../src/core/backends/modelapi/ses
 import { UI_TEXT } from '../../../src/shared/constants'
 
 interface MemoryBudget {
-  readonly seed: number
+  readonly seed: LegacyUsd
   hasUnknownHistoricalFees: boolean
   readonly entries: Map<
     string,
     {
-      readonly costUsd: number
+      readonly costUsd: LegacyUsd
       readonly isUnbounded: boolean
       readonly hasUnknownCost: boolean
       readonly isSettled: boolean
@@ -69,7 +70,8 @@ export function memorySessionStore(): MemorySessionStore {
     const isFreshFork = session.budgetIsFreshFork === true
     if (
       isFreshFork &&
-      (session.budgetSpentUsd !== 0 ||
+      (session.budgetSpentUsd === undefined ||
+        Usd.from(session.budgetSpentUsd).compare(Usd.from(0)) !== 0 ||
         session.forkedFrom === undefined ||
         !/^[A-Za-z0-9_-]+$/.test(session.forkedFrom))
     ) {
@@ -87,10 +89,10 @@ export function memorySessionStore(): MemorySessionStore {
     let spentUsd = budget.seed
     let hasUnknownHistoricalFees = budget.hasUnknownHistoricalFees
     for (const entry of budget.entries.values()) {
-      spentUsd += entry.costUsd
+      spentUsd = sumUsd(spentUsd, entry.costUsd)
       hasUnknownHistoricalFees ||= entry.hasUnknownCost || (entry.isUnbounded && !entry.isSettled)
     }
-    return { spentUsd, hasUnknownHistoricalFees }
+    return { spentUsd: Usd.from(spentUsd).toAmount(), hasUnknownHistoricalFees }
   }
   const project = (session: StoredSession): StoredSession => {
     const budget =
@@ -102,7 +104,7 @@ export function memorySessionStore(): MemorySessionStore {
     }
     const { budgetSpentUsd: _old, ...rest } = session
     const total = totalFor(budget)
-    return { ...rest, ...(total.spentUsd > 0 && { budgetSpentUsd: total.spentUsd }) }
+    return { ...rest, ...(isPositiveUsd(total.spentUsd) && { budgetSpentUsd: total.spentUsd }) }
   }
   const store: MemorySessionStore = {
     saved,
@@ -119,16 +121,16 @@ export function memorySessionStore(): MemorySessionStore {
         let isSettled = false
         return Promise.resolve({
           claimId,
-          reservedUsd: costUsd,
+          reservedUsd: Usd.from(costUsd).toAmount(),
           check(capUsd) {
             if (isSettled) {
               throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
             }
             const total = totalFor(budget)
-            if (capUsd > 0 && total.hasUnknownHistoricalFees) {
+            if (isPositiveUsd(capUsd) && total.hasUnknownHistoricalFees) {
               throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
             }
-            if (capUsd > 0 && total.spentUsd > capUsd) {
+            if (isPositiveUsd(capUsd) && Usd.from(total.spentUsd).compare(Usd.from(capUsd)) > 0) {
               throw new Error(UI_TEXT.sessionBudgetStopped)
             }
             return total

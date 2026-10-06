@@ -1613,6 +1613,7 @@
   "paidAllowAlways": "Engedélyezés mindig ezen a munkaterületen",
   "paidDeny": "Megtagadás",
   "paidUseWebSearchTitle": "Kereshet a Muse a weben ehhez a prompthoz?",
+  "paidSearchQuote": "Szolgáltató: {provider} · Modell: {model}.",
   "paidUseWebSearchDetail": "A Muse válaszadás közben kereshet a weben. A keresések díja {price}, amelyet a találataik által hozzáadott tokeneken felül a Model API-kulcsára számláznak. A „Megtagadás” webes keresés nélkül küldi el a promptot.",
   "paidUseVoiceTitle": "Felvétel a Muse Voice szolgáltatással?",
   "paidUseVoiceDetail": "A Muse Voice átírja ezt a felvételt; ennek díja {price}, amelyet a Model API-kulcsára számláznak. A „Megtagadás” kikapcsolva hagyja a mikrofont.",

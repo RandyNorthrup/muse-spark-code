@@ -102,7 +102,10 @@ describe('parseStoredSession', () => {
 
   it('keeps a session budget spend, and refuses one below zero (M82)', () => {
     const spent: StoredSession = { ...full, budgetSpentUsd: 0.25 }
-    expect(parseStoredSession(structuredClone(spent))).toEqual({ ok: true, session: spent })
+    expect(parseStoredSession(structuredClone(spent))).toEqual({
+      ok: true,
+      session: { ...spent, budgetSpentUsd: '0.25' },
+    })
     expect(parseStoredSession({ ...full, budgetSpentUsd: -1 })).toMatchObject({ ok: false })
     expect(parseStoredSession({ ...full, budgetSpentUsd: Infinity })).toMatchObject({ ok: false })
     expect(parseStoredSession({ ...full, budgetSpentUsd: NaN })).toMatchObject({ ok: false })

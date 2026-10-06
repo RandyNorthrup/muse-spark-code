@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane A integration: admission through the real M82 claim journal (the
 // durable store D78's daily ledger builds on), on a temporary directory.
 // Each test restarts the journal with a fresh instance over the same
@@ -62,13 +63,13 @@ function ledgerFor(journal: Journal, capUsd: number | (() => number)): JudgeDail
   return {
     async remainingUsd(): Promise<number> {
       const total = await journal.read(SESSION, ACCOUNT)
-      return currentCap() - total.spentUsd
+      return Usd.from(currentCap()).subtract(Usd.from(total.spentUsd)).toNumber()
     },
     async reserve(costUsd: number): Promise<JudgeLedgerClaim> {
       const claim = await journal.reserve(SESSION, ACCOUNT, costUsd)
       return {
         claimId: claim.claimId,
-        reservedUsd: claim.reservedUsd,
+        reservedUsd: Usd.from(claim.reservedUsd).toNumber(),
         check(): void {
           claim.check(currentCap())
         },
@@ -276,7 +277,7 @@ describe('admission over the real journal', () => {
     const claim = await journal.reserve(SESSION, ACCOUNT, 0.001)
     const first = await claim.settle(0.0005)
     const second = await claim.settle(0.0005)
-    expect(second.spentUsd).toBeCloseTo(first.spentUsd, 12)
+    expect(second.spentUsd).toBe(first.spentUsd)
   })
 
   it('refuses a revoked consent after the wait without touching the store', async () => {

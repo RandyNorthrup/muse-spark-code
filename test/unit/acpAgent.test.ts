@@ -1647,7 +1647,7 @@ async function answersInOneSession(
     const { sessionId } = await start(client)
     const answers: boolean[] = []
     for (const request of requests) {
-      answers.push(await h.paid.allows(CWD, sessionId, request, false))
+      answers.push(Boolean(await h.paid.allows(CWD, sessionId, request, false)))
     }
     return answers
   })
@@ -1665,11 +1665,11 @@ describe('paid features in the agent (M63c, M58)', () => {
         await until(() => h.permissions.length === 1)
         await finishRunningPrompt(client, active, terminal)
         answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } })
-        expect(await paid).toBe(false)
+        expect(Boolean(await paid)).toBe(false)
         expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(false)
         expect(h.grants.byFolder.size).toBe(0)
         // A fresh use still asks and can be allowed; only the stale answer was refused.
-        expect(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)).toBe(true)
+        expect(Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))).toBe(true)
         expect(h.permissions).toHaveLength(2)
       })
     },
@@ -1682,7 +1682,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       const session = h.host.sessions[0]!
       let isAllowed = true
       session.listSkills.mockImplementation(async () => {
-        isAllowed = await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+        isAllowed = Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))
         return []
       })
       const response = prompt(client, sessionId)
@@ -1705,7 +1705,7 @@ describe('paid features in the agent (M63c, M58)', () => {
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {
     const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: () => answer.promise })
-    const isAllowed = await h.run(async (client) => {
+    const decision = await h.run(async (client) => {
       const { sessionId } = await start(client)
       const asked = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
       await until(() => h.permissions.length === 1)
@@ -1713,7 +1713,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-once' } })
       return await asked
     })
-    expect(isAllowed).toBe(false)
+    expect(Boolean(decision)).toBe(false)
     // Nothing more reaches the editor for a session it closed (Grok on ca263c53).
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
@@ -1801,7 +1801,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       },
     })
     expect(await answersInOneSession(h, [WEB_SEARCH])).toEqual([false])
-    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBe(false)
+    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBeFalsy()
     expect(h.permissions).toHaveLength(1)
     expect(h.log.warn).toHaveBeenCalledWith(
       expect.stringContaining('the paid-use question failed, denying'),

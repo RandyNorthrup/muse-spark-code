@@ -1,3 +1,5 @@
+import { legacyUsdSchema } from '../../../shared/usd'
+import type { LegacyUsd } from '../../../shared/usd'
 // What a Model API session is when the window is gone (PLAN.md D14): the
 // replayed conversation, the transcript, the patches behind Open diff and
 // Revert, and the row the history list shows. The host keeps one file per
@@ -120,7 +122,7 @@ export interface StoredSession {
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
   /** Dollars the session's own requests spent (M82); absent when none. */
-  readonly budgetSpentUsd?: number
+  readonly budgetSpentUsd?: LegacyUsd
   /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
   readonly budgetIsFreshFork?: true
   /**
@@ -279,7 +281,7 @@ const storedSessionFields = {
       item: z.object({
         ...itemSnapshotFields,
         usage: z.optional(storedUsageSchema),
-        costUsd: z.optional(z.number().check(z.nonnegative())),
+        costUsd: z.optional(legacyUsdSchema),
       }),
     }),
   ),
@@ -287,7 +289,7 @@ const storedSessionFields = {
   usage: storedUsageSchema,
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
-  budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetSpentUsd: z.optional(legacyUsdSchema),
   budgetIsFreshFork: z.optional(z.literal(true)),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).

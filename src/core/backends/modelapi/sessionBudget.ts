@@ -1,3 +1,4 @@
+import { USD_DECIMAL_ONE } from '../../../shared/usdConstants'
 // The Model API session budget (M82, PLAN.md M82): a dollar cap per
 // conversation, kept by reservation, since a request's cost is incurred
 // once it is sent.
@@ -26,12 +27,11 @@ import {
   UI_TEXT,
   WEB_SEARCH_MIN_PER_REQUEST,
   WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
-  USD_DECIMAL_ONE,
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
-import { Usd, multiplyUsd } from '../../../shared/usd'
-import { formatUsd, estimateCostUsd } from '../../usage/insights'
+import { Usd, multiplyUsd, type LegacyUsd, type UsdAmount } from '../../../shared/usd'
+import { formatUsd, estimateExactCostUsd as estimateCostUsd } from '../../usage/insights'
 import type { CreateResponseBody, Usage } from './schemas'
 
 const PART_DIGEST = 'sha256'
@@ -56,24 +56,24 @@ export interface BudgetReservation {
   /** The `max_output_tokens` the request is sent with. */
   readonly maxOutputTokens: number
   /** The estimated input and the whole output allowance at list price: at most what was left. */
-  readonly costUsd: number
+  readonly costUsd: UsdAmount
 }
 
 /** Authoritative shared spend, including requests whose result is still unknown. */
 export interface SessionBudgetTotal {
-  readonly spentUsd: number
+  readonly spentUsd: UsdAmount
   readonly hasUnknownHistoricalFees: boolean
 }
 
 /** One request owns its liability until its verified actual cost or a nonsent refund. */
 export interface SessionBudgetClaim {
   readonly claimId: string
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
-  check(capUsd: number): SessionBudgetTotal
+  check(capUsd: LegacyUsd): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
   settle(
-    actualCostUsd: number,
+    actualCostUsd: LegacyUsd,
     hasUnknownCost?: boolean,
     /** False atomically retains an updated liability on this row without closing it. */
     isFinal?: boolean,
@@ -86,7 +86,7 @@ export interface SessionBudgetJournal {
   reserve(
     sessionId: string,
     accountId: string,
-    costUsd: number,
+    costUsd: LegacyUsd,
     liability?: {
       readonly isUnbounded?: boolean
       readonly hasUnknownCost?: boolean
@@ -95,7 +95,7 @@ export interface SessionBudgetJournal {
   record(
     sessionId: string,
     accountId: string,
-    costUsd: number,
+    costUsd: LegacyUsd,
     hasUnknownCost?: boolean,
   ): Promise<SessionBudgetTotal>
 }
@@ -166,12 +166,12 @@ export function estimateInput(
  * be kept) or when not even one output token fits on top of the input.
  */
 export function reserveRequest(request: {
-  readonly capUsd: number
-  readonly spentUsd: number
+  readonly capUsd: LegacyUsd
+  readonly spentUsd: LegacyUsd
   readonly estimatedInputTokens: number
   readonly modelId: string
   readonly maxToolCalls?: number
-  readonly searchPriceUsd?: number | undefined
+  readonly searchPriceUsd?: LegacyUsd | undefined
 }): BudgetReservation {
   const searchCostUsd = searchAllowanceUsd(request.maxToolCalls, request.searchPriceUsd)
   const tier = modelApiPaidTier(request.modelId)
@@ -193,7 +193,7 @@ export function reserveRequest(request: {
   if (affordableOutputTokens < USD_DECIMAL_ONE) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toNumber()),
+        estimate: formatUsd(inputCost.add(Usd.from(searchCostUsd)).toAmount()),
         cap: formatUsd(request.capUsd),
         spent: formatUsd(request.spentUsd),
       }),
@@ -210,23 +210,23 @@ export function reserveRequest(request: {
     costUsd: inputCost
       .add(outputPrice.times(maxOutputTokens))
       .add(Usd.from(searchCostUsd))
-      .toNumber(),
+      .toAmount(),
   }
 }
 
 /** The hosted fee held alongside tokens, from a verified bound and tariff. */
 export function searchAllowanceUsd(
   bound: number | undefined,
-  priceUsd: number | undefined,
-): number {
+  priceUsd: LegacyUsd | undefined,
+): UsdAmount {
   if (
     bound !== undefined &&
     (priceUsd === undefined ||
-      priceUsd < 0 ||
+      (typeof priceUsd === 'number' && !Number.isFinite(priceUsd)) ||
+      Usd.from(priceUsd).compare(Usd.from(0)) < 0 ||
       !Number.isSafeInteger(bound) ||
       bound < WEB_SEARCH_MIN_PER_REQUEST ||
-      bound > WEB_SEARCH_MAX_PER_REQUEST_LIMIT ||
-      !Number.isFinite(priceUsd))
+      bound > WEB_SEARCH_MAX_PER_REQUEST_LIMIT)
   ) {
     throw new SessionBudgetExceededError(UI_TEXT.sessionBudgetSearchUnavailable)
   }
@@ -240,10 +240,10 @@ export function helperRequestSettlement(
   isCountedUsage: (usage: Usage) => boolean,
   wasSent: boolean,
   wasRefused: boolean,
-  reservedUsd: number,
+  reservedUsd: LegacyUsd,
 ) {
   const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
-  let costUsd = wasSent && !wasRefused ? reservedUsd : 0
+  let costUsd = Usd.from(wasSent && !wasRefused ? reservedUsd : 0).toAmount()
   if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
     costUsd = estimateCostUsd(
       {

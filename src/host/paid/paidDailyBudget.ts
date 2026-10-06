@@ -1,3 +1,4 @@
+import { Usd, type LegacyUsd } from '../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -5,7 +6,7 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
-import { estimateCostUsd } from '../../core/usage/insights'
+import { estimateExactCostUsd as estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
@@ -35,7 +36,8 @@ export function createPaidDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: deps.directory,
     sleep: deps.sleep,
-    initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const limitPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
@@ -63,7 +65,7 @@ export function createPaidDailyBudget(deps: {
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
-  const raise = async (scope: string, neededUsd: number, signal: AbortSignal): Promise<void> => {
+  const raise = async (scope: string, neededUsd: LegacyUsd, signal: AbortSignal): Promise<void> => {
     const assertActive = () => {
       signal.throwIfAborted()
       if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
@@ -104,11 +106,13 @@ export function createPaidDailyBudget(deps: {
           title: raiseTitle,
           prompt: UI_TEXT.paidDailyRaisePrompt,
           value: String(
-            Math.min(PAID_DAILY_BUDGET.maximumUsd, Math.max(readLimit(scope) * 2, neededUsd)),
+            Usd.from(neededUsd).compare(Usd.from(readLimit(scope)).times(2)) > 0
+              ? neededUsd
+              : Math.min(PAID_DAILY_BUDGET.maximumUsd, readLimit(scope) * 2),
           ),
           validateInput: (value) => {
             const parsed = limitSchema.safeParse({ limitUsd: Number(value), stopped: false })
-            if (!parsed.success || parsed.data.limitUsd < neededUsd)
+            if (!parsed.success || Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0)
               return UI_TEXT.paidDailyRaisePrompt
             return
           },
@@ -118,7 +122,11 @@ export function createPaidDailyBudget(deps: {
     )
     assertActive()
     const parsed = limitSchema.safeParse({ limitUsd: Number(entered), stopped: false })
-    if (entered === undefined || !parsed.success || parsed.data.limitUsd < neededUsd) {
+    if (
+      entered === undefined ||
+      !parsed.success ||
+      Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0
+    ) {
       stop()
     }
     await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {
@@ -151,7 +159,7 @@ export function createPaidDailyBudget(deps: {
     let claim: Awaited<ReturnType<typeof journal.reserve>>
     try {
       readLimit(scope)
-      let costUsd: number = PAID_PRICES_USD.imageGeneration
+      let costUsd = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
       if ('input' in body) {
         if (modelApiPaidTier(body.model) === undefined)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -175,7 +183,7 @@ export function createPaidDailyBudget(deps: {
       signal.throwIfAborted()
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
       signal.throwIfAborted()
-      if (total.spentUsd > readLimit(scope))
+      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
         await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
       return {
@@ -191,7 +199,7 @@ export function createPaidDailyBudget(deps: {
         },
       }
     } catch (error: unknown) {
-      await claim.settle(0)
+      await claim.settle(Usd.from(0).toAmount())
       throw error
     }
   }
@@ -203,29 +211,33 @@ export function createPaidDailyBudget(deps: {
     if (total.hasUnknownHistoricalFees) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
     return { day: scope, capUsd: readLimit(scope), spentUsd: total.spentUsd }
   }
+  const reserveExact = async (costUsd: LegacyUsd) => {
+    const scope = day()
+    readLimit(scope)
+    const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+    const check = () => {
+      if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      claim.check(readLimit(scope))
+    }
+    try {
+      check()
+    } catch (error: unknown) {
+      await claim.settle(Usd.from(0).toAmount())
+      throw error
+    }
+    return { ...claim, check }
+  }
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const current = await latestDay()
-      return Math.max(0, current.capUsd - current.spentUsd)
+      return Math.max(0, Usd.from(current.capUsd).subtract(Usd.from(current.spentUsd)).toNumber())
     },
     reserve: async (costUsd) => {
-      const scope = day()
-      readLimit(scope)
-      const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
-      const check = () => {
-        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-        claim.check(readLimit(scope))
-      }
-      try {
-        check()
-      } catch (error: unknown) {
-        await claim.settle(0)
-        throw error
-      }
+      const claim = await reserveExact(Usd.from(costUsd).toAmount())
       return {
         claimId: claim.claimId,
-        reservedUsd: claim.reservedUsd,
-        check,
+        reservedUsd: Usd.from(claim.reservedUsd).toNumber(),
+        check: claim.check,
         settle: async (actualCostUsd) => {
           await claim.settle(actualCostUsd)
         },
@@ -233,6 +245,7 @@ export function createPaidDailyBudget(deps: {
     },
   }
   return {
+    reserveExact,
     capUsd,
     reserve,
     judgeLedger,

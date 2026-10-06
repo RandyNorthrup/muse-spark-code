@@ -92,7 +92,10 @@ export function formatUsd(amount: number | string | Usd, fractionDigits = 2): st
   const exact = amount instanceof Usd ? amount : Usd.from(amount)
   const decimal = exact.toString()
   const leadingZeros = /^0\.(0*)[1-9]/.exec(decimal)?.[1]?.length
-  const precision = Math.max(fractionDigits, leadingZeros === undefined ? 0 : leadingZeros + 2)
+  const precision = Math.max(
+    fractionDigits,
+    leadingZeros === undefined || leadingZeros < 2 ? 0 : leadingZeros + 2,
+  )
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)
   const formatter = numberFormat(`usd:${String(precision)}`, {

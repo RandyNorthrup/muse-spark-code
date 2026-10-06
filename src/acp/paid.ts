@@ -23,7 +23,7 @@ import {
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import type { PaidUseRequest } from '../shared/paid'
+import type { PaidUseRequest, PaidUseDecision, PaidQuote } from '../shared/paid'
 
 /** Where "Allow always in this workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -32,6 +32,8 @@ export interface PaidGrantStore {
   readonly add: (workspaceRoot: string, features: readonly PaidFeature[]) => Promise<void>
   /** Takes these features out of every folder's grants. */
   readonly forget: (features: readonly PaidFeature[]) => Promise<void>
+  readonly readQuotes?: (workspaceRoot: string) => readonly PaidQuote[]
+  readonly writeQuotes?: (workspaceRoot: string, quotes: readonly PaidQuote[]) => Promise<void>
 }
 
 /** The question in one of the client's sessions; the agent attaches it (agent.ts). */
@@ -94,6 +96,7 @@ export function paidUseAnswer(
 }
 
 export class AcpPaidUse {
+  private readonly quoteGrants = new Map<string, readonly PaidQuote[]>()
   private asker: PaidUseAsker | undefined
   private readonly used = new Map<PaidFeature, number>()
 
@@ -149,13 +152,19 @@ export class AcpPaidUse {
     sessionId: string,
     request: PaidUseRequest,
     requiresAsking: boolean,
-  ): Promise<boolean> {
+  ): Promise<PaidUseDecision> {
     if (this.deps.headless !== undefined) {
       return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
     }
     const consent = new PaidUseConsent({
       isOn: (feature) => this.isOn(feature),
       canRemember: this.deps.canRemember,
+      readQuoteGrants: () =>
+        this.deps.grants.readQuotes?.(workspaceRoot) ?? this.quoteGrants.get(workspaceRoot) ?? [],
+      writeQuoteGrants: async (quotes) => {
+        await this.deps.grants.writeQuotes?.(workspaceRoot, quotes)
+        this.quoteGrants.set(workspaceRoot, quotes)
+      },
       readGrants: () => this.deps.grants.read(workspaceRoot),
       writeGrants: (grants) => this.keep(workspaceRoot, grants),
       ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),

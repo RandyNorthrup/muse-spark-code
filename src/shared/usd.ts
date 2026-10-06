@@ -1,6 +1,20 @@
 // Exact decimal USD arithmetic for hosted-search admission and durable claims.
 // Numbers enter once at the boundary; persisted amounts use decimal strings.
-import { USD_DECIMAL_RADIX, USD_DECIMAL_ZERO, USD_DECIMAL_ONE } from './constants'
+import * as z from 'zod/mini'
+import {
+  USD_DECIMAL_RADIX,
+  USD_DECIMAL_ZERO,
+  USD_DECIMAL_ONE,
+  USD_LIABILITY_DECIMALS,
+} from './usdConstants'
+
+/** Canonical exact amounts on new money ports. Numbers are accepted only at legacy parse edges. */
+export const usdAmountSchema = z
+  .string()
+  .check(z.regex(/^-?(?:0|[1-9]\d*)(?:\.\d*[1-9])?$/))
+  .brand<'Usd'>()
+export type UsdAmount = z.infer<typeof usdAmountSchema>
+export type LegacyUsd = number | string
 
 const DECIMAL = /^(-?\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i
 function radix(): bigint {
@@ -52,6 +66,20 @@ export class Usd {
     return new Usd(this.coefficient, this.places + places)
   }
 
+  /** Non-terminating division rounds liabilities UP to nano-USD, by policy. */
+  public divideIntegerCeiling(divisor: number): Usd {
+    if (!Number.isSafeInteger(divisor) || divisor <= 0)
+      throw new Error('USD divisor must be positive')
+    const places = Math.max(this.places, USD_LIABILITY_DECIMALS)
+    const numerator = this.aligned(places)
+    const denominator = BigInt(divisor)
+    return new Usd(
+      numerator / denominator +
+        (numerator % denominator > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO),
+      places,
+    )
+  }
+
   public compare(amount: Usd): number {
     const difference = this.subtract(amount).coefficient
     if (difference === USD_DECIMAL_ZERO) return 0
@@ -92,6 +120,10 @@ export class Usd {
     return `${isNegative ? '-' : ''}${whole}${fraction === '' ? '' : `.${fraction}`}`
   }
 
+  public toAmount(): UsdAmount {
+    return usdAmountSchema.parse(this.toString())
+  }
+
   public toNumber(): number {
     const amount = Number(this.toString())
     if (!Number.isFinite(amount)) throw new Error('USD total is not finite')
@@ -99,13 +131,30 @@ export class Usd {
   }
 }
 
-/** Compatibility with USD-number ports; arithmetic happens before conversion. */
-export function sumUsd(...amounts: readonly number[]): number {
+/** Historical numeric records parse once; new serialized amounts stay canonical and exact. */
+export const legacyUsdSchema = z.pipe(
+  z.union([
+    z.number().check(z.nonnegative()),
+    usdAmountSchema.check(z.refine((amount) => !amount.startsWith('-'))),
+  ]),
+  z.transform((amount) => Usd.from(amount).toAmount()),
+)
+
+/** Legacy values normalize once; every arithmetic result remains an exact branded string. */
+export function sumUsd(...amounts: readonly LegacyUsd[]): UsdAmount {
   let sum = Usd.from(0)
   for (const amount of amounts) sum = sum.add(Usd.from(amount))
-  return sum.toNumber()
+  return sum.toAmount()
 }
 
-export function multiplyUsd(amount: number, count: number): number {
-  return Usd.from(amount).times(count).toNumber()
+export function multiplyUsd(amount: LegacyUsd, count: number): UsdAmount {
+  return Usd.from(amount).times(count).toAmount()
+}
+
+export function negateUsd(amount: LegacyUsd): UsdAmount {
+  return Usd.from(0).subtract(Usd.from(amount)).toAmount()
+}
+
+export function isPositiveUsd(amount: LegacyUsd): boolean {
+  return Usd.from(amount).compare(Usd.from(0)) > 0
 }

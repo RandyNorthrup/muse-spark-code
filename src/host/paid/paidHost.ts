@@ -21,6 +21,7 @@ import {
 import { fill, formatUsd } from '../../shared/l10n/text'
 import {
   autoReviewPrice,
+  paidQuoteSchema,
   modelApiPaidTier,
   paidFeatureName,
   paidFeaturePrice,
@@ -33,6 +34,10 @@ import type { Logger } from '../logger'
 const acceptedSchema = z.array(z.enum(PAID_FEATURES))
 // Feature → grant generation; keys that are not a paid feature are ignored.
 const generationsSchema = z.record(z.string(), z.int().check(z.nonnegative()))
+const quoteGrantSchema = z.object({
+  quote: paidQuoteSchema,
+  generation: z.int().check(z.nonnegative()),
+})
 const dailyBudgetSchema = z.number().check(z.gte(0))
 
 /** A feature's grant generation: 0 until its price acceptance first changes. */
@@ -254,6 +259,25 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     isJudgeEnabled: () => deps.isKeyStored() && (deps.isJudgeOn?.() ?? deps.isSettingOn('judge')),
     acceptJudgePrice: () => gate.acceptJudgePrice(),
     canRemember: deps.canRememberPaidUse,
+    readQuoteGrants: () => {
+      const parsed = z
+        .array(quoteGrantSchema)
+        .safeParse(deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidQuoteGrants) ?? [])
+      return parsed.success
+        ? parsed.data
+            .filter((grant) => grant.generation === generationOf(readGenerations(), 'webSearch'))
+            .map((grant) => grant.quote)
+        : []
+    },
+    writeQuoteGrants: async (quotes) => {
+      await deps.workspaceState.update(
+        WORKSPACE_STATE_KEYS.paidQuoteGrants,
+        quotes.map((quote) => ({
+          quote,
+          generation: generationOf(readGenerations(), 'webSearch'),
+        })),
+      )
+    },
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
         deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants) ?? {},

@@ -73,7 +73,7 @@ describe('reserveRequest', () => {
       searchPriceUsd: 0.0025,
     })
     expect(reservation.maxOutputTokens).toBe(1)
-    expect(reservation.costUsd).toBe(0.0025055)
+    expect(reservation.costUsd).toBe('0.0025055')
   })
   it('holds the search bound times its price before allocating output tokens', () => {
     const reservation = reserveRequest({
@@ -85,8 +85,11 @@ describe('reserveRequest', () => {
       searchPriceUsd: 0.0025,
     })
     expect(reservation.maxOutputTokens).toBe(588)
-    expect(reservation.costUsd).toBeCloseTo(0.125 + 588 * STANDARD_OUTPUT_TOKEN_USD + 0.0125, 12)
-    expect(reservation.costUsd).toBeLessThanOrEqual(0.14 + FLOAT_SLACK)
+    expect(Number(reservation.costUsd)).toBeCloseTo(
+      0.125 + 588 * STANDARD_OUTPUT_TOKEN_USD + 0.0125,
+      12,
+    )
+    expect(Number(reservation.costUsd)).toBeLessThanOrEqual(0.14 + FLOAT_SLACK)
   })
 
   it.each([0, -1, 21, 1.5, NaN, Infinity])(
@@ -143,8 +146,8 @@ describe('reserveRequest', () => {
       modelId: MODEL,
     })
     expect(reservation.maxOutputTokens).toBe(1176)
-    expect(reservation.costUsd).toBeCloseTo(0.125 + 1176 * STANDARD_OUTPUT_TOKEN_USD, 12)
-    expect(reservation.costUsd).toBeLessThanOrEqual(0.13 + FLOAT_SLACK)
+    expect(Number(reservation.costUsd)).toBeCloseTo(0.125 + 1176 * STANDARD_OUTPUT_TOKEN_USD, 12)
+    expect(Number(reservation.costUsd)).toBeLessThanOrEqual(0.13 + FLOAT_SLACK)
   })
 
   it('keeps the usual maximum when the cap has room for it', () => {
@@ -155,7 +158,7 @@ describe('reserveRequest', () => {
       modelId: MODEL,
     })
     expect(reservation.maxOutputTokens).toBe(MODEL_API_MAX_OUTPUT_TOKENS)
-    expect(reservation.costUsd).toBeCloseTo(
+    expect(Number(reservation.costUsd)).toBeCloseTo(
       0.125 + MODEL_API_MAX_OUTPUT_TOKENS * STANDARD_OUTPUT_TOKEN_USD,
       12,
     )
@@ -228,7 +231,7 @@ describe('reserveRequest', () => {
               continue
             }
             expect(reservation.maxOutputTokens).toBeGreaterThanOrEqual(1)
-            expect(reservation.costUsd).toBeLessThanOrEqual(capUsd - spentUsd + FLOAT_SLACK)
+            expect(Number(reservation.costUsd)).toBeLessThanOrEqual(capUsd - spentUsd + FLOAT_SLACK)
           }
         }
       }

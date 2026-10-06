@@ -19,6 +19,9 @@ import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants
 import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
+  freezePaidQuote,
+  type PaidQuote,
+  type PaidUseDecision,
   autoReviewPrice,
   bestOfNPrice,
   modelApiPaidTier,
@@ -27,6 +30,8 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
 } from '../../shared/paid'
+import { Usd } from '../../shared/usd'
+import { DEFAULT_MODEL_ID } from '../../shared/constants'
 import type { CoreLogger } from '../logging'
 
 /** The popup's three answers. */
@@ -57,9 +62,19 @@ export function paidUseQuestion(request: PaidUseRequest): {
     case 'webSearch': {
       return {
         title: UI_TEXT.paidUseWebSearchTitle,
-        detail: fill(UI_TEXT.paidUseWebSearchDetail, {
-          price: paidFeaturePrice('webSearch', request.priceUsd),
-        }),
+        detail: [
+          fill(UI_TEXT.paidUseWebSearchDetail, {
+            price: paidFeaturePrice('webSearch', request.quote?.tariffUsd ?? request.priceUsd),
+          }),
+          ...(request.quote === undefined
+            ? []
+            : [
+                fill(UI_TEXT.paidSearchQuote, {
+                  provider: request.quote.provider,
+                  model: request.quote.model,
+                }),
+              ]),
+        ].join('\n'),
       }
     }
     case 'voice': {
@@ -185,10 +200,13 @@ export interface PaidUseConsentDeps {
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
+  readonly readQuoteGrants?: () => readonly PaidQuote[]
+  readonly writeQuoteGrants?: (quotes: readonly PaidQuote[]) => Promise<void>
   readonly log: CoreLogger
 }
 
 export class PaidUseConsent {
+  private readonly quoteGrants = new Map<string, PaidQuote>()
   private readonly listeners = new Set<() => void>()
   /**
    * Window-once grants this instance gave, each with the price-acceptance
@@ -285,6 +303,70 @@ export class PaidUseConsent {
     return true
   }
 
+  private storedQuotes(): readonly PaidQuote[] {
+    const quotes: PaidQuote[] = []
+    this.quoteGrants.forEach((quote) => {
+      quotes.push(quote)
+    })
+    return quotes
+  }
+
+  private async allowSearch(
+    request: Extract<PaidUseRequest, { feature: 'webSearch' }>,
+    requiresAsking: boolean,
+  ): Promise<PaidQuote | undefined> {
+    if (!this.isEnabled(request.feature)) return undefined
+    const quote = freezePaidQuote(
+      request.quote ?? {
+        id: `${String(Date.now())}:${String(request.priceUsd)}`,
+        feature: 'webSearch',
+        provider: 'meta',
+        model: DEFAULT_MODEL_ID,
+        modelRevision: 0,
+        tariffUsd: Usd.from(request.priceUsd).toAmount(),
+        unit: 'search',
+        capturedAt: Date.now(),
+      },
+    )
+    if (request.isCurrent?.() === false) return undefined
+    const key = JSON.stringify([quote.feature, quote.provider, quote.model])
+    const grants = this.deps.readQuoteGrants?.() ?? this.storedQuotes()
+    const grant = grants.find(
+      (candidate) => candidate.provider === quote.provider && candidate.model === quote.model,
+    )
+    if (
+      !requiresAsking &&
+      grant !== undefined &&
+      this.isRemembered('webSearch') &&
+      Usd.from(quote.tariffUsd).compare(Usd.from(grant.tariffUsd)) <= 0
+    )
+      return quote
+    const answer = await this.deps.ask({ ...request, quote }, this.deps.canRemember())
+    if (answer === 'deny' || !this.isEnabled('webSearch') || request.isCurrent?.() === false)
+      return undefined
+    if (answer === 'always' && this.deps.canRemember() && (await this.remember('webSearch'))) {
+      try {
+        const next = [
+          ...grants.filter(
+            (candidate) =>
+              JSON.stringify([candidate.feature, candidate.provider, candidate.model]) !== key,
+          ),
+          quote,
+        ]
+        await this.deps.writeQuoteGrants?.(next)
+        this.quoteGrants.set(key, quote)
+        this.deps.log.info('Paid use of webSearch: allowed always in this workspace')
+        this.notify()
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `Paid search quote could not be kept: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+    this.deps.log.info(`Paid use of webSearch: allowed once`)
+    return !this.isEnabled('webSearch') || request.isCurrent?.() === false ? undefined : quote
+  }
+
   public onDidChange(listener: () => void): () => void {
     this.listeners.add(listener)
     return () => {
@@ -310,7 +392,13 @@ export class PaidUseConsent {
    * ordinary uses that arrive while its question is open wait for that
    * answer; a use that requires asking still gets its own question.
    */
-  public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
+  public allows(
+    request: Exclude<PaidUseRequest, { feature: 'webSearch' }>,
+    requiresAsking?: boolean,
+  ): Promise<boolean>
+  public allows(request: PaidUseRequest, requiresAsking?: boolean): Promise<PaidUseDecision>
+  public async allows(request: PaidUseRequest, requiresAsking = false): Promise<PaidUseDecision> {
+    if (request.feature === 'webSearch') return await this.allowSearch(request, requiresAsking)
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false
@@ -356,6 +444,8 @@ export class PaidUseConsent {
   public async forget(): Promise<void> {
     const hasWindowOnce = this.windowOnce.size > 0
     this.windowOnce.clear()
+    this.quoteGrants.clear()
+    await this.deps.writeQuoteGrants?.([])
     if (this.deps.readGrants().size === 0) {
       if (hasWindowOnce) {
         this.deps.log.info('Paid uses ask again in this window')

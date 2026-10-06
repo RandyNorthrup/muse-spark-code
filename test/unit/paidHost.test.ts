@@ -193,6 +193,24 @@ describe('the paid-use popup (M58)', () => {
 })
 
 describe('Allow always in this workspace (M58)', () => {
+  it('persists a quote ceiling and asks again for a higher tariff after reopening the window', async () => {
+    const data = new Map<string, unknown>([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]])
+    const workspace = new Map<string, unknown>()
+    const first = paidWithSettings(data, ['webSearch'], { workspace }).paid
+    answerWith(UI_TEXT.paidAllowAlways)
+    await first.consent.allows({ feature: 'webSearch', priceUsd: '0.0025' })
+    const reopened = paidWithSettings(data, ['webSearch'], { workspace }).paid
+    expect(
+      await reopened.consent.allows({ feature: 'webSearch', priceUsd: '0.001' }),
+    ).toMatchObject({ tariffUsd: '0.001' })
+    expect(confirmModal).toHaveBeenCalledOnce()
+    answerWith(UI_TEXT.paidDeny)
+    expect(
+      await reopened.consent.allows({ feature: 'webSearch', priceUsd: '0.01' }),
+    ).toBeUndefined()
+    expect(confirmModal).toHaveBeenCalledTimes(2)
+  })
+
   it('preserves default-on price acceptance and Always through backend unavailability and startup', async () => {
     const data = new Map<string, unknown>()
     const workspace = new Map<string, unknown>()
@@ -271,12 +289,12 @@ describe('Allow always in this workspace (M58)', () => {
     const workspace = new Map<string, unknown>()
     const { paid } = paidWithSettings(data, ['webSearch'], { workspace })
     answerWith(UI_TEXT.paidAllowAlways)
-    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
-      true,
-    )
-    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
-      true,
-    )
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: '0.0025' })
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: '0.0025' })
     expect(confirmModal).toHaveBeenCalledTimes(1)
     expect(workspace.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants)).toEqual({ webSearch: 0 })
     expect(paid.state().alwaysAllowed).toEqual(['webSearch'])
@@ -285,7 +303,7 @@ describe('Allow always in this workspace (M58)', () => {
     answerWith(UI_TEXT.allowOnce)
     await expect(
       other.paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 }),
-    ).resolves.toBe(true)
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: '0.0025' })
     expect(confirmModal).toHaveBeenCalledTimes(2)
     expect(other.paid.state().alwaysAllowed).toEqual([])
   })
@@ -323,9 +341,9 @@ describe('Allow always in this workspace (M58)', () => {
     })
     expect(paid.consent.isRemembered('webSearch')).toBe(false)
     answerWith(UI_TEXT.allowOnce)
-    await expect(paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 })).resolves.toBe(
-      true,
-    )
+    await expect(
+      paid.consent.allows({ feature: 'webSearch', priceUsd: 0.0025 }),
+    ).resolves.toMatchObject({ feature: 'webSearch', tariffUsd: '0.0025' })
     expect(offeredButtons()).toEqual([UI_TEXT.allowOnce, UI_TEXT.paidDeny])
     canRemember = true
     expect(paid.consent.isRemembered('webSearch')).toBe(true)
@@ -485,7 +503,7 @@ describe('M52 scheduled feature acceptance', () => {
     expect(detail).toContain('muse-spark-1.3-contributor:')
     expect(detail).toContain('$1.250/1M input')
     expect(detail).toContain('$0.100/1M input')
-    expect(detail).toContain('$0.002/1M cached input')
+    expect(detail).toContain('$0.0020/1M cached input')
     expect(paid.gate.isOn('scheduledPrompts')).toBe(true)
   })
 })

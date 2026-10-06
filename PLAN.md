@@ -19420,6 +19420,12 @@ decimals remain exact (no fixed-unit truncation); display uses a shared ceiling
 formatter with at least two significant digits below a cent. Regression probes,
 random exact-sum agreement and byte-exact red drills certify every finding.
 Existing non-search legacy adapters and W/M95 product handoffs are preserved.
+The exact formatter requires an acyclic decimal-identity leaf
+(`shared/usdConstants.ts`): the root constants module already imports locale
+text. Required money/quote schemas therefore also update the session-store,
+agent-event and transcript boundaries and their adapters; ACP's generation-owned
+quote ceiling is persisted beside its existing grant. No capability, paid gate,
+protected-path, headless or wire guard is widened.
 
 **H review fixes (FIXM106H, 2026-10-06).** Resolve all RVM106H findings:
 preserve sub-cent retained charges with the existing usage formatter; release
@@ -21252,6 +21258,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+**FIXM106H2 review disposition (2026-10-06).** All four P2 findings and
+the arithmetic P3 in RVM106H2 are fixed, with no accepted finding residual.
+Immutable consent/dispatch quotes and generation-owned tariff ceilings cover
+model switches, price increases and restarts; returned liability is recorded
+before observers and settlement uses the dispatch quote. Canonical decimal
+ports, legacy parse migration and a shared upward display formatter cover the
+arbitrary-tariff and tiny-price probes. The seeded random-charge test compares
+the actual daily ledger, session journal and paid tally against an independent
+bigint oracle. Default-timeout tests and byte-exact drills are recorded in
+`docs/certification/m106-h.md`. Existing W/M95 handoffs below remain pending;
+no live pricing, multi-process, Windows or editor smoke is claimed by this rig.
 
 **FIXM106H review disposition (2026-10-06).** RVM106H's four P2 findings
 and arithmetic P3 are corrected, with no accepted finding residual. The

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -149,7 +150,7 @@ describe('Transcript', () => {
       text: 'done',
       isStreaming: false,
       usage: { inputTokens: 12_300, outputTokens: 678, cachedTokens: 10_000, reasoningTokens: 0 },
-      costUsd: 0.018,
+      costUsd: Usd.from(0.018).toAmount(),
     }
     const { rerender } = mountTranscript([reply])
     expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()

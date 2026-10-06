@@ -1872,7 +1872,7 @@ async function activateWindow(
             ? undefined
             : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
-        confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
+        confirm: async (plan) => (await paid.consent.allows(imageUseRequest(plan))) === true,
         onBilled: () => {
           paid.usage.add('imageGeneration', 1)
         },
@@ -2299,7 +2299,7 @@ async function activateWindow(
         return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
       }
       signal?.throwIfAborted()
-      const claim = await dailyPaid.judgeLedger.reserve(reservationUsd)
+      const claim = await dailyPaid.reserveExact(reservationUsd)
       try {
         signal?.throwIfAborted()
         return {

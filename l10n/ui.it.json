@@ -1664,6 +1664,7 @@
   "paidAllowAlways": "Consenti sempre in questa area di lavoro",
   "paidDeny": "Nega",
   "paidUseWebSearchTitle": "Consentire a Muse di cercare sul web per questo prompt?",
+  "paidSearchQuote": "Fornitore: {provider} · Modello: {model}.",
   "paidUseWebSearchDetail": "Muse può eseguire ricerche sul web mentre risponde. Ogni ricerca viene addebitata alla tua chiave Model API al prezzo di {price}, oltre ai token aggiunti dai risultati. “Nega” invia il prompt senza ricerca web.",
   "paidUseVoiceTitle": "Registrare con Muse Voice?",
   "paidUseVoiceDetail": "Muse Voice trascrive questa registrazione, con addebito alla tua chiave Model API al prezzo di {price}. “Nega” lascia il microfono spento.",

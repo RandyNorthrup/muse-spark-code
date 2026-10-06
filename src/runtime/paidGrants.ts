@@ -1,3 +1,4 @@
+import { paidQuoteSchema, type PaidQuote } from '../shared/paid'
 // "Allow always" for the ACP agent (M58, D48, D62). Each feature has a
 // revocation generation, and each workspace a grant for that generation.
 // Independent grants never rewrite a shared map; a writer begun before a
@@ -114,7 +115,27 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     await write(grantFile(workspaceRoot, feature, generation.id), generation.id)
   }
 
+  const quoteFile = (workspaceRoot: string, generation: string) =>
+    `${grantFile(workspaceRoot, 'webSearch', generation)}.quotes`
   return {
+    readQuotes: (workspaceRoot) => {
+      const generation = read(generationFile('webSearch'), generationSchema)
+      if (generation === undefined) return []
+      const quotes = read(quoteFile(workspaceRoot, generation.id), z.array(paidQuoteSchema)) ?? []
+      return read(generationFile('webSearch'), generationSchema)?.id === generation.id ? quotes : []
+    },
+    writeQuotes: async (workspaceRoot, quotes: readonly PaidQuote[]) => {
+      const generation = read(generationFile('webSearch'), generationSchema, true)
+      if (generation === undefined) return
+      if (
+        read(grantFile(workspaceRoot, 'webSearch', generation.id), grantSchema, true) !==
+        generation.id
+      )
+        throw new Error('Paid search grant was revoked before its quote was saved')
+      await writeFileAtomically(quoteFile(workspaceRoot, generation.id), JSON.stringify(quotes), {
+        sleep: deps.sleep,
+      })
+    },
     read: (workspaceRoot) =>
       new Set(
         PAID_FEATURES.filter((feature) => {
