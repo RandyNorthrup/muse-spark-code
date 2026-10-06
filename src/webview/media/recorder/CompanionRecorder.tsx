@@ -23,6 +23,8 @@ export function CompanionRecorder({
   useEffect(() => {
     const close = () => {
       controller.discard()
+      setMicrophone(false)
+      setSystemAudio(false)
     }
     window.addEventListener('pagehide', close)
     return () => {
@@ -88,6 +90,8 @@ export function CompanionRecorder({
               { maxSeconds, microphone, systemAudio },
               event.nativeEvent.isTrusted,
             )
+            setMicrophone(false)
+            setSystemAudio(false)
           }}
         >
           {UI_TEXT.media.recordingStart}

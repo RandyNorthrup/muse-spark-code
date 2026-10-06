@@ -2672,6 +2672,7 @@
     "recordingAttach": "Přiložit",
     "recordingDiscard": "Zahodit",
     "recordingPermissionDenied": "Oprávnění k nahrávání obrazovky bylo zamítnuto. Povolte jej v nastavení systému a zkuste to znovu.",
+    "recordingFailed": "Nahrávání obrazovky selhalo. Zkontrolujte dostupné místo v úložišti a podporu nahrávání a zkuste to znovu.",
     "recordingOpenPermissions": "Otevřít nastavení nahrávání obrazovky",
     "recordingUnavailable": "Nahrávání obrazovky není dostupné: {reason}",
     "recordingRemote": "Toto okno běží na vzdáleném hostiteli bez místní obrazovky. Použijte doprovodnou stránku nebo vyberte soubor záznamu.",

@@ -284,3 +284,136 @@ terminal receipt was truncated; no gate was changed. Existing shipped sizes:
 This production build verifies the current registered entry points. R3's new
 modules remain behind the named W/E3 bindings above; their isolated module
 measurements do not claim those bindings or budgets are already registered.
+
+## RVM105R3 repair receipt (2026-10-06, Kubuntu)
+
+Read the entire RVM105R3 report and rig/shared rules before editing. All five
+P2 findings are fixed; no P1 or P3 was reported and no review finding is
+left as a residual. Scope remains the owned recorder implementation/tests,
+its failure text in English and all 14 translated tables, PLAN, CHANGELOG
+and this certification. No dependency, guard, gate, hook or timeout changed.
+
+The run owns its private output through portal closure. It publishes a preview
+only after close succeeds and cancellation is checked again; close failure
+still attempts disposal in finally and returns a structured refusal. Setup
+always attempts portal closure and private-file removal, with busy state and
+owner-listener release in an outer finally even when either cleanup rejects.
+An actual storage refusal can prevent deletion; these fake ports certify the
+cleanup attempt and released ownership, not an OS guarantee that removal
+cannot fail. Owner-only storage and crash/orphan cleanup remain the named
+R3-PRIVATE-PREVIEW integration binding.
+
+Sound opt-ins are consumed at Start and cleared on pagehide; Attach, Discard
+and recording errors therefore cannot carry consent into another recording.
+Only `NotAllowedError` from portal/browser permission acquisition maps to the
+permission recovery. The Linux adapter must preserve ordinary failures and
+translate a genuine portal user/OS denial to that identity; this is an injected
+port contract, not a guessed D-Bus wire parser. Encoder, storage, stopped-track,
+empty-output and preview-URL failures use `media.recordingFailed`, translated
+in every table, without exposing exception text. Permission-shaped errors
+after access is granted also use the general failure text.
+
+| Review finding                                                | Resolution                                                                                             | Regression                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1: cancel during portal closure returns deleted preview       | Fixed: cancellation checked after closure, before publication                                          | refuses cancellation during portal closure without publishing a deleted preview                                                                                                                                                                                                                                        |
+| 2: portal-close rejection leaks private output/rejects result | Fixed: invalidate preview, attempt disposal in finally, return refusal                                 | disposes private output and returns a refusal when portal closure rejects                                                                                                                                                                                                                                              |
+| 3: setup deletion error keeps driver busy                     | Fixed: outer finally releases busy state and abort listener on both invalid-output and launch failures | releases setup ownership when output/launch cleanup rejects                                                                                                                                                                                                                                                            |
+| 4: sound selection carries into another recording             | Fixed: consume both opt-ins for each Start and clear on page close                                     | requires fresh audio opt-ins after discard/attach/error/pagehide; clears unused audio opt-ins when the page closes before Start                                                                                                                                                                                        |
+| 5: ordinary errors claim permission denial                    | Fixed: acquisition-only denial classification and translated general failure text                      | reports storage/encoder/portal failure without claiming permission was denied; reports capture NotReadableError/SecurityError/Error without claiming permission was denied; cleans failure at constructor/start/stop/empty-output/recorder/url; handles a preview URL failure from an asynchronous recorder Stop event |
+
+### Failing-before regressions and red drills
+
+The first three-file regression run on unchanged production source exited 1:
+**23 failed, 91 passed (114)**. It reproduced every review finding. The first
+fixed-source run passed **114/114**; additional acquisition-identity and
+page-close cases were then added and exercised in the drills and final runs.
+All invocations used complete owned test files, `--maxWorkers=3`, and the
+repository's default timeout. There were no test-name filters or skips.
+
+All **11** isolated mutations below exited 1 at the named regression. After
+each invocation the original source bytes were restored in finally, and its
+SHA-256 was compared to the pre-mutation digest. The R-number in these drill
+IDs names the review finding, not another platform's implementation lane.
+
+| Broken guard                   | Named failing test                                                              | Receipt                                   |
+| ------------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------- |
+| `R1-final-cancel`              | refuses cancellation during portal closure without publishing a deleted preview | exit 1; named failure; byte-exact restore |
+| `R2-close-refusal`             | disposes private output and returns a refusal when portal closure rejects       | exit 1; named failure; byte-exact restore |
+| `R3-busy-finally`              | releases setup ownership when output cleanup rejects                            | exit 1; named failure; byte-exact restore |
+| `R3-owner-finally`             | releases setup ownership when launch cleanup rejects                            | exit 1; named failure; byte-exact restore |
+| `R4-start-audio-reset`         | requires fresh audio opt-ins after discard                                      | exit 1; named failure; byte-exact restore |
+| `R4-close-audio-reset`         | clears unused audio opt-ins when the page closes before Start                   | exit 1; named failure; byte-exact restore |
+| `R5-linux-failure-text`        | reports storage failure without claiming permission was denied                  | exit 1; named failure; byte-exact restore |
+| `R5-linux-denial-identity`     | reports genuine portal permission denial without exposing private details       | exit 1; named failure; byte-exact restore |
+| `R5-browser-failure-text`      | handles a preview URL failure from an asynchronous recorder Stop event          | exit 1; named failure; byte-exact restore |
+| `R5-browser-acquisition-scope` | cleans failure at constructor                                                   | exit 1; named failure; byte-exact restore |
+| `R5-browser-denial-identity`   | shows permission recovery without exposing browser error details                | exit 1; named failure; byte-exact restore |
+
+Restored source SHA-256 values for these repair drills:
+
+- `src/core/media/record/linux.ts`: `16fbf61aa9c0a69a599ea3f95c10e3979177a2a60a0a8f1e2b9a1828faab7d24`
+- `src/webview/media/recorder/CompanionRecorder.tsx`: `d1300b887964423e13e0c91a128f23d7b0fb79610eb9ee886a81c89822db3fe9`
+- `src/webview/media/recorder/browserRecorder.ts`: `5286994424ec65020445263185a0078659309762f0a4eb493648d842db854f85`
+
+### Final repair verification
+
+- `npx vitest run test/unit/linuxScreenRecording.test.ts test/unit/browserScreenRecording.test.ts test/unit/browserCapture.test.ts --maxWorkers=3`: **119/119 passed**.
+- `npx vitest run test/unit/CompanionRecorder.test.tsx --maxWorkers=3`: **11/11 passed**. Final total: **130/130**, repository-default timeout.
+- `npm run typecheck`: **exit 0**, all five projects.
+
+Static/build gate receipts follow below.
+Full quality/coverage, native permission/process receipts, installed editor
+bindings and preview caption certification remain with the lead and E3/W as
+already recorded above. No new command, setting or shipped feature was added.
+`src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` and the reference
+check do not exist on this base; the existing R3-W documentation/reference
+handoff remains, without creating another lane's architecture here.
+
+### Static gates, budgets and remaining integration work
+
+- Changed-file ESLint and Prettier checks: **exit 0**; diff whitespace also
+  passed. No suppression, cast or escape hatch added.
+- Dead-code: **exit 0**. Duplication first found three repeated test blocks;
+  sharing the unchecked-audio assertion and setup-failure fixture within the
+  owned tests fixed them. Final duplication: **1,175 files, zero clones,
+  exit 0**. The assertions and production source stayed unchanged.
+- After that fixture sharing, the final Linux/UI rerun passed **77/77** with
+  the default timeout; the unit TypeScript project passed again. Together
+  with the unchanged browser controller/capture results, all **130** owned
+  tests pass. Production SHA-256 values still match the repair drill hashes.
+- Localization: **14 tables, 164 manifest strings, 596 source files;
+  zero problems**. The new failure phrase has real translations in all 14.
+- Host API: **exit 1**, exactly the pre-existing `node:path` importer count
+  **84 → 85**. VS Code surface remains **332 APIs, 31 importing files**.
+  **M105-R3-host-api-count** is the named documentation/gate residual:
+  safe for now because only a generated count is stale and the repair adds
+  no imports/API calls; follow-up is R3-W's integrated record regeneration
+  and rerun. PLAN §7/§9 records this deferral; no check is weakened.
+- `npm run build`: **exit 0**, production compilation, hard budgets, split
+  checks, host globals and third-party notices.
+
+| Shipped bundle                   | Size      | Unchanged hard budget |
+| -------------------------------- | --------- | --------------------- |
+| `dist/extension.js`              | 436.7 KiB | 600 KiB               |
+| `dist/modelApi.js`               | 446.7 KiB | 475 KiB               |
+| `dist/checkpointStore.js`        | 77.0 KiB  | 225 KiB               |
+| `dist/uiText.js`                 | 49.3 KiB  | 125 KiB               |
+| webview main plus static imports | 899.0 KiB | 900 KiB               |
+| webview deferred JS              | 49.7 KiB  | 50 KiB                |
+
+The repaired isolated modules were measured again with `write: false`: native
+**13,427 bytes (13.1 KiB)** using the actual shared-English/validation build
+plugins; companion **7,436 JS bytes (7.3 KiB)** with React/constants/l10n/media
+validation supplied by the companion page, plus **188 CSS bytes**. No chunk
+registration or existing cap is changed; these remain isolated measurements,
+not a claim that the pending W bundles ship on this base.
+
+**M105-R3-native-bindings** is the unchanged integration residual, also in
+PLAN §9: the base does not expose these ports/modules through shipped entry
+points, so it cannot capture a screen at startup. R3-PORTAL,
+R3-TRUSTED-LAUNCH, R3-PRIVATE-PREVIEW, R3-COMPANION-E3 and R3-W bind and
+certify native permissions/processes, owner-only storage and orphan deletion,
+upload, equal-editor paths and lazy budgets. Full quality/coverage, native
+OS receipts and captions stay with those owners; this repair leaves no
+review finding for them to fix. No paid/live calls, credentials, OS settings,
+installs, dependency changes, merges, rebases or pushes were used.

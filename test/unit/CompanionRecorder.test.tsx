@@ -41,6 +41,10 @@ const PORT: BrowserRecordingPort = {
   revokeUrl: vi.fn(),
   attach: vi.fn(() => Promise.resolve()),
 }
+function expectAudioOff() {
+  for (const name of [UI_TEXT.media.recordingMicrophone, UI_TEXT.media.recordingSystemAudio])
+    expect(screen.getByRole('checkbox', { name })).not.toBeChecked()
+}
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -48,12 +52,7 @@ afterEach(() => {
 describe('companion recorder surface', () => {
   it('starts only from the user button and leaves both audio boxes unchecked', () => {
     render(<CompanionRecorder port={PORT} />)
-    expect(
-      screen.getByRole('checkbox', { name: UI_TEXT.media.recordingMicrophone }),
-    ).not.toBeChecked()
-    expect(
-      screen.getByRole('checkbox', { name: UI_TEXT.media.recordingSystemAudio }),
-    ).not.toBeChecked()
+    expectAudioOff()
     expect(harness.start).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
     expect(harness.start).toHaveBeenCalledWith(
@@ -85,6 +84,41 @@ describe('companion recorder surface', () => {
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingDiscard }))
     expect(harness.discard).toHaveBeenCalled()
   })
+  it.each(['discard', 'attach', 'error', 'pagehide'])(
+    'requires fresh audio opt-ins after %s',
+    (exit) => {
+      render(<CompanionRecorder port={PORT} />)
+      fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.media.recordingMicrophone }))
+      fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.media.recordingSystemAudio }))
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
+      expect(harness.start).toHaveBeenLastCalledWith(
+        { maxSeconds: 120, microphone: true, systemAudio: true },
+        false,
+      )
+      act(() => {
+        harness.changed({ status: 'preview', url: 'blob:private' })
+      })
+      if (exit === 'discard' || exit === 'attach')
+        fireEvent.click(
+          screen.getByRole('button', {
+            name:
+              exit === 'discard' ? UI_TEXT.media.recordingDiscard : UI_TEXT.media.recordingAttach,
+          }),
+        )
+      else if (exit === 'pagehide') fireEvent(window, new Event('pagehide'))
+      act(() => {
+        harness.changed(
+          exit === 'error' ? { status: 'error', reason: 'capture failed' } : { status: 'idle' },
+        )
+      })
+      expectAudioOff()
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
+      expect(harness.start).toHaveBeenLastCalledWith(
+        { maxSeconds: 120, microphone: false, systemAudio: false },
+        false,
+      )
+    },
+  )
   it('offers play, Attach and Discard only after preview', () => {
     render(<CompanionRecorder port={PORT} />)
     act(() => {
@@ -105,6 +139,13 @@ describe('companion recorder surface', () => {
     fireEvent(window, new Event('pagehide'))
     view.unmount()
     expect(harness.discard).toHaveBeenCalledTimes(3)
+  })
+  it('clears unused audio opt-ins when the page closes before Start', () => {
+    render(<CompanionRecorder port={PORT} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.media.recordingMicrophone }))
+    fireEvent.click(screen.getByRole('checkbox', { name: UI_TEXT.media.recordingSystemAudio }))
+    fireEvent(window, new Event('pagehide'))
+    expectAudioOff()
   })
   it('shows the localized error as an alert', () => {
     render(<CompanionRecorder port={PORT} />)

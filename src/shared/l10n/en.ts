@@ -72,6 +72,8 @@ export const EN = {
     recordingDiscard: 'Discard',
     recordingPermissionDenied:
       'Screen recording permission was denied. Allow it in system settings and try again.',
+    recordingFailed:
+      'Screen recording failed. Check available storage and recording support, then try again.',
     recordingOpenPermissions: 'Open Screen Recording settings',
     recordingUnavailable: 'Screen recording is unavailable: {reason}',
     recordingRemote:

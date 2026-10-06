@@ -2387,6 +2387,7 @@
     "recordingAttach": "첨부",
     "recordingDiscard": "버리기",
     "recordingPermissionDenied": "화면 녹화 권한이 거부되었습니다. 시스템 설정에서 허용한 후 다시 시도하세요.",
+    "recordingFailed": "화면 녹화에 실패했습니다. 사용 가능한 저장 공간과 녹화 지원 여부를 확인한 후 다시 시도하세요.",
     "recordingOpenPermissions": "화면 녹화 설정 열기",
     "recordingUnavailable": "화면 녹화를 사용할 수 없습니다: {reason}",
     "recordingRemote": "이 창은 로컬 화면이 없는 원격 호스트에서 실행됩니다. 동반 페이지를 사용하거나 녹화 파일을 선택하세요.",

@@ -2577,6 +2577,7 @@
     "recordingAttach": "Adjuntar",
     "recordingDiscard": "Descartar",
     "recordingPermissionDenied": "Se ha denegado el permiso para grabar la pantalla. Permítelo en los ajustes del sistema e inténtalo de nuevo.",
+    "recordingFailed": "La grabación de pantalla falló. Compruebe el espacio de almacenamiento disponible y la compatibilidad con la grabación, y vuelva a intentarlo.",
     "recordingOpenPermissions": "Abrir ajustes de grabación de pantalla",
     "recordingUnavailable": "La grabación de pantalla no está disponible: {reason}",
     "recordingRemote": "Esta ventana se ejecuta en un host remoto sin pantalla local. Usa la página complementaria o elige un archivo de grabación.",

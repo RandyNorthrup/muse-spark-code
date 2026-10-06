@@ -65,6 +65,12 @@ function setup() {
   }
 }
 
+function rejectSetup(port: LinuxRecordingPort, phase: string, failure: Error) {
+  if (phase === 'portal') vi.mocked(port.openPortal).mockRejectedValue(failure)
+  else if (phase === 'storage') vi.mocked(port.createPrivateRecording).mockRejectedValue(failure)
+  else vi.mocked(port.launchVerified).mockRejectedValue(failure)
+}
+
 afterEach(() => vi.useRealTimers())
 
 describe('Linux portal recorder', () => {
@@ -248,6 +254,94 @@ describe('Linux portal recorder', () => {
     await Promise.resolve()
     expect(h.remove).toHaveBeenCalledTimes(1)
   })
+
+  it('refuses cancellation during portal closure without publishing a deleted preview', async () => {
+    const h = setup()
+    const closing = deferred<undefined>()
+    const entered = deferred<undefined>()
+    h.close.mockImplementation(() => {
+      entered.resolve(undefined)
+      return closing.promise
+    })
+    const run = await h.driver.start(OPTIONS, vi.fn())
+    const stopping = run.stop()
+    await entered.promise
+    const cancelling = run.cancel()
+    closing.resolve(undefined)
+    await stopping
+    await cancelling
+    expect(await run.result).toEqual({ ok: false, reason: UI_TEXT.execStatus.cancelled })
+    expect(h.remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('disposes private output and returns a refusal when portal closure rejects', async () => {
+    const h = setup()
+    h.close.mockRejectedValue(new Error('private compositor failure'))
+    const run = await h.driver.start(OPTIONS, vi.fn())
+    await expect(run.stop()).resolves.toBeUndefined()
+    expect(await run.result).toMatchObject({ ok: false })
+    expect(h.remove).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['output', 'launch'])(
+    'releases setup ownership when %s cleanup rejects',
+    async (kind) => {
+      const h = setup()
+      const unlisten = vi.spyOn(h.owner.signal, 'removeEventListener')
+      if (kind === 'output')
+        vi.mocked(h.port.createPrivateRecording).mockResolvedValueOnce({
+          path: 'relative.mp4',
+          remove: h.remove,
+        })
+      else vi.mocked(h.port.launchVerified).mockRejectedValueOnce(new Error('encoder'))
+      h.remove.mockRejectedValueOnce(new Error('transient storage failure'))
+      const failed = await h.driver.start(OPTIONS, vi.fn())
+      expect(await failed.result).toMatchObject({ ok: false })
+      expect(unlisten).toHaveBeenCalledWith('abort', expect.any(Function))
+      const retry = await h.driver.start(OPTIONS, vi.fn())
+      expect(h.port.launchVerified).toHaveBeenCalledTimes(kind === 'output' ? 1 : 2)
+      await retry.stop()
+      const retried = await retry.result
+      expect(retried.ok).toBe(true)
+      await retry.cancel()
+    },
+  )
+
+  it.each(['portal', 'storage', 'encoder'])(
+    'reports %s failure without claiming permission was denied',
+    async (phase) => {
+      const h = setup()
+      const failure = new Error('private storage/account failure')
+      rejectSetup(h.port, phase, failure)
+      const run = await h.driver.start(OPTIONS, vi.fn())
+      expect(await run.result).toEqual({
+        ok: false,
+        reason:
+          'Screen recording failed. Check available storage and recording support, then try again.',
+      })
+    },
+  )
+
+  it('reports genuine portal permission denial without exposing private details', async () => {
+    const h = setup()
+    vi.mocked(h.port.openPortal).mockRejectedValue(
+      new DOMException('private detail', 'NotAllowedError'),
+    )
+    const run = await h.driver.start(OPTIONS, vi.fn())
+    expect(await run.result).toEqual({ ok: false, reason: UI_TEXT.media.recordingPermissionDenied })
+    expect(h.port.createPrivateRecording).not.toHaveBeenCalled()
+  })
+
+  it.each(['storage', 'encoder'])(
+    'does not classify a permission-shaped %s error after portal grant as a denial',
+    async (phase) => {
+      const h = setup()
+      const failure = new DOMException('private implementation failure', 'NotAllowedError')
+      rejectSetup(h.port, phase, failure)
+      const run = await h.driver.start(OPTIONS, vi.fn())
+      expect(await run.result).toEqual({ ok: false, reason: UI_TEXT.media.recordingFailed })
+    },
+  )
 
   it.each(['fd', 'node', 'missing-audio', 'output', 'launch', 'permission', 'create'])(
     'cleans failed setup: %s',

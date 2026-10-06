@@ -124,9 +124,11 @@ export class BrowserRecordingController {
     const epoch = ++this.epoch
     this.set({ status: 'requesting' })
     let acquired: BrowserCapture | undefined
+    let isRequesting = true
     try {
       this.acquisition = new AbortController()
       acquired = await this.port.capture(options.data, this.acquisition.signal)
+      isRequesting = false
       if (epoch !== this.epoch) {
         acquired.release()
         return
@@ -137,7 +139,7 @@ export class BrowserRecordingController {
         capture.tracks.length === 0 ||
         capture.tracks.some((track) => track.readyState !== 'live')
       ) {
-        this.fail(UI_TEXT.media.recordingPermissionDenied)
+        this.fail(UI_TEXT.media.recordingFailed)
         return
       }
       const recorder = capture.createRecorder()
@@ -158,18 +160,18 @@ export class BrowserRecordingController {
           try {
             this.releaseCapture()
             if (bytes === 0) {
-              this.fail(UI_TEXT.media.recordingPermissionDenied)
+              this.fail(UI_TEXT.media.recordingFailed)
               return
             }
             this.blob = new Blob(chunks, { type: 'video/mp4' })
             this.url = this.port.objectUrl(this.blob)
             this.set({ status: 'preview', url: this.url })
           } catch {
-            this.fail(UI_TEXT.media.recordingPermissionDenied)
+            this.fail(UI_TEXT.media.recordingFailed)
           }
         },
         error: () => {
-          if (epoch === this.epoch) this.fail(UI_TEXT.media.recordingPermissionDenied)
+          if (epoch === this.epoch) this.fail(UI_TEXT.media.recordingFailed)
         },
       })
       const ended = () => {
@@ -198,8 +200,13 @@ export class BrowserRecordingController {
         previous = now
         if (this.state.status === 'recording') this.set({ status: 'recording', remaining })
       }, MILLISECONDS_PER_SECOND)
-    } catch {
-      if (epoch === this.epoch) this.fail(UI_TEXT.media.recordingPermissionDenied)
+    } catch (error) {
+      if (epoch === this.epoch)
+        this.fail(
+          isRequesting && error instanceof Error && error.name === 'NotAllowedError'
+            ? UI_TEXT.media.recordingPermissionDenied
+            : UI_TEXT.media.recordingFailed,
+        )
       else acquired?.release()
     }
   }
@@ -214,7 +221,7 @@ export class BrowserRecordingController {
     try {
       this.recorder?.stop()
     } catch {
-      this.fail(UI_TEXT.media.recordingPermissionDenied)
+      this.fail(UI_TEXT.media.recordingFailed)
     }
   }
 

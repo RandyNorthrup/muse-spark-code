@@ -56,6 +56,8 @@ export interface LinuxRecordingPort {
   readonly signal: AbortSignal
   /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
   readonly findEncoder: () => Promise<string | undefined>
+  /** A user/OS permission refusal rejects with an Error named NotAllowedError;
+   * transport, compositor and other portal failures keep their own identity. */
   readonly openPortal: (
     options: ScreenRecordingOptions,
     signal: AbortSignal,
@@ -183,7 +185,13 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
           return refused(unavailable('GStreamer / pipewiresrc / H.264 / AAC'))
         }
         if (isAborted()) return refused(UI_TEXT.execStatus.cancelled)
-        session = await port.openPortal(options.data, lifecycle.signal)
+        try {
+          session = await port.openPortal(options.data, lifecycle.signal)
+        } catch (error) {
+          if (error instanceof Error && error.name === 'NotAllowedError')
+            return refused(UI_TEXT.media.recordingPermissionDenied)
+          throw error
+        }
         const closeSetup = () => {
           if (!isHandedOff) abortSetup()
         }
@@ -226,17 +234,24 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         const releaseRun = () => {
           isBusy = false
         }
-        void run.result.then(releaseRun).catch(releaseRun)
+        void run.result.finally(releaseRun).catch(() => {
+          /* Ownership is released in finally, including a failed result. */
+        })
         session = undefined
         file = undefined
         return run
       } catch {
-        return refused(UI_TEXT.media.recordingPermissionDenied)
+        return refused(UI_TEXT.media.recordingFailed)
       } finally {
         try {
-          await session?.close()
+          try {
+            await session?.close()
+          } finally {
+            await file?.remove()
+          }
+        } catch {
+          /* Setup already returned a refusal; cleanup cannot retain ownership. */
         } finally {
-          await file?.remove()
           if (!isHandedOff) isBusy = false
           if (!isHandedOff) port.signal.removeEventListener('abort', abortSetup)
         }
@@ -257,12 +272,15 @@ function recordingRun(
   let isCancelled = false
   const wasCancelled = () => isCancelled
   let isFinished = false
+  let isPublished = false
   let stopTask: Promise<void> | undefined
   let cancelTask: Promise<void> | undefined
   const stop = () => (isFinished ? Promise.resolve() : (stopTask ??= recording.stop()))
   const cancel = () => {
     isCancelled = true
-    return (cancelTask ??= isFinished ? dispose() : recording.cancel())
+    if (!isFinished) return (cancelTask ??= recording.cancel())
+    // Before publication the result's finally owns disposal and cancellation.
+    return isPublished ? dispose() : Promise.resolve()
   }
   let disposeTask: Promise<void> | undefined
   const dispose = () =>
@@ -300,43 +318,58 @@ function recordingRun(
   }
   const timer = setInterval(update, MILLISECONDS_PER_SECOND)
   const result: Promise<ScreenRecordingResult> = (async () => {
-    let isKeep = false
+    let preview: ScreenRecordingPreview | undefined
+    let reason = UI_TEXT.media.recordingFailed
     try {
       update()
       if (port.signal.aborted) abort()
       const isSuccess = await recording.result
-      if (!isSuccess || wasCancelled()) return { ok: false, reason: UI_TEXT.execStatus.cancelled }
-      const info = mediaInfoSchema.parse(await port.sniff(file.path))
-      if (
-        wasCancelled() ||
-        info.kind !== 'video' ||
-        info.mediaType !== 'video/mp4' ||
-        info.sizeBytes === 0 ||
-        info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
-        info.durationSeconds === null ||
-        info.durationSeconds > options.maxSeconds ||
-        info.hasSoundtrack !== (options.microphone || options.systemAudio)
-      ) {
-        return { ok: false, reason: unavailable('mp4') }
+      if (!isSuccess || wasCancelled()) reason = UI_TEXT.execStatus.cancelled
+      else {
+        const info = mediaInfoSchema.parse(await port.sniff(file.path))
+        if (
+          wasCancelled() ||
+          info.kind !== 'video' ||
+          info.mediaType !== 'video/mp4' ||
+          info.sizeBytes === 0 ||
+          info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
+          info.durationSeconds === null ||
+          info.durationSeconds > options.maxSeconds ||
+          info.hasSoundtrack !== (options.microphone || options.systemAudio)
+        )
+          reason = unavailable('mp4')
+        else preview = { path: file.path, info, dispose }
       }
-      isKeep = true
-      return { ok: true, preview: { path: file.path, info, dispose } }
     } catch {
       try {
-        await cancel()
+        await recording.cancel()
       } catch {
         // The failed encoder result still owns cleanup.
       }
-      return { ok: false, reason: unavailable('PipeWire / mp4') }
     } finally {
       isFinished = true
       clearInterval(timer)
       try {
         await session.close()
+      } catch {
+        preview = undefined
+        reason = UI_TEXT.media.recordingFailed
       } finally {
-        if (!isKeep) await dispose()
+        if (wasCancelled()) {
+          preview = undefined
+          reason = UI_TEXT.execStatus.cancelled
+        }
+        if (preview === undefined)
+          try {
+            await dispose()
+          } catch {
+            reason = UI_TEXT.media.recordingFailed
+          }
       }
     }
+    if (preview === undefined) return { ok: false, reason }
+    isPublished = true
+    return { ok: true, preview }
   })()
   return {
     stop: async () => {

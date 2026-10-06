@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux recorder cancellation during portal closure now refuses the preview;
+  close and setup cleanup failures release private-file ownership and busy
+  state. Companion sound selections reset for each recording, and recorder
+  failures distinguish permission denials from storage, encoder and preview
+  errors in every supported language.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

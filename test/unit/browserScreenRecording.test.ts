@@ -244,10 +244,25 @@ describe('companion recording lifecycle', () => {
   })
   it('shows permission recovery without exposing browser error details', async () => {
     const h = setup()
-    vi.mocked(h.port.capture).mockRejectedValue(new Error('private profile/account'))
+    vi.mocked(h.port.capture).mockRejectedValue(
+      new DOMException('private profile/account', 'NotAllowedError'),
+    )
     await h.controller.start(OPTIONS, true)
     expect(h.state()).toEqual({ status: 'error', reason: UI_TEXT.media.recordingPermissionDenied })
   })
+  it.each(['NotReadableError', 'SecurityError', 'Error'])(
+    'reports capture %s without claiming permission was denied',
+    async (name) => {
+      const h = setup()
+      vi.mocked(h.port.capture).mockRejectedValue(new DOMException('private profile/account', name))
+      await h.controller.start(OPTIONS, true)
+      expect(h.state()).toEqual({
+        status: 'error',
+        reason:
+          'Screen recording failed. Check available storage and recording support, then try again.',
+      })
+    },
+  )
   it.each([
     'track',
     'empty-tracks',
@@ -270,13 +285,13 @@ describe('companion recording lifecycle', () => {
       }
       case 'constructor': {
         vi.mocked(h.capture.createRecorder).mockImplementation(() => {
-          throw new Error('encoder')
+          throw new DOMException('encoder', 'NotAllowedError')
         })
         break
       }
       case 'start': {
         h.start.mockImplementation(() => {
-          throw new Error('start')
+          throw new DOMException('start', 'NotAllowedError')
         })
         break
       }
@@ -305,7 +320,11 @@ describe('companion recording lifecycle', () => {
     await h.controller.start(OPTIONS, true)
     if (kind === 'recorder') h.events()!.error()
     else h.controller.stop()
-    expect(h.state().status).toBe('error')
+    expect(h.state()).toEqual({
+      status: 'error',
+      reason:
+        'Screen recording failed. Check available storage and recording support, then try again.',
+    })
     expect(h.release).toHaveBeenCalledTimes(1)
     expect(h.port.attach).not.toHaveBeenCalled()
   })
@@ -324,7 +343,11 @@ describe('companion recording lifecycle', () => {
     expect(() => {
       events.stopped()
     }).not.toThrow()
-    expect(h.state()).toEqual({ status: 'error', reason: UI_TEXT.media.recordingPermissionDenied })
+    expect(h.state()).toEqual({
+      status: 'error',
+      reason:
+        'Screen recording failed. Check available storage and recording support, then try again.',
+    })
     expect(h.release).toHaveBeenCalledTimes(1)
   })
 

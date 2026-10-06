@@ -2577,6 +2577,7 @@
     "recordingAttach": "Allega",
     "recordingDiscard": "Scarta",
     "recordingPermissionDenied": "Il permesso di registrare lo schermo è stato negato. Concedilo nelle impostazioni di sistema e riprova.",
+    "recordingFailed": "La registrazione dello schermo non è riuscita. Verifica lo spazio di archiviazione disponibile e il supporto per la registrazione, quindi riprova.",
     "recordingOpenPermissions": "Apri le impostazioni di registrazione dello schermo",
     "recordingUnavailable": "Registrazione dello schermo non disponibile: {reason}",
     "recordingRemote": "Questa finestra viene eseguita su un host remoto senza schermo locale. Usa la pagina complementare o scegli un file di registrazione.",

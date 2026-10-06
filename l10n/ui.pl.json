@@ -2672,6 +2672,7 @@
     "recordingAttach": "Dołącz",
     "recordingDiscard": "Odrzuć",
     "recordingPermissionDenied": "Odmówiono uprawnienia do nagrywania ekranu. Zezwól w ustawieniach systemu i spróbuj ponownie.",
+    "recordingFailed": "Nagrywanie ekranu nie powiodło się. Sprawdź dostępne miejsce w pamięci i obsługę nagrywania, a następnie spróbuj ponownie.",
     "recordingOpenPermissions": "Otwórz ustawienia nagrywania ekranu",
     "recordingUnavailable": "Nagrywanie ekranu jest niedostępne: {reason}",
     "recordingRemote": "To okno działa na zdalnym hoście bez lokalnego ekranu. Użyj strony towarzyszącej lub wybierz plik nagrania.",

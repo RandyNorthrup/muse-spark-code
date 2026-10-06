@@ -19097,6 +19097,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**R3 review repair, 2026-10-06 (RVM105R3).** Fix all five P2 findings in
+the owned Linux/companion recorder files: defer preview publication until
+portal closure and the final cancellation check; dispose on close failure;
+release setup busy state and owner listeners even when cleanup rejects;
+consume sound opt-ins for each recording; distinguish genuine permission
+denials from storage, encoder and preview failures with translated text.
+Each finding gets a failing-before regression and a byte-exact restored red
+drill in `docs/certification/m105-r3-linux-and-companion-recorders-(c).md`.
+No new dependency, guard widening or other lane implementation changes.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -20032,6 +20042,21 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM105R3 bounded repair certification (2026-10-06).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and the full test
+suite. The repair runs all four owned test files with the default timeout,
+the 11 byte-exact restored red drills, all-project typecheck, changed-file
+lint/format, dead-code, duplication, localization and production build here.
+The lead retains integrated full quality/coverage/native/editor gates.
+No gate, threshold, test filter, timeout or hook is changed.
+
+**M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
+the same pre-existing generated count as the original R3 receipt:
+`node:path` importers 84 → 85. The repair adds no imports or host API calls.
+W owns `docs/ide-compatibility/host-api.md`, outside the repair's scope, and
+must regenerate/review that row on the integrated source. The check is not
+weakened or claimed green; see §9 and the R3 certification.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21205,6 +21230,28 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M105-R3-host-api-count (gate/documentation residual, 2026-10-06).**
+  The source's existing `node:path` importer count is 85, but the generated
+  host API record says 84. Safe for now: this affects the count only; the
+  repair adds no host API/import surface and the 332 VS Code APIs are
+  unchanged. Follow-up: R3-W regenerates the host API record with
+  `npm run check:host-api -- --write` and reruns the check after integration.
+  This is not a deferred RVM105R3 finding.
+
+- **M105-R3-native-bindings (RVM105R3 repair, 2026-10-06).** All five
+  reviewed P2 findings are fixed with failing-before regressions and restored
+  red drills; none is deferred. Native portal/encoder permission receipts,
+  private-file OS deletion guarantees and companion upload/editor wiring
+  remain the existing R3-PORTAL, R3-TRUSTED-LAUNCH, R3-PRIVATE-PREVIEW and
+  R3-COMPANION-E3/R3-W handoffs. Safe for now: these ports/modules are not
+  exposed by this base's shipped entry points; every failure refuses a
+  preview and cleanup is attempted before releasing ownership. Follow-up:
+  integration binds owner-only storage and orphan cleanup, translates only
+  genuine portal denials to NotAllowedError, and certifies every editor's
+  shared driver/companion path. Removal can fail at the OS; the fake cleanup
+  regressions certify attempts and busy/listener release, not guaranteed
+  physical deletion. See the R3 certification record for the 11 repair drills.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
