@@ -131,6 +131,10 @@ function packagingFixture() {
   )
   for (const bundle of [
     'acp',
+    // M112: the lazy ACP forms, the private registry and the deferral note.
+    'acpQuestions',
+    'runtimeQuestions',
+    'questionNotes',
     'modelApi',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
