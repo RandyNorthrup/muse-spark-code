@@ -4000,6 +4000,15 @@ is reported unknown, and failed Muse exits retain roots for 24 hours.
 The remaining milestone lanes supply actions, routing, UI, runtime
 wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
 
+J's staged history components merge cumulative minute snapshots after read-time
+flushes and final tree accounting. They reject unrenderable dates and keep detail
+for the latest seven recorded days (at most 10,080 minute segments) and the latest
+1,000 events, evicting oldest entries first. The shared usage section pages its
+charts and tables in groups of 60; work and event totals include all retained
+journal records. The same validated aggregate feeds the portable text summary.
+The durable journal, usage-page mount and text-command bindings remain the M102
+integration handoff; see [J's certification](docs/certification/m107-j-journal-and-the-usage-page.md).
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

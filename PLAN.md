@@ -25392,6 +25392,21 @@ suites and hook-on local commits certify W, with full qualification by the lead.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
+and its P3 inside J's collector, aggregate, history boundary and shared view.
+Read-time flushes retain the active minute and its per-tree CPU baselines;
+cumulative minute snapshots merge idempotently by their segment timestamp,
+including final tree accounting against the same cached machine sample.
+Reject non-finite or unrepresentable history timestamps and override deadlines
+before formatting, using one shared history date helper for page and text.
+Keep at most seven days/10,080 minute segments and 1,000 recent events, evicting
+oldest first while preserving exact retained-input work/event totals. Page
+charts, bands and detail tables in batches of 60 entries. Add before-fix
+regressions and byte-exact red drills for every guard in J's certification.
+No dependency, guard widening, merge, full quality or paid/live call. M102
+journal/route binding and W's reference/delivery/full gates remain integration
+handoffs; the absent feature catalog is not replaced in this lane.
+
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
 C1's native launch/retirement and Linux path repairs, and adopt T2's exact
@@ -28976,6 +28991,17 @@ surface within 25 KiB. No dependency, gate relaxation, model call or merge.
 
 ## 7. Gates
 
+**FIXM107J scoped qualification (2026-10-06).** The rig brief forbids full
+quality/full-suite runs here and assigns them to W/lead. Run complete J suites
+at repository-default deadlines, all five typechecks, changed-file lint/format,
+plain Knip, duplication, localization, host API and production build. The
+existing host-API stylesheet-source inventory lacks J's stylesheet; W owns
+that generated delivery record and its regeneration at the M102 join. Record
+this exact non-green check without editing another lane's generated file or
+weakening a gate. The absent feature catalog/reference generator remains
+M107-J-M102-history-binding in §9. See J's certification for scoped results
+and red/restored guards; neither shared check is represented as green.
+
 **M107INT round-3 certification (2026-10-06).** The rig brief authorizes
 only the listed T2/U/H merges, scoped complete-file runs (at most three,
 three workers), all-project typecheck, lint/format, localization, generated
@@ -30494,6 +30520,30 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-J-M102-history-binding (FIXM107J, 2026-10-06).** RVM107J's
+  review findings are repaired, with scoped receipts in J's certification.
+  M102 still must bind consent, retention/rollups, atomic/idempotent append
+  and collector-scoped reads: a minute segment's latest cumulative snapshot
+  replaces its earlier snapshots before totals, while different collectors
+  retain M102's source scope. Bind final tree samples, the shared usage page
+  and ACP/CLI text routes; W owns the absent help reference, generated
+  stylesheet inventory and full integrated/platform gates. Safe for now:
+  J has no durable journal or shipped usage mount on this base, never exports
+  tree identities, and failed appends remain explicit/retryable. Follow-up:
+  W/M102 performs and certifies that complete join; no reviewed P2/P3 is
+  silently left as an accepted residual.
+
+- **M107-J-browser-rig-qualification (FIXM107J, 2026-10-06).** The
+  installed Chrome exits with SIGTRAP before page creation, both under the
+  unchanged history harness and a minimal headless about:blank probe. Fresh
+  browser scenes cannot be certified here; prior J scenes remain historical
+  receipts. Safe for this unmounted component: full-week paging, date/bridge
+  validation, unit axe and the independent page budget/split all pass, with
+  red/restored guards. Follow-up: W/lead reruns four themes at 320/690 px,
+  including large-history paging and keyboard/axe checks, on a working rig
+  before the M102 page join ships. No harness gate or production policy is
+  weakened to work around the browser installation.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

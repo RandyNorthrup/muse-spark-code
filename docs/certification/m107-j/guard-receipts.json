@@ -1,0 +1,402 @@
+{
+  "machine": "Kubuntu",
+  "modelAttempts": 0,
+  "testTimeout": "repository default; no override",
+  "guards": [
+    {
+      "drill": "minute-average",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "averages known readings",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > averages known readings, keeps the worst level/bucket and never fills a missing minute",
+        "test/unit/resourceRecords.test.ts > resource minute collection > captures final work at the same machine timestamp without averaging the reading twice",
+        "test/unit/resourceRecords.test.ts > resource minute collection > serializes concurrent reads, snapshots caller status and reports a failed work source"
+      ]
+    },
+    {
+      "drill": "unknown-zero",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "keeps genuine zero separate",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > averages known readings, keeps the worst level/bucket and never fills a missing minute",
+        "test/unit/resourceRecords.test.ts > resource minute collection > keeps genuine zero separate from unknown and suppresses optional readings while unset"
+      ]
+    },
+    {
+      "drill": "optional-unset",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "keeps genuine zero separate",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > keeps genuine zero separate from unknown and suppresses optional readings while unset"
+      ]
+    },
+    {
+      "drill": "memory-floor-cap",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "uses the capped memory floor",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses the capped memory floor and the reachable recovery margin"
+      ]
+    },
+    {
+      "drill": "threshold-segment",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "splits threshold changes",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > splits threshold changes within a minute without relabelling earlier samples"
+      ]
+    },
+    {
+      "drill": "cpu-delta",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "uses CPU deltas",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses CPU deltas, survives unknown/decreasing counters and peaks simultaneous memory by kind",
+        "test/unit/resourceRecords.test.ts > resource minute collection > preserves the baseline on reclassification and starts fresh for a reused PID",
+        "test/unit/resourceRecords.test.ts > resource minute collection > captures final work at the same machine timestamp without averaging the reading twice"
+      ]
+    },
+    {
+      "drill": "cpu-baseline-reclassify",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "preserves the baseline on reclassification",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses CPU deltas, survives unknown/decreasing counters and peaks simultaneous memory by kind",
+        "test/unit/resourceRecords.test.ts > resource minute collection > preserves the baseline on reclassification and starts fresh for a reused PID"
+      ]
+    },
+    {
+      "drill": "memory-peak",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "uses CPU deltas",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses CPU deltas, survives unknown/decreasing counters and peaks simultaneous memory by kind",
+        "test/unit/resourceRecords.test.ts > resource minute collection > preserves the baseline on reclassification and starts fresh for a reused PID"
+      ]
+    },
+    {
+      "drill": "duplicate-average",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "captures final work",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > captures final work at the same machine timestamp without averaging the reading twice"
+      ]
+    },
+    {
+      "drill": "stale-sample",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "rejects stale samples",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > rejects stale samples, invalid batches and duplicate trees without advancing accounting"
+      ]
+    },
+    {
+      "drill": "duplicate-tree",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "rejects stale samples",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > rejects stale samples, invalid batches and duplicate trees without advancing accounting"
+      ]
+    },
+    {
+      "drill": "private-pid",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "never journals process identity",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses CPU deltas, survives unknown/decreasing counters and peaks simultaneous memory by kind",
+        "test/unit/resourceRecords.test.ts > resource minute collection > never journals process identity, commands, paths, names or environments at any depth"
+      ]
+    },
+    {
+      "drill": "append-retry",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "retains a failed minute append",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > retains a failed minute append and a failed event append for ordered retry"
+      ]
+    },
+    {
+      "drill": "worst-level",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "averages known readings",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > averages known readings, keeps the worst level/bucket and never fills a missing minute"
+      ]
+    },
+    {
+      "drill": "aggregate-private",
+      "file": "src/core/usage/aggregate.ts",
+      "test": "refuses private/invalid retained input",
+      "exit": 1,
+      "sha256": "bc2f8e30cf37451924ae81d7051d5b8821a35fa9e9bee5abb9190208c3c3631b",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource aggregation > refuses private/invalid retained input instead of silently dropping it"
+      ]
+    },
+    {
+      "drill": "event-count",
+      "file": "src/core/usage/aggregate.ts",
+      "test": "sorts records and sums deltas/events",
+      "exit": 1,
+      "sha256": "bc2f8e30cf37451924ae81d7051d5b8821a35fa9e9bee5abb9190208c3c3631b",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource aggregation > sorts records and sums deltas/events by kind, keeping peak rather than summing memory"
+      ]
+    },
+    {
+      "drill": "aggregate-peak",
+      "file": "src/core/usage/aggregate.ts",
+      "test": "sorts records and sums deltas/events",
+      "exit": 1,
+      "sha256": "bc2f8e30cf37451924ae81d7051d5b8821a35fa9e9bee5abb9190208c3c3631b",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > uses CPU deltas, survives unknown/decreasing counters and peaks simultaneous memory by kind",
+        "test/unit/resourceRecords.test.ts > resource aggregation > sorts records and sums deltas/events by kind, keeping peak rather than summing memory"
+      ]
+    },
+    {
+      "drill": "aggregate-order",
+      "file": "src/core/usage/aggregate.ts",
+      "test": "sorts records and sums deltas/events",
+      "exit": 1,
+      "sha256": "bc2f8e30cf37451924ae81d7051d5b8821a35fa9e9bee5abb9190208c3c3631b",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource aggregation > sorts records and sums deltas/events by kind, keeping peak rather than summing memory"
+      ]
+    },
+    {
+      "drill": "disabled-collection",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "flushes when disabled",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > flushes when disabled or no sample exists and does not read any work"
+      ]
+    },
+    {
+      "drill": "caller-snapshot",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "serializes concurrent reads",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > serializes concurrent reads, snapshots caller status and reports a failed work source",
+        "test/unit/resourceRecords.test.ts > resource minute collection > flushes when disabled or no sample exists and does not read any work"
+      ]
+    },
+    {
+      "drill": "source-unknown",
+      "file": "src/core/usage/resourceRecords.ts",
+      "test": "serializes concurrent reads",
+      "exit": 1,
+      "sha256": "af3c395752c4e00f3b92182118a07f609492ddcd62061cbb7b8f6f9cc5014973",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceRecords.test.ts > resource minute collection > serializes concurrent reads, snapshots caller status and reports a failed work source"
+      ]
+    },
+    {
+      "drill": "chart-unknown",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "property: chart readings/limits",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > property: chart readings/limits, level band, event totals and harness table agree with the journal",
+        "test/unit/ResourcesSection.test.tsx > leaves chart and level gaps for unknown readings and missing minutes"
+      ]
+    },
+    {
+      "drill": "chart-gap",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "leaves chart and level gaps",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > leaves chart and level gaps for unknown readings and missing minutes",
+        "test/unit/ResourcesSection.test.tsx > joins adjacent known samples as step lines and applies each segment’s threshold"
+      ]
+    },
+    {
+      "drill": "chart-threshold",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "property: chart readings/limits",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > property: chart readings/limits, level band, event totals and harness table agree with the journal",
+        "test/unit/ResourcesSection.test.tsx > joins adjacent known samples as step lines and applies each segment’s threshold"
+      ]
+    },
+    {
+      "drill": "band-level",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "property: chart readings/limits",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > property: chart readings/limits, level band, event totals and harness table agree with the journal"
+      ]
+    },
+    {
+      "drill": "text-work",
+      "file": "src/core/usage/usageText.ts",
+      "test": "property: chart readings/limits",
+      "exit": 1,
+      "sha256": "a78e4a991d5d55344cb3bcda94ec5c029f9252a3169dca77221e288b22266437",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > property: chart readings/limits, level band, event totals and harness table agree with the journal"
+      ]
+    },
+    {
+      "drill": "bridge-private",
+      "file": "src/shared/resourceHistory.ts",
+      "test": "rejects private and invalid bridge",
+      "exit": 1,
+      "sha256": "bcf585cbc2b142a34c378e796ccad8a7c11c0c4aea50b30f8869961299cfd40e",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > rejects private and invalid bridge payloads and reports empty history explicitly"
+      ]
+    },
+    {
+      "drill": "runtime-locale",
+      "file": "src/shared/resourceHistory.ts",
+      "test": "reads the installed locale",
+      "exit": 1,
+      "sha256": "bcf585cbc2b142a34c378e796ccad8a7c11c0c4aea50b30f8869961299cfd40e",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > reads the installed locale at render and summary time, including Intl values"
+      ]
+    },
+    {
+      "drill": "event-details",
+      "file": "src/shared/resourceHistory.ts",
+      "test": "renders all event details",
+      "exit": 1,
+      "sha256": "bcf585cbc2b142a34c378e796ccad8a7c11c0c4aea50b30f8869961299cfd40e",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > renders all event details and preserves the same information in the text summary"
+      ]
+    },
+    {
+      "drill": "keyboard-scroll",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "provides accessible charts and data tables",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/ResourcesSection.test.tsx > provides accessible charts and data tables"
+      ]
+    },
+    {
+      "drill": "lazy-startup",
+      "file": "src/webview/usage/LazyResourcesSection.tsx",
+      "test": "keeps ResourcesSection in its own dynamic chunk",
+      "exit": 1,
+      "sha256": "21573316acd79c56a36fa5f95e3974927d3454efe6a9c662d13735f6c0cb4b87",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceHistoryBundle.test.mjs > keeps ResourcesSection in its own dynamic chunk, outside both startup closures"
+      ]
+    },
+    {
+      "drill": "section-budget",
+      "file": "src/webview/usage/ResourcesSection.tsx",
+      "test": "holds the section and its CSS",
+      "exit": 1,
+      "sha256": "0275ef16f1d3046b1e074068d7996c2083637cab3e673713f533bc9794bc9859",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceHistoryBundle.test.mjs > holds the section and its CSS below its independent 25 KiB budget without changing existing caps"
+      ]
+    },
+    {
+      "drill": "harness-argument",
+      "file": "test/harness/resource-history-check.mjs",
+      "test": "rejects unsupported acceptance arguments",
+      "exit": 1,
+      "sha256": "7f8b66e4c810a9671715287de493943d5a2c8f466a8b02566c2c9d92a8ded839",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceHistoryHarness.test.mjs > rejects unsupported acceptance arguments before a build or browser starts"
+      ]
+    },
+    {
+      "drill": "harness-real-entry",
+      "file": "test/harness/resource-history-entry.mjs",
+      "test": "mounts the actual history harness",
+      "exit": 1,
+      "sha256": "ff89b0bdcc8a82d01dc2d49a40c0b0722ff1c0215412a9f4c64c427933105fb3",
+      "restored": true,
+      "namedFailures": [
+        "test/unit/resourceHistoryHarness.test.mjs > mounts the actual history harness and its real lazy charts and totals"
+      ]
+    },
+    {
+      "drill": "missing-czech-history",
+      "file": "l10n/ui.cs.json",
+      "test": "resourceHistoryEmpty: missing",
+      "exit": 1,
+      "sha256": "142e8d781c1500ac2511429a1ae8b1121342263b80fa757b19effe8b8dee35b2",
+      "restored": true
+    }
+  ]
+}
