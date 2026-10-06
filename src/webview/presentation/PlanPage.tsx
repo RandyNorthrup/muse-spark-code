@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
-import type { PlanSummary } from '../../core/plans/planStore'
+import type { PresentationPlan } from '../../core/presentation/plan'
 import { plural } from '../../shared/l10n/text'
 
 export interface PlanPageProps {
-  readonly plans: readonly PlanSummary[]
+  readonly plans: readonly PresentationPlan[]
   readonly onRead: (fileName: string) => Promise<string>
   readonly onOpen: (fileName: string) => Promise<void>
   /** The engine owns trust, a fresh conversation and confirmation of the exact saved file. */
@@ -31,7 +31,7 @@ export function PlanPage({ plans, onRead, onOpen, onImplement }: PlanPageProps) 
     if (selection?.text !== undefined) preview.current?.focus()
   }, [selection])
 
-  async function read(plan: PlanSummary): Promise<void> {
+  async function read(plan: PresentationPlan): Promise<void> {
     const ticket = ++generation.current
     setSelection({ fileName: plan.fileName })
     setReading(true)

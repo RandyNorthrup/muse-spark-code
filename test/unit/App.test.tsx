@@ -2173,6 +2173,13 @@ function reply(itemId: string, text: string) {
   })
 }
 
+function highlightedReply(): Element {
+  reply('m1', 'Use pnpm because it is fast.')
+  const passage = screen.getByText('Use pnpm because it is fast.')
+  selectPassage(passage, 'it is fast')
+  return passage
+}
+
 describe('App chat references (M17)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -2203,9 +2210,7 @@ describe('App chat references (M17)', () => {
 
   it('asks about highlighted text from the right-click menu, and the chip can be removed', () => {
     const postMessage = renderReady()
-    reply('m1', 'Use pnpm because it is fast.')
-    const passage = screen.getByText('Use pnpm because it is fast.')
-    selectPassage(passage, 'it is fast')
+    const passage = highlightedReply()
     fireEvent.contextMenu(passage)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Ask about this' }))
     expect(screen.getByText('Asking about: it is fast')).toBeInTheDocument()
@@ -2304,9 +2309,7 @@ describe('App webview and UI state (M25)', () => {
 
   it("offers the browser's Copy in the highlighted-text menu", () => {
     const postMessage = renderReady()
-    reply('m1', 'Use pnpm because it is fast.')
-    const passage = screen.getByText('Use pnpm because it is fast.')
-    selectPassage(passage, 'it is fast')
+    const passage = highlightedReply()
     fireEvent.contextMenu(passage)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Copy' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'copyText', text: 'it is fast' })

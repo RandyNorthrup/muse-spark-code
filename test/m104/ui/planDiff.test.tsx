@@ -6,11 +6,12 @@ import { setUiText } from '../../../src/shared/l10n/text'
 import { PlanPage } from '../../../src/webview/presentation/PlanPage'
 import { createPresentationUi } from '../../../src/webview/presentation/presentationUi'
 import { DiffPage } from '../../../src/webview/fallbacks/DiffPage'
+import type { PlanSummary } from '../../../src/core/plans/planStore'
 
 afterEach(() => {
   setUiText(EN, 'en')
 })
-const plans = [
+const plans: readonly PlanSummary[] = [
   { fileName: 'first.md', title: 'First plan', relativePath: String.raw`.agents\plans\first.md` },
   { fileName: 'next.md', title: 'Next plan', relativePath: '.agents/plans/next.md' },
 ]

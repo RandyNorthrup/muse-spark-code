@@ -9,7 +9,7 @@ No additional localization key is needed for the first Tasks checkpoint.
    repository's default timeout. Validate with the lane test commands below
    and the full required gates on the assembled tree.
 2. **Tasks composition:** lazy-load `createRuntimePresentation` from the
-   forthcoming `src/host/views/runtimePresentationEntry.ts`, install the caller
+   `src/host/views/runtimePresentationEntry.ts`, install the caller
    table/locale, and assign it to `RuntimeFeatureFactories.presentation`.
    `PortableTasks` uses the existing `tasksState`/Tasks messages and
    `surfaces/open`, `surfaces/focus`, `surfaces/close`. Native/companion carriers
@@ -152,9 +152,13 @@ setting has been introduced by the first checkpoint.
 
 Engine role/traffic types are exported from
 `src/core/presentation/roleTraffic.ts` (`PresentationRole`,
-`PresentationTraffic`); B need not import React. Plans use the existing
-`PlanSummary` type from `src/core/plans/planStore.ts`, rather than a duplicate
-shape. Both remain internal data; A owns their validated transport schemas.
+`PresentationTraffic`); B need not import React. Plans consume `PresentationPlan`
+from `src/core/presentation/plan.ts`, a pure browser-safe view of the existing
+`PlanStore` summary. Node tests feed actual `PlanSummary`-typed records into the
+view. A/B should move/re-export the common summary declaration through this pure
+module when integrating: importing filesystem `planStore.ts` into the browser
+project, even for a type, makes TypeScript check its Node-only dependencies.
+These remain internal data; A owns their validated transport schemas.
 
 The manager now also supports `kind: 'rules' | 'agents'`. Both require a real
 installed-language `title`; omission explicitly fails through the presentation
@@ -184,3 +188,52 @@ and lifecycle notification in the same input batch: settle the RPC continuation
 and adopt its view before delivering `opened`. Textual frame order alone must
 not race view publication. The fixtures here prove view ownership, not that
 cross-process ordering rule.
+
+`diff/didDecide` is a notification in the frozen MHP service contract. A must
+provide a correlated panel decision acknowledgement for `showDiff`'s
+Promise-returning handler; resolving immediately after `notify()` is not an
+acknowledgement. The settled label describes the accepted review decision;
+actual native edit/application failures remain visible through B's engine.
+Bound traffic timestamps to the JavaScript Date range (0 through
+8,640,000,000,000,000 ms), alongside finite-number and collection/text checks.
+
+The browser matrix requires Playwright 1.63.0's matching WebKit build 2359
+(WebKit 26.6), plus installed Chrome. F must prepare those test tools on the
+qualification rigs/CI; the lane used an isolated ignored browser cache, not a
+global cache or runtime/product dependency. The test executable override
+`M104_WEBKIT_EXECUTABLE` is optional; default resolution follows Playwright.
+
+## Final concrete gate requests
+
+16. **Register the measured entries without loosening gates.** Plain knip
+    exits 1 for sixteen unregistered files. Add the actual lazy factory
+    `src/host/views/runtimePresentationEntry.ts`, both path-loaded fixtures
+    `test/harness/{presentation.tsx,whatsNew.ts}`, lane test entry glob and its
+    lane-local Vitest config to discovery. Their imported helpers/adapters must
+    remain ordinary checked project files; do not add ignores. Add the Node
+    factory to build/package/readers and the runtime factory composition. A
+    production/minified Node 22 write:false measurement with the repository's
+    four shared-bundle plugins is **45,110 bytes (44.1 KiB)**. A proposed own
+    cap is 50 KiB, subject to A's exact assembled measurement; no existing cap
+    changes.
+
+    `npm run build` compiles and passes every current size cap, then fails the
+    split check on exactly these five dynamic entry points. Declare and check
+    them in the **portable** graph with their own budgets, counting non-eager
+    static implementation imports rather than only entry wrappers. They are
+    absent from the VS Code graph, so do not blindly require them there.
+
+    | Entry                                        | Non-eager static JavaScript bytes | Proposed own cap |
+    | -------------------------------------------- | --------------------------------: | ---------------: |
+    | src/webview/fallbacks/Walkthrough.tsx        |                               622 |            5 KiB |
+    | src/webview/fallbacks/DiffPage.tsx           |                             1,838 |            5 KiB |
+    | src/webview/fallbacks/ManagerPage.tsx        |                             1,576 |            5 KiB |
+    | src/webview/presentation/PlanPage.tsx        |                             2,119 |            5 KiB |
+    | src/webview/presentation/RoleTrafficPage.tsx |                             1,688 |            5 KiB |
+
+    Keep the complete portable graph's 1,100 KiB check, the 900 KiB startup
+    check and the existing 50 KiB deferred group unchanged. Extend split
+    classification/manifest/package checks together; shipped entries cannot
+    be unlisted. Run full required gates after integrating these requests.
+    F records these deferrals in PLAN §7 and the implementation in CHANGELOG,
+    README and the applicable help reference before an assembled support claim.
