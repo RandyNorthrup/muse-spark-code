@@ -19,7 +19,11 @@ import { deviceMethods } from '../../src/host/devices/deviceBundle'
 import { FakeLogOutputChannel, memorySecrets } from './helpers/fakes'
 import { EN } from '../../src/shared/l10n/en'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
-import type { DeviceHostMessage, DeviceWebviewRequest } from '../../src/shared/modelsPanel'
+import type {
+  DeviceHostMessage,
+  DevicesPanelState,
+  DeviceWebviewRequest,
+} from '../../src/shared/modelsPanel'
 import {
   deviceInvitationSchema,
   type DeviceFrame,
@@ -107,7 +111,7 @@ async function host(id: string) {
       assertPaidBinding: vi.fn(() => Promise.resolve()),
     },
     source,
-    snapshot: () => Promise.resolve({ enabled: false }),
+    snapshot: vi.fn((): Promise<DevicesPanelState> => Promise.resolve({ enabled: false })),
     publish: vi.fn(),
     report,
   }
@@ -336,6 +340,87 @@ describe('joined P/T/E/U method port', () => {
       expect.objectContaining({ revision: expect.any(Number) }),
     )
   })
+  it('bounds frame-flood snapshot work, keeps Stop independent and publishes the latest state', async () => {
+    const { a, b, channel, frame, request } = await running()
+    await a.service.observe()
+    const snapshot = vi.mocked(a.deps.snapshot)
+    snapshot.mockClear()
+    const held = deferred<DevicesPanelState>()
+    const started = deferred<undefined>()
+    const pending = deferred<DevicesPanelState>()
+    const pendingStarted = deferred<undefined>()
+    const latest: DevicesPanelState = { enabled: true, discoveryEnabled: false, devices: [] }
+    snapshot.mockImplementation(() => Promise.resolve(latest))
+    snapshot.mockImplementationOnce(() => {
+      started.resolve(undefined)
+      return held.promise
+    })
+    snapshot.mockImplementationOnce(() => {
+      pendingStarted.resolve(undefined)
+      return pending.promise
+    })
+    vi.mocked(b.source.receive).mockClear()
+    const floodSize = DEVICE_LIMITS.queuedFrames * 2
+    const controlCompletions = Array.from({ length: floodSize }, () => deferred<undefined>())
+    const receive = a.service.receiver.receive.bind(a.service.receiver)
+    let controls = 0
+    const received = vi.spyOn(a.service.receiver, 'receive').mockImplementation(async (...args) => {
+      await receive(...args)
+      if (args[0].body.kind !== 'cancel') return
+      controlCompletions[controls]?.resolve(undefined)
+      controls += 1
+    })
+    try {
+      channel.send(frame({ kind: 'offers', offers: [] }))
+      await started.promise
+      for (let index = 0; index < floodSize; index += 1)
+        channel.send(frame({ kind: 'offers', offers: [] }))
+      await vi.waitFor(() => {
+        const refusals = vi
+          .mocked(b.source.receive)
+          .mock.calls.filter(
+            ([message]) => message.body.kind === 'failure' && message.body.reason === 'capacity',
+          )
+        expect(refusals).toHaveLength(floodSize - (DEVICE_LIMITS.queuedFrames - 1))
+      })
+      // Batches stay below the reserved control cap while data/snapshot work is held.
+      for (let index = 0; index < floodSize; index += 1) {
+        channel.send(frame({ kind: 'cancel', identity: request.identity }))
+        if ((index + 1) % (DEVICE_LIMITS.controlFrames / 2) === 0)
+          await controlCompletions[index]?.promise
+      }
+      await Promise.all(
+        received.mock.results.flatMap((result) => (result.type === 'return' ? [result.value] : [])),
+      )
+      expect(a.lease.cancel).toHaveBeenCalledTimes(floodSize)
+      expect(a.lease.release).not.toHaveBeenCalled()
+      expect(snapshot).toHaveBeenCalledOnce()
+      held.resolve({ enabled: false })
+      await pendingStarted.promise
+      expect(snapshot).toHaveBeenCalledTimes(2)
+      expect(
+        received.mock.calls.filter(([message]) => message.body.kind === 'offers'),
+      ).toHaveLength(1)
+      expect(b.source.receive).toHaveBeenCalledTimes(
+        1 + floodSize - (DEVICE_LIMITS.queuedFrames - 1),
+      )
+      pending.resolve(latest)
+      await vi.waitFor(() => {
+        expect(b.source.receive).toHaveBeenCalledTimes(floodSize + 1)
+      })
+      await a.service.observe()
+      // One held capture, one coalesced control capture, capped data, explicit read.
+      expect(snapshot.mock.calls.length).toBeLessThanOrEqual(DEVICE_LIMITS.queuedFrames + 2)
+      expect(a.deps.publish).toHaveBeenLastCalledWith(expect.objectContaining({ state: latest }))
+    } finally {
+      held.resolve({ enabled: false })
+      pending.resolve(latest)
+      await Promise.allSettled(
+        received.mock.results.flatMap((result) => (result.type === 'return' ? [result.value] : [])),
+      )
+      await a.service.observe()
+    }
+  })
   it.each([
     { kind: 'printer', payload: 'G28\nG1 X10 Y10' },
     { kind: 'CNC', payload: 'G0 X0 Y0\nM5' },
@@ -362,6 +447,18 @@ describe('joined P/T/E/U method port', () => {
   it('starts fail-safe reset Stop before reporting, even while cancellation confirmation is held', async () => {
     const { a, channel, request } = await running()
     const confirmation = deferred<undefined>()
+    const writing = deferred<undefined>()
+    const releaseWrite = deferred<undefined>()
+    const advance = a.journal.advance.bind(a.journal)
+    let hasWritten = false
+    vi.spyOn(a.journal, 'advance').mockImplementationOnce(async (...args) => {
+      writing.resolve(undefined)
+      await releaseWrite.promise
+      const outcome = await advance(...args)
+      hasWritten = true
+      return outcome
+    })
+    const cancellations = vi.spyOn(a.service.receiver, 'cancel')
     a.lease.cancel.mockReturnValueOnce(confirmation.promise)
     a.report.mockImplementation((reason: string) => {
       expect(reason).toBe('invalid-frame')
@@ -370,8 +467,28 @@ describe('joined P/T/E/U method port', () => {
     a.service.disconnected('invalid-frame', { ...channel, isReceiver: true })
     expect(a.lease.cancel).toHaveBeenCalledOnce()
     expect(a.lease.release).not.toHaveBeenCalled()
-    confirmation.resolve(undefined)
-    await a.service.receiver.reconcile([request.identity])
+    const result = cancellations.mock.results[0]
+    if (result?.type !== 'return') throw new Error('Missing test cancellation')
+    const cancellation = result.value
+    try {
+      confirmation.resolve(undefined)
+      await a.service.receiver.reconcile([request.identity])
+      await writing.promise
+      expect(hasWritten).toBe(false)
+      releaseWrite.resolve(undefined)
+      // Reconciliation can finish before this later uncertainty write is queued.
+      await cancellation
+      expect(hasWritten).toBe(true)
+      expect(await a.journal.lookup(request.identity)).toMatchObject({
+        kind: 'receiver-record',
+        outcome: { state: 'uncertain' },
+      })
+    } finally {
+      confirmation.resolve(undefined)
+      releaseWrite.resolve(undefined)
+      // Failed assertions must also settle the writes before fixture removal.
+      await cancellation
+    }
   })
   it('requires receiver-local approval at every action boundary and denies changed payloads', async () => {
     const { a, request } = await running()

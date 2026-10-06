@@ -17,6 +17,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Coalesce unshipped Devices background snapshots to one running and one pending
+  capture. Data frames retain the channel's capacity backpressure while Stop
+  stays independent; a flood cannot build an unlimited snapshot queue.
+- The Devices reset-Stop test awaits cancellation's complete journal writes
+  before removing its fixture, including when an assertion fails.
 - Carry Devices view/request correlation through pairing replies and return the
   imported public invitation for the full fingerprint comparison. Serialize
   complete snapshots with a host-owned revision that increases across off states

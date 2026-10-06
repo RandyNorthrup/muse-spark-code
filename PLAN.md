@@ -17787,6 +17787,17 @@ on the supplied inputs; no installed command/listener or physical support is
 claimed. Installed-editor and four-device qualification and aggregate quality
 remain the lead's shipment gates. M100 is not complete.
 
+**FIXM100I review repair (2026-10-06).** Close RVM100I's P2 snapshot queue
+and P3 reset-Stop fixture race. Coalesce background observations per service's
+Devices panel to one running capture and one latest-state pending capture.
+Data-frame handling awaits that shared drain so the existing channel capacity
+counts snapshot backpressure; authenticated Stop and reset controls never wait
+for an observation. Prove bounded frame-flood work and the final snapshot, then
+await the reset test's complete cancellation/journal promise before fixture
+removal. Each repair gets a named regression and byte-exact red/restored drill
+in `docs/certification/m100.md`. Retain default test timeouts, all existing
+guards, dependency pins and the unshipped/physical-qualification limits.
+
 **Original status 2026-10-05: documentation only on `feature/m100-multi-device`.**
 Independent RVM100 review passed with no P1; its one P2 connectivity promise
 is corrected in D80, acceptance B/K and `m100-research.md`. **Devices and mDNS
@@ -19693,6 +19704,15 @@ editor/four-device and concrete physical-action qualification before shipment.
 This is a scope delegation, not a weakened gate. Results and red/restored hashes
 are in `docs/certification/m100.md`.
 
+**FIXM100I scoped gates (2026-10-06).** The review-repair brief retains the
+same direct Kubuntu/default-timeout scope: at most three owning files and three
+workers, with heavy gates run serially. Five-project typecheck, changed-file
+ESLint/Prettier, plain knip, duplication, localization, host API/reference,
+cycles and production build remain unchanged. The shared rules delegate
+aggregate quality to the lead; this repair authorizes no extra merge or push.
+Both review findings require regression/red-restored receipts in
+`docs/certification/m100.md`, with no new dependency or guard widening.
+
 ## 8. Escape hatches register
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
@@ -19817,6 +19837,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-I-REVIEW-REPAIR (FIXM100I, 2026-10-06).** RVM100I's P2 snapshot
+  queue and P3 cancellation-fixture race are repaired with no finding deferred.
+  A panel has one running background capture and one coalesced pending capture;
+  data awaits that shared drain within the unchanged channel capacity, while
+  Stop and resets remain independent. The reset fixture waits for complete
+  cancellation persistence before removal. Five named red/restored drills and
+  scoped checks are recorded in `docs/certification/m100.md`. These repairs
+  do not qualify M100 shipment or physical hardware; the named joined-status
+  prerequisites below and the lead's aggregate quality gates remain required.
 
 - **M100-I-JOINED-STATUS (2026-10-06).** The P/T/E/U handoffs below describe
   their isolated input tips. Integration now binds the shared revision/envelope

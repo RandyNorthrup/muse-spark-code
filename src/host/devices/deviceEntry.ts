@@ -79,10 +79,27 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     const message = await panel.observe()
     if (!isDisposed()) deps.publish(message)
   }
-  function observed(): void {
-    void observe().catch(() => {
-      deps.report('storage')
-    })
+  let observation: Promise<void> | undefined
+  let shouldObserve = false
+  function observed(): Promise<void> {
+    if (isDisposed()) return Promise.resolve()
+    // One running capture and one latest-state pending capture per panel.
+    shouldObserve = true
+    observation ??= (async () => {
+      try {
+        while (shouldObserve && !isDisposed()) {
+          shouldObserve = false
+          try {
+            await observe()
+          } catch {
+            deps.report('storage')
+          }
+        }
+      } finally {
+        observation = undefined
+      }
+    })()
+    return observation
   }
   const receiverPort: DeviceChannelPort = {
     connected(channel) {
@@ -96,7 +113,7 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
             requestId: randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex'),
             body: { kind: 'offers', offers: row.grants.map((grant) => grant.offer) },
           })
-          observed()
+          void observed()
         } catch {
           channel.close()
         }
@@ -105,13 +122,16 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     async receive(frame, channel) {
       // E starts authenticated Stop before any journal/pairing/observation wait.
       await receiver.receive(frame, channel)
-      observed()
+      const pending = observed()
+      // Keep snapshot backpressure inside T's counted data-frame drain. Stop
+      // uses T's independent reserved control path and never waits on the panel.
+      if (frame.body.kind !== 'cancel') await pending
     },
     disconnected(reason, channel) {
       // Framing reset starts every local Stop before the reporting observer.
       receiver.disconnect(reason, channel.pairId)
       deps.report(reason)
-      observed()
+      void observed()
     },
   }
   async function material(pairId: string, isOffering: boolean) {
