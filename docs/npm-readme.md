@@ -1,9 +1,9 @@
 <p align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/banner.png" alt="Muse Spark Code: Meta's Muse Spark as a coding agent in your editor" width="100%"></p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm version" src="https://badgen.net/npm/v/muse-spark-code-acp?color=3b6cf6"></a>
+  <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm version" src="https://img.shields.io/badge/npm-v{version}-3b6cf6"></a>
   <a href="https://www.npmjs.com/package/muse-spark-code-acp"><img alt="npm weekly downloads" src="https://badgen.net/npm/dw/muse-spark-code-acp?color=3b6cf6"></a>
-  <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="GitHub release" src="https://badgen.net/github/release/RandyNorthrup/muse-spark-code?color=3b6cf6"></a>
+  <a href="https://github.com/RandyNorthrup/muse-spark-code/releases/latest"><img alt="GitHub release" src="https://img.shields.io/badge/GitHub%20release-v{version}-3b6cf6"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/blob/main/package.json"><img alt="Node 22 or later" src="https://img.shields.io/badge/node-%3E%3D22-2b7de9"></a>
   <a href="https://github.com/RandyNorthrup/muse-spark-code/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green"></a>

@@ -1,0 +1,22 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--workspace\\session-0001.jsonl",
+  "cwd": "C:\\workspace",
+  "prompt_id": "prompt-0001",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "echo hi",
+    "description": "Echo hi to shell"
+  },
+  "tool_response": {
+    "stdout": "hi",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false,
+    "noOutputExpected": false
+  },
+  "tool_use_id": "toolu_placeholder0002",
+  "duration_ms": 40312
+}

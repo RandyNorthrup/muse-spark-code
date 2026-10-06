@@ -57,6 +57,7 @@ import {
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
+  readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -97,6 +98,11 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
+  /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
+  /** Amp and OpenCode plugin hooks' host side (M91b). */
+  readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
    * The MCP servers for a host in this workspace (M50), one set per host,
    * made with the bundle's pool (M57).
@@ -116,6 +122,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
+  /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
+  readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
   /** The command rules and permission profiles (M78, PLAN.md D49), read at each call. */
@@ -168,6 +176,7 @@ interface HostVariant {
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
   readonly isHooksEnabled: (() => boolean) | undefined
+  readonly hookHttpAllowedHosts: (() => readonly string[]) | undefined
   readonly memory: MemoryStore | undefined
   /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
@@ -263,6 +272,7 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
+        judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
         io: variant.io,
@@ -297,14 +307,20 @@ export class ModelApiBackendManager {
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
+        shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
+        hookHttpAllowedHosts: variant.hookHttpAllowedHosts,
+        isHookNetworkAllowed: this.deps.isHookNetworkAllowed,
+        pluginHooks: this.deps.pluginHooks,
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,
         noteReviewerUsage: this.deps.noteReviewerUsage,
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        hookModelDailyBudget: this.deps.hookModelDailyBudget,
         permissionSettings: variant.permissionSettings,
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
@@ -341,6 +357,7 @@ export class ModelApiBackendManager {
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
       isHooksEnabled: this.deps.isHooksEnabled,
+      hookHttpAllowedHosts: this.deps.hookHttpAllowedHosts,
       memory: this.deps.memory,
       beforeTurnRuns: this.deps.beforeTurnRuns,
       afterTurnRuns: this.deps.afterTurnRuns,
@@ -350,6 +367,10 @@ export class ModelApiBackendManager {
           : (newPool) => createMcpServers(workspaceRoot, newPool),
       readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
+  }
+
+  public judgeConnection(sessionId: string, turnId: string) {
+    return this.host?.judgeConnection(sessionId, turnId)
   }
 
   /**
@@ -424,6 +445,7 @@ export class ModelApiBackendManager {
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,
         isHooksEnabled: () => false,
+        hookHttpAllowedHosts: undefined,
         memory: undefined,
         beforeTurnRuns: undefined,
         afterTurnRuns: undefined,

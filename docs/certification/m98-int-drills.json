@@ -1,0 +1,278 @@
+[
+  {
+    "drill": "I1 off lazy load",
+    "file": "src/host/judge/judgeBundle.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "aa5677c7f7c2f3f72376e9dd5a02e4243eb1d708c59adc51b160c6ca8e993c27",
+    "mutantSha256": "d453d5e052eb227820dc464c2a9c08cbed0843b44cb507799c56335e5936ae5c",
+    "restoredSha256": "aa5677c7f7c2f3f72376e9dd5a02e4243eb1d708c59adc51b160c6ca8e993c27",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > keeps the bundle unloaded while off, including disposal, and loads once on a decision"
+    ]
+  },
+  {
+    "drill": "I2 live source fence",
+    "file": "src/host/judge/judgeUse.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "d8bfcb0b742aed668879c2bf81d32d4125edf7ad2b6cec0c6706828bd2157256",
+    "mutantSha256": "3630ee77e74d44c1a85b580ab6a334ac52122b1e66e25b4b448ac11f63cfaaab",
+    "restoredSha256": "d8bfcb0b742aed668879c2bf81d32d4125edf7ad2b6cec0c6706828bd2157256",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > drops a ready latch on a changed model and cancels a pending subscription turn at the fence"
+    ]
+  },
+  {
+    "drill": "I3 hidden history identity",
+    "file": "src/host/judge/judgeEntry.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "mutantSha256": "e8babf25af0982e34fb57eba905eb52ef92f9e870b03a95c496b40c4b72b8891",
+    "restoredSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > keeps the bundle unloaded while off, including disposal, and loads once on a decision"
+    ]
+  },
+  {
+    "drill": "I4 source cache invalidation",
+    "file": "src/host/judge/judgeEntry.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "mutantSha256": "e9567ab207960532916a6b0ed79b88aac12b5511acf1ee790fd84f069f2cb67a",
+    "restoredSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > retains the real cache across fresh bindings and clears it on a model change"
+    ]
+  },
+  {
+    "drill": "I5 standing rules after session wait",
+    "file": "src/host/judge/judgeEntry.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "mutantSha256": "e5e86f7c76f8057794e5231b03058d4a4715c6101094949f8b1d6d0cbbe21a9c",
+    "restoredSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > rechecks standing settings and the lifecycle after a held hidden-session wait"
+    ]
+  },
+  {
+    "drill": "I6 runner loaded context",
+    "file": "src/host/judge/judgeEntry.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "mutantSha256": "17f1d6cb63fa2e00c4b6ffc5d08692418e7eedae7654580ec38d99de30ee7ea8",
+    "restoredSha256": "b549944c9543e0610f516dc8b450ca8c92943f9c0f1f5fef35de5954457bd139",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > refuses over-context state before creating a hidden session"
+    ]
+  },
+  {
+    "drill": "I7 tool start and update",
+    "file": "src/host/judge/museCodeSameJudge.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "0c0f9884b9ceb848fe66ebb176e792c3b623472726955b38673c40828ce7a4ec",
+    "mutantSha256": "42b77df9cb3e41a0dad3158a2c51cf05b8cd345fcb862cdd55ef193c33bba82d",
+    "restoredSha256": "0c0f9884b9ceb848fe66ebb176e792c3b623472726955b38673c40828ce7a4ec",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > cancels at the first itemStarted tool notification",
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > cancels at the first itemUpdated tool notification"
+    ]
+  },
+  {
+    "drill": "I8 full transport context",
+    "file": "src/host/judge/judgeTransport.ts",
+    "owningFile": "test/unit/judgeTransport.test.ts",
+    "pristineSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "mutantSha256": "6a5dba66f164173b98c95cfff986033a4ff241fee554e75d11b154a79891533e",
+    "restoredSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeTransport.test.ts > M98 admitted dispatch integration > refuses an oversized full request without reserving or sending"
+    ]
+  },
+  {
+    "drill": "I9 account after key wait",
+    "file": "src/host/judge/judgeTransport.ts",
+    "owningFile": "test/unit/judgeTransport.test.ts",
+    "pristineSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "mutantSha256": "ad25d974310587ec92d12385faf533d86b0ea587cb337399396f49bf620b50cd",
+    "restoredSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeTransport.test.ts > M98 admitted dispatch integration > rechecks account after the transport credential wait and refunds a known non-send"
+    ]
+  },
+  {
+    "drill": "I10 claim immediately before fetch",
+    "file": "src/host/judge/judgeTransport.ts",
+    "owningFile": "test/unit/judgeTransport.test.ts",
+    "pristineSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "mutantSha256": "631ba4afb09e78308ecc58791196678638e3712a5615dafd15932a88546e722a",
+    "restoredSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeTransport.test.ts > M98 admitted dispatch integration > rechecks claim after the transport credential wait and refunds a known non-send"
+    ]
+  },
+  {
+    "drill": "I11 retained send liability",
+    "file": "src/host/judge/judgeTransport.ts",
+    "owningFile": "test/unit/judgeTransport.test.ts",
+    "pristineSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "mutantSha256": "e5fd7cb31c88920bf243abe3a8eae4c2871ec178a55d0466c5559f96301defde",
+    "restoredSha256": "e8806bcf97e524635c16a0253708008e321dd4a54defdcb4f00194e9902f9009",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeTransport.test.ts > M98 admitted dispatch integration > retains liability for a lost response"
+    ]
+  },
+  {
+    "drill": "I12 complete sent body",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "owningFile": "test/unit/modelApiGoldenRequests.test.ts",
+    "pristineSha256": "7013152e0d3a7369e50e3f78951bcca30315c9de1f879241db46f0f516f30542",
+    "mutantSha256": "a64b5cd8d7887e24ae71b2039ecec29d171422146e2f459f43fadef8ae917284",
+    "restoredSha256": "7013152e0d3a7369e50e3f78951bcca30315c9de1f879241db46f0f516f30542",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M98 integrated Model API source > reads the actual sent body and keeps a complete receipt honest without changing the main replay",
+      "test/unit/modelApiGoldenRequests.test.ts > M98 integrated Model API source > reads the actual sent body and keeps a missing receipt honest without changing the main replay",
+      "test/unit/modelApiGoldenRequests.test.ts > M98 integrated Model API source > reads the actual sent body and keeps a partial receipt honest without changing the main replay"
+    ]
+  },
+  {
+    "drill": "I13 complete receipt only",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "owningFile": "test/unit/modelApiGoldenRequests.test.ts",
+    "pristineSha256": "7013152e0d3a7369e50e3f78951bcca30315c9de1f879241db46f0f516f30542",
+    "mutantSha256": "99de74593ae96a89decfe3459fefb3ced5b2f801dc3a1a78e67a6d2d908dabf4",
+    "restoredSha256": "7013152e0d3a7369e50e3f78951bcca30315c9de1f879241db46f0f516f30542",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M98 integrated Model API source > reads the actual sent body and keeps a partial receipt honest without changing the main replay"
+    ]
+  },
+  {
+    "drill": "I14 invalid side usage",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "owningFile": "test/unit/modelApiGoldenRequests.test.ts",
+    "pristineSha256": "f8650b4a881afe88241d817a81e1b628b3974ad7c4aa690e42e77fae2d80cc45",
+    "mutantSha256": "7013152e0d3a7369e50e3f78951bcca30315c9de1f879241db46f0f516f30542",
+    "restoredSha256": "f8650b4a881afe88241d817a81e1b628b3974ad7c4aa690e42e77fae2d80cc45",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/modelApiGoldenRequests.test.ts > M98 integrated Model API source > reads the actual sent body and keeps a invalid receipt honest without changing the main replay"
+    ]
+  },
+  {
+    "drill": "I15 batch action lifetime",
+    "file": "src/core/judge/same/batches.ts",
+    "owningFile": "test/unit/judgeSameModelApi.test.ts",
+    "pristineSha256": "eb23cce9b2334468afde49a24e8a7df198862727653b4bab3077eac52d9df3a8",
+    "mutantSha256": "fc8ee385876d04c2f7655c88d4b4609b814abb91f6d07c4a9e844d9488d5e796",
+    "restoredSha256": "eb23cce9b2334468afde49a24e8a7df198862727653b4bab3077eac52d9df3a8",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeSameModelApi.test.ts > ModelApiSameJudge > forwards the action lifetime to an in-flight batch transport"
+    ]
+  },
+  {
+    "drill": "I16 live controller binding",
+    "file": "src/host/conversation/conversationController.ts",
+    "owningFile": "test/unit/conversationController.test.ts",
+    "pristineSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "mutantSha256": "55860563ca1eca07dc4ff93e19ad1621fa11c96c34b08fba72a84fec9f26dea6",
+    "restoredSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: Muse Judge card lifecycle (M98-U) > exposes Judge context only for its current attached live turn"
+    ]
+  },
+  {
+    "drill": "I17 history read exclusion",
+    "file": "src/host/conversation/conversationController.ts",
+    "owningFile": "test/unit/conversationController.test.ts",
+    "pristineSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "mutantSha256": "54e5f72ed0bd08d92cca5626be65f13829d71592e3b5fdb7f143359ba90e1081",
+    "restoredSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: Muse Judge card lifecycle (M98-U) > excludes hidden Judge sessions from list reads and native list changes"
+    ]
+  },
+  {
+    "drill": "I18 history event exclusion",
+    "file": "src/host/conversation/conversationController.ts",
+    "owningFile": "test/unit/conversationController.test.ts",
+    "pristineSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "mutantSha256": "cfcb29d24c7bbf361ad56472a75b92a5d31b5b747f45a674d7eb35cfb6d2c01b",
+    "restoredSha256": "444e169fc7fc1b5f227bdfbf381f9f2e8c50249b7fbd98800a969893153ebc25",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/conversationController.test.ts > ConversationController: Muse Judge card lifecycle (M98-U) > excludes hidden Judge sessions from list reads and native list changes"
+    ]
+  },
+  {
+    "drill": "I19 fixed loader logging",
+    "file": "src/host/judge/judgeBundle.ts",
+    "owningFile": "test/unit/judgeWindow.test.ts",
+    "pristineSha256": "115f770cea3aa7c5c384260ecf16b5a72e0ae16b32d9bf69ecad929b388eb340",
+    "mutantSha256": "aa5677c7f7c2f3f72376e9dd5a02e4243eb1d708c59adc51b160c6ca8e993c27",
+    "restoredSha256": "115f770cea3aa7c5c384260ecf16b5a72e0ae16b32d9bf69ecad929b388eb340",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeWindow.test.ts > M98 production window wiring > leaves approvals unchanged when a bundle is missing or has no factory"
+    ]
+  },
+  {
+    "drill": "I20 hosted tool isolation",
+    "file": "src/host/judge/modelApiSameJudge.ts",
+    "owningFile": "test/unit/judgeSameModelApi.test.ts",
+    "pristineSha256": "8d05a1cd1686186bc2cdf91c1e17b79c077b01df05ee4cadc26b3179ea49b771",
+    "mutantSha256": "03b434b3ffb8945a240c6b9de9101d3584d6975dae9373747f0b3c19bad8efc2",
+    "restoredSha256": "8d05a1cd1686186bc2cdf91c1e17b79c077b01df05ee4cadc26b3179ea49b771",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/judgeSameModelApi.test.ts > ModelApiSameJudge > uses a standalone body when a prefix carries a billable hosted tool"
+    ]
+  },
+  {
+    "drill": "I21 Judge paid palette item",
+    "file": "src/shared/paid.ts",
+    "owningFile": "test/unit/paletteRegistry.test.ts",
+    "pristineSha256": "3858849c7990c473823d3d9076fe6da6fe2254c9c9a7859c9e7432f0e730e588",
+    "mutantSha256": "9cb657e4f02e908a3bab23480f9a61b1712978d7e91c47f95a72dec99d166f8a",
+    "restoredSha256": "3858849c7990c473823d3d9076fe6da6fe2254c9c9a7859c9e7432f0e730e588",
+    "redExit": 1,
+    "greenExit": 0,
+    "failures": [
+      "test/unit/paletteRegistry.test.ts > buildPalette: paid features (M33, PLAN.md D30) > offers each paid feature as a toggle naming its price on the Model API backend"
+    ]
+  }
+]

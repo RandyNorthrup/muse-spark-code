@@ -10,7 +10,7 @@ import { copyFileSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } 
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   type AgentSession,
   GoalRefusedError,
@@ -29,7 +29,9 @@ import {
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi } from './helpers/fakeModelApi'
+import { modelApiClientLoader } from '../../src/host/backend/modelApiBundle'
+import type { createModelApiClient } from '../../src/host/backend/modelApiEntry'
+import { fakeModelApi, fakeModelApiClientSettings } from './helpers/fakeModelApi'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -360,5 +362,74 @@ describe('the Model API bundle (M57)', () => {
     await expect(refused).rejects.toSatisfy(isGoalRefusedError)
     await expect(refused).rejects.toMatchObject({ name: 'GoalRefusedError', refusal: 'noGoal' })
     await t.manager.dispose()
+  })
+})
+
+function builtKeyClient(): { readonly createModelApiClient: typeof createModelApiClient } {
+  const bundle: { readonly createModelApiClient: typeof createModelApiClient } = createRequire(
+    built.file,
+  )(built.file)
+  return bundle
+}
+
+describe('the stored-key client in the existing Model API bundle', () => {
+  it('loads once only on use, hands off the installed language and dispatches to the fake API', async () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const actual = builtKeyClient()
+    const factory = vi.fn(actual.createModelApiClient)
+    const loadBundle = vi.fn(() => ({ createModelApiClient: factory }))
+    const settings = { ...fakeModelApiClientSettings(log), fetch: api.fetch }
+    const readKey = vi.fn(settings.apiKey)
+    const deps = { ...settings, apiKey: readKey }
+    const client = modelApiClientLoader({ bundlePath: built.file, client: deps, log, loadBundle })
+    expect(loadBundle).not.toHaveBeenCalled()
+    expect(readKey).not.toHaveBeenCalled()
+    setUiText({ ...EN, modelApiBundleUnavailable: 'Localized bundle failure.' }, 'de')
+    const first = client()
+    expect(client()).toBe(first)
+    expect(loadBundle).toHaveBeenCalledTimes(1)
+    expect(factory).toHaveBeenCalledWith(deps, UI_TEXT, 'de')
+    expect(readKey).not.toHaveBeenCalled()
+    await expect(first.listModels()).resolves.toContain(MODEL)
+    expect(readKey).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a malformed factory with the current translation and retries a repaired module', () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const actual = builtKeyClient()
+    const loadBundle = vi
+      .fn<() => unknown>()
+      .mockReturnValueOnce({ createModelApiClient: 1 })
+      .mockReturnValue(actual)
+    const client = modelApiClientLoader({
+      bundlePath: built.file,
+      client: { ...fakeModelApiClientSettings(log), fetch: api.fetch },
+      log,
+      loadBundle,
+    })
+    setUiText({ ...EN, modelApiBundleUnavailable: 'Localized bundle failure.' }, 'de')
+    expect(client).toThrow('Localized bundle failure.')
+    expect(client()).toBe(client())
+    expect(loadBundle).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries client creation after a factory failure without retaining a partial client', () => {
+    const api = fakeModelApi()
+    const log = new FakeLogOutputChannel()
+    const actual = builtKeyClient()
+    const factory = vi.fn(actual.createModelApiClient).mockImplementationOnce(() => {
+      throw new Error('Client construction failed.')
+    })
+    const client = modelApiClientLoader({
+      bundlePath: built.file,
+      client: { ...fakeModelApiClientSettings(log), fetch: api.fetch },
+      log,
+      loadBundle: () => ({ createModelApiClient: factory }),
+    })
+    expect(client).toThrow('Client construction failed.')
+    expect(client()).toBe(client())
+    expect(factory).toHaveBeenCalledTimes(2)
   })
 })

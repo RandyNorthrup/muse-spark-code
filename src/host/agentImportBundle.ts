@@ -10,10 +10,16 @@
 
 import { UI_TEXT } from '../shared/constants'
 import type { UiText } from '../shared/l10n/en'
+import { uiLocale } from '../shared/l10n/text'
 import type { AgentImportHost } from './commands/agentImportCommands'
 import { lazyBundleLoader } from './lazyBundle'
 import type { Logger } from './logger'
 import type { AgentImportHostDeps } from './agentImportHost'
+
+/** Activation's shim; the UI adapter and its config schema load only with the bundle. */
+export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {
+  await deps.bundle().runAgentImport(deps, UI_TEXT, uiLocale())
+}
 
 /** The injected flow and the VS Code UI entry, shipped and loaded together. */
 export interface AgentImportBundle {

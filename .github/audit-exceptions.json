@@ -4,5 +4,11 @@
     "package": "braces",
     "reason": "Stack exhaustion from deeply nested brace patterns (<=3.0.3; no fixed release exists on 2026-10-02). Development tooling only: stylelint's micromatch and fast-glob, and secretlint under @vscode/vsce and ovsx. Nothing in the VSIX or the ACP package imports braces, micromatch, fast-glob or globby, and these tools only expand patterns from this repository's own configuration, never input from a user or a model. Remove when braces publishes a fix (then update or override) or when npm stops reporting it.",
     "expires": "2026-11-01"
+  },
+  {
+    "advisory": "GHSA-68fv-2mgg-jv7q",
+    "package": "source-map-js",
+    "reason": "Event-loop denial of service through indexed source-map section offsets (<1.2.2). The fix, 1.2.2, was published 2026-09-30 and is still inside this repository's 7-day min-release-age window (.npmrc) until 2026-10-07. Development tooling only: @vitest/coverage-v8's magicast, eslint-plugin-unicorn's @eslint/css-tree and jsdom's css-tree; `npm ls source-map-js --omit=dev` is empty, so nothing in the VSIX or the ACP package carries it, and these tools only read source maps this repository builds. Remove by bumping to 1.2.2 once the window has passed.",
+    "expires": "2026-10-08"
   }
 ]

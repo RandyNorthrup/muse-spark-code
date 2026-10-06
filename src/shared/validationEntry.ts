@@ -5,6 +5,8 @@ export {
   array,
   boolean,
   discriminatedUnion,
+  // M91 lane M: an MCP form's email field.
+  email,
   enum,
   exactOptional,
   extend,

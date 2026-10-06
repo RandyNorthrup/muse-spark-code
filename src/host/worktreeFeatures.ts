@@ -6,19 +6,20 @@ import { existsSync } from 'node:fs'
 import * as vscode from 'vscode'
 import { UI_TEXT, VSCODE_COMMANDS } from '../shared/constants'
 import { newWorktree, removeWorktree, type WorktreeDeps } from './commands/worktreeCommands'
+import type { WorktreeRegistry } from './git/worktreeRegistry'
 import type { Logger } from './logger'
 import { loggedPopups } from './popups'
 
 export interface WorktreeFeatureDeps {
   readonly workspaceRoot: string | undefined
+  /** VS Code trust and the extension's held-PR ceiling, read per action. */
+  readonly isWorkspaceTrusted: () => boolean
   /** git by absolute path (git.ts), with an optional per-call timeout. */
-  readonly runGit: (args: readonly string[], cwd: string, timeoutMs?: number) => Promise<string>
+  readonly runGit: WorktreeDeps['runGit']
   /** Exact add/remove forms can run repository hooks; admit them before Git starts. */
-  readonly mutationGit: (
-    args: readonly string[],
-    cwd: string,
-    timeoutMs?: number,
-  ) => Promise<string>
+  readonly mutationGit: WorktreeDeps['runGit']
+  /** The worktree records every window reads (M71). */
+  readonly registry: WorktreeRegistry
   readonly log: Logger
 }
 
@@ -27,15 +28,27 @@ export interface WorktreeFeatures {
   removeWorktree(): Promise<void>
 }
 
+/** A worktree's folder in a new window, and a plain popup: shared with M71's pull requests. */
+export const newWindowActions = {
+  openFolder: async (fsPath: string): Promise<void> => {
+    await vscode.commands.executeCommand(VSCODE_COMMANDS.openFolder, vscode.Uri.file(fsPath), {
+      forceNewWindow: true,
+    })
+  },
+  showInformation: (message: string): void => {
+    void vscode.window.showInformationMessage(message)
+  },
+}
+
 export function createWorktreeFeatures(deps: WorktreeFeatureDeps): WorktreeFeatures {
   const flowDeps = (): WorktreeDeps => ({
     workspaceRoot: deps.workspaceRoot,
     platform: process.platform,
-    isWorkspaceTrusted: () => vscode.workspace.isTrusted,
-    runGit: (args, cwd, timeoutMs) =>
+    isWorkspaceTrusted: deps.isWorkspaceTrusted,
+    runGit: (args, cwd, timeoutMs, beforeRun) =>
       args[0] === 'worktree' && (args[1] === 'add' || args[1] === 'remove')
-        ? deps.mutationGit(args, cwd, timeoutMs)
-        : deps.runGit(args, cwd, timeoutMs),
+        ? deps.mutationGit(args, cwd, timeoutMs, beforeRun)
+        : deps.runGit(args, cwd, timeoutMs, beforeRun),
     pathExists: existsSync,
     askBranchName: (validate) =>
       Promise.resolve(
@@ -58,13 +71,15 @@ export function createWorktreeFeatures(deps: WorktreeFeatureDeps): WorktreeFeatu
     offerOpen: async (message) =>
       (await vscode.window.showInformationMessage(message, UI_TEXT.worktreeOpen)) ===
       UI_TEXT.worktreeOpen,
-    openFolder: async (fsPath) => {
-      await vscode.commands.executeCommand(VSCODE_COMMANDS.openFolder, vscode.Uri.file(fsPath), {
-        forceNewWindow: true,
+    ...newWindowActions,
+    recordWorktree: async (folder, branch, repositoryRoot) => {
+      await deps.registry.put({
+        folder,
+        repositoryRoot,
+        createdAt: Date.now(),
+        branch,
+        isHeld: false,
       })
-    },
-    showInformation: (message) => {
-      void vscode.window.showInformationMessage(message)
     },
     ...loggedPopups(deps.log),
     log: deps.log,

@@ -13,13 +13,21 @@
 
 import type { McpPoolSnapshot } from '../../core/backends/modelapi/mcp/pool'
 import {
+  type HookFileView,
   type McpServerView,
   type McpSettingsView,
+  readHookFile,
   readHookSources,
   readMcpServers,
 } from '../../core/backends/musecode/museConfigView'
 import { redactSecrets } from '../../core/redact'
-import { IDE_MCP_SERVER_NAME, MODEL_API_HOOKS_SETTING, UI_TEXT } from '../../shared/constants'
+import {
+  EXTENSION_HOOK_EVENTS,
+  HOOK_FORMAT_NAME_KEYS,
+  IDE_MCP_SERVER_NAME,
+  MODEL_API_HOOKS_SETTING,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { PickItem, PickOne } from './pickItem'
 
@@ -31,6 +39,12 @@ export interface MuseConfigDeps {
   readonly readSettings: () => string | undefined
   /** The workspace's `.muse/hooks.json`; undefined without a workspace. */
   readonly projectHooksPath: string | undefined
+  /** The workspace's `.muse/spark-hooks.json` (M91); undefined without a workspace. */
+  readonly sparkProjectPath?: string | undefined
+  /** The user's `spark-hooks.json`, beside Muse Code's settings (M91). */
+  readonly sparkUserPath?: string | undefined
+  /** A file's text; undefined when it is missing; throws when it cannot be read. */
+  readonly readTextFile?: ((fsPath: string) => string | undefined) | undefined
   readonly fileExists: (fsPath: string) => boolean
   readonly isWorkspaceTrusted: () => boolean
   readonly pick: PickOne
@@ -63,6 +77,8 @@ const SERVER_PREFIX = 'server:'
 const BUILT_IN_PREFIX = 'builtin:'
 const PROJECT_HOOKS = 'hooks:project'
 const USER_HOOKS = 'hooks:user'
+const SPARK_PROJECT_HOOKS = 'hooks:sparkProject'
+const SPARK_USER_HOOKS = 'hooks:sparkUser'
 const MANAGED_HOOKS = 'hooks:managed'
 const MODEL_API_HOOKS_PICK = 'hooks:modelApiSetting'
 const STREAMABLE_HTTP = 'streamable-http'
@@ -309,6 +325,63 @@ export async function showMcpServers(deps: MuseConfigDeps): Promise<void> {
   }
 }
 
+const EXTENSION_EVENTS: ReadonlySet<string> = new Set(EXTENSION_HOOK_EVENTS)
+type SparkScope = 'project' | 'user'
+
+/** A hooks file's view; undefined when there is no such file or it cannot be read. */
+function hookFile(deps: MuseConfigDeps, fsPath: string | undefined): HookFileView | undefined {
+  if (fsPath === undefined || deps.readTextFile === undefined || !deps.fileExists(fsPath)) {
+    return undefined
+  }
+  try {
+    return readHookFile(deps.readTextFile(fsPath))
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Who runs a Muse Code file, and what it says about its events (M91, D70):
+ * Muse Code 1.4.2 never runs StopFailure or SessionFork hooks, and an
+ * extension event belongs in spark-hooks.json, so Muse Code skips it here.
+ */
+function museFileNotes(view: HookFileView | undefined): readonly string[] {
+  const misplaced = view?.events.find((event) => EXTENSION_EVENTS.has(event))
+  return [
+    UI_TEXT.hooksBackendBoth,
+    ...(view?.events.includes('StopFailure') === true ? [UI_TEXT.hooksStopFailureNote] : []),
+    ...(view?.events.includes('SessionFork') === true ? [UI_TEXT.hooksSessionForkNote] : []),
+    ...(misplaced === undefined
+      ? []
+      : [fill(UI_TEXT.hooksExtensionEventSkipped, { event: misplaced })]),
+  ]
+}
+
+function isFormatName(format: string): format is keyof typeof HOOK_FORMAT_NAME_KEYS {
+  return Object.hasOwn(HOOK_FORMAT_NAME_KEYS, format)
+}
+
+/**
+ * A spark-hooks.json's notes: this window runs it, an imported hook only on
+ * the Model API backend (its formats named), and a native group on a Muse
+ * Code event is refused, since it would run twice.
+ */
+function sparkFileNotes(view: HookFileView): readonly string[] {
+  const refused = view.nativeEvents.find((event) => !EXTENSION_EVENTS.has(event))
+  const formats = view.formats.map((format) =>
+    fill(UI_TEXT.hooksFormatTag, {
+      format: isFormatName(format) ? UI_TEXT[HOOK_FORMAT_NAME_KEYS[format]] : format,
+    }),
+  )
+  return [
+    UI_TEXT.hooksBackendSpark,
+    ...(formats.length === 0
+      ? []
+      : [formats.join(LIST_SEPARATOR), UI_TEXT.hooksFormatModelApiOnly]),
+    ...(refused === undefined ? [] : [fill(UI_TEXT.hooksMuseEventRefused, { event: refused })]),
+  ]
+}
+
 function projectHooksItem(deps: MuseConfigDeps): PickItem {
   const { projectHooksPath } = deps
   let detail: string
@@ -321,12 +394,54 @@ function projectHooksItem(deps: MuseConfigDeps): PickItem {
   } else {
     detail = UI_TEXT.hooksProjectTrusted
   }
+  const notes =
+    projectHooksPath !== undefined && deps.fileExists(projectHooksPath)
+      ? museFileNotes(hookFile(deps, projectHooksPath))
+      : []
   return {
     id: PROJECT_HOOKS,
     label: UI_TEXT.hooksProject,
     description: UI_TEXT.hooksProjectFile,
-    detail,
+    detail: [detail, ...notes].join(DETAIL_SEPARATOR),
   }
+}
+
+function sparkPath(deps: MuseConfigDeps, scope: SparkScope): string | undefined {
+  return scope === 'project' ? deps.sparkProjectPath : deps.sparkUserPath
+}
+
+function sparkNone(scope: SparkScope): string {
+  return scope === 'project' ? UI_TEXT.hooksSparkProjectNone : UI_TEXT.hooksSparkUserNone
+}
+
+/** A spark-hooks.json row (M91, D70): its count, then who runs it. */
+function sparkItem(deps: MuseConfigDeps, scope: SparkScope): PickItem | undefined {
+  const fsPath = sparkPath(deps, scope)
+  if (fsPath === undefined) {
+    return undefined
+  }
+  const view = hookFile(deps, fsPath)
+  const file = scope === 'project' ? UI_TEXT.hooksSparkProjectFile : fsPath
+  const status =
+    view === undefined
+      ? sparkNone(scope)
+      : withTrustNote(deps, plural(UI_TEXT.hooksSparkCount, view.count, { file }))
+  return {
+    id: scope === 'project' ? SPARK_PROJECT_HOOKS : SPARK_USER_HOOKS,
+    label: scope === 'project' ? UI_TEXT.hooksSparkProject : UI_TEXT.hooksSparkUser,
+    description: file,
+    detail: [status, ...(view === undefined ? [] : sparkFileNotes(view))].join(DETAIL_SEPARATOR),
+  }
+}
+
+/** Opens a spark-hooks.json, or says there is none and what the file is for. */
+async function openSpark(deps: MuseConfigDeps, scope: SparkScope): Promise<void> {
+  const fsPath = sparkPath(deps, scope)
+  if (fsPath !== undefined && deps.fileExists(fsPath)) {
+    await deps.openFile(fsPath)
+    return
+  }
+  deps.showInformation(`${sparkNone(scope)} ${UI_TEXT.hooksSparkAbout}`)
 }
 
 /**
@@ -353,6 +468,8 @@ export async function showHooks(deps: MuseConfigDeps): Promise<void> {
       ? withTrustNote(deps, UI_TEXT.hooksManagedSet)
       : UI_TEXT.hooksManagedMissing
   }
+  const sparkProject = sparkItem(deps, 'project')
+  const sparkUser = sparkItem(deps, 'user')
   const choice = await deps.pick(
     [
       ...(deps.modelApiHooks === undefined
@@ -366,6 +483,7 @@ export async function showHooks(deps: MuseConfigDeps): Promise<void> {
             },
           ]),
       projectHooksItem(deps),
+      ...(sparkProject === undefined ? [] : [sparkProject]),
       {
         id: USER_HOOKS,
         label: UI_TEXT.hooksUser,
@@ -373,13 +491,20 @@ export async function showHooks(deps: MuseConfigDeps): Promise<void> {
         detail:
           sources.userHookCount === undefined
             ? UI_TEXT.hooksUserNone
-            : withTrustNote(deps, plural(UI_TEXT.hooksUserCount, sources.userHookCount)),
+            : [
+                withTrustNote(deps, plural(UI_TEXT.hooksUserCount, sources.userHookCount)),
+                ...museFileNotes(readHookFile(read.text)),
+              ].join(DETAIL_SEPARATOR),
       },
+      ...(sparkUser === undefined ? [] : [sparkUser]),
       {
         id: MANAGED_HOOKS,
         label: UI_TEXT.hooksManaged,
         description: managed ?? UI_TEXT.hooksManagedKey,
-        detail: managedDetail,
+        detail:
+          managed !== undefined && deps.fileExists(managed)
+            ? [managedDetail, UI_TEXT.hooksBackendBoth].join(DETAIL_SEPARATOR)
+            : managedDetail,
       },
       { id: DOCS, label: UI_TEXT.hooksDocs },
     ],
@@ -402,6 +527,14 @@ export async function showHooks(deps: MuseConfigDeps): Promise<void> {
     }
     case USER_HOOKS: {
       await openSettings(deps)
+      break
+    }
+    case SPARK_PROJECT_HOOKS: {
+      await openSpark(deps, 'project')
+      break
+    }
+    case SPARK_USER_HOOKS: {
+      await openSpark(deps, 'user')
       break
     }
     case MANAGED_HOOKS: {

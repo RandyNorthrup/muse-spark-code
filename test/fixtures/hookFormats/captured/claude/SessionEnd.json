@@ -1,0 +1,8 @@
+{
+  "session_id": "session-0001",
+  "transcript_path": "C:\\Users\\user\\.claude\\projects\\C--workspace\\session-0001.jsonl",
+  "cwd": "C:\\workspace",
+  "prompt_id": "prompt-0001",
+  "hook_event_name": "SessionEnd",
+  "reason": "other"
+}

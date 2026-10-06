@@ -8,13 +8,19 @@ import { parseSkillFile } from '../../src/core/context/skills'
 import {
   appendSeparator,
   commandToSkill,
+  convertClaudeSparkHook,
+  convertCodexHook,
   convertCodexServer,
   convertHook,
   convertJsonServer,
+  convertWindsurfHook,
+  hasCodexNotify,
   readClaudeHooks,
   readClaudeState,
   readCodexConfig,
+  readCodexHooksToml,
   readMcpFile,
+  readWindsurfHooks,
   rulesHeading,
   rulesSection,
   splitFrontMatter,
@@ -450,5 +456,333 @@ describe('hook text shown and copied', () => {
       ok: false,
       reason: 'unsupported',
     })
+  })
+})
+
+// Codex hooks (M91): `hooks.json` and the inline `[hooks]` table of
+// `config.toml`, converted into Muse Code's own files.
+describe('Codex hooks', () => {
+  const hooksToml = [
+    'notify = "ping"',
+    '[mcp_servers.docs]',
+    'command = "docs-mcp"',
+    '[[hooks.PreToolUse]]',
+    'matcher = "Bash"',
+    '[[hooks.PreToolUse.hooks]]',
+    'type = "command"',
+    'command = "guard"',
+    '[[hooks.Interrupt]]',
+    '[[hooks.Interrupt.hooks]]',
+    'type = "command"',
+    'command = "note"',
+    'async = true',
+    '',
+  ].join('\n')
+
+  it('reads the inline hooks table and the notify program from config.toml', () => {
+    expect(hasCodexNotify(hooksToml)).toBe(true)
+    expect(hasCodexNotify('[mcp_servers.docs]\ncommand = "d"\n')).toBe(false)
+    expect(hasCodexNotify('[broken')).toBe(false)
+    expect(readCodexHooksToml(hooksToml)?.map((hook) => hook.event)).toEqual([
+      'PreToolUse',
+      'Interrupt',
+    ])
+    expect(readCodexHooksToml(hooksToml)?.[0]).toMatchObject({ matcher: 'Bash' })
+    // No hooks table is a valid file with nothing in it.
+    expect(readCodexHooksToml('[mcp_servers.docs]\ncommand = "d"\n')).toEqual([])
+    // A hooks table of the wrong shape is unreadable, with nothing from it.
+    expect(readCodexHooksToml('hooks = 3\n')).toBeUndefined()
+    expect(readCodexHooksToml('[broken')).toBeUndefined()
+  })
+
+  it.each([
+    'SessionStart',
+    'SessionEnd',
+    'PreToolUse',
+    'PermissionRequest',
+    'PostToolUse',
+    'PreCompact',
+    'PostCompact',
+    'SubagentStart',
+    'SubagentStop',
+  ])('converts a %s command hook with its matcher kept', (event) => {
+    expect(
+      convertCodexHook({
+        event,
+        matcher: 'Bash',
+        raw: { type: 'command', command: 'guard' },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        event,
+        group: { matcher: 'Bash', hooks: [{ type: 'command', command: 'guard' }] },
+      },
+    })
+  })
+
+  it.each(['UserPromptSubmit', 'Stop'])('drops the matcher %s ignores', (event) => {
+    expect(
+      convertCodexHook({
+        event,
+        matcher: 'Bash',
+        raw: { type: 'command', command: 'guard' },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { event, group: { hooks: [{ type: 'command', command: 'guard' }] } },
+    })
+  })
+
+  it('converts Interrupt only with async:true, and keeps commandWindows', () => {
+    expect(
+      convertCodexHook({
+        event: 'Interrupt',
+        matcher: undefined,
+        raw: { type: 'command', command: 'note', async: true },
+      }),
+    ).toMatchObject({ ok: true, value: { event: 'Interrupt' } })
+    expect(
+      convertCodexHook({
+        event: 'Interrupt',
+        matcher: undefined,
+        raw: { type: 'command', command: 'note' },
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported' })
+    expect(
+      convertCodexHook({
+        event: 'PostToolUse',
+        matcher: undefined,
+        raw: { type: 'command', command: 'fmt', commandWindows: 'fmt.ps1' },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        group: { hooks: [{ type: 'command', command: 'fmt', commandWindows: 'fmt.ps1' }] },
+      },
+    })
+  })
+
+  it('names apply_patch Edit|Write in matchers', () => {
+    expect(
+      convertCodexHook({
+        event: 'PreToolUse',
+        matcher: 'apply_patch|Bash',
+        raw: { type: 'command', command: 'guard' },
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { group: { matcher: 'Edit|Write|Bash' } },
+    })
+  })
+
+  it.each([
+    ['a prompt handler', { type: 'prompt', prompt: 'check' }, 'unsupported', undefined],
+    ['an agent handler', { type: 'agent', prompt: 'check' }, 'unsupported', undefined],
+    ['an MCP handler', { type: 'mcp_tool', command: 'x' }, 'unsupported', undefined],
+    [
+      'additionalContextLimit',
+      { type: 'command', command: 'x', additionalContextLimit: 3 },
+      'field',
+      'additionalContextLimit',
+    ],
+    ['an unknown field', { type: 'command', command: 'x', shell: 'sh' }, 'unsupported', undefined],
+    ['a blank command', { type: 'command', command: ' ' }, 'unsupported', undefined],
+    ['a long timeout', { type: 'command', command: 'x', timeout: 601 }, 'unsupported', undefined],
+  ])('refuses %s', (_name, raw, reason, field) => {
+    expect(convertCodexHook({ event: 'PreToolUse', matcher: undefined, raw })).toEqual(
+      field === undefined ? { ok: false, reason } : { ok: false, reason, field },
+    )
+  })
+
+  it('leaves events Codex does not send unmapped', () => {
+    expect(
+      convertCodexHook({
+        event: 'PostToolUseFailure',
+        matcher: undefined,
+        raw: { type: 'command', command: 'x' },
+      }),
+    ).toEqual({ ok: false, reason: 'unmapped' })
+  })
+})
+
+// Claude Code's extension events (M91): the native `spark-hooks.json` shape,
+// without a format tag.
+describe('Claude Code extension hooks', () => {
+  it.each([
+    'InstructionsLoaded',
+    'UserPromptExpansion',
+    'PermissionDenied',
+    'PreModelSwitch',
+    'PostModelSwitch',
+    'TaskCreated',
+    'TaskCompleted',
+    'FileChanged',
+    'WorktreeRemove',
+  ])('carries %s into spark-hooks.json with no format tag', (event) => {
+    const converted = convertClaudeSparkHook({
+      event,
+      matcher: event === 'FileChanged' ? '*.ts' : undefined,
+      raw: { type: 'command', command: 'watch' },
+    })
+    expect(converted).toMatchObject({ ok: true, value: { event } })
+    expect(converted).toMatchObject({
+      ok: true,
+      value: { group: { hooks: [{ command: 'watch' }] } },
+    })
+    if (converted.ok) {
+      expect(converted.value.group).not.toHaveProperty('format')
+    }
+  })
+
+  it.each(['WorktreeCreate', 'ConfigChange'])(
+    'refuses %s as weaker: it observes here what blocks there',
+    (event) => {
+      expect(
+        convertClaudeSparkHook({
+          event,
+          matcher: undefined,
+          raw: { type: 'command', command: 'x' },
+        }),
+      ).toEqual({ ok: false, reason: 'weaker' })
+    },
+  )
+
+  it.each([
+    ['missing', undefined],
+    ['empty', ''],
+    ['match-all', '*'],
+  ])('refuses FileChanged with a %s matcher as needsMatcher', (_name, matcher) => {
+    expect(
+      convertClaudeSparkHook({
+        event: 'FileChanged',
+        matcher,
+        raw: { type: 'command', command: 'x' },
+      }),
+    ).toEqual({ ok: false, reason: 'needsMatcher' })
+  })
+
+  it('leaves Muse-native and other extension-less events unmapped', () => {
+    for (const event of ['Stop', 'Manual', 'Interrupt']) {
+      expect(
+        convertClaudeSparkHook({
+          event,
+          matcher: undefined,
+          raw: { type: 'command', command: 'x' },
+        }),
+      ).toEqual({ ok: false, reason: 'unmapped' })
+    }
+  })
+
+  it('refuses prompt handlers as unsupported', () => {
+    expect(
+      convertClaudeSparkHook({
+        event: 'Stop',
+        matcher: undefined,
+        raw: { type: 'prompt', prompt: 'check' },
+      }),
+    ).toEqual({ ok: false, reason: 'unmapped' })
+    expect(
+      convertClaudeSparkHook({
+        event: 'TaskCreated',
+        matcher: undefined,
+        raw: { type: 'prompt', prompt: 'check' },
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported' })
+  })
+})
+
+// Windsurf hooks (M91): exit codes only, with a `Windsurf` format tag.
+describe('Windsurf hooks', () => {
+  it.each([
+    ['pre_read_code', 'PreToolUse', 'Read'],
+    ['post_read_code', 'PostToolUse', 'Read'],
+    ['pre_write_code', 'PreToolUse', 'Edit|Write'],
+    ['post_write_code', 'PostToolUse', 'Edit|Write'],
+    ['pre_run_command', 'PreToolUse', 'Bash'],
+    ['post_run_command', 'PostToolUse', 'Bash'],
+    ['pre_mcp_tool_use', 'PreToolUse', 'mcp__.*'],
+    ['post_mcp_tool_use', 'PostToolUse', 'mcp__.*'],
+  ])('maps %s to %s on %s', (source, event, matcher) => {
+    expect(
+      convertWindsurfHook({ event: source, matcher: undefined, raw: { command: 'guard' } }),
+    ).toMatchObject({
+      ok: true,
+      value: { event, group: { matcher, format: 'windsurf', sourceEvent: source } },
+    })
+  })
+
+  it('reads the hooks file, converts prompts and answers, and waits on worktrees', () => {
+    const hooks = readWindsurfHooks(
+      JSON.stringify({
+        hooks: {
+          pre_user_prompt: [{ command: 'expand' }],
+          post_cascade_response: [{ command: 'summarize' }],
+          post_setup_worktree: [{ command: 'setup' }],
+        },
+      }),
+    )
+    expect(hooks?.map((hook) => hook.event)).toEqual([
+      'pre_user_prompt',
+      'post_cascade_response',
+      'post_setup_worktree',
+    ])
+    expect(hooks?.map((hook) => convertWindsurfHook(hook))).toMatchObject([
+      { ok: true, value: { event: 'UserPromptSubmit' } },
+      { ok: true, value: { event: 'Stop', group: { async: true } } },
+      // WorktreeCreate is an extension event: M91b routes imports there.
+      { ok: false, reason: 'unsupported' },
+    ])
+    expect(readWindsurfHooks('not json')).toBeUndefined()
+  })
+
+  it('keeps the Windows spelling and drops show_output', () => {
+    expect(
+      convertWindsurfHook({
+        event: 'pre_run_command',
+        matcher: undefined,
+        raw: { powershell: 'guard.ps1', show_output: true },
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        event: 'PreToolUse',
+        group: {
+          matcher: 'Bash',
+          format: 'windsurf',
+          sourceEvent: 'pre_run_command',
+          hooks: [{ type: 'command', commandWindows: 'guard.ps1' }],
+          sourceEntry: { powershell: 'guard.ps1', show_output: true },
+        },
+      },
+      dropped: ['show_output'],
+    })
+  })
+
+  it('leaves the transcript answer unmapped', () => {
+    expect(
+      convertWindsurfHook({
+        event: 'post_cascade_response_with_transcript',
+        matcher: undefined,
+        raw: { command: 'x' },
+      }),
+    ).toEqual({ ok: false, reason: 'unmapped' })
+  })
+
+  it('refuses an unknown field by name and an entry with no runnable spelling', () => {
+    expect(
+      convertWindsurfHook({
+        event: 'pre_run_command',
+        matcher: undefined,
+        raw: { command: 'x', working_directory: 'sub' },
+      }),
+    ).toEqual({ ok: false, reason: 'field', field: 'working_directory' })
+    expect(
+      convertWindsurfHook({
+        event: 'pre_run_command',
+        matcher: undefined,
+        raw: { show_output: true },
+      }),
+    ).toEqual({ ok: false, reason: 'unsupported' })
   })
 })

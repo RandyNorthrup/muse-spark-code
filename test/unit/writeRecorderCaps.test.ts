@@ -11,13 +11,12 @@ import { afterAll, describe, expect, it, vi } from 'vitest'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { WriteJournal } from '../../src/host/checkpoints/writeJournal'
 import { createOwnerIo, WriteLanes } from '../../src/host/checkpoints/writeRecorder'
-import type * as constants from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { nativeToolIo } from './helpers/fakeToolIo'
 import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('../../src/shared/constants', async (importOriginal) => ({
-  ...(await importOriginal<typeof constants>()),
+  ...(await importOriginal<Record<string, unknown>>()),
   // Three intents a unit; twenty kept bytes.
   CHECKPOINT_UNIT_INTENTS_MAX: 3,
   CHECKPOINT_UNIT_BLOB_BYTES_MAX: 20,
