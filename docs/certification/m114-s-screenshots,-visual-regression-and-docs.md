@@ -334,3 +334,22 @@ binding, the measured 12,741-byte startup-growth compaction, and C/N/D's
 named future milestone bindings. S makes zero live/paid model calls, changes
 no dependency lockfile/node_modules, pushes nothing and merges only the two
 ordered branches named by the brief.
+
+## Final pin/binding fire record and archive verification
+
+Two final deliberate failures close the pin/binding assertions: adding one
+newline to the vendored comparator and removing `check:visual` from the
+quality command each failed `keeps the pinned ISC comparator unmodified and
+wires the gate into quality`. Byte-exact restoration SHA-256 values are
+`972e5a5387dde3b6d85ab77337d59ebafca988bf220145caa4b27dc742134dc5` (vendor) and
+`21a09401c8e9d3b4369ab2ddebcb91aad8982267f6b46b720955573b1b43be7b` (package manifest). The restored owning gate/source
+files pass **8/8**, default timeouts. No vendor or package bytes remain changed.
+
+After commit hooks, S reread all **4,824 actual archive files**: every hash,
+byte size and PNG header dimension matches; total **246,338,755 bytes**.
+The tracked manifest still has SHA-256
+`548a7d33462495c131cc524b927ade317983c2c8238191d03274117b9a6fe7c0`.
+No capture PNG exists under the repository's golden/evidence directories.
+The final theme/import, README/media and real-capture suites pass **18/18**
+(default timeouts); the gate/source/repeat batch passes **9/9** intermittently.
+The failed complete normal/reconstructed visual receipts remain controlling.
