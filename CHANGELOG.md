@@ -87,6 +87,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Development dependency audit.** Pin `source-map-js` to 1.2.2 for the
+  indexed-source-map denial-of-service advisory. The dependency is not shipped;
+  the audit rule and existing exception list stay unchanged.
+
 - Team workers and read-only Git calls share one classifier, including wrapper
   inspection, clustered short-option refusals, exact argv and safe listings.
   The workspace team reader preserves validated scheduler shared-file rules.

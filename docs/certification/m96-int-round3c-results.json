@@ -1,5 +1,5 @@
 {
-  "status": "full-quality red; late repairs and prescribed scoped verification in progress",
+  "status": "full-quality red; prescribed scoped repairs and final package verification pass; standalone gates pending",
   "rig": "macmini",
   "base": "30105e49",
   "wMerge": "9dcd95cc",
@@ -11,7 +11,7 @@
     "table": "m96-int-round3c-d78.json",
     "planReference": {
       "file": "PLAN.md",
-      "line": 4761,
+      "line": 4769,
       "section": "D78 FIXDEF"
     }
   },
@@ -174,6 +174,26 @@
         "test/unit/teamHarness.test.mjs",
         "test/unit/paletteRegistry.test.ts"
       ]
+    },
+    {
+      "name": "final-committed-proof",
+      "passed": 8,
+      "failed": 0,
+      "files": [
+        "test/unit/teamWorkerCertification.test.ts",
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
+    },
+    {
+      "name": "late-lint-retest",
+      "passed": 72,
+      "failed": 0,
+      "files": [
+        "test/e2e/execStdio.e2e.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/teamNativeLifetime.test.ts"
+      ]
     }
   ],
   "drills": [
@@ -235,13 +255,14 @@
     "hostGlobals": 0,
     "postRepairTypecheckFiveProjects": 0,
     "postRepairDuplication": 0,
-    "postRepairProductionBuild": 0
+    "postRepairProductionBuild": 0,
+    "postRepairAudit": 0
   },
   "packages": {
     "helperless": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/helperless-muse-spark-code-0.14.0.vsix",
-      "bytes": 2121414,
-      "sha256": "f0dcd7e7e789eba4006218d14cb5e2c0082bb90542d705471106011d89fd7db8",
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2121944,
+      "sha256": "9e680043277dab41d6ed4500b52e6725b262f6a329d20d1ec734d2a15afced77",
       "requiredFiles": {
         "dist/team.js": true,
         "dist/teamScheduler.js": true,
@@ -251,12 +272,14 @@
         "native/runner/runner-helper.ps1": true
       },
       "macHelperPresent": false,
-      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+      "capBytes": 2252800,
+      "headroomBytes": 130856
     },
     "universal": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/universal-muse-spark-code-0.14.0.vsix",
-      "bytes": 2204233,
-      "sha256": "7315f8c0ea2562c8bdba1c02c860489ae477f1731394c79d822dd127619c1b61",
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2204763,
+      "sha256": "3655a71d955707a2e5bffdae0700ec0f37be01a5a2f6be5556654005507b75a3",
       "requiredFiles": {
         "dist/team.js": true,
         "dist/teamScheduler.js": true,
@@ -266,12 +289,14 @@
         "native/runner/runner-helper.ps1": true
       },
       "macHelperPresent": true,
-      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+      "capBytes": 2252800,
+      "headroomBytes": 48037
     },
     "acp": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/acp-muse-spark-code-acp-0.14.0.tgz",
-      "bytes": 1088885,
-      "sha256": "b0d44c8bf5310208455f08ceed90bde8c840b06e22354831aeadd4692867b9d8"
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/acp-muse-spark-code-acp-0.14.0.tgz",
+      "bytes": 1088802,
+      "sha256": "642d4a32e6eb4dacd8b3afecc86327bdbf1ba15b44c314cbbcb303a7d40bae89"
     }
   },
   "nativeHelper": {
@@ -291,18 +316,18 @@
       "failed": 0
     }
   },
-  "sourceCommit": "bd7a08be5677cca5787cc92df8dfde20bfac183d",
+  "sourceCommit": "42fb18e20cf519b2727927aa2095ac34444df46e",
   "historySecrets": {
     "head": {
       "exit": 0
     },
-    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-w205phyp/integration.bundle",
-    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-w205phyp/integration.git",
+    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q1ipi4h9/integration.bundle",
+    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q1ipi4h9/integration.git",
     "sharedRefsChanged": false,
     "default-own": {
       "exit": 0
     },
-    "commitsScanned": 1091,
+    "commitsScanned": 1093,
     "findingsOwnHistory": 0,
     "sharedDefault": {
       "exit": 1,
@@ -324,8 +349,10 @@
         "refs/archive/2026-10-05/rt-m95t-type",
         "refs/archive/2026-10-05/rt-star"
       ],
-      "permission": "shared-ref removal request pending; no refs removed"
-    }
+      "permission": "shared-ref removal request pending; no refs removed",
+      "commitsScanned": 1585
+    },
+    "testedHead": "42fb18e20cf519b2727927aa2095ac34444df46e"
   },
   "fullQuality": {
     "command": "VITEST_MAX_WORKERS=3 npm run quality",
@@ -370,5 +397,96 @@
     "existingActualBunSkips": 2,
     "failureTable": "m96-int-round3c-late.json",
     "profile": "at most three files; --maxWorkers=3 --testTimeout=120000; original staging hook 10000 ms"
+  },
+  "preflightPackages": {
+    "helperless": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2121414,
+      "sha256": "f0dcd7e7e789eba4006218d14cb5e2c0082bb90542d705471106011d89fd7db8",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": false,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "universal": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2204233,
+      "sha256": "7315f8c0ea2562c8bdba1c02c860489ae477f1731394c79d822dd127619c1b61",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": true,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "acp": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/acp-muse-spark-code-acp-0.14.0.tgz",
+      "bytes": 1088885,
+      "sha256": "b0d44c8bf5310208455f08ceed90bde8c840b06e22354831aeadd4692867b9d8"
+    }
+  },
+  "packageCapBytes": 2252800,
+  "dependencyAuditRepair": {
+    "advisory": "GHSA-68fv-2mgg-jv7q",
+    "package": "source-map-js",
+    "before": "1.2.1",
+    "after": "1.2.2",
+    "developmentOnly": true,
+    "ships": false,
+    "shippedMetafileInputs": 0,
+    "peerDependencies": {},
+    "registryPublished": "2026-09-30T14:08:09.382Z",
+    "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+    "initialAuditExit": 1,
+    "repairedAuditExit": 0,
+    "privateFullLockInstall": {
+      "directory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-install-proof-q5nu7h_n",
+      "command": "npm ci --ignore-scripts --no-audit --no-fund --cache <owned OS cache>",
+      "exit": 0,
+      "worktreeInstallChanged": false,
+      "lockedVersion": "1.2.2",
+      "sharedInstalledVersion": "1.2.1",
+      "privateInstalledVersion": "1.2.2",
+      "lockSha256": "b8719e00bb2fff849dfa25fa0d19a424d64bad774fd9f47bb4296e72f2f6ab72"
+    },
+    "sharedInstallChanged": false,
+    "exceptionsChanged": false
+  },
+  "standaloneInitialGates": {
+    "audit": {
+      "command": "npm run security:audit",
+      "exit": 1,
+      "seconds": 2.72
+    },
+    "a11y": {
+      "command": "npm run test:a11y",
+      "exit": 1,
+      "seconds": 491.08
+    },
+    "sast": {
+      "command": "npm run security:sast",
+      "exit": 0,
+      "seconds": 87.41
+    },
+    "l10n": {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 3.51
+    },
+    "host-api": {
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 17.64
+    }
   }
 }

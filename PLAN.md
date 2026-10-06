@@ -162,6 +162,14 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
 | `smol-toml`                                                                                          | 1.8.0                             | Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.                                                                                                                                                                                                              |
 
+M96INT3C audit update (2026-10-05): pin the existing development-only
+`source-map-js` leaf to 1.2.2 for GHSA-68fv-2mgg-jv7q. Registry metadata
+captured by private `npm ci`, then checked by offline `npm info`, declares
+no peers and Node >=0.10.0. Its published date is September 30; `.npmrc`
+and its exact-lock behavior are unchanged. Integrity matches the official
+tarball and private install; shipped metafiles/notices contain none of it.
+The shared tooling install remains 1.2.1 until the owner refreshes it.
+
 SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
 matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
 the extension. It waits for `.npmrc`'s seven-day release-age rule until
@@ -20033,6 +20041,27 @@ cleanup. Record scoped rig verification separately from the failed full-quality 
 do not raise deadlines or coverage thresholds, skip tests, or run quality
 again. Native/Git/HTML timing failures and the staging-hook timing are
 recorded in §7 with their unchanged-profile evidence.
+
+**Round 3c late dependency audit.** The unreached standalone audit reports
+GHSA-68fv-2mgg-jv7q against the existing development-only `source-map-js`
+1.2.1 leaf; its fixed range starts at 1.2.2. Pin that existing transitive
+leaf exactly and refresh its lock integrity from a private, script-free
+`npm ci` in OS temporary storage. Check its peer metadata before changing
+the product manifest. Never mutate the shared worktree install. Prove the
+unchanged audit rejects the old lock and accepts the repaired lock, and
+verify the dependency remains absent from shipped bundle inputs/notices.
+Record the installed development-tool version separately; this does not
+authorize a second full-quality run or relabel the first one.
+
+**Round 3c accessibility findings.** Keep each existing translated diff
+sign/prefix and its formatted count in one colored text span so the
+contrast check can measure the full visible text, including one-digit
+counts. Preserve the text and counts. The lazy report harness must check
+its two controls after they exist, using the existing bounded `whenFound`
+helper; keep the exact two-checkbox and 24 px assertions. Never add an axe
+exemption or change the gate's waits/rules. Verify the affected scenarios
+in all four themes, then rerun the standalone accessibility gate against
+the final built output; retain the original red receipt.
 
 **Round 3b classifier reconciliation.** W's `workerFence.ts` owns the
 single argument classifier. I re-exports it and passes only the argv that
