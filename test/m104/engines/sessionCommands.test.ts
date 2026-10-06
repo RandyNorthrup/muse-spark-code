@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createRuntimeBackend, type RuntimeBackendDeps } from '../../../src/runtime/backends'
-import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
 import { runtimePaidRequestAdmission } from '../../../src/runtime/features/paidRequest'
 import { isGoalRefusedError } from '../../../src/core/agent/agentBackend'
 import { SECRET_KEYS, UI_TEXT } from '../../../src/shared/constants'
@@ -12,7 +11,7 @@ import { fakeModelApi, FAKE_MODEL_API_KEY } from '../../unit/helpers/fakeModelAp
 import { buildModelApiBundle } from '../../unit/helpers/modelApiBundle'
 import { watchSessionTurns } from '../../unit/helpers/sessionTurns'
 import { engineFixtures } from './fixtures'
-import { paidHarness } from './paidHarness'
+import { paidHarness, enginePaidBudget } from './paidHarness'
 
 const fixtures = engineFixtures()
 const dist = { folder: '' }
@@ -170,18 +169,7 @@ describe('F24 v2 portable Best-of-N attempt host', () => {
     'uses the shared ledger only when attempt admission is on (%s)',
     async (isOn) => {
       const directory = await fixtures.folder('m104-pb-best-budget-')
-      const budget = createRuntimePaidBudget(
-        {
-          directory,
-          now: Date.now,
-          capUsd: () => 1,
-          sleep: () => Promise.resolve(),
-          assertCurrent: () => undefined,
-          isLocalStorage: () => true,
-        },
-        UI_TEXT,
-        'en',
-      )
+      const budget = enginePaidBudget(directory)
       fixtures.own({ dispose: budget.dispose })
       const tariff = vi.fn(() => 0.25)
       const { paid } = paidHarness(['bestOfN'])

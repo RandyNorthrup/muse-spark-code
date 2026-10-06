@@ -139,7 +139,10 @@ interface RunningHelper {
 }
 
 /** What the conversation controller drives: the three calls, nothing else. */
-export type DictationHandle = Pick<Dictation, 'start' | 'stop' | 'dispose'>
+export type DictationHandle = Pick<Dictation, 'start' | 'stop' | 'dispose'> & {
+  /** Paid drivers drain their admitted key/claim work before the native owner closes. */
+  settled?(): Promise<void>
+}
 
 /** What the host found for a window: a way to start dictating, or why there is none. */
 export type DictationSetup =

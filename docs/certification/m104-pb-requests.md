@@ -535,3 +535,29 @@ its release. Other M95 provider credentials need their captured/validated
 provider-specific OS-store/key command contract first: this Meta credential
 service is not generic provider qualification. Bind an owned lazy factory
 reader with existing budgets. F owns PLAN/Unreleased/help and native receipts.
+
+### A/C/D/E/F — F41 voice driver ownership and F42 priced Tab
+
+`createRuntimeVoice` wraps the existing native/paid DictationSetup with live
+selected capability/admission and immutable owner checks, suppresses retired
+listeners, and awaits the actual Muse Voice key preparation/claim settlement
+plus native drain. Supply cancelNative/drainNative, verified canStart and the
+existing captured PCM capture/socket adapter. MHP's buffered recording format
+is not a captured PCM streaming converter. Paid voice still needs hard shared
+daily admission with captured price, D48 consent and usage before enabling it;
+this wrapper does not manufacture that missing service or qualify any editor.
+
+`createRuntimeTab` reuses the pure Tab engine with parsed provider stream,
+verified price snapshot, D48 allows callback, shared RuntimePaidBudget,
+capability/owner checks and original receipt-cost tally. OFF, unknown support,
+unpriced and Deny refuse before a popup/dispatch where applicable. The real
+client's final guard checks after key awaits; only onRequestStarted counts a
+paid request. Missing keys refund unsent claims; sent unknown receipts retain
+liability. Disposal drains the early suggestion's accepted stream/settlement
+before the shared journal may close. Pass the verified cost to
+PaidUsage.addTabUsage; a replacement catalog reader must not price an old call.
+Native owners supply eligible-document context, version/cursor validation,
+change/accept events, cancellation and trigger hooks. Bind owned lazy readers
+with split/size guards; Tab and voice MODEL_TEXT stay in declared bundles.
+No editor/provider qualification, flag defaults or headless paid availability
+is changed. F owns PLAN/Unreleased/help for these component receipts.

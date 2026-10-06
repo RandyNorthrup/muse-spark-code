@@ -428,8 +428,16 @@ export class PaidUsage {
    * request model's rates, apart from every conversation. A request that
    * never reports keeps its unknown count, never a zero cost.
    */
-  public addTabUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = this.usageCost(modelId, usage)
+  public addTabUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
+    if (
+      verifiedCostUsd !== undefined &&
+      (!Number.isFinite(verifiedCostUsd) ||
+        verifiedCostUsd < 0 ||
+        Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+        usage.cachedTokens > usage.inputTokens)
+    )
+      throw new Error('Paid usage has no valid verified receipt')
+    const cost = verifiedCostUsd ?? this.usageCost(modelId, usage)
     const unknown = this.tally.tabUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {

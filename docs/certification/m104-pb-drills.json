@@ -791,5 +791,110 @@
     "exitCode": 1,
     "sha256Before": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23",
     "sha256Restored": "1849bc264f3ed1cd9d30a81db82a88f6d393b957a7581de15a292469348cbc23"
+  },
+  {
+    "drill": "portable-voice-start-admission",
+    "file": "src/runtime/features/voice.ts",
+    "exitCode": 1,
+    "sha256Before": "61e25ccbc9c9780178b3af4b9a358bb71acc89cbb98d00a828eadcfa3b24fe23",
+    "sha256Restored": "61e25ccbc9c9780178b3af4b9a358bb71acc89cbb98d00a828eadcfa3b24fe23"
+  },
+  {
+    "drill": "portable-voice-individual-owner",
+    "file": "src/runtime/features/voice.ts",
+    "exitCode": 1,
+    "sha256Before": "61e25ccbc9c9780178b3af4b9a358bb71acc89cbb98d00a828eadcfa3b24fe23",
+    "sha256Restored": "61e25ccbc9c9780178b3af4b9a358bb71acc89cbb98d00a828eadcfa3b24fe23"
+  },
+  {
+    "drill": "portable-voice-prepare-drain",
+    "file": "src/core/voice/museVoice.ts",
+    "exitCode": 1,
+    "sha256Before": "f691a08cab2ba4b63478cd01beab138948d2274cd73c8aedfd01dbadd5aab326",
+    "sha256Restored": "f691a08cab2ba4b63478cd01beab138948d2274cd73c8aedfd01dbadd5aab326"
+  },
+  {
+    "drill": "portable-voice-settlement-drain",
+    "file": "src/core/voice/museVoice.ts",
+    "exitCode": 1,
+    "sha256Before": "f691a08cab2ba4b63478cd01beab138948d2274cd73c8aedfd01dbadd5aab326",
+    "sha256Restored": "f691a08cab2ba4b63478cd01beab138948d2274cd73c8aedfd01dbadd5aab326"
+  },
+  {
+    "drill": "portable-tab-off",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-capability",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-price-before-consent",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-consent",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-final-owner",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-final-trigger",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-redaction",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-uncertain-liability",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-unsent-refund",
+    "file": "src/runtime/features/tab.ts",
+    "exitCode": 1,
+    "sha256Before": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8",
+    "sha256Restored": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+  },
+  {
+    "drill": "portable-tab-original-tariff",
+    "file": "src/core/paid/paidFeatures.ts",
+    "exitCode": 1,
+    "sha256Before": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc",
+    "sha256Restored": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc"
+  },
+  {
+    "drill": "portable-tab-invalid-receipt",
+    "file": "src/core/paid/paidFeatures.ts",
+    "exitCode": 1,
+    "sha256Before": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc",
+    "sha256Restored": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc"
   }
 ]
