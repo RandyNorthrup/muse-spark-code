@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Marketplace/Open VSX and ACP npm landing pages now show static version badges
+  generated from the packaged version, avoiding stale badge-service caches.
+  Release refresh discovers every GitHub README badge, including CI and
+  Markdown images, before purging GitHub's image proxy. A packaging/quality
+  check rejects broken images, dynamic store versions and version mismatches.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
