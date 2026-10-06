@@ -62,6 +62,58 @@ class DocumentServicesTest : BasePlatformTestCase() {
       ),
   )
 
+  fun testRetiredEpochCannotEditAfterWriteCommandStarts() {
+    val (services, file) = prepare()
+    val document = myFixture.editor.document
+    var current = true
+    val connection = project.messageBus.connect()
+    connection.subscribe(
+      com.intellij.openapi.command.CommandListener.TOPIC,
+      object : com.intellij.openapi.command.CommandListener {
+        override fun commandStarted(event: com.intellij.openapi.command.CommandEvent) {
+          if (event.commandName == "Fixture edit") current = false
+        }
+      },
+    )
+    try {
+      val failure =
+        org.junit.Assert.assertThrows(Exception::class.java) {
+          services.request("documents/applyEdits", edit(DocumentServices.uri(file), document.modificationStamp)) {
+            check(current) { "MHP_TRANSPORT_CLOSED" }
+          }
+        }
+      assertEquals("MHP_TRANSPORT_CLOSED", failure.message)
+      assertEquals("alpha\nbeta\n", document.text)
+    } finally {
+      connection.disconnect()
+    }
+  }
+
+  fun testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt() {
+    val (services, file) = prepare()
+    val document = myFixture.editor.document
+    var current = true
+    document.addDocumentListener(
+      object : com.intellij.openapi.editor.event.DocumentListener {
+        override fun documentChanged(event: com.intellij.openapi.editor.event.DocumentEvent) {
+          current = false
+        }
+      },
+      testRootDisposable,
+    )
+    val params = edit(DocumentServices.uri(file), document.modificationStamp, 0, 1)
+    params.getAsJsonArray("edits").add(
+      edit(DocumentServices.uri(file), document.modificationStamp, 4, 5)
+        .getAsJsonArray("edits")[0],
+    )
+    val failure =
+      org.junit.Assert.assertThrows(Exception::class.java) {
+        services.request("documents/applyEdits", params) { check(current) { "MHP_TRANSPORT_CLOSED" } }
+      }
+    assertEquals("MHP_TRANSPORT_CLOSED", failure.message)
+    assertEquals("alphchanged\nbeta\n", document.text)
+  }
+
   fun testRefusesDirtyAndStaleBuffersBeforeAnySideEffect() {
     val (services, file) = prepare()
     val document = myFixture.editor.document

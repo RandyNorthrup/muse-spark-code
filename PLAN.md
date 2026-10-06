@@ -16286,6 +16286,15 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM104E3 / RVM104E3 finding 2:** editor request dispatch and native
+  mutation methods synchronously check the captured lifetime/owner and its
+  atomic open flag on the EDT. Document write actions and each edit repeat
+  that check. Actor-delayed cancellation and reply suppression no longer
+  authorize retired native effects. Queued native Tab/command/document
+  regressions and reentrant command/document retirement tests are recorded
+  in `docs/certification/m104-e-redesign.md`; no residual is retained for
+  this finding.
+
 - **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
   identities fix cleanup of observed separate-session workers after parent-first
   exit and JVM shutdown. A detached child created and reparented wholly between
@@ -16301,7 +16310,7 @@ before a repaired one loads (2026-09-30).
   stdin, output flooding, parent-first death, shutdown hangs, late cancellation,
   overflowing coordinates, fixed Tab failures, metadata handoff/deadline,
   mailbox admission, project teardown and reconnect. Separate-JVM tests cover
-  whole-IDE exit, including a reparented worker. POSIX containment is proved
+  whole-IDE exit, including a reparented worker. Same-group POSIX containment is proved
   on Kubuntu; Windows job and macOS execution still require their rigs.
   Private I/O pumps belong to the actor; no IDE callback closes a process
   stream synchronously. Installed-IDE qualification remains blocked by the

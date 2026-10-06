@@ -24,6 +24,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JetBrains development plugin: fence queued native editor requests against
+  their originating lifetime and connection before they mutate replacement
+  state. Recheck document edits inside the write command and before each edit,
+  including retirement during native command/document callbacks.
+
 - JetBrains development plugin: retain observed runtime descendants by PID and
   start instant so separate POSIX sessions are cleaned up after parent-first
   exit and JVM shutdown. Give the runtime the first bounded stop opportunity

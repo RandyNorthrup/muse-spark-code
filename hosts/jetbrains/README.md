@@ -76,8 +76,12 @@ discovered afterward; that qualification limit is recorded in the certification.
 Containment retains same-group workers after parent-first exit; a missing launcher or failed job
 assignment refuses startup. A JVM shutdown hook uses the prepared containment
 handle to force termination without stream I/O, and normal cleanup removes it. Transport failure removes native commands, widgets,
-panels and Tab bindings. Reconnect creates a new epoch, and closed-epoch work,
-surface callbacks and replies cannot target the replacement. Runtime failure
+panels and Tab bindings. Reconnect creates a new epoch. Each editor request checks its captured native
+lifetime and connection owner on the EDT, including the owner's synchronous
+closed flag; asynchronous token cancellation is additional cleanup. Native
+mutations repeat the check, and document writes check inside the undo command
+and before each edit so reentrant retirement also stops further edits. Surface
+callbacks and replies retain their originating owner. Runtime failure
 text is validated and replaced with fixed words before it can reach Tab's
 platform error logger.
 Only insertion ranges at the unchanged caret are offered. Other replacements

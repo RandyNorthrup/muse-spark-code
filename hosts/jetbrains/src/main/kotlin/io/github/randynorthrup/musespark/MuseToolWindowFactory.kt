@@ -123,13 +123,21 @@ class JetBrainsPanelHost(
     lateinit var owner: RuntimeConnection
     val widgets = NativeWidgets(project, boundary) { id -> owner.notify("commands/execute", json("id" to id)) }
     Disposer.register(lifetime, widgets)
-    val services = NativeHostServices(project, ::surfaceRequest, widgets)
+    val checkEpoch = {
+      check(nativeLifetime === lifetime) { "MHP_TRANSPORT_CLOSED" }
+      check(connection === owner) { "MHP_TRANSPORT_CLOSED" }
+      check(owner.isOpen) { "MHP_TRANSPORT_CLOSED" }
+    }
+    val services =
+      NativeHostServices(project, { method, params ->
+        surfaceRequest(method, params, checkEpoch)
+      }, widgets, checkEpoch = checkEpoch)
     NativeTheme.install(project, lifetime) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
     owner =
       RuntimeConnection(
         process,
         boundary,
-        dispatch(services, embedded),
+        dispatch(services, embedded, checkEpoch),
         { frame ->
           onEdt { if (!disposed && nativeLifetime === lifetime) receivePanel(frame) }
         },
@@ -169,11 +177,16 @@ class JetBrainsPanelHost(
   private fun dispatch(
     services: NativeHostServices,
     embedded: Boolean,
+    checkEpoch: () -> Unit,
   ): EditorServices =
     object : EditorServices {
       override val capabilities = services.capabilities.filter { embedded || it != "surfaces" }
 
-      override val metadata: JsonObject get() = onEdt { services.metadata }
+      override val metadata: JsonObject get() =
+        onEdt {
+          checkEpoch()
+          services.metadata
+        }
 
       override fun request(
         method: String,
@@ -182,6 +195,7 @@ class JetBrainsPanelHost(
       ): JsonElement =
         onEdt {
           check(!disposed) { "MHP_TRANSPORT_CLOSED" }
+          checkEpoch()
           cancellation.check()
           services.request(method, params, cancellation)
         }
@@ -190,8 +204,10 @@ class JetBrainsPanelHost(
   private fun surfaceRequest(
     method: String,
     params: JsonObject,
-  ): JsonElement =
-    when (method) {
+    checkEpoch: () -> Unit,
+  ): JsonElement {
+    checkEpoch()
+    return when (method) {
       "surfaces/open" -> {
         val session = params["sessionId"]?.asString ?: project.getService(PanelState::class.java).state.sessionId
         json("surfaceId" to open(params["kind"].asString, session, params["placement"].asString))
@@ -215,6 +231,7 @@ class JetBrainsPanelHost(
       }
       else -> error("MHP_METHOD_NOT_FOUND")
     }
+  }
 
   private fun open(
     kind: String,

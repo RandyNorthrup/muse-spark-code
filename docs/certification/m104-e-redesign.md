@@ -7,6 +7,9 @@ calls**. No IDE agreement accepted, merge, rebase, push or shared-install change
 
 ## Ownership and lifecycle
 
+This section records the pre-R3 redesign; the RVM104E3 follow-ups below add
+separate-session tracking, its discovery limit and native mutation fences.
+
 1. `RuntimeConnection` is the generation's single actor and lifecycle owner;
    it supervises its MHP session, process and private stream pumps. The host
    holds only this owner and native disposable state.
@@ -256,3 +259,64 @@ Final restored runtime cleanup: **66/66 passed, zero failures/errors/skips**,
 ktlint and detekt exit 0 (`temp/r3-process-restored.log`). Hooks were present
 through `.husky/_/pre-commit`; no preload, environment override or hook change
 was used. The earlier hook incident remains historical and is not repeated.
+
+## RVM104E3 follow-up: native mutation epochs
+
+Finding 2 is fixed by capturing the native lifetime and originating
+`RuntimeConnection` in the request adapter. The EDT checks both identities and
+the owner's atomic open flag synchronously. Native document, surface, Tab,
+command, widget, workspace and UI mutation paths use that fence; document
+writes repeat it inside the write command and before each edit. Token
+cancellation can still arrive later without authorizing any retired mutation.
+No guard, wire schema, paid decision, provider path or dependency was widened.
+
+The initial regression used the IDE's in-memory `temp://` filesystem and failed
+before reaching the intended mutation (`temp/r3-before-epoch.log`). It was
+corrected to the existing disk-backed fixture pattern. Against the unchanged
+production path, `testRetiredQueuedEditorRequestsCannotMutateReplacementNativeStateBeforeCancellation`
+then failed: replacement commands and the real `alpha` document were changed
+(`temp/r3-before-epoch-real-document.log`, **67 tests**, sole failure). A fresh
+replacement peer now stays idle in this regression so its own Tab registration
+cannot obscure an old Tab mutation.
+
+The regression holds the old protocol monitor, the exact actor barrier before
+inbound token cancellation. Three validated frozen-contract requests are queued
+on the actual request executor. While still holding the monitor, the test
+attaches a replacement to the same host, then pumps all three old EDT callbacks.
+It checks the replacement Tab registration, absence of an old command and
+unchanged real document. Reflection is restricted to these private production
+objects in the fixture; type narrowing uses `require`, with no unchecked cast.
+
+`testRetiredEpochCannotEditAfterWriteCommandStarts` retires the epoch in a real
+IDE command listener. `testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt`
+retires it in a real document listener after the first edit; the next edit is
+refused. The first edit took place while the epoch was valid. The tests use the
+production document mutation path and preserve its trust/version/dirty/range
+checks. No residual is retained for finding 2.
+
+Native gate preparation also caught an overlong fixture and a complex callback;
+helpers only split the fixture, and simple checks keep the production callback
+within the unchanged limits. The new failure assertions explicitly use JUnit's
+returning helper rather than the IDE test superclass's void helper.
+
+The three native mutation drills each ran all **69 owned tests**, without
+filters, exited 1 and fired only the intended named tests. Restoration hashes
+match byte-for-byte in [the combined R3 receipts](m104-e-r3-drills.json):
+`MuseToolWindowFactory.kt` SHA-256
+`d1124d86332c4053d850653372626216739c68e9789e265887b2fd4a4d1e028f`;
+`DocumentServices.kt`
+`1cf47a529a1faf5de76cb57310e47d11539fb216425c7cc9f058e9a84fb9106c`.
+
+| Deliberate mutation                                  | Expected failing regression                                                                                             |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Remove the captured native lifetime/owner/open fence | `testRetiredQueuedEditorRequestsCannotMutateReplacementNativeStateBeforeCancellation`; all three states changed         |
+| Remove the write-command and per-edit fences         | `testRetiredEpochCannotEditAfterWriteCommandStarts`, `testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt` |
+| Remove only the per-edit fence                       | `testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt`                                                      |
+
+Initial restored epoch code passed **69/69 tests**, zero failures/errors/skips,
+ktlint and detekt (`temp/r3-epoch-green-tested.log`). Final restored and shared
+check/verifier receipts follow below. No new unchecked cast, suppression,
+dependency, shared protocol file or model/paid call was introduced.
+
+Final restored native source: **69/69 passed, zero failures/errors/skips**,
+ktlint and detekt exit 0 (`temp/r3-native-final-restored.log`).

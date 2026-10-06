@@ -43,6 +43,7 @@ class NativeHostServices(
   private val surfaces: (String, JsonObject) -> JsonElement,
   private val widgets: NativeWidgets,
   private val openBrowser: (String) -> Unit = BrowserUtil::browse,
+  private val checkEpoch: () -> Unit = {},
 ) : EditorServices {
   override val capabilities =
     listOf(
@@ -86,17 +87,24 @@ class NativeHostServices(
     method: String,
     params: JsonObject,
     cancellation: RequestCancellation,
-  ): JsonElement =
-    when {
-      method.startsWith("documents/") || method.startsWith("editor/") -> documents.request(method, params)
+  ): JsonElement {
+    checkEpoch()
+    cancellation.check()
+    val checkCurrent = {
+      checkEpoch()
+      cancellation.check()
+    }
+    return when {
+      method.startsWith("documents/") || method.startsWith("editor/") -> documents.request(method, params, checkCurrent)
       method.startsWith("surfaces/") -> surfaces(method, params)
       method.startsWith("workspace/") -> workspace(method, params)
       method.startsWith("ui/") -> ui(method, params, cancellation)
       method == "tab/register" -> {
+        checkCurrent()
         project.getService(NativeTab::class.java).register(params)
         jsonValue(null)
       }
-      method == "commands/register" -> widgets.register(params)
+      method == "commands/register" -> widgets.register(params, checkCurrent)
       method == "diagnostics/get" -> diagnostics(params["uri"]?.asString)
       method == "window/state" ->
         json("focused" to focused())
@@ -106,6 +114,7 @@ class NativeHostServices(
       }
       else -> error("MHP_UNSUPPORTED_CAPABILITY")
     }
+  }
 
   fun folders(): JsonElement =
     jsonValue(
@@ -151,6 +160,7 @@ class NativeHostServices(
         require(TrustedProjects.isProjectTrusted(project)) { "MHP_UNTRUSTED_WORKSPACE" }
         val uri = URI(params["uri"].asString)
         require(uri.scheme == "file" && uri.authority.isNullOrEmpty()) { "MHP_PERMISSION_DENIED" }
+        checkEpoch()
         requireNotNull(ProjectUtil.openOrImport(Path.of(uri), project, params["newWindow"].asBoolean)) {
           "MHP_OPEN_FOLDER_FAILED"
         }
@@ -246,15 +256,17 @@ class NativeHostServices(
       "ui/openExternal" -> {
         val target = URI(params["uri"].asString)
         require(target.scheme in setOf("http", "https")) { "MHP_PERMISSION_DENIED" }
+        checkEpoch()
         openBrowser(target.toASCIIString())
         jsonValue(null)
       }
       "ui/clipboard" -> {
+        checkEpoch()
         CopyPasteManager.getInstance().setContents(StringSelection(params["text"].asString))
         jsonValue(null)
       }
-      "ui/status" -> widgets.status(params)
-      "ui/progress" -> widgets.progress(params)
+      "ui/status" -> widgets.status(params, checkEpoch)
+      "ui/progress" -> widgets.progress(params, checkEpoch)
       else -> error("MHP_METHOD_NOT_FOUND")
     }
 
@@ -300,11 +312,13 @@ class NativeHostServices(
     val dialog = pane.createDialog(WindowManager.getInstance().getFrame(project), title)
     cancellation.onCancel { javax.swing.SwingUtilities.invokeLater { dialog.dispose() } }
     try {
+      checkEpoch()
       cancellation.check()
       dialog.isVisible = true
     } finally {
       dialog.dispose()
     }
+    checkEpoch()
     cancellation.check()
   }
 
@@ -318,6 +332,7 @@ class NativeHostServices(
         "warning" -> NotificationType.WARNING
         else -> NotificationType.INFORMATION
       }
+    checkEpoch()
     NotificationGroupManager
       .getInstance()
       .getNotificationGroup(

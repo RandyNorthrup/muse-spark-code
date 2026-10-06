@@ -23,6 +23,7 @@ class DocumentServices(
   fun request(
     method: String,
     params: JsonObject,
+    checkCurrent: () -> Unit = {},
   ): JsonElement =
     when (method) {
       "documents/list" ->
@@ -38,17 +39,20 @@ class DocumentServices(
         val (file, document) = document(params["uri"].asString)
         json("document" to snapshot(file, document), "text" to document.text)
       }
-      "documents/applyEdits" -> apply(params)
-      "documents/save" -> save(params)
+      "documents/applyEdits" -> apply(params, checkCurrent)
+      "documents/save" -> save(params, checkCurrent)
       "documents/saveAll" -> {
         require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
         // Do not save another project's buffers.
         val ours = documents.unsavedDocuments.filter { documents.getFile(it)?.let(::inWorkspace) == true }
-        ours.forEach(documents::saveDocument)
+        ours.forEach {
+          checkCurrent()
+          documents.saveDocument(it)
+        }
         json("saved" to ours.none(documents::isDocumentUnsaved))
       }
       "editor/active" -> active()
-      "editor/open" -> open(params)
+      "editor/open" -> open(params, checkCurrent)
       "editor/insertAtCursor", "editor/replaceSelection" -> {
         val range =
           if (params.has("range")) {
@@ -63,34 +67,46 @@ class DocumentServices(
             "undoLabel" to params["undoLabel"],
             "edits" to listOf(json("range" to range, "newText" to params["text"])),
           ),
+          checkCurrent,
         )
       }
       else -> error("MHP_METHOD_NOT_FOUND")
     }
 
-  private fun save(params: JsonObject): JsonElement {
+  private fun save(
+    params: JsonObject,
+    checkCurrent: () -> Unit,
+  ): JsonElement {
     val (file, document) = document(params["uri"].asString)
     require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
     require(file.isWritable) { "MHP_PERMISSION_DENIED" }
     require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
+    checkCurrent()
     documents.saveDocument(document)
     require(!documents.isDocumentUnsaved(document)) { "MHP_SAVE_FAILED" }
     return snapshot(file, document)
   }
 
-  private fun open(params: JsonObject): JsonElement {
+  private fun open(
+    params: JsonObject,
+    checkCurrent: () -> Unit,
+  ): JsonElement {
     val (file, document) = document(params["uri"].asString)
     val range = params["range"]?.asJsonObject
     val start = range?.getAsJsonObject("start")?.let { offset(document, it) } ?: 0
     val end = range?.getAsJsonObject("end")?.let { offset(document, it) } ?: start
     require(start <= end) { "MHP_INVALID_RANGE" }
+    checkCurrent()
     val editor =
       requireNotNull(
         FileEditorManager.getInstance(project).openTextEditor(OpenFileDescriptor(project, file, start), true),
       ) {
         "MHP_EDITOR_UNAVAILABLE"
       }
-    if (range != null) editor.selectionModel.setSelection(start, end)
+    if (range != null) {
+      checkCurrent()
+      editor.selectionModel.setSelection(start, end)
+    }
     return jsonValue(null)
   }
 
@@ -148,7 +164,10 @@ class DocumentServices(
     val text: String,
   )
 
-  private fun apply(params: JsonObject): JsonObject {
+  private fun apply(
+    params: JsonObject,
+    checkCurrent: () -> Unit,
+  ): JsonObject {
     val (file, document) = document(params["uri"].asString)
     require(trusted()) { "MHP_UNTRUSTED_WORKSPACE" }
     require(file.isWritable) { "MHP_PERMISSION_DENIED" }
@@ -175,9 +194,13 @@ class DocumentServices(
       params["undoLabel"].asString,
       null,
       Runnable {
+        checkCurrent()
         require(document.modificationStamp == params["expectedVersion"].asLong) { "MHP_VERSION_CONFLICT" }
         require(!documents.isDocumentUnsaved(document)) { "MHP_DIRTY_BUFFER" }
-        for (edit in edits.asReversed()) document.replaceString(edit.start, edit.end, edit.text)
+        for (edit in edits.asReversed()) {
+          checkCurrent()
+          document.replaceString(edit.start, edit.end, edit.text)
+        }
       },
     )
     return snapshot(file, document)

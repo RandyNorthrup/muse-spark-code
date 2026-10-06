@@ -28,7 +28,11 @@ class NativeWidgets(
   private val progresses = mutableMapOf<String, ProgressWindow>()
   private val commands = mutableSetOf<String>()
 
-  fun register(params: JsonObject): JsonElement {
+  fun register(
+    params: JsonObject,
+    checkCurrent: () -> Unit = {},
+  ): JsonElement {
+    checkCurrent()
     val id = "MuseSpark.${project.locationHash}.${params["id"].asString}"
     require(id in commands || commands.size < boundary.maximumQueuedMessages) { "MHP_PANEL_BACKPRESSURE" }
     val manager = ActionManager.getInstance()
@@ -43,6 +47,7 @@ class NativeWidgets(
           if (event.project == project && !project.isDisposed) execute(params["id"].asString)
         }
       }
+    checkCurrent()
     manager.registerAction(id, action)
     commands.add(id)
     val key = params["suggestedKey"]?.asString?.let(KeyStroke::getKeyStroke)
@@ -53,7 +58,11 @@ class NativeWidgets(
     return jsonValue(null)
   }
 
-  fun status(params: JsonObject): JsonElement {
+  fun status(
+    params: JsonObject,
+    checkCurrent: () -> Unit = {},
+  ): JsonElement {
+    checkCurrent()
     val bar = requireNotNull(WindowManager.getInstance().getStatusBar(project)) { "MHP_UI_UNAVAILABLE" }
     val id = params["id"].asString
     val widgetId = "MuseSpark.$id"
@@ -67,12 +76,17 @@ class NativeWidgets(
         }
       widget.widget.labelText = params["text"].asString
       widget.widget.command = params["command"]?.asString
+      checkCurrent()
       bar.updateWidget(widgetId)
     }
     return jsonValue(null)
   }
 
-  fun progress(params: JsonObject): JsonElement {
+  fun progress(
+    params: JsonObject,
+    checkCurrent: () -> Unit = {},
+  ): JsonElement {
+    checkCurrent()
     val id = params["id"].asString
     if (params["done"].asBoolean) {
       progresses.remove(id)?.let {

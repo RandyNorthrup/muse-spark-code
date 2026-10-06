@@ -23,6 +23,7 @@ class RuntimeConnection(
   MhpPeer {
   val epoch = epochs.incrementAndGet()
   private val closing = AtomicBoolean()
+  val isOpen: Boolean get() = !closing.get()
   val terminated = CompletableFuture<Unit>()
   private val waiting = ConcurrentHashMap.newKeySet<CompletableFuture<JsonElement>>()
 
