@@ -20,6 +20,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Concurrent task publication on Windows (WINPUB).** Importing a worker's
+  objects no longer starts automatic Git maintenance, writes a commit graph,
+  or recurses into submodules. The destination still validates imported
+  objects before atomic expected-old ref publication. The real two-writer
+  regression checks both imported trees and the import command policy;
+  loaded timings and deadline limits are recorded in lane I's certification.
+
 - **Windows team Git operation cost (REDWINI96).** Merge reads exact blob
   IDs and modes from its raw diff, retrieves all required bytes through one
   binary-safe Git batch, and reuses them within that operation. Dirty base

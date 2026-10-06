@@ -342,9 +342,14 @@ describe('two writers', () => {
     expect(writersReady).toBe(2)
     expect(one.committed).toBe(true)
     expect(two.committed).toBe(true)
+    const imports: (readonly string[])[] = []
+    const publicationGit: typeof runGit = async (args, cwd, input, env) => {
+      if (args[0] === 'fetch') imports.push(args)
+      return await runGit(args, cwd, input, env)
+    }
     await Promise.all([
       publishTaskRef(
-        runGit,
+        publicationGit,
         root,
         first.workspace.folder,
         'agents/engineering/t1',
@@ -352,13 +357,35 @@ describe('two writers', () => {
         head,
       ),
       publishTaskRef(
-        runGit,
+        publicationGit,
         root,
         second.workspace.folder,
         'agents/engineering/t2',
         'refs/heads/agents/engineering/t2',
         head,
       ),
+    ])
+    expect(imports).toHaveLength(2)
+    for (const args of imports) {
+      expect(args).toEqual(
+        expect.arrayContaining([
+          '--no-write-fetch-head',
+          '--no-auto-maintenance',
+          '--no-write-commit-graph',
+          '--no-recurse-submodules',
+        ]),
+      )
+    }
+    // Read from the destination object store, not the worker alternates:
+    // removing incidental fetch work must still import both complete trees.
+    const published = await runGit(
+      ['cat-file', '--batch'],
+      root,
+      `${one.head}:shared.txt\n${two.head}:shared.txt\n`,
+    )
+    expect(Array.from(fixtureBlobs(published).values(), (bytes) => TEXT.decode(bytes))).toEqual([
+      'one\nFIRST\nthree\n',
+      'one\nSECOND\nthree\n',
     ])
     expect(await revOf(root, 'refs/heads/agents/engineering/t1')).toBe(one.head)
     expect(await revOf(root, 'refs/heads/agents/engineering/t2')).toBe(two.head)

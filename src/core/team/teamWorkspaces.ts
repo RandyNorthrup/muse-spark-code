@@ -468,7 +468,22 @@ export async function publishTaskRef(
     )
   }
   const head = await revParse(teamProgramFreeGit(runGit), cloneFolder, branch)
-  await runGit(['fetch', '--no-write-fetch-head', '--no-tags', cloneFolder, head], repositoryRoot)
+  // Import only: per-task housekeeping adds children to both concurrent
+  // writers and can contend on the user's repository. Objects are checked
+  // before the separate atomic ref transaction, with no submodule work.
+  await runGit(
+    [
+      'fetch',
+      '--no-write-fetch-head',
+      '--no-tags',
+      '--no-auto-maintenance',
+      '--no-write-commit-graph',
+      '--no-recurse-submodules',
+      cloneFolder,
+      head,
+    ],
+    repositoryRoot,
+  )
   try {
     await runGit(
       ['update-ref', agentsRef, head, expected ?? '0'.repeat(head.length)],

@@ -17637,6 +17637,25 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**WINPUB publication performance (2026-10-05).** Fresh repair allowance for
+the two-writer Windows publication delay, from `829ba9b3`. Instrument only
+the real concurrent commit/publication path, including Git's descendants,
+lock/rename/fsync regions and any waits or retries, idle and under bounded
+CPU load. Fix measured product cost without changing atomic expected-old
+ref publication, importing incomplete objects, caching mutable refs/config,
+or weakening repository-program isolation. There is no application polling
+lock in this path; investigate Git import and transaction cost before adding
+one. Require 30/30 loaded two-writer executions, four consecutive complete
+214-case Windows runs with three workers and default deadlines, and a
+SHA-256-exact restored old-path timeout drill. Keep POSIX semantics; Mac/Linux
+integration and full quality remain the lead's gates under the rig brief.
+No timeout increase, test retry, skip, dependency, push, merge or rebase.
+The publication trace also measures loose-object hardware flushes inside
+unpack-objects. A saved-byte trial of Git's existing `--keep` import reports
+three hardware flushes per writer, the same as loose-object import, so it
+is not adopted. POSIX object-import representation remains unchanged;
+fsync is never disabled and no second object-store writer is implemented.
+
 **FIXM96I repair plan (2026-10-05, RVM96B findings 1–12 and 24).**
 Windows follow-up WINM96I runs the complete owning files on the local Windows
 host (at most three files and three workers), including junction deletion,
@@ -20965,6 +20984,25 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**WINPUB native publication proof (2026-10-05).** Task imports exclude
+automatic maintenance, commit-graph writing and submodule recursion while
+retaining object validation and atomic expected-old ref publication. The
+final source passes four consecutive complete Windows runs, **214/214** each,
+with three workers and default deadlines. An early six-worker loaded run
+passes **30/30**, but the repeat under verified Git selection is **18 passed /
+10 timed out / 2 hook-cascade skipped**. The loaded performance requirement
+remains open; the early green is not substituted for the later failure.
+The restored old-path drill times out in five of thirty cases at full
+saturation. Every new import
+option's guard fires separately and restores SHA-256-exact. A broken alternate
+Git installation interrupts an earlier sequence; process-local selection of
+the verified rig Git resolves that environment failure without changing gates.
+Individual Git syscall timings and a robust loaded deadline guarantee are
+not established. Full quality/coverage and Mac/Linux integration remain the
+lead's gates. Detailed receipts and retained failures are in
+`docs/certification/m96-i-winpub.md`; the historical REDWINI96 results below
+are not substituted for this new proof.
+
 **REDWINI96 measured redesign (2026-10-05).** Exact merge blobs use one
 binary-safe batch and per-operation reuse; dirty base metadata uses one
 query, and isolated revision lookup avoids a driver-config child. Prepared
@@ -21689,6 +21727,19 @@ before a repaired one loads (2026-09-30).
   default deadlines, and a byte-exact restored slow-path timeout drill.
   The M96 integration lane re-runs Mac/Linux; full quality remains the
   lead's gate under common.md. No retries, deadline increases or skips.
+  WINPUB removes per-import automatic maintenance, commit-graph writing and
+  submodule recursion, retaining live reads, connectivity checks and CAS.
+  Four final-source native runs pass **214/214** each under verified Git
+  selection. One early six-worker load run passes **30/30**, but its repeat
+  is **18 passed / 10 timed out / 2 hook-cascade skipped**; the required loaded
+  deadline remains unclosed. The original fetch path's restored stress drill
+  times out in five of thirty independent cases. Individual lock/rename/fsync
+  syscall durations remain unavailable from Git's traces; native transaction
+  bounds and flush counts are recorded instead. Git's pack-retention trial
+  retains three hardware flushes per writer and is not shipped. No guessed
+  durability/streaming contract, new object-store writer or deadline change
+  is added. Full quality/coverage, Mac/Linux and existing I-path-race remain
+  the lead's checks. See `docs/certification/m96-i-winpub.md` for every result.
 
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
   with no scoped finding deferred. Named validation residual **I-Windows**
