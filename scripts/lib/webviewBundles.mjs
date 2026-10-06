@@ -15,4 +15,12 @@ export function webviewStartupOutputs(meta) {
   return [...eager]
 }
 
-export const DEFERRED_WEBVIEW_SURFACES = ['UsageDialog']
+export const DEFERRED_WEBVIEW_SURFACES = [
+  'GitPanel',
+  'AgentMap',
+  'UsageDialog',
+  'BestOfNDialog',
+  'ReviewPane',
+  'HistoryDialog',
+  'ReportDialog',
+]

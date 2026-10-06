@@ -15,21 +15,35 @@
 
   "entry": [
     "src/extension.ts",
+    "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
+    "src/shared/wireEntry.ts",
+    // Tab's lazy provider, engine and ledger (M94), loaded by path.
+    "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
+    "src/core/backends/modelapi/foreignHooksEntry.ts",
+    // M91: the hook and MCP-form runtime, imported by path on first use.
+    "src/core/backends/modelapi/hookRuntimeEntry.ts",
+    // The Amp and OpenCode plugin host's own bundle (M91b), required on the first plugin hook.
+    "src/core/backends/modelapi/pluginHooksEntry.ts",
     // The plan reader's own bundle (M79), required by path on the first plan action.
     "src/host/planMarkdownEntry.ts",
     // The checkpoint store's own bundle (M72), required by path at construction.
     "src/host/checkpoints/checkpointStoreEntry.ts",
+    // The browser check's own bundle (M81), required by path on the first check.
+    "src/host/browser/browserCheckEntry.ts",
+    // Its runtime acquisition (M81 A1), required by path when a runtime is prepared.
+    "src/host/browser/browserRuntimeEntry.ts",
     // The review's own bundle (M70), required by path on the first review.
     "src/host/review/reviewEntry.ts",
     // The import from other agents' own bundle (M83), required by path on the first import.
     "src/host/agentImportEntry.ts",
+    "src/host/git/conversationGitEntry.ts",
     // The bundled skills installer's own bundle (M89), required by path on first use.
     "src/host/skills/bundledSkillsEntry.ts",
     // Code intelligence's `ide` answers and voice's drivers, each required by
@@ -40,6 +54,13 @@
     "src/host/web/webFetchEntry.ts",
     // The Auto reviewer on Muse Code (M90), required on the first review.
     "src/host/review/museCodeReviewerEntry.ts",
+    // Both-backend extension hooks, required by path on first use (M91 E).
+    "src/host/extensionHooksEntry.ts",
+    // What's New (M99), required on the first page or notice, and its page script.
+    "src/host/whatsNew/whatsNewEntry.ts",
+    "src/webview/whatsNew/main.ts",
+    // M98's Judge, required only at the first eligible approval.
+    "src/host/judge/judgeEntry.ts",
     "src/host/backend/searchWorker.ts",
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
@@ -60,6 +81,8 @@
     "test/unit/helpers/fakeMcpLauncherParent.mjs",
     "test/unit/helpers/fakeMcpPrebindParent.mjs",
     "test/unit/helpers/fakeMcpStartMarker.mjs",
+    // The never-ending monitor the M92b bounded-run proof starts by path.
+    "test/fixtures/never-ending-monitor.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
@@ -103,6 +126,11 @@
 
   "ignoreExportsUsedInFile": true,
 
+  // These add-on issue types extend Knip 6's default set; listing any ordinary
+  // issue type here would replace that set and silently narrow the gate.
+  // Type-only namespace imports in partial mocks must not hide unused exports.
+  "include": ["nsExports", "nsTypes"],
+
   // error = fails the run.
   //
   // `cycles` is deliberately absent: knip 6's rule reported nothing against a
@@ -114,7 +142,9 @@
     "unlisted": "error",
     "unresolved": "error",
     "exports": "error",
+    "nsExports": "error",
     "types": "error",
+    "nsTypes": "error",
     "duplicates": "error",
     "binaries": "error",
     "enumMembers": "error"

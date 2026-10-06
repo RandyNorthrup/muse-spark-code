@@ -62,6 +62,10 @@ jobs:
             echo "::error::tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not on main" >&2
             exit 1
           fi
+      # M81 A1: never ship an expired browser check runtime pin, or one more
+      # than 14 days behind the newest Stable (design spec v4 §4.2).
+      - name: the browser check runtime pin is current
+        run: node scripts/check-browser-runtime-pin.mjs
 
   reuse:
     name: verified CI artifacts or full-build fallback
@@ -406,6 +410,8 @@ jobs:
     concurrency:
       group: release-major-tag
       cancel-in-progress: false
+    outputs:
+      all-published: ${{ steps.report.outputs.all-published }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -452,3 +458,26 @@ jobs:
             echo '::warning::M80 v0 update failed; admin move required. Published channel outcomes remain above.'
             printf '\nM80 Action major tag (`v0`): **admin move required** after the failed update for `%s`. Confirm its current target, then follow `docs/RELEASING.md`; channel outcomes above are unchanged.\n' "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
           fi
+
+  refresh-badges:
+    name: refresh README badges
+    needs: summary
+    if: ${{ !cancelled() && needs.summary.result == 'success' && needs.summary.outputs.all-published == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit
+      - name: refresh README badges
+        run: node scripts/refresh-badges.mjs
+      - name: report refresh setup failure
+        if: failure()
+        run: echo '::warning::README badge refresh failed; published releases are unchanged.'

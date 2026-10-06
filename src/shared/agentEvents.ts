@@ -118,6 +118,14 @@ export const itemSnapshotFields = {
   turnId: z.optional(z.string()),
   /** `agentMessage` / `userMessage`: the text; `reasoning`: raw text if exposed. */
   text: z.optional(z.string()),
+  /**
+   * `agentMessage`: a MessageDisplay hook's display-only rewrite (M91).
+   * `text` stays the original, so history, copy and export keep it; the
+   * panel shows this with the hook's marker and the original one click
+   * away. A hook cannot set or remove the marker itself: the panel adds it
+   * whenever this differs from `text`.
+   */
+  displayText: z.optional(z.string()),
   /** `reasoning`: summary parts, streamed as `summary.N` deltas. */
   summary: z.optional(z.array(z.string())),
   /** `toolCall`: tool name and the model-authored argument JSON, verbatim. */
@@ -275,6 +283,35 @@ export const answerSchema = z.object({
 })
 export type QuestionAnswer = z.infer<typeof answerSchema>
 
+/** One field of an MCP elicitation form (M91 lane M): the schema, never values. */
+export const elicitationFieldSchema = z.object({
+  name: z.string(),
+  title: z.optional(z.string()),
+  description: z.optional(z.string()),
+  type: z.enum(['string', 'number', 'integer', 'boolean']),
+  required: z.boolean(),
+  enum: z.optional(z.array(z.string())),
+  enumNames: z.optional(z.array(z.string())),
+  format: z.optional(z.enum(['email', 'uri', 'date', 'date-time'])),
+  default: z.optional(z.union([z.string(), z.number(), z.boolean()])),
+  minLength: z.optional(z.number()),
+  maxLength: z.optional(z.number()),
+  minimum: z.optional(z.number()),
+  maximum: z.optional(z.number()),
+})
+export type ElicitationField = z.infer<typeof elicitationFieldSchema>
+
+/** How an elicitation form settles (M91 lane M): accept, decline or cancel. */
+export const elicitationReplySchema = z.union([
+  z.object({
+    kind: z.literal('accepted'),
+    values: z.record(z.string(), z.unknown()),
+  }),
+  z.object({ kind: z.literal('declined') }),
+  z.object({ kind: z.literal('cancelled') }),
+])
+export type ElicitationReply = z.infer<typeof elicitationReplySchema>
+
 export const todoItemSchema = z.object({
   text: z.string(),
   status: z.string(),
@@ -345,6 +382,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     reasoningTokens: z.optional(z.number()),
     modelId: z.optional(z.string()),
     packedTokensAvoided: z.optional(z.number()),
+    hookTokensAdded: z.optional(z.int().check(z.nonnegative())),
   }),
   z.object({
     type: z.literal('contextUsage'),
@@ -366,6 +404,8 @@ const agentEventSchema = z.discriminatedUnion('type', [
   // The host is waiting for a decision on a gated tool call.
   z.object({
     type: z.literal('approvalRequested'),
+    /** Extension-owned advisory, never a Muse Code wire field. */
+    judgeCaution: z.optional(z.boolean()),
     approvalId: z.string(),
     itemId: z.string(),
     toolName: z.string(),
@@ -394,6 +434,12 @@ const agentEventSchema = z.discriminatedUnion('type', [
      */
     turnId: z.optional(z.string()),
   }),
+  // Extension-owned note only: cannot change a choice or settle an approval.
+  z.object({
+    type: z.literal('approvalCaution'),
+    approvalId: z.string(),
+    requirementId: requirementRefSchema,
+  }),
   // A stage was decided and the next one is pending: new choices, same card.
   z.object({
     type: z.literal('approvalUpdated'),
@@ -401,6 +447,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     requirementId: requirementRefSchema,
     subject: approvalSubjectSchema,
     availableChoices: z.array(approvalChoiceSchema),
+    /**
+     * Why the card asks beyond the mode. The CLI sends none; the controller
+     * sets the secret note here too when it scrubs one in (M92e).
+     */
+    note: z.optional(z.string()),
   }),
   z.object({
     type: z.literal('approvalResolved'),
@@ -427,6 +478,26 @@ const agentEventSchema = z.discriminatedUnion('type', [
     answers: z.array(answerSchema),
     /** The explanation given instead of an answer (`clarified`, M46). */
     clarification: z.optional(z.string()),
+  }),
+  // An MCP server asked the user for structured input (`elicitation/create`,
+  // M91 lane M): the panel shows a form, the ACP agent its form path. The
+  // request carries the schema, never values; the settlement carries the
+  // action only, so values reach no transcript or export.
+  z.object({
+    type: z.literal('elicitationRequested'),
+    elicitationId: z.string(),
+    server: z.string(),
+    message: z.string(),
+    fields: z.array(elicitationFieldSchema),
+    /** The tool row the form belongs under; absent, it stands on its own. */
+    itemId: z.optional(z.string()),
+  }),
+  z.object({
+    type: z.literal('elicitationSettled'),
+    elicitationId: z.string(),
+    action: z.enum(['accept', 'decline', 'cancel']),
+    /** Why a hook declined or cancelled it. */
+    reason: z.optional(z.string()),
   }),
   // The full todo list, replaced wholesale.
   z.object({ type: z.literal('todoChanged'), items: z.array(todoItemSchema) }),

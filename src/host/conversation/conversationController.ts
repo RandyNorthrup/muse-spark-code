@@ -1,3 +1,4 @@
+import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -11,6 +12,7 @@ import {
   type AgentHost,
   type AgentSession,
   type BackendKind,
+  NO_EXTENSION_HOOK_DISPATCH,
   type GoalCommand,
   type GoalRefusal,
   type HostExit,
@@ -36,6 +38,8 @@ import {
   type TurnSubmission,
 } from '../../core/agent/agentBackend'
 import { editAutomaticallyChoice, isReviewableApproval } from '../../core/agent/approvalRules'
+import { scrubSecretApproval } from '../../core/agent/approvalSecrets'
+import { countSecretMatches, redactDiagnosticEvent, redactSecrets } from '../../core/redact'
 import { toSessionRow } from '../../core/agent/sessionRows'
 import {
   hasUnshownCharacters,
@@ -53,12 +57,12 @@ import {
   planTooLargeText,
 } from '../../core/plans/planStore'
 import type { WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
-import { isProfileWorkspace, type ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
+import type { ShellSandboxPosture } from '../../core/backends/musecode/sandbox'
 import type { BestOfNGitGuard } from '../../core/bestOfN/bestOfNRunner'
 import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNError'
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
-import { failureForLog } from '../../core/backends/musecode/logText'
+import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
 import { chatReferenceText } from '../../core/chatReference'
 import type { PlanModeHold, PlanModeRestore } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
@@ -102,7 +106,7 @@ import {
   PLAN_FILE_MAX_KB,
   PLAN_TODO_PENDING_STATUS,
   MENTION_RESULT_LIMIT,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   MSP_READ_OUTPUT_CONCURRENCY,
   MSP_REQUESTED_CAPABILITIES,
   MUSE_EVENT_LOG_FAULT,
@@ -115,6 +119,7 @@ import {
   REVIEW_PANE_MAX_EDITS,
   REVIEW_PANE_MAX_LINES,
   SANDBOX_FAILURE_MARKER,
+  SANDBOX_PREPARING_MARKER,
   SESSION_LIST_LIMIT,
   SESSION_LIST_MAX_PAGES,
   CHOICE_STEERING_NOTE,
@@ -124,6 +129,8 @@ import {
   TEXT_ATTACHMENT_EXTENSIONS,
   TEXT_FILE_DISPLAY_MARKER,
   UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS,
+  REPORT_UNKNOWN_ERROR_CODE,
+  type ReportEventKind,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
@@ -131,12 +138,14 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
+import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
   ChatReference,
@@ -147,6 +156,8 @@ import type {
   MentionItem,
   ModelOption,
   NoticeAction,
+  ReportEventRef,
+  ReportWebviewError,
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
@@ -159,6 +170,41 @@ import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import { errorDetail, type Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
+
+/** The controller's Git adapter contract, portable to hosts without VS Code. */
+export interface ConversationGitPort {
+  postState(isSurfaceReady?: boolean): void
+  sessionChanged(sessionId: string | undefined): void
+  handleAction(action: GitAction): Promise<void>
+  commit(message: string, isUnstagedIncluded: boolean): Promise<void>
+  createPullRequest(request: NewPullRequestRequest): Promise<void>
+  promptFor(kind: GitDraftKind, base?: string): Promise<string>
+  generationStarting(kind: GitDraftKind): number
+  isGenerationCurrent(id: number): boolean
+  generationSubmitted(turnId: string, id?: number): void
+  generationFailed(id?: number): void
+  onEvent(event: AgentEvent): void
+  dispose(): void
+}
+
+/** The controller's side of the injected Git adapter. */
+export interface GitSurface {
+  post(message: HostToWebviewMessage): void
+  /** Fixed words only: the notice can also reach the log. */
+  notice(level: 'info' | 'warning' | 'error', text: string): void
+  /** Dynamic program details stay in the panel. */
+  say(level: 'warning' | 'error', text: string): void
+  sessionId(): string | undefined
+}
+
+/** The pull request form as the user pressed Create on it. */
+export interface NewPullRequestRequest {
+  readonly head: string
+  readonly base: string
+  readonly title: string
+  readonly body: string
+  readonly isDraft: boolean
+}
 import {
   ConversationCheckpoints,
   type NoticeLevel,
@@ -182,6 +228,28 @@ import {
   readTransferDocument,
   type SessionTransferFiles,
 } from './sessionImport'
+import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
+import type { ReportEditorIo } from '../support/reportProblem'
+import type * as ReportBundle from '../support/reportEntry'
+
+/**
+ * Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
+ * facts and journal, and the recorder's two ways in. Recording writes facts
+ * (a fixed kind, a known code, package frames), never the text a row shows.
+ */
+export interface ConversationReports {
+  readonly source: ReportDataSource
+  /** The editor's clipboard, browser, save picker and issue reporter for the exports. */
+  readonly io: ReportEditorIo
+  /** Journals the webview's scrubbed failure (the recorder bounds how many). */
+  readonly recordWebviewError: (error: ReportWebviewError) => void
+  /**
+   * Journals one failure as facts (a fixed kind and a code the recorder
+   * checks against its vocabulary); the sanitized reference a row then
+   * carries, or undefined when nothing was recorded.
+   */
+  readonly record: (kind: ReportEventKind, code: string) => ReportEventRef | undefined
+}
 
 /**
  * One subscription on the current host (list stream, usage stream),
@@ -300,6 +368,8 @@ export interface ConversationDeps {
   readonly initialPermissionMode: PermissionMode
   /** False until the approval cards ship (M4); see shared/permissionModes.ts. */
   readonly hasApprovalUi: boolean
+  readonly runManualHook?: (name: string) => Promise<{ readonly matched: boolean }>
+  readonly rewriteMessage?: (text: string) => Promise<string | undefined>
   readonly openExternal: (url: string) => void
   readonly openSideChat?: (sessionId: string) => void
   readonly mentions: MentionSearch
@@ -324,10 +394,13 @@ export interface ConversationDeps {
   /** A shell tool reported the OS sandbox missing: the host offers the setup. */
   readonly onSandboxUnavailable: () => void
   readonly platform: NodeJS.Platform
-  /** `%USERPROFILE%`; undefined off Windows (the sandbox notice, D12). */
-  readonly userProfileDir: string | undefined
   /** The shell sandbox posture the host runs with (D12). */
   readonly shellSandbox: () => ShellSandboxPosture
+  /**
+   * True the first time in this window that the sandbox-off warning may be
+   * shown (musecode-write-asks); without it, every session shows it.
+   */
+  readonly shouldWarnSandboxOff?: () => boolean
   /** The active editor for the file chip (M5); undefined when none. */
   readonly editorContext: () => EditorContext | undefined
   /** `museSpark.autosave`: save dirty editors before every turn. */
@@ -375,12 +448,29 @@ export interface ConversationDeps {
   readonly exports: ConversationExports
   /** Session import and share files (M84, PLAN.md D49): pick a JSON file, confirm the import. */
   readonly transferFiles: SessionTransferFiles
+  /**
+   * Report a problem (M93, PLAN.md D72): the flight recorder's side for this
+   * surface. Undefined where no recorder could start; the dialog then says
+   * plainly that it did not work, and failures go unrecorded.
+   */
+  readonly reports?: ConversationReports | undefined
   /** Saved plans (M79); undefined without a workspace folder. */
   readonly plans: PlanFiles | undefined
   /** The palette's paid-feature toggles (M33, PLAN.md D30): on asks for the price first. */
   readonly setPaidFeature: (feature: PaidFeature, isOn: boolean) => Promise<void>
-  /** VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!` command (M46). */
+  /**
+   * VS Code workspace trust (PLAN.md D13): Restricted Mode runs no `!`
+   * command (M46). VS Code's alone; git also needs the hold let go (M71).
+   */
   readonly isWorkspaceTrusted: () => boolean
+  /**
+   * The window is held on someone else's pull request (M71): the
+   * conversation stays in Plan mode and runs no `!` command until the user
+   * trusts the worktree in the extension's card.
+   */
+  readonly isWorktreeHeld: () => boolean
+  /** Git and pull requests for this conversation (M71), given the controller's side. */
+  readonly createGit: (surface: GitSurface) => ConversationGitPort
   /**
    * A command that Ctrl+B can move to the background started or stopped
    * running here (M46): the keybinding's context key follows.
@@ -472,6 +562,7 @@ export interface ConversationDeps {
    * Auto, an approval Muse Code raised goes to it before the user. Absent
    * where there is none.
    */
+  readonly judge?: JudgeAdvisory | undefined
   readonly museCodeReviewer?: MuseCodeReviewerPort
   readonly now: () => number
   readonly log: Logger
@@ -486,6 +577,8 @@ export interface UsageInsightsReport {
 const IDLE_STATUS = 'idle'
 const NOOP_STATUS = 'noop'
 const CANCELLED_STATUS = 'cancelled'
+// A tool call that ended in failure, on both backends (M93: journalled as a fact).
+const FAILED_ITEM_STATUS = 'failed'
 // `session/compact` rejects with this reason before the first turn has run
 // (verified live 2026-09-21); it is "nothing to do", not a failure.
 const MISSING_RUN_REASON = 'missing_run'
@@ -509,6 +602,7 @@ const ATTENTION_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'turnCompleted',
   'approvalRequested',
   'questionRequested',
+  'elicitationRequested',
 ])
 /** Session/model actions must stop as soon as sign-out is announced in any panel. */
 const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = new Set([
@@ -521,6 +615,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'exportConversation',
   'decideApproval',
   'answerQuestion',
+  'elicitationAnswer',
   'clarifyQuestion',
   'moveToBackground',
   'rewindConversation',
@@ -564,6 +659,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'withdrawQueued',
 ])
 const QUEUED_DISPOSITION = 'queued'
+const COMPLETED_STATUS = 'completed'
 const TOOL_CALL_KIND = 'toolCall'
 const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
@@ -572,8 +668,15 @@ const UNSAVED_FILES_NAMED = 3
 // How a notice the user saw reads in the log (M39).
 const NOTICE_PREFIX = 'Shown in the panel: '
 
+// An error in words for the log or the panel: external text (an MSP failure,
+// CLI output) is redacted first, since it can carry a secret-shaped value.
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
+}
+
+/** CLI errors are logged by kind/code; their message is for the redacted panel only. */
+function describeForLog(error: unknown): string {
+  return isMspFailure(error) ? failureForLog(error) : describe(error)
 }
 
 // The two tables below are built when used, never at module load: the
@@ -788,18 +891,23 @@ function planBrief(
   return {
     label: planLogName(path.posix.basename(relativePath)),
     displayText: fill(UI_TEXT.planBriefText, { path: relativePath }),
-    modelText: fill(MODEL_TEXT.planBriefRequest, { path: relativePath }),
+    modelText: fill(CONVERSATION_MODEL_TEXT.planBriefRequest, { path: relativePath }),
     attachment: { name: relativePath, bytes },
     modelNote: (hasSetTodos) => {
-      const lead = fill(isApproved ? MODEL_TEXT.planBriefApproved : MODEL_TEXT.planBriefFromFile, {
-        name,
-      })
+      const lead = fill(
+        isApproved
+          ? CONVERSATION_MODEL_TEXT.planBriefApproved
+          : CONVERSATION_MODEL_TEXT.planBriefFromFile,
+        {
+          name,
+        },
+      )
       if (steps.length === 0) {
         return lead
       }
       const todos = hasSetTodos
-        ? fill(MODEL_TEXT.planBriefTodosSet, { steps: numberedSteps(steps) })
-        : MODEL_TEXT.planBriefTodosAsk
+        ? fill(CONVERSATION_MODEL_TEXT.planBriefTodosSet, { steps: numberedSteps(steps) })
+        : CONVERSATION_MODEL_TEXT.planBriefTodosAsk
       return `${lead} ${todos}`
     },
     todos: steps.map((step) => ({ text: step, status: PLAN_TODO_PENDING_STATUS })),
@@ -832,14 +940,16 @@ function handoffBrief(
     attachment: undefined,
     modelNote: (hasSetTodos) => {
       const lead =
-        goal === undefined ? MODEL_TEXT.handoffNote : fill(MODEL_TEXT.handoffNoteWithGoal, { goal })
+        goal === undefined
+          ? CONVERSATION_MODEL_TEXT.handoffNote
+          : fill(CONVERSATION_MODEL_TEXT.handoffNoteWithGoal, { goal })
       if (todos.length === 0) {
         return lead
       }
       const steps = todos.map((todo) => todo.text)
       const list = hasSetTodos
-        ? fill(MODEL_TEXT.handoffTodosSet, { steps: numberedSteps(steps) })
-        : MODEL_TEXT.handoffTodosAsk
+        ? fill(CONVERSATION_MODEL_TEXT.handoffTodosSet, { steps: numberedSteps(steps) })
+        : CONVERSATION_MODEL_TEXT.handoffTodosAsk
       return `${lead} ${list}`
     },
     todos,
@@ -899,24 +1009,7 @@ function errorKind(error: unknown): string {
   return error instanceof Error ? error.name : typeof error
 }
 
-/**
- * The extension's existing restart sequence (D25/D26), shared with its tests
- * so a Muse-only recovery proves both controller and host isolation.
- */
-export async function restartConversationBackends(
-  controllers: Iterable<ConversationController>,
-  museCode: { dispose: () => Promise<void> },
-  modelApi: { dispose: () => Promise<void> },
-  isConversationEnding: boolean,
-  isMuseCodeOnly: boolean,
-): Promise<void> {
-  await Promise.all(
-    Array.from(controllers, (controller) =>
-      controller.backendStopping(isConversationEnding, isMuseCodeOnly ? 'museCode' : undefined),
-    ),
-  )
-  await Promise.all([museCode.dispose(), ...(isMuseCodeOnly ? [] : [modelApi.dispose()])])
-}
+export { restartConversationBackends } from './conversationBackends'
 
 export class ConversationController {
   // Revert owns turn admission until file I/O settles; pending sends own it
@@ -978,6 +1071,7 @@ export class ConversationController {
    * Child sessions this surface has rows for. Their turns reach the parent
    * stream (M48) but never take the parent turn's steering, Stop or Ctrl+B.
    */
+  private messageDisplayQueue: Promise<void> = Promise.resolve()
   private readonly childSessionIds = new Set<string>()
   private hasWarnedSandbox = false
   /** The contributor model the user said yes to (once per conversation). */
@@ -1020,6 +1114,7 @@ export class ConversationController {
    * approvals in its hands (and its breaker), made on the first review.
    */
   private reviews: ReviewedApprovals | undefined
+  private readonly judgeCards = new Map<string, JudgeFence>()
   /** What the reviewer is shown (M78's input): the user's latest message, the turn's calls so far. */
   private reviewUserText: string | undefined
   private reviewCalls: readonly { readonly tool: string; readonly args: string }[] = []
@@ -1099,6 +1194,8 @@ export class ConversationController {
   /** A shell's row can start before its approval is granted (Model API). */
   private readonly pendingShellApprovals = new Set<string>()
   private readonly pausedForegroundShells = new Set<string>()
+  /** Commit, push, pull requests and their generated drafts (M71). */
+  private readonly git: ConversationGitPort
   /**
    * A Muse Code review turn holding the session in Plan mode (M70), and the
    * mode the user had, which comes back when that turn ends.
@@ -1151,6 +1248,9 @@ export class ConversationController {
    * waiting in the dialog. One at a time; a new conversation drops it.
    */
   private pendingHandoff: PendingHandoff | undefined
+  /** Report a problem (M93): the dialog's handler, one per surface, loaded with dist/report.js. */
+  private reportHandler:
+    Promise<{ handle: (message: ReportProblemMessage) => Promise<void> }> | undefined
   /**
    * Messages of this session accepted as queued or steered that may still be
    * taken back (M87, PLAN.md D66), by their card's local id: the only ids an
@@ -1184,7 +1284,9 @@ export class ConversationController {
     if (restoredSideId !== undefined) {
       this.sideSessionIds.add(restoredSideId)
     }
-    this.permissionMode = this.isSideChat ? 'plan' : deps.initialPermissionMode
+    // A side chat, and a window held on someone else's pull request (M71), start in Plan.
+    this.permissionMode =
+      this.isSideChat || deps.isWorktreeHeld() ? 'plan' : deps.initialPermissionMode
     if (this.permissionMode === BYPASS_MODE && !deps.isBypassAllowed()) {
       // The initial-mode setting alone cannot switch approvals off; the
       // explicit allow setting must be on too, as in Claude Code.
@@ -1215,12 +1317,46 @@ export class ConversationController {
       unsavedPaths: deps.unsavedPaths,
       log: deps.log,
     })
+    this.git = deps.createGit({
+      post: (message) => {
+        if (!this.isDisposed) {
+          this.post(message)
+        }
+      },
+      notice: (level, text) => {
+        if (!this.isDisposed) {
+          this.notice(level, text)
+        }
+      },
+      say: (level, text) => {
+        if (!this.isDisposed) {
+          this.say(level, text)
+        }
+      },
+      sessionId: () => this.session?.sessionId,
+    })
   }
 
   private post(message: HostToWebviewMessage): void {
     // Streamed text still waiting goes first, so nothing overtakes it.
     this.flushDelta()
-    this.deps.surface.post(message)
+    switch (message.type) {
+      case 'agentEvent': {
+        this.deps.surface.post({ ...message, event: redactDiagnosticEvent(message.event) })
+        break
+      }
+      case 'notice': {
+        this.deps.surface.post({ ...message, text: redactSecrets(message.text) })
+        break
+      }
+      case 'withdrawRefused': {
+        this.deps.surface.post({ ...message, reason: redactSecrets(message.reason) })
+        break
+      }
+      default: {
+        this.deps.surface.post(message)
+      }
+    }
   }
 
   /**
@@ -1258,25 +1394,33 @@ export class ConversationController {
    * Says `text` in the panel. A warning or an error goes to the log as well
    * (M39): "Open log" and a support report hold every failure the user saw.
    */
-  private notice(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+  private notice(level: NoticeLevel, text: string, redoRestoreId?: string, error?: unknown): void {
+    const logged = isMspFailure(error) ? failureForLog(error) : redactSecrets(text)
     if (level === 'error') {
-      this.deps.log.error(`${NOTICE_PREFIX}${text}`)
+      this.deps.log.error(`${NOTICE_PREFIX}${logged}`)
     } else if (level === 'warning') {
-      this.deps.log.warn(`${NOTICE_PREFIX}${text}`)
+      this.deps.log.warn(`${NOTICE_PREFIX}${logged}`)
     }
     this.say(level, text, redoRestoreId)
   }
 
   /**
    * Says `text` in the panel only: for a failure already logged in more
-   * detail. A file restore's notice carries its Redo (M72).
+   * detail. A file restore's notice carries its Redo (M72). An error is
+   * journalled as a fact (M93, D72), never its text, and its row offers
+   * "Report this" with the sanitized reference.
    */
   private say(level: NoticeLevel, text: string, redoRestoreId?: string): void {
+    const reportRef =
+      level === 'error'
+        ? this.deps.reports?.record('errorNotice', REPORT_UNKNOWN_ERROR_CODE)
+        : undefined
     this.post({
       type: 'notice',
       level,
       text,
       ...(redoRestoreId !== undefined && { redoRestoreId }),
+      ...(reportRef !== undefined && { reportRef }),
     })
   }
 
@@ -1412,7 +1556,10 @@ export class ConversationController {
     }
     const sessions: ReturnType<typeof toSessionRow>[] = []
     for (const record of this.sessionRecords.values()) {
-      if (this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true) {
+      if (
+        this.deps.museCodeReviewer?.isSideSession(record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(record.sessionId) === true
+      ) {
         // The Auto reviewer's side session (M90): never a conversation of the user's.
         continue
       }
@@ -1531,7 +1678,7 @@ export class ConversationController {
     try {
       await session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describe(error)}`)
+      this.deps.log.warn(`turn/cancel before leaving the session failed: ${describeForLog(error)}`)
     }
   }
 
@@ -1621,11 +1768,17 @@ export class ConversationController {
     this.endTurnClock(event)
     this.checkpoints.turnCompleted(turnId)
     this.forward(event)
+    // A draft asked for in this turn (M71) will not come: its form's button comes back.
+    this.git.onEvent(event)
   }
 
   /** A turn's end in the log, and its clock gone (M39). */
   private endTurnClock(event: Extract<AgentEvent, { type: 'turnCompleted' }>): void {
-    this.deps.log.info(turnEndLine(event, this.turnClocks.get(event.turnId), this.deps.now()))
+    const logged =
+      this.sessionKind === 'museCode' && event.reason !== undefined
+        ? { ...event, reason: stderrForLog(event.reason) }
+        : event
+    this.deps.log.info(turnEndLine(logged, this.turnClocks.get(event.turnId), this.deps.now()))
     this.turnClocks.delete(event.turnId)
   }
 
@@ -1682,7 +1835,7 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       this.autoApproved.delete(event.approvalId)
-      this.deps.log.warn(`Edit automatically could not approve: ${describe(error)}`)
+      this.deps.log.warn(`Edit automatically could not approve: ${describeForLog(error)}`)
       this.forward(event)
     }
   }
@@ -1719,7 +1872,7 @@ export class ConversationController {
     try {
       this.reviews ??= port.reviewer().conversation({
         showCard: (held, note) => {
-          const card = note === undefined ? held : { ...held, note }
+          const card = scrubSecretApproval(note === undefined ? held : { ...held, note })
           this.forward(card)
           this.track(card)
         },
@@ -1730,10 +1883,11 @@ export class ConversationController {
         mayAllow: (held) => this.isReviewerApproval(held),
         log: this.deps.log,
         describeFailure: failureForLog,
+        judge: this.deps.judge,
       })
     } catch (error: unknown) {
       this.deps.log.warn(
-        `The Auto reviewer could not be loaded; the user decides: ${describe(error)}`,
+        `The Auto reviewer could not be loaded; the user decides: ${describeForLog(error)}`,
       )
       const card = { ...event, note: UI_TEXT.autoReviewerFailed }
       this.forward(card)
@@ -1752,6 +1906,44 @@ export class ConversationController {
         workspaceRoot: this.deps.workspaceRoot ?? '',
         platform: this.deps.platform,
       },
+    })
+  }
+
+  private clearJudgeCards(): void {
+    for (const fence of this.judgeCards.values()) fence.discard()
+    this.judgeCards.clear()
+  }
+
+  private watchJudgeCard(event: Extract<AgentEvent, { type: 'approvalRequested' }>): void {
+    if (this.sessionKind !== 'museCode' || this.session === undefined || event.isReplayed === true)
+      return
+    const fence = startApprovalJudge(
+      this.deps.judge,
+      {
+        backend: 'museCode',
+        sessionId: this.session.sessionId,
+        turnId: event.turnId ?? this.activeTurnId ?? '',
+        tool: event.toolName,
+      },
+      event.rawArgs,
+      JSON.stringify({
+        userRequest: this.reviewUserText,
+        recentCalls: this.reviewCalls,
+        tool: event.toolName,
+        action: event.subject.command ?? event.rawArgs,
+      }),
+    )
+    if (fence === undefined) return
+    this.judgeCards.get(event.approvalId)?.discard()
+    this.judgeCards.set(event.approvalId, fence)
+    // The request renders first; the background source never delays the card.
+    fence.card(() => {
+      if (this.judgeCards.get(event.approvalId) !== fence) return
+      this.forward({
+        type: 'approvalCaution',
+        approvalId: event.approvalId,
+        requirementId: event.requirementId,
+      })
     })
   }
 
@@ -1778,6 +1970,8 @@ export class ConversationController {
 
   /** The session left this panel: its reviews stop; a new conversation forgets what they were shown. */
   private forgetReviews(isOwnedRecovery: boolean): void {
+    if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+    this.clearJudgeCards()
     this.reviews?.forget()
     if (isOwnedRecovery) {
       return
@@ -1788,11 +1982,32 @@ export class ConversationController {
   }
 
   /** An event as the webview sees it, plus the unread mark. */
+  /**
+   * The failures a session's events show, journalled as facts (M93, D72): a
+   * failed turn (its error row then offers "Report this" with the returned
+   * reference) and a failed tool call. Nothing else of the event is kept;
+   * the event itself goes to the panel unchanged.
+   */
+  private observeFailure(event: AgentEvent): ReportEventRef | undefined {
+    const reports = this.deps.reports
+    if (reports === undefined) {
+      return undefined
+    }
+    if (event.type === 'turnCompleted' && event.terminal === 'failed') {
+      return reports.record('errorNotice', event.errorKind ?? REPORT_UNKNOWN_ERROR_CODE)
+    }
+    if (event.type === 'itemCompleted' && event.item.status === FAILED_ITEM_STATUS) {
+      reports.record('toolCallFailed', REPORT_UNKNOWN_ERROR_CODE)
+    }
+    return undefined
+  }
+
   private forward(event: AgentEvent): void {
     if (event.type === 'textDelta') {
       this.queueDelta(event)
       return
     }
+    const reportRef = this.observeFailure(event)
     if (
       (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
       event.isReplayed !== undefined
@@ -1801,7 +2016,7 @@ export class ConversationController {
       delete shown.isReplayed
       this.post({ type: 'agentEvent', event: shown })
     } else {
-      this.post({ type: 'agentEvent', event })
+      this.post({ type: 'agentEvent', event, ...(reportRef !== undefined && { reportRef }) })
     }
     if (ATTENTION_EVENTS.has(event.type)) {
       this.deps.surface.markUnread()
@@ -1845,7 +2060,12 @@ export class ConversationController {
         this.notice('info', UI_TEXT.viewGapReloaded)
       } catch (error: unknown) {
         if (generation === this.sendInvalidationEpoch && this.session === session) {
-          this.notice('warning', `${UI_TEXT.viewGapReloadFailed}: ${describe(error)}`)
+          this.notice(
+            'warning',
+            `${UI_TEXT.viewGapReloadFailed}: ${describe(error)}`,
+            undefined,
+            error,
+          )
         }
       }
     }
@@ -1874,8 +2094,71 @@ export class ConversationController {
     }
   }
 
+  /**
+   * An assistant message about to show (M91 lane E): MessageDisplay fires
+   * on both backends, since display passes through here. The message is
+   * held until its hooks answer; a display-only rewrite travels on the
+   * forwarded item's `displayText` while `text` stays the original, so
+   * history, copy and export keep what the model wrote. True when held.
+   */
+  private holdForMessageDisplay(event: Extract<AgentEvent, { type: 'itemCompleted' }>): boolean {
+    const session = this.session
+    const fire = session?.fireExtensionHook
+    const rewrite = this.deps.rewriteMessage
+    const text = event.item.kind === AGENT_MESSAGE_KIND ? event.item.text : undefined
+    if (
+      text === undefined ||
+      (fire === undefined && rewrite === undefined) ||
+      event.item.status !== COMPLETED_STATUS ||
+      text.trim() === ''
+    ) {
+      return false
+    }
+    const held = event
+    const generation = this.sendInvalidationEpoch
+    // The payload matches `messageDisplayFields` in `extensionHooks.ts`
+    // (`message`), built inline so that module stays out of the activation
+    // bundle. A hook failure shows the message as written, never nothing,
+    // and the queue survives a failure so later messages still show.
+    const previousDisplay = this.messageDisplayQueue
+    this.messageDisplayQueue = (async () => {
+      await previousDisplay
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      let shown = held
+      try {
+        const dispatch =
+          fire === undefined
+            ? undefined
+            : await fire.call(session, 'MessageDisplay', { message: text }, undefined)
+        const displayText = dispatch === undefined ? await rewrite?.(text) : dispatch.displayText
+        if (displayText !== undefined && displayText !== text) {
+          shown = { ...held, item: { ...held.item, displayText } }
+        }
+      } catch {
+        this.deps.log.warn('A MessageDisplay hook failed; the message shows as written')
+      }
+      if (!this.isCurrentSessionAction(session, generation)) {
+        return
+      }
+      try {
+        this.forward(shown)
+        this.track(shown)
+      } catch (error: unknown) {
+        this.deps.log.warn(`An assistant message could not be shown: ${describe(error)}`)
+      }
+    })()
+    return true
+  }
+
   private onEvent(event: AgentEvent): void {
+    if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
+      return
+    }
     if (event.type === 'modelChanged') {
+      if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+      this.clearJudgeCards()
       this.voiceContextRevision += 1
     } else if (event.type === 'viewGap') {
       // The controller's own events (D26): never forwarded to the webview.
@@ -1907,15 +2190,20 @@ export class ConversationController {
           this.holdForReview(event)
           return
         }
+        this.watchJudgeCard(event)
         break
       }
       case 'approvalUpdated': {
+        this.judgeCards.get(event.approvalId)?.discard()
+        this.judgeCards.delete(event.approvalId)
         if (this.reviews?.updated(event) === true) {
           return
         }
         break
       }
       case 'approvalResolved': {
+        this.judgeCards.get(event.approvalId)?.discard()
+        this.judgeCards.delete(event.approvalId)
         this.noteShellApprovalResolved(event)
         if (this.session !== undefined) {
           this.deps.pendingPrompts.resolve(this.session.sessionId, event.approvalId)
@@ -1948,8 +2236,17 @@ export class ConversationController {
         break
       }
     }
-    this.forward(event)
-    this.track(event)
+    // M92e (PLAN.md D71): the panel never shows a secret a proposed shell
+    // command holds. The decisions above read the raw event; what is
+    // forwarded and tracked is scrubbed, on both backends: the value shown
+    // redacted, a secret note, no standing approve choice.
+    const shown =
+      event.type === 'approvalRequested' || event.type === 'approvalUpdated'
+        ? scrubSecretApproval(event)
+        : event
+    this.forward(shown)
+    this.track(shown)
+    this.git.onEvent(shown)
   }
 
   /**
@@ -1999,6 +2296,9 @@ export class ConversationController {
         if (this.isChildTurn(event.turnId)) {
           break
         }
+        if (this.session !== undefined && this.activeTurnId !== undefined)
+          this.deps.judge?.discardTurn(this.session.sessionId, this.activeTurnId)
+        this.clearJudgeCards()
         this.activeTurnId = event.turnId
         this.reviewCalls = []
         this.turnClocks.set(event.turnId, { startedAt: this.deps.now(), firstOutputAt: undefined })
@@ -2072,6 +2372,9 @@ export class ConversationController {
         if (!this.isChildTurn(event.turnId)) {
           this.admittedEarly.clear()
         }
+        if (this.session !== undefined)
+          this.deps.judge?.discardTurn(this.session.sessionId, event.turnId)
+        if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
         // A review turn's end puts the user's mode back (M70).
@@ -2258,27 +2561,36 @@ export class ConversationController {
   }
 
   /**
-   * One notice per session about the shell sandbox (PLAN.md D12): `auto`
-   * turned it off for a Windows profile workspace, or the user forced it on
-   * where the CLI cannot run commands in the workspace.
+   * The shell sandbox's notice when a Muse Code session starts (PLAN.md D12).
+   * Without the sandbox, Muse Code's file tools write anywhere without asking
+   * (musecode-write-asks), which is said once per window, whether the setting
+   * or `auto` turned it off. The sandbox forced on where this CLI cannot run
+   * commands (#26) is warned once per session.
    */
-  private noteShellSandbox(workspaceRoot: string): void {
+  private noteShellSandbox(): void {
     const posture = this.deps.shellSandbox()
-    if (posture.reason === 'profileWorkspace') {
-      this.notice('info', UI_TEXT.sandboxOffProfileNotice)
+    if (!posture.isSandboxed) {
+      if (this.deps.shouldWarnSandboxOff?.() ?? true) {
+        this.notice(
+          'warning',
+          posture.reason === 'profileWorkspace'
+            ? UI_TEXT.sandboxOffProfileWarning
+            : UI_TEXT.sandboxOffSettingWarning,
+        )
+      }
       return
     }
-    const isLimited = isProfileWorkspace(
-      this.deps.platform,
-      workspaceRoot,
-      this.deps.userProfileDir,
-    )
-    if (isLimited && posture.isSandboxed) {
+    if (posture.isUnsupportedWorkspace) {
       this.notice('warning', UI_TEXT.sandboxProfileNotice)
     }
   }
 
-  /** The shell tool's "sandbox not set up" failure gets one actionable notice; a `!` row's too (M46). */
+  /**
+   * The shell tool's "sandbox not set up" failure gets one actionable notice;
+   * a `!` row's too (M46). While Muse Code's sandbox is still preparing
+   * (its read-access worker holds the lock), it is set up already, so the
+   * notice says to wait instead and no setup is offered.
+   */
   private noteSandboxFailure(text: string | undefined): void {
     if (text === undefined || this.hasWarnedSandbox) {
       return
@@ -2290,6 +2602,10 @@ export class ConversationController {
       return
     }
     this.hasWarnedSandbox = true
+    if (text.includes(SANDBOX_PREPARING_MARKER)) {
+      this.notice('warning', UI_TEXT.sandboxPreparingNotice)
+      return
+    }
     this.notice('warning', UI_TEXT.sandboxNotice)
     this.deps.onSandboxUnavailable()
   }
@@ -2341,7 +2657,7 @@ export class ConversationController {
       // run on. The card offers the choice again only when the host still
       // waits on this stage (one decision per stage, D26); otherwise it
       // follows the host's own events.
-      this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.decisionErrorNotice}: ${describe(error)}`, undefined, error)
       if (isDecisionNotAppliedError(error)) {
         this.post({ type: 'approvalReopened', approvalId: message.approvalId })
       }
@@ -2371,6 +2687,32 @@ export class ConversationController {
     }
   }
 
+  /** An elicitation form's answer (M91 lane M): accept, decline or cancel. */
+  private async answerElicitation(
+    message: Extract<ConversationMessage, { type: 'elicitationAnswer' }>,
+  ): Promise<void> {
+    const { session } = this
+    if (session === undefined) {
+      return
+    }
+    const settle = session.settleElicitation
+    if (settle === undefined) {
+      this.notice('error', UI_TEXT.elicitationExpired)
+      return
+    }
+    try {
+      const reply =
+        message.action === 'accept'
+          ? { kind: 'accepted' as const, values: { ...message.values } }
+          : { kind: message.action === 'decline' ? ('declined' as const) : ('cancelled' as const) }
+      await settle.call(session, message.elicitationId, reply)
+    } catch (error: unknown) {
+      // A refused answer unlocks the form, as a refused question answer
+      // does (M25): the user fixes the named field and sends again.
+      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
+    }
+  }
+
   /** The question card's Cancel: the prompt is declined and the model told (M16). */
   private async cancelQuestion(userInputId: string): Promise<void> {
     if (this.session === undefined) {
@@ -2383,7 +2725,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.questionCancelFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2400,7 +2742,7 @@ export class ConversationController {
         this.promptSettled(error, { userInputId: message.userInputId })
         return
       }
-      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.answerNotAccepted}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2420,7 +2762,7 @@ export class ConversationController {
         return
       }
       // An error notice unlocks the card, as a refused answer does (M25).
-      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.clarifyNotAccepted}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2442,7 +2784,7 @@ export class ConversationController {
     try {
       await run(session)
     } catch (error: unknown) {
-      this.notice('warning', `${failure}: ${describe(error)}`)
+      this.notice('warning', `${failure}: ${describe(error)}`, undefined, error)
       this.post({ type: 'taskRefused', itemId })
     }
   }
@@ -2469,7 +2811,7 @@ export class ConversationController {
     try {
       await this.session.stopAllTasks()
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.stopTaskFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2486,6 +2828,10 @@ export class ConversationController {
     }
     if (!this.deps.isWorkspaceTrusted()) {
       this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.userShellRestricted })
+      return
+    }
+    if (this.deps.isWorktreeHeld()) {
+      this.post({ type: 'userShellRefused', command: trimmed, reason: UI_TEXT.worktreeHeldShell })
       return
     }
     if (!this.isAuthAdmitted()) {
@@ -2595,11 +2941,13 @@ export class ConversationController {
       }
       const text = `${UI_TEXT.outputLoadFailed}: ${describe(error)}`
       if (this.hasSaidOutputFailure) {
-        this.deps.log.warn(`${text} (item ${message.itemId}; said once in the panel)`)
+        this.deps.log.warn(
+          `${describeForLog(error)} (item ${message.itemId}; said once in the panel)`,
+        )
         return
       }
       this.hasSaidOutputFailure = true
-      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`)
+      this.notice('warning', `${text}. ${UI_TEXT.outputLoadRetry}`, undefined, error)
     }
   }
 
@@ -2670,7 +3018,7 @@ export class ConversationController {
           : { startLine: message.startLine, endLine: message.endLine },
       )
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.openFileFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -2702,7 +3050,7 @@ export class ConversationController {
       await this.deps.openDocument(title, stored ?? message.text)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.openOutputFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -2902,7 +3250,7 @@ export class ConversationController {
         if (action === 'revert' && this.isRevertRefused(turnStartEpoch)) {
           this.notice('info', UI_TEXT.restoreTurnRunning)
         } else {
-          this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`)
+          this.notice('error', `${UI_TEXT.editReviewFailed}: ${describe(error)}`, undefined, error)
         }
       }
       return false
@@ -3052,7 +3400,7 @@ export class ConversationController {
       if (this.session !== session || this.attachmentGeneration !== generation || this.isDisposed) {
         return
       }
-      this.deps.log.warn(`skill/list failed: ${describe(error)}`)
+      this.deps.log.warn(`skill/list failed: ${describeForLog(error)}`)
       this.skills = []
     }
     this.postSkills()
@@ -3097,6 +3445,12 @@ export class ConversationController {
     session: AgentSession,
     origin: SessionOrigin,
   ): Promise<void> {
+    try {
+      this.requireNonConfidentialModel(session.modelId)
+    } catch (error: unknown) {
+      session.dispose()
+      throw error
+    }
     const generation = this.attachmentGeneration
     if (origin === 'started' && this.deps.surface.isSideChat === true) {
       this.sideSessionIds.add(session.sessionId)
@@ -3144,6 +3498,7 @@ export class ConversationController {
     })
     this.postSessionInfo(this.modelId)
     this.noteActivity()
+    this.git.sessionChanged(session.sessionId)
     await this.applyEffort(session, {
       effort: this.effort,
       isThinkingEnabled: this.isThinkingEnabled,
@@ -3154,7 +3509,7 @@ export class ConversationController {
     void this.refreshSkills(session)
     if (session.schedules !== undefined) {
       void session.schedules.list().catch((error: unknown) => {
-        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describe(error)}`)
+        this.deps.log.warn(`Scheduled prompts could not be loaded: ${describeForLog(error)}`)
       })
     }
   }
@@ -3205,6 +3560,7 @@ export class ConversationController {
     }
     const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
+    this.requireNonConfidentialModel(this.modelId)
     const session = await host.startSession({
       workspaceRoot,
       modelId: this.modelId,
@@ -3226,7 +3582,7 @@ export class ConversationController {
     if (host.info.kind === 'modelApi') {
       this.notice('info', UI_TEXT.modelApiBackendNotice)
     } else {
-      this.noteShellSandbox(workspaceRoot)
+      this.noteShellSandbox()
       void this.offerBundledSkills()
     }
     return session
@@ -3247,7 +3603,7 @@ export class ConversationController {
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
       // Nothing to offer is better than a wrong offer; the log says why.
-      this.deps.log.warn(`The bundled skills could not be offered: ${describe(error)}`)
+      this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
     }
   }
 
@@ -3277,6 +3633,7 @@ export class ConversationController {
     let loaded: LoadedSession
     const mcpServers = await this.mcpServersFor(host)
     try {
+      this.requireNonConfidentialModel(this.modelId)
       loaded = await host.resumeSession(
         target.sessionId,
         this.modelId,
@@ -3287,7 +3644,7 @@ export class ConversationController {
         this.ideSessions.add(loaded.session)
       }
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`)
+      this.notice('warning', `${UI_TEXT.sessionNotContinued}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (!this.canLoadIntoSurface(host, loaded)) {
@@ -3318,7 +3675,12 @@ export class ConversationController {
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
       )
     } catch (error: unknown) {
-      this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
+      this.notice(
+        'warning',
+        `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+        undefined,
+        error,
+      )
     }
     this.notice('info', UI_TEXT.sessionContinued)
     return loaded.session
@@ -3426,6 +3788,7 @@ export class ConversationController {
       return undefined
     }
     const session = await this.ensureSession(this.deps.workspaceRoot)
+    this.requireNonConfidentialModel(session.modelId)
     if (!this.isCurrentSessionAction(session, generation)) {
       return undefined
     }
@@ -3463,7 +3826,8 @@ export class ConversationController {
     if (event.type === 'changed') {
       if (
         event.record.workspaceRoot !== this.deps.workspaceRoot ||
-        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true
+        this.deps.museCodeReviewer?.isSideSession(event.record.sessionId) === true ||
+        this.deps.judge?.isSideSession?.(event.record.sessionId) === true
       ) {
         return
       }
@@ -3513,7 +3877,7 @@ export class ConversationController {
       this.postSessionList()
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.historyUnavailable}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -3533,7 +3897,7 @@ export class ConversationController {
       }
       return bundle
     } catch (error: unknown) {
-      this.deps.log.error(`The session board bundle could not be loaded: ${describe(error)}`)
+      this.deps.log.error(`The session board bundle could not be loaded: ${describeForLog(error)}`)
       throw new Error(UI_TEXT.boardUnavailable, { cause: error })
     }
   }
@@ -3568,7 +3932,14 @@ export class ConversationController {
           this.deps.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
         modelId: () => this.modelId,
         wireApprovalMode: () => approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
-        isTrusted: () => this.deps.isWorkspaceTrusted(),
+        // The run's extension hooks fire from the surface session's
+        // snapshot (M91 lane E): attempts run with hooks off, so the
+        // parent's side fires. A session without such a point (Muse Code)
+        // leaves the run hookless, as before.
+        fireExtensionHook: (event, fields, matcherValue) =>
+          this.session?.fireExtensionHook?.(event, fields, matcherValue) ??
+          Promise.resolve(NO_EXTENSION_HOOK_DISPATCH),
+        isTrusted: () => this.isProjectTrusted(),
         realPath: (absolutePath) => this.deps.realPath(absolutePath),
         onUpdate: (run) => {
           this.lastBestOfNRun = run
@@ -3587,7 +3958,7 @@ export class ConversationController {
     if (isBestOfNError(error)) {
       this.notice('warning', this.bestOfNErrorText(error, attemptId))
     } else {
-      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.bestOfNTitle}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -3599,7 +3970,7 @@ export class ConversationController {
         return UI_TEXT.bestOfNNoWorkspace
       }
       case 'untrusted': {
-        return UI_TEXT.bestOfNNeedsTrust
+        return this.gitTrustRefusal(UI_TEXT.bestOfNNeedsTrust) ?? UI_TEXT.bestOfNNeedsTrust
       }
       case 'wrongBackend': {
         return UI_TEXT.bestOfNModelApiOnly
@@ -3669,7 +4040,7 @@ export class ConversationController {
           ensureHost: () => this.deps.ensureHost(),
           backendOf: (host) => host.info.kind,
           workspaceRoot: this.deps.workspaceRoot,
-          isWorkspaceTrusted: () => this.deps.isWorkspaceTrusted(),
+          isWorkspaceTrusted: () => this.isProjectTrusted(),
           runGit: (args, cwd, timeoutMs) => this.deps.runGit(args, cwd, timeoutMs),
           platform: this.deps.platform,
           currentSessionId: this.session?.sessionId,
@@ -3688,7 +4059,7 @@ export class ConversationController {
       this.post({ type: 'sessionBoard', rows: [...rows] })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.boardTitle}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -3776,7 +4147,11 @@ export class ConversationController {
       type: 'historyLoaded',
       sessionId,
       ...(history.sideChat !== undefined && { sideChat: history.sideChat }),
-      items: [...history.items],
+      items: history.items.map((item) =>
+        item.kind === USER_MESSAGE_KIND && item.text !== undefined
+          ? { ...item, text: redactSecrets(item.text) }
+          : item,
+      ),
       ...(history.name !== undefined && { name: history.name }),
       todos: [...history.todos],
       // Absent when the history could not say (M45): the panel keeps what it knew.
@@ -3842,7 +4217,10 @@ export class ConversationController {
       loaded.session.dispose()
       return false
     }
-    if (!isModelAllowed) {
+    if (
+      !isModelAllowed ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(this.modelId))
+    ) {
       const fallback =
         models.find((model) => model.isDefault && !isContributorModel(model.modelId)) ??
         models.find((model) => !isContributorModel(model.modelId))
@@ -3903,7 +4281,12 @@ export class ConversationController {
       await loaded.session.setApprovalMode(target)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('warning', `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`)
+        this.notice(
+          'warning',
+          `${UI_TEXT.permissionModeNotApplied}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
     return generation === this.sendInvalidationEpoch && !this.isDisposed
@@ -3929,6 +4312,7 @@ export class ConversationController {
       }
       this.watchList(host)
       const mcpServers = await this.mcpServersFor(host)
+      this.requireNonConfidentialModel(this.modelId)
       const loaded = await host.resumeSession(
         sessionId,
         this.modelId,
@@ -3948,9 +4332,9 @@ export class ConversationController {
         return
       }
       if (this.isFirstShowing(error)) {
-        this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.resumeFailed}: ${describe(error)}`, undefined, error)
       } else {
-        this.deps.log.error(`resumeSession failed (shown already): ${describe(error)}`)
+        this.deps.log.error(`resumeSession failed (shown already): ${describeForLog(error)}`)
       }
     }
   }
@@ -3990,7 +4374,7 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.forkedNotice, 'forked')
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.forkFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -4105,7 +4489,12 @@ export class ConversationController {
       return { message, source, host, generation, images }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
       return undefined
     }
@@ -4137,7 +4526,12 @@ export class ConversationController {
       return true
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.rewindConversationFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
       return false
     }
@@ -4202,7 +4596,7 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.sideChatFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -4461,11 +4855,33 @@ export class ConversationController {
   }
 
   /**
+   * Whether git and the project's own configuration may run here: VS Code
+   * trusts the folder and the window is not held on someone else's pull
+   * request, or the card let the hold go (M71). Best-of-N, the session
+   * board's worktree reads and a review of git's changes ask this, never
+   * VS Code's trust alone: a held worktree runs no git of the extension's.
+   */
+  private isProjectTrusted(): boolean {
+    return this.deps.isWorkspaceTrusted() && !this.deps.isWorktreeHeld()
+  }
+
+  /** Why git may not run here, `restricted` for Restricted Mode; undefined when it may. */
+  private gitTrustRefusal(restricted: string): string | undefined {
+    if (!this.deps.isWorkspaceTrusted()) {
+      return restricted
+    }
+    return this.deps.isWorktreeHeld() ? UI_TEXT.worktreeHeldShell : undefined
+  }
+
+  /**
    * The mode an approved brief starts in: the configured starting mode,
-   * never Plan, and Bypass only where a conversation could start in it and
+   * Plan only while a PR worktree is held, and Bypass only where a conversation could start in it and
    * never in a remote window (D24); otherwise Manual.
    */
   private briefMode(): PermissionMode {
+    if (this.deps.isWorktreeHeld()) {
+      return PLAN_MODE
+    }
     const mode = this.deps.initialPermissionMode
     const isBypassRefused =
       mode === BYPASS_MODE && (!this.deps.isBypassAllowed() || this.deps.isRemoteWindow)
@@ -4477,7 +4893,9 @@ export class ConversationController {
    * asks, Manual, or Plan when that is the starting mode.
    */
   private untrustedBriefMode(): PermissionMode {
-    return this.deps.initialPermissionMode === PLAN_MODE ? PLAN_MODE : FALLBACK_MODE
+    return this.deps.isWorktreeHeld() || this.deps.initialPermissionMode === PLAN_MODE
+      ? PLAN_MODE
+      : FALLBACK_MODE
   }
 
   /** The mode a brief's conversation starts in: Plan where the brief keeps it, else by its trust. */
@@ -4866,8 +5284,8 @@ export class ConversationController {
       this.post({ type: 'briefSubmitted', localId, text: cardText, attachments: [] })
       const modelText =
         goal === undefined
-          ? MODEL_TEXT.handoffRequest
-          : `${MODEL_TEXT.handoffRequest} ${fill(MODEL_TEXT.handoffRequestGoal, { goal })}`
+          ? CONVERSATION_MODEL_TEXT.handoffRequest
+          : `${CONVERSATION_MODEL_TEXT.handoffRequest} ${fill(CONVERSATION_MODEL_TEXT.handoffRequestGoal, { goal })}`
       const sent = await this.send(
         localId,
         modelText,
@@ -5127,7 +5545,7 @@ export class ConversationController {
       }
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.session === session) {
-        this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.renameFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -5241,7 +5659,7 @@ export class ConversationController {
         message.turnId,
       )
     } catch (error: unknown) {
-      this.deps.log.warn(`The transcript for a restore could not be read: ${describe(error)}`)
+      this.deps.log.warn(`The transcript for a restore could not be read: ${describeForLog(error)}`)
     }
     if (turnIds === undefined || this.session !== session || this.isTurnRunning()) {
       this.notice(
@@ -5306,7 +5724,7 @@ export class ConversationController {
         )
         return this.session === session && !this.isTurnRunning() ? ids : undefined
       } catch (error: unknown) {
-        this.deps.log.warn(`The transcript for a Redo could not be read: ${describe(error)}`)
+        this.deps.log.warn(`The transcript for a Redo could not be read: ${describeForLog(error)}`)
         return
       }
     })
@@ -5342,6 +5760,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     if (this.revertsInFlight > 0) {
       throw new Error(UI_TEXT.restoreTurnRunning)
     }
@@ -5367,6 +5786,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     if (this.revertsInFlight > 0) {
       throw new Error(UI_TEXT.restoreTurnRunning)
     }
@@ -5399,7 +5819,7 @@ export class ConversationController {
       try {
         await this.deps.saveAll()
       } catch (error: unknown) {
-        this.deps.log.warn(`Autosave before the turn failed: ${describe(error)}`)
+        this.deps.log.warn(`Autosave before the turn failed: ${describeForLog(error)}`)
       }
     }
     this.noteUnsaved()
@@ -5443,7 +5863,26 @@ export class ConversationController {
     brief?: BriefExtras,
     cardText?: string,
     handoff?: PendingHandoff,
+    isSecretAccepted = false,
+    gitDraft?: GitDraftKind,
+    gitDraftBase?: string,
   ): Promise<SendOutcome> {
+    // M92e (PLAN.md D71): a plain composer prompt holding a detected secret
+    // is held before sending. Nothing starts and nothing is released: the
+    // panel shows its dialog (Send anyway / Edit) over the redacted card,
+    // and only a re-post with `secretAccepted` sends it on. Briefs, review
+    // cards and handoffs never reach this hold. Read from the one shared
+    // table in redact.ts.
+    if (
+      brief === undefined &&
+      cardText === undefined &&
+      handoff === undefined &&
+      !isSecretAccepted &&
+      countSecretMatches(text, []) > 0
+    ) {
+      this.post({ type: 'secretPromptDetected', localId, redactedText: redactSecrets(text) })
+      return { isAccepted: false, hasSetTodos: false, turnId: undefined }
+    }
     // Counted once past the review barrier (M70), so a message held behind a
     // starting review does not make that review refuse as busy (M87).
     let isCountedSubmission = false
@@ -5451,6 +5890,8 @@ export class ConversationController {
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
+    const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
+    let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
       // A composer send cannot steer the distillation's reply into a
@@ -5482,12 +5923,15 @@ export class ConversationController {
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration
       let submittedSession = session
-      const requireCurrent = (current: AgentSession): void => {
+      const requireCurrent = (current: AgentSession, shouldCheckGitDraft = true): void => {
         if (
           this.isDisposed ||
           this.sendInvalidationEpoch !== sendEpoch ||
           this.session !== current ||
-          this.attachmentGeneration !== expectedGeneration
+          this.attachmentGeneration !== expectedGeneration ||
+          (shouldCheckGitDraft &&
+            gitGeneration !== undefined &&
+            !this.git.isGenerationCurrent(gitGeneration))
         ) {
           throw new Error(UI_TEXT.turnStoppedByRestart)
         }
@@ -5523,6 +5967,13 @@ export class ConversationController {
       // before the editor context, like the ide_selection part of M5.
       const referenced: readonly TurnPart[] =
         reference === undefined ? [] : [{ type: 'text', text: chatReferenceText(reference) }]
+      // What the model needs to draft a commit message or a pull request
+      // (M71), beside the user's own message asking for it.
+      const drafting: readonly TurnPart[] =
+        gitDraft === undefined
+          ? []
+          : [{ type: 'text', text: await this.git.promptFor(gitDraft, gitDraftBase) }]
+      requireCurrent(session)
       const context = await this.contextPart(
         isEditorContextIncluded ? this.deps.editorContext() : undefined,
       )
@@ -5555,6 +6006,7 @@ export class ConversationController {
         ...typed,
         ...briefNote,
         ...referenced,
+        ...drafting,
         ...(context === undefined ? [] : [context]),
         ...note,
       ]
@@ -5615,7 +6067,10 @@ export class ConversationController {
             this.attachmentGeneration === expectedGeneration,
         )
       })
-      requireCurrent(submittedSession)
+      // A Git form may close while the submitted model call finishes. Its
+      // chat acknowledgement still belongs here; the generation id below
+      // prevents it from filling a later form.
+      requireCurrent(submittedSession, false)
       // The images go only once the host has the message (D26).
       this.attachments.release(attachmentIds)
       if (this.isDisposed) {
@@ -5628,6 +6083,9 @@ export class ConversationController {
         submission.disposition !== QUEUED_DISPOSITION &&
           submission.disposition !== STEERED_DISPOSITION,
       )
+      if (gitGeneration !== undefined) {
+        this.git.generationSubmitted(turnId, gitGeneration)
+      }
       // acceptSubmission below records the card; the Auto reviewer sees the message now (M90).
       this.noteReviewMessage(shownText)
       if (typed.some((part) => part.type === 'file' || part.type === 'textFile')) {
@@ -5647,11 +6105,14 @@ export class ConversationController {
       }
       this.noteQueuedMessage(submittedSession, localId, submission)
       this.acceptSubmission(localId, shownText, submission)
+      isGitSubmitted = true
       return { isAccepted: true, hasSetTodos: seededSession !== undefined, turnId }
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
       const reason = describe(error)
-      this.deps.log.error(`sendMessage failed: ${isComposerMessage ? reason : errorKind(error)}`)
+      this.deps.log.error(
+        `sendMessage failed: ${isComposerMessage ? describeForLog(error) : errorKind(error)}`,
+      )
       if (seededSession !== undefined) {
         this.takeBackTodos(seededSession)
       }
@@ -5670,6 +6131,9 @@ export class ConversationController {
       }
       return { isAccepted: false, hasSetTodos: false, turnId: undefined }
     } finally {
+      if (gitGeneration !== undefined && !isGitSubmitted) {
+        this.git.generationFailed(gitGeneration)
+      }
       if (isCountedSubmission) {
         this.turnSubmissionsInFlight -= 1
       }
@@ -5878,8 +6342,11 @@ export class ConversationController {
       this.post({ type: 'sendFailed', localId, reason: UI_TEXT.restoreTurnRunning })
       return
     }
-    if (isGitReview(request) && !this.deps.isWorkspaceTrusted()) {
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.reviewRestricted })
+    const gitRefusal = isGitReview(request)
+      ? this.gitTrustRefusal(UI_TEXT.reviewRestricted)
+      : undefined
+    if (gitRefusal !== undefined) {
+      this.post({ type: 'sendFailed', localId, reason: gitRefusal })
       return
     }
     const running = this.runReview(localId, text, request, workspaceRoot)
@@ -5920,7 +6387,7 @@ export class ConversationController {
       if (request.scope !== 'custom') {
         const collection = await this.deps.review.collect(
           request,
-          () => !isStale() && this.deps.isWorkspaceTrusted(),
+          () => !isStale() && this.isProjectTrusted(),
         )
         if (isStale()) {
           refuse(UI_TEXT.turnStoppedByRestart)
@@ -5950,8 +6417,11 @@ export class ConversationController {
       ) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
       }
-      if (isGitReview(request) && !this.deps.isWorkspaceTrusted()) {
-        refuse(UI_TEXT.reviewRestricted)
+      const gitRefusal = isGitReview(request)
+        ? this.gitTrustRefusal(UI_TEXT.reviewRestricted)
+        : undefined
+      if (gitRefusal !== undefined) {
+        refuse(gitRefusal)
         return
       }
       // A review's turn is marked running before it is sent and takes over
@@ -6026,7 +6496,7 @@ export class ConversationController {
     const isCurrent = () =>
       this.isCurrentSessionAction(session, generation) &&
       isMaterialCurrent?.() !== false &&
-      (!requiresWorkspaceTrust || this.deps.isWorkspaceTrusted())
+      (!requiresWorkspaceTrust || this.isProjectTrusted())
     // The panel's Plan label can precede its backend admission.
     while (this.reviewModeSettling !== undefined) {
       await this.reviewModeSettling
@@ -6034,6 +6504,7 @@ export class ConversationController {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
+    this.requireNonConfidentialModel(session.modelId)
     if (session.review !== undefined) {
       return await session.review(parts, text)
     }
@@ -6058,7 +6529,10 @@ export class ConversationController {
     this.permissionMode = 'plan'
     this.postComposerState()
     try {
-      return await hold.send(session, parts, text, isCurrent)
+      return await hold.send(session, parts, text, () => {
+        this.requireNonConfidentialModel(session.modelId)
+        return isCurrent()
+      })
     } catch (error: unknown) {
       // Plan mode was refused (nothing to put back), or the send failed and
       // the hold put the mode back already.
@@ -6440,12 +6914,12 @@ export class ConversationController {
         return
       }
       if (isGoalRefusedError(error)) {
-        this.deps.log.info(`Goal ${verb} refused: ${error.message}`)
+        this.deps.log.info(`Goal ${verb} refused: ${error.refusal}`)
         this.say('warning', goalRefusalText(verb, error.refusal))
         result(false)
         return
       }
-      this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.goalCommandFailed}: ${describe(error)}`, undefined, error)
       result(false)
     }
   }
@@ -6502,7 +6976,7 @@ export class ConversationController {
       }
       this.post({ type: 'agentEvent', event: { type: 'goalChanged', goal } })
     } catch (error: unknown) {
-      this.deps.log.warn(`goal refresh failed: ${describe(error)}`)
+      this.deps.log.warn(`goal refresh failed: ${describeForLog(error)}`)
     }
   }
 
@@ -6526,7 +7000,7 @@ export class ConversationController {
         this.say('info', fill(UI_TEXT.scheduleCreated, { id: job.id }))
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6538,7 +7012,7 @@ export class ConversationController {
         this.say('info', UI_TEXT.scheduleNone)
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6554,7 +7028,7 @@ export class ConversationController {
         fill(isRemoved ? UI_TEXT.scheduleCancelled : UI_TEXT.scheduleUnknown, { id }),
       )
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -6624,10 +7098,16 @@ export class ConversationController {
         }
         return
       }
+      this.requireNonConfidentialModel(session.modelId)
       await session.schedules.run(id, occurrenceMs, confirmed)
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch && this.accountStopsInFlight === 0) {
-        this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
   }
@@ -6639,7 +7119,17 @@ export class ConversationController {
     try {
       await this.session.cancel()
     } catch (error: unknown) {
-      this.deps.log.warn(`turn/cancel failed: ${describe(error)}`)
+      this.deps.log.warn(`turn/cancel failed: ${describeForLog(error)}`)
+    }
+  }
+
+  /** A fresh check immediately before dispatch, with no asynchronous gap. */
+  private requireNonConfidentialModel(modelId: string): void {
+    if (
+      this.deps.isConfidentialWorkspace() &&
+      (isContributorModel(modelId) || isContributorModel(this.modelId))
+    ) {
+      throw new Error(UI_TEXT.contributorBlocked)
     }
   }
 
@@ -6685,11 +7175,11 @@ export class ConversationController {
     if (!isContributorModel(modelId) || this.confirmedContributor === modelId) {
       return true
     }
-    if (this.deps.isConfidentialWorkspace()) {
-      this.notice('warning', UI_TEXT.contributorBlocked)
+    if (!(await this.deps.confirmContributor(modelId))) {
       return false
     }
-    if (!(await this.deps.confirmContributor(modelId))) {
+    if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
       return false
     }
     this.confirmedContributor = modelId
@@ -6697,7 +7187,10 @@ export class ConversationController {
   }
 
   private async setModel(modelId: string): Promise<void> {
-    if (!(await this.allowsModel(modelId))) {
+    if (
+      !(await this.allowsModel(modelId)) ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(modelId))
+    ) {
       this.postSessionInfo(this.modelId)
       return
     }
@@ -6709,9 +7202,17 @@ export class ConversationController {
     if (this.session !== undefined) {
       try {
         await this.session.setModel(modelId)
+        const appliedModel = this.session.modelId
+        // Extension-hook sessions apply or refuse synchronously. Muse Code's
+        // modelId instead waits for its next notification after setModel.
+        if (appliedModel !== modelId && this.session.fireExtensionHook !== undefined) {
+          this.modelId = appliedModel
+          this.postSessionInfo(appliedModel)
+          return
+        }
       } catch (error: unknown) {
         this.modelId = previous
-        this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.modelSwitchFailed}: ${describe(error)}`, undefined, error)
         return
       }
     }
@@ -6774,8 +7275,15 @@ export class ConversationController {
   }
 
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
+    if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
+    this.clearJudgeCards()
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
+      this.postComposerState()
+      return
+    }
+    if (mode !== 'plan' && this.deps.isWorktreeHeld()) {
+      this.notice('info', UI_TEXT.worktreeHeldPlanOnly)
       this.postComposerState()
       return
     }
@@ -6857,7 +7365,12 @@ export class ConversationController {
         }
         this.permissionMode = previous
         this.restorePlanTurns(leftPlanTurns)
-        this.notice('error', `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`)
+        this.notice(
+          'error',
+          `${UI_TEXT.permissionModeChangeFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
     if (isCurrent()) {
@@ -6906,6 +7419,7 @@ export class ConversationController {
     // New Conversation (it spends the echo) or a keybinding (M25, D28).
     this.post({ type: 'conversationCleared' })
     this.attachments.clear()
+    this.git.sessionChanged(undefined)
     this.setTitle(undefined)
     // No session any more: the webview forgets the id it keeps for the
     // reload serializer (D15).
@@ -6941,7 +7455,7 @@ export class ConversationController {
       if (reason.includes(MISSING_RUN_REASON)) {
         this.notice('info', UI_TEXT.nothingToCompact)
       } else {
-        this.notice('error', `${UI_TEXT.compactionFailed}: ${reason}`)
+        this.notice('error', `${UI_TEXT.compactionFailed}: ${reason}`, undefined, error)
       }
     }
   }
@@ -6960,7 +7474,7 @@ export class ConversationController {
     try {
       session = await this.sessionForAction()
     } catch (error: unknown) {
-      this.deps.log.warn(`The skills were not listed: ${describe(error)}`)
+      this.deps.log.warn(`The skills were not listed: ${describeForLog(error)}`)
       return
     }
     if (session !== undefined) {
@@ -6973,7 +7487,7 @@ export class ConversationController {
       const items = await this.deps.mentions.search(query, MENTION_RESULT_LIMIT)
       this.post({ type: 'mentionResults', requestId, items: [...items] })
     } catch (error: unknown) {
-      this.deps.log.warn(`mention search failed: ${describe(error)}`)
+      this.deps.log.warn(`mention search failed: ${describeForLog(error)}`)
       this.post({ type: 'mentionResults', requestId, items: [] })
     }
   }
@@ -7067,7 +7581,7 @@ export class ConversationController {
       if (!this.isCurrentAttachmentGeneration(generation)) {
         return { kind: 'stale' }
       }
-      this.deps.log.warn(`text attachment path check failed: ${describe(error)}`)
+      this.deps.log.warn(`text attachment path check failed: ${describeForLog(error)}`)
       return { kind: 'mention' }
     }
     if (!this.isCurrentAttachmentGeneration(generation)) {
@@ -7158,7 +7672,7 @@ export class ConversationController {
           if (!this.isCurrentAttachmentGeneration(generation)) {
             return
           }
-          this.deps.log.warn(`attachment read failed: ${describe(error)}`)
+          this.deps.log.warn(`attachment read failed: ${describeForLog(error)}`)
           this.post({
             type: 'attachmentRejected',
             name: file.name,
@@ -7250,7 +7764,12 @@ export class ConversationController {
     try {
       await this.deps.runHostAction(action)
     } catch (error: unknown) {
-      this.notice('error', `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`)
+      this.notice(
+        'error',
+        `${fill(UI_TEXT.hostActionFailed, { action })}: ${describe(error)}`,
+        undefined,
+        error,
+      )
       return
     }
     if (restartedFault === undefined) {
@@ -7295,7 +7814,7 @@ export class ConversationController {
       }
       await this.postUsage(host, subscription)
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.usageUnavailable}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -7347,7 +7866,7 @@ export class ConversationController {
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -7366,7 +7885,7 @@ export class ConversationController {
       await session.messageSubagent(subagentId, body.trim(), isFollowup)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
-        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -7399,7 +7918,7 @@ export class ConversationController {
         this.notice(notice.level, notice.text)
       }
     } catch (error: unknown) {
-      this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`)
+      this.notice('error', `${UI_TEXT.exportFailed}: ${describe(error)}`, undefined, error)
     }
   }
 
@@ -7415,7 +7934,7 @@ export class ConversationController {
     try {
       picked = await this.deps.transferFiles.pickTransferFile(title)
     } catch (error: unknown) {
-      this.notice('error', `${failure}: ${describe(error)}`)
+      this.notice('error', `${failure}: ${describe(error)}`, undefined, error)
       return undefined
     }
     if (this.isDisposed || picked.kind === 'dismissed') {
@@ -7435,6 +7954,68 @@ export class ConversationController {
       return undefined
     }
     return parsed.doc
+  }
+
+  /**
+   * Report a problem (M93, PLAN.md D72): the preview dialog's messages. They
+   * need no sign-in and start no session: the dialog builds from the journal
+   * and local facts alone. A webview failure is journalled here directly;
+   * the dialog's handler loads with dist/report.js on first use.
+   */
+  private async handleReportMessage(message: ReportProblemMessage): Promise<void> {
+    const reports = this.deps.reports
+    if (reports === undefined) {
+      // No recorder could start in this window: nothing to record or build from.
+      if (message.type !== 'reportWebviewError') {
+        this.deps.log.warn('Report a problem has no flight recorder in this window')
+        this.notice('error', UI_TEXT.actionFailed)
+      }
+      return
+    }
+    if (message.type === 'reportWebviewError') {
+      reports.recordWebviewError(message)
+      return
+    }
+    let handler: { handle: (message: ReportProblemMessage) => Promise<void> }
+    try {
+      handler = await this.reportProblemHandler(reports)
+    } catch (error: unknown) {
+      this.reportHandler = undefined
+      this.deps.log.error(`The report bundle could not be loaded: ${describe(error)}`)
+      this.notice('error', UI_TEXT.actionFailed)
+      return
+    }
+    await handler.handle(message)
+  }
+
+  private reportProblemHandler(reports: ConversationReports): Promise<{
+    handle: (message: ReportProblemMessage) => Promise<void>
+  }> {
+    this.reportHandler ??= (async () => {
+      const bundle: typeof ReportBundle = await import('../support/reportEntry')
+      if (typeof bundle.createReportProblemHandler !== 'function') {
+        throw new TypeError('The report bundle does not export its handler factory')
+      }
+      return bundle.createReportProblemHandler(
+        {
+          post: (posted) => {
+            this.post(posted)
+          },
+          noticeError: (text) => {
+            this.notice('error', text)
+          },
+          log: this.deps.log,
+          source: reports.source,
+          io: reports.io,
+          onReportWebviewError: (error) => {
+            reports.recordWebviewError(error)
+          },
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    })()
+    return this.reportHandler
   }
 
   /**
@@ -7505,7 +8086,7 @@ export class ConversationController {
       await this.adopt(host, loaded, UI_TEXT.importedNotice, 'imported')
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`)
+        this.notice('error', `${UI_TEXT.importSessionFailed}: ${describe(error)}`, undefined, error)
       }
     }
   }
@@ -7550,7 +8131,12 @@ export class ConversationController {
       })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
-        this.notice('warning', `${UI_TEXT.agentTranscriptFailed}: ${describe(error)}`)
+        this.notice(
+          'warning',
+          `${UI_TEXT.agentTranscriptFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
       }
     }
   }
@@ -7794,7 +8380,7 @@ export class ConversationController {
         this.postSessionInfo(this.modelId)
       }
     } catch (error: unknown) {
-      this.deps.log.warn(`model warm-up failed: ${describe(error)}`)
+      this.deps.log.warn(`model warm-up failed: ${describeForLog(error)}`)
       // Whatever else waited on the same start fails with it now; a message's
       // own card says it better, so this says it only if nothing else did.
       await new Promise((resolve) => setImmediate(resolve))
@@ -7853,11 +8439,22 @@ export class ConversationController {
           message.attachmentIds,
           message.includeEditorContext === true,
           message.reference,
+          undefined,
+          undefined,
+          undefined,
+          message.secretAccepted === true,
+          message.gitDraft,
+          message.gitDraftBase,
         )
         break
       }
       case 'withdrawQueued': {
         await this.withdrawQueued(message)
+        break
+      }
+      case 'runManualHook': {
+        const result = await this.deps.runManualHook?.(message.name)
+        if (result === undefined) this.notice('warning', UI_TEXT.hooksNotRunnable)
         break
       }
       case 'cancelTurn': {
@@ -7904,11 +8501,17 @@ export class ConversationController {
         break
       }
       case 'decideApproval': {
+        this.judgeCards.get(message.approvalId)?.discard()
+        this.judgeCards.delete(message.approvalId)
         await this.decideApproval(message)
         break
       }
       case 'answerQuestion': {
         await this.answerQuestion(message)
+        break
+      }
+      case 'elicitationAnswer': {
+        await this.answerElicitation(message)
         break
       }
       case 'cancelQuestion': {
@@ -8245,6 +8848,25 @@ export class ConversationController {
         await this.deps.forgetPaidUse()
         break
       }
+      case 'gitAction': {
+        await this.git.handleAction(message.action)
+        break
+      }
+      case 'gitCommit': {
+        await this.git.commit(message.message, message.includeUnstaged)
+        break
+      }
+      case 'gitCreatePullRequest': {
+        await this.git.createPullRequest(message)
+        break
+      }
+      case 'openReport':
+      case 'updateReport':
+      case 'exportReport':
+      case 'reportWebviewError': {
+        await this.handleReportMessage(message)
+        break
+      }
     }
   }
 
@@ -8255,6 +8877,20 @@ export class ConversationController {
       ...(this.session !== undefined && { sessionId: this.session.sessionId }),
       ...(this.activeTurnId !== undefined && { activeTurnId: this.activeTurnId }),
     })
+  }
+
+  /** A setting change retires contributor work, including in-flight preparations. */
+  public confidentialWorkspaceChanged(): void {
+    if (
+      this.deps.isConfidentialWorkspace() &&
+      (isContributorModel(this.modelId) ||
+        (this.session !== undefined && isContributorModel(this.session.modelId)))
+    ) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      this.dropSession()
+    }
+    this.forgetModels()
+    void this.warmModels()
   }
 
   /** Whether checkpoints run changed (trust granted, the setting): the panel is told (M72). */
@@ -8301,6 +8937,7 @@ export class ConversationController {
     for (const attachment of this.attachments.list()) {
       this.post({ type: 'attachmentAdded', attachment })
     }
+    this.git.postState(true)
     // A waiting handoff's dialog (M74), after the surface state, whose
     // clearing of a stale restored conversation would drop it again; or
     // its brief, when admission put the read off.
@@ -8320,7 +8957,9 @@ export class ConversationController {
     try {
       await this.dispatch(message)
     } catch (error: unknown) {
-      this.deps.log.error(`${message.type} failed: ${errorDetail(error)}`)
+      this.deps.log.error(
+        `${message.type} failed: ${isMspFailure(error) ? describeForLog(error) : errorDetail(error)}`,
+      )
       if (this.isFirstShowing(error)) {
         this.say('error', `${UI_TEXT.actionFailed}: ${describe(error)}`)
       }
@@ -8417,7 +9056,7 @@ export class ConversationController {
         if (!this.isCurrentSessionAction(session, generation)) {
           return
         }
-        this.deps.log.warn(`Bypass revocation: the mode change failed (${describe(error)})`)
+        this.deps.log.warn(`Bypass revocation: the mode change failed (${describeForLog(error)})`)
         this.retireBypassSession()
         return
       }
@@ -8456,6 +9095,40 @@ export class ConversationController {
   /** Whether Ctrl+B has a running command to move here (M46): its context key. */
   public get hasForegroundShell(): boolean {
     return this.foregroundShells.size > 0
+  }
+
+  /** The Judge reads the attached action's current model and loaded context window. */
+  public judgeContext(
+    sessionId: string,
+    turnId: string,
+  ):
+    | {
+        readonly backend: BackendKind
+        readonly modelId: string
+        readonly contextLimit: number | undefined
+      }
+    | undefined {
+    if (
+      this.isDisposed ||
+      this.accountStopsInFlight > 0 ||
+      this.session === undefined ||
+      this.sessionKind === undefined ||
+      this.session.sessionId !== sessionId ||
+      this.activeTurnId !== turnId ||
+      (this.deps.isConfidentialWorkspace() && isContributorModel(this.session.modelId))
+    )
+      return
+    return {
+      backend: this.sessionKind,
+      modelId: this.session.modelId,
+      contextLimit: this.contextLimitFor(this.session.modelId),
+    }
+  }
+
+  public postJudge(
+    message: Extract<HostToWebviewMessage, { type: 'judgeState' | 'agentEvent' }>,
+  ): void {
+    this.post(message)
   }
 
   /** Board state comes from captured turn events, not a guessed native status. */
@@ -8597,6 +9270,7 @@ export class ConversationController {
         this.attachments.clear()
         this.post({ type: 'conversationCleared', accountBoundary: true })
         this.post({ type: 'attachmentsCleared' })
+        this.git.sessionChanged(undefined)
         // The tasks tab's conversation ends at the account boundary too (M87).
         this.endTasksTab()
       }
@@ -8610,7 +9284,7 @@ export class ConversationController {
         try {
           await session.cancel()
         } catch (error: unknown) {
-          this.deps.log.warn(`turn/cancel before the restart failed: ${describe(error)}`)
+          this.deps.log.warn(`turn/cancel before the restart failed: ${describeForLog(error)}`)
         }
         this.endTurnLocally('cancelled', UI_TEXT.turnStoppedByRestart)
       }
@@ -8648,6 +9322,14 @@ export class ConversationController {
         this.accountStopsInFlight -= 1
       }
     }
+  }
+
+  /**
+   * `Muse Spark: Report a Problem` (M93): the same dialog the panel's entry
+   * points open, built from the journal; nothing about the conversation.
+   */
+  public async openReport(): Promise<void> {
+    await this.handleReportMessage({ type: 'openReport' })
   }
 
   /**
@@ -8698,5 +9380,15 @@ export class ConversationController {
     this.retiredDictation?.dispose()
     this.retiredDictation = undefined
     this.checkpoints.dispose()
+    this.git.dispose()
+  }
+
+  /**
+   * The user trusted the held worktree in the card (M71): the card goes, and
+   * the conversation, still in Plan, may leave it now.
+   */
+  public worktreeHoldReleased(): void {
+    this.git.postState()
+    this.postComposerState()
   }
 }

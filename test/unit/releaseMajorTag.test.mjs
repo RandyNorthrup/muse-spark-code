@@ -1,7 +1,8 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { resolveExecutable } from '../../src/core/executables'
 
 const moveName = 'move the M80 v0 tag after all channels published'
 const reportName = 'report the M80 major-tag outcome'
@@ -25,7 +26,7 @@ function step(name) {
   const workflow = readFileSync('.github/workflows/release.yml', 'utf8')
   const body = workflow.split(`\n      - name: ${name}\n`, 2)[1]
   expect(body, `workflow step ${name}`).toBeDefined()
-  return body.split('\n      - name: ', 1)[0]
+  return body.split(/\n(?: {6}- | {2}[a-z][\w-]*:)/, 1)[0]
 }
 
 function runStep(name, environment = {}) {
@@ -55,10 +56,26 @@ gh() {
   return "$API_STATUS"
 }
 ${script.replaceAll(/^ {10}/gm, '')}`
-  const bash =
-    process.platform === 'win32'
-      ? path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/bash.exe')
-      : 'bash'
+  const installedBash = path.join(
+    process.env.ProgramFiles ?? 'C:/Program Files',
+    'Git/bin/bash.exe',
+  )
+  let bash = process.platform === 'win32' && existsSync(installedBash) ? installedBash : 'bash'
+  if (process.platform === 'win32' && !existsSync(installedBash)) {
+    const executable = resolveExecutable('git', {
+      platform: process.platform,
+      pathVariable: process.env.PATH,
+      fileExists: existsSync,
+    })
+    if (executable !== undefined) {
+      const shell = path.join(path.dirname(executable), '..', 'usr', 'bin', 'sh.exe')
+      const identification = spawnSync(shell, ['--version'], {
+        encoding: 'utf8',
+        windowsHide: true,
+      })
+      if (identification.status === 0 && identification.stdout.startsWith('GNU bash,')) bash = shell
+    }
+  }
   const child = spawnSync(bash, ['--noprofile', '--norc', '-e', '-o', 'pipefail', '-c', commands], {
     encoding: 'utf8',
     env: {

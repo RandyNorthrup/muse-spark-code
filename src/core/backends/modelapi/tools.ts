@@ -55,11 +55,18 @@ import { MODEL_API_CODE_INTEL_DEFINITIONS } from '../../codeIntel/definitions'
 import { readImageInfo } from '../../imageDimensions'
 import type { MemoryWrites } from '../../memory/memoryStore'
 import { isPdf, pdfPageCount } from '../../pdf'
+import { posixQuoted, powerShellQuoted } from '../../shellQuote'
 import { fingerprint } from '../../verify/fingerprint'
 import { WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS } from '../../web/webFetchDefinition'
+import {
+  BROWSER_CHECK_DESCRIPTION,
+  BROWSER_CHECK_PARAMETERS,
+  BROWSER_CHECK_REQUIRED,
+} from '../../browser/browserTool'
 import { confineWorkspacePath } from '../../workspacePath'
 import { compileGlob, GLOB_LIMITS } from './globLimits'
 import type { GlobLimits } from './glob'
+import type { HookHttpResult } from './hookHandlers'
 import type { FileRules } from './permissionPolicy'
 import {
   EDIT_IMAGE_DESCRIPTION,
@@ -239,6 +246,12 @@ export interface ToolIo {
     extraEnvNames?: readonly string[],
   ): Promise<ShellResult>
   /**
+   * An M91 http hook's POST of its bounded JSON payload, through the host's
+   * pinned-request path (HTTPS to the pinned address, no redirects followed;
+   * fixed headers only). Absent until the host wires it: http hooks then skip.
+   */
+  runHookHttp?: (url: string, payload: string, signal: AbortSignal) => Promise<HookHttpResult>
+  /**
    * The canonical form of an absolute path: links, junctions and short
    * names resolved through the nearest existing ancestor (PLAN.md D24).
    * Rejects when the file system refuses to say (permissions, link loops).
@@ -317,6 +330,12 @@ export interface ToolContext {
   readonly contextTokens?: number | undefined
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
+  /**
+   * The shell tool's start directory (M91 lane S, PLAN.md D70): the
+   * session's kept directory. Absent runs at the workspace root, as before.
+   * Only the shell tool reads it; every other tool stays at the root.
+   */
+  readonly shellCwd?: string | undefined
   readonly io: ToolIo
   /** The checked write destination shown to the permission gate before approval. */
   readonly approvedTarget?: {
@@ -372,10 +391,16 @@ export interface EditFormatter {
 /** What a conditional write did (M68): wrote the file, or found it changed and left it. */
 export type ConditionalWrite = 'written' | 'changed'
 
-/** A PDF or an image `read_file` read whole for the model to see (M54, PLAN.md D47). */
+/**
+ * A PDF or an image for the model to see, in a user message after the
+ * round's outputs (M54, PLAN.md D47): one `read_file` read whole, or the
+ * browser check's screenshot (M81).
+ */
 export interface VisibleFile {
-  /** Workspace-relative, as the model named it. */
-  readonly path: string
+  /** The model's line before it: what it is and where it came from. */
+  readonly lead: string
+  /** The model's line in its place when the round ended before it was sent. */
+  readonly notDelivered: string
   readonly part: ImagePart | DocumentPart
 }
 
@@ -460,6 +485,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [VERIFY_TOOLS.runChecks]: 'interactive',
   // M69 (PLAN.md D49): a network tool, asked per host.
   [MODEL_API_TOOLS.webFetch]: 'network',
+  // M81 (PLAN.md D49): it starts a browser that reaches the page's host, so
+  // it asks per host as web fetch does; Plan refuses it.
+  [MODEL_API_TOOLS.browserCheck]: 'network',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -541,6 +569,8 @@ export interface ToolDefinitionOptions {
   readonly checks?: readonly CheckCommandSetting[]
   /** Web fetch, trusted workspaces only, when the host has a fetch (M69, PLAN.md D49). */
   readonly hasWebFetch?: boolean
+  /** The browser check, trusted workspaces only, when the host can run one (M81, PLAN.md D49). */
+  readonly hasBrowserCheck?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -747,6 +777,16 @@ export function toolDefinitions(
     ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
       ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
+      : []),
+    ...(options.hasBrowserCheck === true
+      ? [
+          define(
+            MODEL_API_TOOLS.browserCheck,
+            BROWSER_CHECK_DESCRIPTION,
+            BROWSER_CHECK_PARAMETERS,
+            BROWSER_CHECK_REQUIRED,
+          ),
+        ]
       : []),
     ...(options.hasCodeIntel === true
       ? MODEL_API_CODE_INTEL_DEFINITIONS.map((tool) =>
@@ -972,6 +1012,14 @@ function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
 }
 
+/** The model's lines around a file `read_file` read (M54). */
+function readFileLines(relative: string): Pick<VisibleFile, 'lead' | 'notDelivered'> {
+  return {
+    lead: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: relative }),
+    notDelivered: fill(MODEL_API_MODEL_TEXT.toolFileNotDelivered, { path: relative }),
+  }
+}
+
 /** The PDF, checked by its header, for the model to read whole (M54). */
 function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
   if (!isPdf(bytes)) {
@@ -1002,7 +1050,7 @@ function pdfOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'file',
         base64Data: Buffer.from(bytes).toString('base64'),
@@ -1042,7 +1090,7 @@ function imageOutcome(relative: string, bytes: Uint8Array): ToolOutcome {
     output,
     visibleOutput,
     visibleFile: {
-      path: relative,
+      ...readFileLines(relative),
       part: {
         type: 'image',
         base64Data: Buffer.from(bytes).toString('base64'),
@@ -1482,13 +1530,71 @@ async function shell(args: z.infer<typeof shellArgs>, context: ToolContext): Pro
   )
   const result = await context.io.runShell(
     args.command,
-    context.workspaceRoot,
+    context.shellCwd ?? context.workspaceRoot,
     timeoutMs,
     context.signal,
     context.limit,
     context.assertCanRun,
   )
   return shellOutcome(result, timeoutMs)
+}
+
+/**
+ * What a shell command carries so the session's kept directory survives it
+ * (M91 lane S, PLAN.md D70; the lead's side-file decision): the trailer
+ * reports the call's sequence and the shell's final directory to the
+ * session's side file, then restores the command's own exit. The trailer
+ * changes neither the output (it writes a file, not a stream) nor how the
+ * command ended:
+ * - bash keeps `$?` across the trailer and exits with it, so a failing
+ *   command still fails; a trailer the command never reaches (`exit`,
+ *   `set -e`, a parse error, a kill) leaves a stale sequence, which reads
+ *   back as "no report".
+ * - Windows PowerShell reports a `-Command`'s last statement, so a bare
+ *   trailer would turn a failure into a success (probed: a failing cmdlet
+ *   exits 1, a succeeding trailer after it exits 0). The trailer reads
+ *   `$?` and `$LASTEXITCODE` first and exits with the same outcome: a
+ *   success stays 0, a native failure keeps its code, anything else fails
+ *   as 1. The 5.1-safe statements (no ternary) write through .NET, so a
+ *   directory with spaces, quotes or `$` needs no quoting at all.
+ * The host reads the file back (never the output, which can be truncated)
+ * and keeps a directory inside the workspace, else resets to the root with
+ * a note. Approval cards, session rules and hook payloads see the user's
+ * own command, which the host wraps after admission.
+ */
+export function shellDirectoryTrailer(
+  platform: NodeJS.Platform,
+  sideFile: string,
+  sequence: number,
+): string {
+  return platform === 'win32'
+    ? `; $__m91code=$LASTEXITCODE; $__m91ok=$?; try { [System.IO.File]::WriteAllText(${powerShellQuoted(sideFile)}, '${String(sequence)}' + "\`n" + (Get-Location).Path) } catch {}; $__m91exit=1; if ($__m91code) { $__m91exit=$__m91code }; if ($__m91ok) { exit 0 } else { exit $__m91exit }`
+    : String.raw`; __m91status=$?; { printf '%s\n' '${String(sequence)}'; pwd; } > ${posixQuoted(sideFile)} || true; exit $__m91status`
+}
+
+/**
+ * A side file's report for `sequence`: the shell's final directory.
+ * Undefined when the trailer never ran (an `exit`, a kill, a timeout, a
+ * parse error) or the file holds another call's report: the caller then
+ * keeps the previous directory. Newlines inside a name survive: everything
+ * after the first line is the directory, less its one trailing newline.
+ */
+export function parseShellDirectoryReport(
+  text: string | undefined,
+  sequence: number,
+): string | undefined {
+  if (text === undefined) {
+    return undefined
+  }
+  const lines = text.split('\n')
+  if (lines[0] !== String(sequence)) {
+    return undefined
+  }
+  const reported = lines
+    .slice(1)
+    .join('\n')
+    .replace(/\r?\n$/, '')
+  return reported === '' ? undefined : reported
 }
 
 /**

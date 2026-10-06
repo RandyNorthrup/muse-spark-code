@@ -54,6 +54,7 @@ import {
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
+  type ReportEventKind,
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_EFFORT,
   type EffortLevel,
@@ -72,7 +73,14 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
-import { formAnswers, questionForm, questionsText } from './questions'
+import {
+  elicitationSchema,
+  elicitationText,
+  formAnswers,
+  parseElicitationResult,
+  questionForm,
+  questionsText,
+} from './questions'
 import {
   approvalToolCall,
   decidedChoice,
@@ -131,10 +139,41 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /**
+   * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
+   * for the standalone report's journal. The runtime wires this to its local
+   * recorder adapter in ACP mode; the report subcommand reads it back. The
+   * observer receives a fixed event kind and a fixed short code per failure
+   * site — never a message, stack, path, prompt or session id — so observing
+   * cannot leak what the scrub would remove. It runs after the log call,
+   * never touches ACP stdout, and a throwing observer never breaks the
+   * session. Absent, the agent behaves exactly as before.
+   */
+  readonly reportError?: (fact: AcpErrorFact) => void
+}
+
+/** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
+export interface AcpErrorFact {
+  readonly kind: ReportEventKind
+  readonly code: string
+}
+
+/** Hands one fixed code to the error observer; a throwing observer never breaks the session. */
+function observeError(deps: AcpAgentDeps, code: string): void {
+  const report = deps.reportError
+  if (report === undefined) {
+    return
+  }
+  try {
+    report({ kind: 'errorNotice', code })
+  } catch {
+    // Observing never breaks the session it watches.
+  }
 }
 
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
+type ElicitationRequest = Extract<AgentEvent, { type: 'elicitationRequested' }>
 type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 
 interface PendingPrompt {
@@ -238,6 +277,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: an update was not sent: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'updateNotSent')
     }
   }
 
@@ -274,6 +314,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'skillsUnavailable')
       return
     }
     this.send({
@@ -318,6 +359,10 @@ class AcpSession {
       }
       case 'questionRequested': {
         void this.ask(event)
+        return
+      }
+      case 'elicitationRequested': {
+        void this.askElicitation(event)
         return
       }
       case 'turnCompleted': {
@@ -424,6 +469,7 @@ class AcpSession {
         this.deps.log.warn(
           `ACP session ${this.sessionId}: permission request failed, denying: ${failureForLog(error)}`,
         )
+        observeError(this.deps, 'permissionRequestFailed')
       }
       choice = decidedChoice(response, event.availableChoices)
     }
@@ -436,6 +482,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: approval ${event.approvalId} offers no denial; stopping the turn`,
       )
+      observeError(this.deps, 'approvalWithoutDenial')
       await this.cancel()
       return
     }
@@ -450,6 +497,77 @@ class AcpSession {
       this.deps.log[level](
         `ACP session ${this.sessionId}: approval ${event.approvalId}: ${failureForLog(error)}`,
       )
+    }
+  }
+
+  /**
+   * An MCP server's elicitation form (M91 lane M) through the client's own
+   * form path: the client's answer settles the session's form, validated
+   * against the server's schema there. Without forms the turn carries on
+   * and the request is cancelled; a failed form cancels it too, never
+   * answering by a guess.
+   */
+  private async askElicitation(event: ElicitationRequest): Promise<void> {
+    const pending = this.pending
+    const settle = this.session.settleElicitation
+    const message = `${fill(UI_TEXT.elicitationTitle, { server: event.server })}\n${event.message}`
+    try {
+      if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: elicitationText(message, event.fields) },
+        })
+      } else {
+        const request: CreateElicitationRequest = {
+          sessionId: this.sessionId,
+          mode: 'form',
+          message,
+          requestedSchema: elicitationSchema(event.fields),
+        }
+        const response = await this.client.request('elicitation/create', request)
+        if (!this.isCurrentPrompt(pending)) {
+          return
+        }
+        const parsed = parseElicitationResult(response)
+        if (parsed?.action === 'accept') {
+          try {
+            await settle.call(this.session, event.elicitationId, {
+              kind: 'accepted',
+              values: { ...parsed.content },
+            })
+          } catch {
+            // The session refused the content: cancel instead of hanging
+            // on a form nobody else will answer.
+            if (this.isCurrentPrompt(pending)) {
+              await settle.call(this.session, event.elicitationId, { kind: 'cancelled' })
+            }
+          }
+          return
+        }
+        await settle.call(this.session, event.elicitationId, {
+          kind: parsed?.action === 'decline' ? 'declined' : 'cancelled',
+        })
+        return
+      }
+      if (this.isCurrentPrompt(pending)) {
+        try {
+          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
+        } catch {
+          // A timeout may already have settled the form. Never surface the
+          // client's error text or turn that race into an unhandled promise.
+          this.deps.log.info('ACP elicitation was already settled')
+        }
+      }
+    } catch {
+      this.deps.log.warn(`ACP session ${this.sessionId}: elicitation ${event.elicitationId} failed`)
+      // A form that failed is cancelled, so the tool call goes on without the answer.
+      if (this.isCurrentPrompt(pending)) {
+        try {
+          await settle?.call(this.session, event.elicitationId, { kind: 'cancelled' })
+        } catch {
+          this.deps.log.info('ACP elicitation was already settled')
+        }
+      }
     }
   }
 
@@ -488,6 +606,7 @@ class AcpSession {
       this.deps.log.warn(
         `ACP session ${this.sessionId}: question ${event.userInputId}: ${failureForLog(error)}`,
       )
+      observeError(this.deps, 'questionFailed')
       // A form that failed is declined, so the turn goes on without the answer.
       if (this.isCurrentPrompt(pending)) {
         await this.declineQuestions(event.userInputId)

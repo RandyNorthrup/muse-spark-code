@@ -10,7 +10,6 @@ import { createFileExclusively } from '../../src/host/fsAtomic'
 import { createOwnerIo } from '../../src/host/checkpoints/writeRecorder'
 import { canonicalPath } from '../../src/host/canonicalPath'
 import { nativeToolIo } from './helpers/fakeToolIo'
-import type * as constants from '../../src/shared/constants'
 import {
   CHECKPOINT_SESSIONS_MAX,
   CHECKPOINTS_PER_SESSION_MAX,
@@ -40,7 +39,7 @@ import {
 // setting's days; a conversation with a unit running stays whole. The
 // integration tests lower the per-conversation bound to reach it quickly.
 vi.mock('../../src/shared/constants', async (importOriginal) => ({
-  ...(await importOriginal<typeof constants>()),
+  ...(await importOriginal<Record<string, unknown>>()),
   CHECKPOINTS_PER_SESSION_MAX: 3,
   CHECKPOINT_SESSIONS_MAX: 2,
 }))

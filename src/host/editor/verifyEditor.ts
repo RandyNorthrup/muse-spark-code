@@ -16,6 +16,7 @@
 
 import * as vscode from 'vscode'
 import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry } from '../../core/diagnostics'
+import { redactSecrets } from '../../core/redact'
 import { isCodeLoading } from '../../core/verify/codeFiles'
 import type { EditedFile, FileDiagnostics } from '../../core/verify/diagnosticsReport'
 import { bytesFingerprint } from '../../core/verify/fingerprint'
@@ -106,7 +107,7 @@ const NEVER_STOPPED = new AbortController().signal
 const NOTHING_READ = (): readonly DiagnosticEntry[] | undefined => undefined
 
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+  return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
 /** A URI as one key: case-folded where the file system is (Windows). */

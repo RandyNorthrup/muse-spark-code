@@ -27,6 +27,7 @@ export const sharedUiText: Plugin = {
 export async function buildHostBundles(
   folder: string,
   entries: Readonly<Record<string, string>>,
+  external: readonly string[] = [],
 ): Promise<void> {
   await build({
     entryPoints: { ...entries, uiText: path.resolve('src/shared/l10n/en.ts') },
@@ -38,7 +39,7 @@ export async function buildHostBundles(
     target: 'node20.18',
     plugins: [sharedUiText],
     logLevel: 'silent',
-    external: ['./reviewerEntry.js'],
+    external: ['./reviewerEntry.js', ...external],
   })
 }
 

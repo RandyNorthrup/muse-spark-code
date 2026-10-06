@@ -19,7 +19,7 @@ import type {
   ModelApiHostDeps,
   ModelApiPaidHooks,
 } from '../../core/backends/modelapi/ModelApiHost'
-import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import type { ResponseAttemptGuard, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../../core/backends/modelapi/sessionBudget'
 import type { SessionStore } from '../../core/backends/modelapi/sessionStore'
 import type { ScheduleStore } from '../../shared/schedule'
@@ -32,6 +32,7 @@ import type { McpTool } from '../../core/mcp'
 import type { MemoryStore } from '../../core/memory/memoryStore'
 import type { PermissionSettings } from '../../core/permissionSettings'
 import type { WebFetcher } from '../../core/web/webFetch'
+import type { BrowserCheckHost } from '../../core/browser/browserTool'
 import type { SubagentUsage } from '../../shared/paid'
 import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
@@ -55,6 +56,8 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
+  readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   readonly workspaceRoot: string | undefined
@@ -95,6 +98,11 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly showReplyUsage: () => boolean
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
+  /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
+  readonly hookHttpAllowedHosts?: (() => readonly string[]) | undefined
+  readonly isHookNetworkAllowed?: (() => boolean) | undefined
+  /** Amp and OpenCode plugin hooks' host side (M91b). */
+  readonly pluginHooks?: ModelApiHostDeps['pluginHooks']
   /**
    * The MCP servers for a host in this workspace (M50), one set per host,
    * made with the bundle's pool (M57).
@@ -106,6 +114,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly ideTools?: readonly McpTool[] | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
+  /** The window's browser check, run in its own bundle for `browser_check` (M81). */
+  readonly browserCheck?: BrowserCheckHost | undefined
   /** VS Code's language services, for the code intelligence tools (M67). */
   readonly codeIntel?: LanguageServiceHost | undefined
   /** `museSpark.modelApiRepoMap`, read per turn (M67). */
@@ -114,6 +124,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly isAutoCompactionOn?: (() => boolean) | undefined
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
+  /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
+  readonly isShellKeepsDirectoryOn?: (() => boolean) | undefined
   /** Muse Code's memory, shared with the Memory view (M49, PLAN.md D41). */
   readonly memory: MemoryStore | undefined
   /** The command rules and permission profiles (M78, PLAN.md D49), read at each call. */
@@ -149,6 +161,7 @@ interface HostVariant {
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
   readonly permissionSettings: ModelApiBackendManagerDeps['permissionSettings']
+  readonly browserCheck: BrowserCheckHost | undefined
   readonly webFetch: ModelApiBackendManagerDeps['webFetch']
   readonly codeIntel: ModelApiBackendManagerDeps['codeIntel']
   readonly isRepoMapInPrompt: ModelApiBackendManagerDeps['isRepoMapInPrompt']
@@ -165,6 +178,7 @@ interface HostVariant {
   readonly allowsPaidUse: ModelApiBackendManagerDeps['allowsPaidUse']
   readonly isPaidUseRemembered: ModelApiBackendManagerDeps['isPaidUseRemembered']
   readonly isHooksEnabled: (() => boolean) | undefined
+  readonly hookHttpAllowedHosts: (() => readonly string[]) | undefined
   readonly memory: MemoryStore | undefined
   /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
@@ -246,6 +260,9 @@ export class ModelApiBackendManager {
       uiText: UI_TEXT,
       uiLocale: uiLocale(),
       client: {
+        ...(this.deps.reservePaidRequest !== undefined && {
+          reservePaidRequest: this.deps.reservePaidRequest,
+        }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
@@ -257,6 +274,7 @@ export class ModelApiBackendManager {
         ...(this.deps.networkAdvice !== undefined && { networkAdvice: this.deps.networkAdvice }),
       },
       host: {
+        judge: this.deps.judge,
         workspaceRoot: variant.workspaceRoot,
         platform: process.platform,
         io: variant.io,
@@ -287,18 +305,25 @@ export class ModelApiBackendManager {
         showReplyUsage: this.deps.showReplyUsage,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
+        browserCheck: variant.browserCheck,
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
         autoCompaction: this.deps.isAutoCompactionOn,
+        shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
+        hookHttpAllowedHosts: variant.hookHttpAllowedHosts,
+        isHookNetworkAllowed: this.deps.isHookNetworkAllowed,
+        pluginHooks: this.deps.pluginHooks,
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,
         noteReviewerUsage: this.deps.noteReviewerUsage,
+        noteHookModelUsage: this.deps.noteHookModelUsage,
+        hookModelDailyBudget: this.deps.hookModelDailyBudget,
         permissionSettings: variant.permissionSettings,
         verify: variant.verify,
         workspaceEdits: variant.workspaceEdits,
@@ -323,6 +348,7 @@ export class ModelApiBackendManager {
       sessionWorkspaceRoot: this.deps.sessionWorkspaceRoot,
       permissionSettings: this.deps.permissionSettings,
       webFetch: this.deps.webFetch,
+      browserCheck: this.deps.browserCheck,
       codeIntel: this.deps.codeIntel,
       isRepoMapInPrompt: this.deps.isRepoMapInPrompt,
       io: this.deps.io,
@@ -334,6 +360,7 @@ export class ModelApiBackendManager {
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
       isHooksEnabled: this.deps.isHooksEnabled,
+      hookHttpAllowedHosts: this.deps.hookHttpAllowedHosts,
       memory: this.deps.memory,
       beforeTurnRuns: this.deps.beforeTurnRuns,
       afterTurnRuns: this.deps.afterTurnRuns,
@@ -343,6 +370,10 @@ export class ModelApiBackendManager {
           : (newPool) => createMcpServers(workspaceRoot, newPool),
       readyMessage: 'Model API backend ready (api.meta.ai/v1, stateless reasoning replay)',
     })
+  }
+
+  public judgeConnection(sessionId: string, turnId: string) {
+    return this.host?.judgeConnection(sessionId, turnId)
   }
 
   /**
@@ -379,6 +410,7 @@ export class ModelApiBackendManager {
         budgetScope,
         permissionSettings: this.deps.permissionSettings,
         webFetch: undefined,
+        browserCheck: undefined,
         codeIntel: undefined,
         isRepoMapInPrompt: undefined,
         io: {
@@ -401,6 +433,7 @@ export class ModelApiBackendManager {
             admitRequest(keyDigest)
           },
           {
+            paidFeature: 'bestOfN' as const,
             onRequestStarted: () => {
               admitRequest.onRequestStarted?.()
             },
@@ -415,6 +448,7 @@ export class ModelApiBackendManager {
         allowsPaidUse: () => Promise.resolve(false),
         isPaidUseRemembered: () => false,
         isHooksEnabled: () => false,
+        hookHttpAllowedHosts: undefined,
         memory: undefined,
         beforeTurnRuns: undefined,
         afterTurnRuns: undefined,

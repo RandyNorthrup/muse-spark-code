@@ -28,7 +28,7 @@ import { type ItemSnapshot, itemSnapshotFields } from '../../shared/agentEvents'
 import {
   DEFAULT_EFFORT,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
-  MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   REDACTED_MARK,
   SESSION_EXPORT_FIELD_PATH_MAX,
   SESSION_EXPORT_FORMAT,
@@ -350,7 +350,7 @@ function redactLocalRoots(text: string, roots: readonly string[], counts: ScrubC
       while (end < result.length && !PATH_END.test(result.charAt(end))) {
         end += 1
       }
-      rebuilt += `${result.slice(from, start)}${MODEL_TEXT.exportRedactedPath}`
+      rebuilt += `${result.slice(from, start)}${CONVERSATION_MODEL_TEXT.exportRedactedPath}`
       from = end
       search = at + root.length
       while (search < haystack.text.length && (haystack.offsets[search] ?? end) < end) {
@@ -383,14 +383,14 @@ function scrubText(
   const withoutAccounts = clean.includes('@')
     ? clean.replaceAll(EMAIL_ADDRESS, () => {
         counts.accounts += 1
-        return MODEL_TEXT.exportRedactedAccount
+        return CONVERSATION_MODEL_TEXT.exportRedactedAccount
       })
     : clean
   let redacted = redactLocalRoots(withoutAccounts, roots, counts)
   for (const pattern of PATH_PATTERNS) {
     redacted = redacted.replaceAll(pattern, () => {
       counts.paths += 1
-      return MODEL_TEXT.exportRedactedPath
+      return CONVERSATION_MODEL_TEXT.exportRedactedPath
     })
   }
   return redacted
@@ -583,8 +583,8 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
       ),
     )
   const lead = isFirst
-    ? `${MODEL_TEXT.importedHistoryNote}\n\n${MODEL_TEXT.importedTurnLead}`
-    : MODEL_TEXT.importedTurnLead
+    ? `${CONVERSATION_MODEL_TEXT.importedHistoryNote}\n\n${CONVERSATION_MODEL_TEXT.importedTurnLead}`
+    : CONVERSATION_MODEL_TEXT.importedTurnLead
   return {
     turnId: turn.turnId,
     item: {

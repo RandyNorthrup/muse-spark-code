@@ -11,6 +11,7 @@ import {
 import type { ConfirmedModelRequest, ResponseAttemptGuard } from './client'
 import type { CreateResponseBody, StreamEvent, Usage } from './schemas'
 import {
+  helperRequestSettlement,
   estimateInput,
   requestParts,
   reserveRequest,
@@ -30,6 +31,9 @@ import {
 } from '../../../shared/constants'
 import { fill, setUiText } from '../../../shared/l10n/text'
 import type { UiText } from '../../../shared/l10n/en'
+
+// M91 hook model turns share the paid helper bundle and its existing lazy boundary.
+export { runHookModelTurn } from './hookModelEntry'
 
 type ReviewerResult =
   { readonly decision: 'allow' } | { readonly decision: 'ask'; readonly note: string }
@@ -218,6 +222,10 @@ async function callReviewer(
         required(actualKeyDigest)
       },
       {
+        paidFeature: 'autoReviewer' as const,
+        ...(required.paidEstimatedInputTokens !== undefined && {
+          paidEstimatedInputTokens: required.paidEstimatedInputTokens,
+        }),
         onRequestStarted: () => {
           required.onRequestStarted?.()
           confirmed.onRequestStarted()
@@ -268,20 +276,15 @@ async function callReviewer(
       })
     }
     if (claim !== undefined) {
-      const wasSent = directBudget?.isSent === true
-      const hasUsage = usage !== null && usage !== undefined && context.isCountedUsage(usage)
-      let costUsd = wasSent && !wasRefused ? reservedUsd : 0
-      if (usage !== null && usage !== undefined && context.isCountedUsage(usage)) {
-        costUsd = estimateCostUsd(
-          {
-            inputTokens: usage.input_tokens,
-            outputTokens: usage.output_tokens,
-            cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-          },
-          modelId,
-        )
-      }
-      await claim.settle(costUsd, wasSent && !wasRefused && !hasUsage)
+      const settlement = helperRequestSettlement(
+        modelId,
+        usage,
+        context.isCountedUsage,
+        directBudget?.isSent === true,
+        wasRefused,
+        reservedUsd,
+      )
+      await claim.settle(settlement.costUsd, settlement.isUnknown)
     }
   }
   return parseReviewerAnswer(text) ?? 'unreadable'

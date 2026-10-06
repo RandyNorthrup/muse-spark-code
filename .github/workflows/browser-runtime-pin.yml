@@ -1,0 +1,29 @@
+# The browser check's runtime pin, weekly (M81 A1, design spec v4 §4.2):
+# fails when the pinned Chrome for Testing version has expired, or when the
+# newest Stable is more than 14 days newer than it. It only observes: a new
+# pin ships in an extension release, and no user's runtime changes here.
+# The release workflow runs the same check before a tag builds.
+name: Browser check runtime pin
+
+on:
+  schedule:
+    - cron: '29 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    name: pin is current
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: the runtime pin is current
+        run: node scripts/check-browser-runtime-pin.mjs

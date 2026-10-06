@@ -5,10 +5,14 @@
 // would carry the backend back into dist/extension.js, which the
 // bundle-split gate (scripts/check-bundle-split.mjs) refuses.
 
-import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
+import type { ModelApiClient, ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { McpPoolDeps, McpToolSource } from '../../core/backends/modelapi/mcp/pool'
 import type { ModelApiHost, ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
 import type { UiText } from '../../shared/l10n/en'
+import { UI_TEXT } from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
+import { lazyBundleLoader } from '../lazyBundle'
+import type { Logger } from '../logger'
 
 /** The bundle's MCP server pool (M50), built from the activation bundle's spawner and settings. */
 export type McpPoolFactory = (deps: McpPoolDeps) => McpToolSource
@@ -52,4 +56,42 @@ export function isModelApiBundle(value: unknown): value is ModelApiBundle {
     'createModelApiHost' in value &&
     typeof value.createModelApiHost === 'function'
   )
+}
+
+interface KeyClientBundle {
+  readonly createModelApiClient: (
+    deps: ModelApiClientDeps,
+    table: UiText,
+    locale: string,
+  ) => ModelApiClient
+}
+
+/** Same-build factory signature is trusted after its function check (PLAN §8). */
+function isKeyClientBundle(value: unknown): value is KeyClientBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createModelApiClient' in value &&
+    typeof value.createModelApiClient === 'function'
+  )
+}
+
+/** The paid key client loads only on use; a failed load retries on the next call. */
+export function modelApiClientLoader(deps: {
+  readonly bundlePath: string
+  readonly client: ModelApiClientDeps
+  readonly log: Logger
+  readonly loadBundle?: ((file: string) => unknown) | undefined
+}): () => ModelApiClient {
+  const bundle = lazyBundleLoader({
+    ...deps,
+    isBundle: isKeyClientBundle,
+    label: 'Model API key client',
+    unavailable: () => UI_TEXT.modelApiBundleUnavailable,
+  })
+  let client: ModelApiClient | undefined
+  return () => {
+    client ??= bundle().createModelApiClient(deps.client, UI_TEXT, uiLocale())
+    return client
+  }
 }

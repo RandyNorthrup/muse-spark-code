@@ -297,7 +297,8 @@ function modelApiManager(
     sessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
-    showReplyUsage: () => SETTING_DEFAULTS.modelApiReplyUsage,
+    // D78 changes only VS Code's display default; ACP remains unchanged.
+    showReplyUsage: () => false,
     // Each use asked in the editor's session (M58, PLAN.md D48). Child tasks
     // are paid (M48, D45) and the agent's paid features are its two flags
     // (D62), so `subagents` is never on here and every task is denied.

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "block-secrets",
+    "source": "gemini/hooks-writing-hooks.md:95-125",
+    "script": "#!/usr/bin/env bash\ninput=$(cat)\n\n# Extract content being written\ncontent=$(echo \"$input\" | jq -r '.tool_input.content // .tool_input.new_string // \"\"')\n\n# Check for secrets\nif echo \"$content\" | grep -qE 'api[_-]?key|password|secret'; then\n  # Log to stderr\n  echo \"Blocked potential secret\" >&2\n\n  # Return structured denial to stdout\n  cat <<EOF\n{\n  \"decision\": \"deny\",\n  \"reason\": \"Security Policy: Potential secret detected in content.\",\n  \"systemMessage\": \"🔒 Security scanner blocked operation\"\n}\nEOF\n  exit 0\nfi\n\n# Allow\necho '{\"decision\": \"allow\"}'\nexit 0\n"
+  },
+  {
+    "id": "filter-tools",
+    "source": "gemini/hooks-writing-hooks.md:153-208",
+    "script": "#!/usr/bin/env node\nconst fs = require('fs');\n\nasync function main() {\n  const input = JSON.parse(fs.readFileSync(0, 'utf-8'));\n  const { llm_request } = input;\n\n  // Decoupled API: Access messages from llm_request\n  const messages = llm_request.messages || [];\n  const lastUserMessage = messages\n    .slice()\n    .reverse()\n    .find((m) => m.role === 'user');\n\n  if (!lastUserMessage) {\n    console.log(JSON.stringify({})); // Do nothing\n    return;\n  }\n\n  const text = lastUserMessage.content;\n  const allowed = ['write_todos']; // Always allow memory\n\n  // Simple keyword matching\n  if (text.includes('read') || text.includes('check')) {\n    allowed.push('read_file', 'list_directory');\n  }\n  if (text.includes('test')) {\n    allowed.push('run_shell_command');\n  }\n\n  // If we found specific intent, filter tools. Otherwise allow all.\n  if (allowed.length > 1) {\n    console.log(\n      JSON.stringify({\n        hookSpecificOutput: {\n          hookEventName: 'BeforeToolSelection',\n          toolConfig: {\n            mode: 'ANY', // Force usage of one of these tools (or AUTO)\n            allowedFunctionNames: allowed,\n          },\n        },\n      }),\n    );\n  } else {\n    console.log(JSON.stringify({}));\n  }\n}\n\nmain().catch((err) => {\n  console.error(err);\n  process.exit(1);\n});\n"
+  }
+]
