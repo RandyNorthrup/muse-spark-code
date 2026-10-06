@@ -8,12 +8,8 @@ import {
 } from '../../../src/shared/protocol'
 import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
 import type { HostServices } from '../../../src/shared/hostApi/methods'
-import { nativeBridge } from '../../../src/webview/bridges/native'
-import { companionBridge } from '../../../src/webview/bridges/companion'
-import { companionStateStore } from '../../../src/webview/bridges/state'
-import { vscodeBridge } from '../../../src/webview/bridges/vscode'
+import { selectBridge } from '../../../src/webview/bridges/select'
 import type { MuseEmbeddedHost } from '../../../src/shared/hostApi/panel'
-import type { PanelBridge } from '../../../src/webview/bridges/types'
 import '../../../src/webview/tokens.css'
 import '../../../src/webview/styles.css'
 
@@ -48,10 +44,9 @@ const native: MuseEmbeddedHost = {
     nativeState.value = value
   },
 }
-let bridge: PanelBridge
 switch (params.get('bridge')) {
   case 'native': {
-    bridge = nativeBridge(native, codec)
+    Object.assign(window, { museHost: native })
     break
   }
   case 'companion': {
@@ -62,25 +57,27 @@ switch (params.get('bridge')) {
           ? new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } })
           : new Response(null, { status: 202 }),
       )
-    bridge = companionBridge(
-      { surface: 'a11y', sessionId: 'test', surfaceKind: 'chat' },
-      codec,
-      send,
-      (failure) => {
-        throw failure
-      },
-      companionStateStore('a11y', window.sessionStorage),
-    )
+    document.body.dataset['bridge'] = 'companion'
+    const binding = document.createElement('script')
+    binding.id = 'muse-panel'
+    binding.type = 'application/json'
+    binding.textContent = JSON.stringify({
+      surface: 'a11y',
+      sessionId: 'test',
+      surfaceKind: 'chat',
+    })
+    document.body.append(binding)
+    Object.assign(window, { fetch: send })
     break
   }
   default: {
     // A browser fixture of the host API; no test-library globals in the bundle.
     Object.assign(window, { acquireVsCodeApi: () => native })
-    bridge = vscodeBridge(window, codec, (failure) => {
-      throw failure
-    })
   }
 }
+const bridge = await selectBridge(codec, (failure) => {
+  throw failure
+})
 const services: HostServices = {
   request: (method) =>
     Promise.resolve(parseMhpResult(method, { jsonrpc: '2.0', id: 1, result: null }).result),

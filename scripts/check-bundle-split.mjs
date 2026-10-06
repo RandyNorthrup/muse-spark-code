@@ -627,7 +627,12 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
+          .filter(
+            (output) =>
+              output.endsWith('.js') &&
+              !output.startsWith('dist/webview/chunks/') &&
+              !output.startsWith('dist/webview/portable/chunks/'),
+          )
           .map((output) => ({ output, metafile }))
       }),
   )
@@ -667,7 +672,12 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/webview/main.js'],
+    readers: [
+      REVIEW.output,
+      BUNDLES.modelApi.output,
+      'dist/webview/main.js',
+      'dist/webview/portable/main.js',
+    ],
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.
@@ -722,12 +732,15 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    const files =
-      output === 'dist/webview/main.js'
-        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
-            (file) => file.endsWith('.js'),
-          )
-        : [output]
+    let files = [output]
+    const browserMeta = {
+      'dist/webview/main.js': 'dist/meta/webview.json',
+      'dist/webview/portable/main.js': 'dist/meta/portable.json',
+    }[output]
+    if (browserMeta !== undefined)
+      files = Object.keys(JSON.parse(readFileSync(browserMeta, 'utf8')).outputs).filter((file) =>
+        file.endsWith('.js'),
+      )
     outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
@@ -799,6 +812,8 @@ for (const key of modelTextKeys) {
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 const BRIDGE_ENTRIES = new Set([
+  'src/webview/whatsNew/portable.ts',
+  'src/webview/whatsNew/whatsNewPage.ts',
   'src/webview/bridges/native.ts',
   'src/webview/bridges/companion.ts',
   'src/webview/bridges/select.ts',
@@ -822,50 +837,69 @@ const FALLBACK_COMPONENTS = [
   'ManagerPage',
   'services',
 ]
-const reachableWebview = new Set()
-const visitWebview = (file) => {
-  if (reachableWebview.has(file)) return
-  reachableWebview.add(file)
-  const output = webviewMeta.outputs[file]
-  if (!output) {
-    problems.push(`Missing webview chunk ${file}`)
-    return
-  }
-  for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+for (const source of Object.keys(webviewMeta.inputs)) {
+  if (source.startsWith('src/webview/bridges/') || source.startsWith('src/webview/fallbacks/'))
+    problems.push(`VS Code's webview carries portable-only source ${source}`)
 }
-visitWebview('dist/webview/main.js')
-for (const source of [
-  ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
-  ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
-  'src/webview/bridges/native.ts',
-  'src/webview/bridges/companion.ts',
+for (const [meta, entry, chunks, portable] of [
+  [webviewMeta, 'src/webview/main.tsx', 'dist/webview/chunks', false],
+  [portableMeta, 'src/webview/portable.tsx', 'dist/webview/portable/chunks', true],
 ]) {
-  const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
-    Object.hasOwn(output.inputs, source),
-  )
-  if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
-    problems.push(`${source} must occur in exactly one deferred webview chunk`)
+  const eager = portable
+    ? new Set(webviewStartupOutputs(meta, 'dist/webview/portable/main.js'))
+    : eagerWebview
+  const reachable = new Set()
+  const visit = (file) => {
+    if (reachable.has(file)) return
+    reachable.add(file)
+    const output = meta.outputs[file]
+    if (!output) {
+      problems.push(`Missing webview chunk ${file}`)
+      return
+    }
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
   }
-}
-for (const [file, output] of Object.entries(webviewMeta.outputs)) {
-  if (!file.endsWith('.js')) continue
-  if (!reachableWebview.has(file) || !existsSync(file))
-    problems.push(`Unreachable or missing webview chunk ${file}`)
-  if (
-    output.entryPoint &&
-    output.entryPoint !== 'src/webview/main.tsx' &&
-    !BRIDGE_ENTRIES.has(output.entryPoint) &&
-    DEFERRED_WEBVIEW_SURFACES.every(
-      (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+  visit(portable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js')
+  if (portable) visit('dist/webview/portable/whatsNew.js')
+  for (const source of [
+    ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
+    'src/webview/TasksApp.tsx',
+    ...(portable
+      ? [
+          ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
+          'src/webview/bridges/native.ts',
+          'src/webview/bridges/companion.ts',
+        ]
+      : []),
+  ]) {
+    const outputs = Object.entries(meta.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
     )
-  ) {
-    problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+    if (outputs.length !== 1 || eager.has(outputs[0]?.[0])) {
+      problems.push(`${source} must occur in exactly one deferred webview chunk`)
+    }
   }
-}
-const chunks = 'dist/webview/chunks'
-const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
-for (const file of builtChunks) {
-  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  for (const [file, output] of Object.entries(meta.outputs)) {
+    if (!file.endsWith('.js')) continue
+    if (!reachable.has(file) || !existsSync(file))
+      problems.push(`Unreachable or missing webview chunk ${file}`)
+    if (
+      output.entryPoint &&
+      output.entryPoint !== entry &&
+      !(portable && BRIDGE_ENTRIES.has(output.entryPoint)) &&
+      output.entryPoint !== 'src/webview/TasksApp.tsx' &&
+      DEFERRED_WEBVIEW_SURFACES.every(
+        (name) => output.entryPoint !== `src/webview/components/${name}.tsx`,
+      )
+    ) {
+      problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
+    }
+  }
+  const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
+  for (const file of builtChunks) {
+    if (!reachable.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  }
 }
 
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
@@ -874,7 +908,10 @@ const validationExports = new Set(
   Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
 )
 const nodeMetafiles = readdirSync('dist/meta')
-  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .filter(
+    (name) =>
+      !['validation.json', 'webview.json', 'portable.json', 'whatsNewPage.json'].includes(name),
+  )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
 const validationReaders = new Set()

@@ -412,9 +412,9 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 ## The webview's host
 
-| Call               | Files                                                        |
-| ------------------ | ------------------------------------------------------------ |
-| `acquireVsCodeApi` | `src/webview/bridges/vscode.ts`, `src/webview/hostBridge.ts` |
+| Call               | Files                                                                                                                |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| `acquireVsCodeApi` | `src/webview/bridges/vscode.ts`, `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts` |
 
 Theme variables the styles read (61), from `src/webview/components/HeartbeatTrace.tsx`, `src/webview/tokens.css`, `src/webview/whatsNew/whatsNew.css`:
 

@@ -107,6 +107,8 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const FALLBACKS_ENTRY = 'src/webview/fallbacks/index.ts'
 const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const PORTABLE_ENTRY = 'src/webview/portable.tsx'
+const PORTABLE_OUTDIR = 'dist/webview/portable'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
@@ -391,7 +393,7 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  entryPoints: { main: WEBVIEW_ENTRY, fallbacks: FALLBACKS_ENTRY, bridge: BRIDGE_ENTRY },
+  entryPoints: { main: WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -399,6 +401,19 @@ const webviewOptions = {
   chunkNames: 'chunks/[name]-[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
+}
+
+// Native hosts and the companion load this independent graph. No portable
+// bridge or fallback can share a static chunk with VS Code's chat entry.
+const portableOptions = {
+  ...webviewOptions,
+  entryPoints: {
+    main: PORTABLE_ENTRY,
+    whatsNew: 'src/webview/whatsNew/portable.ts',
+    fallbacks: FALLBACKS_ENTRY,
+    bridge: BRIDGE_ENTRY,
+  },
+  outdir: PORTABLE_OUTDIR,
 }
 
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
@@ -409,16 +424,6 @@ const whatsNewPageOptions = {
   format: 'iife',
   splitting: false,
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
-  plugins: [
-    {
-      name: 'whats-new-bridge',
-      setup(build) {
-        build.onResolve({ filter: /\/bridges\/select$/ }, (args) =>
-          args.kind === 'dynamic-import' ? { path: './bridge.js', external: true } : undefined,
-        )
-      },
-    },
-  ],
 }
 
 function listIntegrationTests() {
@@ -446,6 +451,17 @@ function reportSize(path) {
 
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
+rmSync(PORTABLE_OUTDIR, { recursive: true, force: true })
+// These entries belonged to the earlier combined graph; never package them.
+for (const file of [
+  'bridge.js',
+  'fallbacks.js',
+  'fallbacks.css',
+  'bridge.js.map',
+  'fallbacks.js.map',
+  'fallbacks.css.map',
+])
+  rmSync(path.join(WEBVIEW_OUTDIR, file), { force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -474,6 +490,7 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(portableOptions),
     esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
@@ -501,6 +518,7 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
+    portable: esbuild.build(portableOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
@@ -543,6 +561,8 @@ if (isWatch) {
   reportSize(PAGE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.js'))
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)

@@ -3455,12 +3455,15 @@ results and what is still open.
 
 ## Development
 
-M104's portable panel foundation is under development. Its browser modules
-provide VS Code, native `window.museHost` and companion fetch/SSE bridges,
-with common React host-service fallbacks and manager page components loaded
-through `PanelBridge.loadFallbacks()`. Native fallback request routing,
-authenticated companion module loading and bundle acceptance still need
-integration; these modules do not qualify a new editor as supported.
+M104's portable panel foundation is under development. VS Code builds only
+its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
+`dist/webview/whatsNew.js`. Native and companion hosts use the separate
+`dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
+chunks; common React host-service fallbacks and manager pages load through
+`PanelBridge.loadFallbacks()`. The portable budget counts every JavaScript
+entry and chunk, independently of the unchanged VS Code budgets. Native
+fallback request routing and authenticated companion module loading still
+need integration; these modules do not qualify a new editor as supported.
 
 The additive MHP 1.1.0 panel contract for native and companion adapters is
 [documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
@@ -3511,7 +3514,7 @@ parser) as a third (`dist/planMarkdown.js`) that loads on the first plan
 action, and the review (git's material for `/review`, its turn text, the
 Plan-mode hold and edit review, `dist/review.js`) as a fourth that loads the
 first time one is used; Node bundles require the shared English fallback
-(`dist/uiText.js`) and each keeps its own installed-language state; the webview is React 19 bundled to one IIFE with
+(`dist/uiText.js`) and each keeps its own installed-language state; the webview is React 19 bundled as ES modules with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
@@ -3600,7 +3603,9 @@ in `PLAN.md` §8. Bundle budgets: 600 KiB for the extension, 475 KiB for the
 Model API backend's own bundle, 225 KiB for the checkpoint store, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
-web fetch's page converter worker, 900 KiB for the webview, and 850 KiB for
+web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
+for its deferred JavaScript, 1100 KiB for the independent portable webview
+including every JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 After a production build and an offline install of the ACP tarball,

@@ -8,6 +8,7 @@ import axe from 'axe-core'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
+import { MHP_PANEL } from '../../src/shared/constants'
 
 const themes = ['light', 'dark', 'hc-light', 'hc-dark'] as const
 const kinds = [
@@ -36,7 +37,13 @@ const directory = path.resolve('temp/fallback-a11y')
 beforeAll(async () => {
   await mkdir(directory, { recursive: true })
   await build({
-    entryPoints: ['test/unit/helpers/fallbackHarness.tsx'],
+    entryPoints: {
+      main: 'src/webview/portable.tsx',
+      whatsNew: 'src/webview/whatsNew/portable.ts',
+      bridge: 'src/webview/bridges/select.ts',
+      fallbacks: 'src/webview/fallbacks/index.ts',
+      fallbackHarness: 'test/unit/helpers/fallbackHarness.tsx',
+    },
     outdir: directory,
     bundle: true,
     format: 'esm',
@@ -71,6 +78,44 @@ beforeAll(async () => {
         content: await readFile(path.join(directory, file)),
         type: 'text/javascript',
       })
+  for (const bridge of ['vscode', 'native', 'companion'])
+    for (const surface of ['chat', 'tasks', 'whatsNew']) {
+      const binding = { surface: 'startup', sessionId: 'test', surfaceKind: surface }
+      const setup = String.raw`
+        const posts = []; let listener; let stream;
+        window.fixturePosts = posts;
+        const host = {
+          postMessage: value => posts.push(value), getState: () => undefined,
+          setState: () => {}, onMessage: value => { listener = value; return () => {}; }
+        };
+        window.fixtureReceive = payload => {
+          if (${JSON.stringify(bridge)} === 'companion') stream.enqueue(new TextEncoder().encode(
+            'data: ' + JSON.stringify({ mhp: ${JSON.stringify(MHP_PANEL.wireVersion)}, kind: 'panel', direction: 'toPanel', surface: 'startup', seq: 1, payload }) + '\n\n'));
+          else if (listener) listener(payload);
+          else window.dispatchEvent(new MessageEvent('message', { data: payload }));
+        };
+        if (${JSON.stringify(bridge)} === 'native') window.museHost = host;
+        else if (${JSON.stringify(bridge)} === 'vscode') window.acquireVsCodeApi = () => host;
+        else window.fetch = async (input, init) => {
+          if (input === '/events') return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'Content-Type': 'text/event-stream' } });
+          const frame = JSON.parse(init.body);
+          if (frame.kind === 'panel') posts.push(frame.payload);
+          return new Response(null, { status: 202 });
+        };
+      `
+      files.set(`/panel?bridge=${bridge}&surface=${surface}`, {
+        content: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Portable startup</title><link rel="stylesheet" href="/${surface === 'whatsNew' ? 'whatsNew' : 'main'}.css"></head><body data-bridge="${bridge}" data-surface="${surface}"><div id="root"></div><a href="#" data-link="0">Link</a><button data-try="0">Try</button><input type="checkbox" id="hide-on-update"><script type="application/json" id="muse-l10n">${JSON.stringify({ locale: 'en', table: EN })}</script><script type="application/json" id="muse-panel">${JSON.stringify(binding)}</script><script>${setup}</script><script type="module" src="/${surface === 'whatsNew' ? 'whatsNew' : 'main'}.js"></script></body></html>`,
+        type: 'text/html',
+      })
+    }
+  files.set('/whatsNew.css', {
+    content: await readFile(path.join(directory, 'whatsNew.css')),
+    type: 'text/css',
+  })
+  files.set('/main.css', {
+    content: await readFile(path.join(directory, 'main.css')),
+    type: 'text/css',
+  })
   for (const theme of themes)
     for (const locale of ['en', ...TABLE_LOCALES])
       for (const bridge of ['vscode', 'native', 'companion']) {
@@ -98,6 +143,44 @@ beforeAll(async () => {
   page.on('pageerror', (error) => {
     errors.push(error.message)
   })
+})
+
+describe.each(['vscode', 'native', 'companion'])('%s portable entry', (bridge) => {
+  it.each(['chat', 'tasks', 'whatsNew'])(
+    'mounts %s and posts its own vocabulary',
+    async (surface) => {
+      const { page, origin } = rig
+      if (page === undefined || origin === undefined) throw new Error('NO_BROWSER')
+      await page.goto(`${origin}/panel?bridge=${bridge}&surface=${surface}`, {
+        waitUntil: 'networkidle',
+      })
+      if (surface === 'whatsNew') {
+        await page.locator('[data-link]').click()
+        await page.locator('[data-try]').click()
+        await page.locator('#hide-on-update').check()
+        await expect
+          .poll(() => page.evaluate('window.fixturePosts'))
+          .toEqual([
+            { type: 'openLink', index: 0 },
+            { type: 'tryIt', index: 0 },
+            { type: 'hideOnUpdate', isHidden: true },
+          ])
+      } else {
+        const type = surface === 'tasks' ? 'tasksReady' : 'ready'
+        await page.waitForFunction(
+          `window.fixturePosts.some(message => message.type === ${JSON.stringify(type)})`,
+        )
+        if (surface === 'tasks') {
+          await page.evaluate(
+            `window.fixtureReceive(${JSON.stringify({ type: 'tasksState', conversation: 'Startup test', items: [{ text: 'Verify entry', status: 'inProgress' }], ended: false, canMoveToWindow: false })})`,
+          )
+          await page.getByRole('heading', { name: 'Tasks: Startup test' }).waitFor()
+          expect(await page.getByRole('textbox').count()).toBe(0)
+        }
+      }
+      expect(errors, `${bridge}/${surface} startup errors`).toEqual([])
+    },
+  )
 })
 afterAll(async () => {
   await rig.browser?.close()
