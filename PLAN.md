@@ -16277,6 +16277,17 @@ before a repaired one loads (2026-09-30).
   reviewed P2/P3 is deferred. The earlier absent-TypeScript capability limit
   and lead-owned aggregate/Linux qualification remain as recorded in M103A3;
   these corrections do not claim a language broker or release certification.
+- **FIXM103A-ARDUINO-RECHECK (qualification pending, 2026-10-05):** the
+  post-correction 34-case IDE run needs an allowed public application/cache
+  location. The only found IDE copy is in another lane's worktree; common.md
+  forbids touching it, and the asset-location/limited-copy question is pending.
+  Safe for review because no fresh Arduino qualification or release approval
+  is claimed: the previous 34/34 receipt is historical, while all correction
+  regressions, five byte-exact drills, 109 focused unit cases, native VS Code
+  19/19, compilers and unchanged artifact gates pass. Follow-up: after an
+  allowed asset location is supplied, run the complete packaged Arduino suite
+  with the private offline profile, require 34/34 and zero pending, retain its
+  receipt, and close this qualification residual.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
