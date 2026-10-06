@@ -298,7 +298,9 @@ try {
   $restored = [MuseSparkJob]::SetResourcePriority('${job.name}', $PID, $identity.startTime, $before.priority, $baselines, $true)
   $rateRestored = [MuseSparkJob]::SetResourceRate('${job.name}', $PID, $identity.startTime, $rateBefore.flags, $rateBefore.rate) | ConvertFrom-Json
 }
-@{ lowered=$lowered; priority=$priority.priority; idle=$idle; idlePriority=$idleRead.priority; back=$back; backPriority=$backRead.priority; rate=$rate.rate; restored=$restored; rateRestored=$rateRestored.rate; originalRate=$rateBefore.rate; refused=$refused } | ConvertTo-Json -Compress`
+$priorityRestored = [MuseSparkJob]::ReadResourcePriority('${job.name}', $PID, $identity.startTime) | ConvertFrom-Json
+$rateRead = [MuseSparkJob]::ReadResourceRate('${job.name}', $PID, $identity.startTime) | ConvertFrom-Json
+@{ lowered=$lowered; priority=$priority.priority; idle=$idle; idlePriority=$idleRead.priority; back=$back; backPriority=$backRead.priority; rate=$rate.rate; restored=$restored; rateRestored=$rateRestored.rate; originalRate=$rateBefore.rate; refused=$refused; priorityExact=(($priorityRestored | ConvertTo-Json -Compress) -ceq ($before | ConvertTo-Json -Compress)); rateExact=(($rateRead | ConvertTo-Json -Compress) -ceq ($rateBefore | ConvertTo-Json -Compress)); rateFlags=$rate.flags; rateRestoredFlags=$rateRestored.flags; originalRateFlags=$rateBefore.flags } | ConvertTo-Json -Compress`
         const output = await runTreeProgram(
           path.win32.join(systemRoot, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
           [
@@ -318,6 +320,11 @@ try {
           idlePriority: 'idle',
           back: true,
           backPriority: 'belowNormal',
+          priorityExact: true,
+          rateExact: true,
+          rateFlags: 5,
+          rateRestoredFlags: 0,
+          originalRateFlags: 0,
         })
         expect(result).toHaveProperty('rateRestored', 0)
       } finally {

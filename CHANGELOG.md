@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resource-governor recovery uses margins scaled to the configured limit
+  and machine memory, so low GPU/disk limits and small containers can recover.
+  Resume override expiry drains older pending reads and waits for a fresh
+  sample before deciding the level.
+- Windows actuator integration verifies the real job's below-normal/idle
+  priority, 50% CPU cap, birth-identity refusal and exact priority/rate
+  restoration alongside the merged governor and actuator review repairs.
 - Staged resource-governor integration admits the window's tool shells,
   checks, MCP servers, hooks, browser checks, Git, voice/recording and Muse Code hosts, and the
   Model API's background attempts, children and scheduled runs. Windows

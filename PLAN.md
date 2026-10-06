@@ -6957,9 +6957,13 @@ one governor for everything the harness starts.
      recovery. Relocate is skipped when no target exists.
    - **Critical** (CPU at least 97% for 60 seconds, or available memory below
      half the floor) goes straight to pause.
-   - **Exit** one level at a time, once every reading has stayed below its
-     threshold less `RESOURCE_HYSTERESIS_POINTS` (10 points; memory 0.5 GiB
-     above the floor) for `RESOURCE_EXIT_MS` (60 seconds).
+   - **Exit** one level at a time, once every enabled reading has stayed
+     inside its recovery band for `RESOURCE_EXIT_MS` (60 seconds). Percentage
+     recovery is strictly below the limit less `max(0.5, 0.1 × limit)` points.
+     Available memory is strictly above its floor plus
+     `min(0.5 GiB, max(1 byte, 0.1 × total RAM), 0.5 × total RAM)`.
+     These FIXM107G margins remain reachable at every valid setting and
+     machine size; entry thresholds and unknown-reading rules are unchanged.
    - **Dwell.** Each level is held for at least `RESOURCE_MIN_DWELL_MS` (60
      seconds), so a load near a threshold never flaps.
 
@@ -19617,6 +19621,19 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107INT2 continuation (2026-10-06, Win11).** Merge the G review repairs
+(`6bd4b74a`) and A controllers/review repairs (`9501f9cf`) into C1's
+`83f5b458` tree with the two listed no-fast-forward merges. Preserve additive
+docs and both native helper regions. Run A's six Windows-native cases,
+strengthening its OS restoration receipt to compare the actual job/process
+priority snapshots and CPU-control flags. Recheck complete merged S/T/G/A
+and C1 resource suites plus scoped static/build gates; no full quality.
+G/A agree on transitions, scans and restore-before-unregister, but A explicitly
+requires T2's registered member-state binding before shipped G/C wiring. That
+API is absent here: keep the controllers unbound and hand the complete
+lifecycle/native-port join to W, with no disappearance-based substitute.
+Record receipts and exact remaining seams in `docs/certification/m107-int2.md`.
+
 **M107INT integration and C1 (2026-10-05, Win11).** Merge `m107/s` and
 `m107/g` into lane T's repaired tree, preserving additive records. Wire C1's
 Model API/window launches to one lazy admission host and the tree registry:
@@ -20086,6 +20103,16 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M107INT2 bounded continuation certification (2026-10-06).** The rig
+brief requires the two named G/A merges, six native Windows cases and the
+complete merged resource suites (at most three files per invocation),
+typecheck, scoped lint/format, localization, regenerated/reviewed host API,
+cycles, plain knip, duplication and production build/caps. Full quality
+and aggregate coverage remain prohibited here and owned by the lead.
+Native restoration assertions receive deliberate false-success helper
+mutations and byte-exact source restoration. See `m107-int2.md` for results;
+the member-state/native-port production binding remains W's named handoff.
 
 **M107INT/C1 bounded integration certification (2026-10-05).** The rig
 brief prohibits aggregate quality and full-unit runs. Run S/T/G's complete
@@ -21302,6 +21329,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-INT2-actuator-lifecycle-binding (2026-10-06).** G and A's reviewed
+  implementations are merged; all six Windows-native cases pass, including
+  exact same-root OS policy restoration. A explicitly requires T2's
+  registered birth-bound member-state port before shipped G/C lifecycle
+  wiring, and that API is still absent. Actuators stay unbound, so they
+  cannot mutate a production tree. W binds that state, G events/tree scans,
+  live-tree recovery and independently proved completed-tree release as one
+  join; K/W supplies later-member priority baselines and POSIX native ports.
+  No failed/empty membership query becomes exit proof. C1's admission/lifetime
+  behavior remains unchanged. Native late-member churn, integrated actuator
+  size/performance and platform/editor/full-gate qualification remain W's.
+  `docs/certification/m107-int2.md` supersedes the earlier pending Win11
+  six-case receipt; the other A/C1 handoffs below remain explicit.
 
 - **M107-C1-lane-handoffs (Win11, 2026-10-05).** This lane installs
   admission at the Model API/window call sites, the process-wide lazy loader
