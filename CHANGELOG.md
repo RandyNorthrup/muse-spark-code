@@ -15,7 +15,10 @@ happened, not what was planned; superseded entries are kept.
   evidence is reported and occupancy remains held until durable retirement.
 - Authenticated device cancellation has a fixed reserved decoder capacity
   that data cannot consume. Stop reaches its priority path even with 31 queued
-  data frames or Stop-first trailing overflow. A pending approval or start
+  data frames and data overflow before or after Stop in the same chunk; each
+  excess data frame gets its own capacity refusal. Corrupt framing resets the
+  channel and starts local Stop for every live or pending attempt on that pair
+  before reporting, retaining occupancy and spending liabilities. A pending approval or start
   confirmation cannot delay Stop. Cancellation identities survive queued
   dispatch, identical retry, compaction and journal reopen; late cancellation
   confirmations cannot reblock a durably retired receiver.

@@ -35,14 +35,18 @@ function liveChannel() {
   const { receiver, request } = fixture()
   const socket = new TLSSocket(new Socket())
   sockets.add(socket)
+  const report = vi.fn()
   const port = {
     connected: vi.fn(),
     receive: vi.fn(async (frame: DeviceFrame, transport: DeviceChannel) => {
       await receiver.receive(frame, transport)
     }),
-    disconnected: () => {
-      receiver.disconnect()
-    },
+    disconnected: vi.fn(
+      (reason: Parameters<typeof receiver.disconnect>[0], transport: DeviceChannel) => {
+        receiver.disconnect(reason, transport.pairId)
+        report(reason)
+      },
+    ),
   }
   const transport = openDeviceChannel(
     socket,
@@ -52,7 +56,7 @@ function liveChannel() {
     port,
   )
   const send = vi.spyOn(transport, 'send').mockImplementation(() => undefined)
-  return { socket, port, send }
+  return { socket, port, send, report }
 }
 function channel(pairId: string, incarnation: string) {
   return {
@@ -83,7 +87,7 @@ const use = {
 } as const
 
 describe('receiver admission and local authority', () => {
-  it.each(['separate', 'Stop-first-overflow'])(
+  it.each(['separate', 'Stop-first-overflow', 'data-before-Stop-overflow'])(
     'RVM100E2-P2-1 reaches the live local cancellation port with saturated data (%s)',
     async (input) => {
       const { receiver, request, policy, lease } = fixture()
@@ -99,13 +103,126 @@ describe('receiver admission and local authority', () => {
       })
       for (let index = 1; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', data)
       const stop = encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity }))
-      socket.emit('data', input === 'separate' ? stop : Buffer.concat([stop, data, data]))
+      socket.emit(
+        'data',
+        input === 'separate'
+          ? stop
+          : Buffer.concat(input === 'Stop-first-overflow' ? [stop, data, data] : [data, stop]),
+      )
       expect(lease.cancel).toHaveBeenCalledOnce()
       expect(lease.release).not.toHaveBeenCalled()
       approval.resolve(false)
       await receiver.reconcile([request.identity])
     },
   )
+  it.each(['same-chunk', 'later-chunk'])(
+    'RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (%s)',
+    async (timing) => {
+      const { receiver, request, execution, policy, lease, journal, fixture: counts } = fixture()
+      await receiver.dispatch(request)
+      const second = otherDispatch(request)
+      const secondLease = {
+        ...lease,
+        usage: { ...lease.usage, settlementId: 'b'.repeat(32) },
+        start: vi.fn(() => Promise.resolve()),
+        cancel: vi.fn(() => Promise.resolve()),
+        pause: vi.fn(() => Promise.resolve()),
+        release: vi.fn(() => Promise.resolve()),
+      }
+      execution.admit.mockResolvedValueOnce(secondLease)
+      await receiver.dispatch(second)
+      const pending = signedDispatch({
+        ...request,
+        identity: { ...request.identity, attemptId: '1'.repeat(32) },
+      })
+      const approval = deferred<boolean>()
+      policy.approve.mockReturnValueOnce(approval.promise)
+      const { socket, port, report } = liveChannel()
+      socket.emit('data', encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: pending })))
+      await vi.waitFor(() => {
+        expect(policy.approve).toHaveBeenLastCalledWith(pending)
+      })
+      const closed = new Promise<void>((resolve) => socket.once('close', resolve))
+      const corrupt = Buffer.from('{broken framing}\n')
+      const stop = encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity }))
+      socket.emit('data', timing === 'same-chunk' ? Buffer.concat([corrupt, stop]) : corrupt)
+      await closed
+      expect(lease.cancel).toHaveBeenCalledOnce()
+      expect(secondLease.cancel).toHaveBeenCalledOnce()
+      expect(report).toHaveBeenCalledExactlyOnceWith('invalid-frame')
+      expect(lease.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+        report.mock.invocationCallOrder[0] ?? 0,
+      )
+      expect(secondLease.cancel.mock.invocationCallOrder[0]).toBeLessThan(
+        report.mock.invocationCallOrder[0] ?? 0,
+      )
+      expect(lease.pause).not.toHaveBeenCalled()
+      expect(secondLease.pause).not.toHaveBeenCalled()
+      expect(lease.release).not.toHaveBeenCalled()
+      expect(secondLease.release).not.toHaveBeenCalled()
+      expect(counts.occupied).toBe(1)
+      expect(receiver.paused).toBe(true)
+      approval.resolve(true)
+      if (timing === 'later-chunk') socket.emit('data', stop)
+      expect(
+        port.receive.mock.calls.filter(([frame]) => frame.body.kind === 'cancel'),
+      ).toHaveLength(0)
+      await receiver.reconcile([request.identity, second.identity])
+      expect(await journal.cancellations()).toEqual(
+        expect.arrayContaining([request.identity, second.identity, pending.identity]),
+      )
+      expect(await responseBody(receiver.dispatch(pending))).toEqual({
+        kind: 'failure',
+        reason: 'grant',
+      })
+      expect(execution.admit).toHaveBeenCalledTimes(2)
+      expect(counts.launches).toBe(1)
+    },
+  )
+  it('RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry', async () => {
+    const { receiver, request, lease, policy, execution, journal } = fixture()
+    await receiver.dispatch(request)
+    receiver.disconnect('invalid-frame', 'f'.repeat(32))
+    expect(lease.cancel).not.toHaveBeenCalled()
+    receiver.resumeQueue()
+    const approval = deferred<boolean>()
+    policy.approve.mockReturnValueOnce(approval.promise)
+    const second = otherDispatch(request)
+    const held = receiver.dispatch(second)
+    await vi.waitFor(() => {
+      expect(policy.approve).toHaveBeenLastCalledWith(second)
+    })
+    const retry = receiver.dispatch(
+      signedDispatch({ ...request, identity: { ...request.identity, taskId: 'f'.repeat(32) } }),
+    )
+    receiver.disconnect('invalid-frame', request.identity.pairId)
+    expect(lease.cancel).toHaveBeenCalledOnce()
+    approval.resolve(true)
+    await held
+    await retry
+    await receiver.reconcile([request.identity])
+    expect(await journal.cancellations()).toContainEqual(request.identity)
+    expect(execution.admit).toHaveBeenCalledOnce()
+    expect(lease.release).not.toHaveBeenCalled()
+  })
+  it('RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation', async () => {
+    const { receiver, request, lease, journal } = fixture()
+    await receiver.dispatch(request)
+    const confirmation = deferred<undefined>()
+    const persistence = deferred<undefined>()
+    lease.cancel.mockReturnValueOnce(confirmation.promise)
+    vi.spyOn(journal, 'recordCancellation').mockReturnValueOnce(persistence.promise)
+    const { socket, report } = liveChannel()
+    const closed = new Promise<void>((resolve) => socket.once('close', resolve))
+    socket.emit('data', Buffer.from('{broken framing}\n'))
+    await closed
+    expect(lease.cancel).toHaveBeenCalledOnce()
+    expect(report).toHaveBeenCalledExactlyOnceWith('invalid-frame')
+    expect(lease.release).not.toHaveBeenCalled()
+    persistence.resolve(undefined)
+    confirmation.resolve(undefined)
+    await receiver.reconcile([request.identity])
+  })
   it('RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A', async () => {
     const { request, policy, lease, journal } = fixture()
     const approval = deferred<boolean>()

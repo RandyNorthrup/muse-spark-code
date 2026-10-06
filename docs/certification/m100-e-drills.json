@@ -1400,5 +1400,139 @@
         "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
       ]
     }
+  ],
+  "roundThreeRepairBaseline": {
+    "base": "7a20a217ee08b25a581f25a0b32fc10970b3683a",
+    "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+    "exit": 1,
+    "tests": 47,
+    "failedTests": [
+      "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (data-before-Stop-overflow)",
+      "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+      "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)"
+    ],
+    "assertion": "Every regression expected one local cancel but observed zero on the original production source."
+  },
+  "roundThreeRepairDrills": [
+    {
+      "guard": "drop whole chunk on overflowing data",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "restoredSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceBoundary.test.ts test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 119,
+      "failedTests": [
+        "device pre-parse boundary RVM100E3-P2 refuses every excess validated data frame without discarding the chunk",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (data-before-Stop-overflow)",
+        "authenticated device channel bounds RVM100E3-P2 refuses each overflowing request and delivers interleaved Stop controls",
+        "authenticated device channel bounds RVM100E3-P2 gives the frame after a capacity refusal a fresh incomplete-frame deadline",
+        "authenticated device channel bounds RVM100E3-P2 refuses overflow across chunks while an admitted handler is waiting",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (data-before-Stop-overflow)"
+      ]
+    },
+    {
+      "guard": "data capacity off by one",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "restoredSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceBoundary.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 70,
+      "failedTests": [
+        "device pre-parse boundary RVM100E3-P2 refuses every excess validated data frame without discarding the chunk",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (data-before-Stop-overflow)",
+        "authenticated device channel bounds RVM100E3-P2 refuses each overflowing request and delivers interleaved Stop controls",
+        "authenticated device channel bounds RVM100E3-P2 refuses overflow across chunks while an admitted handler is waiting"
+      ]
+    },
+    {
+      "guard": "corrupt framing reset only pauses",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)",
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry",
+        "receiver admission and local authority RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation"
+      ]
+    },
+    {
+      "guard": "reset loses authenticated pair scope",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry"
+      ]
+    },
+    {
+      "guard": "reset lets changed queued identity overwrite live owner",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry"
+      ]
+    },
+    {
+      "guard": "channel loses reset reason before receiver Stop",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 74,
+      "failedTests": [
+        "authenticated device channel bounds provides a fixed incompatible reason for local upgrade recovery",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)",
+        "receiver admission and local authority RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation"
+      ]
+    },
+    {
+      "guard": "overflow refusal loses identity validation",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 25,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E3-P2 refuses a foreign overflowing frame before sending a capacity response"
+      ]
+    },
+    {
+      "guard": "capacity refusal fails to reset next incomplete deadline",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 25,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E3-P2 gives the frame after a capacity refusal a fresh incomplete-frame deadline"
+      ]
+    }
   ]
 }

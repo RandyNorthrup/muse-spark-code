@@ -441,9 +441,32 @@ export class DeviceReceiver implements DeviceExecutionPort {
       throw new DeviceJournalError('uncertain')
     this.isPaused = false
   }
-  public disconnect(): void {
+  public disconnect(reason: Failure = 'blocked-or-unreachable', pairId?: string): void {
     this.isPaused = true
+    if (reason === 'invalid-frame' || reason === 'incompatible') {
+      // A framing reset cannot prove a trailing Stop was parseable. Start every
+      // local Stop synchronously, independent of persistence and confirmation.
+      const identities = new Map<string, DeviceAttemptIdentity>()
+      for (const attempt of [...this.live.values(), ...this.pending]) {
+        if (
+          (pairId === undefined || attempt.identity.pairId === pairId) &&
+          !identities.has(attempt.identity.attemptId)
+        )
+          identities.set(attempt.identity.attemptId, attempt.identity)
+      }
+      for (const identity of identities.values()) {
+        if (this.live.has(identity.attemptId)) this.pendingReconciliation.add(identity.attemptId)
+        void this.cancel(identity).catch((error: unknown) => {
+          this.transition({
+            kind: 'failed',
+            reason: error instanceof DeviceJournalError ? error.reason : 'uncertain',
+          })
+        })
+      }
+      return
+    }
     for (const [attemptId, live] of this.live) {
+      if (pairId !== undefined && live.identity.pairId !== pairId) continue
       this.pendingReconciliation.add(attemptId)
       void live.lease.pause().catch(() => {
         this.transition({ kind: 'failed', reason: 'uncertain', live })

@@ -62,7 +62,7 @@ export class DeviceFrameDecoder {
 
   push(
     chunk: Buffer,
-    available: number,
+    data: { available: number; refuse(frame: DeviceFrame): void },
     control?: { available: number; receive(frame: DeviceFrame): void },
   ): DeviceFrame[] {
     const frames: DeviceFrame[] = []
@@ -92,15 +92,15 @@ export class DeviceFrameDecoder {
         throw new Error('incompatible')
       const isControl =
         control !== undefined && header.success && header.data.body.kind === 'cancel'
-      if (isControl ? controls >= control.available : frames.length >= available)
-        throw new Error('invalid-frame')
       const result = deviceFrameSchema.safeParse(input)
       if (!result.success) throw new Error('invalid-frame')
       if (isControl) {
+        if (controls >= control.available) throw new Error('invalid-frame')
         controls += 1
-        // Deliver validated Stop before parsing trailing data that might overflow.
+        // Deliver validated Stop independently of data admission anywhere in this chunk.
         control.receive(result.data)
-      } else frames.push(result.data)
+      } else if (frames.length >= data.available) data.refuse(result.data)
+      else frames.push(result.data)
       offset = end + 1
     }
     return frames

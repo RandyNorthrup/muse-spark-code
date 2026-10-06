@@ -48,10 +48,11 @@ function cancelBytes() {
 }
 
 describe('authenticated device channel bounds', () => {
-  it.each(['separate', 'Stop-first-overflow'])(
+  it.each(['separate', 'Stop-first-overflow', 'data-before-Stop-overflow'])(
     'RVM100E2-P2-1 delivers Stop with 31 filled data slots (%s)',
     (input) => {
-      const { socket, handler } = fixture()
+      const { socket, handler, channel } = fixture()
+      const send = vi.spyOn(channel, 'send').mockImplementation(() => undefined)
       const held = Promise.withResolvers<undefined>()
       handler.receive = vi.fn(() => held.promise)
       const data = encodeDeviceFrame(deviceTestFrame)
@@ -60,17 +61,81 @@ describe('authenticated device channel bounds', () => {
       expect(socket.destroyed).toBe(false)
       socket.emit(
         'data',
-        input === 'separate' ? cancelBytes() : Buffer.concat([cancelBytes(), data, data]),
+        input === 'separate'
+          ? cancelBytes()
+          : Buffer.concat(
+              input === 'Stop-first-overflow' ? [cancelBytes(), data, data] : [data, cancelBytes()],
+            ),
       )
       expect(handler.receive).toHaveBeenCalledTimes(2)
       expect(handler.receive).toHaveBeenLastCalledWith(
         expect.objectContaining({ body: expect.objectContaining({ kind: 'cancel' }) }),
         expect.anything(),
       )
-      expect(socket.destroyed).toBe(input !== 'separate')
+      if (input === 'separate') expect(send).not.toHaveBeenCalled()
+      else expect(send).toHaveBeenCalledTimes(input === 'Stop-first-overflow' ? 2 : 1)
+      for (const [frame] of send.mock.calls)
+        expect(frame).toEqual({ ...deviceTestFrame, body: { kind: 'failure', reason: 'capacity' } })
+      expect(socket.destroyed).toBe(false)
       held.resolve(undefined)
     },
   )
+  it('RVM100E3-P2 refuses each overflowing request and delivers interleaved Stop controls', () => {
+    const { socket, handler, channel } = fixture()
+    const held = Promise.withResolvers<undefined>()
+    const receive = vi.fn<typeof handler.receive>(() => held.promise)
+    handler.receive = receive
+    const send = vi.spyOn(channel, 'send').mockImplementation(() => undefined)
+    const data = encodeDeviceFrame(deviceTestFrame)
+    for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', data)
+    const first = { ...deviceTestFrame, requestId: '0'.repeat(32) }
+    const second = { ...deviceTestFrame, requestId: 'd'.repeat(32) }
+    socket.emit(
+      'data',
+      Buffer.concat([
+        encodeDeviceFrame(first),
+        cancelBytes(),
+        encodeDeviceFrame(second),
+        cancelBytes(),
+      ]),
+    )
+    expect(send.mock.calls.map(([frame]) => frame)).toEqual([
+      { ...first, body: { kind: 'failure', reason: 'capacity' } },
+      { ...second, body: { kind: 'failure', reason: 'capacity' } },
+    ])
+    expect(receive.mock.calls.filter(([frame]) => frame.body.kind === 'cancel')).toHaveLength(2)
+    expect(socket.destroyed).toBe(false)
+    held.resolve(undefined)
+  })
+  it('RVM100E3-P2 refuses a foreign overflowing frame before sending a capacity response', () => {
+    const { socket, handler, channel } = fixture()
+    const held = Promise.withResolvers<undefined>()
+    handler.receive = vi.fn(() => held.promise)
+    const send = vi.spyOn(channel, 'send').mockImplementation(() => undefined)
+    for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1)
+      socket.emit('data', encodeDeviceFrame(deviceTestFrame))
+    socket.emit('data', encodeDeviceFrame({ ...deviceTestFrame, pairId: 'd'.repeat(32) }))
+    expect(send).not.toHaveBeenCalled()
+    expect(socket.destroyed).toBe(true)
+    held.resolve(undefined)
+  })
+  it('RVM100E3-P2 gives the frame after a capacity refusal a fresh incomplete-frame deadline', async () => {
+    vi.useFakeTimers()
+    const { socket, handler, channel } = fixture()
+    const held = Promise.withResolvers<undefined>()
+    handler.receive = vi.fn(() => held.promise)
+    vi.spyOn(channel, 'send').mockImplementation(() => undefined)
+    const data = encodeDeviceFrame(deviceTestFrame)
+    for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', data)
+    socket.emit('data', data.subarray(0, 1))
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.frameDeadlineMs - 1)
+    socket.emit('data', Buffer.concat([data.subarray(1), data.subarray(0, 1)]))
+    await vi.advanceTimersByTimeAsync(1)
+    expect(socket.destroyed).toBe(false)
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.frameDeadlineMs - 1)
+    expect(socket.destroyed).toBe(true)
+    held.resolve(undefined)
+  })
   it('RVM100E-P2-2 counts priority controls against the fixed reserved frame capacity', () => {
     const { socket, handler } = fixture()
     handler.receive = vi.fn(
@@ -179,15 +244,15 @@ describe('authenticated device channel bounds', () => {
     idle.socket.emit('timeout')
     expect(idle.socket.destroyed).toBe(true)
     await closed
-    expect(idle.handler.disconnected).toHaveBeenCalledWith('blocked-or-unreachable')
+    expect(idle.handler.disconnected).toHaveBeenCalledWith('blocked-or-unreachable', idle.channel)
     expect(idle.handler.receive).not.toHaveBeenCalled()
   })
   it('provides a fixed incompatible reason for local upgrade recovery', async () => {
-    const { socket, handler } = fixture()
+    const { socket, handler, channel } = fixture()
     const closed = new Promise<void>((resolve) => socket.once('close', resolve))
     socket.emit('data', Buffer.from(`${JSON.stringify({ ...deviceTestFrame, version: 0 })}\n`))
     await closed
-    expect(handler.disconnected).toHaveBeenCalledWith('incompatible')
+    expect(handler.disconnected).toHaveBeenCalledWith('incompatible', channel)
     expect(handler.receive).not.toHaveBeenCalled()
   })
   it('enforces absolute incomplete-frame time without resetting for trickled bytes', async () => {
@@ -225,8 +290,9 @@ describe('authenticated device channel bounds', () => {
     await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.frameDeadlineMs)
     expect(socket.destroyed).toBe(true)
   })
-  it('bounds queued frames across chunks while an admitted handler is waiting', () => {
-    const { socket, handler } = fixture()
+  it('RVM100E3-P2 refuses overflow across chunks while an admitted handler is waiting', () => {
+    const { socket, handler, channel } = fixture()
+    const send = vi.spyOn(channel, 'send').mockImplementation(() => undefined)
     handler.receive = vi.fn(
       () =>
         new Promise<void>(() => {
@@ -237,7 +303,11 @@ describe('authenticated device channel bounds', () => {
     for (let index = 0; index < DEVICE_LIMITS.queuedFrames + 1; index += 1)
       socket.emit('data', bytes)
     expect(handler.receive).toHaveBeenCalledTimes(1)
-    expect(socket.destroyed).toBe(true)
+    expect(socket.destroyed).toBe(false)
+    expect(send).toHaveBeenCalledExactlyOnceWith({
+      ...deviceTestFrame,
+      body: { kind: 'failure', reason: 'capacity' },
+    })
   })
   it('rechecks revocation between queued requests rather than trusting the handshake', async () => {
     let isActive = true

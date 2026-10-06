@@ -17788,6 +17788,17 @@ this repair. Each finding gets a regression and byte-exact red/restored drill
 in `docs/certification/m100-e.md`. No new dependency or physical-action
 adapter is introduced; D83's concrete physical-action UI remains unqualified.
 
+**FIXM100E3 fail-safe repair (2026-10-06).** Repair RVM100E3's remaining
+P2 without widening capacity or validation: decode each frame independently,
+refuse each excess data frame with its own capacity response, and continue
+to validated Stop controls anywhere in the chunk. Corrupt/unparseable framing
+resets the channel; its disconnect callback names the authenticated channel
+and invokes the receiver's independent Stop path for every live/pending attempt
+on that pair before reporting. Retain occupancy and liabilities until durable
+retirement. Owning regressions cover data-before-Stop overflow, corrupt framing
+before Stop and Stop after a reset, with byte-exact red/restored drills. No new
+dependency, shipped adapter or physical-device qualification is introduced.
+
 **FIXM100E2 round-two repair (2026-10-06).** Fix all four RVM100E2 P2s
 by construction: decode the validated control header before data capacity and
 route cancel frames immediately through a separate fixed control capacity;
@@ -18687,7 +18698,7 @@ remain the lead's exact integrated-tree prerequisites.
 
 **FIXM100E execution/control review repair (2026-10-06).** The rig brief
 requires local scoped checks, hooks-on commits, no merges and no aggregate
-quality run. Both RVM100E P2s and all four RVM100E2 P2s are repaired with
+quality run. Both RVM100E P2s, all four RVM100E2 P2s and RVM100E3's P2 are repaired with
 owning regressions, completion-order permutations and byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
 quality, installed physical-device/UI qualification and the inherited
 host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
@@ -19686,12 +19697,14 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
-  RVM100E P2 findings and all four RVM100E2 P2 findings are repaired, with
+  RVM100E P2 findings, all four RVM100E2 P2 findings and RVM100E3's P2 are repaired, with
   no review finding deferred. Cancellation identities use
   **M100-E-CANCEL-RETENTION**: the full receiver lifetime in memory and
   permanent journal retention through compaction; finite evidence exhaustion
-  blocks new work while Stop still reaches the local cancellation port. E's
-  receiver and journal remain unshipped; scoped software/TLS-channel tests
+  blocks new work while Stop still reaches the local cancellation port. A
+  framing reset invokes independent Stop for the authenticated pair before
+  reporting; overflow refuses each data frame and continues through Stop.
+  E's receiver and journal remain unshipped; scoped software/TLS-channel tests
   do not qualify a concrete physical-action descriptor/nonce, receiver-local
   physical approval UI or unattended device operation under D83. Safe for
   this isolated lane because it registers no production execution adapter,

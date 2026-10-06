@@ -82,6 +82,10 @@ describe('device address boundary', () => {
   })
 })
 
+function capacity(available: number) {
+  return { available, refuse: vi.fn<(frame: DeviceFrame) => void>() }
+}
+
 describe('device pre-parse boundary', () => {
   it('RVM100T-P3 concatenates once per complete frame without copying incomplete prefixes', () => {
     const bytes = encodeDeviceFrame(transportFrame)
@@ -89,9 +93,9 @@ describe('device pre-parse boundary', () => {
     const concat = vi.spyOn(Buffer, 'concat')
     try {
       for (let offset = 0; offset < bytes.length - 1; offset += 1)
-        expect(decoder.push(bytes.subarray(offset, offset + 1), 1)).toEqual([])
+        expect(decoder.push(bytes.subarray(offset, offset + 1), capacity(1))).toEqual([])
       expect(concat).not.toHaveBeenCalled()
-      expect(decoder.push(bytes.subarray(-1), 1)).toEqual([transportFrame])
+      expect(decoder.push(bytes.subarray(-1), capacity(1))).toEqual([transportFrame])
       expect(concat).toHaveBeenCalledTimes(1)
     } finally {
       concat.mockRestore()
@@ -109,7 +113,7 @@ describe('device pre-parse boundary', () => {
     const started = performance.now()
     for (let offset = 0; offset < bytes.length; offset += 1) {
       try {
-        decoder.push(bytes.subarray(offset, offset + 1), 1)
+        decoder.push(bytes.subarray(offset, offset + 1), capacity(1))
       } catch (error) {
         expect(error).toEqual(new Error('invalid-frame'))
         refusedAt = offset
@@ -128,8 +132,8 @@ describe('device pre-parse boundary', () => {
     const decoder = new DeviceFrameDecoder()
     for (let frame = 0; frame < 2; frame += 1) {
       for (let offset = 0; offset < bytes.length; offset += 1)
-        expect(decoder.push(bytes.subarray(offset, offset + 1), 1)).toEqual([])
-      expect(decoder.push(Buffer.from('\n'), 1)).toEqual([transportFrame])
+        expect(decoder.push(bytes.subarray(offset, offset + 1), capacity(1))).toEqual([])
+      expect(decoder.push(Buffer.from('\n'), capacity(1))).toEqual([transportFrame])
       expect(decoder.incomplete).toBe(false)
     }
   })
@@ -137,16 +141,16 @@ describe('device pre-parse boundary', () => {
     expect(() =>
       new DeviceFrameDecoder().push(
         Buffer.from(`${JSON.stringify({ ...transportFrame, version: 0 })}\n`),
-        1,
+        capacity(1),
       ),
     ).toThrow('incompatible')
   })
   it('assembles fragmented UTF-8 frames and separates coalesced frames', () => {
     const bytes = encodeDeviceFrame(transportFrame)
     const decoder = new DeviceFrameDecoder()
-    expect(decoder.push(bytes.subarray(0, 5), 2)).toEqual([])
+    expect(decoder.push(bytes.subarray(0, 5), capacity(2))).toEqual([])
     expect(decoder.incomplete).toBe(true)
-    expect(decoder.push(Buffer.concat([bytes.subarray(5), bytes]), 2)).toEqual([
+    expect(decoder.push(Buffer.concat([bytes.subarray(5), bytes]), capacity(2))).toEqual([
       transportFrame,
       transportFrame,
     ])
@@ -154,10 +158,10 @@ describe('device pre-parse boundary', () => {
   })
   it('rejects oversize bytes before parsing and before concatenating fragments', () => {
     const decoder = new DeviceFrameDecoder()
-    expect(decoder.push(Buffer.alloc(DEVICE_LIMITS.frameBytes, 0x20), 1)).toEqual([])
-    expect(() => decoder.push(Buffer.from(' '), 1)).toThrow('invalid-frame')
+    expect(decoder.push(Buffer.alloc(DEVICE_LIMITS.frameBytes, 0x20), capacity(1))).toEqual([])
+    expect(() => decoder.push(Buffer.from(' '), capacity(1))).toThrow('invalid-frame')
     expect(() =>
-      new DeviceFrameDecoder().push(Buffer.alloc(DEVICE_LIMITS.frameBytes + 1), 1),
+      new DeviceFrameDecoder().push(Buffer.alloc(DEVICE_LIMITS.frameBytes + 1), capacity(1)),
     ).toThrow('invalid-frame')
   })
   it('counts byte length for multibyte text and outgoing frames', () => {
@@ -220,7 +224,7 @@ describe('device pre-parse boundary', () => {
     JSON.stringify({ ...transportFrame, secret: 'synthetic-sentinel' }),
     '{broken}',
   ])('rejects duplicate keys, unknown versions/fields and malformed JSON: %s', (text) => {
-    expect(() => new DeviceFrameDecoder().push(Buffer.from(`${text}\n`), 1)).toThrow()
+    expect(() => new DeviceFrameDecoder().push(Buffer.from(`${text}\n`), capacity(1))).toThrow()
   })
   it('refuses invalid UTF-8, blank frames and excessive nesting', () => {
     for (const bytes of [
@@ -228,7 +232,7 @@ describe('device pre-parse boundary', () => {
       Buffer.from('\n'),
       Buffer.from(`${'['.repeat(40)}0${']'.repeat(40)}\n`),
     ]) {
-      expect(() => new DeviceFrameDecoder().push(bytes, 1)).toThrow()
+      expect(() => new DeviceFrameDecoder().push(bytes, capacity(1))).toThrow()
     }
   })
   it('rejects invalid UTF-8 and excessive nesting before invoking JSON.parse', () => {
@@ -238,7 +242,7 @@ describe('device pre-parse boundary', () => {
         Buffer.from([0xff, 0x0a]),
         Buffer.from(`${'['.repeat(40)}0${']'.repeat(40)}\n`),
       ]) {
-        expect(() => new DeviceFrameDecoder().push(bytes, 1)).toThrow()
+        expect(() => new DeviceFrameDecoder().push(bytes, capacity(1))).toThrow()
         expect(parse).not.toHaveBeenCalled()
       }
     } finally {
@@ -250,17 +254,23 @@ describe('device pre-parse boundary', () => {
     Object.defineProperty(frame, 'version', { value: 0 })
     expect(() => encodeDeviceFrame(frame)).toThrow('invalid-frame')
   })
-  it('rejects floods before parsing beyond available queue capacity', () => {
+  it('RVM100E3-P2 refuses every excess validated data frame without discarding the chunk', () => {
+    const data = capacity(DEVICE_LIMITS.queuedFrames)
     const bytes = Buffer.concat(
-      Array.from({ length: DEVICE_LIMITS.queuedFrames + 1 }, () =>
+      Array.from({ length: DEVICE_LIMITS.queuedFrames + 2 }, () =>
         encodeDeviceFrame(transportFrame),
       ),
     )
-    expect(() => new DeviceFrameDecoder().push(bytes, DEVICE_LIMITS.queuedFrames)).toThrow(
-      'invalid-frame',
-    )
-    expect(() => new DeviceFrameDecoder().push(encodeDeviceFrame(transportFrame), 0)).toThrow(
-      'invalid-frame',
-    )
+    expect(new DeviceFrameDecoder().push(bytes, data)).toHaveLength(DEVICE_LIMITS.queuedFrames)
+    expect(data.refuse).toHaveBeenCalledTimes(2)
+    expect(data.refuse).toHaveBeenLastCalledWith(transportFrame)
+    const full = capacity(0)
+    expect(new DeviceFrameDecoder().push(encodeDeviceFrame(transportFrame), full)).toEqual([])
+    expect(full.refuse).toHaveBeenCalledExactlyOnceWith(transportFrame)
+  })
+  it('RVM100E3-P2 validates overflowed data before issuing a refusal', () => {
+    const full = capacity(0)
+    expect(() => new DeviceFrameDecoder().push(Buffer.from('{}\n'), full)).toThrow('invalid-frame')
+    expect(full.refuse).not.toHaveBeenCalled()
   })
 })
