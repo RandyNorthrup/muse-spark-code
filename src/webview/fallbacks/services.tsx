@@ -30,6 +30,7 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
   const notifications: (MhpParams<'ui/notify'> & { id: string })[] = []
   const status = new Map<string | number, MhpParams<'ui/status'>>()
   const progress = new Map<string | number, MhpParams<'ui/progress'>>()
+  const clipboardRequests = new Set<() => void>()
   let serial = 0
   let promptSerial = 0
   let isDisposed = false
@@ -94,8 +95,33 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     'ui/clipboard': async (params, signal) => {
       signal?.throwIfAborted()
       if (!('clipboard' in navigator)) throw new Error('MHP_UNSUPPORTED_CAPABILITY')
-      await navigator.clipboard.writeText(params.text)
-      return null
+      return await new Promise<null>((resolve, reject) => {
+        let isSettled = false
+        const settle = (failure?: Error) => {
+          if (isSettled) return
+          isSettled = true
+          signal?.removeEventListener('abort', abort)
+          clipboardRequests.delete(cancel)
+          if (failure === undefined) resolve(null)
+          else reject(failure)
+        }
+        const abort = () => {
+          settle(new Error('MHP_CANCELLED'))
+        }
+        const cancel = () => {
+          settle(new Error('MHP_UI_DISPOSED'))
+        }
+        clipboardRequests.add(cancel)
+        signal?.addEventListener('abort', abort, { once: true })
+        void (async () => {
+          try {
+            await navigator.clipboard.writeText(params.text)
+            settle()
+          } catch (error: unknown) {
+            settle(error instanceof Error ? error : new Error('MHP_CLIPBOARD_FAILED'))
+          }
+        })()
+      })
     },
     'ui/openExternal': async (params, signal) => {
       const isOpened = await prompt<boolean>(
@@ -150,6 +176,7 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     },
     dispose() {
       isDisposed = true
+      for (const cancel of clipboardRequests) cancel()
       let entry
       while ((entry = prompts.pop()) !== undefined) entry.cancel()
       root.unmount()

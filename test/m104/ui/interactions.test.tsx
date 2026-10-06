@@ -213,6 +213,79 @@ describe('browser copy and external-open service fallbacks', () => {
     await expect(ui.request('ui/clipboard', { text: 'Exact preview' })).rejects.toThrow(
       'clipboard denied',
     )
+    const nonError = Promise.withResolvers<never>()
+    writeText.mockImplementation(() => nonError.promise)
+    // A browser boundary may reject with an untyped value.
+    Reflect.apply(nonError.reject, undefined, ['NON_ERROR_CLIPBOARD_FAILURE'])
+    await expect(ui.request('ui/clipboard', { text: 'Exact preview' })).rejects.toThrow(
+      'MHP_CLIPBOARD_FAILED',
+    )
+    act(() => {
+      ui.dispose()
+    })
+  })
+
+  it.each([
+    { ending: 'abort', completion: 'resolve' },
+    { ending: 'abort', completion: 'reject' },
+    { ending: 'dispose', completion: 'resolve' },
+    { ending: 'dispose', completion: 'reject' },
+  ])(
+    'settles a pending clipboard on $ending and drops late $completion',
+    async ({ ending, completion }) => {
+      const write = Promise.withResolvers<undefined>()
+      const writeText = vi.fn(() => write.promise)
+      vi.stubGlobal('navigator', { clipboard: { writeText } })
+      const ui = mount()
+      const signal = new AbortController()
+      const result = failureOf(ui.request('ui/clipboard', { text: 'Exact preview' }, signal.signal))
+      const outcomes: unknown[] = []
+      void (async () => {
+        outcomes.push(await result)
+      })()
+      if (ending === 'abort') signal.abort()
+      else
+        act(() => {
+          ui.dispose()
+        })
+      await waitFor(() => {
+        expect(outcomes[0]).toBeInstanceOf(Error)
+      })
+      expect(await result).toMatchObject({
+        message: ending === 'abort' ? 'MHP_CANCELLED' : 'MHP_UI_DISPOSED',
+      })
+      await act(async () => {
+        if (completion === 'resolve') write.resolve(undefined)
+        else write.reject(new Error('LATE_CLIPBOARD_FAILURE'))
+        await Promise.resolve()
+      })
+      expect(outcomes).toHaveLength(1)
+      expect(writeText).toHaveBeenCalledExactlyOnceWith('Exact preview')
+      if (ending === 'abort')
+        act(() => {
+          ui.dispose()
+        })
+      await expect(ui.request('ui/clipboard', { text: 'After disposal' })).rejects.toThrow(
+        'MHP_UI_DISPOSED',
+      )
+      expect(writeText).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('cancels one pending clipboard request without cancelling another', async () => {
+    const first = Promise.withResolvers<undefined>()
+    const second = Promise.withResolvers<undefined>()
+    const writeText = vi.fn((text: string) => (text === 'First' ? first.promise : second.promise))
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    const ui = mount()
+    const signal = new AbortController()
+    const cancelled = failureOf(ui.request('ui/clipboard', { text: 'First' }, signal.signal))
+    const successful = ui.request('ui/clipboard', { text: 'Second' })
+    signal.abort()
+    second.resolve(undefined)
+    await expect(successful).resolves.toBeNull()
+    first.resolve(undefined)
+    expect(await cancelled).toMatchObject({ message: 'MHP_CANCELLED' })
     act(() => {
       ui.dispose()
     })
