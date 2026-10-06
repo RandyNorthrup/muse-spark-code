@@ -300,14 +300,54 @@ Byte-exact restoration receipts (SHA-256 at drill time; all 32 drills restored):
 
 D06 restored the final schema source to SHA-256 `ac910f7bee62c1a424abbe90c7aa88b111988ab1e88c931a555c9076c2a6147a`.
 
-The source later removes an unused evidence-fields object and inlines its
-only used enum. Disk allocation roles use opaque IDs, so every watched volume
+Between the first 31 drills and D06, the source removes an unused
+evidence-fields object and inlines its only used enum. Disk allocation roles use opaque IDs, so every watched volume
 can be represented rather than imposing a three-volume limit. The fake's
 repeated disk metadata is shared as input data and cloned by schema parsing
 (the unchanged duplication gate caught the repeated literals). Final scoped verification below
 uses the final source. The existing missing real history measurements and
 unmerged integration bindings remain named handoffs, not new review residuals.
 
-Final scoped checks and hooked-commit receipts follow in the validation
-commit; aggregate `npm run quality` is prohibited by this lane brief and
-remains the lead's integration gate.
+### Final repair verification
+
+Implementation commit: `64c65467605c001174d997262e2e01eff9f2ff23`.
+All checks below ran directly on Mac mini. Final heavy checks ran sequentially.
+
+- `npx vitest run test/unit/estimatorContracts.test.ts test/unit/estimatorFakes.test.ts test/unit/estimatorLocalization.test.ts --maxWorkers=3`: **89/89**, after every source restore and the final changes; repository default timeout, no skips or timeout override.
+- `npx vitest run test/unit/l10n.test.ts --maxWorkers=3`: **26/26**.
+- `npm run typecheck`: all five projects pass on the final source.
+- Scoped `npx eslint --max-warnings=0`: all seven changed TypeScript files pass.
+- Scoped `npx prettier --check` and `git diff --check`: pass.
+- `npm run deadcode`: pass, with only the two pre-existing configuration hints.
+- `npx jscpd`: **zero clones** over 1,187 files after deduplicating fake input data; no threshold or ignore changed.
+- `npm run check:l10n`: **14 tables, 166 manifest strings, 607 source files, zero problems**. All 98 estimator keys are present in English and fourteen translations.
+- `npm run check:reference`: current, **53 features, 44 commands, 59 settings, 26 slash commands, 116 CLI entries**. No unfinished surface is registered.
+- `npm run check:host-api`: **zero problems**, 332 APIs, 31 VS Code import files, 25 Node built-ins and 61 theme variables.
+- `npm run build`: pass, including unchanged size caps, split rules, host globals and third-party notices (83 bundled packages).
+
+| Bundle                              | Final size / unchanged cap |
+| ----------------------------------- | -------------------------- |
+| Extension activation                | 439.5 / 600 KiB            |
+| Model API                           | 446.9 / 475 KiB            |
+| ACP                                 | 821.4 / 850 KiB            |
+| Shared English                      | 55.0 / 125 KiB             |
+| Webview startup with static imports | 797.1 / 900 KiB            |
+| Deferred webview JavaScript         | 50.0 / 50 KiB              |
+
+All other checked bundle groups pass. Estimator schemas still have no shipped
+entry; W retains the lazy-bundle wiring and its own measurements. The new
+labels increase the existing English/browser fallback only.
+
+Hooks existed at `.husky/_/pre-commit` before committing and ran unchanged:
+lint-staged checked/fixed seven TypeScript files and formatted eighteen
+JSON/Markdown files; gitleaks scanned approximately 103.55 KB of staged text
+and reported no leaks. The final schema SHA-256 remained
+`ac910f7bee62c1a424abbe90c7aa88b111988ab1e88c931a555c9076c2a6147a`
+after the hooks. No install, new dependency, live/paid call, push, merge or
+rebase was performed. Lane scratch scripts and red-drill logs are removed;
+the named failures, breaks and restoration hashes remain in this record.
+
+No RVM117L0 finding remains open. The named pre-existing integration/history
+handoffs above remain with their owners. Aggregate `npm run quality` is
+prohibited by the lane brief and remains the lead's integration gate;
+this scoped repair does not claim aggregate or cross-rig/editor certification.
