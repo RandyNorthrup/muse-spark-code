@@ -71,6 +71,28 @@ export interface SessionBudgetClaim {
   settle(actualCostUsd: number, hasUnknownCost?: boolean): Promise<SessionBudgetTotal>
 }
 
+/** P binds the selected account and M102's owned-claim exclusion once.
+ * The returned guard rereads thresholds/limits synchronously at every send.
+ * The caller refunds this claim when initial admission throws. */
+export type AccountBudgetAdmission = (claim: SessionBudgetClaim) => () => void
+
+/** Account admission supplements the existing conversation/daily cap. */
+export function withAccountBudgetAdmission(
+  claim: SessionBudgetClaim,
+  admission: AccountBudgetAdmission | undefined,
+): SessionBudgetClaim {
+  if (admission === undefined) return claim
+  const checkAccount = admission(claim)
+  checkAccount()
+  return {
+    ...claim,
+    check(capUsd) {
+      checkAccount()
+      return claim.check(capUsd)
+    },
+  }
+}
+
 /** The session store's scoped spend journal; all callers share the same account-owned history. */
 export interface SessionBudgetJournal {
   read(sessionId: string, accountId: string): Promise<SessionBudgetTotal>

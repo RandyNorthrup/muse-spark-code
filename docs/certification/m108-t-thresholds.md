@@ -51,8 +51,10 @@ commands, casts, suppressions, dependencies or wire codecs are added.
   Evaluate every candidate and every final synchronous send with current
   metadata, journal and limits; use vendor triggers before user caps. Bind
   selected-account identity, preserve the parent's conversation and fixed daily
-  scopes, and retain each account's uncertain liability. Admission hooks in
-  sessionBudget.ts/paidDailyBudget.ts are the next piece of this lane.
+  scopes, and retain each account's uncertain liability. Bind AccountBudgetAdmission to the concrete owned claim through
+  withAccountBudgetAdmission in sessionBudget.ts and accountAdmission in
+  createPaidDailyBudget. P must catch initial/final refusal and durably refund
+  known nonsends; the daily extra/Judge paths already refund initial refusal.
 - **T-W-DOCS-HELP:** featureCatalog.ts and its generator are absent. W owns
   README/CHANGELOG/PLAN and the integrated reference: document account spend,
   tokens, requests, plan-window and rate-headroom thresholds and their reset
@@ -105,3 +107,58 @@ and after restoration matched for all 24 drills:
 | pending-validation        | admits the last affordable request but refuses a projected breach or a reached cap       |
 | cost-overflow             | refuses invalid identities, clocks, thresholds and invalid journal totals                |
 | count-overflow            | admits the last affordable request but refuses a projected breach or a reached cap       |
+
+## Delivered request admission
+
+AccountBudgetAdmission is an explicit injected factory receiving the owned
+claim (claimId and reservedUsd). It binds the selected account once and returns
+a synchronous guard which rereads current account thresholds/limits at initial
+admission and every final claim check. The injected reader must exclude that
+same owned claim before supplying its projected request to the evaluator; all
+other open/uncertain claims remain included. It must bind the account chosen
+for the actual client, not consult a later global picker selection. P owns
+credential/currentness matching and the actual per-request client choice.
+
+withAccountBudgetAdmission preserves the original claim's identity, charge,
+settlement and cap check. With no factory it returns the original claim object.
+The paid daily extra and Judge paths compose this guard with their existing
+fixed shared daily journal. Initial refusal refunds only the known nonsent
+claim, before a budget-raise popup. A final refusal stays structured, and the
+client's existing nonsent cleanup refunds it. Sent/ambiguous liability is not
+refunded. Each retry calls the same bound guard. Paid consent/defaults and the
+existing daily/account/session settings are untouched. No account id becomes
+a new daily or conversation spend scope.
+
+Real local filesystem tests prove a new account-bound guard cannot reset
+settled or outstanding daily and conversation spend. Fake HTTP tests move an
+account to its cap during key retrieval and deny before both image and token
+fetches. A 429 retry invokes its bound guard again and cannot dispatch after
+revocation. Single-model ordinary requests and replay/cache prefixes retain
+the existing byte-exact test. Judge final admission retains unsettled spend.
+
+Direct macmini admission suites: sessionBudget.test.ts and
+paidDailyBudget.test.ts pass 39 tests using default test timeouts, three workers
+and complete files. Changed-source ESLint and unit typecheck pass.
+
+## Executed admission and compatibility red drills
+
+All mutations exit 1 with named assertion failures and restore byte-exact in
+finally, comparing SHA-256. The daily-budget pooling mutation deliberately
+lets an account guard bypass both the existing cap preflight and final check;
+the swap-across-windows regression fails. The conversation mutation disables
+the original cap inside the composed check; the M82 swap/liability test fails.
+
+| Deliberately broken guard      | Named failing test (first reported)                                                       | Restored SHA-256                                                   |
+| ------------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| initial-admission              | keeps an unbound claim identical and binds a guard once for initial and every final check | `bdcf1c04a1e38e49d45558445a682da768193da85df2d88e4cf360c20da9ec6b` |
+| final-admission                | keeps an unbound claim identical and binds a guard once for initial and every final check | `bdcf1c04a1e38e49d45558445a682da768193da85df2d88e4cf360c20da9ec6b` |
+| conversation-cap-after-swap    | keeps an unbound claim identical and binds a guard once for initial and every final check | `bdcf1c04a1e38e49d45558445a682da768193da85df2d88e4cf360c20da9ec6b` |
+| daily-account-guard            | refunds a refused extra account preflight and preserves its structured trigger            | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| judge-account-guard            | refunds a refused judge account preflight and preserves its structured trigger            | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| daily-budget-raised-by-pooling | rechecks the same bound account before a 429 retry and sends no request after revocation  | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| daily-final-budget             | rejects a final send if another window reserved the last funds meanwhile                  | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| daily-refund                   | refunds a refused extra account preflight and preserves its structured trigger            | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| judge-refund                   | refunds a refused judge account preflight and preserves its structured trigger            | `275d0fea6604be9e7390e7f284c187f4e609299a598bef1625b2d0d0140581ef` |
+| unconfigured-journal-read      | uses calendar dates for DST transitions and leap-month resets                             | `0ed366125667e6d535b98127190c4422b8a19cc6b13bac0ce4eafe72c929cee3` |
+| structured-trigger-error       | carries the structured trigger with translated user-cap and vendor-limit errors           | `0ed366125667e6d535b98127190c4422b8a19cc6b13bac0ce4eafe72c929cee3` |
+| single-account-identity        | keeps an unbound claim identical and binds a guard once for initial and every final check | `bdcf1c04a1e38e49d45558445a682da768193da85df2d88e4cf360c20da9ec6b` |

@@ -1,10 +1,17 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   estimateInput,
   requestParts,
   reserveRequest,
   SessionBudgetExceededError,
+  withAccountBudgetAdmission,
+  type SessionBudgetClaim,
 } from '../../src/core/backends/modelapi/sessionBudget'
+import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
+import { removeFolder } from './helpers/temporaryFolders'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { formatUsd } from '../../src/core/usage/insights'
 import { MODEL_API_MAX_OUTPUT_TOKENS, UI_TEXT } from '../../src/shared/constants'
@@ -161,6 +168,75 @@ describe('reserveRequest', () => {
           }
         }
       }
+    }
+  })
+})
+
+describe('M108 T account budget admission', () => {
+  it('keeps an unbound claim identical and binds a guard once for initial and every final check', async () => {
+    const total = { spentUsd: 0.5, hasUnknownHistoricalFees: false }
+    const claim: SessionBudgetClaim = {
+      claimId: 'owned-claim',
+      reservedUsd: 0.1,
+      check: vi.fn(() => total),
+      settle: vi.fn(() => Promise.resolve(total)),
+    }
+    expect(withAccountBudgetAdmission(claim, undefined)).toBe(claim)
+    const guard = vi.fn<() => void>()
+    const bind = vi.fn(() => guard)
+    const admitted = withAccountBudgetAdmission(claim, bind)
+    expect(bind).toHaveBeenCalledExactlyOnceWith(claim)
+    expect(guard).toHaveBeenCalledOnce()
+    expect(admitted.check(1)).toBe(total)
+    expect(admitted.check(2)).toBe(total)
+    expect(guard).toHaveBeenCalledTimes(3)
+    expect(claim.check).toHaveBeenNthCalledWith(1, 1)
+    expect(claim.check).toHaveBeenNthCalledWith(2, 2)
+    expect(admitted.claimId).toBe(claim.claimId)
+    expect(admitted.reservedUsd).toBe(claim.reservedUsd)
+    await expect(admitted.settle(0.1, true)).resolves.toBe(total)
+    expect(claim.settle).toHaveBeenCalledExactlyOnceWith(0.1, true)
+    const stop = new Error('Account threshold reached')
+    guard.mockImplementation(() => {
+      throw stop
+    })
+    expect(() => admitted.check(1)).toThrow(stop)
+    expect(claim.check).toHaveBeenCalledTimes(2)
+    expect(() => withAccountBudgetAdmission(claim, bind)).toThrow(stop)
+  })
+
+  it('does not let an account swap reset M82 settled spend or outstanding liability', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'muse-account-session-'))
+    try {
+      const journal = createSessionBudgetJournal({
+        directory,
+        sleep: () => Promise.resolve(),
+        initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+      })
+      const owner = 'a'.repeat(64)
+      await journal.record('conversation', owner, 0.8)
+      const open = await journal.reserve('conversation', owner, 0.1)
+      const check = vi.fn<() => void>()
+      withAccountBudgetAdmission(open, () => check).check(1)
+      const afterSwap = await journal.reserve('conversation', owner, 0.1)
+      const swapped = withAccountBudgetAdmission(afterSwap, () => check)
+      expect(swapped.check(1).spentUsd).toBeCloseTo(1)
+      await swapped.settle(0.1)
+      const rejected = await journal.reserve('conversation', owner, 0.01)
+      expect(() => withAccountBudgetAdmission(rejected, () => check).check(1)).toThrow(
+        fill(UI_TEXT.sessionBudgetStopped, {
+          estimate: formatUsd(0.01),
+          cap: formatUsd(1),
+          spent: formatUsd(1),
+        }),
+      )
+      await rejected.settle(0)
+      const total = await journal.read('conversation', owner)
+      expect(total.spentUsd).toBeCloseTo(1)
+      // The old account's unresolved request remains owed after the swap.
+      expect(open.reservedUsd).toBe(0.1)
+    } finally {
+      await removeFolder(directory)
     }
   })
 })

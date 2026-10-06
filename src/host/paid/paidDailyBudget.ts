@@ -5,6 +5,10 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
+import {
+  withAccountBudgetAdmission,
+  type AccountBudgetAdmission,
+} from '../../core/backends/modelapi/sessionBudget'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
@@ -27,6 +31,8 @@ export function createPaidDailyBudget(deps: {
   readonly capUsd: () => number
   readonly sleep: (ms: number) => Promise<void>
   readonly isModelApi: () => boolean
+  /** P's account-bound guard; shared daily claims still use one fixed scope. */
+  readonly accountAdmission?: AccountBudgetAdmission
 }) {
   const day = () => {
     const today = new Date(deps.now())
@@ -173,23 +179,27 @@ export function createPaidDailyBudget(deps: {
     }
     try {
       signal.throwIfAborted()
+      const admittedClaim = withAccountBudgetAdmission(
+        {
+          ...claim,
+          check: () => {
+            signal.throwIfAborted()
+            if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+            try {
+              return claim.check(readLimit(scope))
+            } catch (error: unknown) {
+              throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
+            }
+          },
+        },
+        deps.accountAdmission,
+      )
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
       signal.throwIfAborted()
       if (total.spentUsd > readLimit(scope))
         await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
-      return {
-        ...claim,
-        check: () => {
-          signal.throwIfAborted()
-          if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-          try {
-            return claim.check(readLimit(scope))
-          } catch (error: unknown) {
-            throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
-          }
-        },
-      }
+      return admittedClaim
     } catch (error: unknown) {
       await claim.settle(0)
       throw error
@@ -211,12 +221,14 @@ export function createPaidDailyBudget(deps: {
     reserve: async (costUsd) => {
       const scope = day()
       readLimit(scope)
-      const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+      const reserved = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+      let claim = reserved
       const check = () => {
         if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
         claim.check(readLimit(scope))
       }
       try {
+        claim = withAccountBudgetAdmission(reserved, deps.accountAdmission)
         check()
       } catch (error: unknown) {
         await claim.settle(0)
