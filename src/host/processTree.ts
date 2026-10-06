@@ -18,6 +18,7 @@
 // one's id is never hit.
 
 import { execFile } from 'node:child_process'
+import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -85,13 +86,18 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
 
 export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABLE_TIMEOUT_MS) =>
   new Promise((resolve, reject) => {
-    execFile(file, [...args], { windowsHide: true, timeout: timeoutMs, env }, (error, stdout) => {
-      if (error === null) {
-        resolve(stdout)
-        return
-      }
-      reject(new Error(error.message, { cause: error }))
-    })
+    execFile(
+      file,
+      [...args],
+      { windowsHide: true, timeout: timeoutMs, env: withoutCredentials(env) },
+      (error, stdout) => {
+        if (error === null) {
+          resolve(stdout)
+          return
+        }
+        reject(new Error(error.message, { cause: error }))
+      },
+    )
   })
 
 /**
@@ -106,7 +112,7 @@ export function windowsPowerShell(
   readonly file: string
   readonly env: NodeJS.ProcessEnv
 } {
-  const env = { ...base }
+  const env = withoutCredentials(base)
   setEnvironmentVariable(
     env,
     'win32',

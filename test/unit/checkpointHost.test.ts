@@ -478,6 +478,16 @@ describe('prepareCheckpointTurn and finishCheckpointTurn (M86)', () => {
 })
 
 describe('withCheckpointStorageGuard (M72, M86)', () => {
+  it('D89.5 preserves the shell’s explicit interactive marker through activity tracking', async () => {
+    const { port } = portOver({ isTrusted: true, isEnabled: true, hasGit: true })
+    const shell = vi.fn(noopToolIo.runShell)
+    const io = withCheckpointStorageGuard({ ...noopToolIo, runShell: shell }, port)
+    for (const isInteractive of [false, true]) {
+      await io.runShell('env', '/ws', 1000, undefined, undefined, undefined, isInteractive)
+      expect(shell.mock.calls.at(-1)?.[6]).toBe(isInteractive)
+    }
+  })
+
   it('awaits an activity mark before starting shell or hook work', async () => {
     const { store, calls } = fakeStore()
     const entered = Promise.withResolvers<undefined>()

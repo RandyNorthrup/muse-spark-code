@@ -6423,6 +6423,42 @@ Decisions:
   It changes no decision. The product's local judge stays on the user's own
   machine; the rigs are development infrastructure.
 
+### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
+
+The VS Code Model API shell inherited credential variables from the extension
+host and terminal overrides. The shared, case-insensitive credential-name
+matcher now fences shell commands, verification/`then_run`, background and
+scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
+MCP stdio servers keep their narrow host projection and their explicitly
+configured `env`; browser checks keep their private projection. Image tools
+use in-process HTTP and file IO, with no child process. Muse Code's own
+`serve`, account, skills and login processes keep D1's credential path.
+
+`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
+machine-scoped array of variable names, never values. Only an interactive
+top-level shell command (including the user's `!` command) may pass a named
+credential. Unattended verification/`then_run`, schedules, child/team workers,
+hooks/plugins and helpers never honor it. Moving an already admitted
+interactive shell to the background preserves its starting environment.
+The setting warns that a command can expose the value to the conversation
+and model provider. ACP/headless keep their existing credential-free tool
+environments in every editor; no pass-through flag is added there.
+
+The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
+catalogue when that lane merges. No paid/live calls are authorized.
+
+**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
+common credential names escaped the matcher, and a scheduled shell delayed
+in directory preparation could read a later active-turn state as interactive.
+Cover the standard credential suffix families and known exact/prefix names,
+with an explicit harmless-name allow-list. Capture interactive admission when
+the command is created, before hooks or directory waits; the native spawn
+still rechecks the captured owner's admission. Regressions must include a
+real shell, ACP startup removal, safe-name preservation, and a backgrounded
+scheduled command released after its turn ends. Deliberately break each fix,
+observe the named tests fail, restore byte-exact and record the evidence in
+`docs/certification/envfence.md`. No new dependency or broader exception.
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -18318,6 +18354,21 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
+
+- [x] Shared credential matcher and fences at model process entry.
+- [x] Machine-scoped interactive name-only exception, with 14 translations.
+- [x] Spawn environment snapshots and real-shell fake-credential probe;
+      deliberately remove guards, observe failures and restore byte-exact.
+- [x] Focused rig tests, typecheck/lint/format, localization, host API,
+      deadcode/duplication and production bundle budgets.
+- [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
+      The lead runs aggregate quality on the rigs (lane common rules).
+- [x] FIXENVFENCE: repair both RVENVFENCE P1s with regression tests and red
+      drills (25 matcher failures, 2 delayed-origin failures), followed by
+      byte-exact restoration. Focused certification is appended to
+      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
+
 ## 7. Gates
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
@@ -19526,6 +19577,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
+  `src/shared/featureCatalog.ts` or reference generator. The existing setting
+  and its full security contract are in README, D89.5, the manifest and all
+  translations, so the repair introduces no undocumented command or option.
+  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
+  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
