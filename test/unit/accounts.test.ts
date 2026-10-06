@@ -13,7 +13,12 @@ import {
 import { providersAccountsSchema } from '../../src/core/providers/providersFile'
 import { usageAccountFields } from '../../src/shared/usageJournal'
 import { deviceAccountHeadroomSchema } from '../../src/shared/devices'
-import { accountsRequestSchema, type AccountsRequest } from '../../src/shared/hostApi/accounts'
+import {
+  accountsRequestSchema,
+  accountsReplySchema,
+  type AccountsRequest,
+  type AccountsReply,
+} from '../../src/shared/hostApi/accounts'
 import { ACCOUNT_DEFAULT_ID, ACCOUNT_DEFAULTS } from '../../src/shared/constants'
 
 const account: Account = { id: 'work', label: 'Work', order: 0, thresholds: {} }
@@ -193,5 +198,49 @@ describe('M108 local accounts contracts', () => {
         accounts: ['work', 'work'],
       }).success,
     ).toBe(false)
+  })
+
+  it('validates account state and notices in replies without accepting raw errors', () => {
+    const state: AccountsReply = {
+      type: 'accounts/state',
+      provider: 'meta',
+      accounts: [account],
+      currentAccount: 'work',
+      isSwapOn: true,
+      isParallelOn: true,
+    }
+    expect(accountsReplySchema.parse(state)).toEqual(state)
+    expect(accountsReplySchema.safeParse({ ...state, currentAccount: 'missing' }).success).toBe(
+      false,
+    )
+    expect(accountsReplySchema.safeParse({ ...state, accounts: [account, account] }).success).toBe(
+      false,
+    )
+    expect(accountsReplySchema.safeParse({ ...state, apiKey: 'canary' }).success).toBe(false)
+    const event = { type: 'stop', provider: 'meta', account: 'work', time, trigger }
+    expect(accountsReplySchema.parse({ type: 'accounts/notice', event })).toEqual({
+      type: 'accounts/notice',
+      event,
+    })
+    expect(
+      accountsReplySchema.safeParse({
+        type: 'accounts/notice',
+        event: { ...event, accountLabel: 'Work' },
+      }).success,
+    ).toBe(false)
+    expect(accountsReplySchema.parse({ type: 'accounts/error', code: 'unavailable' })).toEqual({
+      type: 'accounts/error',
+      code: 'unavailable',
+    })
+    expect(
+      accountsReplySchema.safeParse({
+        type: 'accounts/error',
+        code: 'unavailable',
+        message: 'canary',
+      }).success,
+    ).toBe(false)
+    expect(accountsReplySchema.safeParse({ type: 'accounts/error', code: 'canary' }).success).toBe(
+      false,
+    )
   })
 })

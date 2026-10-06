@@ -6,6 +6,8 @@ import {
   accountIdSchema,
   accountThresholdsSchema,
   accountConfirmationChoiceSchema,
+  accountPoolSchema,
+  accountEventSchema,
 } from '../accounts'
 import { ACCOUNT_MAX_PER_PROVIDER } from '../constants'
 
@@ -51,3 +53,31 @@ export const accountsRequestSchema = z.discriminatedUnion('type', [
   }),
 ])
 export type AccountsRequest = z.infer<typeof accountsRequestSchema>
+
+const accountsStateSchema = z
+  .strictObject({
+    type: z.literal('accounts/state'),
+    provider: accountIdSchema,
+    accounts: accountPoolSchema,
+    currentAccount: z.nullable(accountIdSchema),
+    isSwapOn: z.boolean(),
+    isParallelOn: z.boolean(),
+  })
+  .check(
+    z.refine(
+      (state) =>
+        state.currentAccount === null ||
+        state.accounts.some((account) => account.id === state.currentAccount),
+    ),
+  )
+
+export const accountsReplySchema = z.union([
+  accountsStateSchema,
+  z.strictObject({ type: z.literal('accounts/notice'), event: accountEventSchema }),
+  // Fixed codes, never raw provider errors that could contain a credential.
+  z.strictObject({
+    type: z.literal('accounts/error'),
+    code: z.enum(['invalidAccount', 'notOffered', 'unavailable', 'consentRequired']),
+  }),
+])
+export type AccountsReply = z.infer<typeof accountsReplySchema>
