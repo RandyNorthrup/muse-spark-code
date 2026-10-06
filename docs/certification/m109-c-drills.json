@@ -812,5 +812,101 @@
       "encrypted vault store requires an exact prior state when the independent anchor advances"
     ],
     "restoredSha256": "80e820745510192064c48a9ff68e566b8c251f920efe295da8551f02f9a563ad"
+  },
+  {
+    "guard": "RVM109C2-1 destination authentication dependency",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup repairs an exact-anchor backup over index destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over item destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over truncated destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over unreadable destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup recovers an interrupted repair while retaining the damaged document and advancing only once"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 quarantine admission and retention",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup repairs an exact-anchor backup over index destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over item destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over truncated destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup repairs an exact-anchor backup over unreadable destination damage without reading it, retaining quarantined ciphertext",
+      "encrypted vault backup recovers an interrupted repair while retaining the damaged document and advancing only once",
+      "encrypted vault backup refuses restoration before publication if destination quarantine fails"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 durable native quarantine",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "native files and platform ports keeps the complete old file visible until its fully written replacement is renamed",
+      "native files and platform ports restores a truncated native document without reading it and retains its owner-only quarantine",
+      "native files and platform ports refuses quarantine after destination identity changes during link creation",
+      "native files and platform ports refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 quarantine identity",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "native files and platform ports refuses quarantine after destination identity changes during link creation"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 quarantine security",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/vaultStore.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "native files and platform ports refuses oversized and symbolic-link files and unsafe POSIX permissions"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 rollback before quarantine",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses older backups before quarantining a damaged destination",
+      "encrypted vault backup refuses same-generation restored forks even when all authenticated files are copied",
+      "encrypted vault backup refuses newer fork backups after policy revocation or removal, even with confirmation",
+      "encrypted vault backup refuses an older backup on the original device, restores current backups, and detects payload/slot mutations"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 unanchored destination identity",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup refuses an occupied document-only destination without an independent anchor"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
+  },
+  {
+    "guard": "RVM109C2-1 idempotent interrupted repair",
+    "source": "src/core/vault/store.ts",
+    "suite": ["test/unit/vault/backup.test.ts"],
+    "exit": 1,
+    "failedTests": [
+      "encrypted vault backup recovers an interrupted repair while retaining the damaged document and advancing only once",
+      "encrypted vault backup recovers confirmed restore jumps before anchor advancement by open or retry, without advancing twice"
+    ],
+    "restoredSha256": "18d87fc66dfc9255be04fe79fcd95bdf05abb04b1eb5b009cbb45e66fd521e93"
   }
 ]

@@ -23,6 +23,7 @@ export class MemoryVaultFiles implements VaultFilePort {
   private writing = false
   readonly maxBytes = 16 * 1024 * 1024
   readonly data = new Map<'vault.v1' | 'slots.v1' | 'pending.v1', Buffer>()
+  readonly quarantined: Buffer[] = []
   fail: 'vault.v1' | 'slots.v1' | 'pending.v1' | null = null
   read(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<Buffer | null> {
     const bytes = this.data.get(name)
@@ -35,6 +36,11 @@ export class MemoryVaultFiles implements VaultFilePort {
   }
   remove(name: 'vault.v1' | 'slots.v1' | 'pending.v1'): Promise<void> {
     this.data.delete(name)
+    return Promise.resolve()
+  }
+  quarantine(name: 'vault.v1'): Promise<void> {
+    const bytes = this.data.get(name)
+    if (bytes) this.quarantined.push(ownedBytes(bytes))
     return Promise.resolve()
   }
   async withWriter<T>(operation: () => Promise<T>): Promise<T> {

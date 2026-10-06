@@ -32,18 +32,32 @@ import {
 const directories: string[] = []
 vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof filesystem>()
-  return { ...original, rename: vi.fn(original.rename), lstat: vi.fn(original.lstat) }
+  return {
+    ...original,
+    rename: vi.fn(original.rename),
+    lstat: vi.fn(original.lstat),
+    link: vi.fn(original.link),
+  }
 })
 async function directory(): Promise<string> {
   const root = await mkdtemp(path.join(await filesystem.realpath(tmpdir()), 'm109-c-'))
   directories.push(root)
   return root
 }
+async function quarantinePath(root: string): Promise<string> {
+  const entries = await readdir(root)
+  const retained = entries.filter((name) => name.endsWith('.quarantine'))
+  expect(retained.length).toBe(1)
+  const quarantine = retained[0]
+  if (!quarantine) throw new Error('fixture quarantine')
+  return path.join(root, quarantine)
+}
 afterEach(async () => {
   vi.restoreAllMocks()
   const original = await vi.importActual<typeof filesystem>('node:fs/promises')
   vi.mocked(filesystem.rename).mockImplementation(original.rename)
   vi.mocked(filesystem.lstat).mockImplementation(original.lstat)
+  vi.mocked(filesystem.link).mockImplementation(original.link)
   for (const root of directories.splice(0)) await rm(root, { recursive: true, force: true })
 })
 
@@ -556,7 +570,14 @@ describe('native files and platform ports', () => {
   it('keeps the complete old file visible until its fully written replacement is renamed', async () => {
     const root = await directory()
     const files = new NodeVaultFiles(root, 1024)
+    await files.quarantine('vault.v1')
+    expect(await readdir(root)).toEqual([])
     await files.writeAtomic('vault.v1', Buffer.from('complete-old'))
+    await files.quarantine('vault.v1')
+    const quarantine = await quarantinePath(root)
+    const identity = await lstat(path.join(root, 'vault.v1'), { bigint: true })
+    const saved = await lstat(quarantine, { bigint: true })
+    expect({ dev: saved.dev, ino: saved.ino }).toEqual({ dev: identity.dev, ino: identity.ino })
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
     const original = await vi.importActual<typeof filesystem>('node:fs/promises')
@@ -577,6 +598,50 @@ describe('native files and platform ports', () => {
     }
     const published = await readFile(path.join(root, 'vault.v1'))
     expect(published.toString()).toBe('complete-new')
+    expect(await readFile(quarantine)).toEqual(Buffer.from('complete-old'))
+  })
+  it('restores a truncated native document without reading it and retains its owner-only quarantine', async () => {
+    const root = await directory()
+    const files = new NodeVaultFiles(root, 4 * 1024 * 1024)
+    const vault = await freshVault(files)
+    const secret = item()
+    await vault.store.write(secret)
+    const snapshot = await vault.store.exportSnapshot()
+    const damaged = Buffer.from('{')
+    await writeFile(path.join(root, 'vault.v1'), damaged)
+    const read = files.read.bind(files)
+    const reading = vi
+      .spyOn(files, 'read')
+      .mockImplementation((name) =>
+        name === 'vault.v1'
+          ? Promise.reject(new Error('generated unreadable document'))
+          : read(name),
+      )
+    const restored = await VaultStore.restore(vault.options, snapshot, undefined, true)
+    expect(reading.mock.calls.some(([name]) => name === 'vault.v1')).toBe(false)
+    reading.mockRestore()
+    expect(await restored.read(secret.metadata.id)).toEqual(secret)
+    const quarantine = await quarantinePath(root)
+    expect(await readFile(quarantine)).toEqual(damaged)
+    if (process.platform === 'win32') return
+    const sample = await lstat(quarantine)
+    expect(sample.mode & 0o777).toBe(0o600)
+    if (typeof process.getuid !== 'function') throw new Error('fixture uid')
+    expect(sample.uid).toBe(process.getuid())
+  })
+  it('refuses quarantine after destination identity changes during link creation', async () => {
+    const root = await directory()
+    const files = new NodeVaultFiles(root, 1024)
+    await files.writeAtomic('vault.v1', Buffer.from('old-document'))
+    const original = await vi.importActual<typeof filesystem>('node:fs/promises')
+    vi.mocked(filesystem.link).mockImplementationOnce(async (source, destination) => {
+      await original.link(source, destination)
+      const replacement = path.join(root, 'replacement')
+      await writeFile(replacement, Buffer.from('replacement-document'), { mode: 0o600 })
+      await original.rename(replacement, source)
+    })
+    await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
+    expect(await readFile(path.join(root, 'vault.v1'))).toEqual(Buffer.from('replacement-document'))
   })
   it('writes owner-only files with synced atomic replacement and no plaintext in any file', async () => {
     const root = await directory()
@@ -641,6 +706,9 @@ describe('native files and platform ports', () => {
     await writeFile(path.join(root, 'outside'), Buffer.alloc(1), { mode: 0o600 })
     await symlink(path.join(root, 'outside'), path.join(root, 'vault.v1'))
     await expect(files.read('vault.v1')).rejects.toThrow()
+    await expect(files.quarantine('vault.v1')).rejects.toMatchObject({ code: 'io' })
+    const entries = await readdir(root)
+    expect(entries.some((name) => name.endsWith('.quarantine'))).toBe(false)
     if (process.platform !== 'win32') {
       await chmod(root, 0o755)
       await expect(files.withWriter(() => Promise.resolve())).rejects.toThrow()

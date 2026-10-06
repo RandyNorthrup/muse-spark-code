@@ -15,7 +15,128 @@ import { freshVault, jsonRecord, MemoryVaultAnchor, MemoryVaultFiles } from './s
 const backupLimit = 16 * 1024 * 1024
 afterEach(() => vi.restoreAllMocks())
 
+async function backedUpItem() {
+  const files = new MemoryVaultFiles()
+  const vault = await freshVault(files)
+  const secret = item()
+  await vault.store.write(secret)
+  const backup = await createEncryptedBackup(vault.store, vault.key, vault.recovery.slot)
+  return { files, vault, secret, backup }
+}
+
 describe('encrypted vault backup', () => {
+  it.each(['index', 'item', 'truncated', 'unreadable'] as const)(
+    'repairs an exact-anchor backup over %s destination damage without reading it, retaining quarantined ciphertext',
+    async (damage) => {
+      const { files, vault, secret, backup } = await backedUpItem()
+      const snapshot = await vault.store.exportSnapshot()
+      if (damage === 'index' || damage === 'item') {
+        const block =
+          damage === 'index' ? snapshot.document.index : snapshot.document.items[0]?.block
+        if (!block) throw new Error('fixture block')
+        const bytes = Buffer.from(block.ciphertext, 'base64')
+        bytes[0] = (bytes[0] ?? 0) ^ 1
+        block.ciphertext = bytes.toString('base64')
+        files.data.set('vault.v1', Buffer.from(JSON.stringify(snapshot.document)))
+      } else if (damage === 'truncated') files.data.set('vault.v1', Buffer.from('{'))
+      const damaged = files.data.get('vault.v1')
+      if (!damaged) throw new Error('fixture document')
+      const anchored = await vault.anchor.minimum(vault.vaultId)
+      if (!anchored) throw new Error('fixture anchor')
+      const read = files.read.bind(files)
+      const reading = vi
+        .spyOn(files, 'read')
+        .mockImplementation((name) =>
+          name === 'vault.v1' && damage === 'unreadable'
+            ? Promise.reject(new Error('generated unreadable document'))
+            : read(name),
+        )
+      await expect(VaultStore.open(vault.options, vault.vaultId)).rejects.toThrow()
+      reading.mockClear()
+      const restored = await restoreEncryptedBackup(vault.options, backup, backupLimit, true)
+      expect(reading.mock.calls.some(([name]) => name === 'vault.v1')).toBe(false)
+      reading.mockRestore()
+      expect(files.quarantined).toEqual([damaged])
+      expect(await restored.read(secret.metadata.id)).toEqual(secret)
+      const committed = await restored.exportSnapshot()
+      expect(committed.document.generation).toBe(anchored.generation + 1)
+      expect(committed.slots.previousDigest).toBe(anchored.stateDigest)
+      expect(files.data.has('pending.v1')).toBe(false)
+      const reopened = await VaultStore.open(vault.options, vault.vaultId)
+      expect(await reopened.read(secret.metadata.id)).toEqual(secret)
+    },
+  )
+  it('refuses older backups before quarantining a damaged destination', async () => {
+    const files = new MemoryVaultFiles()
+    const vault = await freshVault(files)
+    await vault.store.write(item())
+    const backup = await createEncryptedBackup(vault.store, vault.key, vault.recovery.slot)
+    await vault.store.remove(item().metadata.id)
+    files.data.set('vault.v1', Buffer.from('{'))
+    const before = new Map(files.data)
+    const anchored = await vault.anchor.minimum(vault.vaultId)
+    await expect(
+      restoreEncryptedBackup(vault.options, backup, backupLimit, true),
+    ).rejects.toMatchObject({
+      code: 'rollback',
+    })
+    expect(files.data).toEqual(before)
+    expect(files.quarantined).toEqual([])
+    expect(await vault.anchor.minimum(vault.vaultId)).toEqual(anchored)
+  })
+  it('recovers an interrupted repair while retaining the damaged document and advancing only once', async () => {
+    const { files, vault, secret, backup } = await backedUpItem()
+    const anchored = await vault.anchor.minimum(vault.vaultId)
+    if (!anchored) throw new Error('fixture anchor')
+    const damaged = Buffer.from('{')
+    files.data.set('vault.v1', damaged)
+    files.fail = 'vault.v1'
+    await expect(
+      restoreEncryptedBackup(vault.options, backup, backupLimit, true),
+    ).rejects.toMatchObject({
+      code: 'io',
+    })
+    expect(files.data.has('pending.v1')).toBe(true)
+    expect(files.quarantined).toEqual([damaged])
+    const committed = await vault.anchor.minimum(vault.vaultId)
+    expect(committed?.generation).toBe(anchored.generation + 1)
+    files.fail = null
+    const restored = await restoreEncryptedBackup(vault.options, backup, backupLimit, true)
+    expect(await restored.read(secret.metadata.id)).toEqual(secret)
+    expect(await vault.anchor.minimum(vault.vaultId)).toEqual(committed)
+    expect(files.quarantined).toEqual([damaged])
+    expect(files.data.has('pending.v1')).toBe(false)
+  })
+  it('refuses restoration before publication if destination quarantine fails', async () => {
+    const files = new MemoryVaultFiles()
+    const vault = await freshVault(files)
+    const backup = await createEncryptedBackup(vault.store, vault.key, vault.recovery.slot)
+    const before = new Map(files.data)
+    const anchored = await vault.anchor.minimum(vault.vaultId)
+    vi.spyOn(files, 'quarantine').mockRejectedValue(new Error('generated quarantine failure'))
+    const restoring = async () => {
+      await restoreEncryptedBackup(vault.options, backup, backupLimit, true)
+    }
+    await expect(restoring()).rejects.toMatchObject({ code: 'invalid' })
+    expect(files.data).toEqual(before)
+    expect(files.quarantined).toEqual([])
+    expect(await vault.anchor.minimum(vault.vaultId)).toEqual(anchored)
+  })
+  it('refuses an occupied document-only destination without an independent anchor', async () => {
+    const vault = await freshVault()
+    const snapshot = await vault.store.exportSnapshot()
+    const files = new MemoryVaultFiles()
+    const anchor = new MemoryVaultAnchor()
+    files.data.set('vault.v1', Buffer.from('{'))
+    const before = new Map(files.data)
+    const restoring = async () => {
+      await VaultStore.restore({ files, anchor, key: vault.key }, snapshot, undefined, true)
+    }
+    await expect(restoring()).rejects.toMatchObject({ code: 'invalid' })
+    expect(files.data).toEqual(before)
+    expect(files.quarantined).toEqual([])
+    expect(anchor.states.size).toBe(0)
+  })
   it('refuses unconfirmed restores before decrypting, changing files or advancing the anchor', async () => {
     const vault = await freshVault()
     const backup = await createEncryptedBackup(vault.store, vault.key, vault.recovery.slot)

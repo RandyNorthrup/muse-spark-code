@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
+import { link, lstat, mkdir, open, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { VAULT_FORMAT_VERSION, VAULT_KEY_BYTES, VAULT_LIMITS } from '../../shared/constants'
@@ -35,6 +35,8 @@ export interface VaultFilePort {
   readonly maxBytes: number
   read(name: VaultFileName): Promise<Buffer | null>
   writeAtomic(name: VaultFileName, data: Uint8Array): Promise<void>
+  /** Retain any displaced document durably without reading it or removing its current path. */
+  quarantine(name: 'vault.v1'): Promise<void>
   remove(name: VaultFileName): Promise<void>
   withWriter<T>(operation: () => Promise<T>): Promise<T>
 }
@@ -180,6 +182,36 @@ export class NodeVaultFiles implements VaultFilePort {
     await this.verify(file, 'file')
     await unlink(file)
     await this.syncDirectory()
+  }
+  async quarantine(name: 'vault.v1'): Promise<void> {
+    await this.directory()
+    const file = path.join(this.root, name)
+    let identity
+    try {
+      await this.verify(file, 'file')
+      identity = await lstatIdentity(file)
+    } catch (error) {
+      if (error !== null && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')
+        return
+      throw new VaultError('io')
+    }
+    const retained = path.join(
+      this.root,
+      `${name}.${randomVaultBytes(VAULT_LIMITS.idBytes).toString('hex')}.quarantine`,
+    )
+    try {
+      // Hard links preserve unreadable bytes and the old path until atomic publication replaces it.
+      await link(file, retained)
+      if (
+        !sameFile(identity, await lstatIdentity(retained)) ||
+        !sameFile(identity, await lstatIdentity(file))
+      )
+        throw new VaultError('io')
+      await this.verify(retained, 'file')
+      await this.syncDirectory()
+    } catch {
+      throw new VaultError('io')
+    }
   }
   async withWriter<T>(operation: () => Promise<T>): Promise<T> {
     await this.directory()
@@ -475,28 +507,28 @@ export class VaultStore implements VaultStorePort {
         const minimum = await options.anchor.minimum(store.vaultId)
         // Never import a different history over revocations, including a newer fork.
         if (minimum && !isSameState(minimum, source)) throw new VaultError('rollback')
-        const current = await options.files.read('vault.v1')
         const currentSlots = await options.files.read('slots.v1')
         try {
-          if ((current === null) !== (currentSlots === null)) throw new VaultError('invalid')
-          if (current && currentSlots) {
-            const previous = snapshotSchema.safeParse({
-              document: parseJson(current),
-              slots: parseJson(currentSlots),
-            })
-            if (!previous.success) throw new VaultError('invalid')
-            const authenticated = validateSnapshot(store.active(), previous.data)
-            if (
-              authenticated.snapshot.document.vaultId !== store.vaultId ||
-              !isSameState(minimum, stateOf(authenticated.snapshot.slots))
-            )
+          if (currentSlots) {
+            const previous = authenticateSlots(store.active(), parseJson(currentSlots))
+            if (previous.vaultId !== store.vaultId || !isSameState(minimum, stateOf(previous)))
               throw new VaultError('rollback')
+          }
+          if (!minimum) {
+            // Without an independent anchor, only a completely empty destination proves identity.
+            const current = await options.files.read('vault.v1')
+            try {
+              if (current) throw new VaultError('invalid')
+            } finally {
+              current?.fill(0)
+            }
           }
           for (const item of validated.index.items)
             eraseVaultMaterial(
               store.material(validated.snapshot.document, validated.index, item.metadata.id)
                 .material,
             )
+          await options.files.quarantine('vault.v1')
           await store.publish(
             validated.index,
             validated.snapshot.document.items,
@@ -507,7 +539,6 @@ export class VaultStore implements VaultStorePort {
             source.stateDigest,
           )
         } finally {
-          current?.fill(0)
           currentSlots?.fill(0)
         }
       })

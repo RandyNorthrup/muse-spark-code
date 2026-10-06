@@ -20629,6 +20629,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109C2 review repair (2026-10-06, Mac mini).** RVM109C2's remaining
+P2 is accepted before code: a confirmed backup that matches the independent
+anchor must repair a damaged or unreadable destination document without
+authenticating that replaceable document. Authenticate the backup and its
+complete anchored history, retain slot/destination identity admission, and
+quarantine the displaced ciphertext before atomic replacement. The Node file
+port retains the original inode with an exclusive owner-only hard link, so
+quarantine needs no document read and leaves the old path visible until rename.
+All backup items authenticate before quarantine or publication; a quarantine
+failure refuses without advancing the anchor. The mandatory file-port method
+and generated-only fake stay in C-owned files. Regression/red-drill receipts
+go into the existing C certification without replacing prior KATs or drills.
+No dependency, new surface, history bypass or gate change is authorized.
+
 **FIXM109C review repair (2026-10-05, Mac mini).** Before code, the lane
 accepts all five RVM109C findings: bind the independent anchor to a keyed
 committed-state digest chained to the previous digest; authenticate a
@@ -20959,6 +20973,23 @@ prohibits merges, pushes and live/paid calls.
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
+P2 is fixed: exact-anchor backups repair damaged/unreadable destination
+documents without authenticating them, retaining owner-only diagnostic
+ciphertext before atomic replacement. Backup authentication, complete-state
+history admission, destination identity and single-advance pending recovery
+remain enforced. All five owned suites pass 71 tests, including the existing
+RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
+red mutations fail their named regressions and restore the source byte-exact.
+All 79 prior drill receipts remain, with eight appended in the C record.
+Test-only fixture consolidation fixes two new duplication-gate findings;
+the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
+and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
+brief; the existing W-owned generated host-API count deferral is unchanged
+(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
+native quarantine/diagnostic integration binding is named in §9. No review
+finding, gate threshold or file-security guard is deferred or weakened.
 
 **FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
 are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
@@ -22182,6 +22213,18 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M109C-quarantine-binding (FIXM109C2, unmerged integration contract).**
+  RVM109C2's damaged-destination restore finding is repaired in shared core.
+  Every file adapter must durably retain a displaced document without reading
+  it or removing its current path before atomic replacement, and refuse when
+  retention fails. Node uses a unique hard link in the same owner-only vault
+  directory, verifies both file identities/security, and syncs the directory.
+  Diagnostic copies remain ciphertext, are never opened as current state,
+  and are retained rather than automatically pruned. Safe for now: this core
+  is unwired, the port is mandatory, and unsupported linking fails explicitly.
+  Follow-up: P/B bind and certify retention on Windows/Linux; W exposes the
+  diagnostic location and explicit cleanup when it wires restore. No RVM109C2
+  finding is deferred.
 - **M109C-anchor-binding (FIXM109C, unmerged integration contract).** RVM109C's
   five findings are repaired in shared core. P/B must persist generation,
   audit state and `stateDigest` independently of the replaceable vault files,
