@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Add M115's internal agent-grant intersection: schedules retain only the
+  creator's matching tools, commands, paths and report destinations, with
+  the smaller paid cap. Agent scheduling registration awaits the M115 lanes.
+
 ### Fixed
 
 - Correct M115's internal schedule contracts before implementation: stale

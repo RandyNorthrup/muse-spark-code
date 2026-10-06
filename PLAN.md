@@ -6844,6 +6844,35 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### M115-G — Agent scheduling admission (2026-10-06)
+
+Implement D95.8 and M115 acceptance 10 from local planning ref
+`plan/m105-m107` (the rig has no `origin/main`) against FIXM115L0's
+contracts. Grant intersection is conservative: identical tool names,
+command prefixes and path globs only; a read may inherit an edit grant on
+the same glob. Unsupported subset proofs drop authority rather than guess.
+The schedule inherits its creator's permission mode, and agents cannot pin
+or grant rescheduling authority. Re-read host authority after consent.
+
+Serialize admission, remembered orchestrator policy, creator paid allocation
+and owner expiry through an injected cross-process admission port. Lane S/U
+bind that port; T supplies minimum-spacing proofs for cron, wall-time and
+event triggers; U supplies canonical grant validation and schedule-scoped
+paid consent. No unavailable dependency gets a production substitute.
+Expose validated function-tool and MCP adapters; the Model API declarations
+accept injected schedule tools without importing the lazy engine. X/W bind
+the runtime MCP registration and backend dispatcher after their engines land.
+M96/M110 supply trusted charters, target authorization and owner lifetimes.
+Model descriptions are injected for W's guarded lazy English text block;
+no new block is shipped without its declared readers. HELPREF is absent;
+W must register the three agent tools and their restrictions.
+
+Certify property tests, caps, consent races, depth, creator attribution,
+lifetime and pinning, transport validation, and every new guard with red
+drills in `docs/certification/m115-g.md`. Run the rig's bounded suites and
+static/build checks, with hooks on. Full quality belongs to W/lead under
+the shared rig rules; this lane never merges, pushes or calls a live model.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
