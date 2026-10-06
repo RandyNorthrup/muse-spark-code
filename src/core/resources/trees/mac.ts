@@ -1,3 +1,4 @@
+import path from 'node:path'
 import * as z from 'zod/mini'
 import {
   resourceProcessIdentitySchema,
@@ -7,18 +8,33 @@ import {
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseMacProcessTable, processSampleSchema, type ProcessSample } from './posixTable'
 import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
+import { signalVerifiedPosix, type ResourceActionResult, type ResourceSignal } from './actions'
 
 const macIdentitySchema = z.extend(resourceProcessIdentitySchema, {
+  startTime: resourceProcessIdentitySchema.shape.startTime.check(z.regex(/^\d+$/)),
   pgid: processSampleSchema.shape.pgid,
+  parent: z.optional(processSampleSchema.shape.parent),
+  exited: z.optional(processSampleSchema.shape.exited),
+})
+const unavailableSchema = z.strictObject({
+  pid: resourceProcessIdentitySchema.shape.pid,
+  unavailable: z.literal(true),
 })
 
 export interface MacTreeDeps {
-  /** proc_pidinfo(PROC_PIDTBSDINFO): exact start microseconds AND current pgid from one native read.
-   * M96 K / W bind this port; ps lstart's whole seconds are insufficient for PID-reuse safety. */
-  readonly inspect: (
-    pid: number,
-  ) => Promise<(ResourceProcessIdentity & { readonly pgid: number }) | null>
+  /** The already shipped, signed muse-dictate executable; no PATH search/fallback. */
+  readonly helperPath?: string
+  /** Optional native seam for hosts/tests; production uses helperPath's proc-identity mode. */
+  readonly inspect?: (pid: number) => Promise<
+    | (ResourceProcessIdentity & {
+        readonly pgid: number
+        readonly parent?: number
+        readonly exited?: boolean
+      })
+    | null
+  >
   readonly run?: ResourceTreeRun
+  readonly sendSignal?: (pid: number, signal: ResourceSignal) => void
 }
 
 export class MacResourceTreeReader extends PosixResourceTreeReader {
@@ -36,38 +52,125 @@ export class MacResourceTreeReader extends PosixResourceTreeReader {
 class MacTreeSource implements PosixTreeSource {
   private readonly table: () => Promise<ReturnType<typeof parseMacProcessTable>>
   constructor(private readonly deps: MacTreeDeps) {
+    if (
+      deps.inspect === undefined &&
+      (deps.helperPath === undefined || !path.isAbsolute(deps.helperPath))
+    )
+      throw new Error('An absolute native process helper is required')
     this.table = coalescedTreeRead(() => this.readTable())
   }
 
   private async readTable(): Promise<ReturnType<typeof parseMacProcessTable>> {
     const text = await (this.deps.run ?? runTreeProgram)('/bin/ps', [
       '-axo',
-      'pid=,pgid=,time=,rss=',
+      'pid=,ppid=,pgid=,state=,time=,rss=',
     ])
     return parseMacProcessTable(text)
+  }
+
+  private async inspect(
+    pids: readonly number[],
+  ): Promise<
+    readonly (z.infer<typeof macIdentitySchema> | z.infer<typeof unavailableSchema> | null)[]
+  > {
+    if (this.deps.inspect !== undefined)
+      return await Promise.all(
+        pids.map(async (pid) => {
+          const raw = await this.deps.inspect?.(pid)
+          return raw === null ? null : macIdentitySchema.parse(raw)
+        }),
+      )
+    if (this.deps.helperPath === undefined) throw new Error('Native process helper unavailable')
+    const text = await (this.deps.run ?? runTreeProgram)(this.deps.helperPath, [
+      'proc-identity',
+      ...pids.map(String),
+    ])
+    const raw: unknown = JSON.parse(text)
+    const native = z.extend(resourceProcessIdentitySchema, {
+      startTime: macIdentitySchema.shape.startTime,
+      pgid: processSampleSchema.shape.pgid,
+      parent: processSampleSchema.shape.parent,
+      exited: processSampleSchema.shape.exited,
+    })
+    const rows = z.array(z.nullable(z.union([native, unavailableSchema]))).parse(raw)
+    if (
+      rows.length !== pids.length ||
+      rows.some((row, index) => row !== null && row.pid !== pids[index])
+    )
+      throw new Error('Native process identity mismatch')
+    return rows
   }
 
   async identity(pid: number): Promise<ResourceProcessIdentity | null> {
     if (!resourceProcessIdentitySchema.safeParse({ pid, startTime: '0' }).success) return null
     try {
-      const info = macIdentitySchema.parse(await this.deps.inspect(pid))
-      return info.pid === pid ? { pid: info.pid, startTime: info.startTime } : null
+      const rows = await this.inspect([pid])
+      const info = rows[0]
+      return info?.pid === pid && !('unavailable' in info) && info.exited !== true
+        ? { pid: info.pid, startTime: info.startTime }
+        : null
     } catch {
       return null
     }
   }
 
-  async containsNow(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
+  async containsNow(
+    ticket: ResourceTicket,
+    identity: ResourceProcessIdentity,
+    isEnrolled = false,
+    parent?: ResourceProcessIdentity,
+  ): Promise<boolean> {
     if (ticket.scope.type !== 'group') return false
     try {
-      const current = macIdentitySchema.parse(await this.deps.inspect(identity.pid))
+      if (parent !== undefined) {
+        const ancestors = await this.inspect([identity.pid, parent.pid, identity.pid])
+        const ancestor = ancestors[1]
+        const latest = ancestors[2]
+        return (
+          ancestor !== undefined &&
+          ancestor !== null &&
+          !('unavailable' in ancestor) &&
+          ancestor.exited !== true &&
+          ancestor.pid === parent.pid &&
+          ancestor.startTime === parent.startTime &&
+          latest !== undefined &&
+          latest !== null &&
+          !('unavailable' in latest) &&
+          latest.exited !== true &&
+          latest.pid === identity.pid &&
+          latest.startTime === identity.startTime &&
+          latest.parent === parent.pid
+        )
+      }
+      const rows = await this.inspect([identity.pid])
+      const current = rows[0]
       return (
+        current !== undefined &&
+        current !== null &&
+        !('unavailable' in current) &&
+        current.exited !== true &&
         current.pid === identity.pid &&
         current.startTime === identity.startTime &&
-        current.pgid === ticket.scope.pgid
+        (isEnrolled || current.pgid === ticket.scope.pgid)
       )
     } catch {
       return false
+    }
+  }
+
+  async signalNow(
+    identity: ResourceProcessIdentity,
+    signal: ResourceSignal,
+    isRegistered: () => boolean,
+  ): Promise<ResourceActionResult> {
+    try {
+      const rows = await this.inspect([identity.pid])
+      const current = rows[0]
+      return current === undefined || (current !== null && 'unavailable' in current)
+        ? 'refused'
+        : signalVerifiedPosix(identity, current, signal, isRegistered, this.deps.sendSignal)
+    } catch {
+      return 'refused'
     }
   }
 
@@ -76,15 +179,30 @@ class MacTreeSource implements PosixTreeSource {
     try {
       const table = await this.table()
       if (table === null) return null
+      if (table.length === 0) return { rows: [], cpuSeconds: null }
       const rows: ProcessSample[] = []
-      for (const row of table) {
-        if (row.pgid !== ticket.scope.pgid) continue
-        const raw = await this.deps.inspect(row.pid)
-        if (raw === null) continue
-        const info = macIdentitySchema.parse(raw)
-        if (info.pid === row.pid && info.pgid === row.pgid) rows.push({ ...row, ...info })
+      const unavailable: { pid: number; parent: number; pgid: number }[] = []
+      const infos = await this.inspect(table.map((row) => row.pid))
+      for (const [index, row] of table.entries()) {
+        const info = infos[index]
+        if (info !== undefined && info !== null && 'unavailable' in info) {
+          unavailable.push({ pid: row.pid, parent: row.parent, pgid: row.pgid })
+          continue
+        }
+        if (
+          info?.pid === row.pid &&
+          !('unavailable' in info) &&
+          info.pgid === row.pgid &&
+          (info.parent === undefined || info.parent === row.parent)
+        )
+          rows.push({
+            ...row,
+            ...info,
+            parent: info.parent ?? row.parent,
+            exited: info.exited ?? row.exited,
+          })
       }
-      return { rows, cpuSeconds: null }
+      return { rows, cpuSeconds: null, unavailable }
     } catch {
       return null
     }

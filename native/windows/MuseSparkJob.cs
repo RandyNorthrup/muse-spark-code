@@ -72,7 +72,7 @@ public static class MuseSparkJob {
     return job;
   }
   static IntPtr QueryProcess(uint pid, bool memory) {
-    IntPtr process = OpenProcess(memory ? PROCESS_QUERY_INFORMATION | PROCESS_VM_READ : PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+    IntPtr process = OpenProcess((memory ? PROCESS_QUERY_INFORMATION | PROCESS_VM_READ : PROCESS_QUERY_LIMITED_INFORMATION) | SYNCHRONIZE, false, pid);
     if (process == IntPtr.Zero && Marshal.GetLastWin32Error() != ERROR_INVALID_PARAMETER) throw new Win32Exception();
     return process;
   }
@@ -91,7 +91,7 @@ public static class MuseSparkJob {
   public static string Identity(uint pid) {
     IntPtr process = QueryProcess(pid, false);
     if (process == IntPtr.Zero) return "null";
-    try { return IdentityJson(pid, Creation(process)); }
+    try { return IsAlive(process) ? IdentityJson(pid, Creation(process)) : "null"; }
     finally { CloseHandle(process); }
   }
 
@@ -104,7 +104,7 @@ public static class MuseSparkJob {
     try {
       IntPtr process = QueryProcess(pid, false);
       if (process == IntPtr.Zero) return false;
-      try { return Creation(process) == expected && Member(process, job); }
+      try { return Creation(process) == expected && Member(process, job) && IsAlive(process); }
       finally { CloseHandle(process); }
     } finally { CloseHandle(job); }
   }
@@ -143,7 +143,7 @@ public static class MuseSparkJob {
         IntPtr process = QueryProcess(pid, true);
         if (process == IntPtr.Zero) continue;
         try {
-          if (!Member(process, job)) continue;
+          if (!IsAlive(process) || !Member(process, job)) continue;
           long created = Creation(process);
           var memory = new PROCESS_MEMORY();
           memory.cb = (uint)Marshal.SizeOf(typeof(PROCESS_MEMORY));
@@ -151,7 +151,7 @@ public static class MuseSparkJob {
             if (Marshal.GetLastWin32Error() == ERROR_INVALID_PARAMETER) continue;
             throw new Win32Exception();
           }
-          if (!Member(process, job)) continue;
+          if (!IsAlive(process) || !Member(process, job)) continue;
           resident = checked(resident + memory.WorkingSetSize.ToUInt64());
           members.Add(IdentityJson(pid, created));
         } finally { CloseHandle(process); }
@@ -167,6 +167,42 @@ public static class MuseSparkJob {
     } finally { CloseHandle(job); }
   }
   // End M107 T query region. Lane A adds priority/rate controls separately.
+
+  // M107 T2 signal region. Stop/cancel only; never governor priority/rate controls.
+  const uint PROCESS_TERMINATE = 0x0001, SYNCHRONIZE = 0x00100000;
+  const uint WAIT_OBJECT_0 = 0, WAIT_TIMEOUT = 258;
+  const uint EXIT_TERMINATED = 143, EXIT_KILLED = 137;
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern uint WaitForSingleObject(IntPtr handle, uint milliseconds);
+  [DllImport("kernel32.dll", SetLastError = true)]
+  static extern bool TerminateProcess(IntPtr process, uint exitCode);
+
+  static bool IsAlive(IntPtr process) {
+    uint status = WaitForSingleObject(process, 0);
+    if (status == WAIT_OBJECT_0) return false;
+    if (status != WAIT_TIMEOUT) throw new Win32Exception();
+    return true;
+  }
+
+  /** Birth, live state, job membership AND termination through this same retained handle. */
+  public static string Signal(string name, uint pid, string startTime, bool force) {
+    long expected;
+    if (pid == 0 || !long.TryParse(startTime, System.Globalization.NumberStyles.None, Invariant, out expected)) return "refused";
+    IntPtr job = QueryJob(name);
+    if (job == IntPtr.Zero) return "gone";
+    try {
+      IntPtr process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, false, pid);
+      if (process == IntPtr.Zero) return Marshal.GetLastWin32Error() == ERROR_INVALID_PARAMETER ? "gone" : "refused";
+      try {
+        if (Creation(process) != expected) return "identity-changed";
+        if (!IsAlive(process)) return "gone";
+        if (!Member(process, job)) return "refused";
+        if (TerminateProcess(process, force ? EXIT_KILLED : EXIT_TERMINATED)) return "done";
+        return IsAlive(process) ? "refused" : "gone";
+      } finally { CloseHandle(process); }
+    } finally { CloseHandle(job); }
+  }
+  // End M107 T2 signal region.
 
   /** Creates the named job and puts this process in it; its children follow. */
   public static void Join(string name) {

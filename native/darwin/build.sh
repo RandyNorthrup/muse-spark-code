@@ -55,5 +55,8 @@ if [ "$EMBEDDED" != "$VERSION" ]; then
   exit 1
 fi
 echo "embedded ${VERSION_KEY}: ${EMBEDDED}"
+codesign --verify --strict "$OUTPUT"
+# Process identity is read-only and dispatched before any audio/privacy setup.
+"./$OUTPUT" proc-identity "$$" > /dev/null
 lipo -info "$OUTPUT"
 ls -l "$OUTPUT"
