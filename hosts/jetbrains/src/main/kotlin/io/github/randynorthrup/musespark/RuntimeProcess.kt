@@ -73,6 +73,11 @@ class RuntimeProcess private constructor(
         }
       }
 
+    fun panelCommand(
+      executable: Path,
+      embedded: Boolean,
+    ): List<String> = listOf(executable.toString(), "panel", if (embedded) "--stdio" else "--companion")
+
     fun start(
       command: List<String>,
       cwd: Path,

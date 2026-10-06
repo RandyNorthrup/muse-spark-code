@@ -13,7 +13,37 @@ import java.net.URI
 /** Validates the keywords used by the frozen export, failing closed on new keywords. */
 class JsonBoundary {
   private val contract = parse(resource("/mhp/mhp-v1.1.schema.json")).asJsonObject
-  val methods: JsonObject = contract.getAsJsonObject("methods")
+  val methods: JsonObject = contract.getAsJsonObject("methods").deepCopy()
+
+  init {
+    // Local opt-in 1.2 proposal; the packaged frozen contract stays unchanged.
+    val initialize = methods.getAsJsonObject("initialize")
+    val params = initialize.getAsJsonObject("call").getAsJsonObject("properties").getAsJsonObject("params")
+    val fields = params.getAsJsonObject("properties")
+    fields
+      .getAsJsonObject("capabilities")
+      .getAsJsonObject("items")
+      .getAsJsonArray("enum")
+      .add("hostMetadata")
+    val response = initialize.getAsJsonObject("result").getAsJsonObject("properties")
+    val legacy = response.getAsJsonObject("result")
+    val extended = legacy.deepCopy()
+    val properties = extended.getAsJsonObject("properties")
+    properties.add("protocolVersion", json("const" to "mhp/1.2.0"))
+    val capabilities = properties.getAsJsonObject("capabilities")
+    capabilities.getAsJsonObject("items").getAsJsonArray("enum").add("hostMetadata")
+    capabilities.add("contains", json("const" to "hostMetadata"))
+    val metadataFields = json()
+    val names = listOf("host", "locale", "theme", "folders", "trusted")
+    names.forEach { metadataFields.add(it, fields[it].deepCopy()) }
+    properties.add(
+      "hostMetadata",
+      json("type" to "object", "properties" to metadataFields, "required" to names, "additionalProperties" to false),
+    )
+    extended.getAsJsonArray("required").add("hostMetadata")
+    response.add("result", json("oneOf" to listOf(legacy, extended)))
+  }
+
   val panel: JsonObject = contract.getAsJsonObject("panel")
   private val bridge = contract.getAsJsonObject("embeddedBridge")
   val maximumFrameBytes = panel.getAsJsonObject("limits")["maximumEnvelopeBytes"].asInt

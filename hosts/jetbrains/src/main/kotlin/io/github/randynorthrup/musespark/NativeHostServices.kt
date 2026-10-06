@@ -28,6 +28,8 @@ import javax.swing.ListSelectionModel
 interface EditorServices {
   val capabilities: List<String>
 
+  val metadata: JsonObject? get() = null
+
   fun request(
     method: String,
     params: JsonObject,
@@ -39,6 +41,7 @@ class NativeHostServices(
   private val project: Project,
   private val surfaces: (String, JsonObject) -> JsonElement,
   private val widgets: NativeWidgets,
+  private val openBrowser: (String) -> Unit = BrowserUtil::browse,
 ) : EditorServices {
   override val capabilities =
     listOf(
@@ -51,8 +54,32 @@ class NativeHostServices(
       "surfaces",
       "window",
       "commands",
+      "tab",
     )
   val documents = DocumentServices(project) { TrustedProjects.isProjectTrusted(project) }
+
+  override val metadata: JsonObject
+    get() =
+      json(
+        "host" to
+          json(
+            "id" to "jetbrains",
+            "version" to
+              com.intellij.openapi.application.ApplicationInfo
+                .getInstance()
+                .build
+                .asString(),
+          ),
+        "locale" to
+          JetBrainsPanelHost.locale(
+            java.util.Locale
+              .getDefault()
+              .toLanguageTag(),
+          ),
+        "theme" to json("kind" to if (NativeTheme.dark()) "dark" else "light", "tokens" to NativeTheme.tokens),
+        "folders" to folders(),
+        "trusted" to TrustedProjects.isProjectTrusted(project),
+      )
 
   override fun request(
     method: String,
@@ -64,6 +91,10 @@ class NativeHostServices(
       method.startsWith("surfaces/") -> surfaces(method, params)
       method.startsWith("workspace/") -> workspace(method, params)
       method.startsWith("ui/") -> ui(method, params, cancellation)
+      method == "tab/register" -> {
+        project.getService(NativeTab::class.java).register(params)
+        jsonValue(null)
+      }
       method == "commands/register" -> widgets.register(params)
       method == "diagnostics/get" -> diagnostics(params["uri"]?.asString)
       method == "window/state" ->
@@ -214,7 +245,7 @@ class NativeHostServices(
       "ui/openExternal" -> {
         val target = URI(params["uri"].asString)
         require(target.scheme in setOf("http", "https")) { "MHP_PERMISSION_DENIED" }
-        BrowserUtil.browse(target.toASCIIString())
+        openBrowser(target.toASCIIString())
         jsonValue(null)
       }
       "ui/clipboard" -> {

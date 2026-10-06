@@ -1,7 +1,7 @@
 # Muse Spark Code (Unofficial) for JetBrains
 
 This plugin embeds the repository's shared React panel in JCEF and implements
-the frozen MHP 1.1 host contract. It requires IntelliJ Platform 2025.3 or later,
+the frozen MHP 1.1 host contract. It declares IntelliJ Platform 2025.3–2026.2,
 JDK 21 for development, and the `muse-spark-code-acp` executable on PATH. The
 runtime is developed separately in M104 lane B. No credential is accepted by
 the plugin; credentials remain in the runtime's operating-system store.
@@ -30,8 +30,11 @@ Native document reads use open buffers. Edits require workspace trust, a
 matching document version, a clean writable buffer and non-overlapping UTF-16
 ranges, and run in one undo command. All child environments remove credential
 variables. Runtime stderr is drained without copying its contents into logs.
-Browser assets stay on a fixed, intercepted origin with no remote network
-access, popups, navigation or developer tools.
+The shared browser entries are bundled from the built React assets and loaded
+through JCEF's public HTML loader. Scripts use a nonce; CSS stays inline;
+network connections, remote assets, ordinary file navigation, popups and
+developer tools are refused. This avoids the stalled native resource/network
+loading path found on the qualification rig.
 
 The plugin advertises only implemented native capability groups. Other groups
 use the fallbacks declared in the frozen contract, including runtime settings
@@ -39,12 +42,33 @@ and storage, the React diff and terminal pages, and LSP code intelligence.
 
 The optional Gradle `privateIdePath` property selects a private copy of the
 pinned IDEA 2025.3.3 SDK, avoiding native test writes in Gradle's immutable
-cache. The `nativeUi=true` property runs the real JCEF and paid-dialog checks
-under Xvfb. The browser readiness check currently fails; see its stop record
-in the certification. Native Tab completions are also pending.
+cache. `verifyPlugin` rejects every verifier failure category and checks the declared
+2025.3.3, 2026.1.5 and 2026.2.3 releases. For an offline run,
+`verificationIdePaths` selects installed IDE directories separated by the
+platform path separator (`:` on Linux/macOS, `;` on Windows), alongside the
+private SDK property. The `nativeUi=true` property runs the real JCEF and paid-dialog checks
+under Xvfb. The browser test drives the shared composer, both approval choices and Stop
+against a fake stdio runtime. Native Tab uses the platform inline completion
+provider: Tab accepts, Escape rejects, and the runtime's empty budget/capability
+result creates no suggestion. The runtime owns M94's separate USD 1/day ledger
+and model/token/output caps; the plugin makes no provider call or retry.
+Only insertion ranges at the unchanged caret are offered. Other replacements
+are rejected rather than applied to the wrong buffer.
+
+JCEF absence, construction failure or the readiness deadline selects
+`panel --companion`; the runtime opens its fresh launch URL through the frozen
+`ui/openExternal` method and the IDE's browser. The tool window retains visible
+status. The real companion/controller implementation is not present at this
+branch's base, so its assembled qualification remains an integration item.
+
+A runtime offering `hostMetadata` and a range containing `mhp/1.2.0` receives
+IDE identity/version, locale, theme tokens, workspace folders and trust in
+`initialize.result.hostMetadata`. Other peers receive the exact legacy 1.1
+result. This local proposal is specified in PLAN D84; the frozen shipped 1.1
+schema and other hosts are unchanged.
 
 This is a development artifact, not a usable or supported Marketplace release. The
 qualification evidence, F1–F56 coverage and outstanding integration work are
-in [the lane certification](../../docs/certification/m104-e.md). Distribution,
+in [the follow-up certification](../../docs/certification/m104-e3.md). Distribution,
 signing, the all-IDE verifier matrix and end-to-end runtime qualification are
 owned by lanes I and J.

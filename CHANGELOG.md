@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- JetBrains development plugin: render the shared panel through JCEF's public
+  HTML loader with packaged inline assets; add native inline Tab completion
+  over MHP, preserve numeric completion IDs, and negotiate an opt-in MHP 1.2
+  host-metadata proposal. Replace experimental/default-method API calls and
+  bound compatibility to IDEA 2025.3–2026.2. Fake-runtime qualification and
+  remaining runtime integration are recorded in `docs/certification/m104-e3.md`.
+
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
   API, and multiplexed NDJSON/companion HTTP/SSE framing. Native consumers

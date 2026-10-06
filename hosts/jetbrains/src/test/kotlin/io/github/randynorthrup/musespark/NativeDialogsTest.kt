@@ -71,6 +71,48 @@ class NativeDialogsTest : BasePlatformTestCase() {
     }
   }
 
+  fun testCompanionUsesTheIdeBrowserWithTheExactRuntimeUrlAndExplicitLaunchMode() {
+    val widgets = JetBrainsPanelHost.onEdt { NativeWidgets(project, JsonBoundary()) {} }
+    try {
+      val opened = mutableListOf<String>()
+      val services = NativeHostServices(project, { _, _ -> error("fixture-unused") }, widgets, opened::add)
+      val target = "http://127.0.0.1:43123/#k=fixture-only"
+      val frame =
+        json(
+          "jsonrpc" to "2.0",
+          "id" to "open",
+          "method" to "ui/openExternal",
+          "params" to json("uri" to target),
+        )
+      JsonBoundary().call(frame)
+      assertTrue(
+        JetBrainsPanelHost
+          .onEdt {
+            services.request("ui/openExternal", frame.getAsJsonObject("params"), RequestCancellation())
+          }.isJsonNull,
+      )
+      assertEquals(listOf(target), opened)
+      assertEquals(
+        listOf("/fixture/runtime", "panel", "--companion"),
+        RuntimeProcess.panelCommand(
+          java.nio.file.Path
+            .of("/fixture/runtime"),
+          false,
+        ),
+      )
+      assertEquals(
+        listOf("/fixture/runtime", "panel", "--stdio"),
+        RuntimeProcess.panelCommand(
+          java.nio.file.Path
+            .of("/fixture/runtime"),
+          true,
+        ),
+      )
+    } finally {
+      JetBrainsPanelHost.onEdt { Disposer.dispose(widgets) }
+    }
+  }
+
   private fun chooser(action: (JDialog) -> Unit): Timer =
     Timer(POLL_MILLIS) {
       Window.getWindows().firstOrNull { it is JDialog && it.title == TITLE && it.isShowing }?.let { dialog ->

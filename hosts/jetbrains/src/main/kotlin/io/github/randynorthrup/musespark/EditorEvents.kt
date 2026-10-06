@@ -1,7 +1,6 @@
 package io.github.randynorthrup.musespark
 
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
-import com.intellij.ide.trustedProjects.TrustedProjectsListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.event.CaretEvent
@@ -114,16 +113,22 @@ fun installEditorEvents(
       }
     },
   )
-  com.intellij.openapi.application.ApplicationManager
-    .getApplication()
-    .messageBus
-    .connect(parent)
-    .subscribe(
-      TrustedProjectsListener.TOPIC,
-      object : TrustedProjectsListener {
-        override fun onProjectTrusted(trusted: Project) {
-          if (trusted == project) notify("workspace/didGrantTrust", json("trusted" to true))
-        }
-      },
+  // Trust has no stable public listener on the oldest supported platform.
+  val trusted =
+    java.util.concurrent.atomic.AtomicBoolean(
+      com.intellij.ide.trustedProjects.TrustedProjects
+        .isProjectTrusted(project),
     )
+  val poll =
+    com.intellij.util.concurrency.AppExecutorUtil.getAppScheduledExecutorService().scheduleWithFixedDelay({
+      if (!project.isDisposed) {
+        val current =
+          com.intellij.ide.trustedProjects.TrustedProjects
+            .isProjectTrusted(project)
+        if (current && !trusted.getAndSet(current)) notify("workspace/didGrantTrust", json("trusted" to true))
+        if (!current) trusted.set(false)
+      }
+    }, 1, 1, java.util.concurrent.TimeUnit.SECONDS)
+  com.intellij.openapi.util.Disposer
+    .register(parent) { poll.cancel(false) }
 }

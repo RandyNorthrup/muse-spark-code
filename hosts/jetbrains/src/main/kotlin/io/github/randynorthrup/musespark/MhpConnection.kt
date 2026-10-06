@@ -108,22 +108,30 @@ class MhpConnection(
 
   private fun initialize(frame: JsonObject) {
     require(!negotiated) { "MHP_INVALID_REQUEST" }
-    val range = frame.getAsJsonObject("params").getAsJsonObject("protocolRange")
+    val params = frame.getAsJsonObject("params")
+    val range = params.getAsJsonObject("protocolRange")
+    val metadata =
+      if (params.getAsJsonArray("capabilities").any { it.asString == "hostMetadata" } &&
+        compareVersion(range["minimum"].asString, METADATA_VERSION) <= 0 &&
+        compareVersion(range["maximumExclusive"].asString, METADATA_VERSION) > 0
+      ) {
+        services.metadata
+      } else {
+        null
+      }
+    val selected = if (metadata == null) PANEL_VERSION else METADATA_VERSION
     require(
-      compareVersion(range["minimum"].asString, PANEL_VERSION) <= 0 &&
-        compareVersion(range["maximumExclusive"].asString, PANEL_VERSION) > 0 &&
+      compareVersion(range["minimum"].asString, selected) <= 0 &&
+        compareVersion(range["maximumExclusive"].asString, selected) > 0 &&
         compareVersion(range["maximumExclusive"].asString, MAXIMUM_VERSION) <= 0,
     ) { "MHP_INCOMPATIBLE_VERSION" }
-    sendMhpReply(
-      boundary,
-      send,
-      "initialize",
-      frame["id"],
+    val result =
       json(
-        "protocolVersion" to PANEL_VERSION,
-        "capabilities" to services.capabilities,
-      ),
-    )
+        "protocolVersion" to selected,
+        "capabilities" to if (metadata == null) services.capabilities else services.capabilities + "hostMetadata",
+      )
+    metadata?.let { result.add("hostMetadata", it) }
+    sendMhpReply(boundary, send, "initialize", frame["id"], result)
     negotiated = true
     events.initialized()
   }
@@ -222,7 +230,8 @@ class MhpConnection(
 
   companion object {
     const val PANEL_VERSION = "mhp/1.1.0"
-    private const val MAXIMUM_VERSION = "mhp/1.2.0"
+    private const val METADATA_VERSION = "mhp/1.2.0"
+    private const val MAXIMUM_VERSION = "mhp/1.3.0"
     private val ERRORS =
       setOf(
         "MHP_UNSUPPORTED_CAPABILITY",

@@ -41,7 +41,9 @@ class JetBrainsPanelHost(
   private val toolWindow: ToolWindow,
 ) : Disposable {
   private val log = Logger.getInstance(JetBrainsPanelHost::class.java)
+  private val diagnostic: (String) -> Unit = log::warn
   private val boundary = JsonBoundary()
+  private val tab = project.getService(NativeTab::class.java)
   private val budget = QueueBudget(boundary)
   private val panels = ConcurrentHashMap<String, EmbeddedPanel>()
   private val bindings = ConcurrentHashMap<String, PanelSurface>()
@@ -52,6 +54,8 @@ class JetBrainsPanelHost(
   @Volatile private var disposed = false
   private val locale = locale(Locale.getDefault().toLanguageTag())
   private var runtime: RuntimeProcess? = null
+  private var nativeLifetime: Disposable? = null
+  private var companion = false
   private var pipe: MhpPipe? = null
   private var connection: MhpConnection? = null
   private val executor =
@@ -65,34 +69,29 @@ class JetBrainsPanelHost(
         Thread(runnable, "Muse host request").apply { isDaemon = true }
       },
     )
+  private val status = JLabel(localizedText(locale, "connecting"))
   private val loading =
     JPanel(BorderLayout()).apply {
-      add(JLabel(localizedText(this@JetBrainsPanelHost.locale, "connecting")), BorderLayout.CENTER)
+      add(status, BorderLayout.CENTER)
     }
 
-  fun start() {
-    toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
+  fun start(embedded: Boolean = JBCefApp.isSupported()) {
+    companion = !embedded
+    if (toolWindow.contentManager.contents.none { it.component == loading }) {
+      toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
+    }
     AppExecutorUtil.getAppExecutorService().execute {
       try {
         val environment = System.getenv()
         val executable =
           requireNotNull(
             RuntimeProcess.executable(
-              environment.entries
-                .firstOrNull {
-                  it.key.equals("PATH", ignoreCase = true)
-                }?.value ?: "",
+              environment.entries.firstOrNull { it.key.equals("PATH", ignoreCase = true) }?.value ?: "",
               "muse-spark-code-acp",
             ),
           ) { "MHP_RUNTIME_NOT_FOUND" }
-        val embedded = JBCefApp.isSupported()
         val cwd = Path.of(requireNotNull(project.basePath) { "MHP_WORKSPACE_NOT_FOUND" })
-        val process =
-          RuntimeProcess.start(
-            listOf(executable.toString(), "panel", if (embedded) "--stdio" else "--companion"),
-            cwd,
-            environment,
-          )
+        val process = RuntimeProcess.start(RuntimeProcess.panelCommand(executable, embedded), cwd, environment)
         synchronized(lifetimeMonitor) {
           if (disposed) {
             process.close()
@@ -103,6 +102,7 @@ class JetBrainsPanelHost(
         }
       } catch (_: Exception) {
         pipe?.close()
+        tab.bind(null)
         connection?.close()
         runtime?.close()
         diagnostic("MHP_RUNTIME_START_FAILED")
@@ -111,14 +111,44 @@ class JetBrainsPanelHost(
     }
   }
 
+  private fun useCompanion() {
+    if (disposed || companion) return
+    companion = true
+    locations.values.toList().forEach { Disposer.dispose(it) }
+    panels.values.toList().forEach(Disposer::dispose)
+    locations.clear()
+    panels.clear()
+    bindings.clear()
+    nativeLifetime?.let(Disposer::dispose)
+    nativeLifetime = null
+    tab.bind(null)
+    connection?.close()
+    pipe?.close()
+    val previous = runtime
+    runtime = null
+    status.text = localizedText(locale, "connecting")
+    if (toolWindow.contentManager.contents.none { it.component == loading }) {
+      toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
+    }
+    loading.revalidate()
+    loading.repaint()
+    AppExecutorUtil.getAppExecutorService().execute {
+      previous?.close()
+      SwingUtilities.invokeLater { if (!disposed) start(false) }
+    }
+  }
+
   private fun attach(
     process: RuntimeProcess,
     embedded: Boolean,
   ) {
+    val lifetime = Disposer.newDisposable("Muse native session")
+    Disposer.register(this, lifetime)
+    nativeLifetime = lifetime
     val widgets = NativeWidgets(project, boundary) { id -> connection?.notify("commands/execute", json("id" to id)) }
-    Disposer.register(this, widgets)
+    Disposer.register(lifetime, widgets)
     val services = NativeHostServices(project, ::surfaceRequest, widgets)
-    NativeTheme.install(project, this) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
+    NativeTheme.install(project, lifetime) { if (!disposed) panels.values.forEach(EmbeddedPanel::updateTheme) }
     val mhp =
       MhpConnection(
         boundary,
@@ -128,24 +158,37 @@ class JetBrainsPanelHost(
         ::receivePanel,
         ConnectionEvents({
           SwingUtilities.invokeLater {
-            if (!disposed) {
-              toolWindow.contentManager.contents.firstOrNull { it.component == loading }?.let {
-                toolWindow.contentManager.removeContent(it, true)
+            if (!disposed && nativeLifetime === lifetime) {
+              if (embedded) {
+                toolWindow.contentManager.contents.firstOrNull { it.component == loading }?.let {
+                  toolWindow.contentManager.removeContent(it, true)
+                }
+                runCatching { open("chat", project.getService(PanelState::class.java).state.sessionId, "side") }
+                  .onFailure {
+                    diagnostic("MHP_JCEF_UNAVAILABLE")
+                    useCompanion()
+                  }
+              } else {
+                status.text = PRODUCT_NAME
               }
-              if (embedded) open("chat", project.getService(PanelState::class.java).state.sessionId, "side")
-              installEditorEvents(project, services, requireNotNull(connection), this)
+              if (nativeLifetime ===
+                lifetime
+              ) {
+                installEditorEvents(project, services, requireNotNull(connection), lifetime)
+              }
             }
           }
-        }, ::diagnostic),
+        }, diagnostic),
       )
     connection = mhp
+    tab.bind(mhp)
     pipe =
       MhpPipe(process.process.inputStream, process.process.outputStream, boundary, mhp::receive, { code ->
         diagnostic(code)
         mhp.close()
         SwingUtilities.invokeLater { if (!disposed) failed(code) }
       }, budget).also(MhpPipe::start)
-    process.drainStderr(::diagnostic)
+    process.drainStderr(diagnostic)
   }
 
   private fun dispatch(
@@ -154,6 +197,8 @@ class JetBrainsPanelHost(
   ): EditorServices =
     object : EditorServices {
       override val capabilities = services.capabilities.filter { embedded || it != "surfaces" }
+
+      override val metadata: JsonObject get() = onEdt { services.metadata }
 
       override fun request(
         method: String,
@@ -171,8 +216,7 @@ class JetBrainsPanelHost(
     if (toolWindow.contentManager.contents.none { it.component == loading }) {
       toolWindow.contentManager.addContent(ContentFactory.getInstance().createContent(loading, PRODUCT_NAME, false))
     }
-    loading.removeAll()
-    loading.add(JLabel(localizedText(locale, "crashTitle") + ": " + code), BorderLayout.CENTER)
+    status.text = localizedText(locale, "crashTitle") + ": " + code
     loading.revalidate()
     loading.repaint()
   }
@@ -227,7 +271,7 @@ class JetBrainsPanelHost(
       )
     surface.open()
     bindings[id] = surface
-    val panel = EmbeddedPanel(surface, boundary, locale, ::diagnostic)
+    val panel = EmbeddedPanel(surface, boundary, locale, diagnostic, ::useCompanion)
     panels[id] = panel
     panel.component.addHierarchyListener { event ->
       if ((
@@ -273,10 +317,6 @@ class JetBrainsPanelHost(
     "MHP_TRANSPORT_CLOSED"
   }.send(frame, surface)
 
-  private fun diagnostic(code: String) {
-    log.warn(code)
-  }
-
   override fun dispose() {
     synchronized(lifetimeMonitor) {
       if (disposed) return
@@ -286,6 +326,7 @@ class JetBrainsPanelHost(
       panels.values.toList().forEach(Disposer::dispose)
       panels.clear()
       bindings.clear()
+      tab.bind(null)
       connection?.close()
       pipe?.close()
       executor.shutdownNow()

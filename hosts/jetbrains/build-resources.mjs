@@ -22,6 +22,18 @@ export { parseWhatsNewContent } from './src/core/whatsNew/whatsNewContent';`,
   format: 'esm',
   outfile: helper,
 })
+// JCEF's public HTML loader does not need a native HTTP/resource-handler lane.
+// Fold the shared entry's existing chunks into a nonce-authorized inline script.
+for (const entry of ['main', 'whatsNew']) {
+  await esbuild.build({
+    entryPoints: [path.join(root, `dist/webview/${entry}.js`)],
+    bundle: true,
+    minify: true,
+    format: 'iife',
+    platform: 'browser',
+    outfile: path.join(output, `${entry}.inline.js`),
+  })
+}
 const renderer = await import(pathToFileURL(helper).href)
 const content = renderer.parseWhatsNewContent(
   await readFile(path.join(root, 'dist/whatsNew.json'), 'utf8'),

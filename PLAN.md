@@ -5245,6 +5245,39 @@ have equivalent functionality even if we need to develop it ourselves".
   qualification (M104g). The research is
   `docs/certification/m104-research.md` (this file, moved in).
 
+- **M104 E3 (2026-10-05), native closure.** Qualify JCEF resource delivery and
+  the shared renderer in the IDE framework under Xvfb, including send,
+  approval and Stop; provide a browser companion when JCEF is unavailable.
+  Restore native inline Tab using the public platform API and frozen
+  `tab/*` methods, retaining the runtime's spend/budget admission. Verify the
+  declared build range against the two latest installed IDEA releases;
+  remove unstable SDK calls rather than suppress their verifier findings.
+  The native browser uses the public IDE HTML loader with the shared built
+  entries folded into nonce-authorized inline assets: intercepted HTTPS and
+  loopback network loading stalled independently on the rig. Construction
+  failure or a readiness deadline selects the existing companion CLI mode;
+  frozen `ui/openExternal` opens its fresh runtime URL. The certification
+  records the stopped approaches; no new companion carrier method is invented.
+- **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
+  `initialize` direction is runtime-to-host, but its result cannot carry the
+  host's actual metadata. Add capability `hostMetadata` and protocol version
+  `mhp/1.2.0` to initialize only. When the runtime offers that capability
+  and a range containing 1.2, and the host implements it, the result adds
+  required `hostMetadata: { host: { id: string, version: string }, locale:
+string, theme: { kind: light|dark|highContrastLight|highContrastDark,
+tokens: Record<--muse-token,string> }, folders: { uri: URI, name: string }[],
+trusted: boolean }`, with no additional properties at any object level
+  except the token record. These schemas exactly reuse the 1.1 initialize
+  parameter fields. Otherwise select 1.1 and omit the capability and field.
+  Panel envelopes remain `mhp: "1.1"`; this minor changes initialize only.
+  JetBrains validates this opt-in extension locally; the frozen files and
+  every other host stay byte-exact. A runtime must use the legacy initialize
+  request for a host whose 1.2 support is unknown: frozen 1.1 capability enums
+  reject unknown words. Sending `hostMetadata` therefore requires independently
+  established peer support, not a speculative flag sent to old hosts.
+  Runtime/contract adoption remains with
+  lanes 0/B. No credential/account field belongs in this metadata.
+
 ## 3. Open questions (need the owner)
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
@@ -15604,6 +15637,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M104 E3 (2026-10-05, Kubuntu).** The rig brief requires scoped repository
+checks and the owned JVM suite, with full quality and aggregate repository
+tests left to the lead. No threshold, timeout, rule or test filter is weakened.
+The common feature-reference instruction names `src/shared/featureCatalog.ts`,
+`scripts/gen-reference.mjs` and `check:reference`; none exists at this branch's
+base. Native behavior is therefore documented in the JetBrains guide and D84,
+with reference adoption left to the lane that introduces that catalog. The
+fresh standalone IDEA profile awaits the owner's User Agreement approval;
+framework JCEF screenshots and UI receipts are recorded independently in
+`docs/certification/m104-e3.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within

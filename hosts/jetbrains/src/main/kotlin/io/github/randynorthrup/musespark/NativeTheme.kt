@@ -19,9 +19,9 @@ object NativeTheme {
     values["diffEditor-removedLineBackground"] = color(palette.error, DIFF_ALPHA)
     values["widget-shadow"] = "transparent"
     val font = UIManager.getFont("Label.font")
-    values["font-family"] = quote(font?.family ?: scheme.editorFontName)
+    values["font-family"] = quote(font?.family ?: scheme.editorFontName) + ", system-ui, sans-serif"
     values["font-size"] = "${font?.size ?: scheme.editorFontSize}px"
-    values["editor-font-family"] = quote(scheme.editorFontName)
+    values["editor-font-family"] = quote(scheme.editorFontName) + ", ui-monospace, monospace"
     values["editor-font-size"] = "${scheme.editorFontSize}px"
     return ":root{" + values.entries.joinToString("") { (key, value) -> "--muse-$key:$value;--vscode-$key:$value;" } +
       "}"
@@ -136,6 +136,14 @@ object NativeTheme {
       "symbolIcon-keywordForeground",
     )
   }
+
+  val tokens: com.google.gson.JsonObject
+    get() =
+      json().also { tokens ->
+        Regex("(--muse-[a-zA-Z][\\w-]*):([^;]+);").findAll(css()).forEach { match ->
+          tokens.addProperty(match.groupValues[1], match.groupValues[2])
+        }
+      }
 
   fun dark(): Boolean = !JBColor.isBright()
 

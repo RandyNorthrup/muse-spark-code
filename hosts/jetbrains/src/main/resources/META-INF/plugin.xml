@@ -5,6 +5,7 @@
   <description>A shared Muse Spark Code panel for IntelliJ-based editors. Unofficial; not endorsed by Meta.</description>
   <depends>com.intellij.modules.platform</depends>
   <extensions defaultExtensionNs="com.intellij">
+    <inline.completion.provider implementation="io.github.randynorthrup.musespark.MuseInlineCompletionProvider" />
     <fileEditorProvider implementation="io.github.randynorthrup.musespark.PanelFileEditorProvider" />
     <notificationGroup id="Muse Spark Code (Unofficial)" displayType="BALLOON"/>
     <toolWindow id="Muse Spark Code (Unofficial)" anchor="right"

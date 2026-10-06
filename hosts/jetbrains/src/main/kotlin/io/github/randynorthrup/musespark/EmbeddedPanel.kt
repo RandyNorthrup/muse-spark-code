@@ -8,19 +8,13 @@ import com.intellij.ui.jcef.JBCefBrowser
 import com.intellij.ui.jcef.JBCefJSQuery
 import org.cef.browser.CefBrowser
 import org.cef.browser.CefFrame
-import org.cef.callback.CefCallback
 import org.cef.handler.CefContextMenuHandlerAdapter
 import org.cef.handler.CefKeyboardHandler.CefKeyEvent
 import org.cef.handler.CefKeyboardHandlerAdapter
 import org.cef.handler.CefLifeSpanHandlerAdapter
 import org.cef.handler.CefRequestHandlerAdapter
-import org.cef.handler.CefResourceHandlerAdapter
-import org.cef.handler.CefResourceRequestHandlerAdapter
 import org.cef.misc.BoolRef
-import org.cef.misc.IntRef
-import org.cef.misc.StringRef
 import org.cef.network.CefRequest
-import org.cef.network.CefResponse
 import java.util.UUID
 import javax.swing.JComponent
 
@@ -29,18 +23,24 @@ class EmbeddedPanel(
   private val boundary: JsonBoundary,
   private val locale: String,
   private val diagnostic: (String) -> Unit,
+  private val unavailable: (() -> Unit)? = null,
 ) : Disposable {
   private val browser: JBCefBrowser
   private val query: JBCefJSQuery
   private val nonce = UUID.randomUUID().toString().replace("-", "")
   private var themeCss = NativeTheme.css()
-  private val policy =
-    AssetPolicy(surface.id) { path ->
-      when (path) {
-        "index.html" -> html().toByteArray(Charsets.UTF_8)
-        else -> EmbeddedPanel::class.java.getResourceAsStream("/webview/$path")?.use { it.readBytes() }
-      }
-    }
+  private val subscribed =
+    java.util.concurrent.atomic
+      .AtomicBoolean()
+  private val readiness =
+    javax.swing
+      .Timer(READINESS_MILLIS) {
+        if (!subscribed.get()) {
+          diagnostic("MHP_JCEF_NOT_READY")
+          unavailable?.invoke()
+        }
+      }.apply { isRepeats = false }
+  private val policy = AssetPolicy("$nonce/${surface.id}")
   val component: JComponent get() = browser.component
 
   init {
@@ -57,6 +57,8 @@ class EmbeddedPanel(
           "ready" -> {
             require(request["value"].isJsonNull)
             surface.subscribe()
+            subscribed.set(true)
+            readiness.stop()
           }
           "post" -> {
             val payload = request["value"]
@@ -86,8 +88,14 @@ class EmbeddedPanel(
         JBCefJSQuery.Response(null, 1, "MHP_PANEL_BRIDGE_REFUSED")
       }
     }
-    installGuards()
-    browser.loadURL(policy.page)
+    runCatching {
+      installGuards()
+      browser.loadHTML(html(), policy.page)
+      readiness.start()
+    }.onFailure {
+      query.dispose()
+      browser.dispose()
+    }.getOrThrow()
   }
 
   fun deliver(
@@ -99,7 +107,9 @@ class EmbeddedPanel(
 
   fun reload() {
     surface.reload()
-    browser.cefBrowser.reload()
+    subscribed.set(false)
+    readiness.restart()
+    browser.loadHTML(html(), policy.page)
   }
 
   fun updateTheme() {
@@ -157,9 +167,25 @@ class EmbeddedPanel(
       ).replace("__MUSE_NONCE__", nonce)
       .replace("__MUSE_BRIDGE__", safeScript)
       .replace("<body", "<body data-host=\"embedded\"")
+      .let { inlineAssets(it, kind) }
       .let { html ->
         if (html.contains("data-surface=")) html else html.replace("<body", "<body data-surface=\"${surface.kind}\"")
       }
+  }
+
+  private fun inlineAssets(
+    html: String,
+    kind: String,
+  ): String {
+    val entry = if (kind == "whatsNew") "whatsNew" else "main"
+    val script = JsonBoundary.resource("/pages/$entry.inline.js").replace("</script", "<\\/script", ignoreCase = true)
+    val style = JsonBoundary.resource("/webview/$entry.css")
+    return html
+      .replace(
+        Regex("<meta http-equiv=\"Content-Security-Policy\"[^>]*>"),
+        { "<meta http-equiv=\"Content-Security-Policy\" content=\"${policy.csp(nonce)}\">" },
+      ).replace(Regex("<link[^>]*rel=\"stylesheet\"[^>]*>"), { "<style nonce=\"$nonce\">$style</style>" })
+      .replace(Regex("<script[^>]*src=\"[^\"]+\"[^>]*></script>"), { "<script nonce=\"$nonce\">$script</script>" })
   }
 
   private fun installGuards() {
@@ -173,7 +199,11 @@ class EmbeddedPanel(
           request: CefRequest,
           userGesture: Boolean,
           isRedirect: Boolean,
-        ): Boolean = !policy.navigationAllowed(request.url)
+        ): Boolean {
+          val allowed = policy.navigationAllowed(request.url)
+          if (!allowed) diagnostic("MHP_BROWSER_NAVIGATION_REFUSED")
+          return !allowed
+        }
 
         override fun onOpenURLFromTab(
           browser: CefBrowser,
@@ -181,25 +211,6 @@ class EmbeddedPanel(
           targetUrl: String,
           userGesture: Boolean,
         ): Boolean = true
-
-        override fun getResourceRequestHandler(
-          browser: CefBrowser,
-          frame: CefFrame?,
-          request: CefRequest,
-          isNavigation: Boolean,
-          isDownload: Boolean,
-          requestInitiator: String?,
-          disableDefaultHandling: BoolRef,
-        ): CefResourceRequestHandlerAdapter {
-          disableDefaultHandling.set(true)
-          return object : CefResourceRequestHandlerAdapter() {
-            override fun getResourceHandler(
-              browser: CefBrowser,
-              frame: CefFrame?,
-              request: CefRequest,
-            ): CefResourceHandlerAdapter = Resource(policy.asset(request.url), policy.csp(nonce))
-          }
-        }
       },
       cef,
     )
@@ -242,59 +253,14 @@ class EmbeddedPanel(
   }
 
   override fun dispose() {
+    readiness.stop()
     runCatching(surface::close).onFailure { diagnostic("MHP_PANEL_CLOSE_FAILED") }
     query.dispose()
     browser.dispose()
   }
 
-  private class Resource(
-    private val asset: Pair<String, ByteArray>?,
-    private val csp: String,
-  ) : CefResourceHandlerAdapter() {
-    private var offset = 0
-
-    override fun processRequest(
-      request: CefRequest,
-      callback: CefCallback,
-    ): Boolean {
-      // Remote JCEF must finish its resource RPC before the continuation RPC.
-      com.intellij.openapi.application.ApplicationManager
-        .getApplication()
-        .executeOnPooledThread { callback.Continue() }
-      return true
-    }
-
-    override fun getResponseHeaders(
-      response: CefResponse,
-      responseLength: IntRef,
-      redirectUrl: StringRef,
-    ) {
-      response.status = if (asset == null) HTTP_NOT_FOUND else HTTP_OK
-      response.mimeType = asset?.first ?: "text/plain"
-      response.setHeaderByName("Content-Security-Policy", csp, true)
-      response.setHeaderByName("X-Content-Type-Options", "nosniff", true)
-      response.setHeaderByName("Cache-Control", "no-store", true)
-      responseLength.set(asset?.second?.size ?: 0)
-    }
-
-    override fun readResponse(
-      dataOut: ByteArray,
-      bytesToRead: Int,
-      bytesRead: IntRef,
-      callback: CefCallback,
-    ): Boolean {
-      val bytes = asset?.second ?: return false
-      val count = minOf(bytesToRead, bytes.size - offset)
-      bytes.copyInto(dataOut, 0, offset, offset + count)
-      offset += count
-      bytesRead.set(count)
-      return count > 0
-    }
-  }
-
   companion object {
-    private const val HTTP_OK = 200
-    private const val HTTP_NOT_FOUND = 404
+    private const val READINESS_MILLIS = 15_000
     private const val CTRL_SHIFT = 6
     private val DEVTOOLS_KEYS =
       setOf(java.awt.event.KeyEvent.VK_I, java.awt.event.KeyEvent.VK_J, java.awt.event.KeyEvent.VK_C)

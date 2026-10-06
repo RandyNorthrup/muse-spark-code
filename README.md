@@ -3460,7 +3460,10 @@ The additive MHP 1.1.0 panel contract for native and companion adapters is
 Schemas reuse the shared panel payload validators and preserve frozen v1.
 Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
 snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
-bridge implementation and editor qualification remain in M104's other lanes.
+bridge implementation and editor qualification remain in M104's other lanes. The
+[JetBrains development plugin](hosts/jetbrains/README.md) has native fake-runtime
+panel and Tab qualification; its [follow-up record](docs/certification/m104-e3.md)
+lists the compatibility matrix and remaining assembled-runtime work.
 
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git

@@ -63,6 +63,71 @@ class MhpConnectionTest {
   }
 
   @Test
+  fun metadataProposalRequiresCapabilityAndCompatibleMinorAndKeepsLegacyReplyExact() {
+    val metadata =
+      json(
+        "host" to json("id" to "jetbrains", "version" to "253"),
+        "locale" to "de",
+        "theme" to json("kind" to "light", "tokens" to json("--muse-foreground" to "#000000")),
+        "folders" to listOf(json("uri" to "file:///workspace", "name" to "workspace")),
+        "trusted" to false,
+      )
+    for ((maximum, offered, expected) in listOf(
+      Triple("mhp/1.2.0", false, false),
+      Triple("mhp/1.3.0", false, false),
+      Triple("mhp/1.2.0", true, false),
+      Triple("mhp/1.3.0", true, true),
+    )) {
+      val replies = mutableListOf<JsonObject>()
+      val peer =
+        MhpConnection(
+          boundary,
+          object : EditorServices {
+            override val capabilities = listOf("lifecycle")
+
+            override val metadata = metadata
+
+            override fun request(
+              method: String,
+              params: JsonObject,
+              cancellation: RequestCancellation,
+            ) = jsonValue(null)
+          },
+          Executor(Runnable::run),
+          { frame, _ -> replies.add(frame) },
+          {},
+          ConnectionEvents({}, {}),
+        )
+      peer.receive(
+        call(
+          "initialize",
+          json(
+            "host" to json("id" to "runtime", "version" to "1"),
+            "protocolRange" to json("minimum" to "mhp/1.1.0", "maximumExclusive" to maximum),
+            "capabilities" to if (offered) listOf("lifecycle", "hostMetadata") else listOf("lifecycle"),
+            "locale" to "en",
+            "theme" to json("kind" to "dark", "tokens" to json()),
+            "folders" to emptyList<String>(),
+            "trusted" to true,
+          ),
+        ),
+      )
+      val result = replies.single().getAsJsonObject("result")
+      if (expected) {
+        assertEquals("mhp/1.2.0", result["protocolVersion"].asString)
+        assertEquals(metadata, result["hostMetadata"])
+        assertEquals(
+          setOf("lifecycle", "hostMetadata"),
+          result.getAsJsonArray("capabilities").map { it.asString }.toSet(),
+        )
+      } else {
+        assertEquals(json("protocolVersion" to "mhp/1.1.0", "capabilities" to listOf("lifecycle")), result)
+      }
+      peer.close()
+    }
+  }
+
+  @Test
   fun negotiatesOnlyTheExplicitCarrierRangeBeforePanelTraffic() {
     assertThrows(Exception::class.java) { connection.receive(call("ui/confirm", json())) }
     assertThrows(Exception::class.java) { initialize("mhp/2.0.0") }

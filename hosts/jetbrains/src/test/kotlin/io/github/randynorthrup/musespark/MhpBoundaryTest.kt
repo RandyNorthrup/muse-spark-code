@@ -95,22 +95,27 @@ class MhpBoundaryTest {
 
   @Test
   fun refusesRemoteAssetsTraversalAndNavigation() {
-    val policy = AssetPolicy("surface") { "resource".toByteArray() }
-    assertTrue(policy.navigationAllowed(policy.page))
-    assertTrue(policy.asset(policy.base + "main.js") != null)
+    val policy = AssetPolicy("surface")
+    assertTrue(policy.navigationAllowed("file:///jbcefbrowser/312651496#url=${policy.page}"))
     for (url in listOf(
+      policy.page,
       "https://example.com/",
       policy.base + "../main.js",
       policy.base + "%2e%2e/main.js",
       "https://muse.invalid:443/surface/main.js",
       policy.base + "main.js?fetch=remote",
       "file:///etc/passwd",
+      "file:///etc/passwd#url=${policy.page}",
+      "file://remote/jbcefbrowser/1#url=${policy.page}",
+      "file:///jbcefbrowser/1?leak=true#url=${policy.page}",
+      "file:///jbcefbrowser/1#url=https://remote.invalid/",
     )) {
       assertFalse(policy.navigationAllowed(url))
-      assertEquals(null, policy.asset(url))
     }
     assertTrue(policy.csp("nonce").contains("connect-src 'none'"))
     assertTrue(policy.csp("nonce").contains("frame-src 'none'"))
+    assertTrue(policy.csp("nonce").contains("script-src 'nonce-nonce'"))
+    assertFalse(policy.csp("nonce").contains("https:"))
   }
 
   @Test
