@@ -3,7 +3,12 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(
-  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle' | 'referenceCliOptions'>,
+  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle'> & {
+    readonly referenceCliOptions: Pick<
+      UiText['referenceCliOptions'],
+      'resource-governor' | 'cpu-max' | 'memory-max'
+    >
+  },
   command: string,
 ): string {
   return [

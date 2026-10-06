@@ -100,3 +100,10 @@ code-server and Theia's packaged browser checks keep their recorded scope.
 | StackBlitz, Codeflow                         | A runtime experiment                       | M66       | Planned |
 | CodeSandbox, Ona                             | Remote-editor attachment                   | M66       | Planned |
 | Arduino IDE 2, Code::Blocks, CodeLite, Geany | External tool, or a native plugin if asked | M66       | Planned |
+
+## M107 resource feature qualification
+
+The editor statuses above do not imply M107 resource qualification.
+[The resource matrix](resources.md) records the common governor, each surface
+and its pending binding. This join tests portable policy and shared components
+on Kubuntu; it does not move any editor's status or certify a native bridge.

@@ -2455,6 +2455,10 @@
   "referenceAuthStatus": "Model API 키가 저장되어 있는지 확인합니다.",
   "referenceAuthClear": "저장된 Model API 키를 제거합니다.",
   "referenceCliOptions": {
+    "json": "JSON: 리소스",
+    "resource-governor": "--resource-governor on|off: 에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
+    "cpu-max": "--cpu-max <percent>: 컴퓨터의 CPU 사용량이 30초 동안 이 비율을 넘으면 처리를 제한합니다.",
+    "memory-max": "--memory-max <percent>: 사용 중인 메모리가 연속 두 번의 측정에서 이 비율을 넘으면 처리를 제한합니다.",
     "backend": "--backend museCode|modelApi      결제 주체: Muse Code(기본값) 또는 Model API 키",
     "trust-workspace": "--trust-workspace                폴더의 규칙, 스킬, 메모리를 불러옵니다",
     "maintenance": "init 대신 Setup maintenance 이벤트를 실행합니다.",
@@ -2483,11 +2487,7 @@
     "out": "--out <file>         stdout 대신 파일에 보고서 쓰기",
     "description": "--description <text>  무슨 일이 있었는지 자신의 말로",
     "no-facts": "--no-facts           지원 정보 제외",
-    "no-events": "--no-events          최근 이벤트 제외",
-    "resource-governor": "--resource-governor on|off: 에이전트 실행 환경이 시작한 작업을 늦추거나 연기하여 컴퓨터의 응답성을 유지합니다. 기본적으로 켜져 있습니다.",
-    "cpu-max": "--cpu-max <percent>: 컴퓨터의 CPU 사용량이 30초 동안 이 비율을 넘으면 처리를 제한합니다.",
-    "memory-max": "--memory-max <percent>: 사용 중인 메모리가 연속 두 번의 측정에서 이 비율을 넘으면 처리를 제한합니다.",
-    "json": "JSON: 리소스"
+    "no-events": "--no-events          최근 이벤트 제외"
   },
   "referenceExecImages": "헤드리스 이미지에는 --image-generation, acceptEdits 및 충분한 엄격한 예산이 필요합니다. 가격 확인 질문은 표시되지 않으며 권한이 필요한 요청은 거부됩니다.",
   "referencePopoverKeys": "옵션을 탐색하고 값을 조정하고 선택하거나 메뉴를 닫습니다.",

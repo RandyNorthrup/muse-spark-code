@@ -177,7 +177,7 @@ describe('M107 H ACP resources', () => {
         ({ update }) => update.sessionUpdate === 'available_commands_update',
       )?.update
       expect(commands).toMatchObject({
-        availableCommands: [{ name: 'resources' }, { name: 'usage' }],
+        availableCommands: [{ name: 'help' }, { name: 'resources' }, { name: 'usage' }],
       })
     })
   })
@@ -185,7 +185,7 @@ describe('M107 H ACP resources', () => {
   it('reserves resource command names while retaining the other skill commands', async () => {
     const s = await scene()
     await s.run(async (client, sessionId, session) => {
-      session.skills = ['resources', 'usage', 'custom'].map((selector) => ({
+      session.skills = ['help', 'resources', 'usage', 'custom'].map((selector) => ({
         selector,
         displayName: selector,
         description: `skill-${selector}`,
@@ -198,11 +198,14 @@ describe('M107 H ACP resources', () => {
       if (commands?.sessionUpdate !== 'available_commands_update')
         throw new Error('missing commands')
       expect(commands.availableCommands.map((command) => command.name)).toEqual([
+        'help',
         'resources',
         'usage',
         'custom',
       ])
-      expect(commands.availableCommands[0]?.description).toBe(UI_TEXT.resourceGovernorDescription)
+      expect(
+        commands.availableCommands.find((command) => command.name === 'resources')?.description,
+      ).toBe(UI_TEXT.resourceGovernorDescription)
     })
   })
 

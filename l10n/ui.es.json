@@ -2643,6 +2643,10 @@
   "referenceAuthStatus": "Comprobar si hay una clave Model API guardada.",
   "referenceAuthClear": "Eliminar la clave Model API guardada.",
   "referenceCliOptions": {
+    "json": "JSON: Recursos",
+    "resource-governor": "--resource-governor on|off: Mantiene la capacidad de respuesta del equipo ralentizando o aplazando el trabajo iniciado por el entorno del agente. Activado de forma predeterminada.",
+    "cpu-max": "--cpu-max <percent>: Limita cuando el uso de CPU del equipo supera este porcentaje durante 30 segundos.",
+    "memory-max": "--memory-max <percent>: Limita cuando la memoria en uso supera este porcentaje durante dos muestras.",
     "backend": "--backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API",
     "trust-workspace": "--trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta",
     "maintenance": "Ejecutar el evento Setup maintenance en lugar de init.",
@@ -2671,11 +2675,7 @@
     "out": "--out <file>         Escribir el informe en un archivo en lugar de stdout",
     "description": "--description <text>  Qué estaba pasando, en tus palabras",
     "no-facts": "--no-facts           Omitir los datos de soporte",
-    "no-events": "--no-events          Omitir los eventos recientes",
-    "resource-governor": "--resource-governor on|off: Mantiene la capacidad de respuesta del equipo ralentizando o aplazando el trabajo iniciado por el entorno del agente. Activado de forma predeterminada.",
-    "cpu-max": "--cpu-max <percent>: Limita cuando el uso de CPU del equipo supera este porcentaje durante 30 segundos.",
-    "memory-max": "--memory-max <percent>: Limita cuando la memoria en uso supera este porcentaje durante dos muestras.",
-    "json": "JSON: Recursos"
+    "no-events": "--no-events          Omitir los eventos recientes"
   },
   "referenceExecImages": "Las imágenes sin interfaz requieren --image-generation, acceptEdits y un presupuesto estricto suficiente. No se pregunta por el precio; se rechazan las solicitudes que requieren permiso.",
   "referencePopoverKeys": "Recorrer opciones, ajustar un valor, elegir una opción o cerrar el menú.",

@@ -2737,6 +2737,10 @@
   "referenceAuthStatus": "Zjistit, zda je uložen klíč Model API.",
   "referenceAuthClear": "Odstranit uložený klíč Model API.",
   "referenceCliOptions": {
+    "json": "JSON: Prostředky",
+    "resource-governor": "--resource-governor on|off: Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
+    "cpu-max": "--cpu-max <percent>: Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund.",
+    "memory-max": "--memory-max <percent>: Omezí práci, když využitá paměť překračuje toto procento ve dvou po sobě jdoucích vzorcích.",
     "backend": "--backend museCode|modelApi      Kdo platí: Muse Code (výchozí) nebo klíč Model API",
     "trust-workspace": "--trust-workspace                Načte pravidla, dovednosti a paměť složky",
     "maintenance": "Spustit událost Setup maintenance místo init.",
@@ -2765,11 +2769,7 @@
     "out": "--out <file>         Zapsat zprávu do souboru místo na stdout",
     "description": "--description <text>  Co se dělo, vlastními slovy",
     "no-facts": "--no-facts           Vynechat podpůrná fakta",
-    "no-events": "--no-events          Vynechat nedávné události",
-    "resource-governor": "--resource-governor on|off: Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
-    "cpu-max": "--cpu-max <percent>: Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund.",
-    "memory-max": "--memory-max <percent>: Omezí práci, když využitá paměť překračuje toto procento ve dvou po sobě jdoucích vzorcích.",
-    "json": "JSON: Prostředky"
+    "no-events": "--no-events          Vynechat nedávné události"
   },
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",

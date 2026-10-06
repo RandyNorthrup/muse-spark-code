@@ -2455,6 +2455,10 @@
   "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
   "referenceCliOptions": {
+    "json": "JSON: 資源",
+    "resource-governor": "--resource-governor on|off: 透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
+    "cpu-max": "--cpu-max <percent>: 當電腦的 CPU 使用率持續30秒超過此百分比時降速。",
+    "memory-max": "--memory-max <percent>: 當已用記憶體連續兩次取樣超過此百分比時降速。",
     "backend": "--backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰",
     "trust-workspace": "--trust-workspace                載入資料夾的規則、技能與記憶",
     "maintenance": "執行Setup的maintenance事件而非init。",
@@ -2483,11 +2487,7 @@
     "out": "--out <file>         將報告寫入檔案而不是 stdout",
     "description": "--description <text>  用自己的話描述當時發生了什麼",
     "no-facts": "--no-facts           不包含支援資訊",
-    "no-events": "--no-events          不包含最近事件",
-    "resource-governor": "--resource-governor on|off: 透過減慢或延後代理程式執行環境啟動的工作，保持此電腦回應順暢。預設開啟。",
-    "cpu-max": "--cpu-max <percent>: 當電腦的 CPU 使用率持續30秒超過此百分比時降速。",
-    "memory-max": "--memory-max <percent>: 當已用記憶體連續兩次取樣超過此百分比時降速。",
-    "json": "JSON: 資源"
+    "no-events": "--no-events          不包含最近事件"
   },
   "referenceExecImages": "無介面圖像需要 --image-generation、acceptEdits 和充足的硬性預算。不顯示價格確認問題；需要許可的請求會被拒絕。",
   "referencePopoverKeys": "瀏覽選項、調整值、選取選項或關閉選單。",

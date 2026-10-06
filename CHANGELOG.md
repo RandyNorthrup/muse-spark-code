@@ -12,7 +12,20 @@ happened, not what was planned; superseded entries are kept.
 - Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
   within npm-run-all2's existing dependency range.
 
+### Added
+
+- M107 delivery candidate: eight machine-scoped resource settings and generated
+  Help coverage; independent governor/admission/control/history artifacts with
+  measured budgets, split/package guards and exec-event-v2 schema packaging.
+  Editor/runtime/actuator, disk re-review and M96/M96c/M100/M102 bindings remain
+  explicitly pending in the integration certification.
+
 ### Fixed
+
+- M107's deferred resource parser preserves the startup size regression;
+  lossless English-key and Node reference packing retain complete content
+  under existing caps. Notices resolve deferred parser package paths on
+  Windows and POSIX without omitting their licences.
 
 - Linux resource Stop retains cgroup and parent descriptors until direct
   registry kills settle, removes empty scopes through a pinned parent and

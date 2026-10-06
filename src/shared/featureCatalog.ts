@@ -45,12 +45,26 @@ const UI_CONDITIONS: Readonly<
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
   'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
-const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+const SETTING_CONDITIONS: Readonly<
+  Partial<
+    Record<
+      | keyof typeof SETTING_DEFAULTS
+      | 'resourceCpuMaxPercent'
+      | 'resourceMemoryMaxPercent'
+      | 'resourceGpuMaxPercent'
+      | 'resourceDiskBusyMaxPercent'
+      | 'resourceDiskMinFreeGiB'
+      | 'resourceRelocate',
+      string
+    >
+  >
+> = {
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -65,6 +79,12 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  resourceCpuMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceGpuMaxPercent: 'resourceThreshold',
+  resourceDiskBusyMaxPercent: 'resourceThreshold',
+  resourceDiskMinFreeGiB: 'resourceDiskThreshold',
+  resourceRelocate: 'resourceRelocation',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
 }
@@ -187,7 +207,16 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'resourceTitle' },
       { ui: 'resourceGovernorDescription' },
       [],
-      [],
+      [
+        'resourceGovernor',
+        'resourceCpuMaxPercent',
+        'resourceMemoryMaxPercent',
+        'resourceMemoryMinFreeGiB',
+        'resourceGpuMaxPercent',
+        'resourceDiskBusyMaxPercent',
+        'resourceDiskMinFreeGiB',
+        'resourceRelocate',
+      ],
       'keeping-your-machine-responsive',
       ['museCode', 'modelApi'],
       false,

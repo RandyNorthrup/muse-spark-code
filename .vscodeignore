@@ -1,5 +1,7 @@
 **
 !dist/extension.js
+!dist/resourceAdmission.js
+!dist/resourceGovernor.js
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js
@@ -36,6 +38,9 @@
 !dist/recorder.js
 !dist/reference.js
 !dist/webview/main.js
+!dist/webview/resourceSurface.js
+!dist/webview/resourceHistory.js
+!dist/webview/resourceHistory.css
 !dist/webview/referencePage.js
 !dist/webview/referencePage.css
 !dist/webview/chunks/*.js

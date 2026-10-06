@@ -2455,6 +2455,10 @@
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceCliOptions": {
+    "json": "JSON: 资源",
+    "resource-governor": "--resource-governor on|off: 通过减慢或延后代理运行环境启动的工作，保持此计算机响应流畅。默认开启。",
+    "cpu-max": "--cpu-max <percent>: 当计算机的 CPU 使用率持续30秒超过此百分比时限速。",
+    "memory-max": "--memory-max <percent>: 当已用内存连续两次采样超过此百分比时限速。",
     "backend": "--backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥",
     "trust-workspace": "--trust-workspace                加载文件夹的规则、技能和记忆",
     "maintenance": "运行Setup的maintenance事件而非init。",
@@ -2483,11 +2487,7 @@
     "out": "--out <file>         将报告写入文件而不是 stdout",
     "description": "--description <text>  用自己的话描述当时发生了什么",
     "no-facts": "--no-facts           不包含支持信息",
-    "no-events": "--no-events          不包含最近事件",
-    "resource-governor": "--resource-governor on|off: 通过减慢或延后代理运行环境启动的工作，保持此计算机响应流畅。默认开启。",
-    "cpu-max": "--cpu-max <percent>: 当计算机的 CPU 使用率持续30秒超过此百分比时限速。",
-    "memory-max": "--memory-max <percent>: 当已用内存连续两次采样超过此百分比时限速。",
-    "json": "JSON: 资源"
+    "no-events": "--no-events          不包含最近事件"
   },
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
   "referencePopoverKeys": "浏览选项、调整值、选择选项或关闭菜单。",

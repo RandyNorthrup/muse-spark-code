@@ -6,7 +6,16 @@
       "summary": { "ui": "resourceGovernorDescription" },
       "description": { "ui": "resourceGovernorDescription" },
       "commands": [],
-      "settings": [],
+      "settings": [
+        "museSpark.resourceGovernor",
+        "museSpark.resourceCpuMaxPercent",
+        "museSpark.resourceMemoryMaxPercent",
+        "museSpark.resourceMemoryMinFreeGiB",
+        "museSpark.resourceGpuMaxPercent",
+        "museSpark.resourceDiskBusyMaxPercent",
+        "museSpark.resourceDiskMinFreeGiB",
+        "museSpark.resourceRelocate"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -2908,6 +2917,146 @@
         "default": [],
         "items": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
       }
+    },
+    {
+      "id": "museSpark.resourceGovernor",
+      "name": "museSpark.resourceGovernor",
+      "description": "Keep this machine responsive by slowing or deferring work started by the harness. On by default.",
+      "descriptionKey": "config.resourceGovernor.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceCpuMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceCpuMaxPercent",
+      "name": "museSpark.resourceCpuMaxPercent",
+      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds.",
+      "descriptionKey": "config.resourceCpuMaxPercent.description",
+      "type": "number",
+      "default": 85,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 85, "minimum": 30, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceMemoryMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceMemoryMaxPercent",
+      "name": "museSpark.resourceMemoryMaxPercent",
+      "description": "Throttle when memory in use stays above this percentage for two samples.",
+      "descriptionKey": "config.resourceMemoryMaxPercent.description",
+      "type": "number",
+      "default": 90,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 90, "minimum": 40, "maximum": 98 }
+    },
+    {
+      "id": "museSpark.resourceMemoryMinFreeGiB",
+      "name": "museSpark.resourceMemoryMinFreeGiB",
+      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM.",
+      "descriptionKey": "config.resourceMemoryMinFreeGiB.description",
+      "type": "number",
+      "default": 2,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 2, "minimum": 0.5, "maximum": 64 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceGpuMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceGpuMaxPercent",
+      "name": "museSpark.resourceGpuMaxPercent",
+      "description": "Optional GPU use limit in percent. Unset means no GPU probe.",
+      "descriptionKey": "config.resourceGpuMaxPercent.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 1, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceDiskBusyMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceDiskBusyMaxPercent",
+      "name": "museSpark.resourceDiskBusyMaxPercent",
+      "description": "Optional disk busy limit in percent. Unset means no disk probe.",
+      "descriptionKey": "config.resourceDiskBusyMaxPercent.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 1, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceDiskThreshold", "text": { "setting": "resourceDiskMinFreeGiB" } }
+        ]
+      },
+      "id": "museSpark.resourceDiskMinFreeGiB",
+      "name": "museSpark.resourceDiskMinFreeGiB",
+      "description": "Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.",
+      "descriptionKey": "config.resourceDiskMinFreeGiB.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 2 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "resourceRelocation", "text": { "setting": "resourceRelocate" } }]
+      },
+      "id": "museSpark.resourceRelocate",
+      "name": "museSpark.resourceRelocate",
+      "description": "Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.",
+      "descriptionKey": "config.resourceRelocate.description",
+      "type": "string",
+      "default": "paired",
+      "enum": ["paired", "ask", "off"],
+      "enumDescriptions": [
+        "Use an already approved paired device with normal resource load.",
+        "Ask before moving queued work.",
+        "Keep work on this machine."
+      ],
+      "enumDescriptionKeys": [
+        "config.resourceRelocate.enumDescriptions.paired",
+        "config.resourceRelocate.enumDescriptions.ask",
+        "config.resourceRelocate.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "resourceRelocation",
+              "text": {
+                "fallbackKey": "config.resourceRelocate.enumDescriptions.paired",
+                "fallback": "Use an already approved paired device with normal resource load."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "paired", "enum": ["paired", "ask", "off"] }
     }
   ],
   "slash": [

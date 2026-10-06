@@ -12,7 +12,7 @@ Keep this machine responsive by slowing or deferring work started by the harness
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
+Commands: —. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
 
 ### Best of N
 
@@ -2522,6 +2522,126 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
   }
 }
 ```
+
+### museSpark.resourceGovernor
+
+Keep this machine responsive by slowing or deferring work started by the harness. On by default.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.resourceCpuMaxPercent
+
+resourceThreshold: Throttle when machine CPU use stays above this percentage for 30 seconds.
+
+Type: `"number"`. Default: `85`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 85,
+  "minimum": 30,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceMemoryMaxPercent
+
+resourceThreshold: Throttle when memory in use stays above this percentage for two samples.
+
+Type: `"number"`. Default: `90`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 90,
+  "minimum": 40,
+  "maximum": 98
+}
+```
+
+### museSpark.resourceMemoryMinFreeGiB
+
+Minimum available memory in GiB, capped at 15% of this machine’s RAM.
+
+Type: `"number"`. Default: `2`. Scope: `machine`.
+
+```json
+{
+  "type": "number",
+  "default": 2,
+  "minimum": 0.5,
+  "maximum": 64
+}
+```
+
+### museSpark.resourceGpuMaxPercent
+
+resourceThreshold: Optional GPU use limit in percent. Unset means no GPU probe.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 1,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceDiskBusyMaxPercent
+
+resourceThreshold: Optional disk busy limit in percent. Unset means no disk probe.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 1,
+  "maximum": 100
+}
+```
+
+### museSpark.resourceDiskMinFreeGiB
+
+resourceDiskThreshold: Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.
+
+Type: `["number","null"]`. Default: `null`. Scope: `machine`.
+
+```json
+{
+  "type": ["number", "null"],
+  "default": null,
+  "minimum": 2
+}
+```
+
+### museSpark.resourceRelocate
+
+resourceRelocation: Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.
+
+Type: `"string"`. Default: `"paired"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": "paired",
+  "enum": ["paired", "ask", "off"]
+}
+```
+
+- `"paired"`: resourceRelocation: Use an already approved paired device with normal resource load.
+- `"ask"`: Ask before moving queued work.
+- `"off"`: Keep work on this machine.
 
 ## Keyboard shortcuts
 

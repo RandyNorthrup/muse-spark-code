@@ -7,6 +7,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { compactNodeReference } from '../../scripts/lib/referenceBundle.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
@@ -18,6 +19,7 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
   checkDeferredBundles,
+  checkResourceBundles,
   deferredCohort,
   sharedUiText,
   sharedValidation,
@@ -98,6 +100,7 @@ beforeAll(async () => {
         resourceAdmission: 'src/core/resources/admission.ts',
       },
       plugins: [
+        compactNodeReference,
         sharedUiText,
         sharedValidation,
         deferredCohort,
@@ -261,6 +264,48 @@ describe('deferred cohort bundles', () => {
     )
     expect(checkDeferredBundles(bundleInputs)).toEqual([])
   })
+  it('M107 keeps every policy module and admission state out of other shipped cohorts, including Windows paths', () => {
+    const bundles = Array.from(fixtures.keys(), (metafile) => ({
+      metafile,
+      output: `dist/${path.basename(metafile, '.json')}.js`,
+    }))
+    expect(checkResourceBundles(bundleInputs, bundles)).toEqual([])
+    for (const file of [
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/actuators/controller.ts',
+      'src/core/resources/relocate.ts',
+      'src/core/resources/createdRegistry.ts',
+    ]) {
+      expect(
+        checkResourceBundles(
+          () => new Map([[file.replaceAll('/', '\\'), 1]]),
+          [{ output: path.win32.join('dist', 'voice.js'), metafile: 'unused' }],
+        ),
+      ).toEqual([`dist/voice.js carries resource policy ${file} outside the lazy governor`])
+    }
+    expect(
+      checkResourceBundles(
+        () => new Map([['src/core/resources/admission.ts', 1]]),
+        [{ output: 'dist/pluginHooks.js', metafile: 'unused' }],
+      ),
+    ).toEqual(['dist/pluginHooks.js duplicates resource admission'])
+  })
+  it.each(['src/core/resources/disk.ts', 'src/core/resources/createdRegistry.ts'])(
+    'M107 requires %s in the governor artifact',
+    (file) => {
+      const bundle = {
+        output: 'dist/resourceGovernor.js',
+        metafile: 'dist/meta/resourceGovernor.json',
+      }
+      const changed = new Map(bundleInputs(bundle))
+      changed.delete(file)
+      expect(
+        checkDeferredBundles((entry) =>
+          entry.output === bundle.output ? changed : bundleInputs(entry),
+        ),
+      ).toContain(`${bundle.output} no longer carries ${file}`)
+    },
+  )
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)

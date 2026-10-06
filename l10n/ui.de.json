@@ -2549,6 +2549,10 @@
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceCliOptions": {
+    "json": "JSON: Ressourcen",
+    "resource-governor": "--resource-governor on|off: Hält diesen Rechner reaktionsfähig, indem von der Agentenumgebung gestartete Arbeit verlangsamt oder verschoben wird. Standardmäßig aktiviert.",
+    "cpu-max": "--cpu-max <percent>: Drosselt, wenn die CPU-Auslastung des Rechners 30 Sekunden lang über diesem Prozentsatz liegt.",
+    "memory-max": "--memory-max <percent>: Drosselt, wenn der belegte Arbeitsspeicher bei zwei Messungen über diesem Prozentsatz liegt.",
     "backend": "--backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel",
     "trust-workspace": "--trust-workspace                Regeln, Skills und Speicher des Ordners laden",
     "maintenance": "Das Setup-Ereignis maintenance statt init ausführen.",
@@ -2577,11 +2581,7 @@
     "out": "--out <file>         Den Bericht in eine Datei statt auf stdout schreiben",
     "description": "--description <text>  Was gerade geschah, in eigenen Worten",
     "no-facts": "--no-facts           Die Support-Fakten weglassen",
-    "no-events": "--no-events          Die letzten Ereignisse weglassen",
-    "resource-governor": "--resource-governor on|off: Hält diesen Rechner reaktionsfähig, indem von der Agentenumgebung gestartete Arbeit verlangsamt oder verschoben wird. Standardmäßig aktiviert.",
-    "cpu-max": "--cpu-max <percent>: Drosselt, wenn die CPU-Auslastung des Rechners 30 Sekunden lang über diesem Prozentsatz liegt.",
-    "memory-max": "--memory-max <percent>: Drosselt, wenn der belegte Arbeitsspeicher bei zwei Messungen über diesem Prozentsatz liegt.",
-    "json": "JSON: Ressourcen"
+    "no-events": "--no-events          Die letzten Ereignisse weglassen"
   },
   "referenceExecImages": "Bilder ohne Oberfläche erfordern --image-generation, acceptEdits und ein ausreichendes festes Budget. Es gibt keine Preisabfrage; Anfragen mit Genehmigungspflicht werden abgelehnt.",
   "referencePopoverKeys": "Optionen durchlaufen, einen Wert ändern, eine Option wählen oder das Menü schließen.",

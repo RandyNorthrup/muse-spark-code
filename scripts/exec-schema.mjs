@@ -9,7 +9,7 @@ const root = path.resolve(import.meta.dirname, '..')
 const { outputFiles } = await esbuild.build({
   stdin: {
     contents:
-      "export * as z from 'zod/mini'; export { execResultSchema, execEventSchema, exitCodeFor } from './src/runtime/exec/execProtocol'; export { EXEC_PROHIBITED_UPDATE_PATTERN, EXEC_RAW_TOOL_FIELDS } from './src/shared/constants'",
+      "export * as z from 'zod/mini'; export { execResultSchema, execEventSchema, execEventV2Schema, exitCodeFor } from './src/runtime/exec/execProtocol'; export { EXEC_PROHIBITED_UPDATE_PATTERN, EXEC_RAW_TOOL_FIELDS } from './src/shared/constants'",
     resolveDir: root,
     loader: 'ts',
     sourcefile: 'exec-schema-entry.ts',
@@ -25,6 +25,7 @@ const {
   z,
   execResultSchema,
   execEventSchema,
+  execEventV2Schema,
   exitCodeFor,
   EXEC_PROHIBITED_UPDATE_PATTERN,
   EXEC_RAW_TOOL_FIELDS,
@@ -87,45 +88,53 @@ resultJson['x-runtime-invariants'] = [
   'Paid returned + refunded + uncertain units <= admitted image attempts.',
   'Workspace-relative forward-slash paths are deduplicated; input names are basenames.',
 ]
-const eventJson = z.toJSONSchema(execEventSchema, { unrepresentable: 'any' })
-// The update egress rule as schema, not prose (RVM80A P2-2): no prohibited
-// sessionUpdate and no raw tool field at any depth of an update.
-const allowedSessionUpdate = { type: 'string', not: { pattern: EXEC_PROHIBITED_UPDATE_PATTERN } }
-eventJson.$defs = {
-  ...eventJson.$defs,
-  execSafeUpdateValue: {
-    anyOf: [
-      { type: ['string', 'number', 'boolean', 'null'] },
-      { type: 'array', items: { $ref: '#/$defs/execSafeUpdateValue' } },
-      {
-        type: 'object',
-        propertyNames: { not: { enum: [...EXEC_RAW_TOOL_FIELDS] } },
-        properties: { sessionUpdate: allowedSessionUpdate },
-        additionalProperties: { $ref: '#/$defs/execSafeUpdateValue' },
-      },
-    ],
-  },
-}
-for (const variant of eventJson.anyOf) {
-  const type = variant.properties.type.const
-  if (type === 'result') variant.properties.result = resultJson
-  else if (type === 'update') {
-    variant.properties.update.properties.sessionUpdate = allowedSessionUpdate
-    variant.properties.update.$ref = '#/$defs/execSafeUpdateValue'
+function eventJsonFor(schema) {
+  const eventJson = z.toJSONSchema(schema, { unrepresentable: 'any' })
+  // The update egress rule as schema, not prose (RVM80A P2-2): no prohibited
+  // sessionUpdate and no raw tool field at any depth of an update.
+  const allowedSessionUpdate = { type: 'string', not: { pattern: EXEC_PROHIBITED_UPDATE_PATTERN } }
+  eventJson.$defs = {
+    ...eventJson.$defs,
+    execSafeUpdateValue: {
+      anyOf: [
+        { type: ['string', 'number', 'boolean', 'null'] },
+        { type: 'array', items: { $ref: '#/$defs/execSafeUpdateValue' } },
+        {
+          type: 'object',
+          propertyNames: { not: { enum: [...EXEC_RAW_TOOL_FIELDS] } },
+          properties: { sessionUpdate: allowedSessionUpdate },
+          additionalProperties: { $ref: '#/$defs/execSafeUpdateValue' },
+        },
+      ],
+    },
   }
+  for (const variant of eventJson.anyOf) {
+    const type = variant.properties.type.const
+    if (type === 'result') variant.properties.result = resultJson
+    else if (type === 'update') {
+      variant.properties.update.properties.sessionUpdate = allowedSessionUpdate
+      variant.properties.update.$ref = '#/$defs/execSafeUpdateValue'
+    }
+  }
+  eventJson['x-runtime-invariants'] = [
+    'Sequence starts at 1 and grows once per event; only one result is emitted per sink.',
+    'ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).',
+    'Tool events contain name, status and durationMs only; incomplete message text is withheld whole.',
+    'Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD.',
+  ]
+  if (schema === execEventV2Schema)
+    eventJson['x-runtime-invariants'].push(
+      'Event envelope v2 adds resource events; nested exec results retain the v1 result contract. Resource events never carry process identity, commands, paths or environment.',
+    )
+  return eventJson
 }
-eventJson['x-runtime-invariants'] = [
-  'Sequence starts at 1 and grows once per event; only one result is emitted per sink.',
-  'ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).',
-  'Tool events contain name, status and durationMs only; incomplete message text is withheld whole.',
-  'Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD.',
-]
 await mkdir(path.join(root, 'docs/schemas'), { recursive: true })
-for (const [name, schema] of [
-  ['result', resultJson],
-  ['event', eventJson],
+for (const [name, version, schema] of [
+  ['result', 1, resultJson],
+  ['event', 1, eventJsonFor(execEventSchema)],
+  ['event', 2, eventJsonFor(execEventV2Schema)],
 ]) {
-  const file = path.join(root, `docs/schemas/exec-${name}-v1.schema.json`)
+  const file = path.join(root, `docs/schemas/exec-${name}-v${version}.schema.json`)
   const bytes = await format(JSON.stringify(schema), {
     ...(await resolveConfig(file)),
     filepath: file,

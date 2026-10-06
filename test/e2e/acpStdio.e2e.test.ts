@@ -221,7 +221,15 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
 
   it('prints the complete translated usage and reference hint from the installed table', () => {
     const table = z
-      .object({ acpUsage: z.string(), helpReferenceTitle: z.string() })
+      .object({
+        acpUsage: z.string(),
+        helpReferenceTitle: z.string(),
+        referenceCliOptions: z.object({
+          'resource-governor': z.string(),
+          'cpu-max': z.string(),
+          'memory-max': z.string(),
+        }),
+      })
       .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',

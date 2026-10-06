@@ -2549,6 +2549,10 @@
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceCliOptions": {
+    "json": "JSON: Kaynaklar",
+    "resource-governor": "--resource-governor on|off: Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
+    "cpu-max": "--cpu-max <percent>: Makinenin CPU kullanımı 30 saniye boyunca bu yüzdenin üzerinde kaldığında yavaşlatır.",
+    "memory-max": "--memory-max <percent>: Kullanılan bellek art arda iki örnekte bu yüzdenin üzerinde kaldığında yavaşlatır.",
     "backend": "--backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı",
     "trust-workspace": "--trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler",
     "maintenance": "init yerine Setup maintenance olayını çalıştırın.",
@@ -2577,11 +2581,7 @@
     "out": "--out <file>         Raporu stdout yerine dosyaya yaz",
     "description": "--description <text>  Neler olduğunu kendi sözlerinle anlat",
     "no-facts": "--no-facts           Destek bilgilerini çıkar",
-    "no-events": "--no-events          Son olayları çıkar",
-    "resource-governor": "--resource-governor on|off: Ajan ortamının başlattığı işi yavaşlatarak veya erteleyerek makinenin yanıt verebilirliğini korur. Varsayılan olarak açık.",
-    "cpu-max": "--cpu-max <percent>: Makinenin CPU kullanımı 30 saniye boyunca bu yüzdenin üzerinde kaldığında yavaşlatır.",
-    "memory-max": "--memory-max <percent>: Kullanılan bellek art arda iki örnekte bu yüzdenin üzerinde kaldığında yavaşlatır.",
-    "json": "JSON: Kaynaklar"
+    "no-events": "--no-events          Son olayları çıkar"
   },
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referencePopoverKeys": "Seçenekleri gezin, değeri ayarlayın, bir seçenek seçin veya menüyü kapatın.",

@@ -89,6 +89,8 @@ export const ON_FIRST_USE = [
       'src/core/resources/governor.ts',
       'src/core/resources/queue.ts',
       'src/core/resources/events.ts',
+      'src/core/resources/disk.ts',
+      'src/core/resources/createdRegistry.ts',
       'src/core/resources/sampler/system.ts',
       'src/core/resources/trees/registry.ts',
       'src/runtime/resources/entry.ts',
@@ -295,6 +297,28 @@ export function checkDeferredBundles(inputsOf) {
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
+    }
+  }
+  return problems
+}
+
+/** Resource policy is shared through one lazy governor and one admission shim. */
+export function checkResourceBundles(inputsOf, bundles) {
+  const problems = []
+  for (const bundle of bundles) {
+    const output = bundle.output.replaceAll('\\', '/')
+    for (const raw of inputsOf(bundle).keys()) {
+      const file = raw.replaceAll('\\', '/')
+      if (!file.startsWith('src/core/resources/')) continue
+      if (file === 'src/core/resources/admission.ts') {
+        if (output !== 'dist/resourceAdmission.js')
+          problems.push(`${output} duplicates resource admission`)
+      } else if (
+        output !== 'dist/resourceGovernor.js' &&
+        !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
+      ) {
+        problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
+      }
     }
   }
   return problems

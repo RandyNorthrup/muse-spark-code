@@ -164,5 +164,16 @@
   "config.judge.engine.enumDescriptions.same": "Ocenia tylko Twój własny model rozmowy; nigdy nie zmienia modelu.",
   "config.judge.engine.enumDescriptions.off": "Bez oceniającego: zatwierdzenia zachowują się dokładnie jak bez niego.",
   "command.openHelp.title": "Pomoc i informacje",
-  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP."
+  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
+  "config.resourceGovernor.description": "Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
+  "config.resourceCpuMaxPercent.description": "Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund.",
+  "config.resourceMemoryMaxPercent.description": "Ogranicza pracę, gdy pamięć w użyciu przekracza ten procent w dwóch kolejnych próbkach.",
+  "config.resourceMemoryMinFreeGiB.description": "Minimalna dostępna pamięć w GiB, ograniczona do 15% RAM tego komputera.",
+  "config.resourceGpuMaxPercent.description": "Opcjonalny limit użycia procesora graficznego w procentach. Bez wartości pomiar nie jest wykonywany.",
+  "config.resourceDiskBusyMaxPercent.description": "Opcjonalny limit zajętości dysku w procentach. Bez wartości pomiar nie jest wykonywany.",
+  "config.resourceDiskMinFreeGiB.description": "Dolny próg wolnego miejsca w GiB. Domyślnie 10 GiB lub 10% woluminu, zależnie od tego, która wartość jest mniejsza, ale co najmniej 2 GiB.",
+  "config.resourceRelocate.description": "Miejsce przenoszenia zadań zespołu i sprawdzeń z kolejki, gdy komputer jest zajęty. Nadal obowiązują dotychczasowe zgody i oferty urządzeń.",
+  "config.resourceRelocate.enumDescriptions.paired": "Używa już zatwierdzonego sparowanego urządzenia z normalnym obciążeniem zasobów.",
+  "config.resourceRelocate.enumDescriptions.ask": "Pyta przed przeniesieniem pracy z kolejki.",
+  "config.resourceRelocate.enumDescriptions.off": "Pozostawia pracę na tym komputerze."
 }

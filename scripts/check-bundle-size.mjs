@@ -15,6 +15,15 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
  */
 const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
+  // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
+  { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
+  // Resource controls/history closures (including their deferred parser and CSS) have 50 KiB caps below.
+  { path: 'dist/webview/resourceSurface.js', budgetKiB: 25 },
+  { path: 'dist/webview/resourceHistory.js', budgetKiB: 25 },
+  { path: 'dist/webview/resourceHistory.css', budgetKiB: 25 },
+  // Versioned exec event schema: 37.5 KiB +15%, rounded to 25 KiB.
+  { path: 'docs/schemas/exec-event-v2.schema.json', budgetKiB: 50 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).

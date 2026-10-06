@@ -2737,6 +2737,10 @@
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceCliOptions": {
+    "json": "JSON: Zasoby",
+    "resource-governor": "--resource-governor on|off: Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
+    "cpu-max": "--cpu-max <percent>: Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund.",
+    "memory-max": "--memory-max <percent>: Ogranicza pracę, gdy pamięć w użyciu przekracza ten procent w dwóch kolejnych próbkach.",
     "backend": "--backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API",
     "trust-workspace": "--trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu",
     "maintenance": "Uruchom zdarzenie Setup maintenance zamiast init.",
@@ -2765,11 +2769,7 @@
     "out": "--out <file>         Zapisać raport do pliku zamiast na stdout",
     "description": "--description <text>  Co się działo, własnymi słowami",
     "no-facts": "--no-facts           Pominąć dane wsparcia",
-    "no-events": "--no-events          Pominąć ostatnie zdarzenia",
-    "resource-governor": "--resource-governor on|off: Utrzymuje responsywność komputera przez spowalnianie lub odkładanie pracy uruchomionej przez środowisko agenta. Domyślnie włączone.",
-    "cpu-max": "--cpu-max <percent>: Ogranicza pracę, gdy użycie procesora przekracza ten procent przez 30 sekund.",
-    "memory-max": "--memory-max <percent>: Ogranicza pracę, gdy pamięć w użyciu przekracza ten procent w dwóch kolejnych próbkach.",
-    "json": "JSON: Zasoby"
+    "no-events": "--no-events          Pominąć ostatnie zdarzenia"
   },
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
   "referencePopoverKeys": "Przeglądaj opcje, zmień wartość, wybierz opcję albo zamknij menu.",

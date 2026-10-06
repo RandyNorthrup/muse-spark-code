@@ -164,5 +164,16 @@
   "config.judge.engine.enumDescriptions.same": "仅您自己的聊天模型评判；从不切换模型。",
   "config.judge.engine.enumDescriptions.off": "无评判器：审批与没有评判器时完全一致。",
   "command.openHelp.title": "帮助与参考",
-  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。"
+  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。",
+  "config.resourceGovernor.description": "通过减慢或延后代理运行环境启动的工作，保持此计算机响应流畅。默认开启。",
+  "config.resourceCpuMaxPercent.description": "当计算机的 CPU 使用率持续30秒超过此百分比时限速。",
+  "config.resourceMemoryMaxPercent.description": "当已用内存连续两次采样超过此百分比时限速。",
+  "config.resourceMemoryMinFreeGiB.description": "最低可用内存（GiB），最高为此计算机 RAM 的15%。",
+  "config.resourceGpuMaxPercent.description": "可选的 GPU 使用率上限（百分比）。未设置时不检测 GPU。",
+  "config.resourceDiskBusyMaxPercent.description": "可选的磁盘繁忙程度上限（百分比）。未设置时不检测磁盘。",
+  "config.resourceDiskMinFreeGiB.description": "磁盘可用空间下限（GiB）。默认值为 10 GiB 和卷容量的 10% 中较小者，但不低于 2 GiB。",
+  "config.resourceRelocate.description": "此计算机繁忙时，排队的团队任务和检查可迁移到的位置。现有的设备授权和提供条件仍然适用。",
+  "config.resourceRelocate.enumDescriptions.paired": "使用已批准配对且资源负载正常的设备。",
+  "config.resourceRelocate.enumDescriptions.ask": "迁移排队的工作前先询问。",
+  "config.resourceRelocate.enumDescriptions.off": "将工作保留在此计算机上。"
 }

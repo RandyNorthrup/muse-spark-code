@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { resourceBrowserValidation } from './lib/webviewBundles.mjs'
+import { compactNodeReference } from './lib/referenceBundle.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
@@ -212,6 +214,7 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, compactNodeReference],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
 }
@@ -523,8 +526,11 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
+  // Complete licences ship in the gated THIRD_PARTY_NOTICES, not repeated banners.
+  legalComments: isProduction ? 'none' : 'eof',
   plugins: [
     ...(isProduction ? [compactBrowserEnglish] : []),
+    resourceBrowserValidation,
     {
       name: 'reference-page',
       setup(build) {
@@ -537,7 +543,11 @@ const webviewOptions = {
     },
   ],
   charset: 'utf8',
-  entryPoints: [WEBVIEW_ENTRY],
+  entryPoints: {
+    main: WEBVIEW_ENTRY,
+    resourceSurface: 'src/webview/resources/ResourceSurface.tsx',
+    resourceHistory: 'src/webview/usage/ResourcesSection.tsx',
+  },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',

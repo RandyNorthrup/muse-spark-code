@@ -594,3 +594,37 @@ proposal before maintainer approval**. Passing tests are information, not approv
 POSIX signal e2e is skipped on Windows; argv/injected-env hashes do not establish
 full environment-block audit. Full boundaries, bounds and pending receipts are
 in [docs/ci.md](docs/ci.md) and [m80.md](docs/certification/m80.md).
+
+## Resource ownership and disk cleanup (M107 candidate)
+
+The governor narrows concurrency and defers new work; it never kills,
+suspends, raises priority above normal, requests elevation or installs a hard
+memory ceiling. Stop/cancel use the independent registered-tree API. Native
+actions require membership plus birth identity immediately before acting;
+unknown proof retains occupancy and refuses fallback signals. Windows keeps
+owned job/member handles. Linux cgroup operations use held descriptors and
+verify containment, including exclusion of the harness. Direct cgroup kills
+retain their descriptors until settlement. A harness found after freezing is
+reported as `harness_in_tree` and thawed without signalling it.
+
+Empty Linux scope removal uses a pinned parent, but the final identity read
+and `rmdir` remain two syscalls. A same-user racer can substitute an empty
+leaf between them; nonempty replacements are refused and no contents are
+recursively removed. The SDK's private shutdown ladder and native launch
+bindings require separate qualification; they are not governed actuator proof.
+
+Cleanup requires a private canonical base, recorded creation identity and
+marker, fresh tree exit and handle-confined traversal. Foreign/platform
+helpers must be trusted and missing proof refuses cleanup. Content moved into
+an already harness-created root follows the owner's stated content rule;
+replacements of the root or ancestors do not. The joined DK snapshot still
+has open re-review findings: POSIX destination overwrite during rename,
+final empty-directory substitution, and adoption of an existing empty
+creation directory. FIXM107DK4 is separately assigned to repair and certify
+these. This integration must not be released as certified cleanup until that
+repair and macOS/Windows native qualification pass.
+
+Actuator lifecycle, runtime/UI/source mounts, persisted registry discovery,
+all-volume watch targets and journal/paired-device joins are recorded as
+explicit ports in [M107](docs/certification/m107.md); no production fake fills
+them. Host-API, split, artifact-size and package gates remain required.

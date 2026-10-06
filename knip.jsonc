@@ -68,6 +68,8 @@
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
+    "src/webview/resources/ResourceSurface.tsx",
+    "src/webview/usage/ResourcesSection.tsx",
     "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",

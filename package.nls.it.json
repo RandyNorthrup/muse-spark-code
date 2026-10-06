@@ -164,5 +164,16 @@
   "config.judge.engine.enumDescriptions.same": "Solo il tuo modello di conversazione valuta; non cambia mai modello.",
   "config.judge.engine.enumDescriptions.off": "Nessun valutatore: le approvazioni si comportano esattamente come senza.",
   "command.openHelp.title": "Aiuto e riferimento",
-  "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente."
+  "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente.",
+  "config.resourceGovernor.description": "Mantiene reattiva questa macchina rallentando o rinviando il lavoro avviato dall’ambiente agente. Attivo per impostazione predefinita.",
+  "config.resourceCpuMaxPercent.description": "Limita quando l’utilizzo della CPU resta sopra questa percentuale per 30 secondi.",
+  "config.resourceMemoryMaxPercent.description": "Limita quando la memoria in uso resta sopra questa percentuale per due campioni.",
+  "config.resourceMemoryMinFreeGiB.description": "Memoria disponibile minima in GiB, limitata al 15% della RAM di questa macchina.",
+  "config.resourceGpuMaxPercent.description": "Limite facoltativo di utilizzo della GPU in percentuale. Senza un valore, la GPU non viene misurata.",
+  "config.resourceDiskBusyMaxPercent.description": "Limite facoltativo di occupazione del disco in percentuale. Senza un valore, il disco non viene misurato.",
+  "config.resourceDiskMinFreeGiB.description": "Soglia di spazio libero in GiB. Il valore predefinito è 10 GiB o il 10% del volume, il minore dei due, con un minimo di 2 GiB.",
+  "config.resourceRelocate.description": "Destinazione delle attività di squadra e dei controlli in coda quando questa macchina è occupata. Restano validi i consensi e le offerte dei dispositivi.",
+  "config.resourceRelocate.enumDescriptions.paired": "Usa un dispositivo associato già autorizzato con un carico di risorse normale.",
+  "config.resourceRelocate.enumDescriptions.ask": "Chiede prima di spostare il lavoro in coda.",
+  "config.resourceRelocate.enumDescriptions.off": "Mantiene il lavoro su questa macchina."
 }

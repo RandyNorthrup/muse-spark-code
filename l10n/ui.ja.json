@@ -2455,6 +2455,10 @@
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceCliOptions": {
+    "json": "JSON: リソース",
+    "resource-governor": "--resource-governor on|off: エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
+    "cpu-max": "--cpu-max <percent>: マシンの CPU 使用率がこの割合を30秒間超えた場合、処理を抑制します。",
+    "memory-max": "--memory-max <percent>: 使用中のメモリが2回連続の測定でこの割合を超えた場合、処理を抑制します。",
     "backend": "--backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー",
     "trust-workspace": "--trust-workspace                フォルダーのルール、スキル、メモリを読み込みます",
     "maintenance": "initの代わりにSetupのmaintenanceイベントを実行します。",
@@ -2483,11 +2487,7 @@
     "out": "--out <file>         stdoutの代わりにファイルにレポートを書き込む",
     "description": "--description <text>  何が起きていたかを自分の言葉で",
     "no-facts": "--no-facts           サポート情報を省く",
-    "no-events": "--no-events          最近のイベントを省く",
-    "resource-governor": "--resource-governor on|off: エージェント実行環境が開始した処理を遅くするか延期して、このマシンの応答性を保ちます。既定で有効です。",
-    "cpu-max": "--cpu-max <percent>: マシンの CPU 使用率がこの割合を30秒間超えた場合、処理を抑制します。",
-    "memory-max": "--memory-max <percent>: 使用中のメモリが2回連続の測定でこの割合を超えた場合、処理を抑制します。",
-    "json": "JSON: リソース"
+    "no-events": "--no-events          最近のイベントを省く"
   },
   "referenceExecImages": "ヘッドレス画像には --image-generation、acceptEdits、十分な厳格な予算が必要です。価格の確認は表示されず、許可が必要な要求は拒否されます。",
   "referencePopoverKeys": "選択肢を移動し、値を調整し、選択するか、メニューを閉じます。",

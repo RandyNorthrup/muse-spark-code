@@ -2549,6 +2549,10 @@
   "referenceAuthStatus": "Ellenőrzi, hogy van-e tárolt Model API-kulcs.",
   "referenceAuthClear": "Eltávolítja a tárolt Model API-kulcsot.",
   "referenceCliOptions": {
+    "json": "JSON: Erőforrások",
+    "resource-governor": "--resource-governor on|off: Az ügynökkörnyezet által indított munka lassításával vagy elhalasztásával megőrzi a gép válaszkészségét. Alapértelmezés szerint bekapcsolva.",
+    "cpu-max": "--cpu-max <percent>: Lassít, ha a gép CPU-használata 30 másodpercig e százalék fölött marad.",
+    "memory-max": "--memory-max <percent>: Lassít, ha a használt memória két egymást követő mérésben e százalék fölött marad.",
     "backend": "--backend museCode|modelApi      Ki fizet: a Muse Code (alapértelmezett) vagy a Model API-kulcs",
     "trust-workspace": "--trust-workspace                A mappa szabályainak, képességeinek és memóriájának betöltése",
     "maintenance": "A Setup maintenance esemény futtatása init helyett.",
@@ -2577,11 +2581,7 @@
     "out": "--out <file>         A jelentés fájlba írása stdout helyett",
     "description": "--description <text>  Mi történt, saját szavakkal",
     "no-facts": "--no-facts           A támogató tények kihagyása",
-    "no-events": "--no-events          A legutóbbi események kihagyása",
-    "resource-governor": "--resource-governor on|off: Az ügynökkörnyezet által indított munka lassításával vagy elhalasztásával megőrzi a gép válaszkészségét. Alapértelmezés szerint bekapcsolva.",
-    "cpu-max": "--cpu-max <percent>: Lassít, ha a gép CPU-használata 30 másodpercig e százalék fölött marad.",
-    "memory-max": "--memory-max <percent>: Lassít, ha a használt memória két egymást követő mérésben e százalék fölött marad.",
-    "json": "JSON: Erőforrások"
+    "no-events": "--no-events          A legutóbbi események kihagyása"
   },
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",

@@ -62,6 +62,11 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/resourceGovernor.js',
+    'dist/resourceAdmission.js',
+    'dist/webview/resourceSurface.js',
+    'dist/webview/resourceHistory.js',
+    'dist/webview/resourceHistory.css',
     'dist/validation.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
@@ -93,6 +98,11 @@ describe('VSIX packaging', () => {
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/validation.js',
+        'dist/resourceGovernor.js',
+        'dist/resourceAdmission.js',
+        'dist/webview/resourceSurface.js',
+        'dist/webview/resourceHistory.js',
+        'dist/webview/resourceHistory.css',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
         'l10n/ui.tables.json.br',

@@ -687,3 +687,28 @@ ran none of L/LA/LR, read no real credential and called no model.
   eligible diagnostics, review separately; do not bypass scanner or apply guard.
 - Registry refusal: require genuine release provenance and exact identity; a
   candidate digest or separately fetched attestation cannot satisfy LR.
+
+## Resource governor in headless runs
+
+M107 adds `--resource-governor on|off`, `--cpu-max <30–100>` and
+`--memory-max <40–98>` to the exec parser and Help reference. Omitted flags
+retain machine settings; flags override only the run. Settings use the
+runtime machine store described in the [ACP guide](acp.md#resource-status-and-resume).
+The default is on. Headless relocation is refused, and no remembered device,
+permission or paid grant is introduced.
+
+The package ships `schemas/exec-event-v2.schema.json` beside frozen
+`exec-event-v1.schema.json` and `exec-result-v1.schema.json`. The resource sink
+uses event envelope version 2 with a `resource` variant; nested results remain
+version 1. It validates the entire union, keeps the existing update-egress
+restrictions, monotonic sequence and output backpressure. The current M80
+runner still uses its v1 sink: H must bind the resource sink and active spawn
+lease before headless runs can claim those events or resource enforcement.
+Stderr resource summaries and the run ledger require the same binding.
+
+Resource events contain levels, reason codes, aggregate counts and numeric
+readings, never PID/birth identity, commands, paths, names or environment.
+Resource pressure does not delay Stop, cancel, approvals or paid admission,
+and it never kills work. Critical-volume write checks, all watched volumes,
+retained journal and native containment remain qualification handoffs in
+[M107](certification/m107.md). M80's existing live-acceptance limits still apply.

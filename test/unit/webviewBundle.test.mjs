@@ -37,6 +37,11 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
+  mkdirSync(path.join(built.fixture, 'docs/schemas'), { recursive: true })
+  cpSync(
+    'docs/schemas/exec-event-v2.schema.json',
+    path.join(built.fixture, 'docs/schemas/exec-event-v2.schema.json'),
+  )
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
 })
@@ -88,6 +93,22 @@ describe('the production webview chunks (FIX78W)', () => {
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
+  })
+
+  it('M107 keeps resource validation deferred while sharing the caller React and English fallback', () => {
+    const eager = initialOutputs()
+    const resourceParsers = Object.entries(built.outputs).filter(([, output]) =>
+      Object.keys(output.inputs).some((file) => file.startsWith('resource-validation:')),
+    )
+    expect(resourceParsers.length).toBeGreaterThan(0)
+    for (const [file] of resourceParsers) expect(eager.has(file)).toBe(false)
+    for (const prefix of ['node_modules/react/cjs/react.production.js', 'src/shared/l10n/en.ts']) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, prefix),
+      )
+      expect(owners).toHaveLength(1)
+      expect(eager.has(owners[0][0])).toBe(true)
+    }
   })
 
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {

@@ -3944,70 +3944,78 @@ results and what is still open.
 
 ## Keeping your machine responsive
 
-The resource governor is on by default and loads on the first governed launch.
-The CLI exposes `resources [status|history|resume] [--json]` and
-`usage resources [--json]`; ACP exposes `/resources`, `/resources resume`
-and `/usage resources`. Durable history and some editor bindings await the
-integration handoffs recorded in the M107 certification.
+M107's integration candidate adds one portable governor per harness process.
+It is on by default and loads on the first governed launch. It delays new
+background work when the machine is busy; running work continues. The governor
+never kills or suspends a process, never imposes a hard memory limit, and never
+controls your own terminals, editor or other applications. Model requests,
+Tab, approvals, paid consent and Stop do not wait for it. It does not change
+provider capabilities, permissions, paid consent or budgets.
+
+These settings are machine-scoped; workspace values are ignored. Settings
+names below start with `museSpark.`.
+
+| Setting                      | Default  | Range or meaning                                                                                       |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; requires the existing approved device/runner route                           |
+
+Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
+background capacity narrows to one per kind; at pause, new background work
+waits. Foreground work has a twenty-second maximum wait at pause. **Run now**
+releases that wait; **Resume now** overrides pressure for fifteen minutes,
+without turning on an explicitly disabled governor. Unknown readings are shown
+as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
+minimum dwell, so near-threshold readings do not flicker between levels.
+
+Free disk space is sampled even with the optional disk-busy probe unset.
+Disk-heavy launches wait below the floor; critical-volume writes refuse with a
+reason. The temporary-root registry confines cleanup to recorded harness roots,
+requires fresh exit and ownership proof, and retains failed-run roots for 24
+hours. Native cleanup and all-volume watch bindings still need qualification;
+the integration record names the outstanding disk review repairs.
+
+The CLI accepts `muse-spark-code-acp resources status --json` and
+`muse-spark-code-acp resources resume --json`. Status describes that command
+process, rather than another running session's queue. Resume writes the
+machine's bounded marker, read by loaded runtime hosts on their next refresh.
+`resources history` and `usage resources` report unavailable until the durable
+journal is supplied. ACP's shared command adapter provides `/resources`,
+`/resources resume` and `/usage resources` through its injected runtime port.
+See the [ACP guide](docs/acp.md#resource-status-and-resume) and
+[CI guide](docs/ci.md#resource-governor-in-headless-runs).
+
+The shared chip/popover and usage-history section ship as separate artifacts.
+Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
+M96/M96c slots and M100 paired-device dispatch remain explicit integration
+handoffs. Relocation can move only eligible queued tasks/checks, or a running
+check after explicit **Move to** and proven retirement. Pairing, offers,
+repository mapping, receiver permissions and paid consent remain required;
+headless relocation is refused. **Keep here** cancels before receiver admission.
+The [M107 integration record](docs/certification/m107.md) and
+[editor resource matrix](docs/ide-compatibility/resources.md) distinguish
+component receipts from installed-editor acceptance.
 
 ## Development
 
-M107's staged resource integration uses a shared admission shim and loads
-`dist/resourceGovernor.js` on the first governed launch. The window's shell,
-check, MCP, hook, browser, Git, voice/recording and Muse Code adapters share it; Model API
-attempts, children and scheduled runs carry background admission. Windows
-jobs preserve the browser's CDP pipes and retain a query handle until the
-whole job is empty. Short CLI commands and plugin runtime probes share
-admission and native registration. Queued user turns retain the foreground
-20-second bound; each schedule owns its lease by id and generation.
-Muse Code inherits the SDK's stdio directly, and closing it stops its registered
-Windows members through retained birth-checked handles within a bounded shutdown. A forced stop or missing exit proof
-is reported explicitly, with session handles still disposed. Holder failure
-retains unknown work. Missing native identity proof remains
-unknown. Registered shell, MCP, browser, Git, voice and plugin stops use the
-same verified tree API, including cleanup after root exit; a refused stop
-never falls back to a bare process or job kill. The shared resource surface
-and runtime/ACP/headless command modules are now joined. The runtime factory
-shares the lazy governor artifact, which is included in ACP packaging.
-The remaining lanes supply actuator lifecycle bindings, routing, durable
-history, active runtime spawn wiring and final editor delivery; see
-[round-3 certification](docs/certification/m107-int.md).
+Resource admission is shared through `dist/resourceAdmission.js`; sampler,
+queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+The controls and history have their own closure budgets, including history CSS,
+without raising the 900 KiB startup or original 50 KiB deferred caps. The split
+and packaging gates cover both VSIX and ACP delivery. See
+[W's gate-fire record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
 
-The staged CLI accepts `muse-spark-code-acp resources status --json` and
-`muse-spark-code-acp resources resume --json`. Status samples the new command
-process; it does not inspect another running session's queue. Resume writes
-the machine's bounded fifteen-minute marker, which loaded runtime hosts read
-on their next refresh; an explicitly disabled governor stays off. Resource
-history currently reports unavailable until its retained journal is bound.
 After a production build, `node test/e2e/webviewDiet.mjs` checks optional UI
 surfaces in Chrome against a fake host: no startup requests, first-use loading
-under the shared CSP, and recovery from actual failed entry/static-dependency
-fetches. Retry reloads the panel with its saved conversation and draft. Cold
-menus remain dismissible and cannot take focus after dismissal.
-unknown. Per-tree temp roots use private-base confinement, ownership markers
-and quarantine cleanup. Linux walks held directory fds; macOS and Windows
-use their native helpers with relative directory handles. Cleanup refuses
-missing stored identity or marker hash, different-device directories and Linux
-mount boundaries (including same-device bind mounts), never
-follows symlinks, and removes the final trash entry empty-only. Creation must
-open an empty directory owned by the user; registration cannot adopt an existing
-folder. Content moved into an already harness-created root counts as that
-root's content. Public manifests are refused, and cleanup requires fresh exit
-proof after reload. Missing native helpers refuse allocation and cleanup. Checkpoint
-Git checks its storage volume and bypasses temp pressure without allocating a
-temp root. Admission cancellation does not wait for sampling, stalled statfs
-is reported unknown, and failed Muse exits retain roots for 24 hours.
-The remaining milestone lanes supply actions, routing, UI, runtime
-wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
-
-J's staged history components merge cumulative minute snapshots after read-time
-flushes and final tree accounting. They reject unrenderable dates and keep detail
-for the latest seven recorded days (at most 10,080 minute segments) and the latest
-1,000 events, evicting oldest entries first. The shared usage section pages its
-charts and tables in groups of 60; work and event totals include all retained
-journal records. The same validated aggregate feeds the portable text summary.
-The durable journal, usage-page mount and text-command bindings remain the M102
-integration handoff; see [J's certification](docs/certification/m107-j-journal-and-the-usage-page.md).
+under the shared CSP, and recovery from failed entry/static-dependency fetches.
+Retry reloads the panel with its saved conversation and draft. Cold menus remain
+dismissible and cannot take focus after dismissal.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's

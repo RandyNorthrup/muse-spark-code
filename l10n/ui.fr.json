@@ -2643,6 +2643,10 @@
   "referenceAuthStatus": "Vérifier si une clé Model API est enregistrée.",
   "referenceAuthClear": "Supprimer la clé Model API enregistrée.",
   "referenceCliOptions": {
+    "json": "JSON: Ressources",
+    "resource-governor": "--resource-governor on|off: Préserve la réactivité de cette machine en ralentissant ou en différant le travail lancé par l’environnement d’agent. Activé par défaut.",
+    "cpu-max": "--cpu-max <percent>: Ralentit lorsque l’utilisation du processeur reste au-dessus de ce pourcentage pendant 30 secondes.",
+    "memory-max": "--memory-max <percent>: Ralentit lorsque la mémoire utilisée reste au-dessus de ce pourcentage pendant deux mesures.",
     "backend": "--backend museCode|modelApi      Qui paie : Muse Code (par défaut) ou la clé Model API",
     "trust-workspace": "--trust-workspace                Charger les règles, les compétences et la mémoire du dossier",
     "maintenance": "Exécuter l’événement Setup maintenance au lieu de init.",
@@ -2671,11 +2675,7 @@
     "out": "--out <file>         Écrire le rapport dans un fichier plutôt que sur stdout",
     "description": "--description <text>  Ce qui se passait, avec vos mots",
     "no-facts": "--no-facts           Omettre les informations de support",
-    "no-events": "--no-events          Omettre les événements récents",
-    "resource-governor": "--resource-governor on|off: Préserve la réactivité de cette machine en ralentissant ou en différant le travail lancé par l’environnement d’agent. Activé par défaut.",
-    "cpu-max": "--cpu-max <percent>: Ralentit lorsque l’utilisation du processeur reste au-dessus de ce pourcentage pendant 30 secondes.",
-    "memory-max": "--memory-max <percent>: Ralentit lorsque la mémoire utilisée reste au-dessus de ce pourcentage pendant deux mesures.",
-    "json": "JSON: Ressources"
+    "no-events": "--no-events          Omettre les événements récents"
   },
   "referenceExecImages": "Les images sans interface exigent --image-generation, acceptEdits et un budget strict suffisant. Aucune confirmation du prix ; les demandes nécessitant une autorisation sont refusées.",
   "referencePopoverKeys": "Parcourir les options, ajuster une valeur, choisir une option ou fermer le menu.",

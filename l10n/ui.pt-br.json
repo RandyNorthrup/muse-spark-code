@@ -2643,6 +2643,10 @@
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceCliOptions": {
+    "json": "JSON: Recursos",
+    "resource-governor": "--resource-governor on|off: Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
+    "cpu-max": "--cpu-max <percent>: Limita quando o uso da CPU permanece acima desta porcentagem por 30 segundos.",
+    "memory-max": "--memory-max <percent>: Limita quando a memória em uso permanece acima desta porcentagem por duas amostras.",
     "backend": "--backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API",
     "trust-workspace": "--trust-workspace                Carregar as regras, as skills e a memória da pasta",
     "maintenance": "Executar o evento Setup maintenance em vez de init.",
@@ -2671,11 +2675,7 @@
     "out": "--out <file>         Gravar o relatório em um arquivo em vez de stdout",
     "description": "--description <text>  O que estava acontecendo, com suas palavras",
     "no-facts": "--no-facts           Omitir os dados de suporte",
-    "no-events": "--no-events          Omitir os eventos recentes",
-    "resource-governor": "--resource-governor on|off: Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
-    "cpu-max": "--cpu-max <percent>: Limita quando o uso da CPU permanece acima desta porcentagem por 30 segundos.",
-    "memory-max": "--memory-max <percent>: Limita quando a memória em uso permanece acima desta porcentagem por duas amostras.",
-    "json": "JSON: Recursos"
+    "no-events": "--no-events          Omitir os eventos recentes"
   },
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
   "referencePopoverKeys": "Percorrer opções, ajustar um valor, escolher uma opção ou fechar o menu.",

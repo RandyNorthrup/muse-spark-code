@@ -865,3 +865,29 @@ Lanes A to D are integrated and the live receipt LA passed on 2026-10-05; L and
 LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.
+
+## Resource governor (M107 integration candidate)
+
+Machine readings and thresholds stay in the harness process. Tree identity
+(PID and birth, job/cgroup/group membership) exists only for local ownership
+proof; resource status, events and history schemas exclude it. The governor
+neither inspects command lines nor inventories the person's own processes.
+Ordinary existing child environment/credential filtering is preserved.
+
+The optional retained journal is a separate M102 binding: per-minute CPU and
+memory percentages, available-memory buckets, optional GPU/disk readings,
+level, configured thresholds, aggregate counts by kind, override events,
+CPU-seconds and peak memory. No process identities, commands, paths, process
+names or environment go into its records. The shared history section and
+portable text summary validate the same aggregates; no durable resource
+journal is installed by this W join. M102 consent, retention, scoped reads and
+rollups must be applied before persistence.
+
+Relocation's planned peer status is only `level` and the headroom bucket
+`ample`, `some` or `none`. It does not send raw machine readings, processes or
+paths. A dispatch still uses the user's approved pairing, repository mapping,
+base snapshot and receiver permission/paid consent. Resource policy creates no
+new network authorization. Local disk watch paths and temporary-root manifests
+are ownership evidence; public status/history exposes no path. Disk cleanup
+review and installed-host acceptance remain open in
+[M107's record](certification/m107.md).

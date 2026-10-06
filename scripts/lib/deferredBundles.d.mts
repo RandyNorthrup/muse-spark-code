@@ -21,6 +21,10 @@ export const ON_FIRST_USE: readonly DeferredBundle[]
 export function checkDeferredBundles(
   inputsOf: (bundle: Bundle) => ReadonlyMap<string, number>,
 ): string[]
+export function checkResourceBundles(
+  inputsOf: (bundle: Bundle) => ReadonlyMap<string, number>,
+  bundles: readonly Bundle[],
+): string[]
 export const sharedUiText: Plugin
 export const sharedResourceAdmission: Plugin
 export const sharedWire: Plugin
