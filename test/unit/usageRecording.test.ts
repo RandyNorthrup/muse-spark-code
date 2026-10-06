@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -7,9 +9,12 @@ import {
   type UsageRecording,
   type RecordedCall,
 } from '../../src/core/usage/recording'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { PaidUsage } from '../../src/core/paid/paidFeatures'
+import { MODEL_API_CLOSE_SETTLE_MS, PAID_PRICES_USD } from '../../src/shared/constants'
+import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
+import { memorySessionStore } from './helpers/fakeSessionStore'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
@@ -38,7 +43,12 @@ function writer(): UsageWriter {
     flush: vi.fn().mockResolvedValue(undefined),
   }
 }
-async function hostRun(isRecording: boolean, isSideChat = false, hasSubagents = false) {
+async function hostRun(
+  isRecording: boolean,
+  isSideChat = false,
+  hasSubagents = false,
+  overrides: Partial<ModelApiHostDeps> = {},
+) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const tap = recording()
@@ -55,6 +65,7 @@ async function hostRun(isRecording: boolean, isSideChat = false, hasSubagents = 
       isPaidFeatureOn: (feature) => feature === 'subagents',
       allowsPaidUse: () => Promise.resolve(true),
     }),
+    ...overrides,
   })
   const session = await host.startSession({
     workspaceRoot: '/workspace',
@@ -121,6 +132,107 @@ describe('recording taps', () => {
     await expect(port.flush()).resolves.toBeUndefined()
     expect(log.warn).toHaveBeenCalledOnce()
   })
+  it('bounds a shutdown flush even when loading the writer never finishes', async () => {
+    vi.useFakeTimers()
+    const log = new FakeLogOutputChannel()
+    const held = Promise.withResolvers<UsageWriter>()
+    const journal = writer()
+    const port = createUsageRecording({
+      client: 'cli',
+      now: () => 100,
+      newId: () => 'record',
+      isEnabled: () => true,
+      writer: () => held.promise,
+      log,
+    })
+    try {
+      port.note(undefined, call)
+      const flushed = port.flush()
+      let hasFlushed = false
+      void flushed.then(() => {
+        hasFlushed = true
+      })
+      await vi.advanceTimersByTimeAsync(MODEL_API_CLOSE_SETTLE_MS - 1)
+      expect(hasFlushed).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      await flushed
+      expect(hasFlushed).toBe(true)
+      expect(log.warn).toHaveBeenCalledExactlyOnceWith('Usage history could not be recorded')
+      held.resolve(journal)
+      await port.flush()
+      expect(journal.noteUsage).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      held.resolve(journal)
+      vi.useRealTimers()
+    }
+  })
+  it.each([false, true])(
+    'deactivation joins the final usage write after backend shutdown (failure %s)',
+    async (failsShutdown) => {
+      const journal = writer()
+      const held = Promise.withResolvers<undefined>()
+      vi.mocked(journal.flush).mockReturnValue(held.promise)
+      const port = createUsageRecording({
+        client: 'VS Code',
+        now: () => 100,
+        newId: () => 'record',
+        isEnabled: () => true,
+        writer: () => Promise.resolve(journal),
+        log: new FakeLogOutputChannel(),
+      })
+      const source = readFileSync(new URL('../../src/extension.ts', import.meta.url), 'utf8')
+      const start = source.indexOf('  lifecycle.shutdown = async () => {')
+      const end = source.indexOf('\n  }\n', start)
+      const deactivate =
+        /export async function deactivate\(\): Promise<void> \{([\s\S]*?)\n\}/.exec(source)?.[1]
+      expect(start).toBeGreaterThan(-1)
+      expect(end).toBeGreaterThan(start)
+      expect(deactivate).toBeDefined()
+      const done = Promise.withResolvers<undefined>()
+      let hasFinished = false
+      const result = (async () => {
+        try {
+          await done.promise
+          return undefined
+        } catch (error: unknown) {
+          return error
+        } finally {
+          hasFinished = true
+        }
+      })()
+      const failure = new Error('shutdown failed')
+      const restartBackend = vi.fn().mockImplementation(() => {
+        port.note({ input_tokens: 100 }, call)
+        return failsShutdown ? Promise.reject(failure) : Promise.resolve()
+      })
+      runInNewContext(
+        `${source.slice(start, end + '\n  }'.length)}; (async () => {${deactivate ?? ''}})().then(resolve, reject)`,
+        {
+          lifecycle: {},
+          nativeStarts: { abort: vi.fn() },
+          accountHosts: { close: vi.fn() },
+          auth: { stopSignIn: vi.fn().mockResolvedValue(undefined) },
+          restartBackend,
+          usageRecording: port,
+          resolve: done.resolve,
+          reject: done.reject,
+        },
+      )
+      try {
+        await vi.waitFor(() => {
+          expect(journal.flush).toHaveBeenCalledOnce()
+        })
+        expect(restartBackend).toHaveBeenCalledExactlyOnceWith('the window is closing', true)
+        expect(journal.noteUsage).toHaveBeenCalledOnce()
+        expect(hasFinished).toBe(false)
+      } finally {
+        held.resolve(undefined)
+      }
+      expect(await result).toBe(failsShutdown ? failure : undefined)
+      expect(hasFinished).toBe(true)
+    },
+  )
   it('history off never loads or writes the journal', async () => {
     const load = vi.fn().mockResolvedValue(writer())
     const port = createUsageRecording({
@@ -305,16 +417,22 @@ describe('recording taps', () => {
   it.each(['refusal', 'success'] as const)(
     'retains earlier HTTP billing uncertainty after retry %s',
     async (ending) => {
-      const run = await hostRun(true)
-      run.api.script(
-        { httpError: { status: 500 } },
-        ending === 'refusal' ? { httpError: { status: 400 } } : { text: 'answer' },
-      )
-      await run.session.sendTurn([{ type: 'text', text: 'hello' }])
-      await run.turns.turnDone()
+      const run = await retryRun(ending)
       expect(run.api.responseBodies()).toHaveLength(2)
       expect(run.tap.note).toHaveBeenCalledOnce()
       expect(run.tap.note.mock.calls[0]?.[1]).toMatchObject({ uncertain: true, retries: 1 })
+      await run.host.close()
+    },
+  )
+  it.each(['refusal', 'success'] as const)(
+    'retains reserved worst-case liability through retry %s',
+    async (ending) => {
+      const run = await retryRun(ending, true)
+      expect(run.api.responseBodies()).toHaveLength(2)
+      expect(run.tap.note).toHaveBeenCalledOnce()
+      const context = run.tap.note.mock.calls[0]?.[1]
+      expect(context?.uncertain).toBe(true)
+      expect(context?.retainedLiabilityUsd).toBeGreaterThan(0)
       await run.host.close()
     },
   )
@@ -326,6 +444,73 @@ describe('recording taps', () => {
     expect(run.tap.note.mock.calls[0]?.[1]).toMatchObject({ uncertain: false, retries: 1 })
     await run.host.close()
   })
+  it.each(['lost response', 'returned image', 'refused image'] as const)(
+    'records interactive image billing honestly for %s',
+    async (scenario) => {
+      const api = fakeModelApi()
+      const tap = recording()
+      const log = new FakeLogOutputChannel()
+      const paid = new PaidUsage(log, tap)
+      const host = new ModelApiHost({
+        ...fakeModelApiHostDeps({
+          client: fakeModelApiClient(api, log),
+          workspaceRoot: '/workspace',
+          io: memoryToolIo({}, '/workspace'),
+          log,
+        }),
+        usageRecording: tap,
+        isPaidFeatureOn: (feature) => feature === 'imageGeneration',
+        allowsPaidUse: () => Promise.resolve(true),
+        notePaidUse: (feature, units) => {
+          paid.add(feature, units)
+        },
+      })
+      const session = await host.startSession({
+        workspaceRoot: '/workspace',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'allowAll',
+      })
+      const turns = watchSessionTurns(session)
+      const imageError =
+        scenario === 'refused image' ? { httpError: { status: 400, message: 'refused' } } : {}
+      api.images.push(
+        scenario === 'lost response' ? { networkError: 'lost connection' } : imageError,
+      )
+      api.script(
+        {
+          calls: [
+            {
+              name: 'generate_image',
+              arguments: '{"prompt":"draw","path":"picture.png"}',
+              callId: 'image-call',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'draw' }])
+      await turns.turnDone()
+      const images = tap.note.mock.calls.filter(([, context]) => context.kind === 'image')
+      expect(api.imageBodies()).toHaveLength(1)
+      if (scenario === 'refused image') {
+        expect(images).toHaveLength(0)
+      } else {
+        expect(images).toHaveLength(1)
+        expect(images[0]?.[1]).toMatchObject({
+          units: { images: 1 },
+          outcome: scenario === 'lost response' ? 'failed' : 'completed',
+        })
+        if (scenario === 'lost response')
+          expect(images[0]?.[1]).toMatchObject({
+            uncertain: true,
+            retainedLiabilityUsd: PAID_PRICES_USD.imageGeneration,
+            session: session.sessionId,
+          })
+      }
+      expect(paid.current.images).toBe(scenario === 'returned image' ? 1 : 0)
+      await host.close()
+    },
+  )
   it('records a 429 snapshot even without a reported limit header', async () => {
     const run = await hostRun(true)
     run.api.script({ httpError: { status: 429 } }, { text: 'answer' })
@@ -420,4 +605,20 @@ async function answer(run: Awaited<ReturnType<typeof hostRun>>): Promise<void> {
   run.api.script({ text: 'answer' })
   await run.session.sendTurn([{ type: 'text', text: 'hello' }])
   await run.turns.turnDone()
+}
+
+async function retryRun(ending: 'refusal' | 'success', hasReservation = false) {
+  const run = await hostRun(
+    true,
+    false,
+    false,
+    hasReservation ? { store: memorySessionStore() } : {},
+  )
+  run.api.script(
+    { httpError: { status: 500 } },
+    ending === 'refusal' ? { httpError: { status: 400 } } : { text: 'answer' },
+  )
+  await run.session.sendTurn([{ type: 'text', text: 'hello' }])
+  await run.turns.turnDone()
+  return run
 }

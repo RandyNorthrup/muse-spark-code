@@ -1,3 +1,4 @@
+import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -380,6 +381,8 @@ import {
 export interface ModelApiPaidHooks {
   readonly usageRecording?: UsageRecording | undefined
   readonly usageKind?: RecordedCall['kind'] | undefined
+  /** Headless records paid attempts through its transport settlement tap. */
+  readonly hasExternalPaidRecording?: boolean | undefined
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
@@ -4770,6 +4773,7 @@ export class ModelApiSession implements AgentSession {
     const goalRevision = this.goalCommandRevision
     const isTrusted = this.deps.isWorkspaceTrusted()
     const imageState = { isSent: false, isBilled: false }
+    let startedAt: number | undefined
     let isRefused = false
     let hasReturned = false
     let egressRefusal: ToolOutcome | undefined
@@ -4815,6 +4819,7 @@ export class ModelApiSession implements AgentSession {
           {
             onRequestStarted: () => {
               imageState.isSent = true
+              startedAt ??= this.deps.now()
             },
           },
         ),
@@ -4836,6 +4841,21 @@ export class ModelApiSession implements AgentSession {
     } finally {
       const charged =
         imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
+      if (
+        startedAt !== undefined &&
+        this.deps.hasExternalPaidRecording !== true &&
+        !imageState.isBilled &&
+        charged > 0
+      ) {
+        recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
+          session: this.sessionId,
+          startedAt,
+          durationMs: Math.max(0, this.deps.now() - startedAt),
+          outcome: signal.aborted ? 'cancelled' : 'failed',
+          uncertain: true,
+          retainedLiabilityUsd: charged,
+        })
+      }
       this.budgetSpentUsd += charged
       if (imageState.isBilled) {
         this.turnCostUsd += charged

@@ -11,7 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Usage recording retains earlier uncertain billing after HTTP retries and
   journals Muse Code's reported tokens before a turn completes, preserving
-  those counts if its process exits early.
+  those counts if its process exits early. Sent image calls with lost responses
+  retain uncertain reserved costs, ACP records paid tools through the shared
+  producer, and deactivation awaits a bounded final journal flush.
 
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every

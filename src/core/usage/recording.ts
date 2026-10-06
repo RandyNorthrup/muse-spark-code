@@ -3,7 +3,7 @@ import type { Usage } from '../backends/modelapi/schemas'
 import type { ModelPricing } from '../providers/priceCard'
 import type { CoreLogger } from '../logging'
 import type { UsageJournalEntry, UsageRecord, UsageLimitSnapshot } from '../../shared/usageJournal'
-import { USAGE_JOURNAL_VERSION } from '../../shared/constants'
+import { MODEL_API_CLOSE_SETTLE_MS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
 
 export type RecordedCall = Omit<
   UsageRecord,
@@ -132,14 +132,29 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
       }
     },
     async flush() {
-      await pending
-      if (writer !== undefined) {
-        try {
-          const journal = await writer
-          await journal.flush()
-        } catch {
-          report()
-        }
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        await Promise.race([
+          (async () => {
+            await pending
+            if (writer !== undefined) {
+              try {
+                const journal = await writer
+                await journal.flush()
+              } catch {
+                report()
+              }
+            }
+          })(),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(() => {
+              report()
+              resolve()
+            }, MODEL_API_CLOSE_SETTLE_MS)
+          }),
+        ])
+      } finally {
+        clearTimeout(timer)
       }
     },
   }

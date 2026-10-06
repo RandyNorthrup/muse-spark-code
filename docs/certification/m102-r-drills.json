@@ -677,5 +677,142 @@
       "sha256": "024975ba2c0cb339168b0b011f4116a41ba3bb5ede7fc6d2e1365a47c7a91d0b",
       "seconds": 3.95
     }
+  ],
+  "reviewRepairs": [
+    {
+      "guard": "retry-uncertainty",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > retains earlier HTTP billing uncertainty after retry refusal",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > retains earlier HTTP billing uncertainty after retry success"
+      ],
+      "sha256": "0fd92ae511712f99772abe593eae5b89317cba12785ce2d2be34ab4b78da08db"
+    },
+    {
+      "guard": "muse-per-event",
+      "file": "src/core/backends/musecode/MuseCodeHost.ts",
+      "test": "test/unit/museUsageDeltas.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > journals each reported delta immediately and ignores duplicate completion",
+        "FAIL  test/unit/museUsageDeltas.test.ts > Muse Code journal deltas > keeps reported tokens when Muse Code exits before turn completion"
+      ],
+      "sha256": "13efd86d6251fb0c322b8110788356812368a3a8f74bc9c3d6f9b4a8e97f953c"
+    },
+    {
+      "guard": "sent-image-record",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records interactive image billing honestly for lost response"
+      ],
+      "sha256": "e08ccd7aa044a2e455c13ed9d46e17ca11f2166794e29bc0d54d84ffbcb726f6"
+    },
+    {
+      "guard": "sent-image-liability",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records interactive image billing honestly for lost response"
+      ],
+      "sha256": "e08ccd7aa044a2e455c13ed9d46e17ca11f2166794e29bc0d54d84ffbcb726f6"
+    },
+    {
+      "guard": "acp-paid-producer",
+      "file": "src/runtime/backends.ts",
+      "test": "test/unit/acpRuntime.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/acpRuntime.test.ts > createRuntimeBackend > records ordinary ACP imageGeneration through the shared paid producer",
+        "FAIL  test/unit/acpRuntime.test.ts > createRuntimeBackend > records ordinary ACP webSearch through the shared paid producer"
+      ],
+      "sha256": "30760600999246ce65665860fd958d305e0e5cf719988a0ee5409ab02e2f90c1"
+    },
+    {
+      "guard": "deactivate-await",
+      "file": "src/extension.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > deactivation joins the final usage write after backend shutdown (failure false)",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > deactivation joins the final usage write after backend shutdown (failure true)"
+      ],
+      "sha256": "164ed317cb805a9009992166c036761e995a88ebe9ebe337786833ac8cde22ad"
+    },
+    {
+      "guard": "flush-bound",
+      "file": "src/core/usage/recording.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > bounds a shutdown flush even when loading the writer never finishes"
+      ],
+      "sha256": "172fa4182335159cafe60ba473e047403d2cf8030a3e2d301b3d39e2108aac4f"
+    },
+    {
+      "guard": "headless-image-no-duplicate",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/execRun.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/execRun.test.ts > M80 real runtime \u2192 ACP \u2192 manager \u2192 client \u2192 tools > P5/P6 image HTTP 500 retains uncertainty with rate-limit-only retries"
+      ],
+      "sha256": "e08ccd7aa044a2e455c13ed9d46e17ca11f2166794e29bc0d54d84ffbcb726f6"
+    },
+    {
+      "guard": "restore-unknown-image",
+      "file": "src/core/paid/paidFeatures.ts",
+      "test": "test/unit/usageRecordingAux.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecordingAux.test.ts > auxiliary recording > restores returned images without treating unknown sent outcomes as returned"
+      ],
+      "sha256": "abf0874dea384ea02daf0b3912d87ce273d610967c913100350f8256f8578e62"
+    },
+    {
+      "guard": "successful-retry-liability",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > retains reserved worst-case liability through retry success"
+      ],
+      "sha256": "4c42b63297bc11ecbbed1b6ceb17272b1b32b2fb00ecd43114cfe5ba898db8cb"
+    },
+    {
+      "guard": "final-sent-image-record",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records interactive image billing honestly for lost response"
+      ],
+      "sha256": "433c3bca67fe144fbee967e1da7db3427b5e6c87cf0cd771ffce2393b971d9f7"
+    },
+    {
+      "guard": "final-sent-image-liability",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > records interactive image billing honestly for lost response"
+      ],
+      "sha256": "433c3bca67fe144fbee967e1da7db3427b5e6c87cf0cd771ffce2393b971d9f7"
+    },
+    {
+      "guard": "final-deactivate-await",
+      "file": "src/extension.ts",
+      "test": "test/unit/usageRecording.test.ts",
+      "exit": 1,
+      "failures": [
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > deactivation joins the final usage write after backend shutdown (failure false)",
+        "FAIL  test/unit/usageRecording.test.ts > recording taps > deactivation joins the final usage write after backend shutdown (failure true)"
+      ],
+      "sha256": "164ed317cb805a9009992166c036761e995a88ebe9ebe337786833ac8cde22ad"
+    }
   ]
 }

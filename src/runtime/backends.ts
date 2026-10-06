@@ -23,6 +23,8 @@ import { memoryDataRoot } from '../core/memory/memoryLocation'
 import { MemoryStore } from '../core/memory/memoryStore'
 import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
+import { recordPaidUse } from '../core/paid/paidFeatures'
+import type { UsageRecording } from '../core/usage/recording'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -70,6 +72,7 @@ export interface ExecRuntimeOptions {
 }
 
 export interface RuntimeBackendDeps {
+  readonly usageRecording?: UsageRecording | undefined
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -242,6 +245,8 @@ function modelApiManager(
         }
   return new ModelApiBackendManager({
     log,
+    usageRecording: deps.usageRecording,
+    hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: () => credentials.getApiKey(),
     workspaceRoot,
     sessionWorkspaceRoot: storedWorkspaceRoot,
@@ -290,6 +295,10 @@ function modelApiManager(
     isPaidFeatureOn: (feature) => paid.isOn(feature),
     notePaidUse: (feature, units) => {
       paid.noteUse(feature, units)
+      // Headless image settlement has its own per-attempt tap in runExec.
+      if (deps.exec === undefined) {
+        recordPaidUse(deps.usageRecording ?? ModelApiBackendManager.usageRecording, feature, units)
+      }
     },
     // The panel's default (M56); the agent has no setting for the longer retention.
     promptCacheRetention: () => SETTING_DEFAULTS.modelApiPromptCacheRetention,
