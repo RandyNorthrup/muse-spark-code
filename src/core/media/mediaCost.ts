@@ -378,7 +378,7 @@ export class MediaContributorConsent {
           choices: MEDIA_CONTRIBUTOR_CHOICES,
         }),
       )
-      if (choice === 'send' && !request.isScreenRecording) this.allowed.add(request.conversationId)
+      if (choice === 'send' && request.contributor) this.allowed.add(request.conversationId)
       return choice
     }
     if (request.isScreenRecording) return await decide()

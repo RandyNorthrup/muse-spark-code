@@ -7,10 +7,11 @@
 // request that the reported one did not carry, counted at one token per
 // UTF-8 byte. A byte-level tokenizer never makes a token of less than one
 // byte, and the parts are counted with their JSON around them, so for text
-// the estimate is above the real count; images and files count at their
-// encoded size, far above theirs. A part the reported request carried and
-// this one does not (a compaction, older media left out) is never
-// subtracted, so a removal can only raise the estimate. `max_output_tokens`
+// the estimate is above the real count. M105 media parts instead carry a
+// calibrated upper bound: encoded size is never their token count. A part
+// the reported request carried and this one does not (a compaction, older
+// media left out) is never subtracted, so a removal can only raise the
+// estimate. `max_output_tokens`
 // is then set so that input plus output at list price fits what is left; a
 // request that cannot fit is not sent.
 //
@@ -38,6 +39,13 @@ export interface BudgetBase {
   readonly inputTokens: number
   /** Each part it carried, by digest, with how many times. */
   readonly parts: ReadonlyMap<string, number>
+}
+
+/** A detached media part from the builder: metadata digest and calibrated tokens. */
+export interface BudgetMediaPart {
+  /** Stable metadata only, never base64 or a file's bytes. Text stays a separate part. */
+  readonly mediaIdentity: string
+  readonly upperBoundInputTokens: number
 }
 
 /** A request's estimated input, and its parts: the base once its usage is reported. */
@@ -127,25 +135,40 @@ export function requestParts(
  * parts it did not carry.
  */
 export function estimateInput(
-  parts: readonly string[],
+  parts: readonly (string | BudgetMediaPart)[],
   base: BudgetBase | undefined,
 ): InputEstimate {
   const own = new Map<string, number>()
   const unmatched = new Map(base?.parts)
   let addedBytes = 0
+  let mediaTokens = 0
   for (const part of parts) {
-    const digest = createHash(PART_DIGEST).update(part).digest('hex')
+    const media = typeof part === 'string' ? undefined : part
+    if (media !== undefined) {
+      if (!Number.isSafeInteger(media.upperBoundInputTokens) || media.upperBoundInputTokens < 0)
+        throw new Error('Media budget needs a validated calibrated upper bound')
+      // Reported input may include old media, but the count route does not.
+      // Keep the base whole and reserve media on every round, including replay.
+      mediaTokens += media.upperBoundInputTokens
+    }
+    const serialized = typeof part === 'string' ? part : part.mediaIdentity
+    const digest = createHash(PART_DIGEST)
+      .update(media === undefined ? '' : 'media:')
+      .update(serialized)
+      .digest('hex')
     own.set(digest, (own.get(digest) ?? 0) + 1)
     const left = unmatched.get(digest) ?? 0
     if (left > 0) {
       unmatched.set(digest, left - 1)
-    } else {
-      addedBytes += Buffer.byteLength(part)
+    } else if (media === undefined) {
+      addedBytes += Buffer.byteLength(serialized)
     }
   }
   return {
     inputTokens:
-      (base?.inputTokens ?? 0) + Math.ceil(addedBytes / SESSION_BUDGET_MIN_BYTES_PER_TOKEN),
+      (base?.inputTokens ?? 0) +
+      Math.ceil(addedBytes / SESSION_BUDGET_MIN_BYTES_PER_TOKEN) +
+      mediaTokens,
     parts: own,
   }
 }

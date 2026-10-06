@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto'
 import type { PaidFeature } from '../../../shared/constants'
 import type { SessionBudgetClaim } from './sessionBudget'
+import type { MediaRequestAccounting } from '../../media/mediaCost'
 
 import {
   MODEL_API_MAX_RETRIES,
@@ -214,6 +215,8 @@ export interface ConfirmedModelRequest {
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
+  /** M105: pre-reserved media claims, bound by the media request builder. */
+  readonly mediaAccounting?: MediaRequestAccounting
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
@@ -315,7 +318,10 @@ export class ModelApiClient {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): Promise<Response> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
+    const isRateLimitOnly =
+      init.retries === 'rateLimitOnly' ||
+      init.paid !== undefined ||
+      admitAttempt?.mediaAccounting !== undefined
     const fixedHeaders =
       admitAttempt === undefined && confirmed === undefined ? await this.headers() : undefined
     const url = `${this.deps.baseUrl}${path}`
@@ -361,6 +367,7 @@ export class ModelApiClient {
         if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         init.paid.claim.check(0)
       }
+      admitAttempt?.mediaAccounting?.check()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -378,6 +385,7 @@ export class ModelApiClient {
       confirmed?.onRequestStarted()
       admitAttempt?.onRequestStarted?.()
       if (init.paid !== undefined) init.paid.isSent = true
+      admitAttempt?.mediaAccounting?.started()
       let response: Response
       try {
         response = await this.deps.fetch(url, requestInit)
@@ -412,6 +420,8 @@ export class ModelApiClient {
         return response
       }
       const failure = await describeFailure(response)
+      if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+        admitAttempt?.mediaAccounting?.refused()
       if (
         init.paid !== undefined &&
         (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
@@ -550,6 +560,7 @@ export class ModelApiClient {
       confirmed !== undefined &&
       (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
     ) {
+      await admitAttempt?.mediaAccounting?.finish()
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
     // Nothing from the server for this long, headers or a frame, ends the
@@ -574,17 +585,24 @@ export class ModelApiClient {
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
-    const claim =
-      feature === undefined
-        ? undefined
-        : await this.deps.reservePaidRequest?.(
-            body,
-            feature,
-            admitAttempt?.paidEstimatedInputTokens,
-            signal,
-          )
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    let paid: { claim: SessionBudgetClaim; isSent: boolean } | undefined
     try {
+      const media = admitAttempt?.mediaAccounting
+      if (
+        media !== undefined &&
+        (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
+      )
+        throw new Error('Media reservation does not match this request')
+      const claim =
+        feature === undefined
+          ? undefined
+          : await this.deps.reservePaidRequest?.(
+              body,
+              feature,
+              admitAttempt?.paidEstimatedInputTokens,
+              signal,
+            )
+      paid = claim === undefined ? undefined : { claim, isSent: false }
       const response = await within(
         this.request(
           '/responses',
@@ -633,7 +651,7 @@ export class ModelApiClient {
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
             if (
-              claim !== undefined &&
+              (claim !== undefined || admitAttempt?.mediaAccounting !== undefined) &&
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
@@ -652,7 +670,8 @@ export class ModelApiClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
-                await claim.settle(
+                await admitAttempt?.mediaAccounting?.settle(usage)
+                await claim?.settle(
                   estimateCostUsd(
                     {
                       inputTokens: usage.input_tokens,
@@ -690,7 +709,11 @@ export class ModelApiClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      try {
+        if (paid?.isSent === false) await paid.claim.settle(0)
+      } finally {
+        await admitAttempt?.mediaAccounting?.finish()
+      }
     }
   }
 }

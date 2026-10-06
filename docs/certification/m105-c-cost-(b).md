@@ -38,10 +38,12 @@ at most three files per command. No timeout was raised.
   its upper bound on every round, including replay with a count-route base.
   The reported base is kept whole: no unsafe subtraction of media or text.
 - Contributor consent uses an injected modal/permission port with Send / Use
-  the Standard model / Remove. Only Send remembers consent for ordinary
-  video/audio in that conversation. Concurrent ordinary uses share the
-  question. Screen recordings always ask, including Standard; neither a
-  previous ordinary grant nor a concurrent recording bypasses that question.
+  the Standard model / Remove. Send on Contributor remembers training consent
+  for later ordinary video/audio in that conversation, including when the
+  first Send is a recording. Standard Send grants no Contributor consent.
+  Concurrent ordinary uses share the question. Screen recordings always ask,
+  including Standard; neither a previous grant nor a concurrent recording
+  bypasses that question.
 - `AttachmentChips.tsx` loads `AttachmentMediaCost.tsx` only for a media
   summary. Its optional region displays duration, bytes, soundtrack state,
   estimated tokens marked `(est.)`, tier prices and training/screen warnings.
@@ -71,8 +73,10 @@ no provider wire schema, raw frame fixture, cast escape hatch or lint ignore.
    `MEDIA_ESTIMATE_SAFETY_FACTOR` from constants. That constant is absent
    from lane 0 here; no production value was guessed. Register the lazy
    entry, split readers and measured budget in W's build/packaging regions.
-   The browser cost region already has its own dynamic import and stays
-   within the existing aggregate deferred budget; no cap is changed.
+   The browser cost region has its own dynamic import, but currently exceeds
+   the aggregate deferred budget; see the build blocker below. W must fit
+   it within the unchanged cap or use the planned separately budgeted page
+   entry. No cap is changed.
 3. **C→M2/E1 request and chip binding.** From the gated, sniffed retained
    request, construct `MediaCostItem`s and detached text/media budget parts.
    Call `chipEstimate` with the verified chosen-model tariff record and put
@@ -183,3 +187,95 @@ Restored source digests (full SHA-256):
 34 red drills completed. A core digest changed between drill batches only
 when the chip-price helper was added and formatted; each batch restored its
 own original digest.
+
+Additional final integration guard: media identities have a separate digest
+namespace, so they cannot mask new text with an identical string. Its red
+drill removed the namespace and `test/unit/sessionBudget.test.ts > calibrated media budget parts > keeps a media identity from hiding a newly added text part with the same text` failed (exit 1).
+The source was restored with SHA-256 `622cc242b34e124219f9a1b534d30ce07ea4cacc1579378eeb4a67a96eecd024`. Total: 35 drills.
+
+## Build blocker: W-owned integration required
+
+The first fully lazy chip build was 899.3 KiB startup and 50.8 KiB deferred.
+The 50 KiB deferred cap failed. Two bounded attempts to reduce only C-owned
+code were tried: sharing caption formatting with the existing eager Intl
+helpers produced 900.0 KiB startup / 50.1 KiB deferred (28 bytes and 75 bytes
+over); a smaller text renderer and runtime table lookup produced 900.1 KiB
+startup / 50.0 KiB deferred, with startup still over its cap.
+
+The common rule says to stop a path after the same check fails following
+two different fixes. Those attempts were removed. The final source restores
+the complete lazy media chip: duration/cost formatting, warnings and markup
+all live in its optional chunk. W owns the bundler, page entries, split
+guards and budgets. Resolving that aggregate cap requires W's integration
+work; C does not touch another lane's files or raise a cap. The final build
+measurement is recorded below. This is an explicit unpassed release gate,
+not a claim that M105 or the new UI is ready to ship.
+
+Final lazy-chip re-drill `final-chip-estimate`: `test/unit/AttachmentMediaCost.test.tsx > lazy media chip cost > shows duration, bytes, sound and tokens marked as an estimate beside both prices`
+failed (exit 1). Restored SHA-256 `cc87032ce23efb5fecc955f897a2c49be5c8e1d5141f26334beeb236c1be0fbc`.
+
+Final lazy-chip re-drill `final-chip-contributor-warning`: `test/unit/AttachmentMediaCost.test.tsx > lazy media chip cost > shows duration, bytes, sound and tokens marked as an estimate beside both prices`
+failed (exit 1). Restored SHA-256 `cc87032ce23efb5fecc955f897a2c49be5c8e1d5141f26334beeb236c1be0fbc`.
+
+Final lazy-chip re-drill `final-chip-recording-warning`: `test/unit/AttachmentMediaCost.test.tsx > lazy media chip cost > warns about screen content every time, including Standard`
+failed (exit 1). Restored SHA-256 `cc87032ce23efb5fecc955f897a2c49be5c8e1d5141f26334beeb236c1be0fbc`.
+
+Consent re-drill `recording-grant`: `test/unit/mediaCost.test.ts > contributor question > remembers a Contributor recording Send for later ordinary media, without granting from Standard`
+failed (exit 1). Restored SHA-256 `bf5bf41311cdc6941d8670bececb214cda5eaa0332385ababd1754c676b12204`.
+
+Consent re-drill `standard-recording-no-training-grant`: `test/unit/mediaCost.test.ts > contributor question > remembers a Contributor recording Send for later ordinary media, without granting from Standard`
+failed (exit 1). Restored SHA-256 `bf5bf41311cdc6941d8670bececb214cda5eaa0332385ababd1754c676b12204`.
+
+Total: 40 recorded mutation runs, all named failures with byte-exact SHA-256
+restoration. The recording-consent regression also failed before the actual
+fix; its final whole-file run passes.
+
+## Final lane verification
+
+All checks ran directly on Kubuntu, with the repository's default test timeout.
+The following whole files passed, 164 unique tests in total:
+
+| Test file                                | Passing tests |
+| ---------------------------------------- | ------------: |
+| `test/unit/mediaCost.test.ts`            |            17 |
+| `test/unit/mediaAccounting.test.ts`      |            10 |
+| `test/unit/mediaClient.test.ts`          |            12 |
+| `test/unit/AttachmentMediaCost.test.tsx` |             5 |
+| `test/unit/sessionBudget.test.ts`        |            16 |
+| `test/unit/modelApiClient.test.ts`       |            27 |
+| `test/unit/Composer.test.tsx`            |            77 |
+
+Two final three-file commands encountered Vitest/Vite temporary SSR cache
+`ENOENT` errors before assertions in mediaCost, sessionBudget and mediaClient.
+The unaffected files passed; the three affected files then passed individually
+with the same worker limit and default timeout. No configuration was changed.
+
+`npm run typecheck` passed all five projects after the final consent fix.
+Changed-file ESLint and Prettier passed. `npm run deadcode` passed (only the
+existing configuration hints), `npx jscpd` reported zero clones,
+`node scripts/check-l10n.mjs` reported zero problems across 14 tables, and
+`npm run check:host-api` passed without changing its generated record.
+
+The final `npm run build` exited 1 at the unchanged deferred JS cap:
+
+| Bundle                          | Final size |     Cap | Result   |
+| ------------------------------- | ---------: | ------: | -------- |
+| Extension                       |  436.7 KiB | 600 KiB | pass     |
+| Model API                       |  447.5 KiB | 475 KiB | pass     |
+| ACP                             |  816.8 KiB | 850 KiB | pass     |
+| Shared English fallback         |   49.2 KiB | 125 KiB | pass     |
+| Chat startup and static imports |  899.3 KiB | 900 KiB | pass     |
+| Aggregate deferred webview JS   |   50.9 KiB |  50 KiB | **fail** |
+
+On those compiled artifacts, the separate bundle-split check also exited 1:
+`Unlisted deferred webview surface src/webview/components/AttachmentMediaCost.tsx`.
+Its registry is W-owned. Host-globals passed with zero navigator references;
+third-party notices passed for 83 bundled packages. The portable media factory,
+real stores, captured calibration, selected-model/host bindings and W-owned
+documentation remain the named handoffs above. U6c's conditional storage work
+remains unconfirmed, so no unsupported paid-storage feature was enabled.
+
+The full quality/coverage/accessibility gates remain the lead's run under the
+shared lane rules. These local commits are reviewable lane work; neither the
+build nor M105 release certification is claimed green. Hooks remain enabled;
+both local commits run the repository's lint-staged and secret scan.

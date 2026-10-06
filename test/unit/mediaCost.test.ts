@@ -295,6 +295,16 @@ describe('contributor question', () => {
     expect(ask.mock.calls.at(-1)?.[0]).toMatchObject({ detail: UI_TEXT.media.recordingWarning })
   })
 
+  it('remembers a Contributor recording Send for later ordinary media, without granting from Standard', async () => {
+    for (const isContributor of [true, false]) {
+      const ask = vi.fn((_question: unknown) => Promise.resolve<'send'>('send'))
+      const consent = new MediaContributorConsent(ask)
+      await consent.choose({ ...request, contributor: isContributor, isScreenRecording: true })
+      await consent.choose(request)
+      expect(ask).toHaveBeenCalledTimes(isContributor ? 1 : 2)
+    }
+  })
+
   it('includes audio but leaves ordinary Standard and image chips unchanged', async () => {
     const ask = vi.fn((_question: unknown) => Promise.resolve<'send'>('send'))
     const consent = new MediaContributorConsent(ask)

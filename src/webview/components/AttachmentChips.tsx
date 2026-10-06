@@ -1,13 +1,21 @@
-// The image, PDF and text chips above the composer for files waiting to be sent.
+// The attachment chips above the composer; media cost stays in a lazy region.
 
+import { lazy, Suspense } from 'react'
 import { TEXT_ATTACHMENT_MEDIA_TYPE, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import type { AttachmentSummary } from '../../shared/protocol'
 import { CloseIcon, FileIcon, ImageIcon } from './icons'
 
+const AttachmentMediaCost = lazy(async () => {
+  const module = await import('./AttachmentMediaCost')
+  return { default: module.AttachmentMediaCost }
+})
+
 export interface AttachmentChipsProps {
   readonly attachments: readonly AttachmentSummary[]
   readonly onRemove: (id: string) => void
+  /** Selected-model capability/tier from the host; no vendor inference in the chip. */
+  readonly isContributor?: boolean
 }
 
 function sizeLabel(attachment: AttachmentSummary): string {
@@ -19,7 +27,11 @@ function sizeLabel(attachment: AttachmentSummary): string {
     : UI_TEXT.pdfLabel
 }
 
-export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps) {
+export function AttachmentChips({
+  attachments,
+  onRemove,
+  isContributor = false,
+}: AttachmentChipsProps) {
   if (attachments.length === 0) {
     return null
   }
@@ -29,7 +41,13 @@ export function AttachmentChips({ attachments, onRemove }: AttachmentChipsProps)
         <li key={attachment.id} className="chip">
           {attachment.width === undefined ? <FileIcon /> : <ImageIcon />}
           <span className="chip-name">{attachment.name}</span>
-          <span className="chip-size">{sizeLabel(attachment)}</span>
+          {attachment.media === undefined ? (
+            <span className="chip-size">{sizeLabel(attachment)}</span>
+          ) : (
+            <Suspense fallback={null}>
+              <AttachmentMediaCost media={attachment.media} isContributor={isContributor} />
+            </Suspense>
+          )}
           <button
             type="button"
             className="chip-remove"
