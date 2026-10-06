@@ -28422,6 +28422,18 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**S review repair (FIXM117S, 2026-10-06).** Fix all four RVM117S P2s:
+search feasible account allocations with deterministic, bounded selection;
+qualify only selected lanes with unknown required disk headroom and prefer
+measured placements on equal finish times; search renewals only on accounts
+usable by remaining lanes; precompute resource data and avoid repeated work
+so forty-lane chain, independent and fan-out simulations plus paired
+bottleneck comparisons meet the unchanged two-second operation budget.
+Each fix has an owning regression and a byte-exact red drill in
+`docs/certification/m117-s-schedule-and-simulation.md`. No dependency,
+resource guard, bundle cap or CLI timeout is changed. The rig brief forbids
+aggregate quality and merges; W retains those integration checks.
+
 **Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
 two P3 findings are all in scope before freezing the contracts. Goals consume
 the documented grammar, including the colon for named kinds. Account windows

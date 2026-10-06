@@ -263,3 +263,47 @@ All three source SHA-256 values above match after the hooks; runtime code is
 byte-identical to final verification. The final worktree is clean after the
 certificate-receipt commit. No source change or further test rewrite followed
 that verified implementation.
+
+## FIXM117S review repair — admission (2026-10-06)
+
+All four RVM117S P2s are in scope; no P1/P3 was reported. The rig and shared
+briefs were read in full. PLAN's M117 repair record preceded code changes.
+The first three findings are fixed here; performance is the next piece.
+
+- **F1 account combinations:** deterministic account-count enumeration covers
+  the exhausted-account-1 / usable-accounts-2-and-3 two-slot case. Physical
+  slots on an account are admission-equivalent. After 512 allocations a
+  bounded greedy priority fallback explicitly qualifies its selected lane
+  with `account-selection-approximate`; failure at this bound reports
+  `account-selection-limit`, never a false assertion of infeasibility.
+- **F2 disk measurement relevance:** only volumes serving a lane's declared
+  disk roles participate. An unknown required volume admits a conditional
+  forecast and qualifies that selected lane with `lane:disk:machine:volume`.
+  Equal finish times prefer measured placement; unused alternatives/volumes
+  add no disk qualification. Missing roles, known disk bounds and unknown
+  admission demand retain their guards. Qualification state is per run.
+- **F3 quota relevance:** only accounts reachable through an eligible role,
+  compatible machine and nonmerged lane participate in renewal search.
+  The unused 60-second quota no longer exhausts the 512-renewal guard while
+  scheduling a ten-hour lane and its one-hour dependent.
+
+Before the fixes the account-pair and both disk regressions failed. The first
+quota fixture exceeded its machine's declared slot cap and was rejected by
+Zod; it was corrected to a valid slot on an incompatible role. F3's red drill
+then reproduced `quota-horizon` against that valid snapshot. After the fixes,
+49/49 schedule and bottleneck tests passed (40 + 9, Mac mini, default timeout).
+The explicit fallback regression also passed: 50/50 (41 schedule + 9 bottleneck).
+Host typecheck passed; scoped lint found naming/control-flow style issues,
+which were fixed before the unchanged hooks rechecked staged source.
+
+| Drill                   | Deliberate regression                     | Required observed failure                                                                                | Result |
+| ----------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| F1-account-combinations | Restore one-account-first slot-ID filling | finds the feasible two-account combination beyond an exhausted first account                             | Exit 1 |
+| F2-disk-selection       | Throw immediately on unknown disk volumes | ignores unknown disk headroom on unused alternatives and volumes; selected-lane qualification also fails | Exit 1 |
+| F3-usable-accounts      | Enumerate every fleet account again       | ignores quota renewals on accounts no remaining lane can use (`quota-horizon`)                           | Exit 1 |
+
+Each drill ran the complete `estimatorSchedule.test.ts` file with
+`--maxWorkers=3`, no CLI timeout override, no filter/skip. Python `finally`
+restored saved bytes and compared SHA-256:
+`a04e657c858efe9dbb65104853a809465c02ba5d4df8bf05bf882107eaf4be0c`.
+No drill mutation remains. No dependency or resource-admission gate changed.

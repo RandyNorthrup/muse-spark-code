@@ -33,6 +33,7 @@ interface Reservation {
   slots: Slot[]
   start: number
   end: number
+  approximate?: boolean
 }
 
 export interface EstimateSchedule {
@@ -235,7 +236,21 @@ export function prepareEstimateSchedule(
           slot.machineId === machine.id && roles.get(slot.roleId)?.laneKinds.includes(lane.kind),
       )
       .toSorted((a, b) => compareEstimateIds(a.id, b.id))
-  for (const account of fleet.accounts) {
+  const usableAccountIds = new Set(
+    lanes
+      .filter((lane) => lane.state !== 'merged')
+      .flatMap((lane) =>
+        (candidates.get(lane.id) ?? []).flatMap((machine) =>
+          laneSlots(lane, machine).map((slot) => slot.accountId),
+        ),
+      ),
+  )
+  const accounts = fleet.accounts.filter((account) => usableAccountIds.has(account.id))
+  const usedVolumes = (lane: EstimateLane, machine: Machine): Machine['disks'] =>
+    machine.disks.filter((volume) =>
+      lane.resources.disk.some((disk) => volume.roles.includes(disk.role)),
+    )
+  for (const account of accounts) {
     if (account.usageLimits === undefined) unknownLimits.add(`${account.id}:usageLimits`)
     if (account.tokensPerMinute === undefined) unknownLimits.add(`${account.id}:tokensPerMinute`)
   }
@@ -273,7 +288,7 @@ export function prepareEstimateSchedule(
       }
       if (demand !== candidate.slots.length) return false
       if (relaxation !== 'accountRate') {
-        for (const account of fleet.accounts) {
+        for (const account of accounts) {
           const users = active.filter((entry) => accountShare(entry, account.id) > 0)
           const used = (unit: Window['unit']): number =>
             users.reduce(
@@ -301,9 +316,12 @@ export function prepareEstimateSchedule(
       }
     }
     if (relaxation !== 'disk') {
-      for (const volume of machine.disks) {
-        if (volume.status === 'unknown') refuse(`unknown-headroom:${machine.id}:${volume.volumeId}`)
-        if (diskFitsTogether.get(volume)) continue
+      for (const disk of lane.resources.disk) {
+        known(disk.peakBytes, `${lane.id}:disk`)
+        known(disk.steadyBytes, `${lane.id}:disk`)
+      }
+      for (const volume of usedVolumes(lane, machine)) {
+        if (volume.status === 'unknown' || diskFitsTogether.get(volume)) continue
         if (
           allPoints().some(
             (time) =>
@@ -344,7 +362,7 @@ export function prepareEstimateSchedule(
     }
     if (relaxation !== 'accountRate') {
       const horizon = Math.max(...all.map((entry) => entry.end))
-      for (const account of fleet.accounts) {
+      for (const account of accounts) {
         const users = all.filter((entry) => accountShare(entry, account.id) > 0)
         if (users.length === 0) continue
         const windows = account.usageLimits ?? []
@@ -435,6 +453,7 @@ export function prepareEstimateSchedule(
         if (value === undefined) refuse('invalid-duration')
         return value
       }
+      const runUnknownLimits = new Set(unknownLimits)
       const assigned: Reservation[] = []
       const finishes = new Map<string, number>()
       const pending = new Set(lanes.map((lane) => lane.id))
@@ -489,7 +508,7 @@ export function prepareEstimateSchedule(
           const lastEnd = Math.max(earliest, ...assigned.map((entry) => entry.end))
           const lastReset = Math.max(
             earliest,
-            ...fleet.accounts.flatMap((account) =>
+            ...accounts.flatMap((account) =>
               (account.usageLimits ?? []).map((window) => {
                 const next = resetsFor(window, asOf + lastEnd * HOUR_MS).find(
                   (instant) => instant > asOf + lastEnd * HOUR_MS,
@@ -524,24 +543,76 @@ export function prepareEstimateSchedule(
                 compareEstimateIds,
               )
               const hints: number[] = []
-              for (const first of accountOrder) {
-                const ordered = available.toSorted(
-                  (a, b) =>
-                    Number(b.accountId === first) - Number(a.accountId === first) ||
-                    compareEstimateIds(a.id, b.id),
-                )
-                const slots =
-                  relaxation === 'slots'
-                    ? Array.from(
-                        { length: count },
-                        (_, index) => ordered[index % ordered.length] ?? refuse('missing-slot'),
-                      )
-                    : ordered.slice(0, count)
-                const candidate = { lane, machine, slots, start, end }
-                if (isFeasible([...assigned, candidate], candidate)) {
-                  return candidate
+              const groups = accountOrder.map((id) =>
+                available.filter((slot) => slot.accountId === id),
+              )
+              // Slots on one account are equivalent for admission. Enumerate
+              // account counts, not every physical subset, in stable ID order.
+              function* allocations(
+                index: number,
+                remaining: number,
+                selected: Slot[],
+              ): Generator<Slot[]> {
+                if (remaining === 0) {
+                  yield selected
+                  return
                 }
-                hints.push(...quotaHints)
+                const group = groups[index]
+                if (!group) return
+                const capacity = relaxation === 'slots' ? count : group.length
+                const rest =
+                  relaxation === 'slots'
+                    ? count
+                    : groups.slice(index + 1).reduce((sum, slots) => sum + slots.length, 0)
+                for (
+                  let take = Math.min(remaining, capacity);
+                  take >= Math.max(0, remaining - rest);
+                  take--
+                ) {
+                  const slots = Array.from(
+                    { length: take },
+                    (_, offset) => group[offset % group.length] ?? refuse('missing-slot'),
+                  )
+                  yield* allocations(index + 1, remaining - take, [...selected, ...slots])
+                }
+              }
+              function exact(): { candidate: Reservation | undefined; isLimited: boolean } {
+                let attempts = 0
+                for (const slots of allocations(0, count, [])) {
+                  if (attempts++ >= ESTIMATE_MAX_ITEMS) {
+                    return { candidate: undefined, isLimited: true }
+                  }
+                  const candidate = { lane, machine, slots, start, end }
+                  if (isFeasible([...assigned, candidate], candidate))
+                    return { candidate, isLimited: false }
+                  hints.push(...quotaHints)
+                }
+                return { candidate: undefined, isLimited: false }
+              }
+              const match = exact()
+              if (match.candidate) return match.candidate
+              // Large account products fall back to deterministic greedy
+              // priorities; the selected lane explicitly reports approximation.
+              if (match.isLimited) {
+                for (const first of accountOrder) {
+                  const ordered = available.toSorted(
+                    (a, b) =>
+                      Number(b.accountId === first) - Number(a.accountId === first) ||
+                      compareEstimateIds(a.id, b.id),
+                  )
+                  const slots =
+                    relaxation === 'slots'
+                      ? Array.from(
+                          { length: count },
+                          (_, index) => ordered[index % ordered.length] ?? refuse('missing-slot'),
+                        )
+                      : ordered.slice(0, count)
+                  const candidate = { lane, machine, slots, start, end, approximate: true }
+                  if (isFeasible([...assigned, candidate], candidate)) return candidate
+                  hints.push(...quotaHints)
+                }
+                if (hints.length === 0 && start >= Math.max(lastEnd, lastReset))
+                  refuse(`account-selection-limit:${lane.id}`)
               }
               // After all existing reservations finish and every reported window
               // renews, more identical empty periods cannot cure a structural
@@ -553,7 +624,7 @@ export function prepareEstimateSchedule(
                   .flatMap((entry) => [entry.start, entry.end])
                   .filter((time) => time > start),
               ]
-              for (const account of fleet.accounts) {
+              for (const account of accounts) {
                 const windows = account.usageLimits ?? []
                 for (const window of windows) {
                   const next = resetsFor(window, asOf + start * HOUR_MS).find(
@@ -573,11 +644,19 @@ export function prepareEstimateSchedule(
             candidate &&
             (!best ||
               candidate.end < best.end ||
-              (candidate.end === best.end && compareEstimateIds(machine.id, best.machine.id) < 0))
+              (candidate.end === best.end &&
+                (usedVolumes(lane, machine).filter((volume) => volume.status === 'unknown').length -
+                  usedVolumes(lane, best.machine).filter((volume) => volume.status === 'unknown')
+                    .length || compareEstimateIds(machine.id, best.machine.id)) < 0))
           )
             best = candidate
         }
         if (!best) refuse(`unschedulable:${lane.id}`)
+        if (best.approximate) runUnknownLimits.add(`${lane.id}:account-selection-approximate`)
+        if (relaxation !== 'disk')
+          for (const volume of usedVolumes(lane, best.machine))
+            if (volume.status === 'unknown')
+              runUnknownLimits.add(`${lane.id}:disk:${best.machine.id}:${volume.volumeId}`)
         assigned.push(best)
         finishes.set(lane.id, best.end)
         pending.delete(lane.id)
@@ -628,7 +707,7 @@ export function prepareEstimateSchedule(
         finishHours: Math.max(0, ...sampled.values()),
         criticalPath: endpoint ? (paths.get(endpoint) ?? []) : [],
         criticalPathHours,
-        unknownLimits: [...unknownLimits].toSorted(compareEstimateIds),
+        unknownLimits: [...runUnknownLimits].toSorted(compareEstimateIds),
         schedule: assigned
           .toSorted((a, b) => a.start - b.start || compareEstimateIds(a.lane.id, b.lane.id))
           .map((entry) => ({
