@@ -1,0 +1,49 @@
+{
+  "provenance": {
+    "date": "2026-10-05",
+    "run": "2026-10-06T00-30-19-038Z",
+    "seq": 36,
+    "timestamp": "2026-10-06T00:32:02.411Z",
+    "model": "muse-spark-1.3-contributor"
+  },
+  "request": {
+    "model": "muse-spark-1.3-contributor",
+    "input": "Call lookup_city for Oslo.",
+    "tools": [
+      {
+        "type": "function",
+        "name": "lookup_city",
+        "description": "Look up a city.",
+        "strict": true,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string"
+            },
+            "days": {
+              "type": "integer"
+            }
+          },
+          "required": ["city"]
+        }
+      }
+    ],
+    "max_output_tokens": 1000,
+    "reasoning": {
+      "effort": "minimal"
+    },
+    "include": ["reasoning.encrypted_content"],
+    "store": false,
+    "stream": false
+  },
+  "status": 400,
+  "response": {
+    "error": {
+      "code": null,
+      "message": "'additionalProperties' is required to be supplied and to be false.",
+      "param": "parameters",
+      "type": "invalid_request_error"
+    }
+  }
+}

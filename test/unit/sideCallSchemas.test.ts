@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import {
   commitDraftSchema,
+  compactionSummarySchema,
   hookDecisionSchema,
   judgeDistributionAnswerSchema,
   judgeNoulAnswerSchema,
@@ -104,11 +105,32 @@ describe('M106 side-call contracts', () => {
       hookDecisionSchema,
       commitDraftSchema,
       pullRequestDraftSchema,
+      compactionSummarySchema,
     ]) {
       const json = z.toJSONSchema(schema)
       expect(json.type).toBe('object')
       expect(json.additionalProperties).toBe(false)
       expect(json.required).toEqual(Object.keys(json.properties ?? {}))
+    }
+  })
+
+  it('requires C1’s six prose sections without accepting host metadata from the model', () => {
+    const answer = {
+      goal: 'Finish the task',
+      constraints: 'No live calls',
+      progress: 'Completed: capture inventory. In progress: contracts. Blocked: none.',
+      decisions: 'Keep the current replay wrapper',
+      nextSteps: 'Validate the answer',
+      criticalContext: 'Exact path: src/core/backends/modelapi/ModelApiHost.ts',
+    }
+    expect(compactionSummarySchema.parse(answer)).toEqual(answer)
+    for (const key of Object.keys(answer)) {
+      expect(compactionSummarySchema.safeParse({ ...answer, [key]: ' \n' }).success).toBe(false)
+      const incomplete = Object.fromEntries(Object.entries(answer).filter(([name]) => name !== key))
+      expect(compactionSummarySchema.safeParse(incomplete).success).toBe(false)
+    }
+    for (const metadata of [{ read: ['claimed.ts'] }, { todos: [] }, { keptEntries: 1 }]) {
+      expect(compactionSummarySchema.safeParse({ ...answer, ...metadata }).success).toBe(false)
     }
   })
 })

@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M106 development contracts now include captured Meta hosted-search,
+  structured-output, strict-schema refusal, rate-header, message-phase,
+  health and model-list fixtures, plus a six-section compaction answer
+  schema and evidence-bearing upstream capability handoff. U9's missing
+  raw argument-delta payloads remain explicitly uncertified.
+
 ### Fixed
 
 - ACP help and argument errors now use one complete localized usage table,

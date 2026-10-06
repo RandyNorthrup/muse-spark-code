@@ -19411,6 +19411,20 @@ every Model API user in every editor.
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
 
+**Lane 0 capture completion (2026-10-05).** Scrubbed source records are now
+available from run `2026-10-06T00-30-19-038Z` (2026-10-05 Pacific time).
+Lane 0 extracts only the needed request/response fields, safe headers and
+complete SSE frames into `test/fixtures/m106/`, with source sequences and
+attempt counts. The U9 source retains a truncated SSE head and an argument
+event summary, not the delta payloads; no delta is reconstructed. The status
+capture has an empty `model_statuses`, so its entries remain unknown data
+until captured. Contracts target `m95/caprec`'s evidence-bearing
+`ModelCapabilityRecord` and `m101/c1fix`'s six-heading compaction prompt and
+host-owned snapshots, without merging either branch. C1 has no exported
+structured answer schema or fixed Markdown renderer: the new six-field
+answer contract and deterministic rendering specification are M106's,
+while C1's metadata and replay wrapper remain unchanged.
+
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
   answers, bounded hosted tools, live previews, concurrent reads, the full

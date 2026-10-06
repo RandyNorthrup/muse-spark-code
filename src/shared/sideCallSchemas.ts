@@ -53,3 +53,14 @@ export const pullRequestDraftSchema = z.strictObject({
   title: nonblankText.check(z.maxLength(COMMIT_SUBJECT_MAX_CHARS)),
   body: z.string(),
 })
+
+// M101 C1's compactionPrompt names these six sections. Only model prose
+// belongs here: exact todos, file paths and keptEntries stay host-owned.
+export const compactionSummarySchema = z.strictObject({
+  goal: nonblankText,
+  constraints: nonblankText,
+  progress: nonblankText,
+  decisions: nonblankText,
+  nextSteps: nonblankText,
+  criticalContext: nonblankText,
+})
