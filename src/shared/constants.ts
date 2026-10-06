@@ -3482,14 +3482,11 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// MSP schema fingerprints Muse Code has served beyond the one
-// `@muse-code/sdk` 1.3.0 pins, each an additive change (SDK tarballs, schema
-// exports and release manifests; docs/certification/sdk142.md).
-// Such a host is logged at info with its build; any other mismatch stays a
-// warning (docs/certification/release-0.9.1.md).
+// The captured 1.4.2 build now matches the SDK's own pin (M106 S).
+// Keep its identity here; older fingerprints are no longer additive
+// successors of this SDK and must retain the mismatch warning. Future
+// successors need a served capture before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
-  'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f': '1.4.0-R4161.1',
-  'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658': '1.4.0-R4302.1',
   'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2': '1.4.2-R4684.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
