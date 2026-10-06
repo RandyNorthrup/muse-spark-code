@@ -27628,6 +27628,15 @@ paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
+    from the document's section schemas, with an exhaustive type-checked map
+    that requires an entry for every section field. Include the separate
+    Needs-you section and the union of ordinary sections from both saved
+    inputs; keep document bounds unchanged. Prove changes in all 65 sections,
+    disjoint ordinary-section ids, rejection beyond the derived bound, and
+    compile failure when a new document section has no comparison entry.
+    Record default-timeout regressions and byte-exact red drills in lane 0's
+    certification; no dependency or other lane's implementation is needed.
   - **Review RVM113L0 corrections (2026-10-06).** Fix all four P2 and both
     P3 findings before freeze, with no review residuals. Milestones carry
     required gate names; a package source carries declared quality-script
@@ -28702,6 +28711,13 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
+reserves aggregate quality for the lead. Run complete owned unit files with
+default timeouts and the scoped static/build checks directly on Kubuntu;
+record exact-restoration drills in lane 0's certification. The seven existing
+unused manifest keys remain W's wiring handoff; no gate is weakened. Full
+integrated quality and native-host implementation remain the lead's work.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30063,6 +30079,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
+  finding is fixed with no review residuals. Capacity is derived from the
+  actual document section schemas, including Needs you and both inputs'
+  ordinary-section union. Every section field requires a comparison entry,
+  including optional fields. Document bounds remain unchanged; boundary,
+  overflow and required/optional-field drills are recorded in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`.
 
 - **M113-L0-review-RVM113L0 (2026-10-06).** All four P2 and both P3
   contract findings fixed; no review residuals. Scoped gate evidence and

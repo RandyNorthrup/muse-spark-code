@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import {
   REPORT_KINDS,
@@ -20,6 +21,7 @@ import {
   REPORT_EXIT_CODES,
   REPORT_FORMATS,
   REPORT_FAIL_ON,
+  REPORT_MAX_SECTIONS,
   SLASH_COMMAND_NAMES,
 } from '../../src/shared/constants'
 import {
@@ -30,6 +32,7 @@ import {
   reportSectionSchema,
   reportValueSchema,
   reportDiffSchema,
+  type ReportDocument,
   type ReportRenderer,
   type ReportTheme,
 } from '../../src/shared/reportSchema'
@@ -59,6 +62,31 @@ import { PACKAGE_FIXTURE } from './helpers/reporting/plans'
 const fixtureCollector: ReportCollector = (_snapshot, options) => reportDocument(options.kind)
 const fixtureRenderer: ReportRenderer = (doc, locale, theme) =>
   `${doc.header.kind}:${locale}:${theme.foreground}`
+
+function setContentHash(document: ReportDocument): void {
+  const { asOf: _asOf, contentHash: _hash, ...header } = document.header
+  document.header.contentHash = createHash('sha256')
+    .update(JSON.stringify({ ...document, header }))
+    .digest('hex')
+}
+
+function fullComparisonDocument(): ReportDocument {
+  const document = reportDocument()
+  const section = document.sections[0]!
+  document.needsYou.rows = [
+    {
+      key: '0-question',
+      cells: { detail: { type: 'text', value: 'Owner decision pending' } },
+      sourceIds: ['plan'],
+    },
+  ]
+  document.sections = Array.from({ length: REPORT_MAX_SECTIONS }, (_, index) => ({
+    ...structuredClone(section),
+    id: `section-${String(index)}`,
+  }))
+  setContentHash(document)
+  return reportDocumentSchema.parse(document)
+}
 
 describe('M113 frozen report contracts', () => {
   it('fixes D93 limits, formats and CLI outcomes without changing M93', () => {
@@ -318,6 +346,101 @@ describe('M113 frozen report contracts', () => {
 })
 
 describe('portable reports method family', () => {
+  it('compares changed rows in Needs you and every ordinary section at the document limit', () => {
+    const before = fullComparisonDocument()
+    const after = structuredClone(before)
+    after.needsYou.rows[0]!.cells['detail'] = { type: 'text', value: 'Owner decision answered' }
+    for (const section of after.sections)
+      section.rows[0]!.cells['state'] = { type: 'label', value: 'merged' }
+    setContentHash(after)
+    expect(reportDocumentSchema.parse(after)).toEqual(after)
+    expect(after.header.contentHash).not.toBe(before.header.contentHash)
+    const beforeSections = [before.needsYou, ...before.sections]
+    const afterSections = [after.needsYou, ...after.sections]
+    const result = reportsMethods['reports/compare'].result.parse({
+      status: 'compared',
+      diff: {
+        from: before.header,
+        to: after.header,
+        sections: beforeSections.map((section, index) => ({
+          id: section.id,
+          label: section.label,
+          added: [],
+          removed: [],
+          changed: [
+            {
+              key: section.rows[0]!.key,
+              before: section.rows[0],
+              after: afterSections[index]!.rows[0],
+            },
+          ],
+          unchangedRows: 0,
+        })),
+      },
+    })
+    if (result.status !== 'compared') throw new Error('Expected complete comparison')
+    expect(result.diff.sections).toHaveLength(65)
+    expect(result.diff.sections.map((section) => section.id)).toEqual(
+      beforeSections.map((section) => section.id),
+    )
+    for (const [index, section] of result.diff.sections.entries()) {
+      expect(section.changed[0]!.before).toEqual(beforeSections[index]!.rows[0])
+      expect(section.changed[0]!.after).toEqual(afterSections[index]!.rows[0])
+      expect(section.changed[0]!.before).not.toEqual(section.changed[0]!.after)
+    }
+  })
+  it('compares the union of disjoint section ids without raising document bounds', () => {
+    const before = fullComparisonDocument()
+    const after = structuredClone(before)
+    for (const section of after.sections) section.id = `new-${section.id}`
+    setContentHash(after)
+    expect(reportDocumentSchema.parse(after)).toEqual(after)
+    const needsYou = {
+      id: before.needsYou.id,
+      label: before.needsYou.label,
+      added: [],
+      removed: [],
+      changed: [],
+      unchangedRows: 1,
+    }
+    const diff = {
+      from: before.header,
+      to: after.header,
+      sections: [
+        needsYou,
+        ...before.sections.map((section) => ({
+          ...needsYou,
+          id: section.id,
+          label: section.label,
+          removed: section.rows,
+          unchangedRows: 0,
+        })),
+        ...after.sections.map((section) => ({
+          ...needsYou,
+          id: section.id,
+          label: section.label,
+          added: section.rows,
+          unchangedRows: 0,
+        })),
+      ],
+    }
+    const result = reportsMethods['reports/compare'].result.parse({ status: 'compared', diff })
+    if (result.status !== 'compared') throw new Error('Expected complete comparison')
+    expect(result.diff.sections).toEqual(diff.sections)
+    expect(result.diff.sections).toHaveLength(129)
+    expect(
+      reportDiffSchema.safeParse({
+        ...diff,
+        sections: [...diff.sections, { ...needsYou, id: 'overflow' }],
+      }).success,
+    ).toBe(false)
+    expect(
+      reportDocumentSchema.safeParse({
+        ...before,
+        sections: [...before.sections, { ...before.sections[0], id: 'overflow' }],
+      }).success,
+    ).toBe(false)
+  })
   it('validates run, history and open payloads with explicit failures', async () => {
     const doc = reportDocument()
     const host: ReportsHostPort = {

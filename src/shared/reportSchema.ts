@@ -137,31 +137,6 @@ export const reportHeaderSchema = z.strictObject({
   }),
 })
 
-// Row pairs retain every field for a field-by-field comparison, including
-// changed source references. R computes this from two saved, verified documents.
-export const reportDiffSchema = z.strictObject({
-  from: reportHeaderSchema,
-  to: reportHeaderSchema,
-  sections: z
-    .array(
-      z.strictObject({
-        id,
-        label,
-        added: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
-        removed: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
-        changed: z
-          .array(
-            z
-              .strictObject({ key: id, before: reportRowSchema, after: reportRowSchema })
-              .check(z.refine((row) => row.key === row.before.key && row.key === row.after.key)),
-          )
-          .check(z.maxLength(REPORT_MAX_ROWS)),
-        unchangedRows: count,
-      }),
-    )
-    .check(z.maxLength(REPORT_MAX_SECTIONS)),
-})
-
 export const reportDocumentSchema = z
   .strictObject({
     format: z.literal(REPORT_FORMAT_VERSION),
@@ -187,6 +162,57 @@ export const reportDocumentSchema = z
     }),
   )
 export type ReportDocument = z.infer<typeof reportDocumentSchema>
+
+// A new document section requires a comparison entry at compile time. Bounds
+// come from these actual schemas, rather than a second list of section limits.
+const comparisonSectionSchemas = {
+  needsYou: reportDocumentSchema.shape.needsYou,
+  sections: reportDocumentSchema.shape.sections,
+} satisfies {
+  [
+    K in keyof ReportDocument as NonNullable<ReportDocument[K]> extends
+      ReportSection | readonly ReportSection[]
+      ? K
+      : never
+  ]-?: (typeof reportDocumentSchema.shape)[K]
+}
+let comparisonSectionLimit = 0
+for (const schema of Object.values(comparisonSectionSchemas)) {
+  if (schema instanceof z.ZodMiniArray) {
+    const maximum = z.toJSONSchema(schema).maxItems
+    if (maximum === undefined) throw new Error('Report section arrays require a finite bound')
+    // Disjoint section ids can contribute each input's entire ordinary list.
+    comparisonSectionLimit += 2 * maximum
+  } else {
+    // Needs you has the same fixed id in both valid documents.
+    comparisonSectionLimit += 1
+  }
+}
+
+// Row pairs retain every field for a field-by-field comparison, including
+// changed source references. R computes this from two saved, verified documents.
+export const reportDiffSchema = z.strictObject({
+  from: reportDocumentSchema.shape.header,
+  to: reportDocumentSchema.shape.header,
+  sections: z
+    .array(
+      z.strictObject({
+        id,
+        label,
+        added: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
+        removed: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
+        changed: z
+          .array(
+            z
+              .strictObject({ key: id, before: reportRowSchema, after: reportRowSchema })
+              .check(z.refine((row) => row.key === row.before.key && row.key === row.after.key)),
+          )
+          .check(z.maxLength(REPORT_MAX_ROWS)),
+        unchangedRows: count,
+      }),
+    )
+    .check(z.maxLength(comparisonSectionLimit)),
+})
 
 export interface ReportTheme {
   readonly background: string
