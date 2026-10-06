@@ -271,26 +271,26 @@ board retains ordinary policy. Failed decisions cannot renew or replay an
 expired or consumed approval. Exact parsed command, original text and
 host-observed target are bound to its digest.
 
-In a hardware workspace (host-owned maker enablement/project detection,
-connected board, mounted board root or registered machine), every model shell
-command needs fresh exact-text host approval, including in Plan. The classifier
-only adds warnings and refuses known irreversible operations. Only a fully
-parsed command matching the strict read-only table in the README is exempt;
-no standing shell grants, hook allowance or reviewer can answer the question.
-Bypass and every unattended origin deny all shell commands there, including
-allowlisted reads, verification/then_run and workers. Non-hardware policy stays
-unchanged. Muse Code's hardware mode is capped to `promptUnmatched` before
-turns (`denyUnmatched` when unattended); its existing standing policies and
-silent execution still need live qualification. Approvals bind exact bytes,
-staged argv, every observed identity and expiry; registry churn rejects them.
+Hardware mode is a session latch, initialized from maker project markers and
+set by host-observed devices. It never falls when a device or marker disappears.
+Every agent shell command in a hardware session asks the host UI for its exact
+text, with Allow once and Abort only. There is no shell read allowlist, hook
+grant or reviewer grant. Typed read/list/search tools keep their own policy.
+The classifier only annotates hardware shell cards, including suspected
+irreversible writes. Bypass and every unattended origin refuse shell commands;
+unattended status is checked again at the answer and Model API process entry.
+Registered canonical Stop bypasses the gate first, including unattended runs.
 
-A shell stop requires a registered canonical stop
-contract; a physical MCP tool's name alone never grants a stop exemption.
-The guard does not sandbox scripts, and Muse Code commands that emit no
-approval remain an explicit qualification gap. Device registration, the
-hardware switch, actual identity re-read, Stop controls and physical/editor
-qualification belong to the remaining M103 lanes. These notes do not claim
-those tools or controls are available in the released ACP package.
+Model API shell dispatch carries a frozen single-use identity/payload/expiry
+binding to the adapter, which verifies it after preparation immediately before
+spawn. Physical MCP/IDE adapters without that contract are unavailable. Muse
+Code owns its process start: the captured MSP protocol has no binding handoff
+or spawn acknowledgement. Fresh cards and answer-time checks cannot certify
+the interval after an allow frame, CLI standing rules or silent commands.
+Device registry notifications, actual USB identity acquisition, host UI latch
+reset and editor/hardware qualification remain the named maker lanes' work.
+These notes do not claim those tools or controls ship in the released ACP
+package. The guard does not sandbox an approved program.
 
 ## Paid features
 

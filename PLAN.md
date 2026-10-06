@@ -4909,7 +4909,13 @@ to the adapter and is revalidated synchronously immediately before spawn.
 Scope is the guard, session guard, approval hardware, hardware regions in the
 two dispatch paths, their tests and this certification record. Necessary
 permission-engine/session-construction/bundle wiring outside that explicit
-list awaits scope authorization. No paid/live/device operations or aggregate
+list was approved by the continuation brief: permissions.ts, tools.ts,
+MuseCodeHost.ts, guardEntry.ts, shellEntry.ts, hardwareGuardSplit.mjs, README.md,
+docs/acp.md and CHANGELOG.md. The lead explicitly accepts the measured
+717-byte activation increase (596065 to 596782 bytes): the shell-entry latch
+must be eager. This is a waiver of strict startup no-growth for this guard
+only; the unchanged 600 KiB activation cap and every other cap still apply.
+No paid/live/device operations or aggregate
 quality run are authorized on this rig. The editor matrix must distinguish
 shared-core evidence from actual editor and external CLI qualification.
 
@@ -5347,17 +5353,12 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
-- **M103 fourth-design scope (2026-10-05, REDM103G3):** the brief authorizes
-  guard/sessionGuard/approvalHardware and two hardware dispatch regions, but
-  explicitly excludes every other source file. Deleting the allowlist requires
-  permission-engine and lazy-export/split wiring; starting the Muse Code latch
-  and exempting Stop require MuseCodeHost; the hook native-entry callback needs
-  the ToolIo interface. A concrete candidate also updates README, ACP notes,
-  changelog and the generated host API record. May these exact integration
-  files be included? Pending approval, excluded files remain untouched. The
-  complete candidate is validated through temporary in-memory overlays and
-  retained as `temp/guard4-candidate.patch`; source/test/translation edits are
-  restored to the branch base so the committed record does not break builds.
+- **M103 fourth-design scope resolved (2026-10-05, REDM103G3 continuation):**
+  the lead approved the nine pending permission/session/bundle/documentation
+  files named in D83. The saved 35-file candidate is applied after checking
+  its patch SHA-256 and every file against its manifest; verification now runs
+  directly against installed source. The lead accepts the measured 717-byte
+  activation increase for the eager shell-entry latch; caps remain unchanged.
 - **M103 external CLI dispatch contract:** the captured MSP frames provide
   approval answers, not an immutable target-binding handoff or a final spawn
   acknowledgement. What captured CLI contract can enforce dispatch-time
@@ -15265,14 +15266,15 @@ panel (M104); M103's maker pages are built on the same server and bridge.
 (h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
 owner's; release assets and install docs ship meanwhile.
 
-**Status 2026-10-05: planned; guard fourth-design candidate awaits scope
-authorization (REDM103G3).**
+**Status 2026-10-05: planned; guard fourth-design wiring authorized and applied
+(REDM103G3 continuation).**
 RVM103G3's six P1 findings invalidate the third-design safety certification.
 Fourth-design implementation and gate-fire receipts belong in
 `docs/certification/m103-g.md`; external CLI process-entry enforcement and
 the maker adapter/editor lanes require separate evidence before full safety
-certification. The candidate is retained in the rig's ignored temp artifacts;
-the committed lane record contains no partial source change. Sub-milestones
+certification. The applied candidate and continuation verification are recorded
+on the guard branch; the upstream spawn-contract request is drafted in
+`docs/upstream/muse-code-spawn-contract.md` for the lead to file. Sub-milestones
 land in order a → f. Guard a cannot be called complete or ship as a safety
 fix while these process-entry and qualification gaps remain open.
 
@@ -15717,6 +15719,18 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**REDM103G3 continuation (2026-10-05, Windows 11 rig).** The lead approves
+the nine pending wiring/docs files and accepts the fourth-design guard's
+measured 717-byte activation increase (596065 to 596782 bytes) because its
+shell-entry latch must be eager. This limited strict-no-growth waiver changes
+no bundle cap: activation remains 600 KiB. The lane reruns the full nine-file
+1,276-test candidate set, eight behavioral mutations with byte-exact source
+hashes, all five typecheck projects, changed-file lint/format, localization,
+dead-code/duplication/host API and production bundle gates directly on the rig.
+Aggregate quality/coverage, actual editor/device and live CLI qualification
+remain lead gates; the external spawn contract is explicitly open. Applied
+receipts and per-backend P1 dispositions are in `docs/certification/m103-g.md`.
 
 **REDM103G2 (2026-10-05, Windows 11 rig).** The third-design lane brief
 requires focused owning files (at most three per run), byte-exact red drills,

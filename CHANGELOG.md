@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M103 hardware guard, fourth design (unreleased; external CLI and physical
+  qualification remain open).** Every hardware shell command needs fresh exact
+  host approval; the shell allowlist is deleted. Hardware mode latches for the
+  session. Model API dispatch retains a single-use identity binding through
+  preparation and verifies it immediately before spawn. Pending approvals
+  recheck unattended status, and registered canonical Stop bypasses both
+  backends' shell gates. Irreversible shell detection only annotates the card;
+  physical adapters without a dispatch-binding contract are unavailable.
+
 - **M103 hardware guard, third design (unreleased).** Hardware workspace
   context now makes every model shell command ask the host afresh, with exact
   text, no standing grant and only an exact read-only argv table exempted.
@@ -200,7 +209,6 @@ happened, not what was planned; superseded entries are kept.
   - **Restore notes it:** a turn that ran a browser check is marked as having run a process, so restoring it says that what the page made a local server change is not undone (M86).
   - **Main integration:** browser output obeys the live permission-policy fence; best-of-N attempts have no window browser check. Widening cards retain their session choice in Bypass, and visual reads use the relocated Model API text constants.
 
-
 - **What's New** (M99, PLAN.md D79). After an update, the release notes of
   recent versions since the one you had open in an editor tab ("What's New in
   Muse Spark Code"): each release's Highlights (with a **Try it** button
@@ -260,6 +268,7 @@ happened, not what was planned; superseded entries are kept.
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -344,7 +353,7 @@ happened, not what was planned; superseded entries are kept.
   other files, and the menu now says that.
 - **A first command after the Windows sandbox setup that fails while Muse
   Code is still preparing the sandbox** (`ACL publication lock … timed
-  out`) now says to wait and try again, instead of offering the setup that
+out`) now says to wait and try again, instead of offering the setup that
   has already run.
 - **The browser check's live suite on Windows CI (M81).** CI names the
   runtime's storage `D:\a\_temp/muse-browser-storage`, and the check's
@@ -606,7 +615,7 @@ happened, not what was planned; superseded entries are kept.
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-    scan-secrets <file>` counts likely secrets in one file and prints only
+scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -677,7 +686,7 @@ happened, not what was planned; superseded entries are kept.
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -1093,6 +1102,7 @@ happened, not what was planned; superseded entries are kept.
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
+
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -1715,6 +1725,7 @@ happened, not what was planned; superseded entries are kept.
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
+
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -3042,7 +3053,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-  harness:shots`) and say so; the 0.1.1 captures are gone.
+harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -3475,7 +3486,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-  setup` through the UAC prompt, re-checks, and reports. The new command
+setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.
