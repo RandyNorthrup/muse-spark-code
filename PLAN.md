@@ -27627,6 +27627,16 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **Lane H review RVM113H2 corrections (2026-10-06).** Both P2s are
+  in scope. Replace stale unlink with a random-token compare-and-delete
+  lease: rename to a unique tombstone, validate its token, delete only the
+  proven dead identity, and restore a displaced live lease without replacing
+  another lock. Pending tombstones prevent admission. Unknown/incomplete
+  records provide no authority to recover. Retry own-process probing within
+  a bound, cache success only, and leave failures recoverable on the next
+  transaction. Add controlled races, journal evidence retention, an
+  interleaving model and byte-restored red drills before certification.
+
 - **Lane H review RVM113H corrections (2026-10-06).** Fix all six P2
   findings within H's existing files: capture HEAD before the final confinement
   guard, recover writer locks using PID and OS process start time, wait for

@@ -395,3 +395,24 @@ lint hook (array reversal style, await/member style and an untyped JSON test
 return); those were corrected before the successful commit. Hooks remain
 unchanged and enabled for the storage correction too. Final changed-file
 Prettier (all twelve files) and `git diff --check` passed before that commit.
+
+## RVM113H2 — recoverable process probing (2026-10-06)
+
+Finding 2 is fixed. Own-process probing retries twice within the existing
+probe budget, caches only a successful identity and clears a failed shared
+promise only if it is still the current probe. Exhaustion is an explicit save
+error; a subsequent transaction can probe again without restarting the host.
+No process-probe credential policy or external-owner guard changed.
+
+Kubuntu, repository default test timeout, complete `reportHistory.test.ts`:
+26 passed. Both red drills ran that complete suite and exited 1 at the named
+regression, then restored SHA-256
+`958966b25a1bd293f86717832519adc6beac1c835ad3225f5dc61a51d45937a8`:
+
+| Finding | Drill         | Named failing regression                                                |
+| ------- | ------------- | ----------------------------------------------------------------------- |
+| 2       | `probe-retry` | retries a transient own-process identity failure within the probe bound |
+| 2       | `probe-cache` | allows later writes after exhausted own-process probes                  |
+
+Finding 1 remains in active correction; the preceding certification's claim
+of no remaining lock residual is superseded by RVM113H2.

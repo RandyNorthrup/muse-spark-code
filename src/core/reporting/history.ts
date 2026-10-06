@@ -119,13 +119,39 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
   return stdout.trim() || undefined
 }
 
-function startOf(
+async function ownStart(): Promise<string> {
+  const deadline = performance.now() + REPORT_WRITER_LOCK_PROBE_MS
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const remaining = deadline - performance.now()
+      if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed)
+      const startedAt = await processStart(
+        process.pid,
+        Math.max(1, Math.floor(remaining / (2 - attempt))),
+      )
+      if (startedAt === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
+      return startedAt
+    } catch (error: unknown) {
+      if (attempt === 1 || performance.now() >= deadline)
+        throw new Error(UI_TEXT.reportUi.saveFailed, { cause: error })
+    }
+  }
+  throw new Error(UI_TEXT.reportUi.saveFailed)
+}
+
+async function startOf(
   pid: number,
   probeBudgetMs = REPORT_WRITER_LOCK_PROBE_MS,
 ): Promise<string | undefined> {
-  if (pid !== process.pid) return processStart(pid, probeBudgetMs)
-  processBirth.own ??= processStart(pid, probeBudgetMs)
-  return processBirth.own
+  if (pid !== process.pid) return await processStart(pid, probeBudgetMs)
+  processBirth.own ??= ownStart()
+  const pending = processBirth.own
+  try {
+    return await pending
+  } catch (error: unknown) {
+    if (processBirth.own === pending) delete processBirth.own
+    throw error
+  }
 }
 
 /** Shared owner-only storage for history and checks; all mutations hold a bucket lock. */

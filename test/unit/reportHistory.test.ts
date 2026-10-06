@@ -144,6 +144,48 @@ async function heldWriter(after?: Parameters<ReportStorage['transaction']>[2]) {
 }
 
 describe('report history', () => {
+  it('retries a transient own-process identity failure within the probe bound', async () => {
+    const t = await fixture()
+    vi.resetModules()
+    const fresh = await import('../../src/core/reporting/history')
+    const probe = vi.spyOn(process, 'kill').mockImplementationOnce(() => {
+      throw Object.assign(new Error('Transient identity probe failure'), { code: 'EIO' })
+    })
+    try {
+      await new fresh.ReportStorage(t.directory).transaction(['checks'], true, (files) =>
+        files.write('retried.json', '{}'),
+      )
+      expect(probe).toHaveBeenCalledTimes(2)
+    } finally {
+      probe.mockRestore()
+    }
+    expect(await readFile(path.join(t.directory, 'reports/v1/checks/retried.json'), 'utf8')).toBe(
+      '{}',
+    )
+  })
+
+  it('allows later writes after exhausted own-process probes', async () => {
+    const t = await fixture()
+    vi.resetModules()
+    const fresh = await import('../../src/core/reporting/history')
+    const probe = vi.spyOn(process, 'kill').mockImplementation(() => {
+      throw Object.assign(new Error('Identity probe unavailable'), { code: 'EIO' })
+    })
+    const storage = new fresh.ReportStorage(t.directory)
+    try {
+      await expect(storage.transaction(['checks'], true, () => Promise.resolve())).rejects.toThrow(
+        UI_TEXT.reportUi.saveFailed,
+      )
+      expect(probe).toHaveBeenCalledTimes(2)
+    } finally {
+      probe.mockRestore()
+    }
+    await storage.transaction(['checks'], true, (files) => files.write('retry.json', '{}'))
+    expect(await readFile(path.join(t.directory, 'reports/v1/checks/retry.json'), 'utf8')).toBe(
+      '{}',
+    )
+  })
+
   it('recovers the writer lock after killing its owner process', async () => {
     const t = await fixture()
     if (writerFixture.script === undefined) throw new Error('Expected writer fixture')

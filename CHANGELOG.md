@@ -14,6 +14,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Report storage retries transient process-identity probes and permits later
+  saves after a failed probe without restarting the host.
+
 - Report checks validate file confinement after capturing HEAD. Report diffs
   keep metadata identities separate from ordinary cells, and check journals
   retain completed runs in append order through clock corrections. History
