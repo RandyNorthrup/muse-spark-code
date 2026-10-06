@@ -1,297 +1,124 @@
-import { describe, expect, it, vi } from 'vitest'
-import { isMakerTerminalAttended, readMakerSshPeer } from '../../src/runtime/maker/attended'
-import { createServer, createConnection, type Socket } from 'node:net'
-import * as attendance from '../../src/runtime/maker/attended'
-import { runRuntimeMaker, type RuntimeMakerEntryDeps } from '../../src/runtime/maker/entry'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { runRuntimeMaker } from '../../src/runtime/maker/entry'
 import { parseMakerCommand } from '../../src/runtime/maker/commandArgs'
-import { UI_TEXT } from '../../src/shared/constants'
+import { createUserPresence } from '../../src/runtime/maker/userPresence'
 import { EN } from '../../src/shared/l10n/en'
+import { UI_TEXT } from '../../src/shared/constants'
+import { createRuntimeMakerService } from '../../src/runtime/maker/service'
+import { MakerApproval } from '../../src/core/maker/ports'
+import { randomUUID } from 'node:crypto'
 
-function fixture(platform: NodeJS.Platform = 'linux') {
-  const run = vi.fn().mockResolvedValue('2 3 bash\n3 1 konsole\n1 0 systemd')
-  return {
-    stdinTty: true,
-    stdoutTty: true,
-    parentPid: 2,
-    platform,
+const roots: string[] = []
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
+})
+async function fixture() {
+  const root = await mkdtemp(path.join(tmpdir(), 'maker-presence-'))
+  roots.push(root)
+  const workspace = path.join(root, 'workspace')
+  await mkdir(workspace)
+  const presence = { check: vi.fn().mockResolvedValue('denied') }
+  const deps = {
+    dataDirectory: path.join(root, 'data'),
+    distDirectory: path.join(root, 'dist'),
+    workspace,
+    platform: process.platform,
     env: {},
-    run,
-    readExecutable: (pid: number) =>
-      Promise.resolve(pid === 3 ? '/usr/bin/konsole' : '/usr/bin/bash'),
-  }
-}
-
-function windowsFixture(
-  terminalPath: string | null,
-  shell?: { Name: string; ExecutablePath: string },
-) {
-  const deps = fixture('win32')
-  deps.run.mockResolvedValue(
-    JSON.stringify([
-      {
-        ProcessId: 2,
-        ParentProcessId: 3,
-        ...(shell ?? { Name: 'cmd.exe', ExecutablePath: 'C:/Windows/System32/cmd.exe' }),
-      },
-      {
-        ProcessId: 3,
-        ParentProcessId: 4,
-        Name: 'WindowsTerminal.exe',
-        ExecutablePath: terminalPath,
-      },
-      { ProcessId: 4, ParentProcessId: 0, Name: 'System', ExecutablePath: null },
-    ]),
-  )
-  return { ...deps, env: { SystemRoot: String.raw`C:\Windows` } }
-}
-
-function entryFixture(env: NodeJS.ProcessEnv = {}) {
-  return {
-    dataDirectory: '/not-created',
-    distDirectory: '/not-read',
-    workspace: '/not-read',
-    platform: 'linux',
-    env,
+    presence,
     print: vi.fn(),
     readSecret: vi.fn(),
     secrets: { get: vi.fn(), store: vi.fn(), delete: vi.fn() },
-    done: new AbortController().signal,
+    done: AbortSignal.abort(),
     table: EN,
     locale: 'en',
-  } satisfies RuntimeMakerEntryDeps
+  }
+  return { deps, presence }
 }
-describe('computed maker terminal attendance', () => {
-  it('reads the established peer from an owned Linux socket rather than its environment', async () => {
-    if (process.platform !== 'linux') {
-      await expect(readMakerSshPeer(-1)).rejects.toThrow()
-      return
-    }
-    const server = createServer()
-    await new Promise<void>((resolve) => {
-      server.listen(0, '127.0.0.1', resolve)
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('address')
-    const client = createConnection({ host: '127.0.0.1', port: address.port })
-    const accepted = new Promise<Socket>((resolve) => {
-      server.once('connection', resolve)
+describe('terminal spoofing never supplies physical authority', () => {
+  it.each([
+    ['remote SSH peer', 'linux', { SSH_CONNECTION: '203.0.113.5 3000 192.168.1.2 22' }],
+    ['LD_PRELOAD forged ps', 'linux', { LD_PRELOAD: '/agent/forged-ps.so' }],
+    ['subst fake SystemRoot', 'win32', { SystemRoot: String.raw`X:\windows` }],
+    ['AppleScript driving Terminal', 'darwin', { TERM_PROGRAM: 'Apple_Terminal' }],
+    ['multiplexer capture-pane', 'linux', { TMUX: '/tmp/agent-session' }],
+  ] as const)('%s cannot enable hardware', async (_probe, platform, env) => {
+    const { deps, presence } = await fixture()
+    const command = parseMakerCommand([
+      'hardware',
+      'enable',
+      '--reason',
+      'agent claim',
+      '--trust-workspace',
+    ])
+    if (command === undefined) throw new Error('command')
+    await expect(runRuntimeMaker(command, { ...deps, platform, env })).rejects.toThrow(
+      UI_TEXT.makerPresenceDenied,
+    )
+    expect(presence.check).toHaveBeenCalledOnce()
+    expect(deps.readSecret).not.toHaveBeenCalled()
+    expect(deps.print).not.toHaveBeenCalled()
+  })
+  it.each(['darwin', 'win32'] as const)(
+    'M109 %s adapter uses the OS presence port and otherwise refuses',
+    async (platform) => {
+      const request = {
+        id: randomUUID(),
+        digest: 'a'.repeat(64),
+        machine: 'Bench printer',
+        summary: 'Send once',
+      }
+      expect(await createUserPresence(platform).check(request)).toBe('unavailable')
+      const fake = { check: vi.fn().mockResolvedValue('approved') }
+      expect(await createUserPresence(platform, fake).check(request)).toBe('approved')
+      expect(fake.check).toHaveBeenCalledWith(request)
+    },
+  )
+  it('denied presence sends no payload even if an ACP client automatically answers allow_once', async () => {
+    const { deps, presence } = await fixture()
+    presence.check.mockResolvedValue('approved')
+    const service = await createRuntimeMakerService({
+      ...deps,
+      trusted: () => true,
+      flagged: () => true,
+      interactive: () => true,
+      native: { platform: process.platform, env: {}, packageRoot: path.resolve('.') },
+      ask: (request) =>
+        Promise.resolve({
+          id: request.id,
+          digest: request.digest,
+          target: request.target,
+          decision: 'allow_once',
+        }),
     })
     try {
-      const incoming = await accepted
-      try {
-        expect(await readMakerSshPeer(process.pid)).toBe('127.0.0.1')
-      } finally {
-        incoming.destroy()
+      await service.host.setHardware(true, 'bench')
+      presence.check.mockResolvedValue('denied')
+      const snapshot = {
+        kind: 'command' as const,
+        id: randomUUID(),
+        digest: 'a'.repeat(64),
+        expiresAt: Date.now() + 1000,
+        action: 'program' as const,
+        target: { kind: 'workspace' as const, workspace: deps.workspace },
+        payload: 'flash.bin',
       }
+      const send = vi.fn()
+      const engine = new MakerApproval(snapshot, () => service.host.hardwareEnabled())
+      if (engine.answer(await service.host.confirm(snapshot)) !== undefined) send()
+      expect(send).not.toHaveBeenCalled()
+      expect(engine.start(snapshot.target)).toBe(false)
+      expect(presence.check).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          id: snapshot.id,
+          digest: snapshot.digest,
+          machine: deps.workspace,
+        }),
+      )
     } finally {
-      client.destroy()
-      await new Promise<void>((resolve) => {
-        server.close(() => {
-          resolve()
-        })
-      })
+      await service.close()
     }
   })
-  it.each(['linux', 'darwin'] as const)(
-    'accepts a proven terminal parent chain on %s',
-    async (platform) => {
-      expect(await isMakerTerminalAttended(fixture(platform))).toBe(true)
-    },
-  )
-  it('accepts Windows terminal ancestry through the platform process table', async () => {
-    const deps = windowsFixture(
-      String.raw`C:\Program Files\WindowsApps\Microsoft.WindowsTerminal_1.23.0.0_x64__8wekyb3d8bbwe\WindowsTerminal.exe`,
-      {
-        Name: 'powershell.exe',
-        ExecutablePath: String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`,
-      },
-    )
-    expect(await isMakerTerminalAttended(deps)).toBe(true)
-    expect(deps.run.mock.calls[0]?.[0]).toContain('powershell.exe')
-  })
-  it.each([
-    '127.0.0.1',
-    '127.12.34.56',
-    '::1',
-    '::ffff:127.0.0.1',
-    '192.168.1.10',
-    '::ffff:192.168.1.10',
-    '2001:db8::10',
-  ])('refuses ssh -tt to this machine through client address %s', async (address) => {
-    const deps = fixture()
-    deps.run.mockResolvedValue('2 3 bash\n3 1 sshd\n1 0 systemd')
-    expect(
-      await isMakerTerminalAttended({
-        ...deps,
-        env: {
-          SSH_CONNECTION: `${address} 12345 192.168.1.10 22`,
-          SSH_CLIENT: `${address} 12345 22`,
-        },
-        localAddresses: () => ['192.168.1.10', '2001:db8::10'],
-        readExecutable: (pid) => Promise.resolve(pid === 3 ? '/usr/sbin/sshd' : '/usr/bin/bash'),
-        readSshPeer: () => Promise.resolve(address),
-      }),
-    ).toBe(false)
-  })
-  it.each(['linux', 'darwin'] as const)(
-    'accepts SSH only from another machine on %s',
-    async (platform) => {
-      const deps = fixture(platform)
-      deps.run.mockResolvedValue('2 3 bash\n3 1 sshd\n1 0 systemd')
-      expect(
-        await isMakerTerminalAttended({
-          ...deps,
-          env: {
-            SSH_CONNECTION: '192.168.1.20 12345 192.168.1.10 22',
-            SSH_CLIENT: '192.168.1.20 12345 22',
-          },
-          localAddresses: () => ['192.168.1.10'],
-          readExecutable: (pid) => Promise.resolve(pid === 3 ? '/usr/sbin/sshd' : '/usr/bin/bash'),
-          readSshPeer: () => Promise.resolve('192.168.1.20'),
-        }),
-      ).toBe(true)
-    },
-  )
-  it.each([undefined, '127.0.0.1', '192.168.1.10', '192.168.1.30'])(
-    'refuses forged remote SSH variables with an unknown/local/different kernel peer %s',
-    async (peer) => {
-      const deps = fixture()
-      deps.run.mockResolvedValue('2 3 bash\n3 1 sshd\n1 0 systemd')
-      expect(
-        await isMakerTerminalAttended({
-          ...deps,
-          env: { SSH_CLIENT: '192.168.1.20 12345 22' },
-          localAddresses: () => ['192.168.1.10'],
-          readExecutable: (pid) => Promise.resolve(pid === 3 ? '/usr/sbin/sshd' : '/usr/bin/bash'),
-          readSshPeer: () => Promise.resolve(peer),
-        }),
-      ).toBe(false)
-    },
-  )
-  it('refuses an sshd ancestor without SSH client evidence', async () => {
-    const deps = fixture('darwin')
-    deps.run.mockResolvedValue('2 3 bash\n3 1 sshd\n1 0 launchd')
-    expect(await isMakerTerminalAttended(deps)).toBe(false)
-  })
-  it.each(['127.0.0.1', '192.168.1.10', '192.168.1.20'])(
-    'macOS reads the sshd socket peer instead of trusting a forged environment: %s',
-    async (peer) => {
-      const deps = fixture('darwin')
-      deps.run.mockResolvedValueOnce('2 3 bash\n3 1 sshd\n1 0 launchd')
-      deps.run.mockResolvedValueOnce(`p3\nn192.168.1.10:22->${peer}:12345\n`)
-      expect(
-        await isMakerTerminalAttended({
-          ...deps,
-          env: { SSH_CLIENT: '192.168.1.20 12345 22' },
-          localAddresses: () => ['192.168.1.10'],
-        }),
-      ).toBe(peer === '192.168.1.20')
-      expect(deps.run.mock.calls[1]?.[0]).toBe('/usr/sbin/lsof')
-    },
-  )
-  it.each([
-    null,
-    String.raw`C:\Users\person\WindowsTerminal.exe`,
-    String.raw`C:\Windows\Temp\WindowsTerminal.exe`,
-    String.raw`C:\Program Files\WindowsApps\fake\WindowsTerminal.exe`,
-  ])(
-    'refuses a Windows terminal name without its system executable identity: %s',
-    async (executable) => {
-      expect(await isMakerTerminalAttended(windowsFixture(executable))).toBe(false)
-    },
-  )
-  it.each(['tmux: server', 'screen'])(
-    'marks %s ancestry for independent person authority',
-    async (name) => {
-      const deps = fixture('darwin')
-      deps.run.mockResolvedValue(`2 5 bash\n5 3 ${name}\n3 1 Terminal\n1 0 launchd`)
-      const onMultiplexer = vi.fn()
-      expect(await isMakerTerminalAttended({ ...deps, onMultiplexer })).toBe(true)
-      expect(onMultiplexer).toHaveBeenCalledOnce()
-    },
-  )
-  it.each(['stdinTty', 'stdoutTty'] as const)(
-    'refuses a redirected %s before probing',
-    async (key) => {
-      const deps = fixture()
-      expect(await isMakerTerminalAttended({ ...deps, [key]: false })).toBe(false)
-      expect(deps.run).not.toHaveBeenCalled()
-    },
-  )
-  it.each(['CI', 'MUSE_SPARK_AGENT_SHELL', 'CODEX_THREAD_ID', 'CLAUDECODE'])(
-    'refuses marker %s even with both TTYs',
-    async (key) => {
-      const deps = fixture()
-      expect(await isMakerTerminalAttended({ ...deps, env: { [key]: '1' } })).toBe(false)
-      expect(deps.run).not.toHaveBeenCalled()
-    },
-  )
-  it.each(['codex', 'claude', 'muse', 'node', 'python3', 'unknown-launcher'])(
-    'refuses an agent/unknown ancestor %s despite a TTY shell',
-    async (name) => {
-      const deps = fixture()
-      deps.run.mockResolvedValue(`2 3 bash\n3 1 ${name}\n1 0 systemd`)
-      expect(await isMakerTerminalAttended(deps)).toBe(false)
-    },
-  )
-  it('refuses orphaned shells and interpreters that impersonate a terminal process name', async () => {
-    const deps = fixture()
-    deps.run.mockResolvedValue('2 1 bash\n1 0 systemd')
-    expect(await isMakerTerminalAttended(deps)).toBe(false)
-    deps.run.mockResolvedValue('2 3 bash\n3 1 konsole\n1 0 systemd')
-    expect(
-      await isMakerTerminalAttended({
-        ...deps,
-        readExecutable: () => Promise.resolve('/usr/bin/python3'),
-      }),
-    ).toBe(false)
-  })
-  it.each(['2 9 bash', '2 2 bash', 'malformed'])(
-    'treats missing, cyclic and malformed ancestry as unattended: %s',
-    async (table) => {
-      const deps = fixture()
-      deps.run.mockResolvedValue(table)
-      expect(await isMakerTerminalAttended(deps)).toBe(false)
-    },
-  )
-  it.each([
-    ['hardware', 'enable', '--reason', 'x', '--trust-workspace'],
-    ['machines', 'add', '--registration', '{}', '--trust-workspace'],
-    ['panel', '--trust-workspace'],
-  ])(
-    'real CLI entry refuses non-TTY agent-shell privilege %j before storage or credential output',
-    async (...args) => {
-      const command = parseMakerCommand(args)
-      if (command === undefined) throw new Error('command')
-      const deps = entryFixture({ MUSE_SPARK_AGENT_SHELL: '1' })
-      await expect(runRuntimeMaker(command, deps)).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
-      expect(deps.print).not.toHaveBeenCalled()
-      expect(deps.readSecret).not.toHaveBeenCalled()
-    },
-  )
-  it.each([
-    ['hardware', 'enable', '--reason', 'injected', '--trust-workspace'],
-    ['machines', 'add', '--registration', '{}', '--trust-workspace'],
-    ['panel', '--trust-workspace'],
-  ])(
-    'real CLI entry refuses multiplexer privilege %j before storage or key input',
-    async (...args) => {
-      const command = parseMakerCommand(args)
-      if (command === undefined) throw new Error('command')
-      const attended = vi
-        .spyOn(attendance, 'isMakerTerminalAttended')
-        .mockImplementation((deps) => {
-          deps.onMultiplexer?.()
-          return Promise.resolve(true)
-        })
-      const deps = entryFixture()
-      try {
-        await expect(runRuntimeMaker(command, deps)).rejects.toThrow(UI_TEXT.makerMultiplexerDenied)
-        expect(deps.print).not.toHaveBeenCalled()
-        expect(deps.readSecret).not.toHaveBeenCalled()
-      } finally {
-        attended.mockRestore()
-      }
-    },
-  )
 })

@@ -1,3 +1,4 @@
+import { performance } from 'node:perf_hooks'
 import { mkdtemp, mkdir, readFile, rm, link, symlink, rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -39,6 +40,7 @@ async function fixture(overrides: Partial<Parameters<typeof RuntimeMakerHost.cre
     },
     trusted: () => true,
     flagged: () => true,
+    presence: { check: vi.fn().mockResolvedValue('approved') },
     interactive: () => true,
     auditEnable,
     ...overrides,
@@ -114,30 +116,23 @@ describe('runtime maker host', () => {
     isTrusted = true
     expect(await host.confirm({ ...request(), expiresAt: Date.now() - 1 })).toBeUndefined()
   })
-  it('uses the engine binding; changed digest, target and replay never dispatch', async () => {
-    const { host } = await fixture()
-    await host.setHardware(true, 'bench')
-    const snapshot = request()
-    const approval = new MakerApproval(snapshot, () => host.hardwareEnabled())
-    const pending = host.confirm(snapshot)
+  it('presence for payload A cannot approve payload B or a changed target', async () => {
+    const { host, snapshot, engine, pending } = await confirming()
+    const answer = {
+      id: snapshot.id,
+      digest: snapshot.digest,
+      target: snapshot.target,
+      decision: 'allow_once',
+    }
+    const grant = await host.authorize(answer)
+    expect(grant).toBeDefined()
+    expect(host.answer({ ...answer, digest: '0'.repeat(64) }, grant)).toBe(false)
     expect(
-      host.answer({
-        id: snapshot.id,
-        digest: '0'.repeat(64),
-        target: snapshot.target,
-        decision: 'allow_once',
-      }),
-    ).toBe(true)
-    expect(approval.answer(await pending)).toBeUndefined()
-    expect(
-      host.answer({
-        id: snapshot.id,
-        digest: snapshot.digest,
-        target: snapshot.target,
-        decision: 'allow_once',
-      }),
+      host.answer({ ...answer, target: { kind: 'workspace', workspace: '/other' } }, grant),
     ).toBe(false)
-    expect(approval.start(snapshot.target)).toBe(false)
+    expect(host.answer(answer, grant)).toBe(true)
+    expect(engine.answer(await pending)).toBeDefined()
+    expect(host.answer(answer, grant)).toBe(false)
   })
   it('revocation cancels an outstanding permission before dispatch', async () => {
     const { host } = await fixture()
@@ -161,29 +156,103 @@ describe('runtime maker host', () => {
     expect(engine.answer(await pending)).toBeUndefined()
     expect(host.answer({ ...snapshot, decision: 'allow_once' })).toBe(false)
   })
-  it('passes a valid once answer to the engine and consumes only the live target', async () => {
+  it('passes a presence-approved once answer and consumes only the live target', async () => {
     const { host, snapshot, engine, pending } = await confirming()
-    expect(
-      host.answer({
-        id: snapshot.id,
-        digest: snapshot.digest,
-        target: snapshot.target,
-        decision: 'allow_once',
-      }),
-    ).toBe(true)
-    expect(
-      host.answer({
-        id: snapshot.id,
-        digest: snapshot.digest,
-        target: snapshot.target,
-        decision: 'allow_once',
-      }),
-    ).toBe(false)
+    const answer = {
+      id: snapshot.id,
+      digest: snapshot.digest,
+      target: snapshot.target,
+      decision: 'allow_once',
+    }
+    expect(host.answer(answer)).toBe(false)
+    const grant = await host.authorize(answer)
+    expect(host.answer(answer, grant)).toBe(true)
+    expect(host.answer(answer, grant)).toBe(false)
     const binding = engine.answer(await pending)
-    expect(binding).toBeDefined()
     if (binding === undefined) throw new Error('missing-binding')
     expect(engine.consume(binding, snapshot.target)).toBe(true)
     expect(engine.consume(binding, snapshot.target)).toBe(false)
+  })
+  it('refuses an expired OS presence grant', async () => {
+    const { host, snapshot, pending } = await confirming()
+    const answer = {
+      id: snapshot.id,
+      digest: snapshot.digest,
+      target: snapshot.target,
+      decision: 'allow_once',
+    }
+    const grant = await host.authorize(answer)
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 6000)
+    try {
+      expect(host.answer(answer, grant)).toBe(false)
+    } finally {
+      clock.mockRestore()
+      host.cancelApprovals()
+      await pending
+    }
+  })
+  it.each(['denied', 'unavailable'] as const)(
+    'OS presence %s cannot authorize a send or enable hardware',
+    async (result) => {
+      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const { host } = await fixture({ presence })
+      await host.setHardware(true, 'bench')
+      presence.check.mockResolvedValue(result)
+      const snapshot = request()
+      const pending = host.confirm(snapshot)
+      const answer = {
+        id: snapshot.id,
+        digest: snapshot.digest,
+        target: snapshot.target,
+        decision: 'allow_once',
+      }
+      try {
+        await expect(host.authorize(answer)).rejects.toThrow()
+        expect(host.answer(answer)).toBe(false)
+        await host.setHardware(false)
+        await expect(host.setHardware(true, 'bench')).rejects.toThrow()
+        expect(host.hardwareEnabled()).toBe(false)
+        expect(await pending).toBeUndefined()
+      } finally {
+        host.cancelApprovals()
+        await pending
+      }
+    },
+  )
+  it('a competing presence reply cannot mint a second grant for the same approval', async () => {
+    const presence = { check: vi.fn().mockResolvedValue('approved') }
+    const { host } = await fixture({ presence })
+    await host.setHardware(true, 'bench')
+    const native = Promise.withResolvers<'approved'>()
+    presence.check.mockReturnValue(native.promise)
+    const snapshot = request()
+    const pending = host.confirm(snapshot)
+    const answer = {
+      id: snapshot.id,
+      digest: snapshot.digest,
+      target: snapshot.target,
+      decision: 'allow_once',
+    }
+    const first = host.authorize(answer),
+      second = host.authorize(answer)
+    native.resolve('approved')
+    const [grant, replay] = await Promise.all([first, second])
+    expect(grant).toBeDefined()
+    expect(replay).toBeUndefined()
+    expect(host.answer(answer, grant)).toBe(true)
+    await pending
+  })
+  it('hardware disable during OS authentication revokes the pending enable', async () => {
+    const presence = { check: vi.fn().mockResolvedValue('approved') }
+    const { host } = await fixture({ presence })
+    const native = Promise.withResolvers<'approved'>()
+    presence.check.mockReturnValue(native.promise)
+    const enabling = host.setHardware(true, 'bench')
+    await host.setHardware(false)
+    native.resolve('approved')
+    await expect(enabling).rejects.toThrow()
+    expect(host.hardwareEnabled()).toBe(false)
+    expect(await host.storage.workspace.get('hardware')).toBeUndefined()
   })
   it('times out and closes the pending surface request', async () => {
     const { host } = await fixture()

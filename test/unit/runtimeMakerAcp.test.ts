@@ -32,6 +32,7 @@ async function fixture(isHome = false, env: NodeJS.ProcessEnv = {}) {
     dataDirectory: path.join(root, 'data'),
     trusted: () => true,
     flagged: () => true,
+    presence: { check: vi.fn().mockResolvedValue('approved') },
     secrets: { get: vi.fn().mockResolvedValue(undefined), store: vi.fn(), delete: vi.fn() },
     native: { platform: process.platform, env, packageRoot: path.resolve('.') },
   })

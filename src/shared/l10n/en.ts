@@ -29,19 +29,22 @@ export const EN = {
     'Machine configuration detected. Review heater and travel limits before deploying changes.',
   makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
   makerTitle: 'Makers',
-  makerLaunchCode: 'Panel code: {code}. Enter it in the browser within {duration}.',
-  makerLaunchPrompt: 'Enter the one-time code shown in your terminal.',
+  makerCompanionUnavailable:
+    'The maker panel cannot bind its reserved local ports. Close another maker panel and retry; Stop is still available.',
   makerLaunchConnect: 'Open panel',
-  makerLaunchDenied: 'Code refused or expired. Run maker panel again.',
-  makerMultiplexerDenied:
-    'Run this privileged command outside terminal multiplexers, or use a panel opened from a separate terminal.',
   makerApprovalTitle: 'Approve hardware action',
   makerSendOnce: 'Send once',
   makerReject: 'Reject',
   makerApprovalExpired: 'This approval expired. Request the action again.',
   makerApprovalTargetChanged: 'The target changed. Review a new approval.',
-  makerUnattendedDenied:
-    'Hardware actions require an attended session. Run this command yourself in a terminal.',
+  makerPresenceReason: '{machine}: {action} (payload {digest})',
+  makerPresenceDenied: 'OS authentication was denied. Nothing was sent.',
+  makerPresenceUnavailable:
+    'OS authentication is unavailable. macOS and Windows need the native presence helper integration; Linux needs the maker polkit policy and a session agent. Stop remains available.',
+  makerPresenceConnect: 'Connect to device',
+  makerPresenceProgram: 'Program device',
+  makerPresenceActuate: 'Move, heat or power machine',
+  makerUnattendedDenied: 'Hardware requires an eligible interactive session and OS authentication.',
   makerStopFailed: 'Stop failed — use the machine’s physical emergency stop now: {machine}.',
   makerStopPhysicalRequired:
     'Machine {machine} requires its physical emergency stop; software Stop is unavailable.',
@@ -1142,7 +1145,7 @@ export const EN = {
   // the extension for; the second sentence when the host is beyond loopback.
   browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
   browserCheckConfirmDetail:
-    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
+    'The browser uses a temporary private profile and a proxy. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts. Maker companion origins are always refused.',
   browserCheckConfirmDetailWiden:
     '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // M81 A1: the question before the browser check's runtime is downloaded,
@@ -1165,12 +1168,12 @@ export const EN = {
     other: '{count} failed requests',
   }),
   browserCheckBlockedRequests: forms({
-    one: '{count} request blocked beyond this computer',
-    other: '{count} requests blocked beyond this computer',
+    one: '{count} request blocked',
+    other: '{count} requests blocked',
   }),
   // Why a check did not happen or did not finish.
   browserCheckUrlRefused:
-    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+    'This address cannot be opened. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts; maker companion origins are always refused.',
   browserCheckInvalidArguments:
     'The browser check was asked for with arguments that are not valid, so nothing was opened.',
   // The runtime's preparation (M81 A1): why no verified browser was ready.

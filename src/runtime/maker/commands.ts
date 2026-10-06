@@ -14,9 +14,6 @@ export interface MakerCommandDeps {
   readonly service: Awaited<ReturnType<typeof createRuntimeMakerService>>
   readonly readSecret: () => Promise<string | undefined>
   readonly print: (line: string) => void
-  /** Dedicated attended TTY sink; never the ordinary command output or a logger. */
-  readonly printLaunchCode: (code: string) => void
-  readonly requiresPanelConfirmation?: boolean
   readonly distDirectory: string
   readonly openBrowser: (url: string) => Promise<void>
   readonly done: AbortSignal
@@ -33,15 +30,6 @@ export async function runMakerCommand(
       (command.action === 'machines' && command.operation === 'add'))
   )
     throw new Error(UI_TEXT.makerUnattendedDenied)
-  if (
-    deps.requiresPanelConfirmation &&
-    (command.action === 'panel' ||
-      (command.action === 'hardware' && command.operation === 'enable') ||
-      (command.action === 'machines' && command.operation === 'add'))
-  ) {
-    // A multiplexer can expose its TTY's code through capture-pane; it cannot bootstrap person authority.
-    throw new Error(UI_TEXT.makerMultiplexerDenied)
-  }
   switch (command.action) {
     case 'hardware': {
       if (command.operation === 'enable') await service.host.setHardware(true, command.reason)
@@ -64,6 +52,9 @@ export async function runMakerCommand(
           ...rawObject(raw),
         })
         if (message.type !== 'makerAddMachine') throw new Error(UI_TEXT.makerAddMachine)
+        await service.host.requirePresence(UI_TEXT.makerAddMachine, message, message.machine.name)
+        if (!service.host.isTrusted() || !service.host.isInteractive())
+          throw new Error(UI_TEXT.makerUnattendedDenied)
         const secret = { value: command.keyStdin ? await deps.readSecret() : undefined }
         try {
           if (command.keyStdin && secret.value === undefined)
@@ -99,8 +90,7 @@ export async function runMakerCommand(
           provider: { host: thonny.host, port: thonny.port, token: thonny.token },
         })
         try {
-          deps.printLaunchCode(companion.launch)
-          await deps.openBrowser(`${companion.url}/`)
+          await deps.openBrowser(await companion.open())
           await new Promise<void>((resolve) => {
             if (deps.done.aborted) resolve()
             else
@@ -143,7 +133,7 @@ export async function openMakerBrowser(
     page.password !== '' ||
     page.pathname !== '/' ||
     page.search !== '' ||
-    page.hash !== ''
+    !/^[a-f0-9]{64}$/.test(page.hash.slice(1))
   )
     throw new Error(UI_TEXT.makerUnattendedDenied)
   if (platform === 'win32') {

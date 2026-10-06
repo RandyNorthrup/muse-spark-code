@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+  <vendor>Muse Spark Code (Unofficial)</vendor>
+  <action id="org.muse-spark-code.maker.approve">
+    <description>Approve hardware action</description>
+    <message>Approve hardware action</message>
+    <description xml:lang="cs">Schválit hardwarovou akci</description>
+    <message xml:lang="cs">Schválit hardwarovou akci</message>
+    <description xml:lang="de">Hardwareaktion genehmigen</description>
+    <message xml:lang="de">Hardwareaktion genehmigen</message>
+    <description xml:lang="es">Aprobar acción de hardware</description>
+    <message xml:lang="es">Aprobar acción de hardware</message>
+    <description xml:lang="fr">Approuver l’action matérielle</description>
+    <message xml:lang="fr">Approuver l’action matérielle</message>
+    <description xml:lang="hu">Hardverművelet jóváhagyása</description>
+    <message xml:lang="hu">Hardverművelet jóváhagyása</message>
+    <description xml:lang="it">Approva l’azione hardware</description>
+    <message xml:lang="it">Approva l’azione hardware</message>
+    <description xml:lang="ja">ハードウェア操作を承認</description>
+    <message xml:lang="ja">ハードウェア操作を承認</message>
+    <description xml:lang="ko">하드웨어 작업 승인</description>
+    <message xml:lang="ko">하드웨어 작업 승인</message>
+    <description xml:lang="pl">Zatwierdź działanie sprzętowe</description>
+    <message xml:lang="pl">Zatwierdź działanie sprzętowe</message>
+    <description xml:lang="pt-br">Aprovar ação de hardware</description>
+    <message xml:lang="pt-br">Aprovar ação de hardware</message>
+    <description xml:lang="ru">Одобрить действие с оборудованием</description>
+    <message xml:lang="ru">Одобрить действие с оборудованием</message>
+    <description xml:lang="tr">Donanım işlemini onayla</description>
+    <message xml:lang="tr">Donanım işlemini onayla</message>
+    <description xml:lang="zh-cn">批准硬件操作</description>
+    <message xml:lang="zh-cn">批准硬件操作</message>
+    <description xml:lang="zh-tw">核准硬體操作</description>
+    <message xml:lang="zh-tw">核准硬體操作</message>
+    <!-- Installer substitutes the consenting account's numeric UID. This permits details, never authorization. -->
+    <annotate key="org.freedesktop.policykit.owner">unix-user:@UID@</annotate>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

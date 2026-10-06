@@ -287,6 +287,8 @@ export interface PhasePlan {
   readonly pageUrl: string
   /** Forbidden URLs the Fetch gate lets through from this phase's probe frame only. */
   readonly exceptions: ReadonlySet<string>
+  /** Exact nonce-bearing URLs on the trusted fixture, including its challenge iframe. */
+  readonly fixtureUrls: ReadonlySet<string>
   /** The probe page's script (Runtime.evaluate), resolving to its JSON report. */
   readonly script: string
   /** Whether this phase runs the full set (page, audit) or routing only (default). */
@@ -396,6 +398,14 @@ export function phasePlan(
     target,
     pageUrl: `http://localhost:${String(port)}${base}p`,
     exceptions,
+    fixtureUrls: new Set([
+      `http://localhost:${String(port)}${base}p`,
+      ...target.loopbackHosts.flatMap((host) => [
+        `http://${host}:${String(port)}${base}l/${host}`,
+        `http://${host}:${String(port)}${base}a`,
+        `http://${host}:${String(port)}${base}f`,
+      ]),
+    ]),
     script: `(${PROBE_SCRIPT})(${input})`,
     isFull,
     refused,

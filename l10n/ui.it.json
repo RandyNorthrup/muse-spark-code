@@ -14,7 +14,7 @@
   "makerReject": "Rifiuta",
   "makerApprovalExpired": "Questa approvazione è scaduta. Richiedi nuovamente l’azione.",
   "makerApprovalTargetChanged": "La destinazione è cambiata. Esamina una nuova approvazione.",
-  "makerUnattendedDenied": "Le azioni hardware richiedono la presenza di una persona. Eseguire personalmente il comando in un terminale.",
+  "makerUnattendedDenied": "L’hardware richiede una sessione interattiva idonea e l’autenticazione del sistema operativo.",
   "makerTrustRequired": "Considera attendibile questo spazio di lavoro prima di abilitare l’hardware.",
   "makerEnableHardware": "Abilita l’hardware per questo spazio di lavoro",
   "makerDisableHardware": "Disabilita l’hardware per questo spazio di lavoro",
@@ -691,7 +691,7 @@
   "webFetchMoved": "La pagina ha reindirizzato a {location}, su un altro host. Muse può recuperarla con una nuova chiamata, che chiederà di nuovo.",
   "webFetchRestrictedMode": "Il recupero delle pagine è disattivato in modalità con restrizioni. Considera attendibile l’area di lavoro per usarlo.",
   "browserCheckConfirmTitle": "Muse Code vuole aprire {url} in un browser headless",
-  "browserCheckConfirmDetail": "La pagina viene caricata in un nuovo profilo del browser privato, eliminato al termine. Tutto il suo traffico passa dal proxy dell’estensione, che lascia passare solo http semplice verso questo computer e verso gli host in museSpark.browserCheckExtraHosts.",
+  "browserCheckConfirmDetail": "Il browser usa un profilo privato temporaneo e un proxy. Gli indirizzi privati richiedono un’origine di sviluppo esatta in museSpark.browserCheckExtraHosts. Le origini del pannello delle macchine sono sempre rifiutate.",
   "browserCheckConfirmDetailWiden": "{host} non è questo computer. Consentirlo permette a questo solo controllo di raggiungerlo, anche tramite https e WebSocket. Quel traffico è cifrato, quindi l’estensione non può ispezionarlo, e un sito lì potrebbe farti accedere con l’account di questo computer (soprattutto su Windows).",
   "browserRuntimeConsentTitle": "Scaricare il browser per i controlli nel browser ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code scaricherà Chrome for Testing headless shell {version} di Google ({size}) da storage.googleapis.com e lo conserverà in {location}. Viene usato solo per i controlli nel browser e ogni nuova versione fissata da un aggiornamento dell’estensione viene scaricata di nuovo. Imposta museSpark.browserCheckRuntime su download per non ricevere più la domanda, oppure su off per disattivare il controllo nel browser.",
@@ -711,11 +711,11 @@
     "other": "{count} richieste non riuscite"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} richiesta bloccata oltre questo computer",
-    "many": "{count} richieste bloccate oltre questo computer",
-    "other": "{count} richieste bloccate oltre questo computer"
+    "one": "{count} richiesta bloccata",
+    "many": "{count} richieste bloccate",
+    "other": "{count} richieste bloccate"
   },
-  "browserCheckUrlRefused": "Si può aprire solo un indirizzo http:// o https:// con un semplice nome host o un indirizzo IP, senza nome utente né password.",
+  "browserCheckUrlRefused": "Questo indirizzo non può essere aperto. Gli indirizzi privati richiedono un’origine di sviluppo esatta in museSpark.browserCheckExtraHosts; le origini del pannello delle macchine sono sempre rifiutate.",
   "browserCheckInvalidArguments": "Il controllo nel browser è stato richiesto con argomenti non validi, quindi non è stato aperto nulla.",
   "browserCheckRuntimeMissing": "Il browser del controllo nel browser non è installato e al momento non è stato possibile scaricarlo. Controlla la connessione e riprova.",
   "browserCheckRuntimeUnsupported": "Il controllo nel browser non è disponibile su questo computer. Supporta Windows x64, Linux x64 e macOS.",
@@ -2575,9 +2575,12 @@
   "judgeStatusPaid": "A pagamento",
   "makerStopFailed": "Arresto non riuscito — usare subito l’arresto di emergenza fisico della macchina {machine}.",
   "makerStopPhysicalRequired": "La macchina {machine} richiede l’arresto di emergenza fisico; l’arresto software non è disponibile.",
-  "makerLaunchCode": "Codice del pannello: {code}. Inseriscilo nel browser entro {duration}.",
-  "makerLaunchPrompt": "Inserisci il codice monouso mostrato nel terminale.",
   "makerLaunchConnect": "Apri pannello",
-  "makerLaunchDenied": "Codice rifiutato o scaduto. Esegui di nuovo maker panel.",
-  "makerMultiplexerDenied": "Esegui questo comando privilegiato fuori dai multiplexer di terminale oppure usa un pannello aperto da un terminale separato."
+  "makerPresenceReason": "{machine}: {action} (dati {digest})",
+  "makerPresenceDenied": "L’autenticazione del sistema operativo è stata negata. Non è stato inviato nulla.",
+  "makerPresenceUnavailable": "L’autenticazione del sistema operativo non è disponibile. macOS e Windows richiedono l’integrazione dell’assistente nativo di presenza; Linux richiede la regola polkit di Makers e un agente di sessione. Arresta resta disponibile.",
+  "makerPresenceConnect": "Connetti dispositivo",
+  "makerPresenceProgram": "Programma dispositivo",
+  "makerPresenceActuate": "Muovi, riscalda o alimenta la macchina",
+  "makerCompanionUnavailable": "Il pannello delle macchine non può usare le porte locali riservate. Chiudi un altro pannello delle macchine e riprova; Stop resta disponibile."
 }

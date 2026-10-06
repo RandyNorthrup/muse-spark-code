@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- REDM103R supersedes the terminal/SSH approval repairs below: physical maker
+  approvals, hardware enable, machine add and panel open require OS user
+  authentication bound to the exact action. Grants expire in five seconds and
+  work once. Remove ancestry walks, terminal launch codes, id-only HMAC answers
+  and the multiplexer refusal. Linux ships a non-caching polkit policy; the
+  macOS/Windows native helpers and real authenticated runs remain qualification
+  prerequisites. Stop remains independent. Browser checks deny private resolved
+  addresses by default, permit exact workspace dev-server origins explicitly,
+  and always deny the reserved companion ports, even without discovery files.
+  The ACP package carries the runtime bundle, browser schema entry and policy.
+
 - FIXM103R2: reject local/unknown SSH attendance and verify Windows ancestor
   executable paths. Browser launchers receive only a public panel URL; a typed
   eight-character code expires after 60 seconds, is single use and rate-limited,

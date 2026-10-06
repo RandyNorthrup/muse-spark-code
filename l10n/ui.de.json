@@ -14,7 +14,7 @@
   "makerReject": "Ablehnen",
   "makerApprovalExpired": "Diese Genehmigung ist abgelaufen. Fordern Sie die Aktion erneut an.",
   "makerApprovalTargetChanged": "Das Ziel hat sich geändert. Prüfen Sie eine neue Genehmigung.",
-  "makerUnattendedDenied": "Hardwareaktionen erfordern eine anwesende Person. Führen Sie den Befehl selbst im Terminal aus.",
+  "makerUnattendedDenied": "Hardware erfordert eine berechtigte interaktive Sitzung und die Betriebssystem-Authentifizierung.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",
@@ -676,7 +676,7 @@
   "webFetchMoved": "Die Seite leitete zu {location} weiter, auf einen anderen Host. Muse kann sie mit einem neuen Aufruf abrufen, der erneut fragt.",
   "webFetchRestrictedMode": "Das Abrufen von Seiten ist im eingeschränkten Modus aus. Vertrauen Sie dem Arbeitsbereich, um es zu nutzen.",
   "browserCheckConfirmTitle": "Muse Code möchte {url} in einem Headless-Browser öffnen",
-  "browserCheckConfirmDetail": "Die Seite lädt in einem neuen, privaten Browserprofil, das danach gelöscht wird. Ihr gesamter Verkehr läuft über den eigenen Proxy der Erweiterung, der nur einfaches http an diesen Computer und an die Hosts in museSpark.browserCheckExtraHosts durchlässt.",
+  "browserCheckConfirmDetail": "Der Browser verwendet ein temporäres privates Profil und einen Proxy. Private Adressen erfordern einen genauen Entwicklungsserver-Ursprung in museSpark.browserCheckExtraHosts. Ursprünge des Maschinen-Begleitpanels werden immer abgelehnt.",
   "browserCheckConfirmDetailWiden": "{host} ist nicht dieser Computer. Wenn Sie zulassen, kann diese eine Prüfung ihn erreichen, auch über https und WebSockets. Dieser Verkehr ist verschlüsselt, daher kann die Erweiterung ihn nicht prüfen, und eine Website dort kann Sie mit dem Konto dieses Computers anmelden (vor allem unter Windows).",
   "browserRuntimeConsentTitle": "Den Browser für Browserprüfungen herunterladen ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code lädt die Chrome-for-Testing-Headless-Shell {version} von Google ({size}) von storage.googleapis.com herunter und speichert sie in {location}. Sie wird nur für Browserprüfungen verwendet, und jede neue Version, die ein Update der Erweiterung festlegt, wird erneut heruntergeladen. Setzen Sie museSpark.browserCheckRuntime auf download, um nicht mehr gefragt zu werden, oder auf off, um die Browserprüfung auszuschalten.",
@@ -694,10 +694,10 @@
     "other": "{count} fehlgeschlagene Anfragen"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} Anfrage außerhalb dieses Computers blockiert",
-    "other": "{count} Anfragen außerhalb dieses Computers blockiert"
+    "one": "{count} Anfrage blockiert",
+    "other": "{count} Anfragen blockiert"
   },
-  "browserCheckUrlRefused": "Geöffnet werden kann nur eine http://- oder https://-Adresse mit einem einfachen Hostnamen oder einer IP-Adresse und ohne Benutzername oder Passwort.",
+  "browserCheckUrlRefused": "Diese Adresse kann nicht geöffnet werden. Private Adressen erfordern einen genauen Entwicklungsserver-Ursprung in museSpark.browserCheckExtraHosts; Ursprünge des Maschinen-Begleitpanels werden immer abgelehnt.",
   "browserCheckInvalidArguments": "Die Browserprüfung wurde mit ungültigen Argumenten angefordert, daher wurde nichts geöffnet.",
   "browserCheckRuntimeMissing": "Der Browser der Browserprüfung ist nicht installiert und konnte gerade nicht heruntergeladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
   "browserCheckRuntimeUnsupported": "Die Browserprüfung ist auf diesem Computer nicht verfügbar. Sie unterstützt Windows x64, Linux x64 und macOS.",
@@ -2480,9 +2480,12 @@
   "judgeStatusPaid": "Kostenpflichtig",
   "makerStopFailed": "Stopp fehlgeschlagen — betätigen Sie jetzt den physischen Not-Aus der Maschine {machine}.",
   "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
-  "makerLaunchCode": "Panelcode: {code}. Geben Sie ihn innerhalb von {duration} im Browser ein.",
-  "makerLaunchPrompt": "Geben Sie den einmaligen Code aus Ihrem Terminal ein.",
   "makerLaunchConnect": "Panel öffnen",
-  "makerLaunchDenied": "Code abgelehnt oder abgelaufen. Führen Sie maker panel erneut aus.",
-  "makerMultiplexerDenied": "Führen Sie diesen privilegierten Befehl außerhalb von Terminal-Multiplexern aus oder verwenden Sie ein Panel aus einem separaten Terminal."
+  "makerPresenceReason": "{machine}: {action} (Nutzdaten {digest})",
+  "makerPresenceDenied": "Die Betriebssystem-Authentifizierung wurde abgelehnt. Es wurde nichts gesendet.",
+  "makerPresenceUnavailable": "Die Betriebssystemauthentifizierung ist nicht verfügbar. macOS und Windows benötigen die Integration des nativen Helfers zur Anwesenheitsprüfung; Linux benötigt die Maker-polkit-Richtlinie und einen Sitzungsagenten. Stopp bleibt verfügbar.",
+  "makerPresenceConnect": "Gerät verbinden",
+  "makerPresenceProgram": "Gerät programmieren",
+  "makerPresenceActuate": "Maschine bewegen, heizen oder einschalten",
+  "makerCompanionUnavailable": "Das Maschinenpanel kann seine reservierten lokalen Ports nicht belegen. Schließen Sie ein anderes Maschinenpanel und versuchen Sie es erneut; Stop bleibt verfügbar."
 }

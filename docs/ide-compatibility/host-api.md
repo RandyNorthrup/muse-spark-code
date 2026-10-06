@@ -440,8 +440,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 46    |
-| `node:child_process`   | 18    |
-| `node:crypto`          | 56    |
+| `node:child_process`   | 19    |
+| `node:crypto`          | 58    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 4     |
@@ -451,11 +451,11 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:http`            | 6     |
 | `node:https`           | 2     |
 | `node:module`          | 1     |
-| `node:net`             | 13    |
-| `node:os`              | 11    |
-| `node:path`            | 104   |
-| `node:perf_hooks`      | 2     |
-| `node:process`         | 1     |
+| `node:net`             | 12    |
+| `node:os`              | 10    |
+| `node:path`            | 103   |
+| `node:perf_hooks`      | 3     |
+| `node:process`         | 2     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |

@@ -1,16 +1,9 @@
-// The browser check's address rule (M81, PLAN.md D49): a page reaches
-// loopback only (`localhost`, 127.0.0.0/8 and ::1) unless the user widened a
-// host, in the machine-scoped `museSpark.browserCheckExtraHosts` or on an
-// approval card for one call; the model never widens it. Hosts compare as
-// the WHATWG URL parser writes them (`127.1` and `0x7f.0.0.1` are
-// `127.0.0.1`, an IPv6 address is bracketed, a name lower-cased and an IDN
-// in punycode), and by name only: a name is never looked up, so one that
-// resolves elsewhere is blocked, and so is one that resolves to loopback
-// unless the user widened it. A widened host is a plain name or address,
-// never a pattern: it also goes into the browser's proxy bypass list, where
-// `*`, `;` or `<` would mean more. Pure.
+// Browser scope admits public widened hosts and exact user-configured dev origins.
+// The proxy enforces the resolved-address rule for names at every connection.
 
 import { isIPv4, isIPv6 } from 'node:net'
+import { isPublicAddress } from '../publicAddress'
+import { MAKER_COMPANION_PORT_FIRST, MAKER_COMPANION_PORT_END } from '../../shared/constants'
 import {
   BROWSER_CHECK_HOST_MAX_CHARS,
   BROWSER_CHECK_URL_MAX_CHARS,
@@ -58,6 +51,23 @@ export function widenedHost(entry: string): string | undefined {
   if (given === '' || given.length > BROWSER_CHECK_HOST_MAX_CHARS) {
     return undefined
   }
+  if (/^https?:\/\//.test(given)) {
+    try {
+      const origin = new URL(given)
+      return PAGE_SCHEMES.has(origin.protocol) &&
+        plainHost(origin.hostname) !== undefined &&
+        origin.username === '' &&
+        origin.password === '' &&
+        origin.pathname === '/' &&
+        origin.search === '' &&
+        origin.hash === '' &&
+        !isMakerCompanionPort(Number(origin.port))
+        ? origin.origin
+        : undefined
+    } catch {
+      return undefined
+    }
+  }
   let url: URL
   try {
     url = new URL(`http://${isIPv6(given) ? `${IPV6_OPEN}${given}${IPV6_CLOSE}` : given}/`)
@@ -76,11 +86,27 @@ export function widenedHost(entry: string): string | undefined {
   return isHostOnly ? plainHost(url.hostname) : undefined
 }
 
+/** Permanently reserved, independent of mutable discovery files. */
+export function isMakerCompanionPort(port: number): boolean {
+  return port >= MAKER_COMPANION_PORT_FIRST && port < MAKER_COMPANION_PORT_END
+}
+function isNonPublicHost(host: string): boolean {
+  return (
+    host === LOCALHOST ||
+    ((isIPv4(host) || host.startsWith('[')) &&
+      !isPublicAddress(host.startsWith('[') ? host.slice(1, -1) : host))
+  )
+}
+/** Exact origins only can admit private addresses; host-wide widening never does. */
+export function isExplicitDevOrigin(url: URL, entries: ReadonlySet<string>): boolean {
+  return entries.has(url.origin) && !isMakerCompanionPort(Number(url.port))
+}
+
 /** Where a URL the model asked for stands, before any card. */
 export type BrowserUrlPlacement =
   | { readonly kind: 'refused' }
   | {
-      /** Loopback; covered by the setting; or beyond both, so only a card may widen it. */
+      /** Exact dev origin; public host in the setting; or a public host that needs approval. */
       readonly kind: 'local' | 'widened' | 'needsWidening'
       /** The URL as the browser will open it, its fragment kept (it is never sent). */
       readonly url: string
@@ -109,12 +135,14 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
     host === undefined ||
     !PAGE_SCHEMES.has(url.protocol) ||
     url.username !== '' ||
-    url.password !== ''
+    url.password !== '' ||
+    isMakerCompanionPort(Number(url.port)) ||
+    (isNonPublicHost(host) && !isExplicitDevOrigin(url, extraHosts))
   ) {
     return { kind: 'refused' }
   }
   let kind: 'local' | 'widened' | 'needsWidening' = 'needsWidening'
-  if (isLoopbackHost(host)) {
+  if (isExplicitDevOrigin(url, extraHosts)) {
     kind = 'local'
   } else if (extraHosts.has(host)) {
     kind = 'widened'
@@ -129,7 +157,7 @@ export function placeBrowserUrl(raw: string, extraHosts: ReadonlySet<string>): B
 
 /**
  * Whether a request the page makes may go out: an http(s) or ws(s) URL to
- * loopback or a host widened for this check. Anything else is blocked,
+ * an exact dev origin or a public host widened for this check. Anything else is blocked,
  * whatever scheme it uses.
  */
 export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<string>): boolean {
@@ -141,7 +169,9 @@ export function isAllowedRequest(rawUrl: string, allowedHosts: ReadonlySet<strin
   }
   return (
     NETWORK_SCHEMES.has(url.protocol) &&
-    (isLoopbackHost(url.hostname) || allowedHosts.has(url.hostname))
+    !isMakerCompanionPort(Number(url.port)) &&
+    (isExplicitDevOrigin(new URL(url.href.replace(/^ws/, 'http')), allowedHosts) ||
+      (!isNonPublicHost(url.hostname) && allowedHosts.has(url.hostname)))
   )
 }
 

@@ -588,7 +588,7 @@ function request(overrides: Partial<BrowserCheckRequest> = {}): BrowserCheckRequ
   return {
     url: PAGE,
     actions: [],
-    allowedHosts: [],
+    allowedHosts: [new URL(PAGE).origin],
     approvalKey: 'key',
     includeScreenshot: true,
     signal: new AbortController().signal,
@@ -1148,6 +1148,29 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
     )
   })
 
+  it('admits only the active fixture nonce for its challenge iframe and revokes it before the model page', async () => {
+    const browser = new FakeBrowser(network())
+    const decisions = gateDecisions(browser)
+    let fixtureUrl = ''
+    browser.on('Runtime.evaluate', (params) => {
+      const expression = String(params['expression'])
+      if (fixtureUrl === '' && expression.startsWith('(async o=>')) {
+        const nonce = /c1-([\da-f]+)\.invalid/.exec(expression)?.[1] ?? ''
+        fixtureUrl = `http://localhost:${String(FIXTURE_PORT)}/${nonce}/f`
+        browser.paused('fixture', fixtureUrl, 'F-child')
+        browser.paused('wrong-nonce', fixtureUrl.replace(nonce, 'bad'), 'F-child')
+      }
+      return browser.answerProbe(expression)
+    })
+    scriptPage(browser, () => {
+      browser.paused('after-fixture', fixtureUrl, 'F-child')
+    })
+    await run(setup(browser))
+    expect(decisions).toEqual(
+      expect.arrayContaining(['continue fixture', 'fail wrong-nonce', 'fail after-fixture']),
+    )
+  })
+
   it('ends with the canary’s own failure when a probe does not arrive where the construction routes it', async () => {
     const cases: [Partial<Network>, string][] = [
       [{ dropped: { phase: 0, host: 'localhost' } }, 'routeUnconfirmed'],
@@ -1525,7 +1548,7 @@ describe('a browser check on the verified runtime (M81 A1)', () => {
       browser.paused('c', `${HTTP}//other.example.com/api`)
       browser.paused('d', 'file:///etc/passwd')
     })
-    await run(setup(browser), { allowedHosts: ['staging.example.com'] })
+    await run(setup(browser), { allowedHosts: ['staging.example.com', 'http://127.0.0.1:5173'] })
     expect(decisions).toEqual(
       expect.arrayContaining(['continue a', 'continue b', 'fail c', 'fail d']),
     )

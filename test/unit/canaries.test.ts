@@ -166,6 +166,7 @@ async function throughProxy(
     { url: plan.pageUrl, explicitHosts, approvalKey: 'key' },
     lookup,
   )
+  proxy.allowProbe?.(plan.target)
   proxies.push(proxy)
   const records: ProxyObservation[] = []
   proxy.observe((record) => {

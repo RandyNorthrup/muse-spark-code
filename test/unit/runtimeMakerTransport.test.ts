@@ -1,3 +1,4 @@
+import * as z from 'zod/mini'
 import * as crypto from 'node:crypto'
 import { createHmac, randomUUID } from 'node:crypto'
 import { createConnection, type Socket } from 'node:net'
@@ -12,10 +13,7 @@ import { startThonnyServer, type ThonnyPortOwner } from '../../src/runtime/maker
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { spawn } from 'node:child_process'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
-import {
-  RUNTIME_MAKER_LAUNCH_CODE_MS,
-  RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS,
-} from '../../src/shared/constants'
+import { RUNTIME_MAKER_LAUNCH_CODE_MS } from '../../src/shared/constants'
 
 vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>()
@@ -41,6 +39,7 @@ async function companion(bind?: string) {
     },
     trusted: () => true,
     flagged: () => true,
+    presence: { check: vi.fn().mockResolvedValue('approved') },
     interactive: () => true,
     auditEnable: () => Promise.resolve(),
   })
@@ -54,7 +53,8 @@ async function companion(bind?: string) {
     ...(bind !== undefined && { bind }),
   })
   cleanups.push(() => server.close())
-  return { ...server, dispatch, host }
+  const launch = new URL(await server.open()).hash.slice(1)
+  return { ...server, dispatch, host, launch }
 }
 async function http(
   url: string,
@@ -120,7 +120,7 @@ describe('companion boundary', () => {
   })
   it('launch codes are single use, same-origin, and exchanged into an HttpOnly cookie', async () => {
     const server = await companion()
-    expect(server.launch).toMatch(/^[A-HJ-NP-Z2-9]{8}$/)
+    expect(server.launch).toMatch(/^[a-f0-9]{64}$/)
     const payload = JSON.stringify({ launch: server.launch })
     expect(await status(server.url, '/launch', {}, payload)).toBe(403)
     expect(
@@ -149,21 +149,13 @@ describe('companion boundary', () => {
       now.mockRestore()
     }
   })
-  it('launch rate-limits guesses and cannot mint a key after exhausting its attempt allowance', async () => {
-    const server = await companion()
-    for (let count = 0; count < RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS; count += 1)
-      expect(
-        await status(server.url, '/launch', { Origin: server.url }, '{"launch":"wrong"}'),
-      ).toBe(401)
-    const reply = await http(
-      server.url,
-      '/launch',
-      { Origin: server.url },
-      JSON.stringify({ launch: server.launch }),
+  it('an MCP-only server cannot open a panel without OS presence', async () => {
+    const server = await startCompanion({ dispatch: vi.fn(), tools: () => [], assets: new Map() })
+    cleanups.push(() => server.close())
+    await expect(server.open()).rejects.toThrow()
+    expect(await status(server.url, '/launch', { Origin: server.url }, '{"launch":"forged"}')).toBe(
+      401,
     )
-    expect(reply.status).toBe(429)
-    expect(reply.headers['set-cookie']).toBeUndefined()
-    expect(reply.text).not.toContain('approvalKey')
   })
   it('MCP credentials cannot answer the surface or launch a browser session', async () => {
     const server = await companion()
@@ -220,15 +212,7 @@ describe('companion boundary', () => {
     )
     const cookie = bootstrap.headers['set-cookie']?.[0]?.split(';', 1)[0] ?? ''
     expect(JSON.parse(bootstrap.text)).toMatchObject({ provider: { token: 'panel-provider-only' } })
-    const key: unknown = JSON.parse(bootstrap.text)
-    if (
-      typeof key !== 'object' ||
-      key === null ||
-      !('approvalKey' in key) ||
-      typeof key.approvalKey !== 'string'
-    )
-      throw new Error('bootstrap')
-    expect(key.approvalKey).toMatch(/^[\da-f]{64}$/)
+    expect(bootstrap.text).not.toContain('approvalKey')
     const request = {
       id: randomUUID(),
       digest: 'a'.repeat(64),
@@ -256,7 +240,6 @@ describe('companion boundary', () => {
     const data = JSON.stringify(answer)
     const headers = { Cookie: cookie, Origin: server.url }
     try {
-      expect(JSON.stringify(messages)).not.toContain(key.approvalKey)
       expect(JSON.stringify(messages)).not.toContain('panel-provider-only')
       expect(await status(server.url, '/message', headers, data)).toBe(403)
       expect(await status(server.url, '/answer', headers, data)).toBe(403)
@@ -264,17 +247,20 @@ describe('companion boundary', () => {
         await status(
           server.url,
           '/answer',
-          { ...headers, 'X-Maker-Approval': key.approvalKey },
+          { ...headers, 'X-Maker-Approval': server.launch },
           data,
         ),
       ).toBe(403)
-      const pageHeaders = {
-        ...headers,
-        'X-Maker-Approval': createHmac('sha256', key.approvalKey).update(request.id).digest('hex'),
-      }
+      const oldProof = createHmac('sha256', server.launch).update(request.id).digest('hex')
+      expect(
+        await status(server.url, '/answer', { ...headers, 'X-Maker-Approval': oldProof }, data),
+      ).toBe(403)
+      const presence = await http(server.url, '/presence', headers, data)
+      const grant = z.object({ grant: z.string() }).parse(JSON.parse(presence.text)).grant
+      const pageHeaders = { ...headers, 'X-Maker-Approval': grant }
       expect(await status(server.url, '/answer', pageHeaders, data)).toBe(204)
       expect(await pending).toEqual(answer.answer)
-      expect(await status(server.url, '/answer', pageHeaders, data)).toBe(409)
+      expect(await status(server.url, '/answer', pageHeaders, data)).toBe(403)
     } finally {
       off()
       server.host.cancelApprovals()

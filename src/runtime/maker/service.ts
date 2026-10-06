@@ -40,6 +40,7 @@ import {
 import { fill } from '../../shared/l10n/text'
 import type { McpTool } from '../../core/mcp'
 import { RuntimeMakerHost, type RuntimeMakerHostDeps } from './runtimeMakerHost'
+import { createUserPresence } from './userPresence'
 import { nativeSerial, type NativeSerialDeps } from './nativeSerial'
 import { stopRuntimeMachines, stopResultText } from './stop'
 
@@ -73,6 +74,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   const logging: { value?: DeviceLog } = {}
   const hostDeps: RuntimeMakerHostDeps = {
     ...deps,
+    presence: deps.presence ?? createUserPresence(deps.native.platform),
     auditEnable: async (reason) => {
       await deviceLog().append({
         machine: 'workspace',
@@ -298,7 +300,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         message: stopResultText(result),
       }
     }
-    if (message.type === 'makerAnswer') return host.answer(message.answer)
+    if (message.type === 'makerAnswer') return false
     if (message.type === 'makerHardware') {
       await host.setHardware(message.enabled, message.reason)
       return await state()
@@ -368,7 +370,9 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         })
       }
       case 'makerAddMachine': {
-        if (!host.isInteractive()) throw new Error(UI_TEXT.makerUnattendedDenied)
+        await host.requirePresence(UI_TEXT.makerAddMachine, message, message.machine.name)
+        if (!host.isInteractive() || !host.isTrusted())
+          throw new Error(UI_TEXT.makerUnattendedDenied)
         await registry.register({ ...message.machine, allowPlainHttp: message.allowPlainHttp })
         return await state()
       }

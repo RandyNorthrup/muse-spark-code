@@ -50,7 +50,7 @@ function setup(
   const checked: BrowserCheckRequest[] = []
   const admissions: CheckAdmission[] = []
   let isOffered = options.isOffered ?? true
-  let extraHosts = options.extraHosts ?? []
+  let extraHosts = options.extraHosts ?? ['http://localhost:3000', 'http://localhost']
   const offer = (isNowOffered: boolean) => {
     isOffered = isNowOffered
   }
@@ -113,7 +113,7 @@ describe('the ide server browser check (M81)', () => {
     expect(t.tools()).toEqual([])
   })
 
-  it('asks before every check and runs it text only, on loopback alone', async () => {
+  it('asks before every check and runs it text only, on the configured dev origin', async () => {
     const t = setup()
     const text = await t.call({
       url: 'http://localhost:3000/',
@@ -124,7 +124,7 @@ describe('the ide server browser check (M81)', () => {
     expect(t.checked[0]).toMatchObject({
       url: 'http://localhost:3000/',
       actions: [{ kind: 'click', selector: '#go' }],
-      allowedHosts: [],
+      allowedHosts: ['http://localhost', 'http://localhost:3000'],
       includeScreenshot: false,
     })
     expect(text).toContain('Opened http://localhost:3000/ in a headless browser: 1 console errors')

@@ -111,7 +111,10 @@ async function upstream(): Promise<{ port: number; heads: IncomingMessage[] }> {
 describe('the browser check’s proxy (M81 A1)', () => {
   it('blocks companion ports before connections, including aliases, tunnels and panels started after the check', async () => {
     const target = await upstream()
-    const { port, lookup } = await proxyFor(['allowed.example', 'localhost'])
+    const { port, lookup } = await proxyFor([
+      `http://allowed.example:${String(target.port)}`,
+      `http://localhost:${String(target.port)}`,
+    ])
     const unregister = await registerMakerCompanion([target.port])
     try {
       for (const host of ['127.0.0.1', 'localhost', 'allowed.example']) {
@@ -139,6 +142,78 @@ describe('the browser check’s proxy (M81 A1)', () => {
       ),
     ).toMatch(/^HTTP\/1\.1 401 /)
   })
+  it.each([
+    '127.0.0.2',
+    '[::1]',
+    '0.0.0.0',
+    '2130706433',
+    '0177.0.0.1',
+    '[::ffff:127.0.0.1]',
+    '169.254.1.1',
+    '10.1.2.3',
+    '172.16.1.1',
+    '192.168.1.1',
+    '[fc00::1]',
+  ])('default denies private destination %s in HTTP and CONNECT', async (host) => {
+    const { port, seen } = await proxyFor([new URL(`http://${host}/`).hostname])
+    const authority = new URL(`http://${host}:3000/`).host
+    expect(
+      await raw(port, `GET http://${authority}/ HTTP/1.1\r\nHost: ${authority}\r\n\r\n`),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+    expect(await raw(port, `CONNECT ${authority} HTTP/1.1\r\nHost: ${authority}\r\n\r\n`)).toMatch(
+      /^HTTP\/1\.1 403 /,
+    )
+    expect(seen.every((item) => !item.forwarded)).toBe(true)
+  })
+  it('refuses a widened DNS name resolving to loopback and a relay on a second port', async () => {
+    const target = await upstream()
+    const { port, lookup, seen } = await proxyFor(['relay.test'])
+    const authority = `relay.test:${String(target.port)}`
+    expect(
+      await raw(port, `GET http://${authority}/ HTTP/1.1\r\nHost: ${authority}\r\n\r\n`),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+    expect(lookup).toHaveBeenCalledOnce()
+    expect(target.heads).toEqual([])
+    expect(seen[0]?.forwarded).toBe(false)
+  })
+  it('companion origin remains refused even if allowlisted and discovery is erased', async () => {
+    const { port, lookup } = await proxyFor(['http://127.0.0.1:47830', 'https://127.0.0.1:47830'])
+    const unregister = await registerMakerCompanion([47_830])
+    await unregister()
+    expect(
+      await raw(port, 'GET http://127.0.0.1:47830/ HTTP/1.1\r\nHost: 127.0.0.1:47830\r\n\r\n'),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+    expect(
+      await raw(port, 'CONNECT 127.0.0.1:47830 HTTP/1.1\r\nHost: 127.0.0.1:47830\r\n\r\n'),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+    expect(lookup).not.toHaveBeenCalled()
+  })
+  it('canary allowance is confined to its own nonce path and revoked before page traffic', async () => {
+    const target = await upstream()
+    const { port, proxy } = await proxyFor()
+    const revoke = proxy.allowProbe?.({
+      port: target.port,
+      nonce: 'private-canary',
+      loopbackHosts: ['127.0.0.1'],
+    })
+    const authority = `127.0.0.1:${String(target.port)}`
+    expect(
+      await raw(
+        port,
+        `GET http://${authority}/private-canary/p HTTP/1.1\r\nHost: ${authority}\r\n\r\n`,
+      ),
+    ).toMatch(/^HTTP\/1\.1 401 /)
+    expect(
+      await raw(port, `GET http://${authority}/other HTTP/1.1\r\nHost: ${authority}\r\n\r\n`),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+    revoke?.()
+    expect(
+      await raw(
+        port,
+        `GET http://${authority}/private-canary/p HTTP/1.1\r\nHost: ${authority}\r\n\r\n`,
+      ),
+    ).toMatch(/^HTTP\/1\.1 403 /)
+  })
   it('listens on 127.0.0.1 only, at a port the OS picked, with the loopback subtraction as its bypass list', async () => {
     const { proxy } = await proxyFor()
     expect(proxy.endpoint).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/)
@@ -146,8 +221,8 @@ describe('the browser check’s proxy (M81 A1)', () => {
   })
 
   it('forwards plain HTTP to loopback reserialized: a canonical Host, closed, no credentials or hop-by-hop fields', async () => {
-    const { port, seen } = await proxyFor()
     const target = await upstream()
+    const { port, seen } = await proxyFor([`http://127.0.0.1:${String(target.port)}`])
     const answer = await raw(
       port,
       [
@@ -189,8 +264,11 @@ describe('the browser check’s proxy (M81 A1)', () => {
   })
 
   it('connects localhost to fixed loopback literals and numeric hosts as written, never looking either up', async () => {
-    const { port, seen, lookup } = await proxyFor()
     const target = await upstream()
+    const { port, seen, lookup } = await proxyFor([
+      `http://localhost:${String(target.port)}`,
+      `http://127.0.0.1:${String(target.port)}`,
+    ])
     for (const host of ['localhost', '127.0.0.1']) {
       const authority = `${host}:${String(target.port)}`
       const answer = await raw(
@@ -236,7 +314,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
 
   it('looks a widened name up once, after its approval, and connects to that answer', async () => {
     const target = await upstream()
-    const { port, lookup, seen } = await proxyFor(['app.test'])
+    const { port, lookup, seen } = await proxyFor([`http://app.test:${String(target.port)}`])
     const authority = `app.test:${String(target.port)}`
     const answer = await raw(
       port,
@@ -304,7 +382,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
     ).toMatch(/^HTTP\/1\.1 403 /)
     expect(sentinel.lookup).not.toHaveBeenCalled()
 
-    const widened = await proxyFor(['127.0.0.1'])
+    const widened = await proxyFor([`https://127.0.0.1:${echoPort}`])
     const answer = await raw(
       widened.port,
       `CONNECT 127.0.0.1:${echoPort} HTTP/1.1\r\nHost: 127.0.0.1:${echoPort}\r\nProxy-Authorization: Basic c2VjcmV0\r\n\r\nping`,
@@ -356,7 +434,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
     const failing = vi.fn((_host: string): Promise<string> =>
       Promise.reject(new Error('ENOTFOUND app.test')),
     )
-    const { port, seen } = await proxyFor(['app.test', '127.0.0.1'], failing)
+    const { port, seen } = await proxyFor(['app.test', `https://127.0.0.1:${nobody}`], failing)
     expect(await raw(port, 'CONNECT app.test:443 HTTP/1.1\r\nHost: app.test:443\r\n\r\n')).toMatch(
       /^HTTP\/1\.1 403 /,
     )
@@ -389,7 +467,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
       })
     })
     const stallPort = String(await listen(stalling))
-    const { port, seen } = await proxyFor()
+    const { port, seen } = await proxyFor([`http://127.0.0.1:${stallPort}`])
     const started = Date.now()
     // The request's own head is complete: only the answer's bound can end it.
     const answer = await raw(
@@ -423,7 +501,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
       }, 3500)
     })
     const slowPort = String(await listen(slow))
-    const { port } = await proxyFor()
+    const { port } = await proxyFor([`http://127.0.0.1:${slowPort}`])
     const answer = await raw(
       port,
       `GET http://127.0.0.1:${slowPort}/ HTTP/1.1\r\nHost: 127.0.0.1:${slowPort}\r\n\r\n`,
@@ -458,7 +536,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
       })
     })
     const rudePort = String(await listen(rude))
-    const { port } = await proxyFor()
+    const { port } = await proxyFor([`http://127.0.0.1:${rudePort}`])
     const answer = await raw(
       port,
       `GET http://127.0.0.1:${rudePort}/ HTTP/1.1\r\nHost: 127.0.0.1:${rudePort}\r\n\r\n`,
@@ -469,7 +547,7 @@ describe('the browser check’s proxy (M81 A1)', () => {
 
   it('answers 502 when loopback refuses the connection, and closes every connection with itself', async () => {
     const nobody = await closedPort()
-    const { proxy, port, seen } = await proxyFor()
+    const { proxy, port, seen } = await proxyFor([`http://127.0.0.1:${nobody}`])
     expect(
       await raw(
         port,

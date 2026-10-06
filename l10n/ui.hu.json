@@ -14,7 +14,7 @@
   "makerReject": "Elutasítás",
   "makerApprovalExpired": "Ez a jóváhagyás lejárt. Kérje újra a műveletet.",
   "makerApprovalTargetChanged": "A cél megváltozott. Tekintse át az új jóváhagyást.",
-  "makerUnattendedDenied": "A hardverműveletekhez jelen lévő felhasználó szükséges. Futtassa a parancsot saját maga egy terminálban.",
+  "makerUnattendedDenied": "A hardver jogosult interaktív munkamenetet és operációsrendszer-hitelesítést igényel.",
   "makerTrustRequired": "A hardver engedélyezése előtt jelölje megbízhatónak ezt a munkaterületet.",
   "makerEnableHardware": "Hardver engedélyezése ezen a munkaterületen",
   "makerDisableHardware": "Hardver letiltása ezen a munkaterületen",
@@ -676,7 +676,7 @@
   "webFetchMoved": "Az oldal ide irányított át: {location}, egy másik gazdagépre. A Muse egy új hívással lekérheti, amely újra rákérdez.",
   "webFetchRestrictedMode": "Az oldalak lekérése korlátozott módban ki van kapcsolva. A használatához jelölje megbízhatónak a munkaterületet.",
   "browserCheckConfirmTitle": "A Muse Code meg szeretné nyitni ezt fej nélküli böngészőben: {url}",
-  "browserCheckConfirmDetail": "Az oldal egy új, privát böngészőprofilban töltődik be, amely utána törlődik. Teljes forgalma a bővítmény saját proxyján halad át, amely csak egyszerű http-t enged át erre a számítógépre és a museSpark.browserCheckExtraHosts gazdagépeire.",
+  "browserCheckConfirmDetail": "A böngésző ideiglenes privát profilt és proxyt használ. A privát címekhez pontos fejlesztői eredet szükséges a museSpark.browserCheckExtraHosts beállításban. A gépek kísérőpaneljének eredete mindig tiltott.",
   "browserCheckConfirmDetailWiden": "{host} nem ez a számítógép. Ha engedélyezi, ez az egy ellenőrzés elérheti, https-en és WebSocketen át is. Ez a forgalom titkosított, így a bővítmény nem tudja megvizsgálni, és egy ottani webhely bejelentkeztetheti Önt ennek a számítógépnek a fiókjával (főleg Windowson).",
   "browserRuntimeConsentTitle": "Letölti a böngészőt a böngészős ellenőrzésekhez ({size})?",
   "browserRuntimeConsentDetail": "A Muse Spark Code letölti a Google Chrome for Testing headless shell {version} változatát ({size}) a storage.googleapis.com oldalról, és itt tárolja: {location}. Csak böngészős ellenőrzésekhez használja, és minden új verziót, amelyet egy bővítményfrissítés rögzít, újra letölt. Ha nem szeretne több kérdést, állítsa a museSpark.browserCheckRuntime értékét download-ra, a böngészős ellenőrzés kikapcsolásához pedig off-ra.",
@@ -694,10 +694,10 @@
     "other": "{count} sikertelen kérés"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} letiltott kérés a számítógépen kívülre",
-    "other": "{count} letiltott kérés a számítógépen kívülre"
+    "one": "{count} letiltott kérés",
+    "other": "{count} letiltott kérés"
   },
-  "browserCheckUrlRefused": "Csak egyszerű gazdagépnevet vagy IP-címet tartalmazó, felhasználónév és jelszó nélküli http:// vagy https:// cím nyitható meg.",
+  "browserCheckUrlRefused": "Ez a cím nem nyitható meg. A privát címekhez pontos fejlesztői eredet szükséges a museSpark.browserCheckExtraHosts beállításban; a gépek kísérőpaneljének eredete mindig tiltott.",
   "browserCheckInvalidArguments": "A böngészős ellenőrzést érvénytelen argumentumokkal kérték, ezért semmi sem nyílt meg.",
   "browserCheckRuntimeMissing": "A böngészős ellenőrzés böngészője nincs telepítve, és most nem sikerült letölteni. Ellenőrizze a kapcsolatot, és próbálja újra.",
   "browserCheckRuntimeUnsupported": "A böngészős ellenőrzés ezen a számítógépen nem érhető el. Támogatott rendszerek: Windows x64, Linux x64 és macOS.",
@@ -2480,9 +2480,12 @@
   "judgeStatusPaid": "Fizetős",
   "makerStopFailed": "A leállítás sikertelen — azonnal használja a(z) {machine} gép fizikai vészleállítóját.",
   "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el.",
-  "makerLaunchCode": "Panelkód: {code}. Adja meg a böngészőben {duration} időn belül.",
-  "makerLaunchPrompt": "Adja meg a terminálban látható egyszer használatos kódot.",
   "makerLaunchConnect": "Panel megnyitása",
-  "makerLaunchDenied": "A kód elutasítva vagy lejárt. Futtassa újra a maker panel parancsot.",
-  "makerMultiplexerDenied": "Futtassa ezt a kiemelt jogosultságú parancsot terminálmultiplexeren kívül, vagy használjon külön terminálból megnyitott panelt."
+  "makerPresenceReason": "{machine}: {action} (adatok: {digest})",
+  "makerPresenceDenied": "Az operációs rendszer hitelesítése elutasítva. Semmi nem lett elküldve.",
+  "makerPresenceUnavailable": "Az operációs rendszer hitelesítése nem érhető el. A macOS és a Windows a natív jelenlétellenőrző segéd integrációját igényli; a Linuxhoz a Makers polkit-szabályzata és munkamenet-ügynök szükséges. A leállítás továbbra is elérhető.",
+  "makerPresenceConnect": "Eszköz csatlakoztatása",
+  "makerPresenceProgram": "Eszköz programozása",
+  "makerPresenceActuate": "Gép mozgatása, fűtése vagy bekapcsolása",
+  "makerCompanionUnavailable": "A gépek panelje nem tudja használni a fenntartott helyi portokat. Zárjon be egy másik géppanelt, és próbálja újra; a Stop továbbra is elérhető."
 }

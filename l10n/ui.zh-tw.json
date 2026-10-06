@@ -14,7 +14,7 @@
   "makerReject": "拒絕",
   "makerApprovalExpired": "此核准已過期。請重新要求操作。",
   "makerApprovalTargetChanged": "目標已變更。請審核新的核准要求。",
-  "makerUnattendedDenied": "硬體操作需要有人在場。請您親自在終端機中執行此命令。",
+  "makerUnattendedDenied": "硬體操作需要符合條件的互動工作階段與作業系統驗證。",
   "makerTrustRequired": "啟用硬體前，請信任此工作區。",
   "makerEnableHardware": "為此工作區啟用硬體",
   "makerDisableHardware": "為此工作區停用硬體",
@@ -661,7 +661,7 @@
   "webFetchMoved": "網頁重新導向到另一部主機上的 {location}。Muse 可以透過新的呼叫擷取它，屆時會再次詢問。",
   "webFetchRestrictedMode": "限制模式下網頁擷取已關閉。信任此工作區即可使用。",
   "browserCheckConfirmTitle": "Muse Code 想要在無頭瀏覽器中開啟 {url}",
-  "browserCheckConfirmDetail": "頁面會在全新的私人瀏覽器設定檔中載入，結束後刪除。它的所有流量都經過延伸模組自己的 Proxy，該 Proxy 只放行傳往本電腦和 museSpark.browserCheckExtraHosts 中主機的一般 http。",
+  "browserCheckConfirmDetail": "瀏覽器使用暫存私密設定檔與代理。私人位址需要 museSpark.browserCheckExtraHosts 中的精確開發伺服器來源。機器輔助面板的來源一律拒絕。",
   "browserCheckConfirmDetailWiden": "{host} 不是本電腦。允許後，僅本次檢查可以連線到它，也包括 https 和 WebSocket。這類流量經過加密，延伸模組無法檢查，該網站可能會以此電腦的帳戶代你登入（尤其是在 Windows 上）。",
   "browserRuntimeConsentTitle": "要下載瀏覽器檢查所用的瀏覽器（{size}）嗎？",
   "browserRuntimeConsentDetail": "Muse Spark Code 將從 storage.googleapis.com 下載 Google 的 Chrome for Testing headless shell {version}（{size}），並儲存在 {location}。它僅用於瀏覽器檢查，延伸模組更新所固定的每個新版本都會重新下載。若不想再被詢問，請將 museSpark.browserCheckRuntime 設為 download；若要關閉瀏覽器檢查，請設為 off。",
@@ -677,9 +677,9 @@
     "other": "{count} 個失敗的要求"
   },
   "browserCheckBlockedRequests": {
-    "other": "已封鎖 {count} 個傳送到本電腦以外的要求"
+    "other": "已封鎖 {count} 個要求"
   },
-  "browserCheckUrlRefused": "只能開啟使用簡單主機名稱或 IP 位址、且不含使用者名稱或密碼的 http:// 或 https:// 位址。",
+  "browserCheckUrlRefused": "無法開啟此位址。私人位址需要 museSpark.browserCheckExtraHosts 中的精確開發伺服器來源；機器輔助面板的來源一律拒絕。",
   "browserCheckInvalidArguments": "瀏覽器檢查的要求引數無效，因此未開啟任何內容。",
   "browserCheckRuntimeMissing": "瀏覽器檢查所用的瀏覽器尚未安裝，且目前無法下載。請檢查網路連線後再試一次。",
   "browserCheckRuntimeUnsupported": "此電腦無法使用瀏覽器檢查。它支援 Windows x64、Linux x64 和 macOS。",
@@ -2385,9 +2385,12 @@
   "judgeStatusPaid": "付費",
   "makerStopFailed": "停止失敗 — 請立即使用機器 {machine} 的實體緊急停止裝置。",
   "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。",
-  "makerLaunchCode": "面板代碼：{code}。請在 {duration} 內於瀏覽器輸入。",
-  "makerLaunchPrompt": "請輸入終端機中顯示的一次性代碼。",
   "makerLaunchConnect": "開啟面板",
-  "makerLaunchDenied": "代碼遭拒或已過期。請重新執行 maker panel。",
-  "makerMultiplexerDenied": "請在終端機多工器之外執行此特權命令，或使用從獨立終端機開啟的面板。"
+  "makerPresenceReason": "{machine}：{action}（酬載 {digest}）",
+  "makerPresenceDenied": "作業系統驗證遭拒。未傳送任何內容。",
+  "makerPresenceUnavailable": "作業系統身分驗證無法使用。macOS 和 Windows 需要整合原生使用者確認輔助程式；Linux 需要 Makers 的 polkit 政策及工作階段代理程式。停止功能仍可使用。",
+  "makerPresenceConnect": "連接裝置",
+  "makerPresenceProgram": "燒錄裝置",
+  "makerPresenceActuate": "移動、加熱或為機器供電",
+  "makerCompanionUnavailable": "機器面板無法使用保留的本機連接埠。請關閉另一個機器面板後重試；Stop 仍可使用。"
 }

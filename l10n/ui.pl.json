@@ -14,7 +14,7 @@
   "makerReject": "Odrzuć",
   "makerApprovalExpired": "To zatwierdzenie wygasło. Ponownie poproś o działanie.",
   "makerApprovalTargetChanged": "Cel się zmienił. Sprawdź nowe zatwierdzenie.",
-  "makerUnattendedDenied": "Działania sprzętowe wymagają obecności użytkownika. Uruchom polecenie osobiście w terminalu.",
+  "makerUnattendedDenied": "Sprzęt wymaga uprawnionej sesji interaktywnej i uwierzytelnienia w systemie operacyjnym.",
   "makerTrustRequired": "Oznacz ten obszar roboczy jako zaufany przed włączeniem sprzętu.",
   "makerEnableHardware": "Włącz sprzęt w tym obszarze roboczym",
   "makerDisableHardware": "Wyłącz sprzęt w tym obszarze roboczym",
@@ -706,7 +706,7 @@
   "webFetchMoved": "Strona przekierowała do {location}, na innego hosta. Muse może pobrać ją nowym wywołaniem, które zapyta ponownie.",
   "webFetchRestrictedMode": "Pobieranie stron jest wyłączone w trybie ograniczonym. Aby go użyć, uznaj obszar roboczy za zaufany.",
   "browserCheckConfirmTitle": "Muse Code chce otworzyć {url} w przeglądarce bez interfejsu graficznego",
-  "browserCheckConfirmDetail": "Strona wczytuje się w nowym, prywatnym profilu przeglądarki, który potem jest usuwany. Cały jej ruch przechodzi przez własny serwer proxy rozszerzenia, który przepuszcza tylko zwykłe http do tego komputera i do hostów z museSpark.browserCheckExtraHosts.",
+  "browserCheckConfirmDetail": "Przeglądarka używa tymczasowego prywatnego profilu i proxy. Adresy prywatne wymagają dokładnego źródła serwera deweloperskiego w museSpark.browserCheckExtraHosts. Źródła panelu maszyn są zawsze odrzucane.",
   "browserCheckConfirmDetailWiden": "{host} nie jest tym komputerem. Zezwolenie pozwoli tej jednej kontroli do niego dotrzeć, także przez https i WebSockety. Ten ruch jest szyfrowany, więc rozszerzenie nie może go sprawdzić, a witryna na tym hoście może zalogować Cię kontem tego komputera (zwłaszcza w systemie Windows).",
   "browserRuntimeConsentTitle": "Pobrać przeglądarkę do kontroli w przeglądarce ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code pobierze Chrome for Testing headless shell {version} firmy Google ({size}) z storage.googleapis.com i zachowa w {location}. Służy wyłącznie do kontroli w przeglądarce, a każda nowa wersja wskazana przez aktualizację rozszerzenia jest pobierana ponownie. Ustaw museSpark.browserCheckRuntime na download, aby przestać pytać, lub na off, aby wyłączyć kontrolę w przeglądarce.",
@@ -728,12 +728,12 @@
     "other": "{count} nieudanego żądania"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} zablokowane żądanie poza ten komputer",
-    "few": "{count} zablokowane żądania poza ten komputer",
-    "many": "{count} zablokowanych żądań poza ten komputer",
-    "other": "{count} zablokowanego żądania poza ten komputer"
+    "one": "{count} zablokowane żądanie",
+    "few": "{count} zablokowane żądania",
+    "many": "{count} zablokowanych żądań",
+    "other": "{count} zablokowanego żądania"
   },
-  "browserCheckUrlRefused": "Można otworzyć tylko adres http:// lub https:// z prostą nazwą hosta lub adresem IP, bez nazwy użytkownika i hasła.",
+  "browserCheckUrlRefused": "Nie można otworzyć tego adresu. Adresy prywatne wymagają dokładnego źródła serwera deweloperskiego w museSpark.browserCheckExtraHosts; źródła panelu maszyn są zawsze odrzucane.",
   "browserCheckInvalidArguments": "Kontrolę w przeglądarce zlecono z nieprawidłowymi argumentami, więc nic nie zostało otwarte.",
   "browserCheckRuntimeMissing": "Przeglądarka do kontroli w przeglądarce nie jest zainstalowana i nie udało się jej teraz pobrać. Sprawdź połączenie i spróbuj ponownie.",
   "browserCheckRuntimeUnsupported": "Kontrola w przeglądarce nie jest dostępna na tym komputerze. Obsługuje Windows x64, Linux x64 i macOS.",
@@ -2670,9 +2670,12 @@
   "judgeStatusPaid": "Płatne",
   "makerStopFailed": "Zatrzymanie nie powiodło się — natychmiast użyj fizycznego wyłącznika awaryjnego maszyny {machine}.",
   "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne.",
-  "makerLaunchCode": "Kod panelu: {code}. Wpisz go w przeglądarce w ciągu {duration}.",
-  "makerLaunchPrompt": "Wpisz jednorazowy kod wyświetlony w terminalu.",
   "makerLaunchConnect": "Otwórz panel",
-  "makerLaunchDenied": "Kod odrzucony lub wygasł. Uruchom maker panel ponownie.",
-  "makerMultiplexerDenied": "Uruchom to uprzywilejowane polecenie poza multiplekserem terminala lub użyj panelu otwartego z osobnego terminala."
+  "makerPresenceReason": "{machine}: {action} (dane {digest})",
+  "makerPresenceDenied": "Odmówiono uwierzytelnienia w systemie operacyjnym. Nic nie wysłano.",
+  "makerPresenceUnavailable": "Uwierzytelnianie systemowe jest niedostępne. macOS i Windows wymagają integracji natywnego pomocnika potwierdzającego obecność; Linux wymaga zasad polkit dla Makers i agenta sesji. Zatrzymanie pozostaje dostępne.",
+  "makerPresenceConnect": "Połącz urządzenie",
+  "makerPresenceProgram": "Zaprogramuj urządzenie",
+  "makerPresenceActuate": "Ruch, grzanie lub zasilanie maszyny",
+  "makerCompanionUnavailable": "Panel maszyn nie może użyć zarezerwowanych portów lokalnych. Zamknij inny panel maszyn i spróbuj ponownie; Stop nadal jest dostępny."
 }

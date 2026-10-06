@@ -1,35 +1,23 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
+import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
 import { handleMcpMessage, type McpTool } from '../../core/mcp'
 import {
   HTTP_STATUS,
   RUNTIME_MAKER_HTTP_NO_CONTENT,
-  RUNTIME_MAKER_HTTP_CONFLICT,
   RUNTIME_MAKER_HOST,
   RUNTIME_MAKER_MAX_BYTES,
   RUNTIME_MAKER_TIMEOUT_MS,
   RUNTIME_MAKER_TOKEN_BYTES,
-  RUNTIME_MAKER_LAUNCH_CODE_LENGTH,
-  RUNTIME_MAKER_LAUNCH_CODE_ALPHABET,
   RUNTIME_MAKER_LAUNCH_CODE_MS,
-  RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS,
-  RUNTIME_MAKER_HTTP_RATE_LIMIT,
+  MAKER_COMPANION_PORT_FIRST,
+  MAKER_COMPANION_PORT_END,
+  UI_TEXT,
 } from '../../shared/constants'
 import { makerSurfaceMessageSchema, type MakerSurfaceMessage } from '../../shared/makerProtocol'
 import type { RuntimeMakerHost } from './runtimeMakerHost'
+import { companionBootstrapSchema, companionPresenceSchema } from '../../shared/companionProtocol'
 import { registerMakerCompanion } from '../../core/maker/companionRegistry'
-
-const bootstrapSchema = z.strictObject({
-  approvalKey: z.string(),
-  provider: z.optional(
-    z.strictObject({
-      host: z.literal(RUNTIME_MAKER_HOST),
-      port: z.int().check(z.positive()),
-      token: z.string(),
-    }),
-  ),
-})
 
 export interface CompanionDeps {
   readonly host?: RuntimeMakerHost
@@ -63,16 +51,9 @@ async function body(request: IncomingMessage): Promise<unknown> {
 export async function startCompanion(deps: CompanionDeps) {
   const bind = deps.bind ?? RUNTIME_MAKER_HOST
   if (bind !== RUNTIME_MAKER_HOST && bind !== '::1') throw new Error('maker-loopback-required')
-  let launch = [...randomBytes(RUNTIME_MAKER_LAUNCH_CODE_LENGTH)]
-    .map(
-      (byte) =>
-        RUNTIME_MAKER_LAUNCH_CODE_ALPHABET[byte % RUNTIME_MAKER_LAUNCH_CODE_ALPHABET.length],
-    )
-    .join('')
-  const launchExpires = Date.now() + RUNTIME_MAKER_LAUNCH_CODE_MS
-  let launchAttempts = 0
+  let launch = ''
+  let launchExpires = 0
   const instance = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
-  let approvalKey = ''
   const session = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const mcp = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const streams = new Set<ServerResponse>()
@@ -117,28 +98,21 @@ export async function startCompanion(deps: CompanionDeps) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
-      if (launchAttempts >= RUNTIME_MAKER_LAUNCH_MAX_ATTEMPTS) {
-        response.writeHead(RUNTIME_MAKER_HTTP_RATE_LIMIT).end()
-        return
-      }
-      launchAttempts += 1
       const input = z.strictObject({ launch: z.string() }).parse(await body(request))
       if (launch === '' || Date.now() >= launchExpires || !isSame(input.launch, launch)) {
         response.writeHead(HTTP_STATUS.unauthorized).end()
         return
       }
       launch = ''
-      approvalKey = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
       // HTTP loopback cannot use Secure/__Host-. Name and value bind this host-only cookie to this instance and port.
       response.setHeader(
         'Set-Cookie',
         `${cookieName()}=${cookieValue()}; HttpOnly; SameSite=Strict; Path=/`,
       )
-      // Bootstrap only, single-use launch: this key stays in the person's page memory.
+      // Bootstrap is a session, never physical approval authority.
       response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'application/json' }).end(
         JSON.stringify(
-          bootstrapSchema.parse({
-            approvalKey,
+          companionBootstrapSchema.parse({
             ...(deps.provider !== undefined && { provider: deps.provider }),
           }),
         ),
@@ -203,36 +177,49 @@ export async function startCompanion(deps: CompanionDeps) {
       })
       return
     }
-    if ((request.url === '/message' || request.url === '/answer') && request.method === 'POST') {
+    if (
+      ['/message', '/answer', '/presence'].includes(request.url ?? '') &&
+      request.method === 'POST'
+    ) {
       if (incomingOrigin !== origin) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
       const raw = await body(request)
-      const correlation = z
-        .object({
-          v: z.literal(1),
-          type: z.literal('makerAnswer'),
-          answer: z.object({ id: z.uuid() }),
-        })
-        .safeParse(raw)
-      if (request.url === '/answer') {
-        if (
-          !correlation.success ||
-          !isSame(
-            request.headers['x-maker-approval']?.toString() ?? '',
-            createHmac('sha256', approvalKey).update(correlation.data.answer.id).digest('hex'),
-          )
-        ) {
+      if (request.url === '/answer' || request.url === '/presence') {
+        const parsed = makerSurfaceMessageSchema.safeParse(raw)
+        if (!parsed.success || parsed.data.type !== 'makerAnswer') {
           response.writeHead(HTTP_STATUS.forbidden).end()
           return
         }
-        const answer = z.object({ answer: z.unknown() }).parse(raw)
+        if (request.url === '/presence') {
+          try {
+            const grant = await deps.host?.authorize(parsed.data.answer)
+            response
+              .writeHead(grant === undefined ? HTTP_STATUS.forbidden : HTTP_STATUS.ok, {
+                'Content-Type': 'application/json',
+              })
+              .end(
+                JSON.stringify(
+                  companionPresenceSchema.parse(
+                    grant === undefined ? { error: UI_TEXT.makerPresenceDenied } : { grant },
+                  ),
+                ),
+              )
+          } catch (error) {
+            response.writeHead(HTTP_STATUS.forbidden, { 'Content-Type': 'application/json' }).end(
+              JSON.stringify({
+                error: error instanceof Error ? error.message : UI_TEXT.makerPresenceUnavailable,
+              }),
+            )
+          }
+          return
+        }
         response
           .writeHead(
-            deps.host?.answer(answer.answer)
+            deps.host?.answer(parsed.data.answer, request.headers['x-maker-approval']?.toString())
               ? RUNTIME_MAKER_HTTP_NO_CONTENT
-              : RUNTIME_MAKER_HTTP_CONFLICT,
+              : HTTP_STATUS.forbidden,
           )
           .end()
         return
@@ -261,13 +248,33 @@ export async function startCompanion(deps: CompanionDeps) {
     }
     response.writeHead(HTTP_STATUS.notFound).end()
   }
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, bind, () => {
-      server.off('error', reject)
-      resolve()
-    })
-  })
+  let isListening = false
+  const first = randomInt(MAKER_COMPANION_PORT_FIRST, MAKER_COMPANION_PORT_END)
+  for (
+    let offset = 0;
+    offset < MAKER_COMPANION_PORT_END - MAKER_COMPANION_PORT_FIRST;
+    offset += 1
+  ) {
+    const port =
+      MAKER_COMPANION_PORT_FIRST +
+      ((first - MAKER_COMPANION_PORT_FIRST + offset) %
+        (MAKER_COMPANION_PORT_END - MAKER_COMPANION_PORT_FIRST))
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject)
+        server.listen(port, bind, () => {
+          server.off('error', reject)
+          resolve()
+        })
+      })
+      isListening = true
+      break
+    } catch (error) {
+      server.removeAllListeners('error')
+      if (!(error instanceof Error && 'code' in error && error.code === 'EADDRINUSE')) throw error
+    }
+  }
+  if (!isListening) throw new Error(UI_TEXT.makerCompanionUnavailable)
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('maker-listen-address')
   const port = address.port
@@ -295,7 +302,13 @@ export async function startCompanion(deps: CompanionDeps) {
   }
   return {
     url: origin,
-    launch,
+    async open(): Promise<string> {
+      if (deps.host === undefined) throw new Error(UI_TEXT.makerPresenceUnavailable)
+      await deps.host.requirePresence(UI_TEXT.makerLaunchConnect, { panel: origin })
+      launch = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+      launchExpires = Date.now() + RUNTIME_MAKER_LAUNCH_CODE_MS
+      return `${origin}/#${launch}`
+    },
     mcp: {
       url: `${origin}/mcp`,
       headers: { Authorization: `Bearer ${mcp}` },

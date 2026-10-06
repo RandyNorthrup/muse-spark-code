@@ -29,7 +29,7 @@ function request(signal = new AbortController().signal): BrowserCheckRequest {
   return {
     url: 'http://localhost/',
     actions: [],
-    allowedHosts: [],
+    allowedHosts: ['http://localhost'],
     approvalKey: 'key',
     includeScreenshot: true,
     signal,

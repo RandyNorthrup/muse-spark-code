@@ -1,3 +1,7 @@
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
+import { performance } from 'node:perf_hooks'
+import type { UserPresence } from '../../core/maker/userPresence'
+import { isSameMakerTarget } from '../../core/maker/ports'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -13,7 +17,12 @@ import {
   type MakerPreview,
   type MakerTarget,
 } from '../../shared/makerProtocol'
-import { RUNTIME_MAKER_STATE_KEY, UI_TEXT } from '../../shared/constants'
+import {
+  RUNTIME_MAKER_STATE_KEY,
+  MAKER_PRESENCE_GRANT_MS,
+  RUNTIME_MAKER_TOKEN_BYTES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { RuntimeMakerStorage } from './storage'
 
@@ -30,6 +39,7 @@ export interface RuntimeMakerHostDeps {
   readonly flagged: () => boolean
   readonly interactive: () => boolean
   readonly serialProvider?: MakerSerialProvider
+  readonly presence?: UserPresence
   readonly ask?: (request: ApprovalRequest) => Promise<unknown>
   readonly auditEnable: (reason: string) => Promise<void>
 }
@@ -64,10 +74,15 @@ export class RuntimeMakerHost implements MakerHost {
     )
   }
   private enabled = false
+  private enableGeneration = 0
   private readonly listeners = new Set<(message: MakerHostMessage) => void>()
   private readonly pending = new Map<
     string,
-    { request: ApprovalRequest; resolve: (answer: unknown) => void }
+    {
+      request: ApprovalRequest
+      resolve: (answer: unknown) => void
+      grant?: { value: string; expires: number }
+    }
   >()
   private machines: readonly MakerMachineSummary[] = []
   private ports: readonly Extract<MakerTarget, { kind: 'serial' }>[] = []
@@ -83,6 +98,18 @@ export class RuntimeMakerHost implements MakerHost {
   private emit(raw: unknown): void {
     const message = makerHostMessageSchema.parse(raw)
     for (const listener of this.listeners) listener(message)
+  }
+  private async checkPresence(request: Parameters<UserPresence['check']>[0]): Promise<void> {
+    let result: Awaited<ReturnType<UserPresence['check']>>
+    try {
+      result = (await this.deps.presence?.check(Object.freeze(request))) ?? 'unavailable'
+    } catch {
+      result = 'unavailable'
+    }
+    if (result !== 'approved')
+      throw new Error(
+        result === 'denied' ? UI_TEXT.makerPresenceDenied : UI_TEXT.makerPresenceUnavailable,
+      )
   }
   isTrusted(): boolean {
     return this.deps.trusted()
@@ -107,6 +134,7 @@ export class RuntimeMakerHost implements MakerHost {
   }
   async setHardware(isEnabled: boolean, reason?: string): Promise<void> {
     if (!isEnabled) {
+      this.enableGeneration += 1
       this.enabled = false
       this.cancelApprovals()
       await this.storage.workspace.delete(RUNTIME_MAKER_STATE_KEY)
@@ -115,6 +143,15 @@ export class RuntimeMakerHost implements MakerHost {
     if (!this.isTrusted()) throw new Error(UI_TEXT.makerTrustRequired)
     if (!this.isInteractive()) throw new Error(UI_TEXT.makerUnattendedDenied)
     if (reason === undefined || reason.trim() === '') throw new Error(UI_TEXT.makerHardwareReason)
+    this.enableGeneration += 1
+    const generation = this.enableGeneration
+    await this.requirePresence(UI_TEXT.makerEnableHardware, {
+      enabled: true,
+      reason: reason.trim(),
+      workspace: this.deps.workspace,
+    })
+    if (generation !== this.enableGeneration || !this.isTrusted() || !this.isInteractive())
+      throw new Error(UI_TEXT.makerUnattendedDenied)
     await this.deps.auditEnable(reason.trim())
     await this.storage.workspace.update(RUNTIME_MAKER_STATE_KEY, {
       enabled: isEnabled,
@@ -170,25 +207,123 @@ export class RuntimeMakerHost implements MakerHost {
         )
       })
       this.emit({ v: 1, type: 'makerApproval', request })
-      return await Promise.race([
-        pending,
-        ...(this.deps.ask === undefined ? [] : [this.deps.ask(request)]),
-      ])
+      if (this.deps.ask !== undefined) {
+        void this.deps
+          .ask(request)
+          .then(async (answer) => {
+            const parsed = makerApprovalAnswerSchema.safeParse(answer)
+            const grant =
+              parsed.success && parsed.data.decision === 'allow_once'
+                ? await this.authorize(answer)
+                : undefined
+            this.answer(answer, grant)
+          })
+          .catch(() => {
+            this.answer(reject)
+          })
+      }
+      return await pending
     } finally {
       clearTimeout(timer)
       this.pending.delete(request.id)
       this.emit({ v: 1, type: 'makerApprovalClosed', id: request.id })
     }
   }
-  answer(raw: unknown): boolean {
+  async requirePresence(
+    summary: string,
+    payload: unknown,
+    machine = this.deps.workspace,
+  ): Promise<void> {
+    await this.checkPresence({
+      id: randomUUID(),
+      digest: createHash('sha256').update(JSON.stringify(payload)).digest('hex'),
+      machine,
+      summary,
+    })
+  }
+  /** Only a pending, exact answer can prompt; the key is minted after OS authentication. */
+  async authorize(raw: unknown): Promise<string | undefined> {
+    const parsed = makerApprovalAnswerSchema.safeParse(raw)
+    if (!parsed.success || parsed.data.decision !== 'allow_once') return undefined
+    const answer = parsed.data
+    const held = this.pending.get(answer.id)
+    if (
+      held === undefined ||
+      held.grant !== undefined ||
+      answer.digest !== held.request.digest ||
+      !isSameMakerTarget(answer.target, held.request.target) ||
+      Date.now() >= held.request.expiresAt
+    )
+      return undefined
+    const target = held.request.target
+    let machine: string
+    switch (target.kind) {
+      case 'machine': {
+        machine = target.name
+        break
+      }
+      case 'serial': {
+        machine = target.port
+        break
+      }
+      case 'workspace': {
+        machine = target.workspace
+        break
+      }
+    }
+    const summaries = {
+      observe: UI_TEXT.makerPresenceConnect,
+      connect: UI_TEXT.makerPresenceConnect,
+      program: UI_TEXT.makerPresenceProgram,
+      actuate: UI_TEXT.makerPresenceActuate,
+      stop: UI_TEXT.makerPresenceActuate,
+    }
+    await this.checkPresence({
+      id: answer.id,
+      digest: answer.digest,
+      machine,
+      summary: summaries[held.request.action],
+    })
+    if (
+      this.pending.get(answer.id) !== held ||
+      this.pending.get(answer.id)?.grant !== undefined ||
+      !this.isTrusted() ||
+      !this.hardwareEnabled() ||
+      !this.isInteractive() ||
+      Date.now() >= held.request.expiresAt
+    )
+      return undefined
+    const value = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+    held.grant = { value, expires: performance.now() + MAKER_PRESENCE_GRANT_MS }
+    return value
+  }
+  answer(raw: unknown, grant?: string): boolean {
     const parsed = makerApprovalAnswerSchema.safeParse(raw)
     const correlation = z.object({ id: z.uuid() }).safeParse(raw)
     if (!correlation.success) return false
     const held = this.pending.get(correlation.data.id)
     if (held === undefined) return false
+    let isAllowed = parsed.success
+    if (parsed.success && parsed.data.decision === 'allow_once') {
+      const minted = held.grant
+      const given = Buffer.from(grant ?? '')
+      const expected = Buffer.from(minted?.value ?? '')
+      isAllowed =
+        minted !== undefined &&
+        performance.now() < minted.expires &&
+        given.length === expected.length &&
+        timingSafeEqual(given, expected) &&
+        parsed.data.digest === held.request.digest &&
+        isSameMakerTarget(parsed.data.target, held.request.target) &&
+        Date.now() < held.request.expiresAt &&
+        this.isTrusted() &&
+        this.hardwareEnabled() &&
+        this.isInteractive()
+      if (!isAllowed) return false
+    }
     this.pending.delete(correlation.data.id)
-    held.resolve(raw)
-    return parsed.success
+    held.resolve(isAllowed ? raw : undefined)
+    return isAllowed
   }
   cancelApprovals(): void {
     for (const { resolve } of this.pending.values()) resolve(undefined)

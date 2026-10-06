@@ -1,5 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { spawn } from 'node:child_process'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,33 +11,27 @@ import type { MakerLanPolicy } from '../../src/core/maker/registry'
 import { fakeMachineServer, moonrakerFrame, makerLimits } from './helpers/fakeMakerMachine'
 import { fill } from '../../src/shared/l10n/text'
 import { UI_TEXT } from '../../src/shared/constants'
-import { makerHostMessageSchema } from '../../src/shared/makerProtocol'
+import { makerHostMessageSchema, makerSurfaceMessageSchema } from '../../src/shared/makerProtocol'
 import { randomUUID } from 'node:crypto'
 import { companionAssets } from '../../src/runtime/maker/assets'
-import * as attendance from '../../src/runtime/maker/attended'
-import { runRuntimeMaker } from '../../src/runtime/maker/entry'
-import { EN } from '../../src/shared/l10n/en'
 
 const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
-async function commands(
-  isTrusted = true,
-  isInteractive = true,
-  lan?: MakerLanPolicy,
-  requiresPanelConfirmation = false,
-) {
+async function commands(isTrusted = true, isInteractive = true, lan?: MakerLanPolicy) {
   const root = await mkdtemp(path.join(tmpdir(), 'maker-commands-'))
   roots.push(root)
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
+  const presence = { check: vi.fn().mockResolvedValue('approved') }
   const service = await createRuntimeMakerService({
     dataDirectory: path.join(root, 'data'),
     workspace,
     ...(lan !== undefined && { lan }),
     trusted: () => isTrusted,
     flagged: () => true,
+    presence,
     interactive: () => isInteractive,
     secrets: {
       get: () => Promise.resolve(undefined),
@@ -57,12 +50,11 @@ async function commands(
   await writeFile(path.join(distDirectory, 'webview', 'main.css'), '')
   const openBrowser = vi.fn<(url: string) => Promise<void>>().mockResolvedValue(undefined)
   const output: string[] = []
-  const launchCodes: string[] = []
   const readSecret = vi.fn<() => Promise<string | undefined>>().mockResolvedValue(undefined)
   return {
     service,
+    presence,
     output,
-    launchCodes,
     distDirectory,
     workspace,
     readSecret,
@@ -85,10 +77,6 @@ async function commands(
           print: (line) => {
             output.push(line)
           },
-          printLaunchCode: (code) => {
-            launchCodes.push(code)
-          },
-          requiresPanelConfirmation,
           distDirectory,
           openBrowser,
           done: done.signal,
@@ -111,6 +99,46 @@ const registration = {
   allowPlainHttp: false,
 }
 describe('runtime maker command execution without a credential store or device', () => {
+  it.each(['machines-add', 'panel'])(
+    'denied presence blocks %s before credentials or OS browser launch',
+    async (action) => {
+      const fixture = await commands()
+      fixture.presence.check.mockResolvedValue('denied')
+      const args =
+        action === 'panel'
+          ? ['panel', '--trust-workspace']
+          : [
+              'machines',
+              'add',
+              '--registration',
+              JSON.stringify(registration),
+              '--key-stdin',
+              '--trust-workspace',
+            ]
+      await expect(fixture.run(args)).rejects.toThrow(UI_TEXT.makerPresenceDenied)
+      expect(fixture.readSecret).not.toHaveBeenCalled()
+      expect(fixture.openBrowser).not.toHaveBeenCalled()
+      expect(await fixture.service.registry.list()).toEqual([])
+    },
+  )
+  it('denied presence blocks surface machine registration before its registry mutates', async () => {
+    const fixture = await commands()
+    await fixture.service.host.setHardware(true, 'bench')
+    fixture.presence.check.mockResolvedValue('denied')
+    const register = vi.spyOn(fixture.service.registry, 'register').mockResolvedValue(undefined)
+    try {
+      await expect(
+        fixture.service.dispatch(
+          makerSurfaceMessageSchema.parse({ v: 1, type: 'makerAddMachine', ...registration }),
+          new AbortController().signal,
+        ),
+      ).rejects.toThrow(UI_TEXT.makerPresenceDenied)
+      expect(register).not.toHaveBeenCalled()
+    } finally {
+      await fixture.service.close()
+    }
+  })
+
   it('runs hardware enable, status and disable against host-owned storage', async () => {
     const fixture = await commands()
     expect(
@@ -166,156 +194,16 @@ describe('runtime maker command execution without a credential store or device',
     expect(fixture.service.tools().map((tool) => tool.name)).toEqual(['machine_stop'])
     await expect(fixture.run(['hardware', 'enable', '--reason', 'bench'])).rejects.toThrow()
   })
-  it('opens and closes the loopback panel through the OS launcher without printing credentials', async () => {
+  it('opens the panel with OS presence and an out-of-band capability, with no stdout credential', async () => {
     const fixture = await commands(false)
     expect(await fixture.run(['panel'])).toBe(0)
     expect(fixture.output).toEqual([])
     expect(fixture.openBrowser).toHaveBeenCalledWith(
-      expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/),
+      expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/#([a-f0-9]{64})$/),
     )
-    expect(fixture.launchCodes).toEqual([expect.stringMatching(/^[A-HJ-NP-Z2-9]{8}$/)])
-  })
-  it('a hijacked HTTP handler and argv watcher receive no usable launch credential', async () => {
-    const fixture = await commands(false)
-    fixture.openBrowser.mockImplementation(async (url) => {
-      const page = new URL(url)
-      const observed = { argv: [url], env: { BROWSER: '/fake/hijacked-handler' } }
-      expect(JSON.stringify(observed)).not.toContain(fixture.launchCodes[0])
-      const stolen = await fetch(`${page.origin}/launch`, {
-        method: 'POST',
-        headers: { Origin: page.origin },
-        body: JSON.stringify({ launch: page.hash.slice(1) }),
-      })
-      expect(stolen.status).toBe(401)
-      expect(await stolen.text()).not.toContain('approvalKey')
-      const person = await fetch(`${page.origin}/launch`, {
-        method: 'POST',
-        headers: { Origin: page.origin },
-        body: JSON.stringify({ launch: fixture.launchCodes[0] }),
-      })
-      expect(person.status).toBe(200)
-    })
-    expect(await fixture.run(['panel'])).toBe(0)
-    expect(fixture.output).toEqual([])
-  })
-  it('a real hostile handler child and Linux /proc watcher cannot obtain the terminal code', async () => {
-    const fixture = await commands(false)
-    const handler = String.raw`const page=new URL(process.argv[1]);
-fetch(page.origin+'/launch',{method:'POST',headers:{Origin:page.origin},body:JSON.stringify({launch:page.hash.slice(1)})})
-.then(async response=>{
-  process.stdout.write(JSON.stringify({status:response.status,hasKey:(await response.text()).includes('approvalKey')})+'\n');
-  process.stdin.once('data',()=>process.exit(0));
-}).catch(()=>process.exit(1));`
-    const launcher = vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
-      const child = spawn(process.execPath, ['-e', handler, args[0] ?? ''], {
-        env: { SystemRoot: process.env['SystemRoot'] },
-        stdio: ['pipe', 'pipe', 'pipe'],
-      })
-      const exited = new Promise<void>((resolve, reject) => {
-        child.once('error', reject)
-        child.once('exit', (code) => {
-          if (code === 0) resolve()
-          else reject(new Error('handler failed'))
-        })
-      })
-      const reply = new Promise<string>((resolve) => {
-        child.stdout.once('data', (bytes: Buffer) => {
-          resolve(bytes.toString('utf8'))
-        })
-      })
-      try {
-        expect(await reply).toContain('"status":401,"hasKey":false')
-        const observed =
-          process.platform === 'linux'
-            ? await readFile(`/proc/${String(child.pid)}/cmdline`, 'utf8')
-            : JSON.stringify(child.spawnargs)
-        expect(observed).not.toContain(fixture.launchCodes[0])
-        expect(observed).toContain(args[0])
-        child.stdin.end('done')
-        await exited
-        return ''
-      } finally {
-        child.kill()
-        try {
-          await exited
-        } catch {
-          // The fake child may be killed when an assertion fails; its teardown exit is expected.
-        }
-      }
-    })
-    fixture.openBrowser.mockImplementation((url) => openMakerBrowser(url, 'linux', {}))
-    try {
-      expect(await fixture.run(['panel'])).toBe(0)
-    } finally {
-      launcher.mockRestore()
-    }
-  })
-  it('the real CLI never writes a panel code to a pipe even if attendance was previously granted', async () => {
-    const fixture = await commands(false)
-    const attended = vi.spyOn(attendance, 'isMakerTerminalAttended').mockResolvedValue(true)
-    const launcher = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
-    const sink = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)
-    const print = vi.fn()
-    const command = parseMakerCommand(['panel'])
-    if (command === undefined) throw new Error('command')
-    const done = new AbortController()
-    done.abort()
-    try {
-      await expect(
-        runRuntimeMaker(command, {
-          workspace: fixture.workspace,
-          dataDirectory: path.join(path.dirname(fixture.workspace), 'entry-data'),
-          distDirectory: fixture.distDirectory,
-          platform: process.platform,
-          env: {},
-          secrets: fixture.service.host.secrets,
-          readSecret: fixture.readSecret,
-          print,
-          done: done.signal,
-          table: EN,
-          locale: 'en',
-        }),
-      ).rejects.toThrow(UI_TEXT.makerUnattendedDenied)
-      expect(sink).not.toHaveBeenCalled()
-      expect(print).not.toHaveBeenCalled()
-      expect(launcher).not.toHaveBeenCalled()
-    } finally {
-      attended.mockRestore()
-      sink.mockRestore()
-      launcher.mockRestore()
-      await fixture.service.close()
-    }
-  })
-  it.each([
-    ['hardware', 'enable', '--reason', 'injected keys', '--trust-workspace'],
-    [
-      'machines',
-      'add',
-      '--registration',
-      JSON.stringify(registration),
-      '--key-stdin',
-      '--trust-workspace',
-    ],
-    ['panel', '--trust-workspace'],
-  ])(
-    'multiplexer keystrokes refuse %j before a readable code, keys, registration or browser launch',
-    async (...args) => {
-      const fixture = await commands(true, true, undefined, true)
-      await expect(fixture.run(args)).rejects.toThrow(UI_TEXT.makerMultiplexerDenied)
-      expect(fixture.launchCodes).toEqual([])
-      expect(fixture.readSecret).not.toHaveBeenCalled()
-      expect(await fixture.service.registry.list()).toEqual([])
-      expect(fixture.openBrowser).not.toHaveBeenCalled()
-    },
-  )
-  it('the page requires a typed code before it loads the shared panel', async () => {
-    const fixture = await commands()
     const assets = await companionAssets(fixture.distDirectory)
-    const page = assets.get('/')?.body
-    const bridge = assets.get('/bridge.js')?.body
-    expect(page).toContain(UI_TEXT.makerLaunchPrompt)
-    expect(bridge).toContain("form.addEventListener('submit'")
-    expect(bridge).not.toContain('location.hash.slice')
+    expect(assets.get('/')?.body).not.toContain('maker-code')
+    expect(assets.get('/bridge.js')?.body).toContain("fetch('/presence'")
   })
   it.each([
     ['hardware', 'enable', '--reason', 'bench', '--trust-workspace'],
@@ -392,12 +280,15 @@ fetch(page.origin+'/launch',{method:'POST',headers:{Origin:page.origin},body:JSO
       const off = fixture.service.host.subscribe((message) => {
         if (message.type === 'makerNotice') notices.push(message.notice)
         else if (message.type === 'makerApproval')
-          fixture.service.host.answer({
-            id: message.request.id,
-            digest: message.request.digest,
-            target: message.request.target,
-            decision: 'allow_once',
-          })
+          void (async () => {
+            const answer = {
+              id: message.request.id,
+              digest: message.request.digest,
+              target: message.request.target,
+              decision: 'allow_once',
+            }
+            fixture.service.host.answer(answer, await fixture.service.host.authorize(answer))
+          })()
       })
       const controller = new AbortController()
       const sending = fixture.send(controller.signal)
@@ -442,10 +333,10 @@ fetch(page.origin+'/launch',{method:'POST',headers:{Origin:page.origin},body:JSO
     },
   )
   it.each(['linux', 'darwin', 'win32'] as const)(
-    'opens only the public panel URL with the %s OS launcher',
+    'opens only the OS-presence-approved capability URL with the %s OS launcher',
     async (platform) => {
       const run = vi.spyOn(processTree, 'runProgram').mockResolvedValue('')
-      const url = 'http://127.0.0.1:12345/'
+      const url = 'http://127.0.0.1:12345/#' + 'a'.repeat(64)
       try {
         await openMakerBrowser(url, platform, { SystemRoot: String.raw`C:\Windows` })
         const [file, args] = run.mock.calls[0] ?? []

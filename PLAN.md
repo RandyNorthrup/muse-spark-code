@@ -6471,7 +6471,8 @@ etc?" The research, its sources and the ranked list are in
 Physical machines can injure people and start fires. A model is wrong
 sometimes, and a prompt in a datasheet, a README or a fetched page can steer
 it. These decisions keep every physical effect behind a person who sees
-exactly what will be sent.
+exactly what will be sent. Physical approvals require OS user presence;
+terminal attendance is never authority.
 
 1. **Help with the work; the user's hand moves the machine.** The extension
    helps write, build, flash, simulate and read devices and machines. It is
@@ -18754,7 +18755,7 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
-**FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
+**REDM103R / FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
 brief prohibits aggregate quality/full tests here and delegates them to the
 lead. Complete owning suites run at the unchanged repository default timeout,
 at most three files per run, with typecheck, changed-file ESLint/Prettier,
@@ -18917,6 +18918,35 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**REDM103R (2026-10-06, Kubuntu, RVM103R3G).** Replace terminal/SSH/process
+authority with one portable UserPresence port. Each approval authenticates the
+OS user for its exact id, payload SHA-256 and target, then mints a short-lived,
+single-use grant checked inside the runtime host. Hardware enable, machine add
+and panel open also authenticate their exact action. Linux uses a fixed
+pkcheck executable and a shipped auth_self (never cached) polkit policy; missing
+policy/agent refuses. Signed Darwin LocalAuthentication and Windows Hello
+helpers join through M109's port; this base lacks M109 and defaults to an honest
+unavailable refusal on those platforms. No terminal bootstrap code, ancestry
+walk or SSH peer confers authority; multiplexers have no special refusal.
+The OS browser receives a launch capability without stdout disclosure. ACP
+permission answers still require OS presence. Workers retain no physical tools.
+Browser checks deny non-public resolved addresses unless an exact dev-server
+origin was explicitly set for the workspace. Public-host widening remains,
+but cannot admit private addresses. Reserve a small fixed companion port range
+that no browser scope can admit, so registry deletion cannot permit a companion
+even when dev origins are configured; other loopback relays remain denied by
+default. The existing browserCheckExtraHosts setting accepts exact origins and
+becomes workspace-scoped; legacy host entries widen public destinations only.
+The host's own canaries get a private, path-bound proxy allowance, unavailable
+to page traffic. Its existing pure IP classifier is shared at core/publicAddress
+(the lazy web module re-exports it) so activation's scope checks share one rule
+without pulling web-fetch transport into the activation bundle. The companion
+bridge imports boundary schemas from the existing webview startup entry; no
+standalone schema chunk or size-cap exception is added. Stop remains independent of presence, grants and workspace
+storage. Native re-runs, bounded gates and three byte-exact red drills are
+recorded in docs/certification/m103-r.md; full quality belongs to the lead per
+the shared rig rules. No merge, push, physical or paid/live model call.
 
 **FIXM103R2 (2026-10-06, Kubuntu, RVM103R2).** Repair all six reviewed
 channels under D83, with the explicitly named integration residuals in §9:
@@ -20902,31 +20932,19 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **FIXM103R2-REGISTRY-INTEGRITY (P2-2 integration residual,
-  2026-10-06).** Published companion ports are denied before browser preparation
-  and every proxy connection. Records reject links, replacement, oversize and
-  malformed content, but same-user filesystem permissions cannot prevent an
-  agent from deleting them. An erased/missing record can remove this destination
-  denial; it cannot supply the own-TTY launch code, cookie or page approval key.
-  The fresh browser-check profile remains unable to approve under the repaired
-  P1 guards, and multiplexed code output is refused. No tamper-proof discovery
-  claim is made. G4/W must protect registry mutation/deletion through the shell
-  guard, or design separately trusted live discovery, and drill erasure before
-  qualifying that stronger navigation contract. G4 is not present on this base;
-  an OS same-user file mode is not substituted for that authority boundary.
-
-- **FIXM103R2-MULTIPLEXER-CONFIRMATION (P2-1 functionality residual,
-  2026-10-06).** tmux/screen ancestry or their session markers refuse CLI
-  hardware enable, machine add and panel before storage/key input or code
-  delivery. Other unknown multiplexers already fail attendance. Stop, observe
-  and revocation remain available. The proposed same-terminal code plus page
-  confirmation would let a same-user agent capture the code with capture-pane
-  and exchange it over HTTP, so it is not delivered. A person can use a panel
-  launched from a separate non-multiplexed terminal. Direct requests from
-  multiplexers need a separately authenticated person panel/native-modal IPC
-  with no readable terminal bootstrap or forgeable registry acknowledgement;
-  M104/W must design and drill that binding before admitting this workflow.
-  This lane supplies the safe refusal and does not claim that integration.
+- **FIXM103R2-REGISTRY-INTEGRITY (closed by REDM103R, 2026-10-06).**
+  Browser proxy connections deny private resolved addresses unless the exact
+  dev-server origin was configured. Companion listeners always use reserved
+  ports 47830–47839, which no allowlist admits, independent of discovery files.
+  Registry erasure cannot open a companion destination. An explicitly allowed
+  dev server remains trusted to serve its content; a proxy placed there can
+  serve arbitrary content, but still cannot mint physical approval authority.
+- **FIXM103R2-MULTIPLEXER-CONFIRMATION (closed by REDM103R, 2026-10-06).**
+  No ancestry or terminal code authenticates the person. The multiplexer
+  refusal is removed: each action needs its own OS-authenticated, exact digest
+  grant. Reading an OS-launcher URL yields only a panel session, never a physical
+  grant. Terminal attendance is not retained as an authority or a hint because
+  no current presentation needs it.
 
 - **FIXM103R-MCP-PROVENANCE (P2-3 functionality residual, 2026-10-06).**
   The captured MCP HTTP transport has no authenticated caller turn id on
@@ -20935,34 +20953,31 @@ before a repaired one loads (2026-09-30).
   worker actuation without inventing a wire field. G4/W must capture parent
   and child requests, bind a trusted turn identity to the attended ACP turn,
   and prove mismatched/missing identities refuse before restoring the tools.
-- **FIXM103R-ACP-CLIENT-AUTOANSWER (review P3-6, 2026-10-06).** The runtime
-  cannot prove a client permission reply came from a person. README requires
-  disabling automatic client answers; physical/editor support remains
-  unqualified on this integration branch. W/E must qualify each client and
-  keep automation clients excluded before claiming physical support.
+- **FIXM103R-ACP-CLIENT-AUTOANSWER (authority closed by REDM103R).**
+  Automatic client replies still pass the exact-action UserPresence check before
+  the host mints a grant. Real per-editor/native surface qualification remains
+  owed; an ACP client click or auto-answer alone grants nothing.
 - **FIXM103R-CROSS-HOST-LEASES (review P3-8, 2026-10-06).** R's user-level
   lease directory is not yet unified with V's adapter. R Stop/exclusivity is
   tested across runtime owners; concurrent physical use across hosts is not
   supported or certified. P/V/W must unify the root and test cross-host Stop
   and lease contention on all operating systems before physical support.
-- **FIXM103R-PRIVATE-EDITOR-LAUNCH (integration residual, 2026-10-06).**
-  The insecure CLI stdout launch/provider capability handoff is removed.
-  Person-launched browser panels work; Thonny/native-editor automatic panel
-  startup now refuses as unattended; provider connection details reach only
-  the single-use private browser bootstrap. T/W/M104 must supply person-authorized private IPC,
-  keeping both tokens out of stdout/stderr/logs and request-side channels.
+- **FIXM103R-PRIVATE-EDITOR-LAUNCH (REDM103R).**
+  Person-authorized browser opening passes a single-use capability directly to
+  the OS launcher, never stdout. It grants only a panel session, with independent
+  OS presence for each hardware action. Native-editor automatic launch/provider
+  IPC and the complete shared maker surface remain T/U/W integration work.
 - **FIXM103R-HELPREF (inherited integration residual, 2026-10-06).**
   This base lacks featureCatalog.ts, gen-reference.mjs and check:reference.
   README/CHANGELOG carry the changed commands now. HELPREF/W must mirror
   these safety/availability contracts when its catalogue joins; no new
   undocumented command or substitute catalogue was introduced.
-- **FIXM103R-M107-ATTENDANCE (integration qualification, 2026-10-06).**
-  M107's process-tree registry is absent here. TTYs, CI/agent-shell markers,
-  the bounded parent chain, a terminal boundary and on Linux executable
-  identities supply conservative admission; unknown and orphaned chains
-  refuse. W must integrate M107's registry and qualify real terminal/browser
-  launch on Windows/macOS/Linux. This lane uses fake platform process tables
-  and no live/physical call.
+- **FIXM103R-M107-ATTENDANCE (superseded by REDM103R).**
+  Process ancestry, SSH peers and TTYs no longer authorize maker actions.
+  M107 integration is not a maker approval prerequisite. M109 signed macOS and
+  Windows helpers are absent from this base and refuse as unavailable; fake
+  port receipts are not native authentication certification. Linux policy
+  installation and supervised auth_self approved/denied runs are also owed.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

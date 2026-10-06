@@ -14,7 +14,7 @@
   "makerReject": "Rechazar",
   "makerApprovalExpired": "Esta aprobación ha caducado. Solicita la acción de nuevo.",
   "makerApprovalTargetChanged": "El destino ha cambiado. Revisa una nueva aprobación.",
-  "makerUnattendedDenied": "Las acciones de hardware requieren una persona presente. Ejecute el comando usted mismo en una terminal.",
+  "makerUnattendedDenied": "El hardware requiere una sesión interactiva habilitada y autenticación del sistema operativo.",
   "makerTrustRequired": "Confía en este espacio de trabajo antes de habilitar el hardware.",
   "makerEnableHardware": "Habilitar hardware para este espacio de trabajo",
   "makerDisableHardware": "Deshabilitar hardware para este espacio de trabajo",
@@ -691,7 +691,7 @@
   "webFetchMoved": "La página redirigió a {location}, en otro host. Muse puede obtenerla con una nueva llamada, que vuelve a preguntar.",
   "webFetchRestrictedMode": "La obtención de páginas está desactivada en el modo restringido. Confíe en el área de trabajo para usarla.",
   "browserCheckConfirmTitle": "Muse Code quiere abrir {url} en un navegador sin interfaz gráfica",
-  "browserCheckConfirmDetail": "La página se carga en un perfil de navegador nuevo y privado que se elimina después. Todo su tráfico pasa por el proxy propio de la extensión, que solo deja pasar http sin cifrar hacia este equipo y hacia los hosts de museSpark.browserCheckExtraHosts.",
+  "browserCheckConfirmDetail": "El navegador usa un perfil privado temporal y un proxy. Las direcciones privadas requieren un origen exacto de desarrollo en museSpark.browserCheckExtraHosts. Los orígenes del panel de máquinas siempre se rechazan.",
   "browserCheckConfirmDetailWiden": "{host} no es este equipo. Si lo permite, esta comprobación podrá llegar a él, también por https y WebSockets. Ese tráfico va cifrado, así que la extensión no puede inspeccionarlo, y un sitio allí podría iniciar sesión como usted con la cuenta de este equipo (sobre todo en Windows).",
   "browserRuntimeConsentTitle": "¿Descargar el navegador para las comprobaciones en el navegador ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code descargará Chrome for Testing headless shell {version} de Google ({size}) desde storage.googleapis.com y lo guardará en {location}. Solo se usa para las comprobaciones en el navegador, y cada nueva versión que fije una actualización de la extensión se vuelve a descargar. Establezca museSpark.browserCheckRuntime en download para no volver a preguntar, o en off para desactivar la comprobación en el navegador.",
@@ -711,11 +711,11 @@
     "other": "{count} solicitudes fallidas"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} solicitud bloqueada fuera de este equipo",
-    "many": "{count} solicitudes bloqueadas fuera de este equipo",
-    "other": "{count} solicitudes bloqueadas fuera de este equipo"
+    "one": "{count} solicitud bloqueada",
+    "many": "{count} solicitudes bloqueadas",
+    "other": "{count} solicitudes bloqueadas"
   },
-  "browserCheckUrlRefused": "Solo se puede abrir una dirección http:// o https:// con un nombre de host simple o una dirección IP, y sin nombre de usuario ni contraseña.",
+  "browserCheckUrlRefused": "No se puede abrir esta dirección. Las direcciones privadas requieren un origen exacto de desarrollo en museSpark.browserCheckExtraHosts; los orígenes del panel de máquinas siempre se rechazan.",
   "browserCheckInvalidArguments": "Se pidió la comprobación en el navegador con argumentos no válidos, así que no se abrió nada.",
   "browserCheckRuntimeMissing": "El navegador de la comprobación en el navegador no está instalado y no se pudo descargar ahora. Compruebe la conexión e inténtelo de nuevo.",
   "browserCheckRuntimeUnsupported": "La comprobación en el navegador no está disponible en este equipo. Es compatible con Windows x64, Linux x64 y macOS.",
@@ -2575,9 +2575,12 @@
   "judgeStatusPaid": "De pago",
   "makerStopFailed": "La parada falló — use ahora la parada de emergencia física de la máquina {machine}.",
   "makerStopPhysicalRequired": "La máquina {machine} requiere una parada de emergencia física; la parada por software no está disponible.",
-  "makerLaunchCode": "Código del panel: {code}. Introdúzcalo en el navegador antes de {duration}.",
-  "makerLaunchPrompt": "Introduzca el código de un solo uso que aparece en el terminal.",
   "makerLaunchConnect": "Abrir panel",
-  "makerLaunchDenied": "Código rechazado o caducado. Ejecute maker panel de nuevo.",
-  "makerMultiplexerDenied": "Ejecute este comando privilegiado fuera de los multiplexores de terminal o use un panel abierto desde otro terminal."
+  "makerPresenceReason": "{machine}: {action} (datos {digest})",
+  "makerPresenceDenied": "Se denegó la autenticación del sistema operativo. No se envió nada.",
+  "makerPresenceUnavailable": "La autenticación del sistema operativo no está disponible. macOS y Windows necesitan integrar el asistente nativo de presencia; Linux necesita la política polkit de Makers y un agente de sesión. Detener sigue disponible.",
+  "makerPresenceConnect": "Conectar dispositivo",
+  "makerPresenceProgram": "Programar dispositivo",
+  "makerPresenceActuate": "Mover, calentar o encender la máquina",
+  "makerCompanionUnavailable": "El panel de máquinas no puede usar sus puertos locales reservados. Cierre otro panel de máquinas e inténtelo de nuevo; Stop sigue disponible."
 }

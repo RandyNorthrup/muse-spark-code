@@ -1,25 +1,22 @@
+import type { UserPresence } from '../../core/maker/userPresence'
 import path from 'node:path'
 import type { MakerSecrets } from '../../core/maker/ports'
 import type { MakerCommand } from './commandArgs'
 import { createRuntimeMakerService, runtimeMakerLan } from './service'
 import { stopRuntimeMachines, stopResultText } from './stop'
 import { runMakerCommand, openMakerBrowser } from './commands'
-import {
-  RUNTIME_MAKER_LAUNCH_CODE_MS,
-  MILLISECONDS_PER_SECOND,
-  UI_TEXT,
-} from '../../shared/constants'
-import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
+import { UI_TEXT } from '../../shared/constants'
+import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createAcpMakerRuntime } from './acpRuntime'
 import type { AcpMakerRuntime } from '../../acp/maker'
-import { isMakerTerminalAttended } from './attended'
 
 export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean): AcpMakerRuntime {
   setUiText(deps.table, deps.locale)
   return createAcpMakerRuntime({
     dataDirectory: deps.dataDirectory,
     secrets: deps.secrets,
+    ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => isTrusted,
     flagged: () => true,
     native: {
@@ -37,6 +34,7 @@ export interface RuntimeMakerEntryDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly secrets: MakerSecrets
+  readonly presence?: UserPresence
   readonly readSecret: () => Promise<string | undefined>
   readonly print: (line: string) => void
   readonly reportFailure?: (line: string) => void
@@ -69,39 +67,15 @@ export async function runRuntimeMaker(
       return 1
     }
   }
-  const terminal = { requiresPanelConfirmation: false }
-  const isAttended = await isMakerTerminalAttended({
-    stdinTty: process.stdin.isTTY,
-    stdoutTty: process.stdout.isTTY,
-    parentPid: process.ppid,
-    platform: deps.platform,
-    env: deps.env,
-    onMultiplexer: () => {
-      terminal.requiresPanelConfirmation = true
-    },
-  })
-  if (
-    !isAttended &&
-    (command.action === 'panel' ||
-      (command.action === 'hardware' && command.operation === 'enable') ||
-      (command.action === 'machines' && command.operation === 'add'))
-  )
-    throw new Error(UI_TEXT.makerUnattendedDenied)
-  if (
-    terminal.requiresPanelConfirmation &&
-    (command.action === 'panel' ||
-      (command.action === 'hardware' && command.operation === 'enable') ||
-      (command.action === 'machines' && command.operation === 'add'))
-  )
-    throw new Error(UI_TEXT.makerMultiplexerDenied)
   const service = await createRuntimeMakerService({
     stopOnlyFallback: command.action === 'panel',
     dataDirectory: deps.dataDirectory,
     workspace: deps.workspace,
     secrets: deps.secrets,
+    ...(deps.presence !== undefined && { presence: deps.presence }),
     trusted: () => command.trusted,
     flagged: () => true,
-    interactive: () => isAttended,
+    interactive: () => true,
     native: {
       platform: deps.platform,
       env: deps.env,
@@ -112,17 +86,6 @@ export async function runRuntimeMaker(
     return await runMakerCommand(command, {
       ...deps,
       service,
-      requiresPanelConfirmation: terminal.requiresPanelConfirmation,
-      printLaunchCode: (code) => {
-        if (!isAttended || !process.stdin.isTTY || !process.stdout.isTTY)
-          throw new Error(UI_TEXT.makerUnattendedDenied)
-        process.stdout.write(
-          `${fill(UI_TEXT.makerLaunchCode, {
-            code,
-            duration: formatUnit(RUNTIME_MAKER_LAUNCH_CODE_MS / MILLISECONDS_PER_SECOND, 'second'),
-          })}\n`,
-        )
-      },
       openBrowser: (url) => openMakerBrowser(url, deps.platform, deps.env),
     })
   } finally {

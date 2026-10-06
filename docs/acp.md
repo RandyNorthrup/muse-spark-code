@@ -476,3 +476,15 @@ store the process cannot read reads as no stored key. Anything typed into
 `--description` is capped at 2,000 characters and scrubbed with the rest of
 the draft, but like shell history it still passes through the terminal, so
 keep secrets out of it.
+
+### Maker OS presence (M103R)
+
+The maker runtime requires OS authentication for hardware enable, machine add,
+panel open and each exact physical payload. ACP permission replies alone grant
+nothing. Linux uses the shipped auth_self polkit policy and a graphical session
+agent; its administrator installs the policy with @UID@ replaced by the intended
+account’s numeric UID. macOS LocalAuthentication and Windows Hello join through
+M109’s native helper port and refuse as unavailable until installed. Grants last
+five seconds and work once; terminal ancestry and multiplexer state confer no
+authority. Stop requires neither presence nor workspace storage. See the
+[repository guide](../README.md) for installation and qualification details.
