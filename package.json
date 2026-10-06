@@ -1109,6 +1109,16 @@
           "default": "auto",
           "description": "%config.judge.engine.description%",
           "scope": "machine"
+        },
+        "museSpark.shell.passEnvironmentVariables": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "description": "%config.shell.passEnvironmentVariables.description%",
+          "scope": "machine"
         }
       }
     },

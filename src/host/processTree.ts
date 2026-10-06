@@ -18,6 +18,7 @@
 // one's id is never hit.
 
 import { execFile } from 'node:child_process'
+import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -85,7 +86,7 @@ export const runProgram: RunProgram = (file, args, env) =>
     execFile(
       file,
       [...args],
-      { windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS, env },
+      { windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS, env: withoutCredentials(env) },
       (error, stdout) => {
         if (error === null) {
           resolve(stdout)
@@ -108,7 +109,7 @@ export function windowsPowerShell(
   readonly file: string
   readonly env: NodeJS.ProcessEnv
 } {
-  const env = { ...base }
+  const env = withoutCredentials(base)
   setEnvironmentVariable(
     env,
     'win32',

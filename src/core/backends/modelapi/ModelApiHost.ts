@@ -5840,6 +5840,8 @@ export class ModelApiSession implements AgentSession {
         platform: this.deps.platform,
         io: this.deps.io,
         shellCwd: tracking.cwd,
+        isInteractiveShell:
+          !this.isSubagent && !this.isSideChat && this.active?.confirmedRequest === undefined,
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
@@ -9589,6 +9591,7 @@ export class ModelApiSession implements AgentSession {
         stop.signal,
         undefined,
         this.userShellAdmission(stop),
+        !this.isSubagent && !this.isSideChat,
       )
     } catch (error: unknown) {
       result = {

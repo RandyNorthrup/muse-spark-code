@@ -6405,6 +6405,30 @@ Decisions:
   It changes no decision. The product's local judge stays on the user's own
   machine; the rigs are development infrastructure.
 
+### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
+
+The VS Code Model API shell inherited credential variables from the extension
+host and terminal overrides. The shared, case-insensitive credential-name
+matcher now fences shell commands, verification/`then_run`, background and
+scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
+MCP stdio servers keep their narrow host projection and their explicitly
+configured `env`; browser checks keep their private projection. Image tools
+use in-process HTTP and file IO, with no child process. Muse Code's own
+`serve`, account, skills and login processes keep D1's credential path.
+
+`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
+machine-scoped array of variable names, never values. Only an interactive
+top-level shell command (including the user's `!` command) may pass a named
+credential. Unattended verification/`then_run`, schedules, child/team workers,
+hooks/plugins and helpers never honor it. Moving an already admitted
+interactive shell to the background preserves its starting environment.
+The setting warns that a command can expose the value to the conversation
+and model provider. ACP/headless keep their existing credential-free tool
+environments in every editor; no pass-through flag is added there.
+
+The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
+catalogue when that lane merges. No paid/live calls are authorized.
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -18203,6 +18227,17 @@ joined with M57, M58 and PR #49's sign-in
   - [x] M92e: prompt and shell secret guards, with drills
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
+
+### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
+
+- [x] Shared credential matcher and fences at model process entry.
+- [x] Machine-scoped interactive name-only exception, with 14 translations.
+- [x] Spawn environment snapshots and real-shell fake-credential probe;
+      deliberately remove guards, observe failures and restore byte-exact.
+- [x] Focused rig tests, typecheck/lint/format, localization, host API,
+      deadcode/duplication and production bundle budgets.
+- [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
+      The lead runs aggregate quality on the rigs (lane common rules).
 
 ## 7. Gates
 

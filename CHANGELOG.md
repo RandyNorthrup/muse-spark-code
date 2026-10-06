@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- Fence credential environment variables from VS Code Model API shell commands,
+  verification/`then_run`, schedules, child workers, hooks/plugins, Git and native
+  helpers, using the same matcher as ACP/headless. Terminal overrides are fenced
+  too. The new machine-scoped `museSpark.shell.passEnvironmentVariables` array
+  permits named variables only for interactive top-level shell commands; its
+  description warns that output can expose them to the model provider. MCP's
+  explicitly configured environment and Muse Code's own credentials are unchanged.
+
 ### Fixed
 
 - ACP help and argument errors now use one complete localized usage table,
