@@ -1,6 +1,6 @@
 // Shared by editor hosts and the runtime; no vscode or credential dependency.
 import { randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, readdir, link, unlink, lstat, rename } from 'node:fs/promises'
+import { mkdir, open, readFile, readdir, link, unlink, lstat } from 'node:fs/promises'
 import { watch } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -19,26 +19,6 @@ import {
 
 function hasCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
-}
-
-async function writeTemporary(file: string, content: string): Promise<string> {
-  const temporary = `${file}.${randomUUID()}.tmp`
-  const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
-  try {
-    await handle.writeFile(content, 'utf8')
-    await handle.sync()
-  } finally {
-    await handle.close()
-  }
-  return temporary
-}
-
-async function removeTemporary(file: string): Promise<void> {
-  try {
-    await unlink(file)
-  } catch (error: unknown) {
-    if (!hasCode(error, 'ENOENT')) throw error
-  }
 }
 
 export function createNodeScheduleFs(directory: string): ScheduleFsPort {
@@ -72,17 +52,8 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         if (!hasCode(error, 'EEXIST')) throw error
       }
       const info = await lstat(current)
-      if (!info.isDirectory() || info.isSymbolicLink())
+      if (current.length >= root.length && (!info.isDirectory() || info.isSymbolicLink()))
         throw new Error('scheduleStorageLinkRefused')
-    }
-  }
-  const syncDirectory = async (file: string) => {
-    if (process.platform === 'win32') return
-    const folder = await open(path.dirname(file), 'r')
-    try {
-      await folder.sync()
-    } finally {
-      await folder.close()
     }
   }
   return {
@@ -112,31 +83,32 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       const file = resolve(relative)
       await prepare(file)
       await checkParents(file)
-      const temporary = await writeTemporary(file, content)
+      const temporary = `${file}.${randomUUID()}.tmp`
+      const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
+      try {
+        await handle.writeFile(content, 'utf8')
+        await handle.sync()
+      } finally {
+        await handle.close()
+      }
       try {
         // NTFS and POSIX hard-link publication is exclusive and atomic: readers
         // see the flushed whole file, or ENOENT, never an empty wx placeholder.
         await link(temporary, file)
-        await syncDirectory(file)
+        if (process.platform !== 'win32') {
+          const folder = await open(path.dirname(file), 'r')
+          try {
+            await folder.sync()
+          } finally {
+            await folder.close()
+          }
+        }
         return true
       } catch (error: unknown) {
         if (hasCode(error, 'EEXIST')) return false
         throw error
       } finally {
         await unlink(temporary)
-      }
-    },
-    async retire(relative, content) {
-      const file = resolve(relative)
-      await checkParents(file)
-      const info = await lstat(file)
-      if (info.isSymbolicLink()) throw new Error('scheduleStorageLinkRefused')
-      const temporary = await writeTemporary(file, content)
-      try {
-        await rename(temporary, file)
-        await syncDirectory(file)
-      } finally {
-        await removeTemporary(temporary)
       }
     },
   }

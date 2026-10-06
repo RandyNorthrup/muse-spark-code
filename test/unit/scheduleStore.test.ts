@@ -33,7 +33,6 @@ beforeAll(async () => {
         import { createNodeScheduleFs, createNodeScheduleQueue } from './src/runtime/schedules/nodeScheduleFs';
         const [directory, mode, value] = process.argv.slice(2);
         const fsPort = createNodeScheduleFs(directory);
-        if (mode === 'crashAfterCas') fsPort.retire = () => { process.exit(1); };
         const store = createScheduleStore(fsPort);
         (async () => {
           let result;
@@ -41,7 +40,6 @@ beforeAll(async () => {
           if (mode === 'admit') result = await store.admit(JSON.parse(value));
           if (mode === 'advance') result = await store.advance(JSON.parse(value));
           if (mode === 'update') result = await store.update(JSON.parse(value));
-          if (mode === 'crashAfterCas') result = await store.update(JSON.parse(value));
           if (mode === 'queueWait' || mode === 'queueProbe') {
             const fs = require('node:fs/promises');
             if (mode === 'queueProbe') await fs.writeFile(directory + '/probe-ready', '');
@@ -297,7 +295,18 @@ describe('M115 durable shared store', () => {
     await expect(fs.read('workspace-1/data')).rejects.toThrow('LinkRefused')
     await symlink(path.join(outside, 'data'), path.join(directory, 'private-link'), 'file')
     await expect(fs.read('private-link')).rejects.toThrow('LinkRefused')
-    await expect(fs.retire('private-link', '{}')).rejects.toThrow('LinkRefused')
+  })
+  it('uses a trusted ancestor alias while refusing a linked storage root', async () => {
+    const physical = path.join(root, 'physical-ancestor')
+    const alias = path.join(root, 'trusted-ancestor')
+    await mkdir(physical)
+    await symlink(physical, alias, 'junction')
+    const fs = createNodeScheduleFs(path.join(alias, 'storage'))
+    expect(await fs.publish('index/0.json', 'complete')).toBe(true)
+    expect(await readFile(path.join(physical, 'storage/index/0.json'), 'utf8')).toBe('complete')
+    await expect(createNodeScheduleFs(alias).publish('outside.json', '{}')).rejects.toThrow(
+      'LinkRefused',
+    )
   })
   it('rejects unsafe revisions, vanished indices and inconsistent claim identities', async () => {
     const directory = path.join(root, 'journal-boundaries')
@@ -462,56 +471,6 @@ describe('M115 durable shared store', () => {
     await store.admit(removed)
     await store.remove(job.workspaceKey, job.id)
     expect(await store.advance(removed)).toBe(false)
-  })
-  it('keeps one complete index snapshot while permanent tombstones fence stale writers', async () => {
-    const directory = path.join(root, 'bounded-snapshots')
-    const fs = createNodeScheduleFs(directory)
-    const store = createScheduleStore(fs)
-    const job = fakeSchedule()
-    await store.create(job)
-    for (let revision = 0; revision < 10; revision += 1) {
-      expect(await store.update({ ...job, revision, name: `revision-${String(revision)}` })).toBe(
-        true,
-      )
-    }
-    const names = await fs.names('workspace-1/index')
-    const snapshots = await Promise.all(
-      names.map(async (name) => {
-        const input: unknown = JSON.parse((await fs.read(`workspace-1/index/${name}`)) ?? 'null')
-        return input
-      }),
-    )
-    const complete = snapshots.filter(
-      (input) =>
-        typeof input === 'object' && input !== null && 'value' in input && input.value !== null,
-    )
-    expect(complete).toHaveLength(1)
-    expect(names).toHaveLength(11)
-    const list = vi.spyOn(fs, 'names').mockResolvedValueOnce(['0.json'])
-    const jobs = await store.list(job.workspaceKey)
-    expect(jobs[0]?.revision).toBe(10)
-    list.mockRestore()
-    expect(await fs.publish('workspace-1/index/1.json', '{}')).toBe(false)
-    await writeFile(
-      path.join(directory, 'workspace-1/index/10.json'),
-      JSON.stringify({ revision: 10, value: null, retired: true }),
-    )
-    await expect(store.list(job.workspaceKey)).rejects.toThrow('IndexRetired')
-  })
-  it('keeps a complete published revision after a real writer exits before retirement', async () => {
-    const directory = path.join(root, 'publication-crash')
-    const store = createScheduleStore(createNodeScheduleFs(directory))
-    const job = fakeSchedule()
-    await store.create(job)
-    await expect(
-      worker(directory, 'crashAfterCas', JSON.stringify({ ...job, name: 'published-before-exit' })),
-    ).rejects.toThrow()
-    const jobs = await store.list(job.workspaceKey)
-    expect(jobs[0]).toMatchObject({ revision: 1, name: 'published-before-exit' })
-    expect(await store.update({ ...job, name: 'stale' })).toBe(false)
-    expect(await store.update({ ...jobs[0]!, name: 'next' })).toBe(true)
-    expect(await store.claim('permanent-crash-receipt')).toBe(true)
-    expect(await store.claim('permanent-crash-receipt')).toBe(false)
   })
   it('never regresses a newer time cursor during crash recovery or confuses it with a manual wall time', async () => {
     const directory = path.join(root, 'cursor')
