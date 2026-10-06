@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 import { RuntimePaidUse } from '../../../src/runtime/features/paidUse'
 import { PaidFeatureGate, PaidUsage } from '../../../src/core/paid/paidFeatures'
 import type { PaidGrantStore, PaidUseAsker } from '../../../src/acp/paid'
+import type { RuntimePaidGrantStore } from '../../../src/runtime/paidGrants'
 import { PAID_FEATURES, type PaidFeature } from '../../../src/shared/constants'
 import { FakeLogOutputChannel } from '../../unit/helpers/fakes'
 
@@ -11,7 +12,7 @@ export function paidHarness(
 ) {
   const state = { isOn: true, isAvailable: true, isCurrent: true, canRemember: true }
   const granted = new Map<string, Set<PaidFeature>>()
-  const grants: PaidGrantStore = {
+  const grants: RuntimePaidGrantStore = {
     read: (root) => granted.get(root) ?? new Set(),
     add: vi.fn<PaidGrantStore['add']>((root, features) => {
       granted.set(root, new Set([...grants.read(root), ...features]))
@@ -20,6 +21,10 @@ export function paidHarness(
     forget: vi.fn<PaidGrantStore['forget']>((features) => {
       for (const [root, held] of granted)
         granted.set(root, new Set([...held].filter((feature) => !features.includes(feature))))
+      return Promise.resolve()
+    }),
+    forgetWorkspace: vi.fn((root: string) => {
+      granted.delete(root)
       return Promise.resolve()
     }),
   }

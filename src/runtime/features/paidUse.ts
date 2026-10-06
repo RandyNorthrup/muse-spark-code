@@ -1,14 +1,16 @@
-import { AcpPaidUse, type PaidUseAsker, type PaidGrantStore } from '../../acp/paid'
+import { AcpPaidUse, type PaidUseAsker } from '../../acp/paid'
 import { type PaidFeatureGate, type PaidUsage } from '../../core/paid/paidFeatures'
 import { unlessAborted } from '../../core/timeouts'
 import type { CoreLogger } from '../../core/logging'
 import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
 import type { PaidUseRequest } from '../../shared/paid'
+import type { ConversationCompositionPorts } from '../../host/compose/conversationDeps'
+import type { RuntimePaidGrantStore } from '../paidGrants'
 
 export interface RuntimePaidUseDeps {
   readonly gate: PaidFeatureGate
   readonly usage: PaidUsage
-  readonly grants: PaidGrantStore
+  readonly grants: RuntimePaidGrantStore
   readonly isSettingOn: (feature: PaidFeature) => boolean
   readonly canRemember: () => boolean
   readonly isCurrent: () => boolean
@@ -68,6 +70,50 @@ export class RuntimePaidUse extends AcpPaidUse {
   public override async forgetUnflagged(): Promise<void> {
     const disabled = PAID_FEATURES.filter((feature) => !this.runtimeDeps.isSettingOn(feature))
     await this.runtimeDeps.grants.forget(disabled)
+  }
+
+  /** Contract v2: the controller and backend consume the same priced policy and tally. */
+  public composition(root: string, surfaceId: string): ConversationCompositionPorts['paid'] {
+    const check = () => {
+      this.ending.signal.throwIfAborted()
+      if (!this.runtimeDeps.isCurrent()) throw new Error('MHP_PAID_OWNER_REPLACED')
+    }
+    return {
+      gate: {
+        isOn: (feature) => this.isOn(feature),
+        turnOn: async (feature) => {
+          check()
+          const isOn = await this.runtimeDeps.gate.turnOn(feature)
+          check()
+          return isOn
+        },
+        turnOff: async (feature) => {
+          check()
+          await this.runtimeDeps.gate.turnOff(feature)
+          await this.runtimeDeps.grants.forget([feature])
+          check()
+        },
+      },
+      consent: {
+        allows: (request) => this.allows(root, surfaceId, request, false),
+        forget: async () => {
+          check()
+          await this.runtimeDeps.grants.forgetWorkspace(root)
+          check()
+        },
+      },
+      usage: {
+        add: (feature, units) => {
+          this.noteUse(feature, units)
+        },
+        addBestOfNRequest: () => {
+          this.runtimeDeps.usage.addBestOfNRequest()
+        },
+        addBestOfNUsage: (modelId, usage) => {
+          this.runtimeDeps.usage.addBestOfNUsage(modelId, usage)
+        },
+      },
+    }
   }
 
   public dispose(): Promise<void> {

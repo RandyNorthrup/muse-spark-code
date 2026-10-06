@@ -176,10 +176,9 @@ Bind `RuntimePaidUse` from `src/runtime/features/paidUse.ts` to a real
 PaidFeatureGate, PaidUsage, paidGrantFile, live settings/defaults, stored-key and
 selected-model availability, immutable current profile and trusted workspace.
 Supply it as `RuntimeBackendDeps.interactivePaid`; root shutdown aborts/drains
-its unresolved decisions. ACP/exec ignore this injection. Ordinary paid calls
-must pass `requiresAsking: false` to honour workspace Always: A's current
-composition hardcodes true, which repeatedly asks. Keep true for actual hook or
-protected/requiresAsking uses. The underlying native confirm request must also
+its unresolved decisions. ACP/exec ignore this injection. Contract v2 now binds ordinary controller calls through B's contributed
+policy with `requiresAsking: false`; the old composition-port request is
+resolved. Keep true for actual hook or protected/requiresAsking backend uses. The underlying native confirm request must also
 be cancelled by A's request owner on profile/panel release.
 
 Attach the real D48 asker once. Generalize the owned shared paid-use price
@@ -405,3 +404,37 @@ IDs collide. The PaidUsage costOf reader must never read a new selection's
 rates for an older response. The actual runtime subagent fixture injects the
 same verified $0.25 cost into its ledger receipt and PaidUsage tally and asserts
 both. Native/account/provider qualification still remains open.
+
+### A/C/D/E/F — continuation 2 contract v2 and F6
+
+The contract-v2 paid/manager port request is resolved. `createRuntimeEngines`
+publishes `paid` from backend `paidFor(root, surfaceId)` and `modelApi` from
+`modelApiFor(root)` when the interactive RuntimePaidUse is injected. The latter
+constructs the actual manager without starting a host; its ordinary and
+Best-of-N clients retain original admission/settlement callbacks. ACP/exec
+receive neither port. Controller Always consent uses false for ordinary use.
+`RuntimePaidUse.composition` binds actual gate changes, workspace revocation
+and all usage tallies. Its grants now require `RuntimePaidGrantStore`, whose
+`paidGrantFile.forgetWorkspace(root)` uses an independent revocation generation
+to prevent stale writes restoring a grant and preserve other workspaces.
+Machine setting OFF still revokes that feature globally. Native setting price
+questions must be owner-cancellable and settings/profile events must remain
+coherent. Availability requires the real stored-key fact and captured catalog.
+
+Bind `createRuntimeAutoReviewer` from `src/runtime/features/autoReviewer.ts`
+as `features.museCodeReviewer`. It takes the existing checked reviewer bundle
+path and empty physical profile folder, live setting/trust/captured catalog
+`canReview(modelId?)`, immutable `assertCurrent`, and logger. Register its
+awaited dispose immediately; it cancels and drains reviews and side-session
+cleanup. Capability support must include the existing no-thinking setting;
+unknown support refuses before loading/dispatch. The captured reviewer parser,
+first-line ALLOW/ASK and exact allow-once approval logic are unchanged. Model
+API uses its existing paid reviewer through RuntimePaidUse, tariff admission
+and settlement, never the Muse subscription. Add only an owned lazy factory
+reader/knip discovery, with existing caps. No shared wire or translation key
+was added. Installed native/backend/provider qualification remains open.
+
+For F6, supply `RuntimeBackendDeps.autoReviewer(root)` in interactive panel
+construction. The backend shares the owner, the actual engines contribution
+publishes `features.museCodeReviewer`, and backend close drains it. Do not
+construct it for ACP/exec. F owns the matching PLAN/Unreleased/help update.

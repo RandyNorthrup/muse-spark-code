@@ -47,6 +47,7 @@ import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
 import { MHP } from '../../../src/shared/constants'
 import { createRuntimeWebFetch } from '../../../src/runtime/features/webFetch'
 import { createRuntimeBrowser } from '../../../src/runtime/features/browser'
+import { createRuntimeAutoReviewer } from '../../../src/runtime/features/autoReviewer'
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
@@ -144,6 +145,7 @@ async function setup() {
       | 'codeIntel'
       | 'webFetch'
       | 'browser'
+      | 'autoReviewer'
     > = {},
   ) => {
     const runtime = createRuntimeBackend({
@@ -682,7 +684,27 @@ describe('portable checkpoint backend recording', () => {
       'en',
     )
     const disposeHooks = vi.spyOn(hooks, 'dispose')
-    const runtime = backend('modelApi', () => Promise.resolve(service), { hooks: () => hooks })
+    const reviewer = createRuntimeAutoReviewer(
+      {
+        root: path.join(data, 'reviewer'),
+        bundlePath: path.join(dist.folder, 'museCodeReviewer.js'),
+        isOn: () => false,
+        isTrusted: () => true,
+        canReview: () => false,
+        assertCurrent: () => undefined,
+        log,
+      },
+      UI_TEXT,
+      'en',
+    )
+    const disposeReviewer = vi.spyOn(reviewer, 'dispose')
+    const policy = paidHarness()
+    const runtime = backend('modelApi', () => Promise.resolve(service), {
+      hooks: () => hooks,
+      interactivePaid: policy.paid,
+      paidUsage: policy.usage,
+      autoReviewer: () => reviewer,
+    })
     const store = new RuntimeSettingsStore(data, root)
     const settings = await runtimeSettings(store, log)
     const own = vi.fn()
@@ -723,6 +745,14 @@ describe('portable checkpoint backend recording', () => {
         UI_TEXT,
         'en',
       )
+      expect(contribution.modelApi).toBe(await runtime.modelApiFor?.(root))
+      expect(contribution.features.museCodeReviewer).toBe(reviewer.reviewer)
+      expect(contribution.modelApi).toBeInstanceOf(ModelApiBackendManager)
+      expect(contribution.paid).toBeDefined()
+      policy.ask.mockResolvedValue('always')
+      expect(await contribution.paid?.consent.allows({ feature: 'webSearch' })).toBe(true)
+      expect(await contribution.paid?.consent.allows({ feature: 'webSearch' })).toBe(true)
+      expect(policy.ask).toHaveBeenCalledOnce()
       expect(contribution.features.checkpoints).toBe(service.port)
       expect(await contribution.features.runManualHook?.('absent')).toMatchObject({
         matched: false,
@@ -734,6 +764,7 @@ describe('portable checkpoint backend recording', () => {
       await runtime.close()
     }
     expect(disposeHooks).toHaveBeenCalledOnce()
+    expect(disposeReviewer).toHaveBeenCalledOnce()
   })
   it('records actual Model API tools, restores their bytes and redoes the restore', async () => {
     const { root, create, backend, api } = await setup()

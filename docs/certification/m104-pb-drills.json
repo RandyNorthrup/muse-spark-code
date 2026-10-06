@@ -665,5 +665,61 @@
     "exitCode": 1,
     "sha256Before": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e",
     "sha256Restored": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e"
+  },
+  {
+    "drill": "v2-paid-always",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229",
+    "sha256Restored": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229"
+  },
+  {
+    "drill": "v2-paid-release",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229",
+    "sha256Restored": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229"
+  },
+  {
+    "drill": "v2-paid-tally",
+    "file": "src/runtime/features/paidUse.ts",
+    "exitCode": 1,
+    "sha256Before": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229",
+    "sha256Restored": "ace607c9ea0ae8fb8cb01638c72461c30577cfbc131cd53001c0970e6f020229"
+  },
+  {
+    "drill": "v2-workspace-grant-lane",
+    "file": "src/runtime/paidGrants.ts",
+    "exitCode": 1,
+    "sha256Before": "6f065a289b0c36595a85923f59bd478cbf3890b778d4573cdba0ce669245764b",
+    "sha256Restored": "6f065a289b0c36595a85923f59bd478cbf3890b778d4573cdba0ce669245764b"
+  },
+  {
+    "drill": "v2-workspace-revocation-corrupt",
+    "file": "src/runtime/paidGrants.ts",
+    "exitCode": 1,
+    "sha256Before": "6f065a289b0c36595a85923f59bd478cbf3890b778d4573cdba0ce669245764b",
+    "sha256Restored": "6f065a289b0c36595a85923f59bd478cbf3890b778d4573cdba0ce669245764b"
+  },
+  {
+    "drill": "auto-reviewer-trust",
+    "file": "src/runtime/features/autoReviewer.ts",
+    "exitCode": 1,
+    "sha256Before": "73d338dcd093b5a31fb6e3e01d8dd59c8143007fc19001b3421b9bdcf25b3916",
+    "sha256Restored": "73d338dcd093b5a31fb6e3e01d8dd59c8143007fc19001b3421b9bdcf25b3916"
+  },
+  {
+    "drill": "auto-reviewer-selected-support",
+    "file": "src/runtime/features/autoReviewer.ts",
+    "exitCode": 1,
+    "sha256Before": "73d338dcd093b5a31fb6e3e01d8dd59c8143007fc19001b3421b9bdcf25b3916",
+    "sha256Restored": "73d338dcd093b5a31fb6e3e01d8dd59c8143007fc19001b3421b9bdcf25b3916"
+  },
+  {
+    "drill": "auto-reviewer-final-owner",
+    "file": "src/host/review/museCodeReviewer.ts",
+    "exitCode": 1,
+    "sha256Before": "7592686385e4695e4c91518a7115969756c72e4aa03f99a2b78b3bfaeb5adadf",
+    "sha256Restored": "7592686385e4695e4c91518a7115969756c72e4aa03f99a2b78b3bfaeb5adadf"
   }
 ]

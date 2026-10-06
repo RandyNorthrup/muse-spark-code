@@ -2,6 +2,50 @@ import { describe, expect, it } from 'vitest'
 import { paidHarness as setup } from './paidHarness'
 
 describe('interactive paid policy apart from ACP flags', () => {
+  it('binds v2 controller consent, revocation and Best-of-N to the actual policy', async () => {
+    const { paid, ask, usage, granted } = setup([], () => 0.25)
+    const composition = paid.composition('/ws', 'surface')
+    ask.mockResolvedValue('always')
+    // An unavailable feature still refuses through the contributed port.
+    expect(
+      await composition.consent.allows({
+        feature: 'bestOfN',
+        modelId: 'verified',
+        prompt: 'task',
+        attempts: 2,
+        requestCeilingPerAttempt: 1,
+      }),
+    ).toBe(false)
+    expect(ask).not.toHaveBeenCalled()
+    composition.usage.addBestOfNRequest()
+    composition.usage.addBestOfNUsage('verified', {
+      inputTokens: 1,
+      outputTokens: 2,
+      cachedTokens: 0,
+    })
+    expect(usage.current.bestOfNRequests).toBe(1)
+    expect(usage.current.bestOfNCostUsd).toBe(0.25)
+    granted.set('/ws', new Set(['bestOfN']))
+    granted.set('/other', new Set(['voice']))
+    await composition.consent.forget()
+    expect(granted.get('/ws')).toBeUndefined()
+    expect(granted.get('/other')?.has('voice')).toBe(true)
+    await paid.dispose()
+    await expect(composition.gate.turnOn('bestOfN')).rejects.toThrow()
+  })
+
+  it('honours Always on the v2 ordinary consent port and revokes it when toggled off', async () => {
+    const { paid, ask, granted } = setup()
+    const composition = paid.composition('/ws', 'surface')
+    ask.mockResolvedValue('always')
+    expect(await composition.consent.allows({ feature: 'webSearch' })).toBe(true)
+    expect(await composition.consent.allows({ feature: 'webSearch' })).toBe(true)
+    expect(ask).toHaveBeenCalledOnce()
+    await composition.gate.turnOff('webSearch')
+    expect(granted.get('/ws')?.has('webSearch')).toBe(false)
+    await paid.dispose()
+  })
+
   it('asks once per actual use and counts the real paid usage', async () => {
     const { paid, ask, usage } = setup()
     expect(await paid.allows('/ws', 's', { feature: 'webSearch' }, true)).toBe(true)

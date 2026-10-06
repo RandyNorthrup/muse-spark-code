@@ -85,6 +85,8 @@ import {
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { walkFiles } from './fileWalk'
 import { paidGrantFile } from './paidGrants'
+import type { ConversationCompositionPorts } from '../host/compose/conversationDeps'
+import type { createRuntimeAutoReviewer } from './features/autoReviewer'
 
 export interface ExecRuntimeOptions {
   readonly isEphemeral: boolean
@@ -142,6 +144,7 @@ export interface RuntimeBackendDeps {
   readonly reservePaidRequest?: NonNullable<ModelApiClientDeps['reservePaidRequest']>
   readonly paidResponseCost?: NonNullable<ModelApiClientDeps['paidResponseCost']>
   readonly paidUsage?: PaidUsage
+  readonly autoReviewer?: (root: string) => ReturnType<typeof createRuntimeAutoReviewer>
 }
 
 export interface RuntimeBackend {
@@ -150,6 +153,9 @@ export interface RuntimeBackend {
   readonly museCode: MuseCodeBackendManager
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
+  readonly paidFor?: (root: string, surfaceId: string) => ConversationCompositionPorts['paid']
+  readonly modelApiFor?: (root: string) => Promise<ModelApiBackendManager>
+  readonly autoReviewerFor?: (root: string) => ReturnType<typeof createRuntimeAutoReviewer>
   /**
    * At start: "always" lapses for a paid feature the Model API agent was
    * started without. A Muse Code agent has no paid flags, so it leaves the
@@ -474,10 +480,19 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const webFetchFactory = deps.exec === undefined ? deps.webFetch : undefined
   const browserHosts = new Map<string, ReturnType<typeof createRuntimeBrowser>>()
   const browserFactory = deps.exec === undefined ? deps.browser : undefined
+  const reviewerHosts = new Map<string, ReturnType<typeof createRuntimeAutoReviewer>>()
+  const reviewerFactory = deps.exec === undefined ? deps.autoReviewer : undefined
   let isDisposed = false
   let closing: Promise<void> | undefined
   const assertOpen = () => {
     if (isDisposed) throw new Error('MHP_RUNTIME_CLOSED')
+  }
+  const autoReviewerFor = (root: string) => {
+    assertOpen()
+    if (reviewerFactory === undefined) throw new Error('MHP_AUTO_REVIEWER_UNAVAILABLE')
+    const service = reviewerHosts.get(root) ?? reviewerFactory(root)
+    reviewerHosts.set(root, service)
+    return service
   }
   const verifyFor = (root: string) => {
     assertOpen()
@@ -633,7 +648,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       : { state: 'ready' }
   }
 
-  const modelApiHostFor = async (cwd: string): Promise<AgentHost> => {
+  const modelApiManagerFor = async (cwd: string): Promise<ModelApiBackendManager> => {
     const identity = await captureWorkspaceIdentity(cwd)
     if (identity === undefined) {
       throw new Error(UI_TEXT.modelApiNeedsFolder)
@@ -646,7 +661,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       if (existing.identity !== key) {
         throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
       }
-      return await existing.manager.ensureHost()
+      return existing.manager
     }
     const assertWorkspaceCurrent = () => {
       assertOpen()
@@ -672,13 +687,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       browserFactory === undefined ? undefined : browserFor(cwd).host,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
-    return await manager.ensureHost()
+    return manager
   }
 
   const hostFor = async (cwd: string): Promise<AgentHost> => {
     assertOpen()
     if (deps.options.backend === 'modelApi') {
-      return await modelApiHostFor(cwd)
+      const manager = await modelApiManagerFor(cwd)
+      return await manager.ensureHost()
     }
     if (checkpointFactory !== undefined) {
       const checkpoints = await checkpointsFor(cwd)
@@ -699,6 +715,16 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
+    ...(reviewerFactory !== undefined && { autoReviewerFor }),
+    ...(deps.exec === undefined &&
+      deps.interactivePaid !== undefined && {
+        paidFor: (root: string, surfaceId: string) => {
+          assertOpen()
+          if (deps.interactivePaid === undefined) throw new Error('MHP_PAID_POLICY_UNAVAILABLE')
+          return deps.interactivePaid.composition(root, surfaceId)
+        },
+        modelApiFor: modelApiManagerFor,
+      }),
     ...(checkpointFactory !== undefined && { checkpointsFor }),
     ...(verifyFactory !== undefined && { verifyFor }),
     ...(hookFactory !== undefined && { hooksFor }),
@@ -719,6 +745,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         // A probe still waiting on its short-lived host ends with the agent.
         accountHosts.close()
         const checking = Promise.allSettled([
+          ...Array.from(reviewerHosts.values(), (service) => service.dispose()),
           ...Array.from(verifyHosts.values(), (service) => service.dispose()),
           ...Array.from(hookHosts.values(), (service) => service.dispose()),
           ...Array.from(codeIntelHosts.values(), (service) => service.dispose()),
@@ -739,6 +766,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         codeIntelHosts.clear()
         webFetchHosts.clear()
         browserHosts.clear()
+        reviewerHosts.clear()
         const released = await Promise.allSettled(
           Array.from(checkpointHosts.values(), async (pending) => {
             const services = await pending
