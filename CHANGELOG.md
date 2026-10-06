@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M103R runtime/ACP maker host: hardware grants outside the workspace, OS
+  credential storage, hardware/machines/Stop commands, editor permissions
+  with once-only target binding, authenticated loopback companion/MCP
+  transports and the Thonny v2 handover endpoint. Stop bypasses admission and
+  occupied ACP turns; ordinary prompts retain their preparing hold. Runtime
+  tools are withdrawn in Plan and unattended contexts. The maker engine loads
+  from a deferred bundle capped at 125 KiB; existing caps are unchanged.
+  Shared maker UI, package wiring, G4 and physical/cross-OS
+  qualification remain integration work, as recorded in M103R certification.
+
 ### Added
 
 - A consolidated maker text region for approvals, hardware admission and

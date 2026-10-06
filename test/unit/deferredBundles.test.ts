@@ -87,6 +87,7 @@ beforeAll(async () => {
         whatsNew: 'src/host/whatsNew/whatsNewEntry.ts',
         browserCheck: 'src/host/browser/browserCheckEntry.ts',
         browserRuntime: 'src/host/browser/browserRuntimeEntry.ts',
+        runtimeMaker: 'src/runtime/maker/entry.ts',
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',

@@ -4133,6 +4133,44 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 The portable maker engine/surface contract is in `src/shared/makerProtocol.ts`.
+The runtime lane adds host-owned hardware grants, machine registration and
+independent Stop. These are integration commands; the installed shared maker
+page and package assembly remain with lanes U/W. The runtime host, loopback
+transport and fake-CLI receipts are in [M103R certification](docs/certification/m103-r.md).
+
+```text
+muse-spark-code-acp hardware enable --reason "supervised bench" --trust-workspace
+muse-spark-code-acp hardware status
+muse-spark-code-acp hardware disable
+muse-spark-code-acp machines add --registration <secretless-JSON> --trust-workspace
+muse-spark-code-acp machines list
+muse-spark-code-acp machines remove <id> --trust-workspace
+muse-spark-code-acp stop-machine [id|--all]
+muse-spark-code-acp panel [--trust-workspace]
+```
+
+`--cwd <path>` selects the workspace. Registration JSON contains `machine`
+(`id`, `name`, `kind`, `category`, `endpoint`, `limits`) and `allowPlainHttp`;
+the engine generates the registration identity. Add `--key-stdin` only when
+registering a credential, and provide it privately on standard input. No
+credential belongs in JSON, an argument, the environment or a file.
+
+ACP requires the explicit `--hardware` flag plus a workspace hardware grant.
+The editor offers `/hardware enable <reason>`, `/hardware disable`,
+`/hardware status`, `/machines list`, `/machines add <makerAddMachine JSON>`,
+`/machines remove <id>` and `/stop-machine [id|--all]`. Every physical action
+still requires its own target-bound Allow once or Reject once answer; Plan,
+Bypass and unattended contexts cannot widen that permission. Stop remains
+available when hardware is disabled, trust is absent or an ACP turn is busy.
+A software stop does not replace the physical emergency stop.
+
+The panel binds only a loopback literal. Its private launch code becomes an
+HttpOnly cookie once; model MCP and browser credentials are separate. Its
+Thonny v2 endpoint accepts context and explicit port handover, never device
+payloads or approval answers. The current native handover is an approved,
+bounded read session; serial writes await G4's classifier, persistent serial
+machine sessions await P/W, and PrusaLink digest transport awaits integration.
+
 `node scripts/maker-schema.mjs` regenerates its committed
 [host](docs/schemas/maker-host-v1.schema.json) and
 [surface](docs/schemas/maker-surface-v1.schema.json) JSON Schemas;

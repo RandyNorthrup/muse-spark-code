@@ -81,6 +81,15 @@ describe('bundled What’s New content budget', () => {
     expect(console.log).toHaveBeenCalledWith('ok   dist/whatsNew.json: 40.0 KiB (budget 40 KiB)')
     expect(process.exit).not.toHaveBeenCalled()
   })
+  it('checks the new runtime maker bundle at its 125 KiB boundary', async () => {
+    const maker = 'dist/runtimeMaker.js'
+    statSync.mockImplementation((file) => ({ size: file === maker ? 125 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === maker ? 125 * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
 
   it('rejects one byte over 40 KiB', async () => {
     statSync.mockImplementation((file) => ({

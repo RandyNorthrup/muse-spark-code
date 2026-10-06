@@ -350,6 +350,35 @@ export async function claimHardwareLease(
 }
 
 /** Out-of-band: no approval, mutex or running-turn queue is involved. */
+export async function stopAllHardwareLeases(deps: LeaseDependencies): Promise<void> {
+  await privateDirectory(deps)
+  const entries = await readdir(deps.directory)
+  const results = await Promise.allSettled(
+    entries
+      .filter((entry) => /^[a-f0-9]{64}\.lock$/.test(entry))
+      .map(async (entry) => {
+        const directory = path.join(deps.directory, entry)
+        await privateDirectory({ ...deps, directory })
+        const records = await readRecords(directory, deps.maxRecordBytes)
+        const resources = new Set<string>()
+        for (const { record } of records) {
+          if (lockPath(deps, record.resource) !== directory)
+            throw new Error('lease-resource-mismatch')
+          validateEndpoint(record, deps)
+          resources.add(record.resource)
+        }
+        await Promise.all(
+          [...resources].map(async (resource) => {
+            if (!(await didStopHardwareLease(deps, resource)))
+              throw new Error('lease-stop-unavailable')
+          }),
+        )
+      }),
+  )
+  if (results.some((result) => result.status === 'rejected')) throw new Error('lease-stop-failed')
+}
+
+/** Out-of-band: no approval, mutex or running-turn queue is involved. */
 export async function didStopHardwareLease(
   deps: LeaseDependencies,
   resource: string,

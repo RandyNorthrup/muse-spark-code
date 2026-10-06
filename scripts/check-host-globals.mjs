@@ -23,6 +23,7 @@ const HOST_BUNDLES = [
   'dist/tab.js',
   'dist/verifyEditor.js',
   'dist/modelApi.js',
+  'dist/runtimeMaker.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',

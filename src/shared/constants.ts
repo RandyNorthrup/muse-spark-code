@@ -218,6 +218,34 @@ export interface CheckCommandSetting {
 
 // M103 lane D: maker-detect bounds. Detection only offers checks; it never runs them.
 export const MAKER_DETECT_MAX_FILES = 256
+// M103 R: owner storage and bounded loopback/runtime surfaces.
+export const RUNTIME_MAKER_BUNDLE_FILE = 'runtimeMaker.js'
+export const RUNTIME_MAKER_MAX_BYTES = 64 * 1024
+export const RUNTIME_MAKER_TOKEN_BYTES = 32
+export const RUNTIME_MAKER_TIMEOUT_MS = 15_000
+export const RUNTIME_MAKER_APPROVAL_MS = 60_000
+export const RUNTIME_MAKER_MAX_ITEMS = 256
+export const RUNTIME_MAKER_LOG_BYTES = 4 * 1024 * 1024
+export const RUNTIME_MAKER_STATE_KEY = 'hardware'
+export const RUNTIME_MAKER_HOST = '127.0.0.1'
+export const RUNTIME_MAKER_SERIAL_BAUD = 115_200
+export const RUNTIME_MAKER_CHUNK_BYTES = 1024
+export const RUNTIME_MAKER_POLL_MS = 20
+export const RUNTIME_MAKER_MM_PER_INCH = 25.4
+export const RUNTIME_MAKER_MAX_LINES = 50
+export const RUNTIME_MAKER_HTTP_NO_CONTENT = 204
+export const RUNTIME_MAKER_HTTP_CONFLICT = 409
+export const RUNTIME_MAKER_FRAME_NEWLINE = 10
+export const RUNTIME_MAKER_MODEL_TEXT = {
+  runtimeMakerStatus: 'Read the status of a host-registered machine. Does not send motion.',
+  runtimeMakerSend:
+    'Propose a short printer payload. The host independently checks limits and asks the user to send once. Approval is never a tool argument.',
+  runtimeMakerStop:
+    'Send the registered machine fixed Stop out of band. Never asks for approval. Software Stop cannot replace a physical emergency stop.',
+  runtimeMakerPorts: 'List serial port metadata without opening a port.',
+  runtimeMakerSerial:
+    'Request one bounded serial operation. The host classifies it and asks once with exact bytes and reset warning.',
+} as const
 export const MAKER_DETECT_MAX_BYTES = 8 * 1024
 export const MAKER_DETECT_MAX_DEPTH = 4
 export const MAKER_DETECT_IO_TIMEOUT_MS = 10_000

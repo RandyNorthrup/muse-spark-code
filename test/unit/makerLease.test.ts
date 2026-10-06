@@ -10,6 +10,7 @@ import {
   claimHardwareLease,
   serialLeaseResource,
   didStopHardwareLease,
+  stopAllHardwareLeases,
 } from '../../src/core/maker/lease'
 import {
   makerLeaseDeps,
@@ -52,6 +53,42 @@ async function recordFile(
 }
 
 describe('hardware lease', () => {
+  it('Stop all reports an owner that cannot acknowledge instead of an empty success', async () => {
+    const native = await fixture()
+    const deps = {
+      ...native,
+      platform: 'win32' as const,
+      listenOwnerPipe: () => Promise.resolve(() => Promise.resolve()),
+    }
+    const claim = await claimHardwareLease(deps, 'port:unacknowledged', 'runtime', () =>
+      Promise.resolve(),
+    )
+    if (claim.status !== 'acquired') throw new Error('test-claim')
+    try {
+      await expect(stopAllHardwareLeases(deps)).rejects.toThrow('lease-stop-failed')
+    } finally {
+      await claim.release()
+    }
+  })
+  it('Stop all reaches unregistered port and machine owners despite another malformed record', async () => {
+    const deps = await fixture()
+    const stopped = vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+    const claims = await Promise.all([
+      claimHardwareLease(deps, 'port:runtime-handover', 'runtime', stopped),
+      claimHardwareLease(deps, 'machine:runtime-test', 'runtime', stopped),
+    ])
+    try {
+      expect(claims.every((claim) => claim.status === 'acquired')).toBe(true)
+      await stopAllHardwareLeases(deps)
+      expect(stopped).toHaveBeenCalledTimes(2)
+      const corrupted = await recordFile(deps.directory, 'port:corrupt')
+      await writeFile(corrupted, '{}')
+      await expect(stopAllHardwareLeases(deps)).rejects.toThrow('lease-stop-failed')
+      expect(stopped).toHaveBeenCalledTimes(4)
+    } finally {
+      for (const claim of claims) if (claim.status === 'acquired') await claim.release()
+    }
+  })
   it('keeps a newer holder when a stale removal submitted before native lock loss finally runs', async () => {
     const native = await fixture()
     const deps = {

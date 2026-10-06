@@ -14,6 +14,8 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
  * @type {ReadonlyArray<{ path: string; budgetKiB: number }>}
  */
 const BUDGETS = [
+  // M103R: 107.0 KiB + 15%, rounded to 25 KiB. Existing caps are unchanged.
+  { path: 'dist/runtimeMaker.js', budgetKiB: 125 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },

@@ -59,6 +59,8 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import type { AcpMakerRuntime } from '../acp/maker'
+import { runtimeMakerBundle } from './makerBundle'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -128,6 +130,15 @@ const secrets: SecretStore = {
   async delete(name) {
     const store = await loadSecrets()
     await store.delete(name)
+  },
+}
+const makerSecrets = {
+  get: async (name: string) => await secrets.get(name),
+  store: async (name: string, value: string) => {
+    await secrets.store(name, value)
+  },
+  delete: async (name: string) => {
+    await secrets.delete(name)
   },
 }
 
@@ -216,8 +227,9 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-function runtimeFor(options: ServeOptions, log: Logger) {
+function runtimeFor(options: ServeOptions, log: Logger, maker?: AcpMakerRuntime) {
   return createRuntimeBackend({
+    ...(maker !== undefined && { makerTools: (cwd: string) => maker.toolsFor(cwd) }),
     options,
     version: packageVersion(),
     distDir,
@@ -306,7 +318,32 @@ async function setupHooks(
 }
 
 async function serve(options: ServeOptions, log: Logger): Promise<number> {
-  const runtime = runtimeFor(options, log)
+  const maker =
+    options.hardware === true
+      ? runtimeMakerBundle(distDir).runtimeMakerAcp(
+          {
+            dataDirectory: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            distDirectory: distDir,
+            workspace: process.cwd(),
+            platform: process.platform,
+            env: process.env,
+            secrets: makerSecrets,
+            readSecret: () => Promise.resolve(undefined),
+            print: (_line) => {
+              /* ACP stdout is protocol-only. */
+            },
+            done: new AbortController().signal,
+            table: UI_TEXT,
+            locale: uiLocale(),
+          },
+          options.trustWorkspace,
+        )
+      : undefined
+  const runtime = runtimeFor(options, log, maker)
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -329,13 +366,14 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     backend: runtime.backend,
     version: packageVersion(),
     options: {
-      canBypass: options.canBypass,
+      canBypass: maker === undefined && options.canBypass,
       allowsContributorModels: options.allowsContributorModels,
       initialMode: SETTING_DEFAULTS.initialPermissionMode,
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
     paid: runtime.paid,
+    ...(maker !== undefined && { maker }),
     log,
     reportError: (fact) => {
       // Facts only (a fixed kind and code): it never touches ACP stdout, and
@@ -348,6 +386,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
   await connection.closed
+  await maker?.close()
   await runtime.close()
   await journal.shutdown()
   return 0
@@ -487,6 +526,42 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'maker': {
+      const done = new AbortController()
+      const stop = () => {
+        done.abort()
+      }
+      process.once('SIGINT', stop)
+      process.once('SIGTERM', stop)
+      try {
+        return await runtimeMakerBundle(distDir).runRuntimeMaker(command, {
+          dataDirectory: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          distDirectory: distDir,
+          workspace: path.resolve(command.cwd ?? process.cwd()),
+          platform: process.platform,
+          env: process.env,
+          secrets: makerSecrets,
+          readSecret: () => readSecretLine(UI_TEXT.makerAddMachine, process.stdin, process.stderr),
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
+          done: done.signal,
+          table: UI_TEXT,
+          locale: uiLocale(),
+        })
+      } catch {
+        // A malformed registration/key-store error can echo pasted input; never log it.
+        log.error(UI_TEXT.makerDevicesTitle)
+        return 1
+      } finally {
+        process.off('SIGINT', stop)
+        process.off('SIGTERM', stop)
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }

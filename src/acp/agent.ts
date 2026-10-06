@@ -72,6 +72,7 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
+import { acpMakerAsker, type AcpMakerRuntime, type AcpMakerSession } from './maker'
 import {
   elicitationSchema,
   elicitationText,
@@ -129,6 +130,7 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly maker?: AcpMakerRuntime
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -250,8 +252,10 @@ class AcpSession {
     private readonly deps: AcpAgentDeps,
     private mode: PermissionMode,
     private modelId: string,
+    private readonly maker?: AcpMakerSession,
   ) {
     this.sessionId = session.sessionId
+    if (maker !== undefined && this.mode === 'bypassPermissions') this.mode = 'manual'
     this.translator = new UpdateTranslator(cwd, false)
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
@@ -314,15 +318,37 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.maker === undefined) return
+      this.skills = []
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...this.skills.map((skill) => ({
+          name: skill.selector,
+          description: skill.description === '' ? skill.displayName : skill.description,
+          input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+        })),
+        ...(this.maker === undefined
+          ? []
+          : [
+              {
+                name: 'hardware',
+                description: UI_TEXT.makerEnableHardware,
+                input: { hint: 'enable <reason> | disable | status' },
+              },
+              {
+                name: 'machines',
+                description: UI_TEXT.makerDevicesTitle,
+                input: { hint: 'list | add <makerAddMachine JSON> | remove <id>' },
+              },
+              {
+                name: 'stop-machine',
+                description: UI_TEXT.makerSoftwareStopWarning,
+                input: { hint: '[id | --all]' },
+              },
+            ]),
+      ],
     })
   }
 
@@ -647,6 +673,12 @@ class AcpSession {
     }
   }
 
+  private async makerReply(text: string): Promise<StopReason> {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    await this.outbox
+    return 'end_turn'
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -765,6 +797,8 @@ class AcpSession {
   }
 
   public async setMode(modeId: string): Promise<void> {
+    if (modeId === 'bypassPermissions' && this.maker !== undefined)
+      throw RequestError.invalidParams(undefined, modeId)
     const mode = availablePermissionModes(this.deps.options.canBypass).find(
       (candidate) => candidate === modeId,
     )
@@ -774,6 +808,7 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
+    this.maker?.setInteractive(this.pending !== undefined && mode !== 'plan')
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
@@ -819,24 +854,44 @@ class AcpSession {
 
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
     this.ensureHeld()
-    if (this.pending !== undefined || this.preparing !== undefined) {
-      throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
-    }
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
     }
+    if (this.pending !== undefined || this.preparing !== undefined) {
+      // Explicit Stop reaches the engine independently of the occupied model turn.
+      if (this.maker !== undefined && /^\/stop-machine(?:\s|$)/.test(parsed.displayText)) {
+        const result = await this.maker.command(parsed.displayText)
+        if (result !== undefined) return await this.makerReply(result)
+      }
+      throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+    }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
     try {
+      if (this.maker !== undefined) {
+        this.maker.setInteractive(this.mode !== 'plan')
+        const result = await this.maker.command(parsed.displayText)
+        if (result !== undefined) {
+          this.maker.setInteractive(false)
+          await this.announceCommands()
+          if ('error' in preparing) throw preparing.error
+          return preparing.isCancelled ? 'cancelled' : await this.makerReply(result)
+        }
+      }
       await this.announceCommands()
+    } catch (error) {
+      this.maker?.setInteractive(false)
+      throw error
     } finally {
       this.preparing = undefined
     }
     if ('error' in preparing) {
+      this.maker?.setInteractive(false)
       throw preparing.error
     }
     if (preparing.isCancelled) {
+      this.maker?.setInteractive(false)
       await this.outbox
       return 'cancelled'
     }
@@ -861,6 +916,7 @@ class AcpSession {
       this.noteTurnId(submission.turnId)
     } catch (error: unknown) {
       this.pending = undefined
+      this.maker?.setInteractive(false)
       if (this.isDisposed) {
         // Let go while starting: a close cancels; a host exit fails.
         const outcome = await finished
@@ -874,6 +930,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    this.maker?.setInteractive(false)
     if ('error' in outcome) {
       throw outcome.error
     }
@@ -882,6 +939,7 @@ class AcpSession {
   }
 
   public async cancel(): Promise<void> {
+    await this.maker?.cancel()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -930,6 +988,7 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    await this.maker?.close()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }
@@ -1018,6 +1077,7 @@ class AgentState {
     claim: SessionClaim,
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
+    maker?: AcpMakerSession,
   ): Promise<AcpSession> {
     // A session loaded again replaces the one held, and one still being set
     // up by an earlier load, before anything runs on it: both hosts hand
@@ -1044,6 +1104,7 @@ class AgentState {
           ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
           : this.deps.options.initialMode,
         session.modelId,
+        maker,
       )
       this.adopting.set(sessionId, acp)
       await prepare(acp)
@@ -1191,21 +1252,51 @@ class AgentState {
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
   ) {
-    const { host, models } = await this.openHost(cwd)
-    const modelId = startingModel(models)
-    const mcpServers = this.forwardedMcp(host, requestedMcp)
-    const session = await host.startSession({
-      workspaceRoot: cwd,
-      modelId,
-      approvalMode: approvalModeFor(this.deps.options.initialMode, true),
-      ...(mcpServers !== undefined && { mcpServers }),
-    })
-    // The mode and model went with the start; the effort is set here.
-    const claim = this.claimSession(session.sessionId)
-    const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-      started.applyEffort(DEFAULT_EFFORT),
+    let makerSessionId = ''
+    const maker = await this.deps.maker?.session(
+      cwd,
+      acpMakerAsker(client, () => makerSessionId),
     )
-    return { sessionId: session.sessionId, modes: acp.modes(), configOptions: acp.configOptions() }
+    try {
+      const { host, models } = await this.openHost(cwd)
+      const modelId = startingModel(models)
+      const forwarded = this.forwardedMcp(host, requestedMcp)
+      const mcpServers =
+        maker === undefined ? forwarded : { ...forwarded, muse_spark_maker: maker.server }
+      const session = await host.startSession({
+        workspaceRoot: cwd,
+        modelId,
+        approvalMode: approvalModeFor(
+          maker !== undefined && this.deps.options.initialMode === 'bypassPermissions'
+            ? 'manual'
+            : this.deps.options.initialMode,
+          true,
+        ),
+        ...(mcpServers !== undefined && { mcpServers }),
+      })
+      makerSessionId = session.sessionId
+      // The mode and model went with the start; the effort is set here.
+      const claim = this.claimSession(session.sessionId)
+      const acp = await this.adopt(
+        host,
+        session,
+        cwd,
+        client,
+        models,
+        claim,
+        (started) => started.applyEffort(DEFAULT_EFFORT),
+        false,
+        maker,
+      )
+      return {
+        sessionId: session.sessionId,
+        modes: acp.modes(),
+        configOptions: acp.configOptions(),
+      }
+    } catch (error: unknown) {
+      await maker?.close()
+      throw error
+    }
   }
 
   public async loadSession(
@@ -1218,13 +1309,19 @@ class AgentState {
     // Claimed before backend I/O: a slow older resume cannot replace a
     // newer request, and a close can invalidate one still loading.
     const claim = this.claimSession(sessionId)
+    const maker = await this.deps.maker?.session(
+      cwd,
+      acpMakerAsker(client, () => sessionId),
+    )
     try {
       const { host, models } = await this.openHost(cwd)
       this.ensureClaim(claim, host)
       const loaded = await host.resumeSession(
         sessionId,
         startingModel(models),
-        this.forwardedMcp(host, requestedMcp),
+        maker === undefined
+          ? this.forwardedMcp(host, requestedMcp)
+          : { ...this.forwardedMcp(host, requestedMcp), muse_spark_maker: maker.server },
       )
       // A session resumes on the approval mode, model and effort it last had,
       // which may differ from what the editor is told (a more permissive mode,
@@ -1247,9 +1344,11 @@ class AgentState {
           resumed.sendPlan(loaded.history.todos)
         },
         loaded.record.imported === true,
+        maker,
       )
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
+      await maker?.close()
       if (this.claims.get(sessionId) === claim) {
         this.claims.delete(sessionId)
       }

@@ -18910,6 +18910,32 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**M103R runtime lane (2026-10-05, win11).** Implement the existing R row on
+the integrated MakerHost/makerProtocol contract: host-owned workspace hardware
+grants, OS secrets, runtime commands, ACP once-only permissions and commands,
+authenticated loopback companion/MCP transports and Thonny v2 context/port
+handover. Preserve the engine's single-use target binding and ungated Stop;
+G4 classification is supplied through a port, never duplicated. Runtime code
+loads from its own deferred bundle; U/W own the shared React mount and final
+package wiring. Each feature has the VS Code, ACP/companion and native MHP
+equivalent recorded in docs/certification/m103-r.md. No paid or live calls,
+physical hardware or main/guard merge. The explicit lane brief delegates full
+quality to the lead; run owning suites and unchanged static/build gates here.
+Technical command syntax is added to the existing ACP usage entry in every
+language. D6 adds `dist/runtimeMaker.js`: 107.0 KiB measured, plus 15%, rounded
+to 125 KiB; every pre-existing cap is unchanged. Shared validation exports
+`omit` because the first real runtime build exposed the maker schema's use.
+R's independent Stop must also reach unregistered serial/Thonny leases from a
+second process. Add a core Stop-all helper over P's existing validated v2
+records and owner endpoints; it does not invent a lease parser or wait for a
+mutex. Attempt each resource independently so a corrupt record cannot delay
+another controller's fixed Stop. Certify it with the full lease suite.
+Refresh runtime workspace admission and registry identity after the final HTTP
+preparation await, immediately before the existing synchronous engine guard;
+the optional HTTP policy hook runs only for guarded sends, never fixed Stop.
+ACP reserves its existing preparing hold before awaiting a maker command;
+an explicit Stop command bypasses an occupied turn without enabling hardware.
+
 **M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
 m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and
 m103/tredesign2, in that order, with merge commits; no guard branch joins
@@ -20676,6 +20702,13 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+**M103R (2026-10-06):** `src/runtime/makerBundle.ts`'s
+`isRuntimeMakerBundle` checks both entry exports are functions, then trusts
+their signatures because loader, entry and package are the same source/build,
+as the other deferred factories do. The inline reason names this register;
+owning command/deferred-bundle tests exercise the real factories. No `any`,
+non-narrowing cast, lint suppression or scanner suppression was added.
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

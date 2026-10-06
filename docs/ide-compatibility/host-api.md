@@ -435,24 +435,25 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                      |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                               |
 
-## Node built-ins the host imports (26)
+## Node built-ins the host imports (27)
 
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 46    |
 | `node:child_process`   | 18    |
-| `node:crypto`          | 51    |
+| `node:crypto`          | 55    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 3     |
-| `node:fs`              | 38    |
-| `node:fs/promises`     | 55    |
-| `node:http`            | 5     |
+| `node:dns/promises`    | 4     |
+| `node:events`          | 1     |
+| `node:fs`              | 39    |
+| `node:fs/promises`     | 59    |
+| `node:http`            | 6     |
 | `node:https`           | 2     |
 | `node:module`          | 1     |
-| `node:net`             | 10    |
+| `node:net`             | 12    |
 | `node:os`              | 9     |
-| `node:path`            | 95    |
+| `node:path`            | 101   |
 | `node:perf_hooks`      | 2     |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
@@ -461,7 +462,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
-| `node:util`            | 5     |
+| `node:util`            | 6     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 4     |

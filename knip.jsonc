@@ -65,6 +65,8 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
+    // M103 R: required by path only for explicit runtime maker commands/--hardware.
+    "src/runtime/maker/entry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",

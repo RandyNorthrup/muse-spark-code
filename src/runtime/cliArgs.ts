@@ -18,8 +18,11 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseMakerCommand, type MakerCommand } from './maker/commandArgs'
 
 export interface ServeOptions {
+  /** M103: hardware tools require both this explicit flag and a host-owned workspace grant. */
+  readonly hardware?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
   /** A folder's rules, skills and memory load (D13's flag, as Muse Code takes it). */
@@ -47,6 +50,7 @@ export interface ReportOptions {
 }
 
 export type RuntimeCommand =
+  | MakerCommand
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
@@ -88,6 +92,12 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  try {
+    const maker = parseMakerCommand(argv)
+    if (maker !== undefined) return maker
+  } catch {
+    return { command: 'invalid', reason: UI_TEXT.makerDevicesTitle, exitCode: 2 }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
@@ -120,6 +130,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     }
   }
   const options: ServeOptions = {
+    ...(values.hardware === true && { hardware: true }),
     backend,
     trustWorkspace: values['trust-workspace'] === true,
     museBinary: values['muse-binary'] ?? SETTING_DEFAULTS.museBinaryPath,
@@ -250,6 +261,7 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     allowPositionals: true,
     strict: true,
     options: {
+      hardware: { type: 'boolean' },
       backend: { type: 'string' },
       'trust-workspace': { type: 'boolean' },
       maintenance: { type: 'boolean' },

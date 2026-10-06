@@ -431,6 +431,7 @@ function setup(
     /** The MCP servers and the IDE tools (M50). */
     mcpServers?: ModelApiHostDeps['mcpServers']
     ideTools?: ModelApiHostDeps['ideTools']
+    getIdeTools?: ModelApiHostDeps['getIdeTools']
     /** False: the host has no memory store (M49). */
     hasMemory?: boolean
     /** Folders the memory fake reports as links to elsewhere (M49). */
@@ -558,6 +559,7 @@ function setup(
     }),
     mcpServers: options.mcpServers,
     ideTools: options.ideTools,
+    getIdeTools: options.getIdeTools,
     allowsPaidUse: async (request, requiresAsking, sessionId) => {
       paidRequests.push({ request, requiresAsking })
       paidSessions.push(sessionId)
@@ -14047,6 +14049,39 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     )
     expect(offered).toContain('mcp__ide__getDiagnostics')
     expect(offered).not.toContain('mcp__docs__search')
+  })
+
+  it('reads runtime tool admission again when a streamed call arrives', async () => {
+    let isAdmitted = true
+    const call = vi.fn<McpTool['call']>().mockResolvedValue('observed')
+    const tool = { ...DIAGNOSTICS, call }
+    const t = setup({ getIdeTools: () => (isAdmitted ? [tool] : []) })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { calls: [{ name: 'mcp__ide__getDiagnostics', arguments: '{}' }], hold: held.promise },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    isAdmitted = false
+    held.resolve(undefined)
+    await turnDone()
+    expect(call).not.toHaveBeenCalled()
+  })
+
+  it('does not offer runtime hardware tools in Plan', async () => {
+    const t = setup({ getIdeTools: () => [DIAGNOSTICS] })
+    const { session, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script({ text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await turnDone()
+    const tools = z
+      .array(z.looseObject({ name: z.optional(z.string()) }))
+      .parse(t.api.responseBodies()[0]?.['tools'])
+    expect(tools.map((tool) => tool.name)).not.toContain('mcp__ide__getDiagnostics')
   })
 
   it('asks before an MCP tool in Manual, as a tool, and remembers "always allow"', async () => {

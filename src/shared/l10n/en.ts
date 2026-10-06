@@ -2398,6 +2398,12 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
+    '  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]',
+    '  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace',
+    '  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]',
+    '  {command} stop-machine [id|--all] [--cwd <path>]',
+    '  {command} panel [--cwd <path>] [--trust-workspace]',
+    '  --hardware',
   ].join('\n'),
   // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
   // and bad report arguments print this on stderr, never the report itself.

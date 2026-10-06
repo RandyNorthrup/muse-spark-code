@@ -20,6 +20,8 @@ const responseBodySchema = z.union([z.record(z.string(), z.unknown()), z.null()]
 export interface MachineHttpPolicy {
   readonly timeoutMs: number
   readonly maxResponseBytes: number
+  /** Host-owned live admission after all preparation, before the synchronous write guard. */
+  readonly beforeGuardedDispatch?: () => Promise<void>
 }
 export interface HttpReply {
   readonly status: number
@@ -83,6 +85,7 @@ export class MachineHttp {
       const deadline = AbortSignal.timeout(this.policy.timeoutMs)
       const cancellation = signal === undefined ? deadline : AbortSignal.any([deadline, signal])
       const check = await beforeWrite?.()
+      if (beforeWrite !== undefined) await this.policy.beforeGuardedDispatch?.()
       return await new Promise<HttpReply>((resolve, reject) => {
         // DNS, SecretStorage and the last status read have settled. Creating
         // a ClientRequest may already open a socket: guard before creation.

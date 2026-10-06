@@ -581,6 +581,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * `mcp__ide__<tool>`, the names Muse Code sessions see them by (M50).
    */
   readonly ideTools?: readonly McpTool[] | undefined
+  /** Runtime hardware revocation changes the catalogue at the next request. Workers never receive it. */
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   /**
    * Muse Code's memory (M49, PLAN.md D41): the memory tools and the
    * session-start snapshot; undefined leaves them out.
@@ -3285,8 +3287,21 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** The extension's own IDE tools, as the model calls them (M50). */
+  private liveIdeTools(): readonly McpTool[] {
+    const isRuntimeDenied =
+      this.isSubagent ||
+      this.isSideChat ||
+      this.isReviewing() ||
+      this.permissions.currentMode === 'denyUnmatched' ||
+      this.active?.confirmedRequest !== undefined
+    return (
+      (isRuntimeDenied && this.deps.getIdeTools !== undefined ? [] : this.deps.getIdeTools?.()) ??
+      this.deps.ideTools ??
+      []
+    )
+  }
   private ideDefinitions(): readonly FunctionToolDefinition[] {
-    return (this.deps.ideTools ?? []).map(
+    return this.liveIdeTools().map(
       (tool) => mcpFunctionDefinition(ideFunctionName(tool), tool).definition,
     )
   }
@@ -3355,7 +3370,7 @@ export class ModelApiSession implements AgentSession {
 
   /** The IDE tool or MCP server tool a function name is, when it is one (M50). */
   private externalTool(name: string): ExternalTool | undefined {
-    const tool = this.deps.ideTools?.find((candidate) => ideFunctionName(candidate) === name)
+    const tool = this.liveIdeTools().find((candidate) => ideFunctionName(candidate) === name)
     if (tool !== undefined) {
       return { kind: 'ide', tool }
     }

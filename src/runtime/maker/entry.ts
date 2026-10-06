@@ -1,0 +1,62 @@
+import path from 'node:path'
+import type { MakerSecrets } from '../../core/maker/ports'
+import type { MakerCommand } from './commandArgs'
+import { createRuntimeMakerService } from './service'
+import { runMakerCommand } from './commands'
+import { setUiText } from '../../shared/l10n/text'
+import type { UiText } from '../../shared/l10n/en'
+import { createAcpMakerRuntime } from './acpRuntime'
+import type { AcpMakerRuntime } from '../../acp/maker'
+
+export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean): AcpMakerRuntime {
+  setUiText(deps.table, deps.locale)
+  return createAcpMakerRuntime({
+    dataDirectory: deps.dataDirectory,
+    secrets: deps.secrets,
+    trusted: () => isTrusted,
+    flagged: () => true,
+    native: {
+      platform: deps.platform,
+      env: deps.env,
+      packageRoot: path.dirname(deps.distDirectory),
+    },
+  })
+}
+
+export interface RuntimeMakerEntryDeps {
+  readonly dataDirectory: string
+  readonly distDirectory: string
+  readonly workspace: string
+  readonly platform: NodeJS.Platform
+  readonly env: NodeJS.ProcessEnv
+  readonly secrets: MakerSecrets
+  readonly readSecret: () => Promise<string | undefined>
+  readonly print: (line: string) => void
+  readonly done: AbortSignal
+  readonly table: UiText
+  readonly locale: string
+}
+export async function runRuntimeMaker(
+  command: MakerCommand,
+  deps: RuntimeMakerEntryDeps,
+): Promise<number> {
+  setUiText(deps.table, deps.locale)
+  const service = await createRuntimeMakerService({
+    dataDirectory: deps.dataDirectory,
+    workspace: deps.workspace,
+    secrets: deps.secrets,
+    trusted: () => command.trusted,
+    flagged: () => true,
+    interactive: () => true,
+    native: {
+      platform: deps.platform,
+      env: deps.env,
+      packageRoot: path.dirname(deps.distDirectory),
+    },
+  })
+  try {
+    return await runMakerCommand(command, { ...deps, service })
+  } finally {
+    await service.close()
+  }
+}

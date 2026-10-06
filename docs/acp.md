@@ -1,5 +1,13 @@
 # Muse Spark in other editors (ACP)
 
+M103's integration runtime adds `--hardware`, `/hardware`, `/machines` and
+`/stop-machine`, plus terminal registration and companion commands. Hardware
+requires a host-owned workspace grant and a fresh once-only permission for
+each action. Plan, Bypass and unattended contexts cannot widen that grant;
+Stop remains independent. See the [runtime command guide](../README.md) and
+[M103R receipts and integration limits](certification/m103-r.md) before
+claiming installed maker support.
+
 > The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
 
 `muse-spark-code-acp` runs Muse Spark as an agent for editors that speak
