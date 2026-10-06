@@ -22467,6 +22467,28 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**M110a0 lane 0, 2026-10-05 (`m110/l0`).** The home-node contracts,
+strings, test fakes and phase-scoped threat model are being implemented;
+the service and listener remain other lanes' work. The threat-model review
+is recorded in `docs/certification/m110-threat-model.md` (Codex review;
+lead/Claude acceptance pending before listener code). Platform receipts and
+named bindings are in `docs/certification/m110-captures.md`, tests/drills in
+`docs/certification/m110-0.md`. This base has no frozen M104 MHP definitions:
+the node method catalog is an independently validated extension behind an
+injected `NodeMethodPort`, bound by M104 lane 0 at integration. No production
+fake, MHP envelope guess or new dependency is authorized by that seam.
+Lane 0 adds no executable commands or manifest entries; the integration
+help-reference handoff lists the features once their owning lanes wire them.
+
+L0 fixes A0 bounds in `NODE_*`: setup 15 minutes, session idle 30 minutes,
+absolute session 12 hours, step-up 5 minutes, WebSocket authentication 5
+seconds, lockout at 100 failures, 1 MiB file/terminal-output cap, 16 KiB
+terminal input, 64 frames/s, 1,000 results per page, 100 sessions/challenges,
+10 MiB audit cap and 30-day retention. These are rejection limits, never
+permission grants. Config/state/audit reject unknown fields and secrets;
+filesystem containment, cryptographic verification, expiry and hash-chain
+verification still require their runtime bindings and acceptance drills.
+
 **Status 2026-10-05: planned, documentation only.** Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat

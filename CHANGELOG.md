@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Home-node contract groundwork (M110a0 lane 0): the LAN threat model,
+  platform capture checklist and explicit integration bindings. The node
+  service and browser sign-in are not yet available.
+
 ### Fixed
 
 - ACP help and argument errors now use one complete localized usage table,
