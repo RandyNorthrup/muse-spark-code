@@ -130,6 +130,14 @@ brief. No install, network call, credential read, paid/live call, push, merge,
 rebase, manual stash, dependency, escape hatch or gate weakening occurred.
 The normal worktree pre-commit hook was present before committing.
 
+Changed-file Prettier (all seven files) and `git diff --check` exited **0**.
+Implementation commit **`d29df25272f0618e7123fd4c18207c92d32b21f0`** ran the existing pre-commit
+hook unchanged: lint-staged ESLint/Prettier passed for five TypeScript and two
+Markdown files; staged gitleaks reported **no leaks**. The guarded source's
+SHA-256 still matches the nine byte-exact restorations after the hook. No
+manual stash, push, merge or rebase ran. This final receipt update changes
+certification only; no production source or test changes follow the gates.
+
 ### Named integration residuals
 
 - **M2-W-HOST-API (W):** the unchanged record check reports importer-count
