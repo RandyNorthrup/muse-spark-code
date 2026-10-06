@@ -57,8 +57,28 @@ from the manifest; the unit fixture also verifies 0.99.2.
 
 ## Artifact/static gate receipt
 
-Production build, archive inspection, deadcode, duplication and final format
-verification follow this implementation commit and will be recorded here.
+- `npm run package` passed, including `npm run build`, all unchanged bundle
+  size/split/model-text/host-global gates, staged localization (0 problems),
+  the staged badge policy check and VSCE packaging. VSIX: **2,168,278 bytes**,
+  below the unchanged **2,252,800-byte** limit.
+- `node scripts/exec-schema.mjs --check` passed; `node scripts/package-acp.mjs`
+  passed from that production build. ACP tarball: **1,295,446 bytes**, 37 files.
+- Python zipfile/tarfile inspected the actual archive READMEs and manifests:
+  both versions are **0.14.0**. VSIX badges are **Marketplace v0.14.0** and
+  **Open VSX v0.14.0**; npm badges are **npm v0.14.0** and
+  **GitHub release v0.14.0**. No unresolved token or dynamic version endpoint
+  remains in either archived README. npm weekly downloads remain dynamic.
+  [Artifact URLs, sizes and SHA-256 receipts](badgefix-artifacts.json).
+- `npm run deadcode` exited 0 (two existing configuration hints);
+  `npx jscpd` exited 0 with 0 clones; scoped Prettier passed.
+- Measured build sizes: activation **436.7 KiB / 600 KiB**, Model API
+  **446.6 KiB / 475 KiB**, checkpoint store **76.9 KiB / 225 KiB**,
+  webview startup **893.2 KiB / 900 KiB**, ACP **816.8 KiB / 850 KiB**.
+- Both package badge checks printed the same named network-only skip as the
+  source check. All source/staged HTTPS, trust and version checks ran.
+- Implementation commit `5b01b727` ran lint-staged and gitleaks with hooks on;
+  formatting/lint passed and gitleaks found no leaks. No push, merge or rebase.
+
 The shared lane brief prohibits aggregate quality; full integrated quality,
 coverage and actual hosted SVG/cache responses remain the lead's release proof.
 No existing threshold, timeout, retry or gate was lowered. The compiled universal

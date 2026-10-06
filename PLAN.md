@@ -6803,7 +6803,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
       responses. Keep PNG screenshots as HTTPS content images. Network skips
       require a named local reason and are refused in CI; packaging checks the
       exact staged READMEs. No model calls, dependencies or runtime UI changes.
-- [ ] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
+- [x] Package and inspect the VSIX and ACP tarball; prove dynamic-version and
       version-mismatch failures, restore byte-exact, and record focused/static
       checks and artifact versions in `docs/certification/badgefix.md`.
 
@@ -18237,7 +18237,13 @@ Local badge requests use the explicitly permitted named skip because the shared
 rig lane forbids public network. CI and CI packaging reject that override and
 must validate actual SVG responses. PNG screenshots remain HTTPS content images;
 the SVG requirement applies to badges. No threshold or existing gate is relaxed.
-Receipts belong in `docs/certification/badgefix.md`.
+Focused certification passed: 86 tests, 23 byte-exact red drills, required
+static/build/package checks and actual VSIX/ACP archive version inspection.
+The 0.14.0 VSIX is 2,168,278 bytes under the unchanged 2,252,800-byte cap; the
+ACP tarball is 1,295,446 bytes. Both carry exact static v0.14.0 badges, and a
+future-version fixture proves no manual badge bump is needed. The Kubuntu
+package lacks the compiled macOS helper; hosted universal packaging remains
+unchanged. Receipts: `docs/certification/badgefix.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
