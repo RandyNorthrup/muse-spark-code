@@ -38,6 +38,10 @@ const model: ModelOption = {
   providerLabel: 'ChatGPT',
   pricing: 'plan',
 }
+const ACCOUNT_A_HASH = 'a'.repeat(64)
+const ACCOUNT_B_HASH = 'b'.repeat(64)
+const noticeKey = (hash: string, provider = 'chatgpt') =>
+  `${CHATGPT_PLAN_NOTICE_STORAGE_KEY}:${provider}:${hash}`
 const tallies = [
   {
     providerId: 'chatgpt',
@@ -56,7 +60,13 @@ function readyStore(option = model) {
     ...initialUiState,
     phase: 'ready',
     settings: testSettings,
-    auth: { status: 'signedIn', detail: undefined, backend: 'modelApi', methods: ['byo'] },
+    auth: {
+      status: 'signedIn',
+      detail: undefined,
+      backend: 'modelApi',
+      methods: ['byo'],
+      planAccount: { providerId: 'chatgpt', accountIdHash: ACCOUNT_A_HASH },
+    },
     model: { modelId: option.modelId, contextLimit: undefined },
     models: [option],
   })
@@ -160,7 +170,7 @@ describe('M95b shared subscription UI', () => {
   it('persists browser acknowledgement and fails closed when storage cannot be read', async () => {
     const view = showApp(readyStore(), null)
     fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.planUi.understood }))
-    expect(localStorage.getItem(CHATGPT_PLAN_NOTICE_STORAGE_KEY)).toBe('1')
+    expect(localStorage.getItem(noticeKey(ACCOUNT_A_HASH))).toBe('1')
     view.unmount()
     const again = showApp(readyStore(), null)
     await screen.findByText(UI_TEXT.planUi.chatGptMark)
@@ -173,6 +183,122 @@ describe('M95b shared subscription UI', () => {
       acknowledge: vi.fn(),
     })
     expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+  })
+
+  it('scopes the production browser notice to provider and account hash across remounts', async () => {
+    // A legacy origin-wide acknowledgement never suppresses an account's notice.
+    localStorage.setItem(CHATGPT_PLAN_NOTICE_STORAGE_KEY, '1')
+    const a = showApp(readyStore(), null)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.planUi.understood }))
+    expect(localStorage.getItem(noticeKey(ACCOUNT_A_HASH))).toBe('1')
+    expect(localStorage.getItem(noticeKey(ACCOUNT_B_HASH))).toBeNull()
+    a.unmount()
+    const bStore = readyStore()
+    bStore.dispatch({
+      type: 'hostMessage',
+      at: 0,
+      message: {
+        type: 'authState',
+        status: 'signedIn',
+        backend: 'modelApi',
+        planAccount: { providerId: 'chatgpt', accountIdHash: ACCOUNT_B_HASH },
+      },
+    })
+    const b = showApp(bStore, null)
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.understood }))
+    expect(localStorage.getItem(noticeKey(ACCOUNT_B_HASH))).toBe('1')
+    b.unmount()
+    const again = showApp(readyStore(), null)
+    await screen.findByText(UI_TEXT.planUi.chatGptMark)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    again.unmount()
+    localStorage.setItem(noticeKey(ACCOUNT_A_HASH, 'copilot'), '1')
+    bStore.dispatch({
+      type: 'hostMessage',
+      at: 0,
+      message: {
+        type: 'authState',
+        status: 'signedIn',
+        backend: 'modelApi',
+        planAccount: { providerId: 'copilot', accountIdHash: ACCOUNT_A_HASH },
+      },
+    })
+    showApp(bStore, null)
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+  })
+
+  it('rereads account acknowledgement on a validated auth update while mounted', async () => {
+    const { store } = showApp(readyStore(), null)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.planUi.understood }))
+    const changeAccount = (accountIdHash?: string) => {
+      const parsed = parseHostToWebviewMessage({
+        type: 'authState',
+        status: 'signedIn',
+        backend: 'modelApi',
+        ...(accountIdHash !== undefined && {
+          planAccount: { providerId: 'chatgpt', accountIdHash },
+        }),
+      })
+      expect(parsed.ok).toBe(true)
+      if (parsed.ok)
+        act(() => {
+          store.dispatch({ type: 'hostMessage', at: 0, message: parsed.message })
+        })
+    }
+    changeAccount(ACCOUNT_B_HASH)
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.understood }))
+    changeAccount(ACCOUNT_A_HASH)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    changeAccount()
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.understood }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    changeAccount()
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+  })
+
+  it('rereads a replacement acknowledgement port while mounted', async () => {
+    const view = showApp()
+    await screen.findByText(UI_TEXT.planUi.chatGptMark)
+    const replacement: PlanNoticePort = { isAcknowledged: vi.fn(() => false), acknowledge: vi.fn() }
+    view.rerender(
+      <App store={view.store} postMessage={view.postMessage} planNoticePort={replacement} />,
+    )
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+    expect(replacement.isAcknowledged).toHaveBeenCalledWith(noticeKey(ACCOUNT_A_HASH))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.understood }))
+    expect(replacement.acknowledge).toHaveBeenCalledWith(noticeKey(ACCOUNT_A_HASH))
+    vi.mocked(replacement.isAcknowledged).mockClear()
+    vi.mocked(replacement.acknowledge).mockClear()
+    act(() => {
+      view.store.dispatch({
+        type: 'hostMessage',
+        at: 0,
+        message: { type: 'authState', status: 'signedIn', backend: 'modelApi' },
+      })
+    })
+    expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
+    expect(replacement.isAcknowledged).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.understood }))
+    expect(replacement.acknowledge).not.toHaveBeenCalled()
+  })
+
+  it('validates the non-secret plan account identity at the host boundary', () => {
+    const auth = { type: 'authState', status: 'signedIn', backend: 'modelApi' }
+    const valid = { providerId: 'chatgpt', accountIdHash: ACCOUNT_A_HASH }
+    const parsed = parseHostToWebviewMessage({ ...auth, planAccount: valid })
+    expect(parsed.ok).toBe(true)
+    if (parsed.ok) expect(parsed.message).toMatchObject({ planAccount: valid })
+    for (const planAccount of [
+      { ...valid, providerId: 'meta' },
+      { ...valid, providerId: '../chatgpt' },
+      { ...valid, accountIdHash: 'email@example.test' },
+      { ...valid, accountIdHash: ACCOUNT_A_HASH.slice(1) },
+      { ...valid, accountIdHash: 1 },
+    ])
+      expect(parseHostToWebviewMessage({ ...auth, planAccount }).ok).toBe(false)
   })
 
   it('handles the captured SSE limit message even with a generic error kind', async () => {
@@ -221,6 +347,16 @@ describe('M95b shared subscription UI', () => {
     )
     endTurn(other.store, CAPTURED_LIMIT_MESSAGE, CHATGPT_PLAN_LIMIT_ERROR_KIND)
     expect(screen.queryByRole('dialog')).toBeNull()
+    other.unmount()
+    // An unconfirmed saved error has no completed turn to disclose a limit for.
+    const unconfirmed = createUiStore({
+      ...readyStore().getState(),
+      dismissedPlanTurnId: 'old-turn',
+      transcript: [{ kind: 'error', id: 'error:undefined', text: CAPTURED_LIMIT_MESSAGE }],
+    })
+    showApp(unconfirmed)
+    await screen.findByText(UI_TEXT.planUi.chatGptMark)
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('dismisses one failure but shows a later plan limit again', async () => {
@@ -231,6 +367,82 @@ describe('M95b shared subscription UI', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
     endTurn(store, CAPTURED_LIMIT_MESSAGE, undefined, 'failed', 't2')
     expect(await screen.findByRole('dialog', { name: UI_TEXT.planUi.limitTitle })).toBeTruthy()
+  })
+
+  it('keeps a dismissed limit through model switches, unmount and a validated snapshot', async () => {
+    const view = showApp()
+    endTurn(view.store, CAPTURED_LIMIT_MESSAGE)
+    fireEvent.keyDown(await screen.findByRole('dialog', { name: UI_TEXT.planUi.limitTitle }), {
+      key: 'Escape',
+    })
+    const switchTo = (modelId: string) => {
+      act(() => {
+        view.store.dispatch({
+          type: 'hostMessage',
+          at: 0,
+          message: {
+            type: 'agentEvent',
+            event: { type: 'modelChanged', modelId },
+          },
+        })
+      })
+    }
+    switchTo('muse-spark-1.3')
+    expect(screen.queryByText(UI_TEXT.planUi.chatGptMark)).toBeNull()
+    switchTo(model.modelId)
+    await screen.findByText(UI_TEXT.planUi.chatGptMark)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(view.store.getState().lastCompletedTurnId).toBe('t1')
+    expect(view.store.getState().dismissedPlanTurnId).toBe('t1')
+    const saved = webviewStateOf(view.store.getState(), true)
+    expect(restoredUiState(saved).dismissedPlanTurnId).toBe('t1')
+    if (typeof saved.snapshot !== 'object' || saved.snapshot === null)
+      throw new Error('Snapshot missing')
+    expect(
+      restoredUiState({ ...saved, snapshot: { ...saved.snapshot, dismissedPlanTurnId: 1 } })
+        .dismissedPlanTurnId,
+    ).toBeUndefined()
+    expect(view.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'sendMessage' }),
+    )
+    view.unmount()
+    showApp(view.store)
+    await screen.findByText(UI_TEXT.planUi.chatGptMark)
+    expect(screen.queryByRole('dialog')).toBeNull()
+    endTurn(view.store, 'An ordinary failure', undefined, 'failed', 't2')
+    expect(view.store.getState().dismissedPlanTurnId).toBe('t1')
+    act(() => {
+      view.store.dispatch({ type: 'planLimitDismissed', turnId: 'stale' })
+    })
+    expect(view.store.getState().dismissedPlanTurnId).toBe('t1')
+    endTurn(view.store, '', undefined, 'completed', 't3')
+    expect(view.store.getState().dismissedPlanTurnId).toBeUndefined()
+    endTurn(view.store, CAPTURED_LIMIT_MESSAGE, undefined, 'failed', 't4')
+    fireEvent.keyDown(await screen.findByRole('dialog', { name: UI_TEXT.planUi.limitTitle }), {
+      key: 'Escape',
+    })
+    expect(view.store.getState().dismissedPlanTurnId).toBe('t4')
+    act(() => {
+      view.store.dispatch({ type: 'conversationCleared' })
+    })
+    expect(view.store.getState().dismissedPlanTurnId).toBeUndefined()
+  })
+
+  it('keeps dismissal for same-session history and clears it for another conversation', () => {
+    const store = createUiStore({
+      ...readyStore().getState(),
+      sessionId: 's1',
+      lastCompletedTurnId: 't1',
+    })
+    store.dispatch({ type: 'planLimitDismissed', turnId: 't1' })
+    for (const sessionId of ['s1', 's2']) {
+      store.dispatch({
+        type: 'hostMessage',
+        at: 0,
+        message: { type: 'historyLoaded', sessionId, items: [], todos: [] },
+      })
+      expect(store.getState().dismissedPlanTurnId).toBe(sessionId === 's1' ? 't1' : undefined)
+    }
   })
 
   it('shows Copilot reduced capabilities, AI content, credit caveat and the report destination', async () => {
@@ -448,6 +660,7 @@ describe('M95b shared subscription UI', () => {
       providerId: 'chatgpt',
       onModalChange: vi.fn(),
       onChooseModel: vi.fn(),
+      onDismissLimit: vi.fn(),
       postMessage: vi.fn(),
       port: { isAcknowledged: () => false, acknowledge: vi.fn() },
     }
@@ -457,5 +670,24 @@ describe('M95b shared subscription UI', () => {
     view.rerender(<PlanSurface {...props} isOtherModalOpen={false} />)
     expect(screen.getByRole('dialog', { name: UI_TEXT.planUi.noticeTitle })).toBeTruthy()
     expect(props.onModalChange).toHaveBeenLastCalledWith(true)
+    view.rerender(
+      <PlanSurface
+        {...props}
+        isOtherModalOpen={false}
+        state={{
+          ...props.state,
+          handoff: {
+            requestId: 'handoff1',
+            brief: '',
+            goal: undefined,
+            todos: [],
+            draft: '',
+            isConfirming: false,
+          },
+        }}
+      />,
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(props.onModalChange).toHaveBeenLastCalledWith(false)
   })
 })

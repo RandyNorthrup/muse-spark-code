@@ -11,9 +11,10 @@ not the sign-in, codec, dispatch or release acceptance of other lanes.
   model uses its provider label and injected HTTPS limits URL. A bare Muse
   model gains no control. No model selection or paid call follows a link.
 - ChatGPT's first-use notice explains the shared Plus/Pro allowance and the
-  credit caveat. Browser acknowledgement persists in local storage;
-  `App.planNoticePort` is an explicit injected interface for a host that
-  needs acknowledgement once across its profile/windows. A read failure
+  credit caveat. Browser acknowledgement is keyed by provider/account-id hash in local
+  storage (FIXM95BU below supersedes the original origin-wide key);
+  `App.planNoticePort` is the keyed injected interface for profile-wide
+  host persistence. A read failure
   shows the notice. A write failure is reported through the existing bridge
   and remembered only for the current mounted surface.
 - The plan-limit modal offers Manage usage, choose another model and close.
@@ -271,3 +272,153 @@ Every file was restored byte-exact in `finally` and SHA-256 compared:
 
 - `UsageDialog.tsx`: `93899dfad5994a7ededa53f10423d92346d3c9b50a23398c3a700b397319cfe1`.
 - `App.tsx`: `c047ec10490cebab792a3ad5a5db0b7d9adba204c093740d5a916b54b102a7bd`.
+
+### Notice scope and limit lifecycle (remaining RVM95BU P2 findings)
+
+`authState.planAccount` is an authored host bridge contract, not a guessed
+service frame: `{ providerId, accountIdHash }` with a valid non-Meta id and
+64 lowercase hex characters. The producer hashes the verified account id
+with SHA-256 before sending it; email, raw account ids and tokens never enter
+this contract. The production port used by `main.tsx` through App's default
+PlanSurface receives `museSpark.chatGptPlanNotice.v1:<provider>:<hash>`.
+The real webview-entry regression exercises that path without a catalogue.
+Legacy origin-wide acknowledgement is ignored. Missing/mismatched identity
+shows the disclosure and never reads/writes an unscoped acknowledgement.
+Mounted identity or injected-port replacement re-reads acknowledgement before
+React commits; storage failure shows the notice. This branch supplies the U
+consumer and validation. V/X/W supply verified identity extraction and its
+auth updates, as named under **M95BU-R-account-producer** in PLAN §9.
+
+Limit dismissal is `UiState.dismissedPlanTurnId`, with a stale-action guard;
+App dispatches through its deferred plan adapter. It survives model switches,
+component unmount and the validated saved snapshot. A later failed turn gets
+its own screen; successful completion clears dismissal, as do a cleared or
+replaced conversation. Same-session history keeps it. No recovery control
+retries, selects a model or switches billing. The handoff/modal precedence
+guard remains in the deferred plan surface.
+
+The new lifecycle regression failed before the fix on the reopened modal
+(exit 1). Before the notice repair, the complete plan file had **5 failing
+cases / 19 passing**: keyed browser persistence, account separation,
+mounted account changes, mounted port changes and account-field validation.
+After repair the plan/usage/real-entry batch passed **58/58**. Final receipts
+and all deliberate mutations follow below.
+
+To fit the existing 900 KiB cap, U's three plan adapters share one lazy entry,
+and Account & usage's state/bridge adapter lives in its existing deferred
+module. The handoff guard and dismissal dispatch move with the plan adapter.
+No guard, bundle registry, budget, dependency, string or service schema is
+relaxed. There is no new helper module. The first intermediate dismissal build
+was 900.3 KiB; the composed repair subsequently passes the original build gate.
+
+### Named residuals and integration handoff
+
+All three numbered review findings are fixed; none is deferred. The safe
+integration limits are named in PLAN §9: **M95BU-R-account-producer** (V/X/W
+must deliver the verified hash; until then disclosure repeats),
+**M95BU-R-persistence-origin** (different origins may repeat the notice;
+a keyed profile-wide host port can unify it), and **M95BU-R-composed-gates**
+(lead's aggregate gates/editor receipts, tiny startup headroom and the
+inherited host API inventory mismatch). W must fold these behavioral fixes
+into its owned CHANGELOG/README and certify the composed account producer.
+All editor surfaces use the same React/state/HostBridge contract; the ACP
+producer still belongs to X, and Copilot availability still follows D74.
+
+### Repair red-drill receipts
+
+All **25** deliberate mutations below ran the entire `m95PlanUi.test.tsx`
+file with `--maxWorkers=3 --testTimeout=120000`, exited 1 and failed the
+named regression. Each mutated source was restored from its original bytes
+in `finally`; SHA-256 equality was required before continuing. No test was
+filtered/skipped. Fingerprints distinguish the source versions exercised;
+the final adapter cleanup does not alter the guarded behavior.
+
+| Mutation                     | Named regression that failed                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| `billing-reference`          | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-account`            | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-label`              | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `billing-pill`               | keeps chatgpt plan billing tied to the session when the catalogue is cleared or inconsistent |
+| `dismissal-surface`          | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-store`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-stale`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-success`          | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-snapshot`         | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-boundary`         | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-clear`            | keeps a dismissed limit through model switches, unmount and a validated snapshot             |
+| `dismissal-history`          | keeps dismissal for same-session history and clears it for another conversation              |
+| `notice-key`                 | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-provider`            | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-account-change`      | rereads account acknowledgement on a validated auth update while mounted                     |
+| `notice-port-change`         | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-read`        | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-write`       | rereads a replacement acknowledgement port while mounted                                     |
+| `notice-unknown-change`      | rereads account acknowledgement on a validated auth update while mounted                     |
+| `notice-forwarding`          | scopes the production browser notice to provider and account hash across remounts            |
+| `notice-hash-boundary`       | validates the non-secret plan account identity at the host boundary                          |
+| `notice-provider-boundary`   | validates the non-secret plan account identity at the host boundary                          |
+| `handoff-modal-order`        | waits behind an existing modal and opens once that modal closes                              |
+| `notice-unknown-identity`    | rereads a replacement acknowledgement port while mounted                                     |
+| `dismissal-unconfirmed-turn` | does not infer plan limits from ordinary failures, other providers or old turns              |
+
+Restoration fingerprints (source versions exercised):
+
+- `src/webview/components/UsageDialog.tsx`: `93899dfad5994a7ededa53f10423d92346d3c9b50a23398c3a700b397319cfe1`.
+- `src/webview/App.tsx`: `c047ec10490cebab792a3ad5a5db0b7d9adba204c093740d5a916b54b102a7bd`.
+- `src/webview/components/PlanUi.tsx`: `7ac6751700543b03d2d5ca2bf8fa10cc998217c326c412fc74cc54125d6fb85d`.
+- `src/webview/state/uiState.ts`: `1d597e9a38654ec23fa992cd2e1d50099bbbd3d8edf15e640d5702b32dbe7f1f`.
+- `src/webview/state/snapshot.ts`: `a651e06b3eb2cfb49423fba22e5e08ebb4ecff2612573c129253b0e9602c0bdd`.
+- `src/webview/components/PlanUi.tsx`: `527ccd7dd63033379064b743062d0c179996bc39addb50a11aa91a96d7c26344`.
+- `src/webview/state/uiState.ts`: `a686a861c43a5fabfa3d39e001d89d1a8a03de7b2dc78c46e98a6119e03963ff`.
+- `src/shared/protocol.ts`: `630567a8e69832b6cf21fc79667660daaee79cc837f2aee03772176d9a724028`.
+
+- `src/webview/components/PlanUi.tsx` (final formatted adapter):
+  `518fc3a6f2450e687a7d4579665576f86e7addc8659e3c1c07eb12586d3ffe06`.
+
+### Final macmini receipts
+
+| Finding                                        | Outcome                                                                                                        | Regression                                                                                          | Drill receipts             |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------- |
+| Account notice scope / mounted account changes | Fixed in the keyed production port and validated auth identity consumer; verified producer handoff named above | Provider/account remounts; mounted account/port updates; identity validation; real `main.tsx` entry | `notice-*`: 11 mutations   |
+| Stale limit dismissal after model switch       | Fixed in conversation state and snapshot, with success/replacement reset and stale-action refusal              | Model switch/unmount/snapshot regression; same-session vs replacement history                       | `dismissal-*`: 9 mutations |
+| Billing disclosure during catalogue recovery   | Fixed from the bound ChatGPT/Copilot reference, including inconsistent metadata                                | Both providers through the real App's `/usage` action                                               | `billing-*`: 4 mutations   |
+
+The remaining `handoff-modal-order` mutation proves the precedence guard after
+moving it into the existing deferred surface. Total: **25** red drills.
+
+| Check (all directly on macmini)                                  | Result                                                                                                   |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                              | Exit 0, all five projects                                                                                |
+| `npm run typecheck:unit` after the test-only type-import cleanup | Exit 0                                                                                                   |
+| Scoped `npx eslint --max-warnings=0`                             | Production files pass; both test lint findings fixed and test recheck exits 0                            |
+| Changed-file Prettier                                            | The unused-export cleanup required formatting one function signature; corrected without behavior change  |
+| `npm run deadcode`                                               | Exit 0; inherited `vendor/**` hint only                                                                  |
+| `npx jscpd`                                                      | Exit 0; 970 files, zero clones                                                                           |
+| `node scripts/check-l10n.mjs`                                    | Exit 0; 14 tables, 127 manifest strings, 494 source files, zero problems                                 |
+| `node scripts/check-host-api.mjs`                                | Exit 1 solely on inherited inventory 35 → source 36 `node:crypto` imports; justified deferral in PLAN §7 |
+| Plan / real main entry / UsageDialog                             | **58/58**, exit 0                                                                                        |
+| App / reducer / snapshot                                         | **315/315**, exit 0                                                                                      |
+| Protocol / Composer                                              | **212/212**, exit 0                                                                                      |
+| `npm run build`                                                  | Exit 0; unchanged size/split/host-global/notices gates                                                   |
+
+Final focused suites total **585/585**, with at most three files per run and
+`--maxWorkers=3 --testTimeout=120000`. The intermediate combined adapter test
+run exposed a missed JSX replacement; it was corrected before these complete
+final batches. No test was skipped or weakened. React review checks confirm
+conditional lazy loading, render-time acknowledgement adjustment before
+commit, stable cached storage reads between identity changes, existing modal
+semantics and typed adapters without casts or new dependencies.
+
+Final sizes (KiB): activation **553.8/600**, Model API **414.0/475**,
+providers **96.2/125**, English fallback **122.0/125**, ACP **799.1/850**,
+checkpoint store **88.4/225**. Chat startup is **921,593 bytes**,
+**899.993/900 KiB**, with **7 bytes** spare. This is a passed cap with a
+named integration constraint, not room for further composed UI wiring.
+No full quality/coverage, installed-editor acceptance or live/paid calls are
+claimed. Original accessibility screenshots remain the unchanged DOM/layout;
+this repair changes state and deferred React adapters without CSS edits.
+
+Two final boundary drills additionally cover missing account identity and a
+saved error with no confirmed completed turn; the final plan batch reruns
+those assertions. Both fail when their guards are removed and restore the
+final formatted PlanUi bytes exactly.

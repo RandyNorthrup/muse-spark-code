@@ -45,7 +45,7 @@ import {
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
-import type { SignInMethod } from '../../shared/protocol'
+import type { SignInMethod, WebviewToHostMessage } from '../../shared/protocol'
 import type { ModelOption } from '../../shared/protocol'
 import { PlanUsageSection } from './PlanUi'
 import { formatDurationMs } from '../agentFormat'
@@ -826,5 +826,48 @@ export function UsageDialog({
         </div>
       ) : null}
     </Modal>
+  )
+}
+
+/** The state-backed App adapter stays with the deferred account surface. */
+export function UsageSurface({
+  state,
+  postMessage,
+  onSetupSignIn,
+  now,
+  onOpenExternal,
+  onClose,
+}: {
+  readonly state: UiState
+  readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly onSetupSignIn: (method: SignInMethod) => void
+  readonly now: () => number
+  readonly onOpenExternal: (url: string) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <UsageDialog
+      auth={state.auth}
+      report={state.usageReport}
+      usage={state.usage}
+      context={state.context}
+      modelId={state.model?.modelId}
+      modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
+      models={state.models}
+      paid={state.paid}
+      onInstallMuseCode={() => {
+        postMessage({ type: 'installMuseCode' })
+      }}
+      onSetupSignIn={(method) => {
+        onClose()
+        onSetupSignIn(method)
+      }}
+      onForgetPaidUse={() => {
+        postMessage({ type: 'forgetPaidUse' })
+      }}
+      now={now}
+      onOpenExternal={onOpenExternal}
+      onClose={onClose}
+    />
   )
 }

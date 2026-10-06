@@ -10,6 +10,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { UiState } from '../state/uiState'
+import type { UiStore } from '../state/store'
 import { webviewErrorReport } from '../errorReport'
 import type { WebviewToHostMessage } from '../../shared/protocol'
 import { fill, formatNumber } from '../../shared/l10n/text'
@@ -17,15 +18,15 @@ import type { PlanUsageRow } from '../../shared/usage'
 import type { ModelOption } from '../../shared/protocol'
 import { Modal } from './Modal'
 
-/** Hosts can persist the acknowledgement once per profile; browsers use their origin. */
+/** Keyed persistence: provider plus verified account-id hash; never email/token. */
 export interface PlanNoticePort {
-  readonly isAcknowledged: () => boolean
-  readonly acknowledge: () => void
+  readonly isAcknowledged: (key: string) => boolean
+  readonly acknowledge: (key: string) => void
 }
 const browserPlanNotice: PlanNoticePort = {
-  isAcknowledged: () => window.localStorage.getItem(CHATGPT_PLAN_NOTICE_STORAGE_KEY) === '1',
-  acknowledge: () => {
-    window.localStorage.setItem(CHATGPT_PLAN_NOTICE_STORAGE_KEY, '1')
+  isAcknowledged: (key) => window.localStorage.getItem(key) === '1',
+  acknowledge: (key) => {
+    window.localStorage.setItem(key, '1')
   },
 }
 
@@ -35,6 +36,7 @@ export function PlanSurface({
   isOtherModalOpen,
   onModalChange,
   onChooseModel,
+  onDismissLimit,
   postMessage,
   port = browserPlanNotice,
 }: {
@@ -43,39 +45,61 @@ export function PlanSurface({
   readonly isOtherModalOpen: boolean
   readonly onModalChange: (isOpen: boolean) => void
   readonly onChooseModel: () => void
+  readonly onDismissLimit: (turnId: string) => void
   readonly postMessage: (message: WebviewToHostMessage) => void
   readonly port?: PlanNoticePort | undefined
 }) {
-  const [isAcknowledged, setAcknowledged] = useState(() => {
+  const account = state.auth.planAccount
+  const key =
+    account !== undefined && account.providerId === providerId
+      ? `${CHATGPT_PLAN_NOTICE_STORAGE_KEY}:${account.providerId}:${account.accountIdHash}`
+      : undefined
+  const readNotice = () => {
+    let isAcknowledged = false
     try {
-      return port.isAcknowledged()
+      isAcknowledged = key !== undefined && port.isAcknowledged(key)
     } catch {
-      return false
+      // An unavailable store cannot suppress the allowance/credit disclosure.
     }
-  })
-  const [dismissed, setDismissed] = useState<string | undefined>(undefined)
+    return { port, key, auth: state.auth, isAcknowledged }
+  }
+  const [notice, setNotice] = useState(readNotice)
+  // React restarts this render before committing, so a changed account has
+  // its own acknowledgement before either the dialog or composer can paint.
+  if (
+    notice.port !== port ||
+    notice.key !== key ||
+    (key === undefined && notice.auth !== state.auth)
+  ) {
+    setNotice(readNotice())
+  }
+  const failedTurnId = state.lastCompletedTurnId
   const failure = state.transcript.findLast((entry) => entry.kind === 'error')
   const isChatGptPlan = state.auth.status === 'signedIn' && providerId === 'chatgpt'
   const isLimit =
     isChatGptPlan &&
     failure?.kind === 'error' &&
-    failure.id === `error:${state.lastCompletedTurnId ?? ''}` &&
+    failedTurnId !== undefined &&
+    failure.id === `error:${failedTurnId}` &&
     (failure.errorKind === CHATGPT_PLAN_LIMIT_ERROR_KIND ||
       failure.text.includes(CHATGPT_PLAN_LIMIT_MESSAGE)) &&
-    failure.id !== dismissed
-  const isOpen = !isOtherModalOpen && (isLimit || (isChatGptPlan && !isAcknowledged))
+    failedTurnId !== state.dismissedPlanTurnId
+  const isOpen =
+    !isOtherModalOpen &&
+    state.handoff === undefined &&
+    (isLimit || (isChatGptPlan && !notice.isAcknowledged))
   useLayoutEffect(() => {
     onModalChange(isOpen)
   }, [isOpen, onModalChange])
   const onClose = () => {
-    if (isLimit) setDismissed(failure.id)
+    if (isLimit) onDismissLimit(failedTurnId)
     else {
       try {
-        port.acknowledge()
+        if (key !== undefined) port.acknowledge(key)
       } catch (error: unknown) {
         postMessage(webviewErrorReport('window', error))
       }
-      setAcknowledged(true)
+      setNotice({ ...notice, isAcknowledged: true })
     }
   }
   return isOpen ? (
@@ -93,7 +117,7 @@ export function PlanSurface({
   ) : null
 }
 
-export function PlanMark({
+function PlanMark({
   model,
   providerId,
   onOpenExternal,
@@ -130,11 +154,7 @@ function managementUrl(providerId: string | undefined, model: ModelOption | unde
   return providerId === 'copilot' ? COPILOT_MANAGE_USAGE_URL : model?.planLimitsUrl
 }
 
-export function CopilotNote({
-  onOpenExternal,
-}: {
-  readonly onOpenExternal: (url: string) => void
-}) {
+function CopilotNote({ onOpenExternal }: { readonly onOpenExternal: (url: string) => void }) {
   return (
     <p className="usage-row-meta copilot-note">
       {UI_TEXT.planUi.aiContent}{' '}
@@ -259,4 +279,26 @@ export function PlanUsageSection({
       })}
     </section>
   )
+}
+
+/** One deferred entry for the plan's modal, pill and Copilot note. */
+export function PlanUi(
+  props:
+    | ({ readonly surface: 'dialog'; readonly store: UiStore } & Omit<
+        Parameters<typeof PlanSurface>[0],
+        'onDismissLimit'
+      >)
+    | ({ readonly surface: 'mark' } & Parameters<typeof PlanMark>[0])
+    | ({ readonly surface: 'note' } & Parameters<typeof CopilotNote>[0]),
+) {
+  if (props.surface === 'dialog')
+    return (
+      <PlanSurface
+        {...props}
+        onDismissLimit={(turnId) => {
+          props.store.dispatch({ type: 'planLimitDismissed', turnId })
+        }}
+      />
+    )
+  return props.surface === 'mark' ? <PlanMark {...props} /> : <CopilotNote {...props} />
 }
