@@ -1,10 +1,31 @@
 import dags from '../../fixtures/estimator/dags.json'
-import { estimateLaneSchema, type EstimateLane } from '../../../src/shared/estimate'
-import { type EstimateGoalSnapshot } from '../../../src/core/estimator/goal'
+import {
+  estimateLaneSchema,
+  parseEstimateGoal,
+  type EstimateLane,
+} from '../../../src/shared/estimate'
+import { resolveEstimateGoal, type EstimateGoalSnapshot } from '../../../src/core/estimator/goal'
 import { ESTIMATOR_AS_OF } from './estimator/fakes'
 
 export function goalLane(id: string, changes: Partial<EstimateLane> = {}): EstimateLane {
   return estimateLaneSchema.parse({ ...dags[0]?.lanes[0], id, ...changes })
+}
+
+export function goalChain(count: number): EstimateGoalSnapshot['lanes'] {
+  return Array.from({ length: count }, (_, index) => ({
+    lane: goalLane(`M112:L${String(index)}`, {
+      dependencies: index === 0 ? [] : [`M112:L${String(index - 1)}`],
+    }),
+  }))
+}
+
+export function resolveGoalSnapshot(
+  snapshot: EstimateGoalSnapshot,
+  text: string,
+): Promise<EstimateLane[]> {
+  return resolveEstimateGoal(parseEstimateGoal(text), snapshot.asOf, {
+    snapshot: () => Promise.resolve(snapshot),
+  })
 }
 
 export function goalSnapshot(): EstimateGoalSnapshot {

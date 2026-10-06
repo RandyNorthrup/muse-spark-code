@@ -14,7 +14,7 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import dags from '../fixtures/estimator/dags.json'
 import repository from '../fixtures/estimator/repository-history.json'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
-import { goalLane, goalSnapshot } from './helpers/estimatorGoalFixtures'
+import { goalChain, goalLane, goalSnapshot } from './helpers/estimatorGoalFixtures'
 
 async function deterministicRun(): Promise<string> {
   const snapshot = goalSnapshot()
@@ -281,11 +281,7 @@ describe('M117 dependency DAG', () => {
 
   it('resolves and analyzes forty lanes inside the D97 local performance envelope', async () => {
     const snapshot = goalSnapshot()
-    snapshot.lanes = Array.from({ length: ESTIMATE_LOCAL_BUDGET_LANES }, (_, index) => ({
-      lane: goalLane(`M112:L${String(index)}`, {
-        dependencies: index === 0 ? [] : [`M112:L${String(index - 1)}`],
-      }),
-    }))
+    snapshot.lanes = goalChain(ESTIMATE_LOCAL_BUDGET_LANES)
     snapshot.milestones[0]!.laneIds = snapshot.lanes.map((entry) => entry.lane.id)
     snapshot.milestones = [snapshot.milestones[0]!]
     snapshot.issues = []
@@ -330,13 +326,15 @@ describe('M117 goal and DAG determinism', () => {
   it('produces identical bytes twice and in children with different TZ and LANG', async () => {
     const expected = await deterministicRun()
     expect(await deterministicRun()).toBe(expected)
-    for (const env of [
-      { TZ: 'Pacific/Auckland', LANG: 'ja_JP.UTF-8' },
-      { TZ: 'America/Los_Angeles', LANG: 'fr_FR.UTF-8' },
-    ]) {
-      const child = spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' })
-      expect(child.status, child.stderr).toBe(0)
-      expect(child.stdout).toBe(expected)
-    }
+    const contexts = [
+      { TZ: 'Asia/Kolkata', LANG: 'tr_TR.UTF-8' },
+      { TZ: 'Etc/GMT+12', LANG: 'de_DE.UTF-8' },
+    ]
+    const outputs = contexts.map((env) =>
+      spawnSync(process.execPath, ['-e', code], { env, encoding: 'utf8' }),
+    )
+    expect(outputs.map(({ status, stdout, stderr }) => ({ status, stdout, stderr }))).toEqual(
+      contexts.map(() => ({ status: 0, stdout: expected, stderr: '' })),
+    )
   })
 })

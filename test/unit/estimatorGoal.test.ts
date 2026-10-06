@@ -4,7 +4,12 @@ import { remainingHours, resolveEstimateGoal } from '../../src/core/estimator/go
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { ESTIMATE_MAX_ITEMS } from '../../src/shared/constants'
 import { ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
-import { goalLane, goalSnapshot } from './helpers/estimatorGoalFixtures'
+import {
+  goalChain,
+  goalLane,
+  goalSnapshot,
+  resolveGoalSnapshot,
+} from './helpers/estimatorGoalFixtures'
 
 describe('M117 goal resolution', () => {
   it.each([
@@ -58,6 +63,23 @@ describe('M117 goal resolution', () => {
     expect(fromGit.map((lane) => lane.id)).toEqual(['M112:Q'])
     expect(remainingHours(fromGit[0]!)).toBe(0)
   })
+
+  it.each(['git', 'pullRequest'])(
+    'does not require scheduling affinity for already merged %s work',
+    async (evidence) => {
+      const snapshot = goalSnapshot()
+      const lane = snapshot.lanes[1]!.lane
+      if (evidence === 'git') lane.state = 'merged'
+      else snapshot.pullRequests[0]!.state = 'merged'
+      lane.files = ['native/windows/**', 'native/darwin/**', 'os/**']
+      const lanes = await resolveEstimateGoal(parseEstimateGoal('pr:12')!, ESTIMATOR_AS_OF, {
+        snapshot: vi.fn().mockResolvedValue(snapshot),
+      })
+      expect(lanes).toHaveLength(1)
+      expect(remainingHours(lanes[0]!)).toBe(0)
+      expect(lanes[0]!.affinity).toEqual(lane.affinity)
+    },
+  )
 
   it('preserves running progress, resources and module review evidence without mutation', async () => {
     const snapshot = goalSnapshot()
@@ -192,11 +214,9 @@ describe('M117 goal resolution', () => {
       const snapshot = goalSnapshot()
       delete snapshot.lanes[1]!.rigId
       snapshot.lanes[1]!.lane.files = [file]
-      await expect(
-        resolveEstimateGoal(parseEstimateGoal('pr:12')!, ESTIMATOR_AS_OF, {
-          snapshot: vi.fn().mockResolvedValue(snapshot),
-        }),
-      ).rejects.toThrow('unknown-os-architecture')
+      await expect(resolveGoalSnapshot(snapshot, 'pr:12')).rejects.toThrow(
+        'unknown-os-architecture',
+      )
     },
   )
 
@@ -301,11 +321,7 @@ describe('M117 goal resolution', () => {
     async (file) => {
       const snapshot = goalSnapshot()
       snapshot.lanes[1]!.lane.files = [file]
-      await expect(
-        resolveEstimateGoal(parseEstimateGoal('pr:12')!, ESTIMATOR_AS_OF, {
-          snapshot: vi.fn().mockResolvedValue(snapshot),
-        }),
-      ).rejects.toThrow('nonrelative-file')
+      await expect(resolveGoalSnapshot(snapshot, 'pr:12')).rejects.toThrow('nonrelative-file')
     },
   )
 
@@ -461,11 +477,7 @@ describe('M117 goal resolution', () => {
 
   it('bounds the resolved graph without silently truncating lanes', async () => {
     const snapshot = goalSnapshot()
-    snapshot.lanes = Array.from({ length: ESTIMATE_MAX_ITEMS + 1 }, (_, index) => ({
-      lane: goalLane(`M112:L${String(index)}`, {
-        dependencies: index === 0 ? [] : [`M112:L${String(index - 1)}`],
-      }),
-    }))
+    snapshot.lanes = goalChain(ESTIMATE_MAX_ITEMS + 1)
     snapshot.milestones[0]!.laneIds = [snapshot.lanes.at(-1)!.lane.id]
     snapshot.milestones = [snapshot.milestones[0]!]
     snapshot.pullRequests = []

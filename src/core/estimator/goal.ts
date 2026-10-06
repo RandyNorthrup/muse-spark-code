@@ -216,10 +216,10 @@ export async function resolveEstimateGoal(
       ...lane,
       dependencies: lane.state === 'merged' ? [] : lane.dependencies.toSorted(compareEstimateIds),
       files: lane.files.map((file) => relativeFile(file)).toSorted(compareEstimateIds),
-      affinity: affinityFor(
-        entry.lane,
-        snapshot.rigs.find((rig) => rig.id === entry.rigId)?.affinity,
-      ),
+      affinity:
+        lane.state === 'merged'
+          ? entry.lane.affinity
+          : affinityFor(entry.lane, snapshot.rigs.find((rig) => rig.id === entry.rigId)?.affinity),
     })
     included.set(id, resolved)
     pending.push(...resolved.dependencies)

@@ -51,7 +51,7 @@ The supplied lane rules prohibit merges, pushes and aggregate quality runs.
 
 ## Verification and red drills
 
-All 57 deliberate mutations ran both complete owning Vitest files directly
+All 59 deliberate mutations ran both complete owning Vitest files directly
 on Mac mini with `--maxWorkers=3` and the repository default timeout. Each
 exited 1 and failed its intended named regression; none depended on a compiler
 or import failure. Every changed source was restored from saved bytes in
@@ -65,7 +65,8 @@ G34–G39 cover stable ordering and association/graph bounds. D01–D10 cover DA
 validation; D11–D18 alter timing, slack, priority, critical flags, resources,
 sampled durations and determinism. D14 divides durations by slots and proves
 additional resources cannot shorten the dependency path. D18 adds a clock
-read, and the cross-process TZ/LANG byte comparison fails.
+read, and the same-input byte comparison fails. G40–G41 protect completed
+work from future scheduling affinity, using the resolved merge evidence.
 
 | Drill (deliberately bypassed or altered) | Observed named regression | Exit |
 | ---------------------------------------- | ------------------------- | ---- |
@@ -128,7 +129,10 @@ read, and the cross-process TZ/LANG byte comparison fails.
 | `G38-association-bound` | bounds association lists even when the selected goal is empty | 1 |
 | `G39-release-uniqueness` | rejects duplicate references inside a release association | 1 |
 
-Restored source hashes at drill time (identical across every drill):
+| `G40-completed-affinity` | does not require scheduling affinity for already merged git work | 1 |
+| `G41-resolved-merge-status` | does not require scheduling affinity for already merged pullRequest work | 1 |
+
+Restored source hashes for the first 57 drills (identical within each file):
 
 - `goal.ts`: `6dab7b47dea9e97b568aeefd1c6240b066216a1f33b3a55c8c247352073c6599`.
 - `dag.ts`: `34ae9dd66a643b631430a1a19a82cb75bde424061aaf66ba3391d248daff7de1`.
@@ -139,6 +143,31 @@ The expectations were corrected by reading the captured dependency rows
 (M103 ends at E, M104's longest unit-weight chain ends at H); the size fixture
 now contains only its own milestone. These are fixture corrections, not
 weakened checks or fabricated historical duration measurements.
+
+## Final review correction
+
+A new regression first failed on the committed implementation: a completed
+lane with Windows, macOS and unknown-architecture builder files incorrectly
+required future scheduling affinity. Only unfinished lanes now derive
+scheduling affinity; completed records retain their declared source affinity.
+Both git-merged and PR-merged evidence give zero remaining work without a
+future machine requirement. File normalization and privacy validation still
+apply to every returned record. G40 forces affinity derivation for completed
+work; G41 reads the pre-projection state instead of resolved PR evidence.
+Both fail the new named regression and restore `goal.ts` byte-exact to
+`df449e3a6d2e4d95d390ee8bec1fb3d59e019471ce5fd059f6a08525bf75888d`.
+
+The unchanged zero-duplication gate found three repeated test blocks. Shared
+chain construction and snapshot resolution now live in the owned fixture
+helper, and child-process results are compared together. The final contexts
+use Asia/Kolkata (a fractional-hour zone) and Etc/GMT+12, with Turkish and
+German language environments. Fakes stay under `test/**`; no gate is ignored.
+
+Dag timing numbers are arithmetic on the projected remaining estimates or
+S's samples. Determinism does not give them zero uncertainty. C/U/W must carry
+the inputs' basis, samples and uncertainty through the frozen `disclosures`
+index when producing a user-visible section. G introduces no forecast dates,
+calibration claims, price, spending behavior or editor-only entry point.
 
 ## Scoped gate results
 
