@@ -511,6 +511,20 @@
         }
       ],
       "restored": true
+    },
+    {
+      "name": "RVM110L0-empty-argument",
+      "status": 1,
+      "failedTests": [
+        "home node records preserves empty arguments after the executable through validation and dispatch"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "46a19d6854c7c3502b2f92c3cd2c28528cd61eed9583c73305f4a7490eda1570"
+        }
+      ],
+      "restored": true
     }
   ]
 }

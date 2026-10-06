@@ -277,12 +277,15 @@ export const nodeToolRequestSchema = z.strictObject({
   argv: z
     .array(
       z.string().check(
-        z.minLength(1),
         z.maxLength(NODE_MAX_ARG_CHARS),
         z.refine((arg) => !arg.includes('\0')),
       ),
     )
-    .check(z.minLength(1), z.maxLength(NODE_MAX_ARGV_ITEMS)),
+    .check(
+      z.minLength(1),
+      z.maxLength(NODE_MAX_ARGV_ITEMS),
+      z.refine((argv) => argv[0] !== ''),
+    ),
   cwd: z.nullable(nodeRelativePathSchema),
 })
 export type NodeToolRequest = z.infer<typeof nodeToolRequestSchema>

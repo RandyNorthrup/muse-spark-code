@@ -20,6 +20,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Home-node tool requests preserve empty arguments after a nonempty executable,
+  including through the scripted tool-host contract.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

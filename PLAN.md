@@ -22489,6 +22489,17 @@ fake, MHP envelope guess or new dependency is authorized by that seam.
 Lane 0 adds no executable commands or manifest entries; the integration
 help-reference handoff lists the features once their owning lanes wire them.
 
+**RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
+close all three review findings: require a closed, service-owned Git
+configuration with fixed overrides/environment and immutable SSH destination
+and host-key binding; provide ordered, backpressured PTY output/exit delivery
+and disconnect disposal in `NodeToolHostPort`; preserve empty argv entries
+after a nonempty executable. Add regression tests, byte-exact red-drill
+receipts and updated schema/threat-model/integration records. N owns the
+actual Git runner and OS canary qualification; L0 adds no listener or runner.
+User-enabled repository hooks run separately as `muse-tools`, without the
+deploy-key socket, and never inside credentialed service Git.
+
 L0 fixes A0 bounds in `NODE_*`: setup 15 minutes, session idle 30 minutes,
 absolute session 12 hours, step-up 5 minutes, WebSocket authentication 5
 seconds, lockout at 100 failures, 1 MiB file/terminal-output cap, 16 KiB

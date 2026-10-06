@@ -322,12 +322,24 @@ describe('home node records', () => {
   })
   it.each([
     ['empty argv', { ...request, argv: [] }],
+    ['empty executable', { ...request, argv: ['', 'status'] }],
     ['argv cap', { ...request, argv: Array.from({ length: NODE_MAX_ARGV_ITEMS + 1 }, () => 'x') }],
     ['arg cap', { ...request, argv: ['x'.repeat(NODE_MAX_ARG_CHARS + 1)] }],
     ['arg NUL', { ...request, argv: ['x\0y'] }],
+    ['later arg cap', { ...request, argv: ['printf', 'x'.repeat(NODE_MAX_ARG_CHARS + 1)] }],
+    ['later arg NUL', { ...request, argv: ['printf', '\0'] }],
     ['environment', { ...request, env: { TOKEN: 'SYNTHETIC-NODE-CANARY' } }],
   ])('H11 tool request rejects %s', (_label, value) => {
     expect(nodeToolRequestSchema.safeParse(value).success).toBe(false)
+  })
+  it('preserves empty arguments after the executable through validation and dispatch', async () => {
+    const emptyArgument = { ...request, argv: ['printf', '%s\n', ''] }
+    expect(nodeToolRequestSchema.parse(emptyArgument)).toEqual(emptyArgument)
+    const host = new FakeNodeToolHost(new Set(['workspace-1']), [
+      { exitCode: 0, stdout: '\n', stderr: '' },
+    ])
+    await host.run(emptyArgument, new AbortController().signal)
+    expect(host.requests).toEqual([emptyArgument])
   })
   it('fake tool host records exact calls, exits, cancellation and terminal cleanup', async () => {
     const host = new FakeNodeToolHost(new Set(['workspace-1']), [
