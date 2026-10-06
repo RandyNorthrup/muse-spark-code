@@ -19617,6 +19617,17 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107S review correction (2026-10-05).** RVM107S found four P2s in
+lane S. Fix all four in the sampler and its owning tests: honour cgroup v1
+memory limits instead of combining container headroom with host capacity;
+preserve missing/null Windows CIM counters until validation; query Nvidia
+independently of Linux DRM readings and merge the busiest valid device;
+reject noncanonical cgroup paths and normalize the ancestor walk's boundary.
+Every finding gets a before-fix regression and a deliberate red/restored
+drill in `docs/certification/m107-s.md`. No new dependency, settings or
+surface. The rig brief forbids merges, pushes and aggregate quality here;
+the lead retains W's integration/platform gates and shared delivery docs.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
@@ -20032,6 +20043,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107S bounded review certification (2026-10-05).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and whole-unit runs.
+Run the three complete sampler owning files, typecheck, changed-file
+lint/format and static/build checks directly on Kubuntu with normal hooks.
+The pre-existing host-API importer-count drift stays W's responsibility;
+the gate remains red until its generated record is updated at integration.
+No gate, timeout, threshold, ignore or bundle cap is weakened. Receipts
+and deliberate failures are in `docs/certification/m107-s.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21205,6 +21225,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-S-platform-qualification.** The sampler's measured costs qualify
+  Kubuntu's default/Linux disk paths and unavailable-GPU discovery only.
+  Native Windows CIM/hardware counters and child CPU, Mac cost, and hardware
+  GPU cost remain unqualified. Safe for now: S is staged and unwired, and
+  failed/unavailable counters stay unknown. Follow-up: lead/W collect the
+  missing platform and optional-hardware receipts before full M107 acceptance.
+- **M107-S-Darwin-disk.** No qualified unprivileged disk duty-cycle counter
+  exists on this lane's base. Safe for now: Darwin disk explicitly returns
+  unknown, performs no root probe, and cannot clear pressure with a fabricated
+  zero. Follow-up: lead/W qualify a counter or formally defer Darwin disk in
+  the integrated milestone; do not claim supported Mac disk utilization.
+- **M107-S-shipping-gates.** W has not bound the sampler into the lazy
+  resourceGovernor bundle or every editor/runtime, and the generated host-API
+  record has the documented Node-importer drift. Safe for now: S is unshipped
+  and the checks continue to reject unsupported integration. Follow-up: W
+  wires all runtimes, updates its owned record and certifies the joined size,
+  full quality/coverage and editor matrix. These are inherited qualification
+  handoffs, not deferred RVM107S findings.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

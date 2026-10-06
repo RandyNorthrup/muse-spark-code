@@ -244,6 +244,85 @@ describe('machine resource sampler', () => {
     }
   })
 
+  it('honours cgroup v1 memory capacity and hierarchical headroom instead of host RAM', async () => {
+    const r = rig('linux')
+    const gib = 1024 ** 3
+    vi.mocked(r.port.totalMemory).mockReturnValue(64 * gib)
+    vi.mocked(r.port.freeMemory).mockReturnValue(48 * gib)
+    vi.mocked(r.port.availableMemory).mockReturnValue(gib / 2)
+    r.files.set('/proc/self/cgroup', '4:cpu,cpuacct:/other\n5:memory:/container\n0::/\n')
+    r.files.set(
+      '/proc/self/mountinfo',
+      '29 23 0:26 / /sys/fs/cgroup rw - cgroup2 cgroup rw\n30 23 0:27 / /sys/fs/cgroup/cpu rw - cgroup cgroup rw,cpu,cpuacct\n31 23 0:28 / /sys/fs/cgroup/memory rw - cgroup cgroup rw,memory\n',
+    )
+    r.files.set('/sys/fs/cgroup/memory/container/memory.limit_in_bytes', String(gib))
+    r.files.set('/sys/fs/cgroup/memory/container/memory.usage_in_bytes', String(gib / 2))
+    r.files.set('/sys/fs/cgroup/memory/memory.use_hierarchy', '0')
+    r.files.set('/sys/fs/cgroup/memory/memory.limit_in_bytes', String(gib / 2))
+    r.files.set('/sys/fs/cgroup/memory/memory.usage_in_bytes', String(gib / 4))
+    expect(await r.sampler.sample()).toMatchObject({
+      memoryTotalBytes: gib,
+      memoryAvailableBytes: gib / 2,
+      memoryUsedPercent: 50,
+    })
+    r.files.set('/sys/fs/cgroup/memory/memory.use_hierarchy', '1')
+    expect(await r.sampler.sample()).toMatchObject({
+      memoryTotalBytes: gib / 2,
+      memoryAvailableBytes: gib / 4,
+      memoryUsedPercent: 50,
+    })
+    for (const invalid of [undefined, '2']) {
+      if (invalid === undefined) r.files.delete('/sys/fs/cgroup/memory/memory.use_hierarchy')
+      else r.files.set('/sys/fs/cgroup/memory/memory.use_hierarchy', invalid)
+      expect(await reading(r, 'memoryTotalBytes')).toBeNull()
+    }
+    r.files.set('/sys/fs/cgroup/memory/memory.use_hierarchy', '0')
+    for (const invalid of ['max', '9223372036854771712']) {
+      r.files.set('/sys/fs/cgroup/memory/container/memory.limit_in_bytes', invalid)
+      expect(await reading(r, 'memoryTotalBytes')).toBeNull()
+    }
+    r.files.delete('/sys/fs/cgroup/memory/container/memory.limit_in_bytes')
+    expect(await r.sampler.sample()).toMatchObject({
+      memoryTotalBytes: null,
+      memoryAvailableBytes: null,
+      memoryUsedPercent: null,
+    })
+  })
+
+  it('rejects noncanonical cgroup membership, mount roots and directories before any ancestor reads', async () => {
+    for (const [group, root, directory] of [
+      ['/', '/', '/sys//fs/cgroup'],
+      ['//scope', '/', '/sys/fs/cgroup'],
+      ['/scope//child', '/', '/sys/fs/cgroup'],
+      ['/scope/', '/', '/sys/fs/cgroup'],
+      ['/', '//delegated', '/sys/fs/cgroup'],
+      ['/', '/delegated/', '/sys/fs/cgroup'],
+      ['/', '/delegated//child', '/sys/fs/cgroup'],
+      ['/', '/', '/sys/fs/cgroup/'],
+      ['/', '/', '/sys/fs/./cgroup'],
+      ['/', '/', '//sys/fs/cgroup'],
+    ]) {
+      const r = rig('linux')
+      r.files.set('/proc/self/cgroup', `0::${group!}`)
+      r.files.set(
+        '/proc/self/mountinfo',
+        `29 23 0:26 ${root!} ${directory!} rw - cgroup2 cgroup rw`,
+      )
+      r.files.delete('/sys/fs/cgroup/memory.max')
+      const attributes: string[] = []
+      vi.mocked(r.port.read).mockImplementation((file) => {
+        if (file.endsWith('/memory.max')) {
+          attributes.push(file)
+          // Bound the pre-fix reproduction even when it repeats /memory.max forever.
+          if (attributes.length > 12) throw new Error('ancestor walk escaped its boundary')
+        }
+        return Promise.resolve(r.files.get(file))
+      })
+      expect(await reading(r, 'memoryTotalBytes')).toBeNull()
+      expect(attributes).toEqual([])
+    }
+  })
+
   it('distinguishes missing root/controller attributes from denied cgroup reads', async () => {
     const r = rig('linux')
     r.files.delete('/sys/fs/cgroup/memory.max')
@@ -294,7 +373,7 @@ describe('machine resource sampler', () => {
     }
     const r = rig('linux')
     r.files.set('/proc/self/cgroup', '2:memory:/legacy')
-    expect(await reading(r, 'memoryAvailableBytes')).toBe(3000)
+    expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
     r.files.delete('/proc/self/cgroup')
     expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
   })

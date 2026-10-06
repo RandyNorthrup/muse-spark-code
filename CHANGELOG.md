@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The staged resource-governor sampler honours cgroup v1 memory capacity
+  and enforced ancestor limits, and rejects noncanonical cgroup paths
+  before walking the mount hierarchy.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
