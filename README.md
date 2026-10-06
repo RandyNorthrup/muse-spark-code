@@ -490,9 +490,10 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Questions
 
-The integrated question paths and fake-only checks are recorded in
-[M112's certification](docs/certification/m112.md); live model and installed
-editor checks remain with the release lead.
+The integrated question paths, fake-only checks and the 2026-10-06 live checks
+through the ACP agent on both backends are recorded in
+[M112's certification](docs/certification/m112.md); installed-editor checks
+remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
 composer, after approvals, and keeps the same card in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card

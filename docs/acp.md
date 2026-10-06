@@ -265,8 +265,10 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 ## Questions
 
 The launcher connects the shared question registry and private durable queue.
-See [the integration certification](certification/m112.md). Installed-client
-capability and withdrawal checks remain with the release lead.
+See [the integration certification](certification/m112.md): a scripted stdio
+client exercised forms on both backends and the deadline withdrawal, open
+question and late answer on Muse Code live (2026-10-06). Installed-client
+capability checks remain with the release lead.
 
 A client with forms receives `elicitation/create`. The agent owns its clock:
 after 60 seconds it defers the backend question, sends cooperative withdrawal
