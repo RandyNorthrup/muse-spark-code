@@ -333,15 +333,32 @@ function redactWith(text: string, literals: readonly string[], matched?: () => v
   return redactPatterns(result, matched)
 }
 
-/** Exact run keys precede patterns, including legacy keys containing percent signs. */
+// Account keys with no recognizable vendor prefix still need literal redaction.
+// Reference counts let independent stores release their own registration only.
+const registeredSecrets = new Map<string, number>()
+
+/** Retain for the store/window lifetime, including late errors after removal. */
+export function registerSecretValue(value: string): () => void {
+  registeredSecrets.set(value, (registeredSecrets.get(value) ?? 0) + 1)
+  let isReleased = false
+  return () => {
+    if (isReleased) return
+    isReleased = true
+    const count = (registeredSecrets.get(value) ?? 1) - 1
+    if (count === 0) registeredSecrets.delete(value)
+    else registeredSecrets.set(value, count)
+  }
+}
+
+/** Exact run/account keys precede patterns, including percent-containing keys. */
 export function redactSecrets(text: string, literals: readonly string[] = []): string {
-  return redactWith(text, literals)
+  return redactWith(text, [...registeredSecrets.keys(), ...literals])
 }
 
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */
 export function countSecretMatches(text: string, literals: readonly string[]): number {
   let count = 0
-  redactWith(text, literals, () => {
+  redactWith(text, [...registeredSecrets.keys(), ...literals], () => {
     count += 1
   })
   return count
@@ -423,6 +440,17 @@ function safeCut(text: string, from: number, target: number): number | undefined
     const cut = lineBreak + 1
     if (lineBreak === -1 || cut >= text.length) {
       return undefined
+    }
+    let literalEnd = cut
+    for (const value of registeredSecrets.keys()) {
+      for (const literal of literalForms(value)) {
+        const start = text.indexOf(literal, Math.max(from, cut - literal.length + 1))
+        if (start !== -1 && start < cut) literalEnd = Math.max(literalEnd, start + literal.length)
+      }
+    }
+    if (literalEnd > cut) {
+      at = literalEnd + 1
+      continue
     }
     if (isWordOpen(text, from, cut)) {
       // The match may run through this white space: the next try is the
