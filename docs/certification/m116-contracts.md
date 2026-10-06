@@ -105,7 +105,8 @@ The strict `playbookRecordSchema` validates round, design, note and settings
 lines. Finding references hold only id, file, optional line and known class.
 Redesign rounds also retain optional `resolution` entries (each prior id,
 outcome and reason) using the same review-resolution schema. Notes include an
-optional `workerId` for the offload decision. Raw review detail/file
+optional `workerId` for the offload decision and at most eight class entries,
+bounded by the shared class vocabulary. Raw review detail/file
 content/output fields are rejected. P owns retention,
 second scrubbing of all free text, canonical workspace identity, persistence,
 recovery, and append ordering. Schemas constrain shape; they do not claim to

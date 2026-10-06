@@ -131,7 +131,9 @@ export const playbookWhyNoteSchema = z.strictObject({
   laneId: z.optional(id),
   workerId: z.optional(id),
   round: z.optional(z.int().check(z.gte(1))),
-  classes: z.optional(z.array(z.enum(PLAYBOOK_FINDING_CLASSES))),
+  classes: z.optional(
+    z.array(z.enum(PLAYBOOK_FINDING_CLASSES)).check(z.maxLength(PLAYBOOK_FINDING_CLASSES.length)),
+  ),
   missing: z.optional(z.array(id).check(z.maxLength(REVIEW_FINDINGS_MAX))),
   actor: z.optional(id),
   reason: z.optional(reason),

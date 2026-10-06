@@ -290,6 +290,15 @@ describe('M116 contracts', () => {
       }).success,
     ).toBe(false)
     expect(
+      playbookWhyNoteSchema.safeParse({ ...NOTE, classes: [...PLAYBOOK_FINDING_CLASSES] }).success,
+    ).toBe(true)
+    expect(
+      playbookWhyNoteSchema.safeParse({
+        ...NOTE,
+        classes: [...PLAYBOOK_FINDING_CLASSES, 'validation'],
+      }).success,
+    ).toBe(false)
+    expect(
       playbookDesignDecisionSchema.safeParse({
         ...DESIGN,
         structuralChange: 'x'.repeat(REVIEW_FINDING_TEXT_MAX_CHARS + 1),
