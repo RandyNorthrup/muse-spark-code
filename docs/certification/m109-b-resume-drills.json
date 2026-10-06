@@ -1,0 +1,64 @@
+[
+  {
+    "guard": "local lock remains effective when the shared epoch writer fails",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
+    "mutatedSha256": "2123d5512162c19b7b2c13b0e9e4ebef8a60bc317805d97ae474ad5299a814f4",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation lock failure to persist the shared epoch still erases keys and cancels local uses",
+      "vault broker lifetime and isolation exit failure to persist the shared epoch still erases keys and cancels local uses"
+    ],
+    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+  },
+  {
+    "guard": "material release rechecks the deadline after a pending store read",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
+    "mutatedSha256": "818787af3e3c0fe52679013943939c2d42b20936cc9fb4b622773f405ab509dd",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation an admitted ticket that expires during the material read never reaches its destination"
+    ],
+    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+  },
+  {
+    "guard": "redemption remains visible to revocation while grant validation is pending",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
+    "mutatedSha256": "eaa989ba346a71810c288990f25071decdddac62fcce90587fbef9f59062e70b",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material reuse during a pending grant read cannot resurrect a ticket or release material",
+      "broker-owned approved material only the actual requester and digest may receive a single material release, erased after use",
+      "broker-owned approved material callback failure and an expired admitted ticket never leave reusable material",
+      "broker-owned approved material metadata changed after admission is refused before a destination sees material",
+      "broker-owned approved material lock during a destination call erases material immediately and rejects its late completion",
+      "broker-owned approved material grant during a destination call erases material immediately and rejects its late completion",
+      "broker-owned approved material item during a destination call erases material immediately and rejects its late completion"
+    ],
+    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+  },
+  {
+    "guard": "cancelled ticket snapshots cannot be revived by requester reuse",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
+    "mutatedSha256": "7ccef6d7804d0d4a41c397306dd8b6922d4da56466fe60e4f8ffec002a387450",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material reuse during a pending grant read cannot resurrect a ticket or release material"
+    ],
+    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+  },
+  {
+    "guard": "redemption rechecks the deadline after a pending grant read",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4",
+    "mutatedSha256": "abee1b441811bdc20d8a4dcfcb2ecfebb711d0508ddaedaaa673ba9bc433cc4e",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material expiry during a pending grant read cannot resurrect a ticket or release material"
+    ],
+    "restoredSha256": "53929537692771ca45e103a0edbcd8c9286aad7faa62e009d42b7b6dc15f90d4"
+  }
+]

@@ -39,6 +39,41 @@ function secret(item: VaultItem): Uint8Array {
   return item.material.value
 }
 describe('broker-owned approved material', () => {
+  it.each(['revoke', 'reuse', 'expiry'] as const)(
+    '%s during a pending grant read cannot resurrect a ticket or release material',
+    async (action) => {
+      const fixture = await setup()
+      const entered = Promise.withResolvers<undefined>(),
+        waiting = Promise.withResolvers<undefined>(),
+        grants = fixture.deps.repository.grants
+      fixture.deps.repository.grants = async () => {
+        const snapshot = await grants()
+        entered.resolve(undefined)
+        await waiting.promise
+        return snapshot
+      }
+      const admission = fixture.broker.redeem(
+        fixture.identity.id,
+        fixture.ticket,
+        use(),
+        fixture.lifetime,
+      )
+      await entered.promise
+      if (action === 'expiry') fixture.clock.advance(VAULT_APPROVAL_TTL_MS)
+      else {
+        await fixture.broker.revoke(fixture.peer, fixture.grant.id)
+        if (action === 'reuse') await fixture.broker.register(fixture.peer, fixture.identity, 'ask')
+      }
+      waiting.resolve(undefined)
+      const result = await admission
+      expect(result.kind).toBe('denied')
+      const run = vi.fn(() => Promise.resolve())
+      await expect(
+        fixture.broker.withApprovedMaterial(fixture.ticket.id, fixture.identity.id, use(), run),
+      ).rejects.toThrow()
+      expect(run).not.toHaveBeenCalled()
+    },
+  )
   it('rechecks grant expiry, target and revocation at redemption', async () => {
     const fixture = await setup()
     fixture.grant.expiresAt = fixture.clock.now()

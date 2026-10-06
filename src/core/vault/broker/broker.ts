@@ -591,67 +591,80 @@ export class VaultBroker implements VaultBrokerPort {
         JSON.stringify(ticket) !== JSON.stringify(operation.ticket)
       )
         return deny('peer')
-      this.tickets.delete(ticket.id)
-      if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
-      if (this.clock.now() >= ticket.expiresAt) {
-        await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
-        return deny('expired')
-      }
-      if (vaultUseDigest(actual) !== ticket.digest) {
-        await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
-        return deny('digest')
-      }
-      const metadata = await this.store?.list()
-      const current = metadata?.find((item) => item.id === ticket.itemId)
-      if (
-        !current ||
-        JSON.stringify(current) !== JSON.stringify(operation.request.item) ||
-        !this.registrations.has(requesterId)
-      )
-        return deny('policy')
-      if (operation.authority.kind === 'grant') {
-        const grants = await this.deps.repository.grants()
-        const grantId = operation.authority.grantId
-        const grant = grants.find((entry) => entry.id === grantId)
-        if (
-          !grant ||
-          !isGrantCovered(
-            { ...grant, uses: Math.max(0, grant.uses - 1) },
-            current,
-            operation.request.requester,
-            actual,
-            this.clock.now(),
-          )
-        ) {
-          await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
-          return deny('scope')
+      try {
+        if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
+        if (this.clock.now() >= ticket.expiresAt) {
+          await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
+          return deny('expired')
         }
+        if (vaultUseDigest(actual) !== ticket.digest) {
+          await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
+          return deny('digest')
+        }
+        const metadata = await this.store?.list()
+        const current = metadata?.find((item) => item.id === ticket.itemId)
+        if (
+          !current ||
+          JSON.stringify(current) !== JSON.stringify(operation.request.item) ||
+          !this.registrations.has(requesterId)
+        )
+          return deny('policy')
+        if (operation.authority.kind === 'grant') {
+          const grants = await this.deps.repository.grants()
+          const grantId = operation.authority.grantId
+          const grant = grants.find((entry) => entry.id === grantId)
+          if (
+            !grant ||
+            !isGrantCovered(
+              { ...grant, uses: Math.max(0, grant.uses - 1) },
+              current,
+              operation.request.requester,
+              actual,
+              this.clock.now(),
+            )
+          ) {
+            await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
+            return deny('scope')
+          }
+        }
+        if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
+        if (this.clock.now() >= ticket.expiresAt) {
+          await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
+          return deny('expired')
+        }
+        if (this.tickets.get(ticket.id) !== operation || !this.registrations.has(requesterId))
+          return deny('policy')
+        this.active.set(ticket.id, { operation, lifetime, material: null, released: false })
+        if (
+          current.requirePresence &&
+          !(await this.deps.unlock.presence(current.id, id(), actual))
+        ) {
+          await this.record(operation.request, 'deny', 'presence', null, 'denied')
+          this.active.delete(ticket.id)
+          return deny('presence')
+        }
+        if (
+          !(await this.current()) ||
+          ticket.lockEpoch !== this.epoch ||
+          !this.registrations.has(requesterId) ||
+          !this.active.has(ticket.id)
+        ) {
+          this.active.delete(ticket.id)
+          return deny('locked')
+        }
+        await this.record(
+          operation.request,
+          'allow',
+          operation.authority.kind,
+          operation.authority.kind === 'grant' ? operation.authority.grantId : null,
+          'pending',
+        )
+        if (!(await this.current())) return deny('locked')
+        this.lastUse = this.clock.now()
+        return { kind: 'ticket', ticket: structuredClone(ticket), authority: operation.authority }
+      } finally {
+        this.tickets.delete(ticket.id)
       }
-      this.active.set(ticket.id, { operation, lifetime, material: null, released: false })
-      if (current.requirePresence && !(await this.deps.unlock.presence(current.id, id(), actual))) {
-        await this.record(operation.request, 'deny', 'presence', null, 'denied')
-        this.active.delete(ticket.id)
-        return deny('presence')
-      }
-      if (
-        !(await this.current()) ||
-        ticket.lockEpoch !== this.epoch ||
-        !this.registrations.has(requesterId) ||
-        !this.active.has(ticket.id)
-      ) {
-        this.active.delete(ticket.id)
-        return deny('locked')
-      }
-      await this.record(
-        operation.request,
-        'allow',
-        operation.authority.kind,
-        operation.authority.kind === 'grant' ? operation.authority.grantId : null,
-        'pending',
-      )
-      if (!(await this.current())) return deny('locked')
-      this.lastUse = this.clock.now()
-      return { kind: 'ticket', ticket: structuredClone(ticket), authority: operation.authority }
     })
   }
   /** S/X/L/O execute inside the broker; only their approved destination may receive selected bytes. */
@@ -679,6 +692,7 @@ export class VaultBroker implements VaultBrokerPort {
       if (
         !(await this.current()) ||
         epoch !== this.epoch ||
+        this.clock.now() >= entry.operation.ticket.expiresAt ||
         !this.active.has(ticketId) ||
         JSON.stringify(item.metadata) !== JSON.stringify(entry.operation.request.item)
       )
@@ -774,7 +788,15 @@ export class VaultBroker implements VaultBrokerPort {
     for (const requesterId of affected) await this.endRequester(requesterId)
   }
   async lock(): Promise<void> {
-    await this.lockTo(await this.deps.epoch.bump())
+    let epoch: number
+    try {
+      epoch = await this.deps.epoch.bump()
+    } catch (error: unknown) {
+      // A failed shared write cannot leave this broker's keys or uses alive.
+      await this.lockTo(this.epoch)
+      throw error
+    }
+    await this.lockTo(epoch)
   }
   async dispose(): Promise<void> {
     this.disposed = true

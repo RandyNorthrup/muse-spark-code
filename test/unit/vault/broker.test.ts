@@ -4,6 +4,7 @@ import { type VaultUseLifetime } from '../../../src/core/vault/broker/ports'
 import { type VaultItem } from '../../../src/shared/vault'
 import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
 import { randomBytes } from 'node:crypto'
+import { VAULT_APPROVAL_TTL_MS } from '../../../src/shared/constants'
 import { brokerFixture, cleanTaint, delayListing } from './brokerFixture'
 import { use, requester, grant } from '../helpers/vault/fixtures'
 
@@ -104,6 +105,84 @@ describe('vault broker lifetime and isolation', () => {
     ])
     expect(results.map((result) => result.kind)).toEqual(['ticket', 'approval'])
     expect(grant.uses).toBe(1)
+  })
+  it.each(['lock', 'exit'] as const)(
+    '%s failure to persist the shared epoch still erases keys and cancels local uses',
+    async (action) => {
+      const fixture = await setup()
+      await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+      fixture.standing()
+      const lifetime = { close: vi.fn(), terminate: vi.fn(() => Promise.resolve(true)) }
+      const admitted = await authorized(fixture, lifetime)
+      expect(admitted.kind).toBe('ticket')
+      const unused = await fixture.broker.request(
+        fixture.identity,
+        fixture.stored.metadata.handle,
+        use(),
+        cleanTaint,
+      )
+      if (unused.kind !== 'ticket') throw new Error('expected ticket')
+      const bump = fixture.deps.epoch.bump
+      fixture.deps.epoch.bump = () => Promise.reject(new Error('test epoch writer occupied'))
+      try {
+        await expect(
+          action === 'lock' ? fixture.broker.lock() : fixture.broker.dispose(),
+        ).rejects.toThrow('test epoch writer occupied')
+        const status = await fixture.broker.status()
+        expect(status.state).toBe('locked')
+        expect(fixture.heldKeys.every((key) => key.every((byte) => byte === 0))).toBe(true)
+        expect(lifetime.close).toHaveBeenCalledOnce()
+        expect(lifetime.terminate).toHaveBeenCalledOnce()
+      } finally {
+        fixture.deps.epoch.bump = bump
+      }
+      if (action === 'lock') await fixture.broker.unlock()
+      expect(
+        await fixture.broker.redeem(fixture.identity.id, unused.ticket, use(), lifetime),
+      ).toEqual({
+        kind: 'denied',
+        reason: 'replay',
+      })
+    },
+  )
+  it('an admitted ticket that expires during the material read never reaches its destination', async () => {
+    const fixture = await setup()
+    await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+    fixture.standing()
+    const waiting = Promise.withResolvers<undefined>(),
+      entered = Promise.withResolvers<undefined>()
+    let held: Uint8Array = new Uint8Array()
+    await observeReads(fixture, async (item) => {
+      if (item.material.kind !== 'secret') throw new Error('expected held test material')
+      held = item.material.value
+      entered.resolve(undefined)
+      await waiting.promise
+    })
+    const lifetime = { close: vi.fn(), terminate: vi.fn(() => Promise.resolve(true)) }
+    const admission = await authorized(fixture, lifetime)
+    if (admission.kind !== 'ticket') throw new Error('expected ticket')
+    const run = vi.fn(() => Promise.resolve())
+    const dispatched = fixture.broker.withApprovedMaterial(
+      admission.ticket.id,
+      fixture.identity.id,
+      use(),
+      run,
+    )
+    const outcome = (async () => {
+      try {
+        await dispatched
+        return 'released'
+      } catch {
+        return 'denied'
+      }
+    })()
+    await entered.promise
+    fixture.clock.advance(VAULT_APPROVAL_TTL_MS)
+    waiting.resolve(undefined)
+    expect(await outcome).toBe('denied')
+    expect(run).not.toHaveBeenCalled()
+    expect(held.byteLength).toBeGreaterThan(0)
+    expect(held.every((byte) => byte === 0)).toBe(true)
   })
   it('a rejected atomic use reservation is an audited denial', async () => {
     const fixture = await setup()
