@@ -18910,6 +18910,24 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103R review repair (2026-10-06, Kubuntu).** Repair RVM103R's
+P1/P2 findings with computed terminal attendance (TTYs, agent marker and
+bounded fail-closed ancestry), person-only panel launch/answer capabilities,
+instance-bound cookies, and Stop independent of workspace authority/storage.
+ACP creates workspace authority lazily so home/root/linked cwd sessions retain
+Stop. Prove the single-attended-session and per-session tool guards directly.
+The captured MCP transport on this base has no authenticated caller turn id;
+physical MCP calls must fail closed until a real capture supplies provenance
+(no guessed wire field, rule 13). Model API retains its existing worker denial.
+Fix dead-owner Stop alarms, unavailable serial/PrusaLink Stop reporting,
+permission-only cancellation (retaining controller Stop after guarded dispatch), constant-time Thonny authentication and the
+shared whitespace-tolerant Stop parser. Panel tests own their assets. Every
+fix has a regression and byte-exact red drill in m103-r.md. No new dependency,
+paid/live/physical call, merge, push or cap change. Full quality stays with the
+lead per the explicit rig brief; focused owning suites and static/build gates
+run here. Missing captured turn provenance and remaining review P3 risks get
+named residuals in §9 and certification.
+
 **M103R runtime lane (2026-10-05, win11).** Implement the existing R row on
 the integrated MakerHost/makerProtocol contract: host-owned workspace hardware
 grants, OS secrets, runtime commands, ACP once-only permissions and commands,
@@ -20850,6 +20868,42 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM103R-MCP-PROVENANCE (P2-3 functionality residual, 2026-10-06).**
+  The captured MCP HTTP transport has no authenticated caller turn id on
+  this base. No physical tool is exposed on the Muse Code runtime MCP route,
+  even for an attended parent; Model API workers remain excluded. This closes
+  worker actuation without inventing a wire field. G4/W must capture parent
+  and child requests, bind a trusted turn identity to the attended ACP turn,
+  and prove mismatched/missing identities refuse before restoring the tools.
+- **FIXM103R-ACP-CLIENT-AUTOANSWER (review P3-6, 2026-10-06).** The runtime
+  cannot prove a client permission reply came from a person. README requires
+  disabling automatic client answers; physical/editor support remains
+  unqualified on this integration branch. W/E must qualify each client and
+  keep automation clients excluded before claiming physical support.
+- **FIXM103R-CROSS-HOST-LEASES (review P3-8, 2026-10-06).** R's user-level
+  lease directory is not yet unified with V's adapter. R Stop/exclusivity is
+  tested across runtime owners; concurrent physical use across hosts is not
+  supported or certified. P/V/W must unify the root and test cross-host Stop
+  and lease contention on all operating systems before physical support.
+- **FIXM103R-PRIVATE-EDITOR-LAUNCH (integration residual, 2026-10-06).**
+  The insecure CLI stdout launch/provider capability handoff is removed.
+  Person-launched browser panels work; Thonny/native-editor automatic panel
+  startup now refuses as unattended; provider connection details reach only
+  the single-use private browser bootstrap. T/W/M104 must supply person-authorized private IPC,
+  keeping both tokens out of stdout/stderr/logs and request-side channels.
+- **FIXM103R-HELPREF (inherited integration residual, 2026-10-06).**
+  This base lacks featureCatalog.ts, gen-reference.mjs and check:reference.
+  README/CHANGELOG carry the changed commands now. HELPREF/W must mirror
+  these safety/availability contracts when its catalogue joins; no new
+  undocumented command or substitute catalogue was introduced.
+- **FIXM103R-M107-ATTENDANCE (integration qualification, 2026-10-06).**
+  M107's process-tree registry is absent here. TTYs, CI/agent-shell markers,
+  the bounded parent chain, a terminal boundary and on Linux executable
+  identities supply conservative admission; unknown and orphaned chains
+  refuse. W must integrate M107's registry and qualify real terminal/browser
+  launch on Windows/macOS/Linux. This lane uses fake platform process tables
+  and no live/physical call.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

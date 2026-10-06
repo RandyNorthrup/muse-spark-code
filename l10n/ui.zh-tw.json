@@ -14,7 +14,7 @@
   "makerReject": "拒絕",
   "makerApprovalExpired": "此核准已過期。請重新要求操作。",
   "makerApprovalTargetChanged": "目標已變更。請審核新的核准要求。",
-  "makerUnattendedDenied": "硬體操作需要使用者監督的工作階段。",
+  "makerUnattendedDenied": "硬體操作需要有人在場。請您親自在終端機中執行此命令。",
   "makerTrustRequired": "啟用硬體前，請信任此工作區。",
   "makerEnableHardware": "為此工作區啟用硬體",
   "makerDisableHardware": "為此工作區停用硬體",
@@ -2382,5 +2382,7 @@
   "judgeStatusDeclined": "關閉：已拒絕付費使用",
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
-  "judgeStatusPaid": "付費"
+  "judgeStatusPaid": "付費",
+  "makerStopFailed": "停止失敗 — 請立即使用機器 {machine} 的實體緊急停止裝置。",
+  "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。"
 }

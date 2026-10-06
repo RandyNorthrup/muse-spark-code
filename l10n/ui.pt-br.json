@@ -14,7 +14,7 @@
   "makerReject": "Rejeitar",
   "makerApprovalExpired": "Esta aprovação expirou. Solicite a ação novamente.",
   "makerApprovalTargetChanged": "O destino mudou. Revise uma nova aprovação.",
-  "makerUnattendedDenied": "Ações de hardware exigem uma sessão supervisionada pelo usuário.",
+  "makerUnattendedDenied": "As ações de hardware exigem uma pessoa presente. Execute o comando pessoalmente em um terminal.",
   "makerTrustRequired": "Confie neste espaço de trabalho antes de habilitar o hardware.",
   "makerEnableHardware": "Habilitar hardware neste espaço de trabalho",
   "makerDisableHardware": "Desabilitar hardware neste espaço de trabalho",
@@ -2572,5 +2572,7 @@
   "judgeStatusDeclined": "Desativado: uso pago recusado",
   "judgeStatusSlow": "Desativado por padrão: poucos resultados prontos na decisão do revisor",
   "judgeStatusSubscription": "Assinatura",
-  "judgeStatusPaid": "Pago"
+  "judgeStatusPaid": "Pago",
+  "makerStopFailed": "Falha ao parar — use agora a parada de emergência física da máquina {machine}.",
+  "makerStopPhysicalRequired": "A máquina {machine} exige uma parada de emergência física; a parada por software não está disponível."
 }

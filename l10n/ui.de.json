@@ -14,7 +14,7 @@
   "makerReject": "Ablehnen",
   "makerApprovalExpired": "Diese Genehmigung ist abgelaufen. Fordern Sie die Aktion erneut an.",
   "makerApprovalTargetChanged": "Das Ziel hat sich geändert. Prüfen Sie eine neue Genehmigung.",
-  "makerUnattendedDenied": "Hardwareaktionen erfordern eine vom Benutzer betreute Sitzung.",
+  "makerUnattendedDenied": "Hardwareaktionen erfordern eine anwesende Person. Führen Sie den Befehl selbst im Terminal aus.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",
@@ -2477,5 +2477,7 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "makerStopFailed": "Stopp fehlgeschlagen — betätigen Sie jetzt den physischen Not-Aus der Maschine {machine}.",
+  "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar."
 }

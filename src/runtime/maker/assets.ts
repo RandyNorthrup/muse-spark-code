@@ -6,18 +6,31 @@ import { uiLocale } from '../../shared/l10n/text'
 // The installed shared panel supplies every view; this script is only its host bridge.
 const BRIDGE = `const launch = location.hash.slice(1);
 history.replaceState(null, '', location.pathname);
+let approvalKey;
 if (launch) {
   const response = await fetch('/launch', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({launch:launch})});
   if (!response.ok) throw new Error('maker-launch-refused');
+  const bootstrap=await response.json();
+  window.museSparkThonnyProvider=bootstrap.provider;
+  approvalKey=await crypto.subtle.importKey('raw',new TextEncoder().encode(bootstrap.approvalKey),{name:'HMAC',hash:'SHA-256'},false,['sign']);
 }
 let state;
 window.acquireVsCodeApi = () => ({
   getState: () => state,
   setState: value => {state=value;},
-  postMessage: message => {void fetch('/message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(message)}).then(async response => {
+  postMessage: message => {void (async () => {
+    const headers={'Content-Type':'application/json'};
+    const answering=message.type==='makerAnswer';
+    if(answering) {
+      if(!approvalKey) throw new Error('maker-answer-refused');
+      const bytes=new Uint8Array(await crypto.subtle.sign('HMAC',approvalKey,new TextEncoder().encode(message.answer.id)));
+      headers['X-Maker-Approval']=Array.from(bytes,value=>value.toString(16).padStart(2,'0')).join('');
+    }
+    const response=await fetch(answering?'/answer':'/message',{method:'POST',headers:headers,body:JSON.stringify(message)});
     if (!response.ok) throw new Error('maker-message-refused');
     if (response.status !== 204) {const result=await response.json(); if(result?.v===1) window.dispatchEvent(new MessageEvent('message',{data:result}));}
-  }).catch(error => {window.dispatchEvent(new ErrorEvent('error',{error:error}));});}
+  })().catch(error => {window.dispatchEvent(new ErrorEvent('error',{error:error}));});}
+
 });
 const events=new EventSource('/events');
 events.onmessage=event => {window.dispatchEvent(new MessageEvent('message',{data:JSON.parse(event.data)}));};

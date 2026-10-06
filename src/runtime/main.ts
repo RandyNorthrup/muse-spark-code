@@ -549,13 +549,22 @@ async function main(): Promise<number> {
           print: (line) => {
             writeLine(process.stdout, line)
           },
+          reportFailure: (line) => {
+            log.error(line)
+          },
           done: done.signal,
           table: UI_TEXT,
           locale: uiLocale(),
         })
       } catch {
         // A malformed registration/key-store error can echo pasted input; never log it.
-        log.error(UI_TEXT.makerDevicesTitle)
+        log.error(
+          command.action === 'panel' ||
+            (command.action === 'hardware' && command.operation === 'enable') ||
+            (command.action === 'machines' && command.operation === 'add')
+            ? UI_TEXT.makerUnattendedDenied
+            : UI_TEXT.makerDevicesTitle,
+        )
         return 1
       } finally {
         process.off('SIGINT', stop)

@@ -72,7 +72,12 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
-import { acpMakerAsker, type AcpMakerRuntime, type AcpMakerSession } from './maker'
+import {
+  parseMakerSlashCommand,
+  acpMakerAsker,
+  type AcpMakerRuntime,
+  type AcpMakerSession,
+} from './maker'
 import {
   elicitationSchema,
   elicitationText,
@@ -860,7 +865,10 @@ class AcpSession {
     }
     if (this.pending !== undefined || this.preparing !== undefined) {
       // Explicit Stop reaches the engine independently of the occupied model turn.
-      if (this.maker !== undefined && /^\/stop-machine(?:\s|$)/.test(parsed.displayText)) {
+      if (
+        this.maker !== undefined &&
+        parseMakerSlashCommand(parsed.displayText)?.name === 'stop-machine'
+      ) {
         const result = await this.maker.command(parsed.displayText)
         if (result !== undefined) return await this.makerReply(result)
       }

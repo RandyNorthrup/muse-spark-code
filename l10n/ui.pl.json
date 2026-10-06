@@ -14,7 +14,7 @@
   "makerReject": "Odrzuć",
   "makerApprovalExpired": "To zatwierdzenie wygasło. Ponownie poproś o działanie.",
   "makerApprovalTargetChanged": "Cel się zmienił. Sprawdź nowe zatwierdzenie.",
-  "makerUnattendedDenied": "Działania sprzętowe wymagają sesji nadzorowanej przez użytkownika.",
+  "makerUnattendedDenied": "Działania sprzętowe wymagają obecności użytkownika. Uruchom polecenie osobiście w terminalu.",
   "makerTrustRequired": "Oznacz ten obszar roboczy jako zaufany przed włączeniem sprzętu.",
   "makerEnableHardware": "Włącz sprzęt w tym obszarze roboczym",
   "makerDisableHardware": "Wyłącz sprzęt w tym obszarze roboczym",
@@ -2667,5 +2667,7 @@
   "judgeStatusDeclined": "Wyłączony: odmówiono płatnego użycia",
   "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
   "judgeStatusSubscription": "Subskrypcja",
-  "judgeStatusPaid": "Płatne"
+  "judgeStatusPaid": "Płatne",
+  "makerStopFailed": "Zatrzymanie nie powiodło się — natychmiast użyj fizycznego wyłącznika awaryjnego maszyny {machine}.",
+  "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne."
 }

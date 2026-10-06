@@ -1,3 +1,5 @@
+import * as crypto from 'node:crypto'
+import { createHmac, randomUUID } from 'node:crypto'
 import { createConnection, type Socket } from 'node:net'
 import { request } from 'node:http'
 import { mkdtemp, mkdir, rm } from 'node:fs/promises'
@@ -10,6 +12,11 @@ import { startThonnyServer, type ThonnyPortOwner } from '../../src/runtime/maker
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { spawn } from 'node:child_process'
 import { withoutCredentials, withoutKeyringRoutes } from '../../src/runtime/credentialVariables'
+
+vi.mock('node:crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof crypto>()
+  return { ...actual, timingSafeEqual: vi.fn(actual.timingSafeEqual) }
+})
 
 const cleanups: (() => Promise<void>)[] = []
 afterEach(async () => {
@@ -28,9 +35,9 @@ async function companion(bind?: string) {
       store: () => Promise.resolve(),
       delete: () => Promise.resolve(),
     },
-    trusted: () => false,
-    flagged: () => false,
-    interactive: () => false,
+    trusted: () => true,
+    flagged: () => true,
+    interactive: () => true,
     auditEnable: () => Promise.resolve(),
   })
   const dispatch = vi.fn().mockResolvedValue({ stopped: true })
@@ -38,11 +45,12 @@ async function companion(bind?: string) {
     host,
     dispatch,
     tools: () => [],
+    provider: { host: '127.0.0.1', port: 12_345, token: 'panel-provider-only' },
     assets: new Map([['/', { body: '<html></html>', type: 'text/html' }]]),
     ...(bind !== undefined && { bind }),
   })
   cleanups.push(() => server.close())
-  return { ...server, dispatch }
+  return { ...server, dispatch, host }
 }
 async function http(
   url: string,
@@ -114,8 +122,9 @@ describe('companion boundary', () => {
       await status(server.url, '/launch', { Origin: server.url }, '{"launch":"foreign"}'),
     ).toBe(401)
     const reply = await http(server.url, '/launch', { Origin: server.url }, payload)
-    expect(reply.status).toBe(204)
+    expect(reply.status).toBe(200)
     expect(reply.headers['set-cookie']?.[0]).toContain('HttpOnly; SameSite=Strict')
+    expect(reply.headers['set-cookie']?.[0]).not.toContain('Domain=')
     expect(await status(server.url, '/launch', { Origin: server.url }, payload)).toBe(401)
   })
   it('MCP credentials cannot answer the surface or launch a browser session', async () => {
@@ -133,6 +142,105 @@ describe('companion boundary', () => {
     )
     expect(result.status).toBe(200)
     expect(JSON.parse(result.text)).toMatchObject({ result: { tools: [] } })
+  })
+  it('binds host-only cookies to each instance and port without panel clobbering', async () => {
+    const first = await companion(),
+      second = await companion()
+    const firstCookie = await session(first),
+      secondCookie = await session(second)
+    expect(firstCookie.split('=', 1)[0]).not.toBe(secondCookie.split('=', 1)[0])
+    expect(firstCookie.split('=', 2)[1]?.split('.', 2)[1]).toBe(new URL(first.url).port)
+    const data = '{"v":1,"type":"makerStop"}'
+    expect(
+      await status(second.url, '/message', { Cookie: firstCookie, Origin: second.url }, data),
+    ).toBe(401)
+    expect(
+      await status(
+        first.url,
+        '/message',
+        { Cookie: `${firstCookie}; ${secondCookie}`, Origin: first.url },
+        data,
+      ),
+    ).toBe(200)
+    expect(
+      await status(
+        second.url,
+        '/message',
+        { Cookie: `${firstCookie}; ${secondCookie}`, Origin: second.url },
+        data,
+      ),
+    ).toBe(200)
+  })
+  it('request/session channels cannot self-approve; the page capability answers only once', async () => {
+    const server = await companion()
+    await server.host.setHardware(true, 'supervised test')
+    const bootstrap = await http(
+      server.url,
+      '/launch',
+      { Origin: server.url },
+      JSON.stringify({ launch: server.launch }),
+    )
+    const cookie = bootstrap.headers['set-cookie']?.[0]?.split(';', 1)[0] ?? ''
+    expect(JSON.parse(bootstrap.text)).toMatchObject({ provider: { token: 'panel-provider-only' } })
+    const key: unknown = JSON.parse(bootstrap.text)
+    if (
+      typeof key !== 'object' ||
+      key === null ||
+      !('approvalKey' in key) ||
+      typeof key.approvalKey !== 'string'
+    )
+      throw new Error('bootstrap')
+    const request = {
+      id: randomUUID(),
+      digest: 'a'.repeat(64),
+      expiresAt: Date.now() + 60_000,
+      kind: 'command' as const,
+      target: { kind: 'workspace' as const, workspace: path.resolve('.') },
+      action: 'program' as const,
+      payload: 'payload',
+    }
+    const messages: unknown[] = []
+    const off = server.host.subscribe((message) => {
+      messages.push(message)
+    })
+    const pending = server.host.confirm(request)
+    const answer = {
+      v: 1,
+      type: 'makerAnswer',
+      answer: {
+        id: request.id,
+        digest: request.digest,
+        target: request.target,
+        decision: 'allow_once',
+      },
+    }
+    const data = JSON.stringify(answer)
+    const headers = { Cookie: cookie, Origin: server.url }
+    try {
+      expect(JSON.stringify(messages)).not.toContain(key.approvalKey)
+      expect(JSON.stringify(messages)).not.toContain('panel-provider-only')
+      expect(await status(server.url, '/message', headers, data)).toBe(403)
+      expect(await status(server.url, '/answer', headers, data)).toBe(403)
+      expect(
+        await status(
+          server.url,
+          '/answer',
+          { ...headers, 'X-Maker-Approval': key.approvalKey },
+          data,
+        ),
+      ).toBe(403)
+      const pageHeaders = {
+        ...headers,
+        'X-Maker-Approval': createHmac('sha256', key.approvalKey).update(request.id).digest('hex'),
+      }
+      expect(await status(server.url, '/answer', pageHeaders, data)).toBe(204)
+      expect(await pending).toEqual(answer.answer)
+      expect(await status(server.url, '/answer', pageHeaders, data)).toBe(409)
+    } finally {
+      off()
+      server.host.cancelApprovals()
+      await pending
+    }
   })
   it('Stop bypasses disabled admission; malformed messages and large bodies refuse', async () => {
     const server = await companion()
@@ -202,6 +310,30 @@ async function connect(input?: ThonnyPortOwner) {
 }
 
 describe('Thonny v2 ownership', () => {
+  it('compares same-length Thonny tokens with timingSafeEqual before accepting the provider', async () => {
+    const compare = vi.mocked(crypto.timingSafeEqual)
+    compare.mockClear()
+    const server = await startThonnyServer({ acquire: vi.fn() })
+    cleanups.push(() => server.close())
+    const socket = createConnection(server.port, server.host)
+    const closed = new Promise<void>((resolve) => {
+      socket.once('close', () => {
+        resolve()
+      })
+    })
+    socket.on('error', () => {
+      /* Close is asserted below. */
+    })
+    socket.write(
+      `${JSON.stringify({ v: 2, type: 'hello', provider: 'thonny', token: 'x'.repeat(server.token.length) })}\n`,
+    )
+    try {
+      await closed
+      expect(compare).toHaveBeenCalledTimes(1)
+    } finally {
+      compare.mockClear()
+    }
+  })
   it.each(['wrong-token', 'oversized'])('closes %s before acquiring a port', async (kind) => {
     const owner = { acquire: vi.fn<ThonnyPortOwner['acquire']>() }
     const server = await startThonnyServer(owner)
@@ -227,14 +359,18 @@ describe('Thonny v2 ownership', () => {
     const acquire = vi.fn<ThonnyPortOwner['acquire']>().mockResolvedValue(closed)
     const server = await startThonnyServer({ acquire })
     cleanups.push(() => server.close())
-    const child = spawn('python', ['test/fixtures/maker/thonny-provider.py'], {
-      env: {
-        ...withoutKeyringRoutes(withoutCredentials(process.env)),
-        PYTHONDONTWRITEBYTECODE: '1',
+    const child = spawn(
+      process.platform === 'win32' ? 'python' : 'python3',
+      ['test/fixtures/maker/thonny-provider.py'],
+      {
+        env: {
+          ...withoutKeyringRoutes(withoutCredentials(process.env)),
+          PYTHONDONTWRITEBYTECODE: '1',
+        },
+        windowsHide: true,
+        stdio: ['pipe', 'pipe', 'pipe'],
       },
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    )
     const ready = Promise.withResolvers<undefined>()
     let output = ''
     let errors = ''

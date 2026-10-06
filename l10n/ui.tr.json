@@ -14,7 +14,7 @@
   "makerReject": "Reddet",
   "makerApprovalExpired": "Bu onayın süresi doldu. İşlemi yeniden isteyin.",
   "makerApprovalTargetChanged": "Hedef değişti. Yeni bir onayı gözden geçirin.",
-  "makerUnattendedDenied": "Donanım işlemleri kullanıcı gözetiminde bir oturum gerektirir.",
+  "makerUnattendedDenied": "Donanım işlemleri bir kişinin hazır bulunmasını gerektirir. Komutu terminalde kendiniz çalıştırın.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",
@@ -2477,5 +2477,7 @@
   "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
-  "judgeStatusPaid": "Ücretli"
+  "judgeStatusPaid": "Ücretli",
+  "makerStopFailed": "Durdurma başarısız — {machine} makinesinin fiziksel acil durdurmasını hemen kullanın.",
+  "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor."
 }

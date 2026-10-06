@@ -346,7 +346,7 @@ describe('M103 ACP hardware lifecycle', () => {
     const { session, runtime } = maker()
     session.command.mockImplementation((text) =>
       Promise.resolve(
-        text.startsWith('/stop-machine') ? UI_TEXT.makerSoftwareStopWarning : undefined,
+        text.trimStart().startsWith('/stop-machine') ? UI_TEXT.makerSoftwareStopWarning : undefined,
       ),
     )
     const h = harness({ maker: runtime })
@@ -355,11 +355,11 @@ describe('M103 ACP hardware lifecycle', () => {
       const running = prompt(client, sessionId)
       const backendSession = h.host.sessions[0]!
       await until(() => backendSession.sendTurn.mock.calls.length === 1)
-      const didStop = await didRequestSucceed(prompt(client, sessionId, '/stop-machine --all'))
+      const didStop = await didRequestSucceed(prompt(client, sessionId, '  /stop-machine --all'))
       backendSession.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       await running
       expect(didStop).toBe(true)
-      expect(session.command).toHaveBeenLastCalledWith('/stop-machine --all')
+      expect(session.command).toHaveBeenLastCalledWith('  /stop-machine --all')
       expect(backendSession.sendTurn).toHaveBeenCalledTimes(1)
     })
   })

@@ -34,7 +34,11 @@ export const EN = {
   makerReject: 'Reject',
   makerApprovalExpired: 'This approval expired. Request the action again.',
   makerApprovalTargetChanged: 'The target changed. Review a new approval.',
-  makerUnattendedDenied: 'Hardware actions require an attended session.',
+  makerUnattendedDenied:
+    'Hardware actions require an attended session. Run this command yourself in a terminal.',
+  makerStopFailed: 'Stop failed — use the machine’s physical emergency stop now: {machine}.',
+  makerStopPhysicalRequired:
+    'Machine {machine} requires its physical emergency stop; software Stop is unavailable.',
   makerTrustRequired: 'Trust this workspace before enabling hardware.',
   makerEnableHardware: 'Enable hardware for this workspace',
   makerDisableHardware: 'Disable hardware for this workspace',

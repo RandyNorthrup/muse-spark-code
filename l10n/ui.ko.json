@@ -14,7 +14,7 @@
   "makerReject": "거부",
   "makerApprovalExpired": "이 승인은 만료되었습니다. 작업을 다시 요청하세요.",
   "makerApprovalTargetChanged": "대상이 변경되었습니다. 새 승인을 검토하세요.",
-  "makerUnattendedDenied": "하드웨어 작업에는 사용자가 감독하는 세션이 필요합니다.",
+  "makerUnattendedDenied": "하드웨어 작업에는 사람이 입회해야 합니다. 터미널에서 직접 명령을 실행하세요.",
   "makerTrustRequired": "하드웨어를 활성화하기 전에 이 작업 영역을 신뢰하세요.",
   "makerEnableHardware": "이 작업 영역에서 하드웨어 활성화",
   "makerDisableHardware": "이 작업 영역에서 하드웨어 비활성화",
@@ -2382,5 +2382,7 @@
   "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
-  "judgeStatusPaid": "유료"
+  "judgeStatusPaid": "유료",
+  "makerStopFailed": "정지 실패 — 지금 즉시 {machine} 기계의 물리적 비상 정지 장치를 사용하세요.",
+  "makerStopPhysicalRequired": "{machine} 기계는 물리적 비상 정지가 필요합니다. 소프트웨어 정지는 사용할 수 없습니다."
 }

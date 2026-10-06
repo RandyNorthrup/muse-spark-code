@@ -14,7 +14,7 @@
   "makerReject": "拒否",
   "makerApprovalExpired": "この承認は期限切れです。操作を再度要求してください。",
   "makerApprovalTargetChanged": "対象が変わりました。新しい承認を確認してください。",
-  "makerUnattendedDenied": "ハードウェア操作にはユーザーが監督するセッションが必要です。",
+  "makerUnattendedDenied": "ハードウェア操作には人の立ち会いが必要です。ご自身でターミナルからコマンドを実行してください。",
   "makerTrustRequired": "ハードウェアを有効にする前に、このワークスペースを信頼してください。",
   "makerEnableHardware": "このワークスペースでハードウェアを有効にする",
   "makerDisableHardware": "このワークスペースでハードウェアを無効にする",
@@ -2382,5 +2382,7 @@
   "judgeStatusDeclined": "オフ：有料利用が拒否されました",
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
-  "judgeStatusPaid": "有料"
+  "judgeStatusPaid": "有料",
+  "makerStopFailed": "停止に失敗しました — 今すぐ機械 {machine} の物理的な非常停止装置を使用してください。",
+  "makerStopPhysicalRequired": "機械 {machine} は物理的な非常停止が必要です。ソフトウェアによる停止は利用できません。"
 }

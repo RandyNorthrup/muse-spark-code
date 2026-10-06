@@ -4149,6 +4149,12 @@ muse-spark-code-acp stop-machine [id|--all]
 muse-spark-code-acp panel [--trust-workspace]
 ```
 
+`hardware enable`, `machines add`, and `panel` require both terminal streams
+to be TTYs and a proven terminal parent chain, with no agent or CI ancestry.
+Run these commands yourself in a terminal; an agent-created TTY does not qualify.
+Unknown ancestry refuses hardware authority. The runtime opens the panel through
+the OS browser launcher and prints no launch capability or provider token.
+
 `--cwd <path>` selects the workspace. Registration JSON contains `machine`
 (`id`, `name`, `kind`, `category`, `endpoint`, `limits`) and `allowPlainHttp`;
 the engine generates the registration identity. Add `--key-stdin` only when
@@ -4161,13 +4167,38 @@ The editor offers `/hardware enable <reason>`, `/hardware disable`,
 `/machines remove <id>` and `/stop-machine [id|--all]`. Every physical action
 still requires its own target-bound Allow once or Reject once answer; Plan,
 Bypass and unattended contexts cannot widen that permission. Stop remains
-available when hardware is disabled, trust is absent or an ACP turn is busy.
+available when hardware is disabled, trust is absent or an ACP turn is busy,
+including a command with leading whitespace. CLI Stop works from home, root,
+a parent of the data folder, and through a data-folder symlink/junction; it
+reads only user-level registries, without workspace grants, logs or storage.
+All reachable lease owners and HTTP machines are attempted independently.
+A failed Stop names the machine and tells you to use its physical emergency
+stop immediately. PrusaLink has no emergency-stop API; serial controllers
+without a live leased owner also require the physical stop. These are named
+warnings rather than missing-factory errors. Cancelling a turn while a send
+only awaits approval revokes it without sending an emergency stop.
 A software stop does not replace the physical emergency stop.
 
-The panel binds only a loopback literal. Its private launch code becomes an
-HttpOnly cookie once; model MCP and browser credentials are separate. Its
-Thonny v2 endpoint accepts context and explicit port handover, never device
-payloads or approval answers. The current native handover is an approved,
+Exactly one active ACP session per canonical workspace may request physical
+approval. Use `--hardware` only with a client that requires a person to answer
+permissions; the runtime cannot distinguish a person's click from a client's
+automatic permission answer. Disable client-side automatic answers. Model API
+workers retain no physical tools. On this base Muse Code's MCP transport has
+no captured, authenticated caller-turn identity, so `machine_send` and
+`device_serial` are withheld from every MCP caller, including the parent turn.
+Restoring them requires the provenance capture and worker-denial test owned
+by G4/W; observe and Stop remain available during the eligible parent session.
+
+The panel binds only a loopback literal. Its private launch code is consumed
+once. The host-only HttpOnly cookie is bound to its random instance and port,
+so two panels can coexist. Request credentials cannot answer approvals:
+answers require a separate per-approval capability held only in the person's
+page, absent from event streams and tool channels, and consumed once.
+The Thonny v2 transport accepts context and explicit port handover, never
+device payloads or approval answers; its token uses constant-time comparison.
+The legacy stdout startup handoff is withdrawn. A private, person-launched
+Thonny/editor handoff remains T/W integration work; the CLI panel delivers provider connection details only in the single-use
+private page bootstrap, never through ordinary requests or events. The current native handover is an approved,
 bounded read session; serial writes await G4's classifier, persistent serial
 machine sessions await P/W, and PrusaLink digest transport awaits integration.
 

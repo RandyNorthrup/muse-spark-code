@@ -14,7 +14,7 @@
   "makerReject": "Rifiuta",
   "makerApprovalExpired": "Questa approvazione è scaduta. Richiedi nuovamente l’azione.",
   "makerApprovalTargetChanged": "La destinazione è cambiata. Esamina una nuova approvazione.",
-  "makerUnattendedDenied": "Le azioni hardware richiedono una sessione supervisionata dall’utente.",
+  "makerUnattendedDenied": "Le azioni hardware richiedono la presenza di una persona. Eseguire personalmente il comando in un terminale.",
   "makerTrustRequired": "Considera attendibile questo spazio di lavoro prima di abilitare l’hardware.",
   "makerEnableHardware": "Abilita l’hardware per questo spazio di lavoro",
   "makerDisableHardware": "Disabilita l’hardware per questo spazio di lavoro",
@@ -2572,5 +2572,7 @@
   "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
-  "judgeStatusPaid": "A pagamento"
+  "judgeStatusPaid": "A pagamento",
+  "makerStopFailed": "Arresto non riuscito — usare subito l’arresto di emergenza fisico della macchina {machine}.",
+  "makerStopPhysicalRequired": "La macchina {machine} richiede l’arresto di emergenza fisico; l’arresto software non è disponibile."
 }

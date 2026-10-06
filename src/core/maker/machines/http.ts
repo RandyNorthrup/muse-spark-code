@@ -22,6 +22,8 @@ export interface MachineHttpPolicy {
   readonly maxResponseBytes: number
   /** Host-owned live admission after all preparation, before the synchronous write guard. */
   readonly beforeGuardedDispatch?: () => Promise<void>
+  /** Host lifecycle observation after the final guard, before the synchronous request creation. */
+  readonly onGuardedDispatch?: () => void
 }
 export interface HttpReply {
   readonly status: number
@@ -91,6 +93,7 @@ export class MachineHttp {
         // a ClientRequest may already open a socket: guard before creation.
         cancellation.throwIfAborted()
         check?.()
+        if (beforeWrite !== undefined) this.policy.onGuardedDispatch?.()
         const outgoing = request(
           {
             protocol: target.url.protocol,

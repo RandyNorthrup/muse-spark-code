@@ -14,7 +14,7 @@
   "makerReject": "Odmítnout",
   "makerApprovalExpired": "Toto schválení vypršelo. Požádejte o akci znovu.",
   "makerApprovalTargetChanged": "Cíl se změnil. Zkontrolujte nové schválení.",
-  "makerUnattendedDenied": "Hardwarové akce vyžadují relaci pod dohledem uživatele.",
+  "makerUnattendedDenied": "Akce s hardwarem vyžadují přítomnost uživatele. Spusťte příkaz sami v terminálu.",
   "makerTrustRequired": "Před povolením hardwaru označte tento pracovní prostor jako důvěryhodný.",
   "makerEnableHardware": "Povolit hardware pro tento pracovní prostor",
   "makerDisableHardware": "Zakázat hardware pro tento pracovní prostor",
@@ -2667,5 +2667,7 @@
   "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
-  "judgeStatusPaid": "Placené"
+  "judgeStatusPaid": "Placené",
+  "makerStopFailed": "Zastavení selhalo — ihned použijte fyzické nouzové zastavení stroje {machine}.",
+  "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné."
 }

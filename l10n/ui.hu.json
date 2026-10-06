@@ -14,7 +14,7 @@
   "makerReject": "Elutasítás",
   "makerApprovalExpired": "Ez a jóváhagyás lejárt. Kérje újra a műveletet.",
   "makerApprovalTargetChanged": "A cél megváltozott. Tekintse át az új jóváhagyást.",
-  "makerUnattendedDenied": "A hardverműveletekhez felhasználó által felügyelt munkamenet szükséges.",
+  "makerUnattendedDenied": "A hardverműveletekhez jelen lévő felhasználó szükséges. Futtassa a parancsot saját maga egy terminálban.",
   "makerTrustRequired": "A hardver engedélyezése előtt jelölje megbízhatónak ezt a munkaterületet.",
   "makerEnableHardware": "Hardver engedélyezése ezen a munkaterületen",
   "makerDisableHardware": "Hardver letiltása ezen a munkaterületen",
@@ -2477,5 +2477,7 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "makerStopFailed": "A leállítás sikertelen — azonnal használja a(z) {machine} gép fizikai vészleállítóját.",
+  "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el."
 }

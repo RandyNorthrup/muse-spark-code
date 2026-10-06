@@ -47,6 +47,22 @@ export class RuntimeMakerHost implements MakerHost {
     await host.refresh()
     return host
   }
+  /** Broken/unavailable grant storage must leave the companion's Stop usable, with authority off. */
+  static stopOnly(deps: RuntimeMakerHostDeps): RuntimeMakerHost {
+    const unavailable = {
+      directory: path.join(deps.dataDirectory, 'maker'),
+      get: () => Promise.reject(new Error('maker-authority-unavailable')),
+      update: () => Promise.reject(new Error('maker-authority-unavailable')),
+      delete: () => Promise.reject(new Error('maker-authority-unavailable')),
+    }
+    return new RuntimeMakerHost(
+      { ...deps, trusted: () => false, flagged: () => false },
+      {
+        workspace: unavailable,
+        machine: unavailable,
+      },
+    )
+  }
   private enabled = false
   private readonly listeners = new Set<(message: MakerHostMessage) => void>()
   private readonly pending = new Map<

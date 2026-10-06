@@ -14,7 +14,7 @@
   "makerReject": "拒绝",
   "makerApprovalExpired": "此批准已过期。请重新请求操作。",
   "makerApprovalTargetChanged": "目标已更改。请审核新的批准请求。",
-  "makerUnattendedDenied": "硬件操作需要用户监督的会话。",
+  "makerUnattendedDenied": "硬件操作需要有人在场。请您亲自在终端中运行此命令。",
   "makerTrustRequired": "启用硬件前，请信任此工作区。",
   "makerEnableHardware": "为此工作区启用硬件",
   "makerDisableHardware": "为此工作区禁用硬件",
@@ -2382,5 +2382,7 @@
   "judgeStatusDeclined": "关闭：已拒绝付费使用",
   "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
   "judgeStatusSubscription": "订阅",
-  "judgeStatusPaid": "付费"
+  "judgeStatusPaid": "付费",
+  "makerStopFailed": "停止失败 — 请立即使用机器 {machine} 的物理紧急停止装置。",
+  "makerStopPhysicalRequired": "机器 {machine} 需要物理紧急停止；软件停止不可用。"
 }

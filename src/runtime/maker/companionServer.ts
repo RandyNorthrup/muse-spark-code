@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
 import { handleMcpMessage, type McpTool } from '../../core/mcp'
@@ -14,8 +14,20 @@ import {
 import { makerSurfaceMessageSchema, type MakerSurfaceMessage } from '../../shared/makerProtocol'
 import type { RuntimeMakerHost } from './runtimeMakerHost'
 
+const bootstrapSchema = z.strictObject({
+  approvalKey: z.string(),
+  provider: z.optional(
+    z.strictObject({
+      host: z.literal(RUNTIME_MAKER_HOST),
+      port: z.int().check(z.positive()),
+      token: z.string(),
+    }),
+  ),
+})
+
 export interface CompanionDeps {
-  readonly host: RuntimeMakerHost
+  readonly host?: RuntimeMakerHost
+  readonly provider?: { readonly host: string; readonly port: number; readonly token: string }
   readonly bind?: string
   readonly dispatch: (message: MakerSurfaceMessage, signal: AbortSignal) => Promise<unknown>
   readonly tools: () => readonly McpTool[]
@@ -46,6 +58,8 @@ export async function startCompanion(deps: CompanionDeps) {
   const bind = deps.bind ?? RUNTIME_MAKER_HOST
   if (bind !== RUNTIME_MAKER_HOST && bind !== '::1') throw new Error('maker-loopback-required')
   let launch = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+  const instance = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
+  const approvalKey = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const session = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const mcp = randomBytes(RUNTIME_MAKER_TOKEN_BYTES).toString('hex')
   const streams = new Set<ServerResponse>()
@@ -59,6 +73,14 @@ export async function startCompanion(deps: CompanionDeps) {
   })
   server.requestTimeout = RUNTIME_MAKER_TIMEOUT_MS
   server.headersTimeout = RUNTIME_MAKER_TIMEOUT_MS
+  function beginRequest(response: ServerResponse): AbortController {
+    const controller = new AbortController()
+    active.add(controller)
+    response.once('close', () => {
+      if (!response.writableFinished) controller.abort()
+    })
+    return controller
+  }
   async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
     const authority = new URL(origin).host
     if (request.headers.host !== authority) {
@@ -88,8 +110,20 @@ export async function startCompanion(deps: CompanionDeps) {
         return
       }
       launch = ''
-      response.setHeader('Set-Cookie', `maker=${session}; HttpOnly; SameSite=Strict; Path=/`)
-      response.writeHead(RUNTIME_MAKER_HTTP_NO_CONTENT).end()
+      // HTTP loopback cannot use Secure/__Host-. Name and value bind this host-only cookie to this instance and port.
+      response.setHeader(
+        'Set-Cookie',
+        `${cookieName()}=${cookieValue()}; HttpOnly; SameSite=Strict; Path=/`,
+      )
+      // Bootstrap only, single-use launch: this key stays in the person's page memory.
+      response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'application/json' }).end(
+        JSON.stringify(
+          bootstrapSchema.parse({
+            approvalKey,
+            ...(deps.provider !== undefined && { provider: deps.provider }),
+          }),
+        ),
+      )
       return
     }
     if (request.url === '/mcp') {
@@ -101,11 +135,7 @@ export async function startCompanion(deps: CompanionDeps) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
-      const controller = new AbortController()
-      active.add(controller)
-      response.once('close', () => {
-        if (!response.writableFinished) controller.abort()
-      })
+      const controller = beginRequest(response)
       try {
         const message = await body(request)
         const outcome = await handleMcpMessage(
@@ -133,16 +163,16 @@ export async function startCompanion(deps: CompanionDeps) {
       request.headers.cookie
         ?.split(';')
         .map((entry) => entry.trim())
-        .find((entry) => entry.startsWith('maker='))
-        ?.slice('maker='.length) ?? ''
-    if (!isSame(cookie, session)) {
+        .find((entry) => entry.startsWith(`${cookieName()}=`))
+        ?.slice(cookieName().length + 1) ?? ''
+    if (!isSame(cookie, cookieValue())) {
       response.writeHead(HTTP_STATUS.unauthorized).end()
       return
     }
     if (request.url === '/events' && request.method === 'GET') {
       response.writeHead(HTTP_STATUS.ok, { 'Content-Type': 'text/event-stream' })
       streams.add(response)
-      const unsubscribe = deps.host.subscribe((message) => {
+      const unsubscribe = deps.host?.subscribe((message) => {
         const frame = `data: ${JSON.stringify(message)}\n\n`
         if (response.writableLength + Buffer.byteLength(frame) > RUNTIME_MAKER_MAX_BYTES)
           response.destroy()
@@ -150,42 +180,56 @@ export async function startCompanion(deps: CompanionDeps) {
       })
       response.once('close', () => {
         streams.delete(response)
-        unsubscribe()
+        unsubscribe?.()
       })
       return
     }
-    if (request.url === '/message' && request.method === 'POST') {
+    if ((request.url === '/message' || request.url === '/answer') && request.method === 'POST') {
       if (incomingOrigin !== origin) {
         response.writeHead(HTTP_STATUS.forbidden).end()
         return
       }
       const raw = await body(request)
-      const parsed = makerSurfaceMessageSchema.safeParse(raw)
-      if (!parsed.success) {
-        const answer = z
-          .object({ v: z.literal(1), type: z.literal('makerAnswer'), answer: z.unknown() })
-          .safeParse(raw)
-        if (answer.success) deps.host.answer(answer.data.answer)
-        response.writeHead(HTTP_STATUS.badRequest).end()
-        return
-      }
-      const message = parsed.data
-      // Stop and answers never wait behind ordinary requests or hardware admission.
-      if (message.type === 'makerAnswer') {
+      const correlation = z
+        .object({
+          v: z.literal(1),
+          type: z.literal('makerAnswer'),
+          answer: z.object({ id: z.uuid() }),
+        })
+        .safeParse(raw)
+      if (request.url === '/answer') {
+        if (
+          !correlation.success ||
+          !isSame(
+            request.headers['x-maker-approval']?.toString() ?? '',
+            createHmac('sha256', approvalKey).update(correlation.data.answer.id).digest('hex'),
+          )
+        ) {
+          response.writeHead(HTTP_STATUS.forbidden).end()
+          return
+        }
+        const answer = z.object({ answer: z.unknown() }).parse(raw)
         response
           .writeHead(
-            deps.host.answer(message.answer)
+            deps.host?.answer(answer.answer)
               ? RUNTIME_MAKER_HTTP_NO_CONTENT
               : RUNTIME_MAKER_HTTP_CONFLICT,
           )
           .end()
         return
       }
-      const controller = new AbortController()
-      active.add(controller)
-      response.once('close', () => {
-        if (!response.writableFinished) controller.abort()
-      })
+      const parsed = makerSurfaceMessageSchema.safeParse(raw)
+      if (!parsed.success) {
+        response.writeHead(HTTP_STATUS.badRequest).end()
+        return
+      }
+      const message = parsed.data
+      // The request channel never carries approval authority, even with a valid session cookie.
+      if (message.type === 'makerAnswer') {
+        response.writeHead(HTTP_STATUS.forbidden).end()
+        return
+      }
+      const controller = beginRequest(response)
       try {
         const result = await deps.dispatch(message, controller.signal)
         response
@@ -207,7 +251,14 @@ export async function startCompanion(deps: CompanionDeps) {
   })
   const address = server.address()
   if (address === null || typeof address === 'string') throw new Error('maker-listen-address')
-  origin = `http://${bind === '::1' ? '[::1]' : bind}:${String(address.port)}`
+  const port = address.port
+  origin = `http://${bind === '::1' ? '[::1]' : bind}:${String(port)}`
+  function cookieName() {
+    return `maker_${instance}_${String(port)}`
+  }
+  function cookieValue() {
+    return `${instance}.${String(port)}.${session}`
+  }
   return {
     url: origin,
     launch,
@@ -216,7 +267,7 @@ export async function startCompanion(deps: CompanionDeps) {
       headers: { Authorization: `Bearer ${mcp}` },
     },
     async close(): Promise<void> {
-      deps.host.cancelApprovals()
+      deps.host?.cancelApprovals()
       for (const controller of active) controller.abort()
       for (const response of streams) response.end()
       server.closeAllConnections()

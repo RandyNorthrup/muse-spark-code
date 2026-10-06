@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { createServer, type Socket } from 'node:net'
 import * as z from 'zod/mini'
 import {
@@ -74,7 +74,12 @@ export async function startThonnyServer(owner: ThonnyPortOwner) {
     async function handle(raw: unknown): Promise<void> {
       if (!isReady) {
         const hello = helloSchema.parse(raw)
-        if (!canWelcome() || hello.token !== token) throw new Error('thonny-provider-refused')
+        if (
+          !canWelcome() ||
+          Buffer.byteLength(hello.token) !== Buffer.byteLength(token) ||
+          !timingSafeEqual(Buffer.from(hello.token), Buffer.from(token))
+        )
+          throw new Error('thonny-provider-refused')
         await cleanup
         if (!canWelcome()) throw new Error('thonny-provider-refused')
         lifetime.signal.throwIfAborted()

@@ -7,6 +7,20 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- FIXM103R: refuse unattended maker privileges using terminal and ancestry
+  evidence; open the companion via the OS browser without printing launch or
+  Thonny tokens. Panel cookies bind their instance and port; only a separate
+  page-held, once-only capability can answer an approval. Stop reads user-level
+  registries independently of workspace authority, including home/root/linked
+  paths and occupied ACP turns with leading whitespace. Failed Stop names the
+  machine and requires immediate physical emergency Stop in all fourteen
+  languages. Dead leases no longer cause a false alarm; unavailable serial and
+  PrusaLink Stop reports the physical requirement, and cancelling an unsent
+  approval no longer dispatches emergency Stop. ACP session guards now have
+  direct regression/drill coverage. Physical Muse Code MCP tools are withheld
+  until captured caller-turn provenance is available; the unsafe stdout
+  Thonny startup handoff is withdrawn pending private editor integration.
+
 - M103R runtime/ACP maker host: hardware grants outside the workspace, OS
   credential storage, hardware/machines/Stop commands, editor permissions
   with once-only target binding, authenticated loopback companion/MCP

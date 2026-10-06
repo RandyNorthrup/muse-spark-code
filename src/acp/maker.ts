@@ -71,3 +71,9 @@ export async function askMakerPermission(
   }
   return { id: snapshot.id, digest: snapshot.digest, target: snapshot.target, decision }
 }
+
+/** Shared command recognition, including Stop while a turn is busy. */
+export function parseMakerSlashCommand(text: string) {
+  const match = /^\/(hardware|machines|stop-machine)(?:\s+(.*))?$/.exec(text.trim())
+  return match === null ? undefined : { name: match[1], args: match[2]?.trim() ?? '' }
+}

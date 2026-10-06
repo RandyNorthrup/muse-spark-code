@@ -56,9 +56,16 @@ function lockPath(deps: LeaseDependencies, resource: string): string {
   return path.join(deps.directory, `${createHash('sha256').update(resource).digest('hex')}.lock`)
 }
 
-async function privateDirectory(deps: LeaseDependencies): Promise<void> {
-  await mkdir(deps.directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
-  const sample = await lstat(deps.directory)
+async function isPrivateDirectory(deps: LeaseDependencies, shouldCreate = true): Promise<boolean> {
+  if (shouldCreate) await mkdir(deps.directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
+  let sample
+  try {
+    sample = await lstat(deps.directory)
+  } catch (error) {
+    if (!shouldCreate && error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return false
+    throw error
+  }
   if (!sample.isDirectory() || sample.isSymbolicLink()) throw new Error('lease-directory-invalid')
   const getUserId = process.getuid
   if (
@@ -67,6 +74,7 @@ async function privateDirectory(deps: LeaseDependencies): Promise<void> {
   ) {
     throw new Error('lease-directory-not-private')
   }
+  return true
 }
 
 async function readRecord(
@@ -250,9 +258,9 @@ export async function claimHardwareLease(
       readonly release: () => Promise<void>
     }
 > {
-  await privateDirectory(deps)
+  await isPrivateDirectory(deps)
   const directory = lockPath(deps, resource)
-  await privateDirectory({ ...deps, directory })
+  await isPrivateDirectory({ ...deps, directory })
   let opening: Promise<() => Promise<void>> | undefined
   let writing: Promise<void> | undefined
   let attempted: HardwareLeaseRecord | undefined
@@ -351,14 +359,14 @@ export async function claimHardwareLease(
 
 /** Out-of-band: no approval, mutex or running-turn queue is involved. */
 export async function stopAllHardwareLeases(deps: LeaseDependencies): Promise<void> {
-  await privateDirectory(deps)
+  if (!(await isPrivateDirectory(deps, false))) return
   const entries = await readdir(deps.directory)
   const results = await Promise.allSettled(
     entries
       .filter((entry) => /^[a-f0-9]{64}\.lock$/.test(entry))
       .map(async (entry) => {
         const directory = path.join(deps.directory, entry)
-        await privateDirectory({ ...deps, directory })
+        if (!(await isPrivateDirectory({ ...deps, directory }, false))) return
         const records = await readRecords(directory, deps.maxRecordBytes)
         const resources = new Set<string>()
         for (const { record } of records) {
@@ -369,7 +377,19 @@ export async function stopAllHardwareLeases(deps: LeaseDependencies): Promise<vo
         }
         await Promise.all(
           [...resources].map(async (resource) => {
-            if (!(await didStopHardwareLease(deps, resource)))
+            const owners = records.filter(({ record }) => record.resource === resource)
+            const live = await Promise.all(
+              owners.map(
+                async ({ record }) =>
+                  (deps.isProcessAlive ?? isProcessAlive)(record.pid) ||
+                  (await (
+                    deps.isEndpointAlive ??
+                    ((endpoint) => isEndpointReachable(endpoint, deps.timeoutMs))
+                  )(record.endpoint)),
+              ),
+            )
+            // Dead process AND absent endpoint is stale; do not remove or alarm on it.
+            if (live.some(Boolean) && !(await didStopHardwareLease(deps, resource)))
               throw new Error('lease-stop-unavailable')
           }),
         )
@@ -383,7 +403,7 @@ export async function didStopHardwareLease(
   deps: LeaseDependencies,
   resource: string,
 ): Promise<boolean> {
-  await privateDirectory(deps)
+  if (!(await isPrivateDirectory(deps, false))) return false
   const directory = lockPath(deps, resource)
   try {
     await lstat(directory)
@@ -391,7 +411,7 @@ export async function didStopHardwareLease(
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return false
     throw error
   }
-  await privateDirectory({ ...deps, directory })
+  if (!(await isPrivateDirectory({ ...deps, directory }, false))) return false
   const records = await readRecords(directory, deps.maxRecordBytes)
   for (const { record } of records) {
     validateEndpoint(record, deps)

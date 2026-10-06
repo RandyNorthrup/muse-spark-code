@@ -19,7 +19,7 @@ import {
 import type { MakerSecrets } from '../../core/maker/ports'
 import type { Machine, MachineDeps, MachineSendResult } from '../../core/maker/machines/machine'
 import { DeviceLog } from '../../core/maker/deviceLog'
-import { claimHardwareLease, didStopHardwareLease } from '../../core/maker/lease'
+import { claimHardwareLease } from '../../core/maker/lease'
 import {
   RUNTIME_MAKER_APPROVAL_MS,
   RUNTIME_MAKER_LOG_BYTES,
@@ -37,9 +37,11 @@ import {
   makerSurfaceMessageSchema,
   type MakerSurfaceMessage,
 } from '../../shared/makerProtocol'
+import { fill } from '../../shared/l10n/text'
 import type { McpTool } from '../../core/mcp'
 import { RuntimeMakerHost, type RuntimeMakerHostDeps } from './runtimeMakerHost'
 import { nativeSerial, type NativeSerialDeps } from './nativeSerial'
+import { stopRuntimeMachines, stopResultText } from './stop'
 
 const toolArgs = z.strictObject({
   machineId: z.string().check(z.minLength(1)),
@@ -60,6 +62,7 @@ export const runtimeMakerLan: MakerLanPolicy = {
   },
 }
 export interface RuntimeMakerServiceDeps extends Omit<RuntimeMakerHostDeps, 'auditEnable'> {
+  readonly stopOnlyFallback?: boolean
   readonly native: Pick<NativeSerialDeps, 'platform' | 'env' | 'packageRoot' | 'classify'>
   readonly lan?: MakerLanPolicy
   /** A host-owned, already approved and leased serial machine connection, supplied by P/W. */
@@ -68,11 +71,10 @@ export interface RuntimeMakerServiceDeps extends Omit<RuntimeMakerHostDeps, 'aud
 }
 export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   const logging: { value?: DeviceLog } = {}
-  const host = await RuntimeMakerHost.create({
+  const hostDeps: RuntimeMakerHostDeps = {
     ...deps,
     auditEnable: async (reason) => {
-      if (logging.value === undefined) throw new Error('maker-log-unavailable')
-      await logging.value.append({
+      await deviceLog().append({
         machine: 'workspace',
         action: 'observe',
         payload: reason,
@@ -80,26 +82,35 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         outcome: 'sent',
       })
     },
-  })
+  }
+  let host: RuntimeMakerHost
+  try {
+    host = await RuntimeMakerHost.create(hostDeps)
+  } catch (error) {
+    if (deps.stopOnlyFallback !== true) throw error
+    host = RuntimeMakerHost.stopOnly(hostDeps)
+  }
   const registry = new MachineRegistry(
     new FileMachineStorage(host.storage.machine.directory),
     host.secrets,
     deps.lan ?? runtimeMakerLan,
   )
-  const deviceLog = new DeviceLog(host.storage.workspace.directory, deps.workspace, {
-    maxBytes: RUNTIME_MAKER_LOG_BYTES,
-    maxEntryBytes: RUNTIME_MAKER_MAX_BYTES,
-    now: Date.now,
-    secretValues: async () => {
-      const records = await registry.list()
-      const values = await Promise.all([
-        host.secrets.get(SECRET_KEYS.modelApiKey),
-        ...records.map((record) => host.secrets.get(machineSecretName(record.registrationId))),
-      ])
-      return values.filter((value) => value !== undefined)
-    },
-  })
-  logging.value = deviceLog
+  function deviceLog(): DeviceLog {
+    logging.value ??= new DeviceLog(host.storage.workspace.directory, deps.workspace, {
+      maxBytes: RUNTIME_MAKER_LOG_BYTES,
+      maxEntryBytes: RUNTIME_MAKER_MAX_BYTES,
+      now: Date.now,
+      secretValues: async () => {
+        const records = await registry.list()
+        const values = await Promise.all([
+          host.secrets.get(SECRET_KEYS.modelApiKey),
+          ...records.map((record) => host.secrets.get(machineSecretName(record.registrationId))),
+        ])
+        return values.filter((value) => value !== undefined)
+      },
+    })
+    return logging.value
+  }
   const serial = nativeSerial({
     ...deps.native,
     dataDirectory: host.storage.machine.directory,
@@ -107,7 +118,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     host,
     refreshAdmission: () => host.refresh(),
     audit: ({ request, outcome }) =>
-      deviceLog.append({
+      deviceLog().append({
         machine: request.target.port,
         action: request.action,
         payload:
@@ -120,13 +131,14 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   })
   const machines = new Map<string, Machine>()
   const leased = new Set<string>()
+  const dispatched = new Set<string>()
   async function machine(id: string): Promise<Machine> {
     const record = await registry.get(id)
     const previous = machines.get(record.registrationId)
     if (previous !== undefined) return previous
     const engineDeps: MachineDeps = {
       host,
-      log: deviceLog,
+      log: deviceLog(),
       isLeaseHeld: () => leased.has(record.registrationId),
       policy: {
         gcode: {
@@ -153,6 +165,9 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     const http = new MachineHttp(record, deps.lan ?? runtimeMakerLan, secrets, {
       timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
       maxResponseBytes: RUNTIME_MAKER_MAX_BYTES,
+      onGuardedDispatch: () => {
+        dispatched.add(record.registrationId)
+      },
       beforeGuardedDispatch: async () => {
         await host.refresh()
         const current = await registry.get(id)
@@ -188,33 +203,18 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     machines.set(record.registrationId, engine)
     return engine
   }
-  async function stop(id?: string): Promise<void> {
+  async function stop(id?: string) {
     host.cancelApprovals()
     serial.stop()
-    const results = await Promise.allSettled([
-      ...(id === undefined ? [serial.stopOwners()] : []),
-      (async () => {
-        const records = id === undefined ? await registry.list() : [await registry.get(id)]
-        const machineResults = await Promise.allSettled(
-          records.map(async (record) => {
-            // Cancel an owner's live stream before the fixed machine Stop; no admission gate.
-            const results = await Promise.allSettled([
-              didStopHardwareLease(serial.lease, `machine:${record.registrationId}`),
-              (async () => {
-                const target = await machine(record.id)
-                await target.stop()
-              })(),
-            ])
-            if (results.some((result) => result.status === 'rejected'))
-              throw new MachineError('machine-stop-failed')
-          }),
-        )
-        if (machineResults.some((result) => result.status === 'rejected'))
-          throw new MachineError('machine-stop-failed')
-      })(),
-    ])
-    if (results.some((result) => result.status === 'rejected'))
-      throw new MachineError('machine-stop-failed')
+    return await stopRuntimeMachines(
+      {
+        dataDirectory: deps.dataDirectory,
+        platform: deps.native.platform,
+        secrets: deps.secrets,
+        lan: deps.lan ?? runtimeMakerLan,
+      },
+      id,
+    )
   }
   async function send(
     id: string,
@@ -234,12 +234,20 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       },
     )
     if (claim.status !== 'acquired') throw new MachineError('machineBusy')
+    dispatched.delete(generation)
     leased.add(generation)
     const cancel = () => {
       host.cancelApprovals()
-      void engine.stop().catch(() => {
-        /* The send outcome records the failed Stop. */
-      })
+      // Revoke the final write guard. Cancelling an unsent permission is not a machine Stop.
+      leased.delete(generation)
+      if (dispatched.has(generation))
+        void engine.stop().catch(() => {
+          host.notify({
+            type: 'makerNotice',
+            level: 'error',
+            message: fill(UI_TEXT.makerStopFailed, { machine: engine.record.name }),
+          })
+        })
     }
     signal.addEventListener('abort', cancel, { once: true })
     try {
@@ -249,6 +257,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
     } finally {
       signal.removeEventListener('abort', cancel)
       leased.delete(generation)
+      dispatched.delete(generation)
       await claim.release()
     }
   }
@@ -266,7 +275,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         endpoint,
         limits,
       }))
-    const discovered = await serial.ports()
+    const discovered = host.hardwareEnabled() ? await serial.ports() : []
     const ports = discovered.map((identity) => ({ ...identity, kind: 'serial' as const }))
     host.updatePorts(ports)
     host.stopControls(summaries)
@@ -283,8 +292,11 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   async function dispatch(raw: MakerSurfaceMessage, signal: AbortSignal): Promise<unknown> {
     const message = makerSurfaceMessageSchema.parse(raw)
     if (message.type === 'makerStop') {
-      await stop(message.machineId)
-      return { outcome: 'stopped' }
+      const result = await stop(message.machineId)
+      return {
+        outcome: result.physicalStopRequired.length === 0 ? 'stopped' : 'physicalStopRequired',
+        message: stopResultText(result),
+      }
     }
     if (message.type === 'makerAnswer') return host.answer(message.answer)
     if (message.type === 'makerHardware') {
@@ -371,7 +383,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         return makerHostMessageSchema.parse({
           v: 1,
           type: 'makerDeviceLog',
-          entries: await deviceLog.read(),
+          entries: await deviceLog().read(),
         })
       }
       default: {
@@ -416,8 +428,11 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
         inputSchema: schema,
         call: async (raw) => {
           const args = toolArgs.parse(raw)
-          await stop(args.machineId)
-          return JSON.stringify({ outcome: 'stopped' })
+          const result = await stop(args.machineId)
+          return JSON.stringify({
+            outcome: result.physicalStopRequired.length === 0 ? 'stopped' : 'physicalStopRequired',
+            message: stopResultText(result),
+          })
         },
       },
       {

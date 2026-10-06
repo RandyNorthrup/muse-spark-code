@@ -1,12 +1,15 @@
 import path from 'node:path'
 import type { MakerSecrets } from '../../core/maker/ports'
 import type { MakerCommand } from './commandArgs'
-import { createRuntimeMakerService } from './service'
-import { runMakerCommand } from './commands'
+import { createRuntimeMakerService, runtimeMakerLan } from './service'
+import { stopRuntimeMachines, stopResultText } from './stop'
+import { runMakerCommand, openMakerBrowser } from './commands'
+import { UI_TEXT } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createAcpMakerRuntime } from './acpRuntime'
 import type { AcpMakerRuntime } from '../../acp/maker'
+import { isMakerTerminalAttended } from './attended'
 
 export function runtimeMakerAcp(deps: RuntimeMakerEntryDeps, isTrusted: boolean): AcpMakerRuntime {
   setUiText(deps.table, deps.locale)
@@ -32,6 +35,7 @@ export interface RuntimeMakerEntryDeps {
   readonly secrets: MakerSecrets
   readonly readSecret: () => Promise<string | undefined>
   readonly print: (line: string) => void
+  readonly reportFailure?: (line: string) => void
   readonly done: AbortSignal
   readonly table: UiText
   readonly locale: string
@@ -41,13 +45,48 @@ export async function runRuntimeMaker(
   deps: RuntimeMakerEntryDeps,
 ): Promise<number> {
   setUiText(deps.table, deps.locale)
+  if (command.action === 'stop-machine') {
+    try {
+      const result = await stopRuntimeMachines(
+        {
+          dataDirectory: deps.dataDirectory,
+          platform: deps.platform,
+          secrets: deps.secrets,
+          lan: runtimeMakerLan,
+        },
+        command.operation,
+      )
+      deps.print(stopResultText(result))
+      return 0
+    } catch (error) {
+      ;(deps.reportFailure ?? deps.print)(
+        error instanceof Error ? error.message : UI_TEXT.makerPhysicalStopRequired,
+      )
+      return 1
+    }
+  }
+  const isAttended = await isMakerTerminalAttended({
+    stdinTty: process.stdin.isTTY,
+    stdoutTty: process.stdout.isTTY,
+    parentPid: process.ppid,
+    platform: deps.platform,
+    env: deps.env,
+  })
+  if (
+    !isAttended &&
+    (command.action === 'panel' ||
+      (command.action === 'hardware' && command.operation === 'enable') ||
+      (command.action === 'machines' && command.operation === 'add'))
+  )
+    throw new Error(UI_TEXT.makerUnattendedDenied)
   const service = await createRuntimeMakerService({
+    stopOnlyFallback: command.action === 'panel',
     dataDirectory: deps.dataDirectory,
     workspace: deps.workspace,
     secrets: deps.secrets,
     trusted: () => command.trusted,
     flagged: () => true,
-    interactive: () => true,
+    interactive: () => isAttended,
     native: {
       platform: deps.platform,
       env: deps.env,
@@ -55,7 +94,11 @@ export async function runRuntimeMaker(
     },
   })
   try {
-    return await runMakerCommand(command, { ...deps, service })
+    return await runMakerCommand(command, {
+      ...deps,
+      service,
+      openBrowser: (url) => openMakerBrowser(url, deps.platform, deps.env),
+    })
   } finally {
     await service.close()
   }
