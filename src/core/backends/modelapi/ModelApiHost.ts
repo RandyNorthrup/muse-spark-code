@@ -1,4 +1,5 @@
 import { redactDiagnosticEvent } from '../../redact'
+import { isParallelRead, scheduleTools } from './toolScheduler'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -60,6 +61,7 @@ import {
   MEMORY_INDEX_FILE,
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
+  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_EFFORT_OFF,
   MODEL_API_HOOK_PROVIDER,
@@ -518,6 +520,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * false packs nothing and offers no `recall_output`.
    */
   readonly observationPacking?: (() => boolean) | undefined
+  /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
+  readonly parallelReads?: () => boolean
+  /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
+  readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
+  /** Fixed for the session, with an explicit off arm for byte-identical requests. */
+  readonly outputContinuation?: () => boolean
   /**
    * The shell keeps its directory between calls (M91 lane S, PLAN.md D70):
    * `museSpark.modelApiShellKeepsDirectory`, read per shell call. Absent or
@@ -814,10 +822,26 @@ interface HookToolResult {
   readonly stopReason: string | undefined
 }
 
+interface PreparedToolCall {
+  readonly call: FunctionCallItem
+  readonly effectiveCall: FunctionCallItem
+  readonly pre: HookDispatch
+  readonly started: ItemSnapshot
+  readonly startedAt: number
+  readonly selectionReason: string | undefined
+}
+
+interface ExecutedToolCall {
+  readonly isParallelExecution: boolean
+  readonly result: CallResult
+  readonly slot: AdmissionSlot
+}
+
 interface StreamedCall {
   readonly calls: readonly FunctionCallItem[]
   readonly goalCommandRevision: number
   readonly postContexts: readonly string[]
+  readonly incompleteReason: string | undefined
 }
 
 /** A request's budget reservation while it runs (M82). */
@@ -2048,6 +2072,9 @@ export class ModelApiSession implements AgentSession {
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  private readonly parallelReads: boolean
+  private readonly outputContinuation: boolean
+  private readonly outputCaps = new Map<string, number>()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
    * it even where this session does not pack; a packing session's store
@@ -2157,6 +2184,8 @@ export class ModelApiSession implements AgentSession {
      */
     private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
+    this.parallelReads = this.deps.parallelReads?.() ?? true
+    this.outputContinuation = this.deps.outputContinuation?.() ?? true
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.permissions = new PermissionEngine(approvalMode)
@@ -2811,6 +2840,7 @@ export class ModelApiSession implements AgentSession {
             spentUsd: this.budgetSpentUsd,
             estimatedInputTokens: estimate.inputTokens,
             modelId: body.model,
+            maxOutputTokens,
           })
         : {
             estimatedInputTokens: estimate.inputTokens,
@@ -3135,6 +3165,15 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  private outputCap(): number {
+    const cached = this.outputCaps.get(this.modelId)
+    if (cached !== undefined) return cached
+    const cap = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
+    if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+    this.outputCaps.set(this.modelId, cap)
+    return cap
+  }
+
   private body(): CreateResponseBody {
     this.drainChildResults()
     const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
@@ -3162,7 +3201,7 @@ export class ModelApiSession implements AgentSession {
       stream: true,
       store: false,
       include: this.includes(),
-      max_output_tokens: MODEL_API_MAX_OUTPUT_TOKENS,
+      max_output_tokens: this.outputCap(),
     })
   }
 
@@ -4227,7 +4266,15 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
-    return { calls, goalCommandRevision, postContexts: [...thoughtContexts, ...post.contexts] }
+    return {
+      calls,
+      goalCommandRevision,
+      postContexts: [...thoughtContexts, ...post.contexts],
+      incompleteReason:
+        final.status === 'incomplete'
+          ? (final.incomplete_details?.reason ?? 'response.incomplete')
+          : undefined,
+    }
   }
 
   /**
@@ -9228,7 +9275,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
 
-  /** Permission check, execution and the transcript row for one tool call. */
+  /** A serial call, including corrections and then_run, takes the same staged path. */
   private async runCall(
     turnId: string,
     call: FunctionCallItem,
@@ -9236,6 +9283,26 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
+    const prepared = await this.prepareCall(turnId, call, signal)
+    const [result] = await Promise.allSettled([
+      this.executeCall(turnId, prepared, signal, goalCommandRevision),
+    ])
+    return await this.settleCall(
+      turnId,
+      prepared,
+      result,
+      signal,
+      goalCommandRevision,
+      correctionsUsed,
+    )
+  }
+
+  /** PreToolUse runs serially, before any call in a read group starts. */
+  private async prepareCall(
+    turnId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<PreparedToolCall> {
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
@@ -9294,6 +9361,33 @@ export class ModelApiSession implements AgentSession {
     }
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
+    return { call, effectiveCall, pre, started, startedAt, selectionReason }
+  }
+
+  /** A hook's question or refusal is a barrier, even for a read-only name. */
+  private canParallelCall(prepared: PreparedToolCall): boolean {
+    const { effectiveCall, pre } = prepared
+    const external = this.externalTool(effectiveCall.name)
+    return (
+      isParallelRead(effectiveCall.name) &&
+      (external === undefined || external.kind === 'ide') &&
+      pre.blockedReason === undefined &&
+      pre.stopReason === undefined &&
+      !pre.forceApproval &&
+      this.judgementWithHook({ toolName: effectiveCall.name, toolClass: 'read' }, false).verdict ===
+        'allow'
+    )
+  }
+
+  private async executeCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    isParallelExecution = false,
+  ): Promise<ExecutedToolCall> {
+    const { effectiveCall, pre, started } = prepared
+    const itemId = started.itemId
     const slot: AdmissionSlot = {}
     let result: CallResult
     try {
@@ -9311,13 +9405,6 @@ export class ModelApiSession implements AgentSession {
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
     } catch (error: unknown) {
       if (error instanceof AbortedError || signal.aborted) {
-        this.finishCall(
-          turnId,
-          started,
-          effectiveCall,
-          toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
-          CANCELLED,
-        )
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file, an MCP
@@ -9325,6 +9412,31 @@ export class ModelApiSession implements AgentSession {
       // about, not the end of the turn.
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
+    return { result, slot, isParallelExecution }
+  }
+
+  /** Media admission, replay, packing and PostToolUse settle in call order. */
+  private async settleCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    executed: PromiseSettledResult<ExecutedToolCall>,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    correctionsUsed = 0,
+  ): Promise<HookToolResult> {
+    const { call, effectiveCall, pre, started, startedAt, selectionReason } = prepared
+    if (executed.status === 'rejected' || (signal.aborted && executed.value.isParallelExecution)) {
+      this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        CANCELLED,
+      )
+      throw new AbortedError()
+    }
+    const itemId = started.itemId
+    const { result, slot } = executed.value
     // An MCP tool's `path` is its own business, not a workspace file it read.
     if (this.externalTool(effectiveCall.name) === undefined) {
       await this.touchPath(effectiveCall, turnId, signal)
@@ -9986,6 +10098,7 @@ export class ModelApiSession implements AgentSession {
     const { signal } = turn.abort
     let isStopHookActive = false
     let stopContinuations = 0
+    let outputContinuations = 0
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
@@ -10022,6 +10135,34 @@ export class ModelApiSession implements AgentSession {
         this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.goalBudgetReached)
         this.appendHookContexts(turn.turnId, postContexts)
         this.queuedTurns.unshift(...this.queuedSteered(turn))
+        return
+      }
+      if (streamed.incompleteReason !== undefined) {
+        // A completed function item in a cut-short response is still unsafe:
+        // answer every call, never execute it (M101 item 8).
+        this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
+        this.appendHookContexts(turn.turnId, postContexts)
+        if (
+          streamed.incompleteReason === 'max_output_tokens' &&
+          this.outputContinuation &&
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
+          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+        ) {
+          outputContinuations += 1
+          this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
+          this.replay.push({
+            turnId: turn.turnId,
+            item: noteItem(MODEL_API_MODEL_TEXT.continuationPrompt),
+          })
+          continue
+        }
+        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
+          this.emit({
+            type: 'backendNotice',
+            level: 'warning',
+            text: UI_TEXT.modelApiContinuationLimit,
+          })
+        }
         return
       }
       // One more model call without progress toward the goal (the step probe, D38).
@@ -10091,39 +10232,56 @@ export class ModelApiSession implements AgentSession {
       }
       let isRoundComplete = false
       const batch: Readonly<Record<string, unknown>>[] = []
+      let skipReason: string = MODEL_API_MODEL_TEXT.toolCancelledByStop
       try {
-        for (const [index, call] of calls.entries()) {
-          if (isAbortRequested(signal)) {
-            this.skipCalls(turn.turnId, calls.slice(index))
-            throw new AbortedError()
-          }
-          const requiredBeforeCall = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-          if (requiredBeforeCall !== undefined) {
-            this.skipCalls(
-              turn.turnId,
-              calls.slice(index),
-              MODEL_API_MODEL_TEXT.mcpRequiredUnavailable,
-            )
-            throw requiredBeforeCall
-          }
-          try {
-            const finished = await this.runCall(turn.turnId, call, signal, goalCommandRevision)
-            batch.push(finished.record)
-            if (finished.stopReason !== undefined) {
-              const requiredAfterCall = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-              if (requiredAfterCall !== undefined) {
-                throw requiredAfterCall
-              }
-              this.skipCalls(turn.turnId, calls.slice(index + 1), finished.stopReason)
-              this.dropUndeliveredMedia(turn.turnId)
-              return
+        const scheduled = await scheduleTools({
+          calls,
+          parallel: this.parallelReads,
+          isRead: (call) =>
+            isParallelRead(call.name) && this.externalTool(call.name)?.kind !== 'mcp',
+          prepare: async (call) => {
+            if (isAbortRequested(signal)) throw new AbortedError()
+            const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+            if (required !== undefined) {
+              skipReason = MODEL_API_MODEL_TEXT.mcpRequiredUnavailable
+              throw required
             }
-          } catch (error: unknown) {
-            this.skipCalls(turn.turnId, calls.slice(index + 1))
-            throw error
-          }
+            return await this.prepareCall(turn.turnId, call, signal)
+          },
+          canParallel: (prepared) => this.canParallelCall(prepared),
+          run: (prepared) => this.executeCall(turn.turnId, prepared, signal, goalCommandRevision),
+          settle: async (prepared, result) => {
+            const finished = await this.settleCall(
+              turn.turnId,
+              prepared,
+              result,
+              signal,
+              goalCommandRevision,
+            )
+            batch.push(finished.record)
+            if (finished.stopReason === undefined) return true
+            const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+            if (required !== undefined) throw required
+            skipReason = finished.stopReason
+            return false
+          },
+          skip: (call, prepared) => {
+            if (prepared === undefined) this.skipCalls(turn.turnId, [call], skipReason)
+            else
+              this.finishCall(
+                turn.turnId,
+                prepared.started,
+                prepared.effectiveCall,
+                toolFailure(skipReason),
+                CANCELLED,
+              )
+          },
+        })
+        isRoundComplete = scheduled.isComplete
+        if (!isRoundComplete) {
+          this.dropUndeliveredMedia(turn.turnId)
+          return
         }
-        isRoundComplete = true
       } finally {
         // A user message between a function call and its output is invalid
         // replay. Post-model context follows the whole tool batch instead.
