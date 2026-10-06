@@ -158,6 +158,20 @@ describe('resource actuator authority and recovery', () => {
     expect(await f.actuators.retire(ticket)).toHaveProperty('retired', true)
     expect(f.value()).toBe('100')
   })
+  it('keeps a failed handle close retryable after restoring policy', async () => {
+    const f = fixture()
+    await f.actuators.setLevel(ticket, 'throttle')
+    vi.mocked(f.control.close).mockRejectedValueOnce(new Error('close failed'))
+    expect(await f.actuators.retire(ticket)).toEqual({
+      retired: false,
+      results: [
+        { control: 'cpuWeight', status: 'restored' },
+        { control: null, status: 'unknown' },
+      ],
+    })
+    expect(f.actuators).toHaveProperty('trees.size', 1)
+    expect(await f.actuators.retire(ticket)).toHaveProperty('retired', true)
+  })
   it('serializes an in-flight mutation with retirement so nothing lowers after restoration', async () => {
     const f = fixture()
     const started = Promise.withResolvers<undefined>()
@@ -200,5 +214,26 @@ describe('resource actuator authority and recovery', () => {
     const f = fixture()
     const result = await f.actuators.setLevel(ticket, 'throttle')
     expect(JSON.stringify(result)).toBe('[{"control":"cpuWeight","status":"applied"}]')
+  })
+  it('releases completed-tree handles only after independent retirement proof, never from an unknown reading', async () => {
+    const f = fixture()
+    await f.actuators.setLevel(ticket, 'throttle')
+    f.tree.remove(ticket.root.pid)
+    expect(await f.actuators.retire(ticket)).toHaveProperty('retired', false)
+    const completed = vi.fn(() => Promise.resolve(false))
+    expect(await f.actuators.releaseCompleted(ticket, { hasCompleted: completed })).toBe(false)
+    expect(f.actuators).toHaveProperty('trees.size', 1)
+    completed.mockRejectedValueOnce(new Error('retirement unknown'))
+    expect(await f.actuators.releaseCompleted(ticket, { hasCompleted: completed })).toBe(false)
+    completed.mockResolvedValue(true)
+    expect(
+      await f.actuators.releaseCompleted(
+        { ...ticket, kind: 'worker' },
+        { hasCompleted: completed },
+      ),
+    ).toBe(false)
+    expect(await f.actuators.releaseCompleted(ticket, { hasCompleted: completed })).toBe(true)
+    expect(f.write).toHaveBeenCalledTimes(1)
+    expect(f.actuators).toHaveProperty('trees.size', 0)
   })
 })

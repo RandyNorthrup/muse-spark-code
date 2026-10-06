@@ -6,7 +6,12 @@ import {
   type ResourceTicket,
   type ResourceTreeReader,
 } from '../../../shared/resources'
-import type { ResourceActionResult, ResourceActuatorPort, ResourceControl } from './controls'
+import type {
+  ResourceActionResult,
+  ResourceActuatorPort,
+  ResourceControl,
+  ResourceTreeCompletionPort,
+} from './controls'
 
 interface SavedControl {
   readonly control: ResourceControl
@@ -147,9 +152,6 @@ export class ResourceActuators {
       const tree = this.trees.get(ticket.id)
       if (tree === undefined || results.some((result) => result.status === 'unknown'))
         return { retired: false, results }
-      for (const saved of tree.saved.values()) {
-        if (saved.dirty && saved.control.reversible) return { retired: false, results }
-      }
       try {
         for (const saved of tree.saved.values()) await saved.control.close()
       } catch {
@@ -157,6 +159,28 @@ export class ResourceActuators {
       }
       this.trees.delete(ticket.id)
       return { retired: true, results }
+    })
+  }
+
+  /** After Stop or natural completion, release saved handles only with C's complete-tree proof.
+   * Closing handles changes no OS policy; a vanished/unknown registry reading is not this proof. */
+  releaseCompleted(
+    input: ResourceTicket,
+    completion: ResourceTreeCompletionPort,
+  ): Promise<boolean> {
+    const ticket = resourceTicketSchema.parse(input)
+    return this.serial(ticket.id, async () => {
+      const tree = this.trees.get(ticket.id)
+      if (tree === undefined) return true
+      if (JSON.stringify(tree.ticket) !== JSON.stringify(ticket)) return false
+      try {
+        if (!(await completion.hasCompleted(ticket))) return false
+        for (const saved of tree.saved.values()) await saved.control.close()
+        this.trees.delete(ticket.id)
+        return true
+      } catch {
+        return false
+      }
     })
   }
 }

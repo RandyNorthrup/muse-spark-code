@@ -33,6 +33,11 @@ export interface ResourceActuatorPort {
   controls(ticket: ResourceTicket): Promise<readonly ResourceControl[]>
 }
 
+/** C1/C2's independent retirement proof, including the complete owned tree, not root exit alone. */
+export interface ResourceTreeCompletionPort {
+  hasCompleted(ticket: ResourceTicket): Promise<boolean>
+}
+
 export interface ResourceActionResult {
   readonly control: ResourceControlName | null
   readonly status: 'applied' | 'restored' | 'unchanged' | 'unknown' | 'lifetimeLowered'
