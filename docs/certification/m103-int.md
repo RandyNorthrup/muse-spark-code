@@ -231,3 +231,64 @@ TypeScript project; the five-project pass precedes the last reason refinement,
 and all five are rerun with lane 0. Build sizes remain 434.0 KiB activation,
 447.0 Model API, 76.9 checkpoint, 792.9 webview startup, 818.2 ACP and
 22.2 verification. No ignore, threshold, cap or rule level was changed.
+
+## Lane 0 strings and localization
+
+The contiguous English maker region has **46 keys**: the nine existing
+detection keys plus 37 entries for human approval, hardware admission,
+physical-stop/reset warnings, target/payload analysis, registration/LAN
+privacy, limits, uncertain outcomes, logs, previews and counts. All fourteen
+UI tables have real translations and their locale-specific plural categories.
+Existing detection translations and every non-maker value are unchanged.
+`UI_TEXT` is read at use time; use `fill`, `plural` and the Intl helpers.
+Commands/settings belong to W and are not registered here, so no new
+`package.nls*.json` keys are required. No English exemption was added.
+
+Each full localization-gate drill reports exactly one problem and exits 1,
+then restores the file byte-exact. No source or translation stays planted:
+
+| Drill            | Path                                  | Restored SHA-256                                                   |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------------ |
+| missing-key      | l10n/ui.cs.json                       | `204144400f00ef2de5b3026631efa3ded03b2ce33fec8465861987f26c1c8bda` |
+| placeholder      | l10n/ui.fr.json                       | `9961b07edecbd9fc6f28351e6892d624b187f15ec25ba5f97ea70273e9c3b8de` |
+| untranslated     | l10n/ui.ja.json                       | `c08c6cbe1070c704f4556d8ebe58adab60e859c833337d85b3364c02feba6f9b` |
+| plural-category  | l10n/ui.pl.json                       | `23d7e2ed6bb22b39f2c6f85b7d05f9f380417e492dba75c4ec52ba9ea8353bf3` |
+| duplicate-key    | l10n/ui.de.json                       | `91a8bf06c9c81c8b06464da3e5e0c5395986ff4c0b9ae79ab3bc7fc807dc550f` |
+| module-load-read | src/core/maker/detect/checkPresets.ts | `8ce77f4eabab867fcb551d302e1af5c1934ed471863838e5a94fcfa7cd5597d8` |
+
+The normal check reports **14 tables, 165 manifest strings, 635 source files,
+0 problems**, including duplicate-key checks. The release base has no
+`src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` or reference-check
+script; joining that independent facility remains with the lead/W as in the
+merged T receipt. This lane documents the schema generator and handoff without
+inventing that separate system.
+
+Lane 0 owning checks: localization/English-region/check-presets suites pass
+**72 cases**; changed-file ESLint and Prettier pass; the production build
+passes all caps, split, globals and notices. Final selected sizes:
+
+```text
+ok   dist/extension.js: 434.0 KiB (budget 600 KiB)
+ok   dist/tab.js: 49.6 KiB (budget 75 KiB)
+ok   dist/verifyEditor.js: 22.3 KiB (budget 25 KiB)
+ok   dist/modelApi.js: 447.0 KiB (budget 475 KiB)
+ok   dist/checkpointStore.js: 76.9 KiB (budget 225 KiB)
+ok   dist/webview/main.js + static imports: 794.5 KiB (budget 900 KiB)
+ok   dist/acp.js: 818.2 KiB (budget 850 KiB)
+ok   dist/extension.js: 6 of the backend's 65 files (14.7 KiB), all on the allowed list
+ok   dist/acp.js: 4 of the backend's files, all on the allowed list
+ok   dist/modelApi.js: carries the 37 files that load only with the backend, and no English table
+ok   dist/checkpointStore.js: carries the checkpoint implementation; activation keeps the port and synchronous loader
+ok   dist/verifyEditor.js: loads only on the first diagnostics or formatting request, never at activation
+ok   dist/tab.js: loads only on the first Tab request or menu, never at activation
+ok   dist/extension.js: 0 reference(s) to navigator
+ok   dist/tab.js: 0 reference(s) to navigator
+ok   dist/verifyEditor.js: 0 reference(s) to navigator
+ok   dist/modelApi.js: 0 reference(s) to navigator
+ok   dist/checkpointStore.js: 0 reference(s) to navigator
+```
+
+The maker engine and surfaces remain unwired, so their lazy bundles and
+D83’s final startup-growth requirement remain W/E’s qualification. The inline
+browser English fallback grows with the authorized text region; no budget
+was raised and no new engine or adapter loads at activation.

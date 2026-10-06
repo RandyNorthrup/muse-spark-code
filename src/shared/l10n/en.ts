@@ -16,7 +16,7 @@
 import { forms } from './forms'
 
 export const EN = {
-  // M103 lane D: maker-detect (separate from lane G's guard and lane I's approval strings).
+  // M103 Makers: detection, per-action approval and the shared editor/runtime surfaces.
   makerDetectBuild: 'Build {target}',
   makerDetectCheck: 'Check {target}',
   makerDetectSimulate: 'Simulate {target}',
@@ -28,6 +28,46 @@ export const EN = {
   makerDetectMachineConfig:
     'Machine configuration detected. Review heater and travel limits before deploying changes.',
   makerDetectBoardRequired: 'Choose a board target before adding an Arduino or Zephyr build check.',
+  makerTitle: 'Makers',
+  makerApprovalTitle: 'Approve hardware action',
+  makerSendOnce: 'Send once',
+  makerReject: 'Reject',
+  makerApprovalExpired: 'This approval expired. Request the action again.',
+  makerApprovalTargetChanged: 'The target changed. Review a new approval.',
+  makerUnattendedDenied: 'Hardware actions require an attended session.',
+  makerTrustRequired: 'Trust this workspace before enabling hardware.',
+  makerEnableHardware: 'Enable hardware for this workspace',
+  makerDisableHardware: 'Disable hardware for this workspace',
+  makerHardwareReason: 'Enter a reason for enabling hardware.',
+  makerSoftwareStopWarning:
+    'A software stop does not replace the machine’s physical emergency stop.',
+  makerResetWarning: 'Opening this port may reset the board.',
+  makerIdentityUnknown: 'Unknown device identity',
+  makerTargetLabel: 'Target',
+  makerPayloadLabel: 'Exact payload',
+  makerAnalysisLabel: 'Analysis',
+  makerDevicesTitle: 'Devices and machines',
+  makerAddMachine: 'Add machine',
+  makerRemoveMachine: 'Remove machine',
+  makerPlainHttpWarning: 'HTTP sends the machine key over the LAN without encryption.',
+  makerLimitsUnavailable: 'No safe limits are available. Only status and Stop work.',
+  makerNotHomed: 'Home the machine in its own controls before proposing motion.',
+  makerPhysicalStopRequired: 'Use the machine’s physical switch for an immediate stop.',
+  makerStartupMotion: 'The machine’s startup commands may cause motion.',
+  makerCncActuationDenied: 'CNC, laser and robot motion is unavailable. Read status or use Stop.',
+  makerBusy: 'This target is held by {holder}.',
+  makerOpenDeviceLog: 'Open device log',
+  makerDeviceLogPrivacy: 'The device log stays on this machine until you choose to share it.',
+  makerAuditUnrecorded: 'The action completed, but its device log could not be saved.',
+  makerSentOutcomeUnknown: 'The machine may have acted. Read its status before sending again.',
+  makerPreviewTitle: 'Maker preview',
+  makerMaximumTemperature: 'Maximum temperature: {temperature}',
+  makerMaximumFeed: 'Maximum feed: {feed}',
+  makerHardwareEnabled: 'Hardware enabled',
+  makerHardwareDisabled: 'Hardware disabled',
+  makerDeviceCount: forms({ one: '{count} device', other: '{count} devices' }),
+
+  // Local editor verification (M103 A).
   jsonExpectedComma: 'Expected comma',
   jsonInvalidSyntax: 'Invalid JSON syntax',
   jsonInvalidSetting: 'Invalid value for {setting}',

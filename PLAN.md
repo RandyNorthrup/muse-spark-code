@@ -18942,6 +18942,15 @@ field schema to move into `src/shared/checkCommandSchema.ts`: the maker
 protocol wraps the same fields strictly, while the settings parser preserves
 its existing unknown-field behavior. This small dependent seam avoids both a
 copied validator and a browser import of Node-typed core shell helpers.
+Lane 0 consolidates the nine detection entries and adds 37 shared maker
+entries, including locale-specific device-count forms and templates for
+holders, temperatures and feed. U/V/R read `UI_TEXT` at use time, fill one
+template with `fill`, use `plural` for counts, and format values through the
+Intl helpers. All fourteen UI tables carry real translations; no English
+exemption is added. Commands and settings are not registered by this lane,
+so maker manifest keys remain with W. The release base has no help catalog,
+reference generator or reference-check script; integrating that separate
+facility remains a named lead/W obligation, not an invented replacement here.
 
 **FIXM103S review corrections (2026-10-05).** Resolve RVM103S's two P2
 installer findings and its P3 topic-safety coverage finding within lane S.

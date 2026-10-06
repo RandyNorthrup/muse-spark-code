@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- A consolidated maker text region for approvals, hardware admission and
+  physical-stop warnings, target/payload analysis, logs, previews and device
+  counts, with real translations in all fourteen UI languages. Maker commands
+  and settings remain with the forthcoming wiring lane.
+
 - A portable maker host and versioned surface protocol for the forthcoming
   editor/runtime adapters, with committed JSON Schemas. Serial and machine
   approvals share a frozen target, expiring single-use answer checks and a
