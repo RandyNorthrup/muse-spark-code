@@ -4,7 +4,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp',
     behavior:
-      'Stdio LSP frontend. One private broker per canonical workspace; UTF-16 full document sync; cancellable requests; ordinary invoked completion items plus inline completion when negotiated.',
+      'Stdio LSP frontend. One private broker per canonical workspace; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
   },
   {
     command: 'lsp --workspace <directory>',

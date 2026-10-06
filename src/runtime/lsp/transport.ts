@@ -139,7 +139,7 @@ export function lspTransport(
       if (message.error === undefined) {
         call.resolve(message.result)
       } else {
-        call.reject(new Error('ELSP_CLIENT'))
+        call.reject(new Error('ELSP_CLIENT', { cause: message.error.code }))
       }
     } else receive(message)
   }

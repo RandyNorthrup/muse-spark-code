@@ -79,7 +79,7 @@ describe('M104L real runtime factory without paid flags', () => {
       ).toEqual([])
       await expect(
         clients[1]?.request('workspace/executeCommand', { command: 'muse.openPanel' }),
-      ).rejects.toThrow('ELSP_CLIENT')
+      ).rejects.toMatchObject({ message: 'ELSP_CLIENT', cause: -32_603 })
       const stop = child(['stop'])
       const result = await closed(stop)
       expect(result).toBe(0)

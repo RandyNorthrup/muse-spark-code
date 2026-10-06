@@ -101,9 +101,12 @@ describe('M104L LSP client conformance', () => {
       run.client.notify('$/cancelRequest', { id: 'server-2' })
       await Promise.resolve()
       expect(signal.aborted).toBe(true)
-      held.resolve(null)
+      held.reject(new Error('cancelled controller fixture'))
       expect(await pending).toEqual([
-        { status: 'rejected', reason: expect.objectContaining({ message: 'ELSP_CLIENT' }) },
+        {
+          status: 'rejected',
+          reason: expect.objectContaining({ message: 'ELSP_CLIENT', cause: -32_800 }),
+        },
       ])
     } finally {
       held.resolve(null)
@@ -150,14 +153,25 @@ describe('M104L LSP client conformance', () => {
   it('rejects requests before initialization and unsupported position encoding', async () => {
     const run = lspHarness(workspace, baseServices)
     try {
-      await expect(complete(run.client)).rejects.toThrow('ELSP_CLIENT')
+      await expect(complete(run.client)).rejects.toMatchObject({
+        message: 'ELSP_CLIENT',
+        cause: -32_002,
+      })
       await expect(
         run.client.request('initialize', {
           capabilities: { general: { positionEncodings: [['utf', '8'].join('-')] } },
         }),
       ).rejects.toThrow('ELSP_CLIENT')
       await initialize(run.client)
+      await expect(initialize(run.client)).rejects.toMatchObject({
+        message: 'ELSP_CLIENT',
+        cause: -32_600,
+      })
       open(run.client)
+      await expect(run.client.request('muse/unknown', {})).rejects.toMatchObject({
+        message: 'ELSP_CLIENT',
+        cause: -32_601,
+      })
       await expect(complete(run.client, true)).rejects.toThrow('ELSP_CLIENT')
     } finally {
       run.close()

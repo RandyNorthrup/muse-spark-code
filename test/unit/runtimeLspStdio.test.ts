@@ -67,7 +67,7 @@ describe('M104L scripted client over real stdio', () => {
         })
         // The scripted client's first three calls consumed server-1 through server-3.
         client.notify('$/cancelRequest', { id: 'server-3' })
-        await expect(pending).rejects.toThrow('ELSP_CLIENT')
+        await expect(pending).rejects.toMatchObject({ message: 'ELSP_CLIENT', cause: -32_800 })
         expect(await client.request('shutdown', {})).toBeNull()
         client.notify('exit', {})
         await closed

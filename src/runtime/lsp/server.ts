@@ -1,7 +1,12 @@
 import { createHash } from 'node:crypto'
 import type { Readable, Writable } from 'node:stream'
 import * as z from 'zod/mini'
-import { LSP_LIMITS, MHP_ERROR_CODES, UI_TEXT } from '../../shared/constants'
+import {
+  LSP_LIMITS,
+  LSP_SERVER_NOT_INITIALIZED,
+  MHP_ERROR_CODES,
+  UI_TEXT,
+} from '../../shared/constants'
 import { LspDocuments, documentOffset, rangeOffsets, type LspDocument } from './documents'
 import {
   COMMANDS,
@@ -154,11 +159,34 @@ export function serveLsp(
         if (call.signal.aborted) transport.error(id, MHP_ERROR_CODES.cancelled, 'ELSP_CANCELLED')
         else transport.reply(id, result)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        const word = error instanceof Error ? error.message : ''
+        let code: number = MHP_ERROR_CODES.invalidParams
+        switch (word) {
+          case 'ELSP_NOT_READY': {
+            code = LSP_SERVER_NOT_INITIALIZED
+            break
+          }
+          case 'ELSP_METHOD': {
+            code = MHP_ERROR_CODES.methodNotFound
+            break
+          }
+          case 'ELSP_INITIALIZED': {
+            code = MHP_ERROR_CODES.invalidRequest
+            break
+          }
+          case 'ELSP_PANEL_CONTROLLER_UNAVAILABLE': {
+            code = MHP_ERROR_CODES.internalError
+            break
+          }
+        }
+        if (call.signal.aborted) code = MHP_ERROR_CODES.cancelled
         transport.error(
           id,
-          call.signal.aborted ? MHP_ERROR_CODES.cancelled : MHP_ERROR_CODES.invalidParams,
-          'ELSP_REQUEST',
+          code,
+          word === 'ELSP_PANEL_CONTROLLER_UNAVAILABLE'
+            ? 'ELSP_PANEL_CONTROLLER_UNAVAILABLE'
+            : 'ELSP_REQUEST',
         )
       })
       .finally(() => {

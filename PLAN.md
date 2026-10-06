@@ -18916,6 +18916,10 @@ is advertised even with inline support. Neovim's missing public fresh-inline
 invocation API and Zed's provider/panel gaps have owner-submission drafts.
 The installed-tarball English-fallback check loads the LSP entry too and
 compares the exact general/LSP help text, including the new help block.
+LSP request failures use the standard unknown-method and not-initialized
+codes; missing controller failures name the fixed availability word. The
+client transport preserves only the validated numeric failure code as its
+error cause, never raw peer diagnostic text.
 
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
