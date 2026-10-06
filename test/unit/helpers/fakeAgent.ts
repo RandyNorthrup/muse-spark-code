@@ -61,6 +61,7 @@ export class FakeAgentSession implements AgentSession {
   public readonly decideApproval = vi.fn<AgentSession['decideApproval']>(resolved)
   public readonly answerQuestions = vi.fn<AgentSession['answerQuestions']>(resolved)
   public readonly cancelQuestions = vi.fn<AgentSession['cancelQuestions']>(resolved)
+  public settleElicitation = vi.fn<NonNullable<AgentSession['settleElicitation']>>(resolved)
   public readonly controlSubagent = vi.fn<AgentSession['controlSubagent']>(resolved)
   public readonly messageSubagent = vi.fn<AgentSession['messageSubagent']>(resolved)
   public readonly controlGoal = vi.fn<AgentSession['controlGoal']>(goalAdmitted)

@@ -1,0 +1,11 @@
+{
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "echo: m91 capture: warm-up turn",
+  "session_id": "01a10856-1c44-7142-9744-1db99cb7d0b4",
+  "turn_id": "01a10856-2c51-7000-8c60-280c1ec4a7be",
+  "cwd": "<workspace>",
+  "transcript_path": null,
+  "model": "echo",
+  "permission_mode": "default"
+}

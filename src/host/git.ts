@@ -140,10 +140,23 @@ function gitLocator(
   }
 }
 
+/** The extension's git environment: no optional locks, and never a credential prompt. */
+export function quietGitEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
+}
+
 export interface GitRunnerDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
   readonly fileExists: (filePath: string) => boolean
+  /**
+   * Arguments put before each command's own once the runner found git:
+   * only the untrusted lane that lists, adds and indexes someone else's
+   * pull request before its separate trust confirmation (git/untrustedGit.ts,
+   * heldCheckout.ts). It may run git itself with the call's options, and
+   * calls `beforeRun` where a check must precede a process.
+   */
+  readonly argsBefore?: GitArgsBefore | undefined
   /** Best-of-N's automatic local snapshots, never ordinary user Git commands. */
   readonly isAutomatic?: boolean
   /** `execFile` as a promise of stdout; rejects on a failure, a timeout or a non-zero exit. */
@@ -153,6 +166,29 @@ export interface GitRunnerDeps {
     options: ExecFileOptions,
     input?: string,
   ) => Promise<string>
+}
+
+/** `execFile` as the runner calls it. */
+export type GitExecFile = GitRunnerDeps['execFile']
+
+/** What `argsBefore` is handed: the runner's `execFile`, the git it found, the call's options and check. */
+export type GitArgsBefore = (
+  execFile: GitExecFile,
+  git: string,
+  options: ExecFileOptions,
+  beforeRun?: () => void,
+) => Promise<readonly string[]>
+
+/** Git's hooks/fsmonitor controls require a known major and minimum minor version. */
+export function hasGitProgramControls(output: string, minimumMinor: number): boolean {
+  const version = /^git version (\d+)\.(\d+)/u.exec(output)
+  const major = Number(version?.[1])
+  const minor = Number(version?.[2])
+  return (
+    Number.isSafeInteger(major) &&
+    Number.isSafeInteger(minor) &&
+    (major > 2 || (major === 2 && minor >= minimumMinor))
+  )
 }
 
 /**
@@ -168,11 +204,7 @@ export function createGitRunner(
   input?: string,
   beforeRun?: BestOfNGitGuard,
 ) => Promise<string> {
-  const env: NodeJS.ProcessEnv = {
-    ...deps.env,
-    GIT_OPTIONAL_LOCKS: '0',
-    GIT_TERMINAL_PROMPT: '0',
-  }
+  const env = quietGitEnvironment(deps.env)
   const gitPath = gitLocator(deps)
   let supportedVersion: { readonly git: string; readonly checked: Promise<void> } | undefined
   return async (args, cwd, timeoutMs = GIT_TIMEOUT_MS, input, beforeRun) => {
@@ -193,17 +225,8 @@ export function createGitRunner(
         supportedVersion = {
           git,
           checked: (async () => {
-            const version = /^git version (\d+)\.(\d+)/u.exec(
-              await deps.execFile(git, ['--version'], options),
-            )
-            const major = Number(version?.[1])
-            const minor = Number(version?.[2])
-            if (
-              !Number.isSafeInteger(major) ||
-              !Number.isSafeInteger(minor) ||
-              major < 2 ||
-              (major === 2 && minor < BEST_OF_N_MIN_GIT_MINOR)
-            ) {
+            const output = await deps.execFile(git, ['--version'], options)
+            if (!hasGitProgramControls(output, BEST_OF_N_MIN_GIT_MINOR)) {
               throw new Error(UI_TEXT.bestOfNGitProgramsUnavailable)
             }
           })(),
@@ -223,7 +246,11 @@ export function createGitRunner(
         throw new Error(UI_TEXT.bestOfNGitProgramsUnavailable)
       }
     }
-    const invocation = deps.isAutomatic === true ? [...AUTOMATIC_ARGS, ...args] : args
+    const prefix =
+      deps.argsBefore === undefined
+        ? []
+        : await deps.argsBefore(deps.execFile, git, options, beforeRun)
+    const invocation = [...(deps.isAutomatic === true ? AUTOMATIC_ARGS : []), ...prefix, ...args]
     await beforeRun?.prepare?.()
     // Configuration/version reads can await. The owned caller rechecks
     // synchronously here, with no await before the actual process entry.
@@ -239,7 +266,11 @@ export function createGitRunner(
  * one the extension uses, and the one tests use to drive real git (M32).
  */
 export function processGitRunner(
-  options: { readonly isAutomatic?: boolean; readonly env?: NodeJS.ProcessEnv } = {},
+  options: {
+    readonly isAutomatic?: boolean
+    readonly argsBefore?: GitArgsBefore | undefined
+    readonly env?: NodeJS.ProcessEnv | undefined
+  } = {},
 ): (
   args: readonly string[],
   cwd: string,
@@ -250,6 +281,7 @@ export function processGitRunner(
   return createGitRunner({
     platform: process.platform,
     env: options.env ?? process.env,
+    argsBefore: options.argsBefore,
     fileExists: existsSync,
     isAutomatic: options.isAutomatic === true,
     execFile: (file, args, options, input) =>
@@ -306,6 +338,12 @@ export interface GitProcessOptions {
   readonly timeoutMs: number
   /** Aborting ends the command (the window closing). */
   readonly signal?: AbortSignal
+  /**
+   * Takes stdout as it comes instead of collecting it (M71's held checkout):
+   * git waits until each chunk's promise settles, a rejection ends the
+   * command with that error, and the result is empty.
+   */
+  readonly onStdout?: (chunk: Buffer) => Promise<void>
 }
 
 /** One git command's stdout as bytes; rejects on a failure, a timeout or a non-zero exit. */
@@ -320,9 +358,10 @@ export interface GitProcessDeps {
 }
 
 /**
- * git with stdin and binary stdout (M72's checkpoints): found as the other
- * runner finds it, no console window, stdout capped at GIT_OUTPUT_MAX_BYTES
- * and stderr at GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
+ * git with stdin and binary stdout (M72's checkpoints, M71's held checkout):
+ * found as the other runner finds it, no console window, collected stdout
+ * capped at GIT_OUTPUT_MAX_BYTES (a taker bounds its own) and stderr at
+ * GIT_STDERR_MAX_CHARS, killed at its timeout. The caller
  * passes the complete environment, so nothing of the extension host's own
  * (a `GIT_DIR`, a `GIT_INDEX_FILE`) reaches it unless the caller says so.
  */
@@ -350,9 +389,23 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       let size = 0
       let stderr = ''
       let failure: Error | undefined
+      // A failure (the timeout, the window closing) also ends the wait for a
+      // taker still busy with a chunk after the child closed.
+      // Not `Promise.withResolvers`, which Node 20 (VS Code 1.99's host) lacks.
+      const stopping = new AbortController()
+      const stopped = new Promise<void>((resolveStopped) => {
+        stopping.signal.addEventListener(
+          'abort',
+          () => {
+            resolveStopped()
+          },
+          { once: true },
+        )
+      })
       const fail = (error: Error) => {
         failure ??= error
         child.kill()
+        stopping.abort()
       }
       const timer = setTimeout(() => {
         fail(new Error(`git ${command} timed out after ${String(options.timeoutMs)} ms`))
@@ -361,7 +414,33 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         fail(new Error(`git ${command} was stopped: the window is closing`))
       }
       options.signal?.addEventListener('abort', onAbort, { once: true })
+      // A taker's chunks, one at a time and in order. A pause does not stop
+      // chunks already read, and the child closes once its last chunk is
+      // emitted, not taken: the command settles after this chain.
+      let taking = Promise.resolve()
+      const takeInTurn = async (
+        previous: Promise<void>,
+        take: (chunk: Buffer) => Promise<void>,
+        chunk: Buffer,
+      ): Promise<void> => {
+        await previous
+        try {
+          // Nothing reaches the taker after a failure.
+          if (failure === undefined) {
+            await take(chunk)
+          }
+        } catch (error: unknown) {
+          fail(error instanceof Error ? error : new Error(String(error)))
+        }
+        child.stdout.resume()
+      }
       child.stdout.on('data', (chunk: Buffer) => {
+        const take = options.onStdout
+        if (take !== undefined) {
+          child.stdout.pause()
+          taking = takeInTurn(taking, take, chunk)
+          return
+        }
         size += chunk.length
         if (size > GIT_OUTPUT_MAX_BYTES) {
           fail(new Error(`git ${command} wrote more than ${String(GIT_OUTPUT_MAX_BYTES)} bytes`))
@@ -383,7 +462,9 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       child.on('error', (error) => {
         fail(error)
       })
-      child.on('close', (code) => {
+      // The timeout and the abort stay armed until the taker is done.
+      const settle = async (code: number | null): Promise<void> => {
+        await Promise.race([taking, stopped])
         clearTimeout(timer)
         options.signal?.removeEventListener('abort', onAbort)
         if (failure !== undefined) {
@@ -393,6 +474,9 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
         } else {
           reject(new GitExitError(code ?? -1, stderr, command))
         }
+      }
+      child.on('close', (code) => {
+        void settle(code)
       })
       child.stdin.end(options.input ?? '')
     })

@@ -1,0 +1,632 @@
+[
+  {
+    "name": "capability",
+    "path": "src/core/backends/modelapi/mcp/connection.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "declares the form capability",
+    "mutation": "capabilities: this.options.elicitation === undefined ? {} : { elicitation: {} } -> capabilities: {}",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "mutated_sha256": "46491328e043038d2a59d9d5d0603be706e95d3d7c9f613170f546b2d32d3872",
+    "after_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > declares the form capability only while a handler stands",
+      "AssertionError: expected { jsonrpc: '2.0', id: 1, \u2026(2) } to match object { method: 'initialize', \u2026(1) }",
+      "FAIL  test/unit/mcpElicitation.test.ts > the pool (M91 lane M) > declares the capability and routes the call through its session",
+      "AssertionError: expected {} to deeply equal { elicitation: {} }"
+    ],
+    "restored_exit": 0,
+    "status": "pass"
+  },
+  {
+    "name": "restricted-keywords",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "declines a pattern",
+    "mutation": "z.strictObject( -> z.object(",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "f43fdc3bef9a81980640fa0f7b9dbb51b54862ed2eb3b924171003c405e6ccc4",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > declines extra root keywords",
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > declines a pattern the form cannot show",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0,
+    "status": "pass"
+  },
+  {
+    "name": "primitive-fields",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "declines a nested object",
+    "mutation": "type: z.literal('string'), -> type: z.enum(['string', 'object', 'array']),",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "4630e169fad14f965f9814353303cb23897a397924e69271c8fb3916dc17e9a4",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > declines a nested object",
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > declines an array",
+      "AssertionError: expected true to be false // Object.is equality",
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > refuses invalid handler content and declines an unsupported schema before invoking it",
+      "AssertionError: expected { jsonrpc: '2.0', id: 'schema', \u2026(1) } to deeply equal { jsonrpc: '2.0', id: 'schema', \u2026(1) }"
+    ],
+    "restored_exit": 0,
+    "status": "pass"
+  },
+  {
+    "name": "url-mode",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "refuses url mode",
+    "mutation": "if (mode !== undefined && mode !== 'form') -> if (false && mode !== undefined && mode !== 'form')",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "5cf26b17e5bbd931976730ee4ce1b09247aa9a7134106f856fbb63d673179814",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > elicitation params (M91 lane M) > refuses url mode with a reason, and anything else malformed",
+      "AssertionError: expected [Function] to throw an error",
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > answers a refusal with the reason, never the form",
+      "AssertionError: expected { jsonrpc: '2.0', id: 8, \u2026(1) } to match object { id: 8, error: { code: -32602 } }"
+    ],
+    "restored_exit": 0,
+    "status": "pass"
+  },
+  {
+    "name": "required-value",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "a missing required field",
+    "mutation": "if (field.required) -> if (false && field.required)",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "eba87b2fbb9990063f37e8813b4a3d53ddefd3f4c4354550df7c9ba8cec491c7",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > refuses a missing required field",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0,
+    "status": "pass"
+  },
+  {
+    "name": "unknown-value-field",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "a stray field",
+    "mutation": "if (!known.has(name)) -> if (false && !known.has(name))",
+    "baseline_exit": 0,
+    "mutated_exit": 3,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "f52833fee98d6bd580025418798950ce869664c020a8cbdb1caab1a8149506c8",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [],
+    "restored_exit": 0,
+    "status": "invalid_run",
+    "infrastructure_failure": "short read while indexing certification; documentation write raced with snapshot"
+  },
+  {
+    "name": "unknown-value-field",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "a stray field",
+    "mutation": "if (!known.has(name)) -> if (false && !known.has(name))",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "f52833fee98d6bd580025418798950ce869664c020a8cbdb1caab1a8149506c8",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > refuses a stray field",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "enum-value",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "outside the enum",
+    "mutation": "if (field.enum !== undefined && !field.enum.includes(value)) -> if (false && field.enum !== undefined && !field.enum.includes(value))",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "e63bf0d2147e17084456fd47b092e10a41ab58b30e53bfe043c8c7c70b1f146c",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > refuses outside the enum",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "integer-value",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "a fractional integer",
+    "mutation": "if (field.type === 'integer' && !Number.isSafeInteger(value)) -> if (false && field.type === 'integer' && !Number.isSafeInteger(value))",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "1c7b2ae0acdc929c1e44714575c125e680d7c66f56ec88979b69ffd4e42e703b",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > refuses a fractional integer",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "numeric-bounds",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "keeps the spec bounds",
+    "mutation": "field.minimum !== undefined && value < field.minimum -> false && field.minimum !== undefined && value < field.minimum",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "69405a322a135216f04f3b0045f4b856617431f5dd2739f5b79058417fe3f4eb",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > keeps the spec bounds and enum labels and validates their values",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "string-bounds",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "keeps the spec bounds",
+    "mutation": "field.minLength !== undefined && length < field.minLength -> false && field.minLength !== undefined && length < field.minLength",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "e41f6893fb63ce61a5d0fdf711367f622627a3fe6fa9854354c564dec25b2d7e",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the restricted schema subset (M91 lane M) > keeps the spec bounds and enum labels and validates their values",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "format-value",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "a bad email",
+    "mutation": "return isMatchingFormat(field.format, value) ? undefined -> return true ? undefined",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "c8174ce8682068fd5bdf359f2d774f0daa4ccd77ca356046367770ef7b606022",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > refuses a bad email",
+      "AssertionError: expected true to be false // Object.is equality",
+      "FAIL  test/unit/mcpElicitation.test.ts > answer validation (M91 lane M) > checks every format the negotiated spec supports",
+      "AssertionError: expected true to be false // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "nonaccept-content",
+    "path": "src/core/backends/modelapi/mcp/elicitation.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "strips decline and cancel bare",
+    "mutation": ": { action: parsed.data.action } -> : parsed.data",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "mutated_sha256": "1cf744ad9b92743e9a0561eb3b399b832eabaca97f1122b6f6efb98c08671569",
+    "after_sha256": "a331321945a8d669daa5258add008bae59faa799f23fd342c55f7979ca3df0ad",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > answers and log lines (M91 lane M) > passes accept through, strips decline and cancel bare, and refuses garbage",
+      "AssertionError: expected { Object (action, content) } to deeply equal { action: 'decline' }"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "handler-content",
+    "path": "src/core/backends/modelapi/mcp/connection.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "refuses invalid handler content",
+    "mutation": "if (!checked.ok) { -> if (false && !checked.ok) {",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "mutated_sha256": "41ef5a538d1ae21a2afd493b22078cbb2547c43b271a149915c6351181ed8284",
+    "after_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > refuses invalid handler content and declines an unsupported schema before invoking it",
+      "AssertionError: expected { jsonrpc: '2.0', id: 'invalid', \u2026(1) } to match object { Object (error) }"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "exception-privacy",
+    "path": "src/core/backends/modelapi/mcp/connection.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "never logs or returns a handler exception",
+    "mutation": "    } catch {\n      this.options.log.warn(`MCP server ${this.options.name} elicitation was refused: ${refusal}`) ->     } catch (error) {\n      refusal = String(error)\n      this.options.log.warn(`MCP server ${this.options.name} elicitation was refused: ${refusal}`)",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "mutated_sha256": "326f8404f7e537d952c9d5554163d11da79815618ad0c85a12ef2691c025b74b",
+    "after_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > never logs or returns a handler exception containing answer values",
+      "AssertionError: expected '[{\"jsonrpc\":\"2.0\",\"id\":\"form\",\"error\"\u2026' not to contain 'private-answer-value'",
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > refuses invalid handler content and declines an unsupported schema before invoking it",
+      "AssertionError: expected { jsonrpc: '2.0', id: 'invalid', \u2026(1) } to match object { Object (error) }"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "connection-close",
+    "path": "src/core/backends/modelapi/mcp/connection.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "aborts a pending form when its connection closes",
+    "mutation": "      closer() ->       void closer",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "mutated_sha256": "96c6ae6cf2f7a242feeaa3f15e6c5958dc2f09f29c4b057ccc6eb01b37ddc3dc",
+    "after_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > aborts a pending form when its connection closes",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "tool-deadline",
+    "path": "src/core/backends/modelapi/mcp/connection.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "cancels a pending form when its tool call reaches the deadline",
+    "mutation": "    this.liveSignals.add(controller.signal) ->     // drill: omit linking the tool deadline",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "mutated_sha256": "a1fb1cb061ac56283c226fc90996a8475955c6bf2671f8e9b66c96710afebeeb",
+    "after_sha256": "2d636803a4c855869360d4815deaacffc3b32b748af585dc3d44f37d81056f13",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > stops the elicitation when the waiting call stops or closes",
+      "AssertionError: expected false to be true // Object.is equality",
+      "FAIL  test/unit/mcpElicitation.test.ts > the connection (M91 lane M) > cancels a pending form when its tool call reaches the deadline",
+      "AssertionError: expected [ \u2026(2) ] to deep equally contain { jsonrpc: '2.0', id: 'form', \u2026(1) }"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "session-route",
+    "path": "src/core/backends/modelapi/mcp/pool.ts",
+    "test": "test/unit/mcpElicitation.test.ts",
+    "expected": "cancels ambiguous concurrent routes",
+    "mutation": "routes.length > 1 -> routes.length > 100",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "b40c6613871d6a8b69f0c0185f1894b02af4b5135d3d7c60de71f08a88800c3a",
+    "mutated_sha256": "897d1bbf3bcd64f3bf3361cf7f2e83cc82f343fbf85c9ed640f91ff9a5bd66af",
+    "after_sha256": "b40c6613871d6a8b69f0c0185f1894b02af4b5135d3d7c60de71f08a88800c3a",
+    "failures": [
+      "FAIL  test/unit/mcpElicitation.test.ts > the pool (M91 lane M) > cancels ambiguous concurrent routes instead of sending another session the form",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times",
+      "FAIL  test/unit/mcpElicitation.test.ts > the pool (M91 lane M) > cancels ambiguous concurrent routes instead of sending another session the form"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "bypass-consent",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "asks in Bypass",
+    "mutation": "    const elicitationId = this.deps.newId() ->     return { action: 'accept', content: { name: 'Ada' } }\n    const elicitationId = this.deps.newId()",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "24c90a82d36b7eccff8a03d80c97a4c64311a1ff299e79a9774361ff6a5c26f9",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > forwards a child form to the panel and routes its answer back to that child",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > asks in Bypass instead of auto-accepting, and accepts a valid answer",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > declines and cancels from the form",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > refuses an answer outside the schema and keeps the form open",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > times a waiting form out as a cancel",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > cancels the form when the turn stops",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > cancels when the panel releases its session",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > uses the form without dispatching hooks while hooks are off",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > fires the seam with field names only, never values",
+      "AssertionError: expected [] to have a length of 1 but got +0"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "form-timeout",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "times a waiting form out as a cancel",
+    "mutation": "this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'cancelled' }) -> this.pendingElicitations.get(elicitationId)?.pending.resolve({ kind: 'declined' })",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "e0d8d386821813e0205a249fdd9eb40d2ae2aab3a6636496e420f7134a3ba217",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > times a waiting form out as a cancel",
+      "AssertionError: expected [ { action: 'decline' } ] to deeply equal [ { action: 'cancel' } ]"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "stopped-form",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "cancels the form when the turn stops",
+    "mutation": "    } catch {\n      return { kind: 'cancelled' }\n    } finally {\n      clearTimeout(timer) ->     } catch {\n      return { kind: 'declined' }\n    } finally {\n      clearTimeout(timer)",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "b7c77adb448dcb4e88ad4748f330d1f176578f4f0383d1f9781de791e013cd86",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > cancels the form when the turn stops",
+      "AssertionError: expected [ { action: 'decline' } ] to deeply equal [ { action: 'cancel' } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > cancels when the panel releases its session",
+      "AssertionError: expected [ { action: 'decline' } ] to deeply equal [ { action: 'cancel' } ]"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "hook-scope",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "refuses a project hook answer",
+    "mutation": "if (verdict.source !== 'user') -> if (false && verdict.source !== 'user')",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "bd6de2c1285ba2a6dd05d3fd52506ae68cd93ebb6804661a1d9b2c9deed7fcd2",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > refuses a hook answer without explicit user scope",
+      "AssertionError: expected [ { action: 'accept', \u2026(1) } ] to deeply equal [ { action: 'decline' } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > refuses a project hook answer",
+      "AssertionError: expected [ { action: 'accept', \u2026(1) } ] to deeply equal [ { action: 'decline' } ]"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "invalid-schema",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "never accepts an invalid schema through a user hook",
+    "mutation": "const checked = validateElicitationSchema(parsed.requestedSchema) -> const checked = { ok: true, fields: [] }",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "05a9b72c037502c122beb08dbdf5d0781d3005970c0ffc2bef4309237a4164fa",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > forwards a child form to the panel and routes its answer back to that child",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > asks in Bypass instead of auto-accepting, and accepts a valid answer",
+      "AssertionError: expected [] to have a length of 1 but got +0",
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > refuses an answer outside the schema and keeps the form open",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > declines a schema outside the subset without rendering it",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > never accepts an invalid schema through a user hook",
+      "AssertionError: expected [ { action: 'accept', content: {} } ] to deeply equal [ { action: 'decline' } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > a project hook declines with its reason, and the server sees only the action",
+      "AssertionError: expected [ { server: 'srv', \u2026(2) } ] to deeply equal [ { server: 'srv', \u2026(2) } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > a user hook answers without the form",
+      "AssertionError: expected [ { action: 'decline' } ] to deeply equal [ { action: 'accept', \u2026(1) } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > refuses a project hook answer",
+      "AssertionError: expected [ { server: 'srv', \u2026(2) } ] to deeply equal [ { server: 'srv', \u2026(2) } ]",
+      "FAIL  test/unit/modelApiElicitation.test.ts > invalid schemas and the hook seam (M91 lane M) > fires the seam with field names only, never values"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "answer-validation",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "refuses an answer outside the schema",
+    "mutation": "const checked = validateElicitationValues(found.fields, reply.values)\n    if (!checked.ok) -> const checked = validateElicitationValues(found.fields, reply.values)\n    if (false && !checked.ok)",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "48b1e394cef9f2db2dc6c77462ab650393f1315534764fcaa12617b4466848a8",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > refuses an answer outside the schema and keeps the form open",
+      "AssertionError: promise resolved \"undefined\" instead of rejecting"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "answer-privacy",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "asks in Bypass",
+    "mutation": "this.deps.log.info(describeElicitationForLog(server, fieldNames, action)) -> this.deps.log.info(describeElicitationForLog(server, fieldNames, action) + JSON.stringify(content))",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "87de9720f65f55d02d8a34261aafb23b68481df87647b96e21000705444f4872",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > asks in Bypass instead of auto-accepting, and accepts a valid answer",
+      "AssertionError: expected 'Model API POST /responses answered 20\u2026' not to contain 'Ada'"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "hooks-off",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "uses the form without dispatching hooks",
+    "mutation": "this.deps.isHooksEnabled?.() === false\n        ? ALLOW_ELICITATION_SEAM -> false\n        ? ALLOW_ELICITATION_SEAM",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "7ea460eeca7d99a6c45196b8b8ec761ad6c0566ecd406585338feb2f15732ee5",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > uses the form without dispatching hooks while hooks are off",
+      "AssertionError: expected [ { server: 'srv', \u2026(3) } ] to deeply equal []"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "child-answer-route",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/unit/modelApiElicitation.test.ts",
+    "expected": "forwards a child form",
+    "mutation": "if (child.session.pendingElicitations.has(elicitationId)) -> if (false && child.session.pendingElicitations.has(elicitationId))",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "mutated_sha256": "02d80f1d6082d837c0ead3ace2e0d81ef17f86f2d6d3907adb6e07daa63a1083",
+    "after_sha256": "2a65fa6ca3a2c513720a038b74cb4a7fdee8e2b6fefa82682d5388ee232eaaa9",
+    "failures": [
+      "FAIL  test/unit/modelApiElicitation.test.ts > the elicitation form on a session (M91 lane M) > forwards a child form to the panel and routes its answer back to that child"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "acp-decline",
+    "path": "src/acp/agent.ts",
+    "test": "test/unit/acpAgent.test.ts",
+    "expected": "declines an elicitation the client form declined",
+    "mutation": "kind: parsed?.action === 'decline' ? 'declined' : 'cancelled' -> kind: 'cancelled'",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "df34d79c7cfafe0099ab3baab31bf40ff0dcd5650ee6d47a5b28db5143301a16",
+    "mutated_sha256": "c81e029689cc46acd667b24121d0f8f7c984bddadf19715a84f76e12b426b507",
+    "after_sha256": "df34d79c7cfafe0099ab3baab31bf40ff0dcd5650ee6d47a5b28db5143301a16",
+    "failures": [
+      "FAIL  test/unit/acpAgent.test.ts > the ACP agent (M63) > declines an elicitation the client form declined, and texts it where there are no forms",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ 'elicit-1', { kind: 'declined' } ]"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "acp-required",
+    "path": "src/acp/questions.ts",
+    "test": "test/unit/acpElicitation.test.ts",
+    "expected": "carries titles, enums, formats, defaults and required names",
+    "mutation": "required: fields.filter((field) => field.required).map((field) => field.name) -> required: []",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "d73ae00b46e9eeaf58f8e00f610b7ab7c9c464b67316fa297297918411188309",
+    "mutated_sha256": "91582b2cb0dab8c2598010efd5805eb70fba8d5efd02d180aa06b02f1bb72dfe",
+    "after_sha256": "d73ae00b46e9eeaf58f8e00f610b7ab7c9c464b67316fa297297918411188309",
+    "failures": [
+      "FAIL  test/unit/acpElicitation.test.ts > the ACP elicitation form (M91 lane M) > carries titles, enums, formats, defaults and required names",
+      "AssertionError: expected { type: 'object', \u2026(2) } to deeply equal { type: 'object', \u2026(2) }"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "ui-validation",
+    "path": "src/webview/components/ElicitationCard.tsx",
+    "test": "test/unit/elicitationCard.test.tsx",
+    "expected": "labels every control",
+    "mutation": "disabled={isLocked || !checked.ok} -> disabled={isLocked}",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "mutated_sha256": "89a828162d84daec329d979b1927425aaed2ea83c04a5ace9933114e16d39498",
+    "after_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "failures": [
+      "FAIL  test/unit/elicitationCard.test.tsx > MCP elicitation card > labels every control and enum group and validates format and bounds",
+      "AssertionError: expected false to be true // Object.is equality"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "ui-lock",
+    "path": "src/webview/components/ElicitationCard.tsx",
+    "test": "test/unit/elicitationCard.test.tsx",
+    "expected": "locks submitted forms",
+    "mutation": "const isLocked = form.isSubmitted === true -> const isLocked = false",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "mutated_sha256": "0be70fbd5ef63ec3524698d7ade7de70901449f59a9dd1f71c24bf44cce4e1cd",
+    "after_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "failures": [
+      "FAIL  test/unit/elicitationCard.test.tsx > MCP elicitation card > locks submitted forms until a host refusal unlocks them",
+      "AssertionError: expected \"vi.fn()\" to not be called at all, but actually been called 1 times"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "ui-escape",
+    "path": "src/webview/components/ElicitationCard.tsx",
+    "test": "test/unit/elicitationCard.test.tsx",
+    "expected": "submits with the form keyboard path",
+    "mutation": "        onCancel(form.elicitationId) ->         void form.elicitationId",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "mutated_sha256": "a704a4207262f4ebb8f60c4a776349f214f169b03e15a6800555a487ab53984d",
+    "after_sha256": "8b7e8d43ecffffe96ef3916c14f4f89f011efea71f7118cdaf365c9e2cb0b4ce",
+    "failures": [
+      "FAIL  test/unit/elicitationCard.test.tsx > MCP elicitation card > submits with the form keyboard path and cancels with Escape",
+      "AssertionError: expected \"vi.fn()\" to be called with arguments: [ 'e1' ]"
+    ],
+    "restored_exit": 0
+  },
+  {
+    "name": "ui-settlement",
+    "path": "src/webview/state/uiState.ts",
+    "test": "test/unit/elicitationCard.test.tsx",
+    "expected": "keeps drafts out of persistence",
+    "mutation": "? { ...entry, elicitation: undefined } -> ? { ...entry, elicitation: entry.elicitation }",
+    "status": "pass",
+    "baseline_exit": 0,
+    "mutated_exit": 1,
+    "before_sha256": "ba89ed7aeb0a6d0478291f85da840e18c17ed84e12cfe8b5b3b8a37136dc9d1e",
+    "mutated_sha256": "df305e603ffb804dc007723f71840989e7a7fb7bdd1d8fb19f8efcbb3db1bf33",
+    "after_sha256": "ba89ed7aeb0a6d0478291f85da840e18c17ed84e12cfe8b5b3b8a37136dc9d1e",
+    "failures": [
+      "FAIL  test/unit/elicitationCard.test.tsx > elicitation reducer and persistence > keeps drafts out of persistence and clears the form on settlement",
+      "AssertionError: expected { kind: 'tool', id: 'tool1', \u2026(21) } to match object { elicitation: undefined }"
+    ],
+    "restored_exit": 0
+  }
+]

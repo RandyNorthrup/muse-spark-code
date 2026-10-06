@@ -138,9 +138,10 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
 }
 
 describe('buildPalette', () => {
-  it('lays out the seven Claude Code groups in order, with Review (M70) before Support', () => {
+  it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',
+      'Git and pull requests',
       'Model',
       'Customize',
       'Account & usage',
@@ -265,7 +266,10 @@ describe('buildPalette', () => {
       ...context,
       currentModel: { modelId: 'm', contextLimit: undefined },
     })
-    expect(noLimit[1]?.items[0]?.widget).toEqual({ kind: 'value', text: 'm' })
+    expect(noLimit.find((group) => group.id === 'model')?.items[0]?.widget).toEqual({
+      kind: 'value',
+      text: 'm',
+    })
   })
 
   it('offers Resume in the Context group, opening the History dialog', () => {
@@ -298,6 +302,7 @@ describe('buildPalette', () => {
     })
     const slash = groups.find((group) => group.id === 'slash')
     expect(slash?.items.map((item) => item.label)).toEqual([
+      '/hook run',
       '/agents',
       '/compact',
       '/handoff',
@@ -331,6 +336,20 @@ describe('buildPalette', () => {
         ?.items.filter((item) => item.id.endsWith('Worktree'))
         .map((item) => item.action)
       expect(rows, String(backend)).toEqual([{ type: 'newWorktree' }, { type: 'removeWorktree' }])
+    }
+  })
+
+  it('offers commit, push and pull requests on both backends (M71)', () => {
+    for (const backend of ['museCode', 'modelApi', undefined] as const) {
+      const rows = buildPalette({ ...context, backend })
+        .find((group) => group.id === 'git')
+        ?.items.map((item) => item.action)
+      expect(rows, String(backend)).toEqual([
+        { type: 'gitAction', action: 'openCommit' },
+        { type: 'gitAction', action: 'push' },
+        { type: 'gitAction', action: 'openPullRequest' },
+        { type: 'openPullRequestInConversation' },
+      ])
     }
   })
 
@@ -375,7 +394,7 @@ describe('buildPalette', () => {
         id: 'importFromAgents',
         tip: EN.paletteTips.importFromAgents,
         label: EN.agentImportItem,
-        detail: EN.agentImportDetail,
+        detail: EN.agentImportDetailEvery,
         action: { type: 'importFromAgents' },
       })
     }
@@ -496,6 +515,10 @@ describe('slashCommandsOf', () => {
     const names = commands.map((command) => command.name)
     expect(names).toEqual([
       'resume',
+      'commit',
+      'push',
+      'pr',
+      'checkout-pr',
       'model',
       'permissions',
       'mcp',
@@ -504,6 +527,7 @@ describe('slashCommandsOf', () => {
       'config',
       'fix-bug',
       'acme:deploy',
+      'hook run',
       'agents',
       'compact',
       'handoff',
@@ -637,6 +661,28 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
           'muse-spark-1.3-contributor: $0.100 input, $0.002 cached input, $0.200 output per million tokens; 3 attempts with up to 20 requests each, including retries.',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'bestOfN', isOn: true },
+      ],
+      [
+        'Tab completions (paid)',
+        'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'tab', isOn: true },
+      ],
+      // M91 lane H: prompt and agent hooks, each a paid model call.
+      [
+        'Model hooks (paid)',
+        '$1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          '$0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'hookModels', isOn: true },
+      ],
+      [
+        'Judge (paid)',
+        'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.002/1M cached input, $0.200/1M output tokens',
+        { kind: 'toggle', isOn: false },
+        { type: 'setPaidFeature', feature: 'judge', isOn: true },
       ],
     ])
   })

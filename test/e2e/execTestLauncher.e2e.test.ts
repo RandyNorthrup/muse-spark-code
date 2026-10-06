@@ -68,6 +68,7 @@ const sharedUiText: Plugin = {
   name: 'shared-ui-text',
   setup(context) {
     context.onResolve({ filter: /\/en(?:\.[jt]s)?$/ }, (args) =>
+      args.kind !== 'entry-point' &&
       path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts')) === UI_TEXT_ENTRY
         ? { path: './uiText.js', external: true }
         : undefined,
@@ -105,6 +106,23 @@ async function packageTree(): Promise<void> {
     format: 'cjs',
     target: 'node22',
     external: ['@napi-rs/keyring'],
+    plugins: [sharedUiText],
+    logLevel: 'silent',
+  })
+  // Real adjacent modules required by the production and test packers.
+  await build({
+    entryPoints: {
+      recorder: path.join(ROOT, 'src/host/support/recorderEntry.ts'),
+      wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
+      uiTextRuntime: UI_TEXT_ENTRY,
+      uiTextHooks: UI_TEXT_ENTRY,
+      uiTextSurfaces: UI_TEXT_ENTRY,
+    },
+    outdir: dist,
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
     plugins: [sharedUiText],
     logLevel: 'silent',
   })

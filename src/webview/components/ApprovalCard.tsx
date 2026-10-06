@@ -152,6 +152,11 @@ export function ApprovalCard({ approval, toolName, onDecide }: ApprovalCardProps
           {approval.isJudgeEscalated ? <span>{UI_TEXT.approvalJudgeEscalated}</span> : null}
         </div>
       ) : null}
+      {approval.judgeCaution === true ? (
+        <p className="approval-note" dir="auto">
+          {UI_TEXT.judgeCaution}
+        </p>
+      ) : null}
       {approval.note === undefined ? null : (
         <p className="approval-note" dir="auto">
           {approval.note}

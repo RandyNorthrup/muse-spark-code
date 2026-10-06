@@ -1,14 +1,24 @@
+import { Dir } from 'node:fs'
 import { mkdir, mkdtemp, readFile, readdir, rename, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
 import * as identity from '../../src/core/fs/fileIdentity'
 import { CheckpointCopies } from '../../src/host/checkpoints/checkpointCopies'
+import type * as constants from '../../src/shared/constants'
 import {
   CHECKPOINT_COPY_SWEEP_MAX_FILES,
   CHECKPOINT_COPY_SWEEP_MAX_MS,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+
+// Cross the real traversal bound with a small fixture, as the retention
+// suite does: hundreds of disk writes/stat/removes add a disk-latency dependency.
+// Four reads also let the other real-FS cases finish within their first pass.
+vi.mock('../../src/shared/constants', async (importOriginal) => ({
+  ...(await importOriginal<typeof constants>()),
+  CHECKPOINT_COPY_SWEEP_MAX_FILES: 4,
+}))
 
 const folders: string[] = []
 const sweepers: CheckpointCopies[] = []
@@ -46,14 +56,21 @@ it('bounds copy traversal by count and resumes its directory cursor next pass', 
   const count = CHECKPOINT_COPY_SWEEP_MAX_FILES + 2
   for (let index = 0; index < count; index += 1) await t.copy(`orphan-${String(index)}`)
   vi.spyOn(performance, 'now').mockReturnValue(0)
+  const reads = vi.spyOn(Dir.prototype, 'read')
   await t.sweeper.sweep([], [])
   const left = await copyCount(t.blobs)
-  expect(left).toBeGreaterThan(0)
-  expect(left).toBeLessThan(count)
-  for (let pass = 0; pass < count && (await copyCount(t.blobs)) > 0; pass += 1) {
-    await t.sweeper.sweep([], [])
-  }
+  // The instance-folder read uses one entry of the first pass's budget.
+  expect(reads).toHaveBeenCalledTimes(CHECKPOINT_COPY_SWEEP_MAX_FILES)
+  expect(left).toBe(count - (CHECKPOINT_COPY_SWEEP_MAX_FILES - 1))
+  expect(t.sweeper.isScanning('one')).toBe(true)
+  const cursor = reads.mock.contexts.at(-1)
+  reads.mockClear()
+  await t.sweeper.sweep([], [])
+  // The remaining copies and EOF use the same already-open blob cursor.
+  expect(reads).toHaveBeenCalledTimes(left + 1)
+  for (const resumed of reads.mock.contexts) expect(resumed).toBe(cursor)
   expect(await readdir(t.blobs)).toEqual([])
+  expect(t.sweeper.isScanning('one')).toBe(false)
 })
 
 it('bounds copy traversal by time and resumes next pass', async () => {

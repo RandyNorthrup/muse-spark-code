@@ -1,0 +1,237 @@
+{
+  "purpose": "Real hook stdin payloads captured from vendor CLIs for M91 lane P golden fixtures (AGENTS rule 13: contracts come from real output). Every key, nesting, order, type and value is as the vendor sent it except the scrubbed values listed under scrub.",
+  "capturedOn": "2026-10-04 (local); payload timestamps are UTC 2026-10-05",
+  "recorder": "node rec.js <Event>: writes the raw stdin bytes and the sorted environment variable NAMES (never values), prints nothing to stdout, exits 0",
+  "scrub": {
+    "rules": [
+      "workspace directory -> /workspace (Linux) or C:\\workspace (Windows); absolute paths stay absolute, relative tool paths (e.g. hello.txt) stay relative",
+      "home directory -> /home/user (Linux) or C:\\Users\\user (Windows)",
+      "Gemini project temp dir ~/.gemini/tmp/<project> -> /home/user/.gemini/tmp/workspace",
+      "transcript paths -> /home/user/.gemini/tmp/workspace/chats/session-000N.jsonl (Gemini) and C:\\Users\\user\\.claude\\projects\\C--workspace\\session-000N.jsonl (Claude); directory shape and .jsonl extension kept",
+      "session UUIDs -> session-000N; Claude prompt_id UUID -> prompt-000N; Claude tool_use_id -> toolu_placeholder000N (all stay strings)",
+      "every other value (timestamps, tool inputs and outputs, model text, token counts, PGID) is unchanged"
+    ],
+    "serialisation": "vendors send compact single-line JSON; fixtures are re-serialised with 2-space indentation and a trailing newline (key order preserved)",
+    "truncation": "only gemini/AfterTool.grep_search.json: strings longer than 300 chars (llmContent and match lines that quote other capture files) cut to 200 chars plus the marker '…[truncated]'; array lengths and keys unchanged. No other file is truncated.",
+    "grepCheck": "zero hits in captured/ for the owner's user name (either case), the Google API key prefix, the OpenAI-style secret key prefix, gmail addresses and GitHub personal/OAuth token prefixes, and zero remaining UUIDs",
+    "rawCopies": "unscrubbed captures, CLI stdout/stderr and session transcripts stay only in the session scratchpad (m91p-capture/), not in the repo",
+    "prettier": "files were run through the repo's prettier (formatting only; no value changed)"
+  },
+  "vendors": {
+    "gemini": {
+      "cli": "@google/gemini-cli",
+      "version": "0.62.0",
+      "versionSource": "gemini --version",
+      "docs": "hooks docs from tag v0.62.0 (docs/hooks/reference.md, index.md, writing-hooks.md, best-practices.md) saved verbatim to scratchpad hooks-parity/gemini/ with SOURCE.txt; the npm package ships no docs",
+      "os": "Kubuntu rig: Ubuntu 26.04 LTS, Linux 7.0.0-31-generic x86_64, Node v24.18.0",
+      "settingsFile": ".gemini/settings.json in the throwaway workspace: hooksConfig.enabled=true, privacy.usageStatisticsEnabled=false, security.auth.selectedType=gemini-api-key, hooks.<Event> = [{ hooks: [{ name: 'rec-<Event>', type: 'command', command: '/usr/bin/node <workspace>/rec.js <Event>', timeout: 20000 }] }] for all 11 documented events (no matcher)",
+      "command": "GEMINI_CLI_TRUST_WORKSPACE=true gemini -m <model> --skip-trust --yolo -o json -p \"Read hello.txt, then run the shell command `echo hi`, then reply with one word.\" < /dev/null",
+      "keyHandling": "GEMINI_API_KEY decrypted from DPAPI in memory on the Windows host, piped over ssh STDIN, read on the rig with `IFS= read -r` and exported only for that process; never on a command line, never echoed, never written to disk",
+      "runs": [
+        {
+          "id": "trust-check",
+          "model": "gemini-2.5-flash",
+          "result": "HTTP 404 ModelNotFound ('no longer available to new users'); with --skip-trust alone (no env var) ZERO hooks fired",
+          "requests": 1,
+          "successfulRequests": 0
+        },
+        {
+          "id": "setup-probe",
+          "model": "gemini-2.5-flash",
+          "result": "HTTP 404 again, but with GEMINI_CLI_TRUST_WORKSPACE=true hooks fired: SessionStart, BeforeAgent, PreCompress, BeforeModel, BeforeToolSelection",
+          "requests": 1,
+          "successfulRequests": 0
+        },
+        {
+          "id": "run1-base",
+          "model": "gemini-3.8-flash",
+          "result": "response 'Done'; read_file + run_shell_command ran; source of the main fixtures",
+          "requests": 9,
+          "successfulRequests": 3,
+          "errors": "6 (HTTP 503 high demand and retries; stats errorsByType Error 4, ApiError 1, TypeError 1)"
+        },
+        {
+          "id": "runA-attempt1",
+          "model": "requested gemini-3.5-flash, CLI sent gemini-3.8-flash",
+          "result": "503s then 429 free-tier quota (5/min, then 20/day for gemini-3.8-flash); TerminalQuotaError, no tool calls; discarded",
+          "requests": 8,
+          "successfulRequests": 0
+        },
+        {
+          "id": "runB-contract",
+          "model": "requested gemini-3.5-flash, CLI sent gemini-3.8-flash",
+          "result": "BeforeTool probes: read_file -> exit 0 plain text, run_shell_command -> exit 2",
+          "requests": 8,
+          "successfulRequests": 3,
+          "errors": "5 (503/429)"
+        },
+        {
+          "id": "runA-contract",
+          "model": "gemini-3.5-flash-lite",
+          "result": "BeforeTool probes: read_file -> exit 3, run_shell_command -> JSON deny; model retried read_file 7 times, also used list_directory, glob, grep_search; response 'Hi'",
+          "requests": 10,
+          "successfulRequests": 10
+        }
+      ],
+      "modelCalls": {
+        "attempted": 37,
+        "successful": 16,
+        "howCounted": "BeforeModel captures per run (fires once per request attempt, retries included), checked against `-o json` stats.models[*].api.totalRequests/totalErrors (equal for run1, runB, runA-contract); 404 runs counted from the error output",
+        "billing": "the stored key is on the Gemini API free tier (429s name metric generate_content_free_tier_requests), so there was no charge; the daily gemini-3.8-flash free quota is used up for about 21 h (per the 429 retry hint at 02:39Z)"
+      },
+      "eventsFired": [
+        "SessionStart",
+        "BeforeAgent",
+        "PreCompress",
+        "BeforeModel",
+        "BeforeToolSelection",
+        "AfterModel",
+        "BeforeTool",
+        "AfterTool",
+        "AfterAgent",
+        "SessionEnd"
+      ],
+      "eventsNotFired": {
+        "Notification": "no ToolPermission prompt happens with --yolo in headless mode"
+      },
+      "files": {
+        "run1-base": [
+          "SessionStart.json",
+          "BeforeAgent.json",
+          "PreCompress.json",
+          "BeforeModel.json",
+          "BeforeToolSelection.json",
+          "AfterModel.json (text chunk 'Done')",
+          "AfterModel.thought-chunk.json",
+          "AfterModel.tool-call-chunk.json",
+          "AfterModel.empty-candidates-chunk.json",
+          "AfterModel.finish-chunk.json",
+          "BeforeTool.read_file.json",
+          "BeforeTool.run_shell_command.json",
+          "AfterTool.read_file.json",
+          "AfterTool.run_shell_command.json",
+          "AfterAgent.json",
+          "SessionEnd.json",
+          "<Event>.envnames.txt for the 10 fired events"
+        ],
+        "runA-contract (gemini-3.5-flash-lite)": [
+          "BeforeTool.list_directory.json",
+          "BeforeTool.read_file.line-range.json",
+          "BeforeTool.glob.json",
+          "BeforeTool.grep_search.json",
+          "AfterTool.list_directory.json",
+          "AfterTool.glob.json",
+          "AfterTool.grep_search.json (truncated, see scrub)"
+        ]
+      },
+      "outputContract": {
+        "event": "BeforeTool (a probe hook ran next to the recorder, matched by tool name)",
+        "observations": [
+          {
+            "hook": "exit 0, stdout {\"decision\":\"deny\",\"reason\":\"capture-deny\"}",
+            "tool": "run_shell_command",
+            "toolRan": false,
+            "modelSaw": "functionResponse {\"error\":\"Tool execution blocked: capture-deny\"}",
+            "turn": "continued",
+            "afterToolFired": false
+          },
+          {
+            "hook": "exit 2, stderr 'capture-exit2'",
+            "tool": "run_shell_command",
+            "toolRan": false,
+            "modelSaw": "functionResponse {\"error\":\"Tool execution blocked: capture-exit2\"}",
+            "turn": "continued (final reply 'Done'); stats count the tool as fail",
+            "afterToolFired": false
+          },
+          {
+            "hook": "exit 3, stderr 'capture-exit3', stdout empty",
+            "tool": "read_file",
+            "toolRan": false,
+            "modelSaw": "functionResponse {\"error\":\"Tool execution blocked: capture-exit3\"}",
+            "cliStderr": "'Hook execution for BeforeTool: 1 succeeded, 1 failed (probe-exit3)', '[WARNING] Hook(s) [probe-exit3] failed for event BeforeTool…', 'Error executing tool read_file: Tool execution blocked: capture-exit3'",
+            "turn": "continued",
+            "afterToolFired": false,
+            "versusDocs": "contradicts the docs ('Other' exit codes are a non-fatal warning and the action goes ahead); matches hookRunner.convertPlainTextToHookOutput in the 0.62.0 bundle: exit 0 text -> allow + systemMessage, exit 1 -> allow + 'Warning: <text>', exit >= 2 -> deny with reason = stdout.trim() || stderr.trim()"
+          },
+          {
+            "hook": "exit 0, plain non-JSON stdout 'capture-text'",
+            "tool": "read_file",
+            "toolRan": true,
+            "modelSaw": "the real tool output (functionResponse {\"output\":\"hello capture\\n\"}); nothing from the hook",
+            "cliStderr": "Hook system message: capture-text",
+            "turn": "continued",
+            "versusDocs": "matches the docs' 'pollution' rule (allow, whole output shown as systemMessage)"
+          }
+        ],
+        "notProbed": "exit 1 (code says allow + 'Warning: <text>' systemMessage)"
+      },
+      "surprisesVersusDocs": [
+        "In -p mode --skip-trust alone did not load project hooks (zero captures); exporting GEMINI_CLI_TRUST_WORKSPACE=true before launch did. The 0.62.0 bundle sets that env var only after parsing arguments, which looks too late for settings loading.",
+        "PreCompress fired with trigger 'auto' once per model turn (3 in run1, 10 in runA-contract) even though nothing was compressed; retries did not fire it again.",
+        "transcript_path is a .jsonl file under ~/.gemini/tmp/<project>/chats/ (the docs say 'session transcript JSON').",
+        "llm_request has no toolConfig key and no system message. messages holds only the first user text (with the <session_context> preamble); model turns and function call/response turns never appear, so later BeforeModel payloads match the first apart from timestamp. config = {temperature, topP, topK}.",
+        "llm_response has an undocumented top-level 'text' key; candidates[] carry 'index'; parts are plain strings; finishReason appears only on the last chunk; thought summaries arrive as ordinary text parts; the chunk carrying the function call has parts []; one chunk was just {\"candidates\":[]}; usageMetadata has promptTokenCount/candidatesTokenCount/totalTokenCount (the docs show only totalTokenCount).",
+        "AfterModel fired for every streamed chunk (2-5 per successful request in run1), as documented; it did not fire for failed attempts.",
+        "BeforeTool/AfterTool for built-in tools have no mcp_context or original_request_name keys (documented as optional). AfterTool tool_response = {llmContent, returnDisplay} with no 'error' key. returnDisplay is a string for read_file, run_shell_command and glob but an object for list_directory {summary, files[]} and grep_search {summary, matches[]}.",
+        "run_shell_command tool_input = {description, command} (the model fills in 'description'); llmContent wraps shell output as '<untrusted_context>\\nOutput: hi\\nProcess Group PGID: N\\n</untrusted_context>'.",
+        "AfterTool does not fire when BeforeTool blocks the tool.",
+        "AfterAgent prompt_response kept leading whitespace and newlines ('   \\n   \\nDone ').",
+        "Hook env includes GEMINI_API_KEY (redaction is off by default, as documented), plus GEMINI_CWD, GEMINI_PLANS_DIR, GEMINI_PROJECT_DIR, GEMINI_SESSION_ID, CLAUDE_PROJECT_DIR, GEMINI_CLI_NO_RELAUNCH. SSH_* and GEMINI_CLI_TRUST_WORKSPACE names come from the capture harness.",
+        "-m gemini-3.5-flash silently ran as gemini-3.8-flash (getBackendModelMappings maps the base flash model to the latest one); llm_request.model shows the mapped name.",
+        "On first sight the CLI warns about new project hooks on stderr and records them as 'name:command' in ~/.gemini/trusted_hooks.json; non-interactive runs go ahead anyway."
+      ]
+    },
+    "claude": {
+      "cli": "Claude Code",
+      "version": "2.1.288",
+      "versionSource": "claude --version",
+      "os": "Windows 11 Pro 10.0.26200 host, launched from PowerShell 7",
+      "settingsFile": ".claude/settings.json in the throwaway workspace (project scope only): hooks for PreToolUse, PostToolUse (matcher '*'), UserPromptSubmit, Stop, SessionStart, SessionEnd, Notification, SubagentStop, PreCompact; each { type: 'command', command: 'node \"<workspace>/rec.js\" <Event>', timeout: 20 }",
+      "command": "claude -p \"Read hello.txt, then run the shell command: echo hi. Reply with one word.\" --model haiku --allowedTools \"Read\" \"Bash(echo:*)\" \"PowerShell(echo:*)\" --setting-sources project --output-format json",
+      "commandNotes": "run from the workspace with inherited CLAUDE* env vars removed (launched from inside another Claude Code session); --setting-sources project kept user hooks and plugins out; no ~/.claude change; signed-in owner account, no key involved",
+      "model": "claude-haiku-4-5-20251001 (modelUsage)",
+      "modelCalls": {
+        "count": 3,
+        "howCounted": "num_turns = 3 in the --output-format json result; modelUsage lists only this model",
+        "listPriceEstimateUsd": 0.0246
+      },
+      "eventsFired": [
+        "SessionStart",
+        "UserPromptSubmit",
+        "PreToolUse",
+        "PostToolUse",
+        "Stop",
+        "SessionEnd"
+      ],
+      "eventsNotFired": {
+        "Notification": "no permission prompt or idle wait in -p",
+        "SubagentStop": "no subagent",
+        "PreCompact": "no compaction"
+      },
+      "files": [
+        "SessionStart.json",
+        "UserPromptSubmit.json",
+        "PreToolUse.Read.json",
+        "PreToolUse.Bash.json",
+        "PostToolUse.Read.json",
+        "PostToolUse.Bash.json",
+        "Stop.json",
+        "SessionEnd.json",
+        "<Event>.envnames.txt for the 6 fired events"
+      ],
+      "notes": [
+        "SessionStart has no prompt_id or permission_mode; SessionEnd has prompt_id but no permission_mode, and reason is 'other' in -p mode.",
+        "Stop carries last_assistant_message, background_tasks [] and session_crons [] besides stop_hook_active.",
+        "PostToolUse carries tool_use_id and duration_ms; Read tool_response = {type:'text', file:{filePath, content, numLines, startLine, totalLines}}; Bash tool_response = {stdout, stderr, interrupted, isImage, noOutputExpected}.",
+        "Windows paths use backslashes; the model sent an absolute Read file_path.",
+        "Hook env includes CLAUDE_PROJECT_DIR and CLAUDECODE / CLAUDE_CODE_* names that the launched CLI set itself (the launcher's own copies were removed); the other names come from the host environment."
+      ],
+      "outputContract": "not probed (not requested)"
+    },
+    "copilot": {
+      "status": "not captured: needs an owner credential step",
+      "entitlementCheck": "read-only gh api GETs on the existing gh login: copilot_internal/user -> HTTP 200 (copilot_plan=individual, access_type_sku=free_limited_copilot, chat_enabled=true, cli_enabled=true); user/copilot_billing -> 404; user/copilot/seat -> 404",
+      "blocker": "Copilot CLI is not installed. Running it needs an install plus a Copilot CLI sign-in (device-code login or a token), which the owner's rule says to ask about first, so it was not installed. Using it would also spend the Copilot Free monthly quota."
+    }
+  }
+}

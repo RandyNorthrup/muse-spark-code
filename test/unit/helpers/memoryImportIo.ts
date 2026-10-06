@@ -38,6 +38,8 @@ export interface MemoryImportTree {
   readonly links?: Record<string, string>
   /** Paths whose read or listing fails with this code. */
   readonly failing?: Record<string, string>
+  /** Files with an execute bit (Cline v1 scripts off Windows). */
+  readonly executables?: readonly string[]
 }
 
 export interface MemoryImportIo extends ImportIo, ImportWriter {
@@ -60,6 +62,7 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
   const files = new Map(Object.entries(tree.files ?? {}))
   const links = new Map(Object.entries(tree.links ?? {}))
   const failing = tree.failing ?? {}
+  const executables = new Set(tree.executables)
   const reads: string[] = []
   const resolve = (absolutePath: string): string => {
     for (const [at, target] of links) {
@@ -160,6 +163,11 @@ export function memoryImportIo(tree: MemoryImportTree = {}): MemoryImportIo {
     },
     realPath(absolutePath) {
       return Promise.resolve(resolve(absolutePath))
+    },
+    isExecutable(absolutePath) {
+      failure(absolutePath)
+      const real = resolve(absolutePath)
+      return Promise.resolve(files.has(real) && executables.has(real))
     },
     isPresent(absolutePath) {
       const real = resolve(absolutePath)

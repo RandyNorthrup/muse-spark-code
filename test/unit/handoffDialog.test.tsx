@@ -245,6 +245,36 @@ describe('/handoff (M74)', () => {
     },
   )
 
+  it('keeps a brief that arrives while the report dialog is open waiting, one modal at a time (M93)', async () => {
+    renderPanel()
+    submitCommand('/handoff')
+    admit()
+    deliver({
+      type: 'reportDraft',
+      session: 1,
+      revision: 0,
+      description: '',
+      includeFacts: true,
+      includeEvents: true,
+      items: [{ kind: 'facts', label: 'Support facts' }],
+      title: 'Problem report',
+      text: 'Muse Spark problem report',
+      hash: '0'.repeat(64),
+      canUseVscodeReporter: false,
+      recordingUnavailable: false,
+    })
+    const report = await screen.findByRole('dialog', { name: UI_TEXT.reportTitle })
+    deliver(READY)
+    // The report keeps the screen and the focus; the brief waits.
+    expect(modalRoots()).toEqual([report])
+    expect(report.contains(document.activeElement)).toBe(true)
+    expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.reportCancelAction }))
+    const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
+    expect(modalRoots()).toEqual([dialog])
+    expect(dialogText().value).toBe(BRIEF)
+  })
+
   it.each(['before', 'after'])(
     'keeps the handoff waiting when a share opens %s its brief, restoring focus on close (M84)',
     (when) => {

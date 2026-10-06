@@ -49,7 +49,8 @@ them, the milestone plan, and the certification checklist.
      `dist/extension.js` reads, a block in any shipped bundle but its
      declared readers, and a new block the split check does not guard
      (PLAN.md D6, 2026-10-03 and 2026-10-04).
-   - **Node bundles share English fallback** (`dist/uiText.js`, PLAN.md D6).
+   - **Node bundles share English fallback** (`dist/uiText.js` and its generated
+     runtime/hooks/surfaces regions, PLAN.md D6).
      Each bundle keeps its own installed-language state; lazy factories install
      the caller's table before use. Browser and integration-test bundles keep
      their inline fallback.
@@ -128,6 +129,15 @@ them, the milestone plan, and the certification checklist.
     user's own TypeSafe key instead of the Model API key; every other part
     of this rule applies to it unchanged.
 
+- **Tab (M94, D73):** `museSpark.modelApiTab` is machine-scoped and on by
+  default. The first paid request asks D48's question with the model's rates
+  and daily budget ($1.00 by default). Allow once covers this window until
+  it closes; Always is workspace-scoped and revocable; Deny snoozes this
+  window. No charge precedes consent. Tab uses only the stored Model API
+  key on either backend, with a hard cross-window local-day ledger. Its
+  small status item shows at activation; `dist/tab.js` loads the provider,
+  completion engine, ledger and menu on first use.
+
 - **Headless exception (M80, D65):** interactive popup policy above stays.
   Headless images require the explicit `--image-generation` flag,
   `acceptEdits`, a hard USD budget, and per-use admission/settlement tally;
@@ -163,6 +173,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first fetch),
                       the Auto reviewer on Muse Code (dist/museCodeReviewer.js,
                       loaded on the first review),
+                      the report dialog's handler and export paths
+                      (dist/report.js, loaded on the first report; M93) beside
+                      the window's flight recorder (support/: its journal and
+                      markers and the dialog's facts, loaded at activation),
                       What's New after an update (whatsNew/: the check and
                       claim at activation; the page in dist/whatsNew.js,
                       loaded on the first page or notice, its content
@@ -178,17 +192,25 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       prepare a runtime) and the runtime's consent and command,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
+                      Tab's lazy provider, ledger and menu (dist/tab.js),
+                      with its status item in the activation shim,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web
                       fetch, browser check), VS Code's language services, the MCP servers'
                       spawner, the network posture, web fetch's pinned
-                      transport and the verify loop's editor side: settled
-                      diagnostics, format on edit and turn checkpoints' shadow repository)
+                      transport, git and pull requests through VS Code's Git
+                      extension and GitHub sign-in, and the verify loop's editor
+                      side: settled diagnostics, format on edit and turn
+                      checkpoints' shadow repository)
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (MSP host, Model API client and tools, the MCP client,
+                      the hook dispatcher and, in dist/foreignHooks.js loaded
+                      on first use, the adapters for hooks imported from
+                      other agents (M91),
                       context (rules, skills, custom agents), Muse Code's
-                      memory, export, worktrees, usage,
+                      memory, export, worktrees, git and GitHub (push plans,
+                      REST client, draft prompts), usage,
                       dictation, Muse Voice, the paid gate, network failures,
                       code intelligence and the repo map, web fetch's
                       public-address checks and HTML converter, the browser
@@ -197,14 +219,17 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       loop's check commands, diagnostics report and the files
                       it never opens because tools run them, the checkpoint
                       restore plan, the paired efficiency evaluation,
-                      observation packing)
+                      observation packing, Tab's context windows, requests,
+                      filters, typing-through cache, scheduler and spend, the flight recorder policy
+                      and problem report builder and second scrub)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
 src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
-                      the OS credential store (D61), `auth` and `login`
+                      the OS credential store (D61), `auth`, `login` and
+                      `report` (M93)
 src/shared/**         constants + zod protocol shared by host and webview
 src/shared/l10n/**    the English table (en.ts), fill/plural/Intl helpers, the
                       table checks and the list of translated languages

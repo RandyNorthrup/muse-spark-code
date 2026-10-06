@@ -43,6 +43,7 @@ import {
 } from '../../src/host/skills/bundledSkillsInstall'
 import { BUNDLED_SKILLS_BUNDLE_FILE, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { memoryMemento as memento } from './helpers/fakeGit'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -475,19 +476,6 @@ describe('the shipped bundle', () => {
     expect(isBundledSkillsBundle({ bundledSkillsStatus: 1 })).toBe(false)
   })
 })
-
-/** `globalState` as the offer uses it: a map the test reads back. */
-function memento(initial: Record<string, unknown> = {}) {
-  const values = new Map(Object.entries(initial))
-  return {
-    values,
-    get: (key: string) => values.get(key),
-    update: (key: string, value: unknown) => {
-      values.set(key, value)
-      return Promise.resolve()
-    },
-  }
-}
 
 describe('createBundledSkillsOffer', () => {
   const KEYS = { installDeclined: 'install', updateDeclined: 'update' }

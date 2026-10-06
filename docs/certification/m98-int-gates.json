@@ -1,0 +1,105 @@
+[
+  {
+    "drill": "G1 Judge size cap",
+    "file": "dist/judge.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "6f79024703afb69c7801d7646d6c96dccbed01212ec360c076eb5cfb624008d6",
+    "mutantSha256": "a8d8d4bbf974e8a92572a930707c70bea2879d5e1484ca59aff2a81a304e6309",
+    "restoredSha256": "6f79024703afb69c7801d7646d6c96dccbed01212ec360c076eb5cfb624008d6",
+    "failureTail": [
+      "ok   dist/searchWorker.js: 18.1 KiB (budget 50 KiB)",
+      "ok   dist/pageWorker.js: 203.2 KiB (budget 300 KiB)",
+      "ok   dist/webview/main.js: 863.5 KiB (budget 900 KiB)",
+      "ok   dist/acp.js: 787.3 KiB (budget 850 KiB)",
+      "bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)"
+    ]
+  },
+  {
+    "drill": "G2 Judge math at activation",
+    "file": "dist/meta/extension.json",
+    "command": ["node", "scripts/check-bundle-split.mjs"],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "18b2c4ffef1ff31b54e33a064284ddee9b286ff0e303b24f187b37ab10466bef",
+    "mutantSha256": "4b063c6ec82c492bfcfdf5216914e9dc4361ac4a5a4f86fdd68a64f5ed16a5f5",
+    "restoredSha256": "18b2c4ffef1ff31b54e33a064284ddee9b286ff0e303b24f187b37ab10466bef",
+    "failureTail": [
+      "bundle split: 1 problem(s); see PLAN.md D6 and M57",
+      "  dist/extension.js carries src/core/judge/math.ts, which loads only on the first eligible Judge approval"
+    ]
+  },
+  {
+    "drill": "G3 Judge host global",
+    "file": "dist/judge.js",
+    "command": ["node", "scripts/check-host-globals.mjs"],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "6f79024703afb69c7801d7646d6c96dccbed01212ec360c076eb5cfb624008d6",
+    "mutantSha256": "3adc1cb790b20ae805b94aa21c93df10f9abb8a88a2ca8a6bc908669718e8df6",
+    "restoredSha256": "6f79024703afb69c7801d7646d6c96dccbed01212ec360c076eb5cfb624008d6",
+    "failureTail": [
+      "ok   dist/museCodeReviewer.js: 0 reference(s) to navigator",
+      "FAIL dist/judge.js: 1 reference(s) to navigator",
+      "ok   dist/searchWorker.js: 0 reference(s) to navigator",
+      "ok   dist/pageWorker.js: 0 reference(s) to navigator",
+      "the extension host bundle reads `navigator`; guard with `typeof process === \"object\" && process.versions.node` first (PLAN.md D29)"
+    ]
+  },
+  {
+    "drill": "G4 Playwright accessibility driver still rejects missing image alternative",
+    "file": "test/harness/index.html",
+    "command": ["node", "scripts/a11y.mjs", "empty"],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "c5aa7f7c22463f9626f5bd5a709638d19284205e7fec99a38baf6e55afb88fbb",
+    "mutantSha256": "a145b0d0e78f548627c6d6312e93c25af00e0b94f5b5b7202feaae6998ef025b",
+    "restoredSha256": "c5aa7f7c22463f9626f5bd5a709638d19284205e7fec99a38baf6e55afb88fbb",
+    "failureTail": ["image-alt: four theme pages, four violating elements; exit 1"],
+    "legacyRegression": {
+      "scriptSha256": "671dacec29792b234ebb9590b64fb9d2b56dbe0905d8256aeceaed1ea3dadc49",
+      "redExit": 1,
+      "pagesWithoutResult": 4,
+      "repairedBaselineExit": 0
+    }
+  },
+  {
+    "drill": "G5 CI package presence: extension/dist/judge.js",
+    "file": "muse-spark-code-0.12.1.vsix",
+    "scope": "Exact build.yml entry predicate, separately for each new entry; the full universal-helper predicate remains open.",
+    "command": [
+      "bash",
+      "-c",
+      "listing=\"$(unzip -Z1 \"$1\")\"\nentry=\"$2\"\nif ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n              echo \"::error::$entry is missing from the .vsix\" >&2\n              exit 1\n            fi",
+      "m98-ci-presence",
+      "/home/randy/lanes/M98INT/muse-spark-code-0.12.1.vsix",
+      "extension/dist/judge.js"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "0b8a83774fd02e1082f60602ff3941270288c46af54da4c00cfff251e3fc36c1",
+    "mutantSha256": "68ffac3231cd45e68e3e5202e6b5e41c0aa1131889b85196631bf4d5b6fdabf5",
+    "restoredSha256": "0b8a83774fd02e1082f60602ff3941270288c46af54da4c00cfff251e3fc36c1",
+    "failureTail": ["::error::extension/dist/judge.js is missing from the .vsix"]
+  },
+  {
+    "drill": "G6 CI package presence: extension/docs/judge.md",
+    "file": "muse-spark-code-0.12.1.vsix",
+    "scope": "Exact build.yml entry predicate, separately for each new entry; the full universal-helper predicate remains open.",
+    "command": [
+      "bash",
+      "-c",
+      "listing=\"$(unzip -Z1 \"$1\")\"\nentry=\"$2\"\nif ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n              echo \"::error::$entry is missing from the .vsix\" >&2\n              exit 1\n            fi",
+      "m98-ci-presence",
+      "/home/randy/lanes/M98INT/muse-spark-code-0.12.1.vsix",
+      "extension/docs/judge.md"
+    ],
+    "redExit": 1,
+    "greenExit": 0,
+    "pristineSha256": "0b8a83774fd02e1082f60602ff3941270288c46af54da4c00cfff251e3fc36c1",
+    "mutantSha256": "38a269c9edebc53cc94ed554167aa266588b46a318b5c7cf972d53bd6e4bd1d3",
+    "restoredSha256": "0b8a83774fd02e1082f60602ff3941270288c46af54da4c00cfff251e3fc36c1",
+    "failureTail": ["::error::extension/docs/judge.md is missing from the .vsix"]
+  }
+]
