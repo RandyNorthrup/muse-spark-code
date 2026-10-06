@@ -15143,6 +15143,20 @@ coverage and byte-exact red drills in `docs/certification/m95b-u.md`.
 No dependencies, new service-wire shapes, paid/live calls or relaxed gates;
 W retains aggregate docs and host identity production.
 
+**M95BINT U-review composition (2026-10-05).** Merge the newly arrived
+`m95b/ufix` and supply its authored `authState.planAccount` from the owner's
+captured OIDC `sub` claim, hashed only after signature/issuer/audience/expiry/
+nonce verification. Persist only that hash in this product's secret record;
+never email, a raw subject, a token-derived hash, installation id or echoed
+cache key. Preserve it across refresh without an ID token; reject a verified
+subject change during rotation. Legacy/missing-identity grants retain the
+fail-closed disclosure until a verified sign-in/refresh supplies identity.
+The VS Code auth service publishes it only for signed-in Model API state;
+account changes refresh that snapshot. Test hash privacy, refresh continuity,
+changed-subject refusal, host publication and U's account/dismissal regressions.
+Other ACP editors still receive the explicit pre-sign-in plan notice; cross-
+editor/profile webview persistence remains an installed-host receipt. Own-store identity parsing also sanitizes corrupted-record errors before the host can expose their detail.
+
 **FIXM95BS review repair (2026-10-05, Windows 11 rig).** Repair all four
 RVM95BS findings in the owned sign-in core and tests: atomically persist a
 replacement grant as a pending refresh before validation, preserve it in
@@ -16552,6 +16566,12 @@ before a repaired one loads (2026-09-30).
   closed: the notice appears and no unscoped acknowledgement is persisted,
   so another account cannot inherit a dismissal. Follow-up: certify the
   verified producer in integration before claiming once-per-account sign-in.
+  **Closed offline by M95BINT:** captured OIDC `sub` is hashed with its verified
+  issuer after ID-token validation, retained through no-ID-token refresh and
+  rejected on a verified subject change. Signed-in Model API auth publishes
+  only this hash; legacy/pending/signed-out states omit it. Production factory,
+  refresh and auth regressions plus eight byte-exact integration drills are in
+  `docs/certification/m95b.md`. Installed/profile persistence remains separate.
 - **M95BU-R-persistence-origin:** default browser persistence is scoped to
   the webview's origin as well as provider/account; isolated editor origins
   may repeat the disclosure. It never suppresses another account. Hosts can

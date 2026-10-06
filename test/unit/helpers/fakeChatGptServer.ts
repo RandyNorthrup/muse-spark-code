@@ -12,6 +12,7 @@ const SCOPE = 'openid chatgpt.tokens.use.direct'
 export async function fakeChatGptServer() {
   const pair = generateKeyPairSync('rsa', { modulusLength: 2048 })
   let nonce = ''
+  let subject = 'synthetic-account-A'
   let responseCount = 0
   let isLimit = false
   let isOverflow = false
@@ -52,7 +53,7 @@ export async function fakeChatGptServer() {
         case '/api/accounts/oauth/token': {
           const unsigned = [
             { alg: 'RS256', kid: 'synthetic' },
-            { iss: ISSUER, aud: CLIENT, nonce, exp: Date.now() / 1000 + 3600 },
+            { iss: ISSUER, aud: CLIENT, nonce, sub: subject, exp: Date.now() / 1000 + 3600 },
           ]
             .map((part) => Buffer.from(JSON.stringify(part)).toString('base64url'))
             .join('.')
@@ -182,6 +183,9 @@ export async function fakeChatGptServer() {
   }
   return {
     requests,
+    account: (value: string) => {
+      subject = value
+    },
     fetch: fetcher,
     cap: () => {
       reportedOutput = 32_769

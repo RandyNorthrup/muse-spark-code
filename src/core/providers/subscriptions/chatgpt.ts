@@ -1,6 +1,6 @@
 // M95b S: shared sign-in core. Hosts supply the browser, callback, secret
 // store and an inter-process lock; no editor API or other app's store is read.
-import { createPublicKey, verify } from 'node:crypto'
+import { createHash, createPublicKey, verify } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -52,6 +52,8 @@ export const chatGptRecordSchema = z.object({
   issuer: z.literal(ISSUER),
   clientId: nonempty,
   hostId: nonempty,
+  /** Hash of the captured verified OIDC subject; never the raw account id. */
+  accountIdHash: z.optional(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
   accessToken: nonempty,
   refreshToken: nonempty,
   expiresAt: positive,
@@ -184,6 +186,8 @@ export function parseChatGptCallback(
 
 const jwtHeaderSchema = z.object({ alg: z.literal('RS256'), kid: nonempty })
 const claimsSchema = z.object({
+  // Owner captures acdc0f60 / 577bc807 (0 + 1 attempts) include OIDC sub.
+  sub: z.optional(nonempty),
   iss: z.literal(ISSUER),
   aud: z.union([nonempty, z.array(nonempty).check(z.minLength(1))]),
   azp: z.optional(nonempty),
@@ -213,7 +217,7 @@ function jwtPart(value: string): unknown {
   }
 }
 
-/** Only authenticity is returned; identity claims (email/name/sub) are discarded. */
+/** Return only a hash after verification; raw identity claims stay in this function. */
 export function verifyChatGptIdToken(options: {
   readonly token: string
   readonly jwks: unknown
@@ -222,7 +226,7 @@ export function verifyChatGptIdToken(options: {
   readonly now: number
   /** OIDC permits a refresh ID token to omit the original nonce. */
   readonly isRefresh?: boolean
-}): void {
+}): string | undefined {
   const [headerPart, claimsPart, signature, extra] = options.token.split('.', JWT_SEGMENT_COUNT + 1)
   if (
     headerPart === undefined ||
@@ -273,6 +277,9 @@ export function verifyChatGptIdToken(options: {
   } catch {
     throw new ChatGptSignInError('invalid-id-token')
   }
+  return claims.sub === undefined
+    ? undefined
+    : createHash('sha256').update(`${claims.iss}\0${claims.sub}`).digest('hex')
 }
 
 export interface ChatGptHostPort {
@@ -417,7 +424,7 @@ export class ChatGptSignIn {
           )
           if (token.id_token === undefined) throw new ChatGptSignInError('invalid-id-token')
           const receivedAt = this.host.now()
-          verifyChatGptIdToken({
+          const accountIdHash = verifyChatGptIdToken({
             token: token.id_token,
             jwks: await this.json(discovery.jwks_uri),
             clientId: grant.clientId,
@@ -436,6 +443,7 @@ export class ChatGptSignIn {
                 issuer: ISSUER,
                 clientId: grant.clientId,
                 hostId: this.host.hostId,
+                ...(accountIdHash !== undefined && { accountIdHash }),
                 accessToken: token.access_token,
                 refreshToken: token.refresh_token,
                 expiresAt: receivedAt + token.expires_in * MILLISECONDS_PER_SECOND,
@@ -514,7 +522,7 @@ export class ChatGptSignIn {
           throw new ChatGptSignInError('expired')
         }
         if (idToken !== undefined) {
-          verifyChatGptIdToken({
+          const accountIdHash = verifyChatGptIdToken({
             token: idToken,
             jwks,
             clientId: record.clientId,
@@ -522,6 +530,11 @@ export class ChatGptSignIn {
             now: this.host.now(),
             isRefresh: true,
           })
+          if (accountIdHash !== undefined) {
+            if (record.accountIdHash !== undefined && record.accountIdHash !== accountIdHash)
+              throw new ChatGptSignInError('invalid-id-token')
+            record = { ...record, accountIdHash }
+          }
         }
         const refreshed = parse(chatGptRecordSchema, record, 'invalid-token')
         delete refreshed.pendingRefresh

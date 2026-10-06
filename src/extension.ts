@@ -1087,6 +1087,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
   const auth = new AuthService({
+    getPlanAccount: async () =>
+      subscriptions === undefined &&
+      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        ? undefined
+        : await subscriptionFeatures().planAccount(),
     backend: {
       resolveCli: () => {
         // The sign-in gate's check is an explicit re-look: an install is noticed at once.

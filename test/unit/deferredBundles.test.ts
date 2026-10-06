@@ -34,7 +34,75 @@ function inputs(name: string): string[] {
   return Object.keys(raw.inputs).map((file) => file.split(path.sep).join('/'))
 }
 
+function compiledModule(entry: string, load: (file: string) => unknown): unknown {
+  const module: { exports: unknown } = { exports: {} }
+  const run = vm.compileFunction(
+    readFileSync(entry, 'utf8'),
+    ['require', 'module', 'exports', '__dirname', '__filename'],
+    { filename: entry },
+  )
+  Reflect.apply(run, undefined, [load, module, module.exports, path.dirname(entry), entry])
+  return module.exports
+}
+
 describe('deferred cohort bundles', () => {
+  it('installs the caller language in the compiled subscription command factory', async () => {
+    const entry = path.resolve('dist/modelsPanel.js')
+    const nativeRequire = createRequire(entry)
+    const loaded = compiledModule(entry, (file) => (file === 'vscode' ? {} : nativeRequire(file)))
+    if (
+      typeof loaded !== 'object' ||
+      loaded === null ||
+      !('createSubscriptionFeatures' in loaded) ||
+      typeof loaded.createSubscriptionFeatures !== 'function'
+    )
+      throw new Error('Missing subscription factory')
+    const fetcher = vi.fn(() => Promise.reject(new Error('No provider calls')))
+    const options = {
+      l10n: {
+        locale: 'fr',
+        table: {
+          ...EN,
+          planUi: { ...EN.planUi, copilotUnavailable: 'synthetic French model recovery' },
+        },
+      },
+      log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), trace: vi.fn() },
+      secrets: {
+        get: () => Promise.resolve(undefined),
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      globalStorageUri: { fsPath: path.resolve('temp') },
+      configFile: 'synthetic-unused.json',
+      globalState: { get: () => undefined, update: () => Promise.resolve() },
+      isRemote: false,
+      isConfidential: () => false,
+      access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
+      fetch: fetcher,
+      connected: () => Promise.resolve(),
+      disconnected: () => Promise.resolve(),
+    }
+    try {
+      const features: unknown = Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        options,
+      ])
+      if (
+        typeof features !== 'object' ||
+        features === null ||
+        !('connectCopilot' in features) ||
+        typeof features.connectCopilot !== 'function'
+      )
+        throw new Error('Missing subscription action')
+      await expect(Reflect.apply(features.connectCopilot, undefined, [])).rejects.toThrow(
+        options.l10n.table.planUi.copilotUnavailable,
+      )
+      expect(fetcher).not.toHaveBeenCalled()
+    } finally {
+      Reflect.apply(loaded.createSubscriptionFeatures, undefined, [
+        { ...options, l10n: { table: EN, locale: 'en' } },
+      ])
+    }
+  })
   it('installs the caller language before translated ChatGPT failures leave the lazy bundle', () => {
     const loaded: unknown = createRequire(path.resolve('dist/acp.js'))('./providers.js')
     if (
@@ -115,23 +183,11 @@ describe('deferred cohort bundles', () => {
     expect(readFileSync('dist/modelApi.js', 'utf8')).toContain('./reviewer.js')
     const nativeRequire = createRequire(entry)
     const loaded: string[] = []
-    const module: { exports: unknown } = { exports: {} }
-    const run = vm.compileFunction(
-      readFileSync(entry, 'utf8'),
-      ['require', 'module', 'exports', '__dirname', '__filename'],
-      { filename: entry },
-    )
-    Reflect.apply(run, undefined, [
-      (file: string): unknown => {
-        loaded.push(file)
-        return file === 'vscode' ? {} : nativeRequire(file)
-      },
-      module,
-      module.exports,
-      path.dirname(entry),
-      entry,
-    ])
-    expect(module.exports).toHaveProperty('activate', expect.any(Function))
+    const loadedModule = compiledModule(entry, (file: string): unknown => {
+      loaded.push(file)
+      return file === 'vscode' ? {} : nativeRequire(file)
+    })
+    expect(loadedModule).toHaveProperty('activate', expect.any(Function))
     expect(loaded).not.toContain('./sessionBoard.js')
     expect(loaded).not.toContain('./reviewer.js')
     expect(loaded).not.toContain('./providers.js')

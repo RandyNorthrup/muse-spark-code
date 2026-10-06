@@ -22,6 +22,11 @@ happened, not what was planned; superseded entries are kept.
 - Windows concurrent ChatGPT refresh recovery retries transient sharing
   refusals without deleting a live owner or replacing a legacy ownerless lock.
 
+- Plan notices now use a verified account hash, and dismissed usage limits
+  stay dismissed through model switches and saved conversation restoration.
+  Plan billing disclosures survive a temporarily empty model catalogue.
+  Subscription commands install the language in both deferred bundles.
+
 
 - ChatGPT provider add, remove and status commands now reach the ACP executable
   and appear as terminal or manual actions in every ACP editor. Sign-in saves

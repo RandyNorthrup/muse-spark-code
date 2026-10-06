@@ -568,6 +568,8 @@ The conversation, tools and tool results spend your ChatGPT plan. **Manage
 usage** opens the provider's limits page. A limit reached inside a successful
 HTTP stream stops the turn and offers usage management. Remove revokes the
 grant and deletes this product's secret record.
+The plan notice is remembered for each verified account. Older grants without
+that identity keep showing it until a verified sign-in or refresh supplies it.
 
 **Copilot:** available only in VS Code hosts exposing `vscode.lm`, using the
 host's Copilot consent. Select it again after reloading the window. It spends

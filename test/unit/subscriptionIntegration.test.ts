@@ -27,6 +27,8 @@ import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { EN } from '../../src/shared/l10n/en'
+import { chatGptPlanAccount } from '../../src/core/providers/subscriptions/registry'
+import { chatGptRecordSchema } from '../../src/core/providers/subscriptions/chatgpt'
 
 function secretStore() {
   const values = new Map<string, string>()
@@ -214,6 +216,21 @@ async function exerciseHost(
 }
 
 describe('M95b production subscription integration', () => {
+  it('sanitizes corrupted own-store identity records before a host can expose their parse detail', async () => {
+    const secrets = secretStore()
+    secrets.values.set('museSpark.provider.chatgpt', 'synthetic-private-grant')
+    const features = createSubscriptionFeatures({
+      ...testWindow(tmpdir(), new Map()),
+      secrets,
+      isConfidential: () => false,
+      access: { canSendRequest: () => false, onDidChange: () => ({ dispose: vi.fn() }) },
+      fetch: () => Promise.reject(new Error('No HTTP')),
+      connected: vi.fn(() => Promise.resolve()),
+      disconnected: vi.fn(() => Promise.resolve()),
+    })
+    await expect(features.accountId()).rejects.toThrow(EN.acpChatGpt.failure)
+    await expect(features.planAccount()).rejects.toThrow(EN.acpChatGpt.failure)
+  })
   it('pins subscription configuration and refuses credential or arbitrary-origin fields', () => {
     expect(providersFileSchema.safeParse({ v: 1, providers: [ENTRY] }).success).toBe(true)
     for (const changed of [
@@ -253,6 +270,18 @@ describe('M95b production subscription integration', () => {
         disconnected,
       })
       await features.connectChatGpt()
+      const account = await features.planAccount()
+      expect(account).toMatchObject({
+        providerId: 'chatgpt',
+        accountIdHash: expect.stringMatching(/^[a-f0-9]{64}$/u),
+      })
+      expect(JSON.stringify(account)).not.toContain('synthetic-account-A')
+      const stored = secrets.values.get('museSpark.provider.chatgpt')
+      if (stored === undefined) throw new Error('Missing synthetic grant')
+      const record = chatGptRecordSchema.parse(JSON.parse(stored))
+      expect(chatGptPlanAccount({ ...record, pendingRefresh: {} })).toBeUndefined()
+      expect(chatGptPlanAccount({ ...record, accountIdHash: undefined })).toBeUndefined()
+      expect(chatGptPlanAccount(undefined)).toBeUndefined()
       expect(connected).toHaveBeenCalledWith('chatgpt/gpt-6-astra')
       const configuredProviders = await features.seam.store.list()
       expect(configuredProviders[0]?.models).toEqual(['gpt-6-astra'])
@@ -266,6 +295,14 @@ describe('M95b production subscription integration', () => {
       await features.removeSubscription('chatgpt')
       expect(disconnected).toHaveBeenCalledOnce()
       expect(secrets.values.has('museSpark.provider.chatgpt')).toBe(false)
+      expect(await features.planAccount()).toBeUndefined()
+      await features.connectChatGpt()
+      expect(await features.planAccount()).toEqual(account)
+      await features.removeSubscription('chatgpt')
+      server.account('synthetic-account-B')
+      await features.connectChatGpt()
+      expect(await features.planAccount()).not.toEqual(account)
+      await features.removeSubscription('chatgpt')
       expect(server.requests.some((request) => request.path === '/api/accounts/oauth/revoke')).toBe(
         true,
       )

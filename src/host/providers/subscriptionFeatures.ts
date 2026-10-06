@@ -9,6 +9,7 @@ import {
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
+  chatGptPlanAccount,
   setUiText,
   providersFile,
   recordPlanUsage,
@@ -86,8 +87,7 @@ export function createSubscriptionFeatures(options: {
   const accountId = async () => {
     if (copilot.size > 0 && !options.isConfidential()) return 'copilot-host-grant'
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
-    const value: unknown = stored === undefined ? undefined : JSON.parse(stored)
-    return chatGptAccountId(value)
+    return chatGptAccountId(stored)
   }
   const save = async (id: 'chatgpt' | 'copilot', models: readonly string[]) => {
     if (models.length === 0) throw new Error(UI_TEXT.actionFailed)
@@ -107,6 +107,10 @@ export function createSubscriptionFeatures(options: {
     seam,
     hasCopilotAccess: () => copilot.size > 0 && !options.isConfidential(),
     accountId,
+    planAccount: async () => {
+      const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
+      return chatGptPlanAccount(stored)
+    },
     createClient: async (meta: ProviderClient): Promise<ProviderClient> => {
       const entries = await seam.store.list()
       if (entries.every((row) => row.auth !== 'subscription')) return meta

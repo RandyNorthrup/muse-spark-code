@@ -1,4 +1,4 @@
-import { generateKeyPairSync, sign, type JsonWebKey } from 'node:crypto'
+import { createHash, generateKeyPairSync, sign, type JsonWebKey } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -306,7 +306,30 @@ describe('ChatGPT authorize and callback', () => {
 })
 
 describe('ChatGPT ID-token verification', () => {
-  it('verifies an RS256 signature without returning identity claims', () => {
+  it('returns only an issuer-bound subject hash after verification and omits missing identity', () => {
+    const token = jwt({ sub: 'synthetic-account', email: 'synthetic@example.test' })
+    const digest = verifyChatGptIdToken({
+      token,
+      jwks: JWKS,
+      clientId: CLIENT,
+      nonce: NONCE,
+      now: NOW,
+    })
+    expect(digest).toBe(createHash('sha256').update(`${ISSUER}\0synthetic-account`).digest('hex'))
+    expect(
+      verifyChatGptIdToken({ token: jwt(), jwks: JWKS, clientId: CLIENT, nonce: NONCE, now: NOW }),
+    ).toBeUndefined()
+    expect(() => {
+      verifyToken(jwt({ sub: 1 }))
+    }).toThrow('invalid-id-token')
+    expect(() => {
+      verifyToken(jwt({ sub: '' }))
+    }).toThrow('invalid-id-token')
+    expect(
+      chatGptRecordSchema.safeParse({ ...record(), accountIdHash: 'synthetic-account' }).success,
+    ).toBe(false)
+  })
+  it('verifies an RS256 signature without exposing raw identity claims', () => {
     verifyToken(jwt({ email: 'synthetic@example.test', sub: 'synthetic-account' }))
   })
   it('refuses a signature from another key', () => {
@@ -381,6 +404,22 @@ describe('ChatGPT ID-token verification', () => {
 })
 
 describe('shared ChatGPT sign-in, refresh and removal', () => {
+  it('preserves a verified subject across no-ID-token rotation and refuses a changed subject', async () => {
+    const digest = createHash('sha256').update(`${ISSUER}\0synthetic-account`).digest('hex')
+    const saved = { ...record(), expiresAt: NOW - 1, accountIdHash: digest }
+    const withoutIdentity = rig(saved)
+    withoutIdentity.token({ id_token: undefined })
+    await expect(
+      withoutIdentity.core.accessToken('https://api.openai.com/v1/models', 0),
+    ).resolves.toBe('synthetic-new-access')
+    expect(withoutIdentity.stored()).toHaveProperty('accountIdHash', digest)
+    const changed = rig(saved)
+    changed.token({ id_token: jwt({ sub: 'synthetic-other-account' }) })
+    await expect(changed.core.accessToken('https://api.openai.com/v1/models', 0)).rejects.toThrow(
+      'invalid-id-token',
+    )
+    expect(changed.stored()).toHaveProperty('pendingRefresh')
+  })
   it('stores the issued client and verified origin-bound grant using the host port', async () => {
     const tester = rig()
     await tester.core.signIn()

@@ -40,8 +40,7 @@ export function runtimeSubscriptionClient(
     })())
   const accountId = async () => {
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
-    const value: unknown = stored === undefined ? undefined : JSON.parse(stored)
-    return chatGptAccountId(value)
+    return chatGptAccountId(stored)
   }
   return {
     accountId,

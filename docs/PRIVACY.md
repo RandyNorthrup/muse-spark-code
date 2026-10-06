@@ -23,6 +23,10 @@ credential store. Lock and installation-id files contain no token. The
 webview, tools, hooks and child processes never receive the grant. Remove
 revokes and deletes this product's record, including deletion after a revoke
 failure. Other applications' OAuth files are not consulted.
+After the ID token is verified, only a SHA-256 hash of its issuer and subject
+is retained for the plan notice. The webview receives that hash, never the raw
+subject, email or name. It scopes acknowledgement to the verified account;
+legacy grants without identity keep the disclosure visible.
 
 With a Copilot model, the same conversation and tool results go through VS
 Code's language-model API to GitHub's Copilot service and its selected model

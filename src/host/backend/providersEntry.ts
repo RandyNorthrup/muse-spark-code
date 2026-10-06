@@ -30,6 +30,7 @@ export {
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
+  chatGptPlanAccount,
 } from '../../core/providers/subscriptions/registry'
 export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'

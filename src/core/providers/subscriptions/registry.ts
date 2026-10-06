@@ -65,11 +65,29 @@ export async function chatGptModels(
   return [...new Set(models)]
 }
 
-export function chatGptAccountId(record: unknown): string | undefined {
-  if (record === undefined) return undefined
-  const parsed = chatGptRecordSchema.safeParse(record)
+function subscriptionRecord(record: unknown) {
+  if (record === undefined) return
+  let value: unknown = record
+  try {
+    if (typeof record === 'string') value = JSON.parse(record)
+  } catch {
+    throw new Error(UI_TEXT.acpChatGpt.failure)
+  }
+  const parsed = chatGptRecordSchema.safeParse(value)
   if (!parsed.success) throw new Error(UI_TEXT.acpChatGpt.failure)
-  return createHash('sha256').update(parsed.data.hostId).digest('hex')
+  return parsed.data
+}
+
+export function chatGptAccountId(record: unknown): string | undefined {
+  const parsed = subscriptionRecord(record)
+  return parsed === undefined ? undefined : createHash('sha256').update(parsed.hostId).digest('hex')
+}
+
+export function chatGptPlanAccount(record: unknown) {
+  const parsed = subscriptionRecord(record)
+  return parsed?.accountIdHash === undefined || parsed.pendingRefresh !== undefined
+    ? undefined
+    : { providerId: 'chatgpt', accountIdHash: parsed.accountIdHash }
 }
 
 /** Byte counts conservatively bound text tokens until a model tokenizer is available. */
