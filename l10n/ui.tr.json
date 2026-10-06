@@ -2889,7 +2889,9 @@
     "description": "--description <text>  Neler olduğunu kendi sözlerinle anlat",
     "no-facts": "--no-facts           Destek bilgilerini çıkar",
     "no-events": "--no-events          Son olayları çıkar",
-    "no-auto-compaction": "Otomatik bağlam sıkıştırmayı devre dışı bırak"
+    "no-auto-compaction": "Otomatik bağlam sıkıştırmayı devre dışı bırak",
+    "output-schema": "Son yanıtı sınırlandırılmış bir JSON şema dosyasıyla doğrula (yalnızca Model API).",
+    "output-schema-outside": "Çıktı şeması dosyasının çalışma alanı dışına işaret etmesine izin ver."
   },
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referencePopoverKeys": "Seçenekleri gezin, değeri ayarlayın, bir seçenek seçin veya menüyü kapatın.",

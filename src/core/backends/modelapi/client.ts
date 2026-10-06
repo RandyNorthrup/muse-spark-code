@@ -1,3 +1,4 @@
+import { notify } from '../../events/notify'
 import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
 // models, token counts, streamed responses, generated/edited images and
@@ -77,6 +78,8 @@ export interface ModelApiClientDeps {
   readonly paidAuthority?: PaidAuthority
   /** Share across clients for one process; omitted clients own a bucket themselves. */
   readonly pacing?: RequestPacer
+  /** One owner shares limits across its normal and best-of-N clients. */
+  readonly pacingOwner?: object
   /** M95 binding: project the selected record's provider and captured header interpreter. */
   readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
   /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
@@ -298,6 +301,8 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
   }
 }
 
+const ownerPacers = new WeakMap<object, RequestPacer>()
+
 export class ModelApiClient {
   private searchClaimSequence = 0
   /** Stream event types already logged as ignored (M39). */
@@ -307,10 +312,12 @@ export class ModelApiClient {
   public constructor(private readonly deps: ModelApiClientDeps) {
     this.pacing =
       deps.pacing ??
+      (deps.pacingOwner === undefined ? undefined : ownerPacers.get(deps.pacingOwner)) ??
       new ModelApiPacing({
         now: deps.now,
         wait: (ms, signal) => this.pause(ms, signal),
       })
+    if (deps.pacingOwner !== undefined) ownerPacers.set(deps.pacingOwner, this.pacing)
   }
 
   private pacingProvider(modelId: string | undefined): PacingProvider {
@@ -644,7 +651,16 @@ export class ModelApiClient {
           response.status >= HTTP_STATUS.internalServerError &&
           provider.identity.provider === 'meta'
         ) {
-          this.deps.onServiceFailure?.(response.status, `${MODEL_API_BASE_URL}/status`)
+          notify(
+            [
+              () => {
+                this.deps.onServiceFailure?.(response.status, `${MODEL_API_BASE_URL}/status`)
+              },
+            ],
+            undefined,
+            this.deps.log,
+            'modelApi.serviceFailure',
+          )
         }
         throw failure
       }

@@ -3,6 +3,9 @@
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js
+!dist/modelApiCodeIntel.js
+!dist/mcpPool.js
+!dist/structuredSchema.js
 !dist/providers.js
 !dist/sessionBoard.js
 !dist/reviewer.js

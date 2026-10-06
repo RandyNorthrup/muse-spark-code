@@ -5,6 +5,7 @@
 // Shared by both TypeScript projects (host and webview), so this file must not
 // import from `vscode`, Node, or the DOM.
 
+import { modelApiStatusSchema } from './serviceStatus'
 import { providerSetupSchema } from './providerSetup'
 import * as z from 'zod/mini'
 import {
@@ -208,6 +209,7 @@ export const HOST_ACTIONS = [
   'openPullRequestInConversation',
   /** A Muse Code fault's notice: stop `muse serve`, the next message starts it (D26). */
   'restartMuseCode',
+  'openModelApiStatus',
   /**
    * The task list's "Open in a tab" (M87, PLAN.md D66): an editor tab that
    * mirrors this conversation's list, which the user can move into a window
@@ -236,6 +238,7 @@ export const NOTICE_LEVELS = ['info', 'warning', 'error'] as const
  */
 export const NOTICE_ACTIONS = [
   'restartMuseCode',
+  'openModelApiStatus',
   'newConversation',
   'installBundledSkills',
   'updateBundledSkills',
@@ -910,6 +913,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // the first turn). Sent for readUsage and again on every usage/changed.
   z.object({
     type: z.literal('usageReport'),
+    serviceStatus: z.optional(modelApiStatusSchema),
     backend: z.enum(BACKEND_KINDS),
     subscription: z.optional(subscriptionUsageSchema),
     account: z.optional(accountFactsSchema),

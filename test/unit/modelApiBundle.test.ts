@@ -129,7 +129,7 @@ describe('the Model API bundle (M57)', () => {
     setUiText({ ...EN, importReplayTooLarge: 'IMPORT LIMIT {size} / {limit}' }, 'de')
     const t = managerFor(built.file)
     const nativeRequire = createRequire(built.file)
-    const runtime = path.join(built.folder, 'hookRuntimeEntry.js')
+    const runtime = path.join(built.folder, 'foreignHooksEntry.js')
     expect(nativeRequire.cache[runtime]).toBeUndefined()
     const host = await t.manager.ensureHost()
     expect(nativeRequire.cache[runtime]).toBeUndefined()
@@ -183,7 +183,7 @@ describe('the Model API bundle (M57)', () => {
     await expect(host.importSession(doc, options)).rejects.toThrow()
     expect(host.sessionCount).toBe(0)
     writeFileSync(
-      path.join(folder, 'hookRuntimeEntry.js'),
+      path.join(folder, 'foreignHooksEntry.js'),
       'module.exports = { sanitizeSessionImport: 1 }',
     )
     await expect(host.importSession(doc, options)).rejects.toThrow('Invalid session import export')

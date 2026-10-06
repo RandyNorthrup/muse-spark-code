@@ -40,23 +40,64 @@ function conditional(ifClause, thenClause) {
 }
 const resultJson = z.toJSONSchema(execResultSchema, { unrepresentable: 'any' })
 const statuses = resultJson.properties.status.enum.filter((status) => status !== 'cancelled')
-const resultConditions = statuses.map((status) =>
+const resultConditions = statuses.map(
+  (status) =>
+    conditional(
+      { properties: { status: { const: status } } },
+      {
+        properties: {
+          exitCode:
+            status === 'failed'
+              ? {
+                  enum: [
+                    exitCodeFor(status, null),
+                    exitCodeFor(status, null, 'output_schema_mismatch'),
+                  ],
+                }
+              : { const: exitCodeFor(status, null) },
+          signal: { type: 'null' },
+          error: { type: status === 'completed' ? 'null' : 'object' },
+          ...(status === 'completed' && {
+            terminal: { const: 'completed' },
+            stopReason: { const: 'end_turn' },
+          }),
+        },
+      },
+    ),
   conditional(
-    { properties: { status: { const: status } } },
+    { properties: { exitCode: { const: exitCodeFor('failed', null, 'output_schema_mismatch') } } },
     {
       properties: {
-        exitCode: { const: exitCodeFor(status, null) },
-        signal: { type: 'null' },
-        error: { type: status === 'completed' ? 'null' : 'object' },
-        ...(status === 'completed' && {
-          terminal: { const: 'completed' },
-          stopReason: { const: 'end_turn' },
-        }),
+        status: { const: 'failed' },
+        error: {
+          properties: {
+            kind: { enum: ['output_schema_mismatch', 'output_schema_validation_budget'] },
+          },
+          required: ['kind'],
+        },
       },
     },
   ),
-)
-resultConditions.push(
+  conditional(
+    {
+      properties: {
+        error: {
+          type: 'object',
+          properties: {
+            kind: { enum: ['output_schema_mismatch', 'output_schema_validation_budget'] },
+          },
+          required: ['kind'],
+        },
+      },
+      required: ['error'],
+    },
+    {
+      properties: {
+        status: { const: 'failed' },
+        exitCode: { const: exitCodeFor('failed', null, 'output_schema_mismatch') },
+      },
+    },
+  ),
   conditional(
     { properties: { status: { const: 'cancelled' } } },
     {
@@ -76,6 +117,26 @@ resultConditions.push(
         },
       ],
     },
+  ),
+  conditional(
+    { required: ['output'] },
+    {
+      properties: {
+        status: { const: 'completed' },
+        ledger: { type: 'object', required: ['outputSchemaSha256'] },
+      },
+      required: ['ledger'],
+    },
+  ),
+  conditional(
+    {
+      properties: {
+        status: { const: 'completed' },
+        ledger: { type: 'object', required: ['outputSchemaSha256'] },
+      },
+      required: ['ledger'],
+    },
+    { required: ['output'] },
   ),
 )
 resultJson.allOf = resultConditions

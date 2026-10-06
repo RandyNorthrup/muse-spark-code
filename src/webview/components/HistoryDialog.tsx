@@ -1,4 +1,4 @@
-import { webviewKey, WEBVIEW_KEYBINDINGS } from '../../shared/keybindings'
+import { webviewKey } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
 // branches, Archive / Unarchive per row and a "Show archived" switch.
@@ -18,17 +18,20 @@ import {
   type SessionRow,
 } from '../../shared/sessions'
 import { scrollRowIntoView } from '../listNavigation'
-import { CloseIcon, HistoryIcon } from './icons'
+import { HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
+import { deferred } from './DeferredSurface'
+
+const RowView = deferred(async () => {
+  const entry = await import('./HistoryRow')
+  return { default: entry.HistoryRow }
+}, false)
 import {
   PaletteList,
   PaletteSearchInput,
-  PaletteSessionRow,
   usePaletteDismiss,
   usePaletteNavigation,
 } from './paletteDialog'
-
-const ARCHIVE_KEY = WEBVIEW_KEYBINDINGS['history.archive'].archive.keys[0].key
 
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
@@ -46,7 +49,6 @@ export interface HistoryDialogProps {
 
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
-const DELETE_SHORTCUT = 'Shift+Delete'
 
 function keepSearchFocus(event: MouseEvent<HTMLElement>): void {
   event.preventDefault()
@@ -85,77 +87,6 @@ function metaOf(row: SessionRow, nowMs: number): string {
     parts.push(UI_TEXT.historyForkMark)
   }
   return parts.join(' · ')
-}
-
-function RowView({
-  row,
-  isActive,
-  isCurrent,
-  isRowArchived,
-  meta,
-  onHover,
-  onResume,
-  onSetArchived,
-  onDelete,
-}: {
-  readonly row: SessionRow
-  readonly isActive: boolean
-  readonly isCurrent: boolean
-  readonly isRowArchived: boolean
-  readonly meta: string
-  readonly onHover: () => void
-  readonly onResume: () => void
-  readonly onSetArchived: (isArchived: boolean) => void
-  readonly onDelete: ((sessionId: string) => void) | undefined
-}) {
-  const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
-  const deletionLabel = UI_TEXT.memoryDeleteAction
-  return (
-    <PaletteSessionRow
-      rowId={`${ROW_ID_PREFIX}${row.sessionId}`}
-      title={row.title}
-      isActive={isActive}
-      isCurrent={isCurrent}
-      meta={meta}
-      // The row is the control: Delete (un)archives it from the search box.
-      keyShortcuts={onDelete === undefined ? ARCHIVE_KEY : `${ARCHIVE_KEY} ${DELETE_SHORTCUT}`}
-      keyDescription={onDelete === undefined ? archiveLabel : `${archiveLabel} · ${deletionLabel}`}
-      action={
-        <>
-          {/* For the mouse only: a button inside an option is still reachable by
-              assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
-          <span
-            className="icon-button history-archive"
-            title={`${archiveLabel} (${ARCHIVE_KEY})`}
-            aria-hidden="true"
-            onMouseDown={keepSearchFocus}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSetArchived(!isRowArchived)
-            }}
-          >
-            <CloseIcon />
-          </span>
-          {onDelete !== undefined && (
-            <span
-              className="icon-button history-archive"
-              title={`${deletionLabel} (${DELETE_SHORTCUT})`}
-              aria-hidden="true"
-              onMouseDown={keepSearchFocus}
-              onClick={(event) => {
-                event.stopPropagation()
-                onDelete(row.sessionId)
-              }}
-            >
-              {deletionLabel}
-            </span>
-          )}
-        </>
-      }
-      onHover={onHover}
-      onResume={onResume}
-    />
-  )
 }
 
 export function HistoryDialog(props: HistoryDialogProps) {

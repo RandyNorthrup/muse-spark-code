@@ -2786,7 +2786,9 @@
     "description": "--description <text>  用自己的話描述當時發生了什麼",
     "no-facts": "--no-facts           不包含支援資訊",
     "no-events": "--no-events          不包含最近事件",
-    "no-auto-compaction": "停用自動內容壓縮"
+    "no-auto-compaction": "停用自動內容壓縮",
+    "output-schema": "使用有界 JSON 結構描述檔案驗證最終回答（僅限 Model API）。",
+    "output-schema-outside": "允許輸出結構描述檔案指向工作區之外。"
   },
   "referenceExecImages": "無介面圖像需要 --image-generation、acceptEdits 和充足的硬性預算。不顯示價格確認問題；需要許可的請求會被拒絕。",
   "referencePopoverKeys": "瀏覽選項、調整值、選取選項或關閉選單。",

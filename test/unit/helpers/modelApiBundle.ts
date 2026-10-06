@@ -39,7 +39,14 @@ export async function buildHostBundles(
     target: 'node20.18',
     plugins: [sharedUiText],
     logLevel: 'silent',
-    external: ['./reviewerEntry.js', './hookRuntimeEntry.js', ...external],
+    external: [
+      './reviewerEntry.js',
+      './hookRuntimeEntry.js',
+      './foreignHooksEntry.js',
+      './codeIntelEntry.js',
+      './mcpPoolEntry.js',
+      ...external,
+    ],
   })
 }
 
@@ -54,6 +61,9 @@ export async function buildModelApiBundle(folder: string): Promise<string> {
     [path.parse(PAGE_WORKER_FILE).name]: path.resolve('src/host/web/pageWorker.ts'),
     reviewerEntry: path.resolve('src/core/backends/modelapi/reviewerEntry.ts'),
     hookRuntimeEntry: path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'),
+    foreignHooksEntry: path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'),
+    codeIntelEntry: path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'),
+    mcpPoolEntry: path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'),
   })
   return file
 }

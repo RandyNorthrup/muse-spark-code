@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Integrate the M106 lanes: bind strict-tool, parallel-read, hosted-search,
+  structured-answer and retry/pacing ports across the window, attempts and
+  portable runtime; preserve exact paid USD settlement and version-2 result
+  validation. Expose three machine settings and headless output-schema flags
+  in the generated reference with translated descriptions.
+- Keep existing bundle caps: schema conversion, Model API code intelligence,
+  MCP pools and headless execution load from separate measured artifacts.
+  Approval/tool cards and History rows use lazy surfaces; the Node reference
+  stores its exact generated document compressed. Public Meta service status
+  is validated for Account & usage and support reports.
+
+
 - M106 strict-tool declarations reuse M101's schema rewrite. Convertible
   MCP tools become strict on capable models; unsupported schemas retain
   non-strict arguments and produce one named conversion note. Nullable

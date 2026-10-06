@@ -690,3 +690,35 @@ ran none of L/LA/LR, read no real credential and called no model.
   eligible diagnostics, review separately; do not bypass scanner or apply guard.
 - Registry refusal: require genuine release provenance and exact identity; a
   candidate digest or separately fetched attestation cannot satisfy LR.
+
+## Structured headless answers
+
+`exec --output-schema <file>` reads a bounded JSON Schema file through an open
+file descriptor, verifies its identity and confines its real path to the
+workspace. `--output-schema-outside` explicitly permits an external path.
+The strict subset rejects references, regular expressions and unbounded
+containers. Its closed schema and digest are fixed before session dispatch;
+a changed model, active session or repeated configuration is refused.
+
+The captured `muse-spark-1.3-contributor` record selects provider strict JSON
+Schema. An unknown model uses the explicitly announced local validator with
+the schema appended outside the reusable prefix. The runtime does not invent
+a forced-tool codec. This is a local wiring receipt, not release qualification
+for providers whose transports/capability records are absent from this base.
+
+Successful version-2 results add `output.value` and `output.validation`
+(`provider` or `local`), paired with `ledger.outputSchemaSha256`. Event and result
+readers validate the same canonical contract; schema mismatch or validation
+budget exhaustion exits 10, retaining incurred spend and the schema digest.
+No repair call runs for the final answer. Partial invalid JSON is withheld,
+secret scanning still precedes output, and calls without these flags retain
+the ordinary request and result bytes. The schema body is not stored in the
+ledger. The attached schema does not change headless paid-feature opt-ins,
+consent exclusions or the conditional budget theorem above.
+
+The portable core shares strict declarations, safe parallel reads, bounded
+retry/idle waits, fresh repeat witnesses and output continuation with the
+extension. Provider-specific evidence is injected at the backend factory;
+unknown capabilities stay off. Native Muse Code effort, deletion and feedback
+remain unavailable until their captured feature ports are supplied. These
+limits apply equally to every ACP editor and to headless execution.

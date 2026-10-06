@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "Pracovní prostor smí navrhnout jednu předvolbu poskytovatele modelů podle id; panel nabídne otevření Modelů a agentů s touto předvolbou. Prázdné nenavrhuje nic. Pracovní prostor nemůže nastavit adresu ani údaj.",
   "walkthrough.gettingStarted.step.ownModel.title": "Začněte s vlastním modelem",
   "walkthrough.gettingStarted.step.ownModel.description": "Nemáte předplatné Muse ani klíč Meta API? Přidejte vlastního poskytovatele modelů — OpenRouter, Anthropic, OpenAI nebo místní server — a vyberte model.\n[Začít s vlastním modelem](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem."
+  "config.modelApiAutoCompaction.description": "Automaticky zhušťovat dlouhé konverzace Model API. Výchozí nastavení je zapnuto, ale funkce zůstává neaktivní do úspěšného párového vyhodnocení. Každé další placené volání vyžaduje souhlas s cenou a denním rozpočtem.",
+  "config.modelApiStrictTools.description": "Používat striktní schémata nástrojů, pokud je vybraný model podporuje. Vypnutím zachováte předchozí deklarace nástrojů.",
+  "config.modelApiParallelReads.description": "Spouštět bezpečná volání nástrojů pouze pro čtení souběžně, nejvýše čtyři najednou. Ostatní volání se provádějí v pořadí.",
+  "config.webSearchMaxPerRequest.description": "Maximální počet hostovaných webových vyhledávání na odpověď (1–20; výchozí 5). Cena a sdílený denní rozpočet se zobrazí před prvním účtováním."
 }

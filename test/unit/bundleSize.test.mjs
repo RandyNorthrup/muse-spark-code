@@ -47,6 +47,9 @@ describe('bundled What’s New content budget', () => {
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
+    ['HistoryRow', 25, 'src/webview/components/HistoryRow.tsx'],
+    ['SetupBanner', 25, 'src/webview/components/SetupBanner.tsx'],
+    ['tool cards', 25, 'src/webview/components/QuestionCard.tsx'],
     ['SignIn', 25, 'src/webview/components/SignIn.tsx'],
     ['GoalPanel', 25, 'src/webview/components/GoalPanel.tsx'],
     ['SchedulePanel', 25, 'src/webview/components/SchedulePanel.tsx'],
@@ -202,4 +205,18 @@ describe('M106 pacing UI budget', () => {
       }),
     ).toEqual(['pacing.js'])
   })
+})
+
+it.each([
+  ['dist/exec.js', 950],
+  ['dist/modelApiCodeIntel.js', 100],
+  ['dist/mcpPool.js', 75],
+  ['dist/structuredSchema.js', 50],
+])('bounds the new %s artifact at %s KiB', async (file, cap) => {
+  statSync.mockImplementation((path) => ({ size: path === file ? cap * 1024 : 0 }))
+  await import('../../scripts/check-bundle-size.mjs')
+  expect(console.log).toHaveBeenCalledWith(`ok   ${file}: ${cap}.0 KiB (budget ${cap} KiB)`)
+  vi.resetModules()
+  statSync.mockImplementation((path) => ({ size: path === file ? cap * 1024 + 1 : 0 }))
+  await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
 })

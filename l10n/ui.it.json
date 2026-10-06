@@ -2992,7 +2992,9 @@
     "description": "--description <text>  Cosa stava succedendo, a parole tue",
     "no-facts": "--no-facts           Omettere i dati di supporto",
     "no-events": "--no-events          Omettere gli eventi recenti",
-    "no-auto-compaction": "Disattivare la compattazione automatica"
+    "no-auto-compaction": "Disattivare la compattazione automatica",
+    "output-schema": "Convalidare la risposta finale con un file di schema JSON limitato (solo Model API).",
+    "output-schema-outside": "Consentire che il file dello schema di output punti fuori dall’area di lavoro."
   },
   "referenceExecImages": "Le immagini senza interfaccia richiedono --image-generation, acceptEdits e un budget rigido sufficiente. Non viene chiesta conferma del prezzo; le richieste che necessitano di permesso vengono rifiutate.",
   "referencePopoverKeys": "Scorrere opzioni, regolare un valore, scegliere un’opzione o chiudere il menu.",

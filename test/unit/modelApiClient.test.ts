@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -846,10 +847,10 @@ describe('M106 client pacing and retry boundaries', () => {
   })
 
   it('never retries an ambiguously billed paid 504 or releases its retained liability', async () => {
-    const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+    const total = { spentUsd: Usd.from(1).toAmount(), hasUnknownHistoricalFees: false }
     const claim = {
       claimId: 'claim-1',
-      reservedUsd: 1,
+      reservedUsd: Usd.from(1).toAmount(),
       check: vi.fn(() => total),
       settle: vi.fn(() => Promise.resolve(total)),
     }
@@ -1691,4 +1692,36 @@ describe('ModelApiClient', () => {
     const events = await collect(client.streamResponse(body, new AbortController().signal))
     expect(events.at(-1)).toMatchObject({ type: 'response.completed' })
   })
+})
+
+it('shares admission across clients created for the same window/runtime owner', async () => {
+  const owner = {}
+  const pacing = observedPacer()
+  const foreground = setup(undefined, undefined, undefined, { pacingOwner: owner, pacing })
+  const attempt = setup(undefined, undefined, undefined, { pacingOwner: owner })
+  foreground.api.script({ text: 'foreground' })
+  attempt.api.script({ text: 'attempt' })
+  await Array.fromAsync(foreground.client.streamResponse(body, new AbortController().signal))
+  await Array.fromAsync(attempt.client.streamResponse(body, new AbortController().signal))
+  expect(pacing.acquire).toHaveBeenCalledTimes(2)
+  expect(pacing.snapshot).toHaveBeenCalledTimes(2)
+  expect(foreground.api.responseBodies()).toHaveLength(1)
+  expect(attempt.api.responseBodies()).toHaveLength(1)
+})
+
+it('retains the original final HTTP failure when the status observer throws', async () => {
+  const t = setup(undefined, undefined, undefined, {
+    onServiceFailure: () => {
+      throw new Error('private observer detail')
+    },
+  })
+  t.api.script(
+    ...Array.from({ length: MODEL_API_MAX_RETRIES + 1 }, () => ({ httpError: { status: 503 } })),
+  )
+  await expect(
+    Array.fromAsync(t.client.streamResponse(body, new AbortController().signal)),
+  ).rejects.toMatchObject({ status: 503 })
+  expect(t.log.error).toHaveBeenCalledExactlyOnceWith(
+    'Backend notification listener failed: modelApi.serviceFailure',
+  )
 })

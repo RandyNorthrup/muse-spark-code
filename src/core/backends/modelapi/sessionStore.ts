@@ -27,7 +27,6 @@ import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
-  MESSAGE_PHASES,
   reasoningItemSchema,
   webSearchActionSchema,
 } from './schemas'
@@ -204,7 +203,7 @@ const outputTextPartSchema = z.object({ type: z.literal('output_text'), text: z.
 const inputMessageSchema = z.object({
   type: z.literal('message'),
   role: z.enum(['user', 'assistant', 'developer']),
-  phase: z.optional(z.enum(MESSAGE_PHASES)),
+  phase: z.optional(z.nullable(z.string())),
   content: z.array(
     z.union([inputTextPartSchema, inputImagePartSchema, inputFilePartSchema, outputTextPartSchema]),
   ),

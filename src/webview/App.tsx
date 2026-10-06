@@ -60,7 +60,7 @@ import type {
 } from '../shared/protocol'
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
-import { ApprovalDock } from './components/ApprovalDock'
+
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
@@ -129,6 +129,10 @@ const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
 }, true)
+const ApprovalDock = deferred(async () => {
+  const entry = await import('./components/ApprovalDock')
+  return { default: entry.ApprovalDock }
+}, false)
 const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
@@ -2493,7 +2497,7 @@ export function App({
         />
       )}
       <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
-      {isBodyGated ? null : (
+      {isBodyGated || waiting.length === 0 ? null : (
         <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />
       )}
       <div className="composer-area" inert={isModalOpen}>

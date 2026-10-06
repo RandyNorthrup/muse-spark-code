@@ -1,5 +1,4 @@
 import { redactSecrets } from '../../core/redact'
-import * as z from 'zod/mini'
 import type { Logger } from '../../host/logger'
 import {
   EXEC_PROTOCOL_VERSION,
@@ -21,49 +20,14 @@ import {
   validateResult,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
-import { parseExecRecord, outputJsonSchema, type OutputSchema } from './outputSchema'
+import { parseExecRecord, type OutputSchema } from './outputSchema'
 
 /** Optional M106 fields; callers without a schema retain M80's exact result. */
-export type SchemaExecResult = ExecResult & {
-  output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' }
-  ledger: (NonNullable<ExecResult['ledger']> & { outputSchemaSha256?: string }) | null
-}
+export type SchemaExecResult = ExecResult
 
-/** Validate the additive fields and every existing M80 invariant at egress. */
+/** The canonical protocol owns additive fields and accounting at every egress. */
 export function validateSchemaResult(value: unknown): SchemaExecResult {
-  const record = parseExecRecord(value)
-  const { output, ledger, ...rest } = record
-  const hasOutput = Object.hasOwn(record, 'output')
-  const ledgerRecord = ledger === null ? undefined : parseExecRecord(ledger)
-  const { outputSchemaSha256, ...baseLedger } = ledgerRecord ?? {}
-  const hasDigest = ledgerRecord !== undefined && Object.hasOwn(ledgerRecord, 'outputSchemaSha256')
-  const result = validateResult({ ...rest, ledger: ledger === null ? null : baseLedger })
-  if (hasOutput !== (hasDigest && result.status === 'completed'))
-    throw new Error(UI_TEXT.execRequestShape)
-  const digest = hasDigest
-    ? z
-        .string()
-        .check(z.regex(/^[a-f\d]{64}$/u))
-        .parse(outputSchemaSha256)
-    : undefined
-  return {
-    ...result,
-    ...(hasOutput && {
-      output: z
-        .strictObject({
-          value: outputJsonSchema,
-          validation: z.enum(['provider', 'local']),
-        })
-        .parse(output),
-    }),
-    ledger:
-      result.ledger === null
-        ? null
-        : {
-            ...result.ledger,
-            ...(digest !== undefined && { outputSchemaSha256: digest }),
-          },
-  }
+  return validateResult(value)
 }
 
 export type SchemaExecEvent =
@@ -229,7 +193,7 @@ export function createExecSink(input: {
         }),
         ...(answer?.ok === false && {
           status: 'failed',
-          exitCode: EXEC_EXIT.failed,
+          exitCode: EXEC_EXIT.outputSchemaMismatch,
           finalMessage: UI_TEXT.execMessageWithheld,
           error: {
             kind: answer.kind ?? 'output_schema_mismatch',

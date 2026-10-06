@@ -58,6 +58,7 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { compressedReference } from './lib/compressedReference.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
@@ -67,6 +68,7 @@ import {
   sharedValidation,
   deferredCohort,
   sharedWire,
+  sharedStructuredSchema,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -214,6 +216,7 @@ const modelApiOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedStructuredSchema,
     compressedModelText(isProduction),
   ],
   entryPoints: [MODEL_API_ENTRY],
@@ -225,6 +228,7 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, compressedReference],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
 }
@@ -274,7 +278,7 @@ const pluginHooksOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -288,7 +292,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
   platform: 'node',
@@ -301,7 +305,7 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const recorderOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
   platform: 'node',
@@ -312,7 +316,7 @@ const recorderOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -355,7 +359,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -393,7 +397,7 @@ const modelsPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -412,7 +416,7 @@ const tabOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -442,7 +446,7 @@ const imageResizeWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const conversationGitOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
   platform: 'node',
@@ -454,7 +458,7 @@ const conversationGitOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -465,7 +469,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -476,7 +480,7 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -495,6 +499,29 @@ const acpOptions = {
   target: AGENT_NODE_TARGET,
   external: ['@napi-rs/keyring'],
   banner: { js: '#!/usr/bin/env node' },
+}
+
+const mcpPoolOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/mcpPoolEntry.ts'],
+  outfile: 'dist/mcpPool.js',
+}
+const execOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/exec/execEntry.ts'],
+  outfile: 'dist/exec.js',
+  banner: {},
+}
+const modelApiCodeIntelOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/core/backends/modelapi/codeIntelEntry.ts'],
+  outfile: 'dist/modelApiCodeIntel.js',
+}
+const structuredSchemaOptions = {
+  ...modelApiOptions,
+  plugins: [sharedValidation],
+  entryPoints: ['src/shared/structuredSchemaEntry.ts'],
+  outfile: 'dist/structuredSchema.js',
 }
 
 // Keep the production Node fallback under its existing cap; runtime values
@@ -591,7 +618,7 @@ const referencePageOptions = {
 const modelsWebviewOptions = {
   ...webviewOptions,
   entryPoints: { models: MODELS_WEBVIEW_ENTRY },
-  format: 'iife',
+  format: 'esm',
   splitting: false,
   outdir: WEBVIEW_OUTDIR,
 }
@@ -639,6 +666,10 @@ console.log(
 
 if (isWatch) {
   const contexts = await Promise.all([
+    esbuild.context(mcpPoolOptions),
+    esbuild.context(execOptions),
+    esbuild.context(modelApiCodeIntelOptions),
+    esbuild.context(structuredSchemaOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
@@ -684,6 +715,9 @@ if (isWatch) {
   console.log('watching for changes…')
 } else {
   const shipped = {
+    mcpPool: esbuild.build(mcpPoolOptions),
+    modelApiCodeIntel: esbuild.build(modelApiCodeIntelOptions),
+    structuredSchema: esbuild.build(structuredSchemaOptions),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
@@ -731,12 +765,15 @@ if (isWatch) {
     modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const exec = esbuild.build(execOptions)
+  const builds = [...Object.values(shipped), acp, exec]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
   await Promise.all(builds)
   if (isProduction) {
+    rmSync(METAFILE_DIR, { recursive: true, force: true })
+    rmSync(ACP_METAFILE_DIR, { recursive: true, force: true })
     mkdirSync(METAFILE_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
@@ -745,6 +782,8 @@ if (isWatch) {
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
+    const execBuild = await exec
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)

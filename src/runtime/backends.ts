@@ -97,6 +97,12 @@ export interface RuntimeBackendDeps {
 export interface RuntimeBackend {
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
+  readonly configureOutputSchema?: (
+    sessionId: string,
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ) => Promise<void>
   readonly museCode: MuseCodeBackendManager
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
@@ -299,6 +305,10 @@ function modelApiManager(
     isObservationPackingOn: () => true,
     // M82's cap and reply line are VS Code settings; ACP exposes neither.
     sessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
+    pacingOwner: deps,
+    strictTools: () => SETTING_DEFAULTS.modelApiStrictTools,
+    parallelReads: () => SETTING_DEFAULTS.modelApiParallelReads,
+    webSearchMaxPerRequest: () => SETTING_DEFAULTS.webSearchMaxPerRequest,
     isAutoCompactionOn: () =>
       deps.options.autoCompaction ?? SETTING_DEFAULTS.modelApiAutoCompaction,
     // D78 changes only VS Code's display default; ACP remains unchanged.
@@ -475,6 +485,14 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       readiness: (isRecheck) =>
         deps.options.backend === 'modelApi' ? modelApiReadiness() : museCodeReadiness(isRecheck),
       hostFor,
+    },
+    configureOutputSchema: async (sessionId, model, mode, schema) => {
+      if (deps.options.backend !== 'modelApi') throw new Error(UI_TEXT.execRequestShape)
+      for (const { manager } of modelApiHosts.values()) {
+        const host = await manager.ensureHost()
+        if (host.configureOutputSchema(sessionId, model, mode, schema)) return
+      }
+      throw new Error(UI_TEXT.execRequestShape)
     },
     museCode,
     paid,

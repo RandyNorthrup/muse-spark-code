@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "Çalışma alanı, kimliğine göre tek bir model sağlayıcı ön ayarı önerebilir; panel, Modeller ve Ajanlar'ı bu ön ayarla açmayı önerir. Boş değer hiçbir şey önermez. Çalışma alanı adres veya kimlik bilgisi belirleyemez.",
   "walkthrough.gettingStarted.step.ownModel.title": "Kendi modelinizle başlayın",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse aboneliğiniz veya Meta API anahtarınız yok mu? Kendi model sağlayıcınızı ekleyin — OpenRouter, Anthropic, OpenAI veya yerel sunucu — ve bir model seçin.\n[Kendi modelinizle başlayın](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Uzun Model API konuşmalarını otomatik sıkıştır. Varsayılan olarak açık, ancak eşleştirilmiş değerlendirmeyi geçene kadar etkin değil. Her ek ücretli çağrı için fiyat ve günlük bütçe onayı gerekir."
+  "config.modelApiAutoCompaction.description": "Uzun Model API konuşmalarını otomatik sıkıştır. Varsayılan olarak açık, ancak eşleştirilmiş değerlendirmeyi geçene kadar etkin değil. Her ek ücretli çağrı için fiyat ve günlük bütçe onayı gerekir.",
+  "config.modelApiStrictTools.description": "Seçilen model desteklediğinde katı araç şemalarını kullan. Önceki araç bildirimlerini korumak için kapatın.",
+  "config.modelApiParallelReads.description": "Güvenli salt okunur araç çağrılarını aynı anda en fazla dört çağrı olacak şekilde paralel çalıştır. Diğer çağrılar sırayla çalışır.",
+  "config.webSearchMaxPerRequest.description": "Yanıt başına hizmet tarafındaki web aramalarının üst sınırı (1–20; varsayılan 5). Fiyat ve paylaşılan günlük bütçe ilk ücretlendirmeden önce gösterilir."
 }

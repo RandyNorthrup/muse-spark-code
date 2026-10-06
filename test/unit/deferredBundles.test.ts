@@ -22,6 +22,7 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedStructuredSchema,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -82,6 +83,8 @@ beforeAll(async () => {
         modelsPanel: 'src/host/models/modelsPanelEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
+        mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
+        modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
         foreignHooks: 'src/core/backends/modelapi/foreignHooksEntry.ts',
@@ -103,15 +106,15 @@ beforeAll(async () => {
         searchWorker: 'src/host/backend/searchWorker.ts',
         imageResizeWorker: 'src/core/imageResizeWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
       ...common,
       outdir: 'dist',
       target: 'node22',
-      entryPoints: { acp: 'src/runtime/main.ts' },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      entryPoints: { acp: 'src/runtime/main.ts', exec: 'src/runtime/exec/execEntry.ts' },
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedStructuredSchema],
       external: ['@napi-rs/keyring'],
     }),
     build({
@@ -119,6 +122,11 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: { wire: 'src/shared/wireEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { structuredSchema: 'src/shared/structuredSchemaEntry.ts' },
     }),
     build({
       ...common,
@@ -148,7 +156,7 @@ beforeAll(async () => {
         ),
         outputs: { [`dist/${name}.js`]: details },
       })
-      fixtures.set(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`, {
+      fixtures.set(`dist/${name === 'acp' || name === 'exec' ? 'meta-acp' : 'meta'}/${name}.json`, {
         bytes: Buffer.from(JSON.stringify(meta)),
         meta,
       })
@@ -225,14 +233,15 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 
 function inputs(name: string): string[] {
   return Object.keys(
-    fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta.inputs,
+    fixture(`dist/${name === 'acp' || name === 'exec' ? 'meta-acp' : 'meta'}/${name}.json`).meta
+      .inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
 
 describe('deferred cohort bundles', () => {
   it('loads the portable session sanitizer only from the lazy hook runtime (FIXM106T budget)', () => {
     expect(inputs('modelApi')).not.toContain('src/core/export/sessionTransfer.ts')
-    expect(inputs('hookRuntime')).toContain('src/core/export/sessionTransfer.ts')
+    expect(inputs('foreignHooks')).toContain('src/core/export/sessionTransfer.ts')
     expect(bundleText('modelApi')).toContain('./hookRuntime.js')
   })
 
@@ -434,7 +443,15 @@ describe('deferred cohort bundles', () => {
 
   it.each([
     ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
-    ['hookRuntime', 'src/core/export/sessionTransfer.ts', 'missing'],
+    ['modelApiCodeIntel', 'src/core/backends/modelapi/codeIntelCalls.ts', 'missing'],
+    ['mcpPool', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
+    ['exec', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['structuredSchema', 'src/shared/structuredSchemaEntry.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/codeIntelCalls.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],
+    ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
+
+    ['foreignHooks', 'src/core/export/sessionTransfer.ts', 'missing'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
@@ -469,7 +486,7 @@ describe('deferred cohort bundles', () => {
   ])(
     'fires the %s split guard for %s and restores its metafile byte-exact',
     (name, source, use) => {
-      const file = `dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`
+      const file = `dist/${name === 'acp' || name === 'exec' ? 'meta-acp' : 'meta'}/${name}.json`
       const meta = structuredClone(fixture(file).meta)
       const original = JSON.stringify(meta)
       const hash = createHash('sha256').update(original).digest('hex')
@@ -492,7 +509,12 @@ describe('deferred cohort bundles', () => {
         const problem = isMissing
           ? `dist/${name}.js no longer carries ${source}`
           : `dist/${name}.js carries ${source}, which loads only ${use}`
-        if (name === 'reviewer' || name === 'hookRuntime') expect(check()).toEqual([problem])
+        if (
+          name === 'reviewer' ||
+          name === 'foreignHooks' ||
+          ['modelApiCodeIntel', 'mcpPool', 'exec', 'structuredSchema'].includes(name)
+        )
+          expect(check()).toEqual([problem])
         else expect(check()).toContain(problem)
       } finally {
         output.inputs = originalInputs

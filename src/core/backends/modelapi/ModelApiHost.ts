@@ -1,3 +1,4 @@
+import type * as CodeIntelEntry from './codeIntelEntry'
 import {
   Usd,
   type UsdAmount,
@@ -259,20 +260,11 @@ import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
-import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
 import type { RenamePlanResult } from '../../codeIntel/rename'
-import { repoMapSection } from '../../codeIntel/repoMap'
-import {
-  applyRename,
-  isProtectedRename,
-  planRenameCall,
-  renameCardPath,
-  renameHookFiles,
-  renameRefused,
-  runCodeIntelRead,
-} from './codeIntelCalls'
+
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
 import type {
@@ -668,6 +660,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
    */
   readonly observationPacking?: (() => boolean) | undefined
   /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
+  readonly strictTools?: () => boolean
   readonly parallelReads?: () => boolean
   /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
   readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
@@ -2303,8 +2296,10 @@ export class ModelApiSession implements AgentSession {
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
+  private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
@@ -2435,6 +2430,7 @@ export class ModelApiSession implements AgentSession {
       deps.client.releaseSearchQuotes(sessionId)
       onDispose()
     }
+    this.strictTools = this.deps.strictTools?.() ?? true
     this.parallelReads = this.deps.parallelReads?.() ?? true
     this.outputContinuation = this.deps.outputContinuation?.() ?? true
     this.workspaceEdits.add(this.ledger)
@@ -2605,6 +2601,12 @@ export class ModelApiSession implements AgentSession {
    * (`decideAndRunRename`), so a hook never allows one set of files while
    * another is written.
    */
+  private async codeIntelligence(): Promise<typeof CodeIntelEntry> {
+    const entry = await import('./codeIntelEntry.js')
+    entry.installLanguage(UI_TEXT, uiLocale())
+    return entry
+  }
+
   private async preToolInput(
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -2620,6 +2622,7 @@ export class ModelApiSession implements AgentSession {
     ) {
       return toolHookInput(args)
     }
+    const { planRenameCall, renameHookFiles } = await this.codeIntelligence()
     const planning = planRenameCall(call.arguments, deps)
     this.hookRenamePlans.set(call, planning)
     try {
@@ -3017,6 +3020,7 @@ export class ModelApiSession implements AgentSession {
       return
     }
     try {
+      const { repoMapSection } = await this.codeIntelligence()
       const text = await repoMapSection(deps, signal)
       if (!signal.aborted) {
         this.repoMapTries += 1
@@ -3208,7 +3212,7 @@ export class ModelApiSession implements AgentSession {
     )
     if (this.openReservation !== reservation) {
       // Stop ended this unsent request while its durable claim was pending.
-      await reservation.claim.settle(0, false)
+      await reservation.claim.settle(Usd.from(0).toAmount(), false)
       return
     }
     reservation.isReserved = true
@@ -3463,7 +3467,8 @@ export class ModelApiSession implements AgentSession {
         }),
         tools: withStrictTools(
           tools,
-          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+          this.strictTools &&
+            this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
         ),
       }
     }
@@ -3505,7 +3510,8 @@ export class ModelApiSession implements AgentSession {
       }),
       tools: withStrictTools(
         this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
-        this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+        this.strictTools &&
+          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
       ),
     }
   }
@@ -3553,6 +3559,7 @@ export class ModelApiSession implements AgentSession {
       store: false,
       include: this.includes(),
       max_output_tokens: this.outputCap(),
+      ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
   }
 
@@ -9399,6 +9406,7 @@ export class ModelApiSession implements AgentSession {
       }
       return isReadable
     }
+    const { runCodeIntelRead } = await this.codeIntelligence()
     const outcome = await unlessStopped(
       runCodeIntelRead(tool, call.arguments, { ...deps, canReadFile }, signal),
       signal,
@@ -9436,6 +9444,14 @@ export class ModelApiSession implements AgentSession {
     // The plan the PreToolUse hooks were shown, if they were: it is the one
     // written, each file checked again for its content after the card. A
     // hook's new arguments are a new call object, planned afresh.
+    const {
+      planRenameCall,
+      renameRefused,
+      isProtectedRename,
+      renameCardPath,
+      applyRename,
+      CodeIntelRefusal,
+    } = await this.codeIntelligence()
     const planning = this.hookRenamePlans.get(call) ?? planRenameCall(call.arguments, deps)
     this.hookRenamePlans.delete(call)
     const planned = await unlessStopped(planning, signal)
@@ -10191,6 +10207,7 @@ export class ModelApiSession implements AgentSession {
       (tool) => tool.type === 'function' && tool.name === givenCall.name,
     )
     const call =
+      this.strictTools &&
       this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true &&
       definition?.type === 'function'
         ? { ...givenCall, arguments: restoreOptionalToolArguments(givenCall.arguments, definition) }
@@ -12175,9 +12192,10 @@ export class ModelApiSession implements AgentSession {
       pricing: {
         kind: 'priced',
         card: {
-          input: card.input / TOKENS_PER_MILLION,
-          cachedInput: card.cachedInput / TOKENS_PER_MILLION,
-          output: card.output / TOKENS_PER_MILLION,
+          // M101's economic heuristic uses approximate rates; admissions remain exact USD.
+          input: Number(Usd.from(card.input).divide(TOKENS_PER_MILLION).toString()),
+          cachedInput: Number(Usd.from(card.cachedInput).divide(TOKENS_PER_MILLION).toString()),
+          output: Number(Usd.from(card.output).divide(TOKENS_PER_MILLION).toString()),
           source: 'catalogue',
         },
       },
@@ -14193,6 +14211,29 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Child transcripts are read through the host, not listed as conversations. */
+  /** Headless schema configuration precedes the first dispatch and never changes its prefix. */
+  public configureOutputSchema(
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ): void {
+    if (
+      model !== this.modelId ||
+      this.active !== undefined ||
+      this.replay.length > 0 ||
+      this.outputFormat !== undefined
+    )
+      throw new Error(UI_TEXT.execRequestShape)
+    this.outputFormat = {
+      format: {
+        type: 'json_schema',
+        name: 'exec_answer',
+        strict: mode === 'strict_schema',
+        schema: structuredClone(schema),
+      },
+    }
+  }
+
   public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
     for (const child of this.children.values()) {
       if (child.session.sessionId === sessionId) {
@@ -14693,7 +14734,7 @@ export class ModelApiHost implements AgentHost {
     options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
   ): Promise<LoadedSession> {
     await this.requireAccountId()
-    const entry = await import('./hookRuntimeEntry.js')
+    const entry = await import('./foreignHooksEntry.js')
     const sanitizer: unknown = entry.sanitizeSessionImport
     if (typeof sanitizer !== 'function') throw new Error('Invalid session import export')
     const stored = entry.sanitizeSessionImport(
@@ -15029,6 +15070,19 @@ export class ModelApiHost implements AgentHost {
 
   public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
     return NO_UNSUBSCRIBE
+  }
+
+  /** Only the owning live session can receive its pre-dispatch format. */
+  public configureOutputSchema(
+    sessionId: string,
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ): boolean {
+    const session = this.sessions.get(sessionId)
+    if (session === undefined) return false
+    session.configureOutputSchema(model, mode, schema)
+    return true
   }
 
   public get sessionCount(): number {

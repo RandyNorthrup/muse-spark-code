@@ -12060,7 +12060,7 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
   })
 
   it('keeps a compaction pacing wait out of ambiguous paid-attempt accounting', async () => {
-    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: 1 })
+    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: Usd.from(1).toAmount() })
     const watched = await preparedBudgetCompaction(t)
     announceLocalPacingWait(t)
     await watched.session.compact()
@@ -12077,7 +12077,7 @@ describe('ModelApiSession: replay as Meta validates it (protocols/responses)', (
   })
 
   it('shows a local pacing wait as status without claiming a failed retry', async () => {
-    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: () => 1 })
+    const t = setup({ store: memorySessionStore(), sessionBudgetUsd: () => Usd.from(1).toAmount() })
     announceLocalPacingWait(t)
     const { session, events, turnDone } = await startSession(t)
     await session.sendTurn([{ type: 'text', text: 'one' }])
@@ -17536,7 +17536,7 @@ describe('M101 C1 compaction', () => {
   it('retries transient compaction streams with backoff, fresh hooks and reservations (item 11)', async () => {
     const payloads: unknown[] = []
     const t = setup({
-      sessionBudgetUsd: 1,
+      sessionBudgetUsd: Usd.from(1).toAmount(),
       hooks: hooksFor('PreLLMCall', 'observe'),
       runHook: recordHookPayloads(payloads),
     })
@@ -17930,7 +17930,7 @@ describe('FIXM101C1 review regressions', () => {
     const store = memorySessionStore()
     const t = setup({
       store,
-      sessionBudgetUsd: 1,
+      sessionBudgetUsd: Usd.from(1).toAmount(),
       admitSummaryFork: () =>
         Promise.resolve(() => {
           throw new Error('final admission refused')
@@ -17958,7 +17958,7 @@ describe('FIXM101C1 review regressions', () => {
     const started = vi.fn()
     const t = setup({
       store,
-      sessionBudgetUsd: 1,
+      sessionBudgetUsd: Usd.from(1).toAmount(),
       admitSummaryFork: () =>
         Promise.resolve(Object.assign(() => undefined, { onRequestStarted: started })),
     })

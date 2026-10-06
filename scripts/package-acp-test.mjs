@@ -25,6 +25,10 @@ for (const file of [
   LAUNCHER,
   ...[
     'acp.js',
+    'mcpPool.js',
+    'exec.js',
+    'modelApiCodeIntel.js',
+    'structuredSchema.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',

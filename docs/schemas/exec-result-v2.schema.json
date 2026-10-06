@@ -33,6 +33,15 @@
     "sessionId": { "type": ["string", "null"] },
     "ephemeral": { "type": "boolean" },
     "finalMessage": { "type": "string" },
+    "output": {
+      "type": "object",
+      "properties": {
+        "value": { "$ref": "#/$defs/__schema0" },
+        "validation": { "type": "string", "enum": ["provider", "local"] }
+      },
+      "required": ["value", "validation"],
+      "additionalProperties": false
+    },
     "filesChanged": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "denials": {
       "type": "array",
@@ -150,6 +159,7 @@
         {
           "type": "object",
           "properties": {
+            "outputSchemaSha256": { "type": "string", "pattern": "^[a-f\\d]{64}$" },
             "capUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
             "breach": { "type": "boolean" },
             "refusal": {
@@ -257,6 +267,18 @@
     "error"
   ],
   "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" },
+        { "type": "null" },
+        { "type": "array", "items": { "$ref": "#/$defs/__schema0" } },
+        {}
+      ]
+    }
+  },
   "allOf": [
     {
       "if": { "properties": { "status": { "const": "completed" } } },
@@ -284,7 +306,7 @@
       "if": { "properties": { "status": { "const": "failed" } } },
       "then": {
         "properties": {
-          "exitCode": { "const": 4 },
+          "exitCode": { "enum": [4, 10] },
           "signal": { "type": "null" },
           "error": { "type": "object" }
         }
@@ -371,6 +393,35 @@
       }
     },
     {
+      "if": { "properties": { "exitCode": { "const": 10 } } },
+      "then": {
+        "properties": {
+          "status": { "const": "failed" },
+          "error": {
+            "properties": {
+              "kind": { "enum": ["output_schema_mismatch", "output_schema_validation_budget"] }
+            },
+            "required": ["kind"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "kind": { "enum": ["output_schema_mismatch", "output_schema_validation_budget"] }
+            },
+            "required": ["kind"]
+          }
+        },
+        "required": ["error"]
+      },
+      "then": { "properties": { "status": { "const": "failed" }, "exitCode": { "const": 10 } } }
+    },
+    {
       "if": { "properties": { "status": { "const": "cancelled" } } },
       "then": {
         "properties": { "error": { "type": "object" } },
@@ -379,6 +430,26 @@
           { "properties": { "signal": { "const": "SIGTERM" }, "exitCode": { "const": 143 } } }
         ]
       }
+    },
+    {
+      "if": { "required": ["output"] },
+      "then": {
+        "properties": {
+          "status": { "const": "completed" },
+          "ledger": { "type": "object", "required": ["outputSchemaSha256"] }
+        },
+        "required": ["ledger"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "completed" },
+          "ledger": { "type": "object", "required": ["outputSchemaSha256"] }
+        },
+        "required": ["ledger"]
+      },
+      "then": { "required": ["output"] }
     }
   ],
   "x-runtime-invariants": [

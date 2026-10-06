@@ -10,7 +10,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
+import { Fragment, lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -231,7 +231,7 @@ function TokensSection({
     return <p className={ROW_META_CLASS}>{UI_TEXT.usageNoSession}</p>
   }
   // A local model shows cost 0; an unpriced one counts tokens only (M95).
-  const cost = costUsd ?? (pricing === 'local' ? 0 : undefined)
+  const cost = costUsd ?? (pricing === 'local' ? Usd.from(0).toAmount() : undefined)
   const contextValue = contextValueOf(context)
   const savings =
     usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
@@ -732,6 +732,18 @@ export function UsageDialogContent({
           modelId,
         )
       : undefined
+  const statusReader = useMemo(
+    () =>
+      readServiceStatus ??
+      (report?.backend === 'modelApi'
+        ? () => {
+            if (report.serviceStatus === undefined)
+              throw new Error(UI_TEXT.modelApiStatusUnavailable)
+            return Promise.resolve(report.serviceStatus)
+          }
+        : undefined),
+    [readServiceStatus, report],
+  )
   const paidFeatures = listedPaidFeatures(
     usablePaidFeatures(report?.backend, paid.isKeyStored),
     paid.tally,
@@ -744,9 +756,9 @@ export function UsageDialogContent({
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
         <AccountSection report={report} modelId={modelId} />
-        {readServiceStatus === undefined ? null : (
+        {statusReader === undefined ? null : (
           <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
-            <ServiceStatusRow read={readServiceStatus} onOpenExternal={onOpenExternal} />
+            <ServiceStatusRow read={statusReader} onOpenExternal={onOpenExternal} />
           </Suspense>
         )}
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>

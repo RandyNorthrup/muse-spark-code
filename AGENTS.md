@@ -203,6 +203,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
+                      shared schema conversion (dist/structuredSchema.js),
+                      Model API code intelligence and MCP pools
+                      (dist/modelApiCodeIntel.js and dist/mcpPool.js),
                       with its status item in the activation shim,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
@@ -235,7 +238,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events; must not import
                       `vscode`
-src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
+src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
+                      only by the exec command), stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth`, `login` and

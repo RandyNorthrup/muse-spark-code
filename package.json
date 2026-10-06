@@ -1150,6 +1150,26 @@
           "default": true,
           "description": "%config.modelApiAutoCompaction.description%",
           "scope": "machine"
+        },
+        "museSpark.modelApiStrictTools": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiStrictTools.description%"
+        },
+        "museSpark.modelApiParallelReads": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiParallelReads.description%"
+        },
+        "museSpark.webSearchMaxPerRequest": {
+          "type": "number",
+          "default": 5,
+          "scope": "machine",
+          "description": "%config.webSearchMaxPerRequest.description%",
+          "minimum": 1,
+          "maximum": 20
         }
       }
     },
@@ -1265,8 +1285,7 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
-    "reference:generate": "node scripts/gen-reference.mjs",
-    "check:reference": "node scripts/gen-reference.mjs --check"
+    "reference:generate": "node scripts/gen-reference.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

@@ -3095,7 +3095,9 @@
     "description": "--description <text>  Co se dělo, vlastními slovy",
     "no-facts": "--no-facts           Vynechat podpůrná fakta",
     "no-events": "--no-events          Vynechat nedávné události",
-    "no-auto-compaction": "Vypnout automatické zhušťování kontextu"
+    "no-auto-compaction": "Vypnout automatické zhušťování kontextu",
+    "output-schema": "Ověřit konečnou odpověď podle souboru s omezeným schématem JSON (pouze Model API).",
+    "output-schema-outside": "Povolit, aby soubor výstupního schématu směřoval mimo pracovní prostor."
   },
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",

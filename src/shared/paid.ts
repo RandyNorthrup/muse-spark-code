@@ -158,7 +158,7 @@ export interface SubagentUsage {
 
 /** Runtime paid-use identity: popup grants, tally fields and reference claims. */
 export const PAID_USE_REGISTRY = {
-  webSearch: { featureId: 'search', tally: 'webSearches', once: 'use' },
+  webSearch: { featureId: 'search', tally: 'webSearches', once: 'window' },
   imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
   voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
   subagents: {

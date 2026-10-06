@@ -263,16 +263,7 @@ export const modelListSchema = z.object({
   data: z.array(z.object({ id: z.string() })),
 })
 
-/** GET /v1/status, captured 2026-10-05 with and without authentication (M106). */
-export const modelApiStatusSchema = z.object({
-  is_alive: z.boolean(),
-  service_status: z.string(),
-  service_message: z.string(),
-  updated_at: z.string(),
-  // Only an empty list was captured. Preserve future entries without
-  // inventing their fields; lane R must validate any fields it consumes.
-  model_statuses: z.array(z.unknown()),
-})
+export { modelApiStatusSchema } from '../../../shared/serviceStatus'
 
 // A count below zero is no count: it would lower the session budget's base (M82).
 export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.nonnegative()) })
@@ -285,15 +276,13 @@ export const inputTokensSchema = z.object({ input_tokens: z.number().check(z.non
  * replayed as such: replayed as a final answer before a `function_call`
  * it is a 400. `final_answer` is accepted on input only.
  */
-export const MESSAGE_PHASES = ['commentary', 'final_answer'] as const
-export type MessagePhase = (typeof MESSAGE_PHASES)[number]
 
 /** A user or assistant message in the replayed conversation. */
 export interface InputMessageItem {
   readonly type: 'message'
   readonly role: 'user' | 'assistant' | 'developer'
   readonly content: readonly InputContentPart[]
-  readonly phase?: MessagePhase | undefined
+  readonly phase?: string | null | undefined
 }
 
 /**

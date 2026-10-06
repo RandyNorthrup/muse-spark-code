@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "Un’area di lavoro può suggerire un solo preset di provider di modelli tramite id; il pannello offre di aprire Modelli e agenti con quel preset. Vuoto non suggerisce nulla. Un’area di lavoro non può impostare un indirizzo né una credenziale.",
   "walkthrough.gettingStarted.step.ownModel.title": "Inizia con il tuo modello",
   "walkthrough.gettingStarted.step.ownModel.description": "Nessun abbonamento Muse o chiave API Meta? Aggiungi il tuo provider di modelli — OpenRouter, Anthropic, OpenAI o un server locale — e scegli un modello.\n[Inizia con il tuo modello](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Compattare automaticamente le conversazioni lunghe di Model API. Attivo per impostazione predefinita, ma inattivo fino al superamento di una valutazione abbinata. Ogni chiamata aggiuntiva a pagamento richiede il consenso al prezzo e al budget giornaliero."
+  "config.modelApiAutoCompaction.description": "Compattare automaticamente le conversazioni lunghe di Model API. Attivo per impostazione predefinita, ma inattivo fino al superamento di una valutazione abbinata. Ogni chiamata aggiuntiva a pagamento richiede il consenso al prezzo e al budget giornaliero.",
+  "config.modelApiStrictTools.description": "Usa schemi rigorosi degli strumenti quando il modello selezionato li supporta. Disattiva per mantenere le dichiarazioni precedenti.",
+  "config.modelApiParallelReads.description": "Esegui contemporaneamente le chiamate sicure agli strumenti di sola lettura, fino a quattro alla volta. Le altre chiamate vengono eseguite in ordine.",
+  "config.webSearchMaxPerRequest.description": "Numero massimo di ricerche web ospitate per risposta (1–20; predefinito 5). Il prezzo e il budget giornaliero condiviso vengono mostrati prima del primo addebito."
 }

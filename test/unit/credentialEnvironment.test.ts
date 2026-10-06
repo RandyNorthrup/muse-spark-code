@@ -274,6 +274,7 @@ describe('D89.5 native environment snapshots', () => {
           files: [],
           maxFileBytes: 100,
           maxHits: 1,
+          maxHitChars: 100,
           denyRead: [],
           globLimits: GLOB_LIMITS,
         },

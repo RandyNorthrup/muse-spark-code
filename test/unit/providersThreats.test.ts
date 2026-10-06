@@ -10,7 +10,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { MAY_HOLD_SECRET, redactableSlices, redactSecrets } from '../../src/core/redact'
-import { hookEnvironment, isCredentialVariable } from '../../src/host/backend/toolIo'
+import { hookEnvironment } from '../../src/host/backend/toolIo'
+import { isCredentialVariable } from '../../src/core/credentialEnvironment'
 import { createLogger } from '../../src/host/logger'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {

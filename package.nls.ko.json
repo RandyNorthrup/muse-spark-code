@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "작업 영역은 ID로 모델 공급자 프리셋 하나를 제안할 수 있으며, 패널은 해당 프리셋으로 모델 및 에이전트를 여는 것을 제안합니다. 비어 있으면 아무것도 제안하지 않습니다. 작업 영역은 주소나 자격 증명을 설정할 수 없습니다.",
   "walkthrough.gettingStarted.step.ownModel.title": "자신의 모델로 시작",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse 구독이나 Meta API 키가 없나요? 자신의 모델 공급자(OpenRouter, Anthropic, OpenAI 또는 로컬 서버)를 추가하고 모델을 선택하세요.\n[자신의 모델로 시작](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "긴 Model API 대화를 자동으로 압축합니다. 기본값은 켜짐이지만 비교 평가를 통과할 때까지 비활성 상태입니다. 추가 유료 호출마다 가격과 일일 예산에 대한 동의가 필요합니다."
+  "config.modelApiAutoCompaction.description": "긴 Model API 대화를 자동으로 압축합니다. 기본값은 켜짐이지만 비교 평가를 통과할 때까지 비활성 상태입니다. 추가 유료 호출마다 가격과 일일 예산에 대한 동의가 필요합니다.",
+  "config.modelApiStrictTools.description": "선택한 모델이 지원하는 경우 엄격한 도구 스키마를 사용합니다. 이전 도구 선언을 유지하려면 끄세요.",
+  "config.modelApiParallelReads.description": "안전한 읽기 전용 도구 호출을 최대 네 개까지 동시에 실행합니다. 다른 호출은 순서대로 실행합니다.",
+  "config.webSearchMaxPerRequest.description": "응답당 서비스 측 웹 검색의 최대 횟수(1~20, 기본값 5)입니다. 첫 과금 전에 가격과 공유 일일 예산이 표시됩니다."
 }

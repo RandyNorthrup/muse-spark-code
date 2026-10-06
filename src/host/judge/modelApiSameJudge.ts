@@ -1,4 +1,4 @@
-import { type UsdAmount } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The same-model judge on the Model API backend (M98 lane S, PLAN.md D77):
 // the host adapter that judges one held action without touching the main
 // request or session. It reads ModelApiHost's own built (keyed) body through
@@ -143,8 +143,8 @@ export class ModelApiSameJudge {
     const canReusePrefix =
       planned.mode === 'shared-prefix' && main.tools.every((tool) => tool.type === 'function')
     const body = canReusePrefix ? planned.body : this.standaloneBody(main, tail)
-    let reservedCostUsd: number | undefined
-    let settledCostUsd: number | undefined
+    let reservedCostUsd: UsdAmount | undefined
+    let settledCostUsd: UsdAmount | undefined
     let replyText: string
     try {
       const question = batch.questions[0]
@@ -176,9 +176,13 @@ export class ModelApiSameJudge {
               : formatted
           const response = await this.deps.transport.send(request, signal)
           if (response.reservedCostUsd !== undefined)
-            reservedCostUsd = (reservedCostUsd ?? 0) + response.reservedCostUsd
+            reservedCostUsd = Usd.from(reservedCostUsd ?? 0)
+              .add(Usd.from(response.reservedCostUsd))
+              .toAmount()
           if (response.settledCostUsd !== undefined)
-            settledCostUsd = (settledCostUsd ?? 0) + response.settledCostUsd
+            settledCostUsd = Usd.from(settledCostUsd ?? 0)
+              .add(Usd.from(response.settledCostUsd))
+              .toAmount()
           return response.text
         },
       })

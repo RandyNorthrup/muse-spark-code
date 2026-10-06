@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // M106 L2: synthetic loop faults use the existing fake wire; no new provider shapes.
 import { Buffer } from 'node:buffer'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -802,7 +803,10 @@ describe('M106 loop guarantees', () => {
   })
 
   it('reserves the continuation afresh and refuses it when its budget is exhausted', async () => {
-    const rig = await setup({ store: memorySessionStore(), sessionBudgetUsd: () => 0.1 })
+    const rig = await setup({
+      store: memorySessionStore(),
+      sessionBudgetUsd: () => Usd.from(0.1).toAmount(),
+    })
     rig.api.script(
       {
         text: 'Partial.',

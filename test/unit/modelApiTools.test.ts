@@ -1364,6 +1364,7 @@ describe('shell output kept whole for packing (M101 item 15)', () => {
       platform: 'linux',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
       wholeShellOutput: true,
     }
     const outcome = await executeTool(
@@ -1525,6 +1526,7 @@ describe('FIXM101T tool regressions', () => {
       platform: 'win32',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
       files: { extraRoots: ['C:/extra'], isDenied: () => false, denyGlobs: [], isDenyAll: false },
     }
     const allowed = await executeTool('read_file', '{"path":"file:///C:/extra/b.txt"}', ctx)

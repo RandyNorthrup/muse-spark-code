@@ -15626,3 +15626,20 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
     t.controller.dispose()
   })
 })
+
+it('shows a fixed Meta service-failure notice with a status action only on that backend', () => {
+  const modelApi = setup()
+  modelApi.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+  modelApi.controller.modelApiServiceFailed()
+  expect(modelApi.surface.posted).toContainEqual({
+    type: 'notice',
+    level: 'warning',
+    text: UI_TEXT.modelApiServiceFailure,
+    actions: ['openModelApiStatus'],
+  })
+  const museCode = setup()
+  museCode.controller.modelApiServiceFailed()
+  expect(museCode.surface.posted).not.toContainEqual(
+    expect.objectContaining({ actions: ['openModelApiStatus'] }),
+  )
+})

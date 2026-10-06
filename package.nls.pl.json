@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "Obszar roboczy może zasugerować jeden preset dostawcy modeli według id; panel proponuje otwarcie Modeli i agentów z tym presetem. Pusty nie sugeruje nic. Obszar roboczy nie może ustawić adresu ani poświadczenia.",
   "walkthrough.gettingStarted.step.ownModel.title": "Zacznij od własnego modelu",
   "walkthrough.gettingStarted.step.ownModel.description": "Brak subskrypcji Muse lub klucza API Meta? Dodaj własnego dostawcę modeli — OpenRouter, Anthropic, OpenAI albo serwer lokalny — i wybierz model.\n[Zacznij od własnego modelu](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet."
+  "config.modelApiAutoCompaction.description": "Automatycznie kompaktuj długie rozmowy Model API. Domyślnie włączone, ale nieaktywne do zaliczenia oceny porównawczej. Każde dodatkowe płatne wywołanie wymaga zgody na cenę i dzienny budżet.",
+  "config.modelApiStrictTools.description": "Używaj ścisłych schematów narzędzi, gdy wybrany model je obsługuje. Wyłącz, aby zachować poprzednie deklaracje narzędzi.",
+  "config.modelApiParallelReads.description": "Uruchamiaj bezpieczne wywołania narzędzi tylko do odczytu równolegle, maksymalnie cztery naraz. Pozostałe wywołania są wykonywane w kolejności.",
+  "config.webSearchMaxPerRequest.description": "Maksymalna liczba wyszukiwań internetowych po stronie usługi na odpowiedź (1–20; domyślnie 5). Cena i wspólny budżet dzienny są wyświetlane przed pierwszą opłatą."
 }

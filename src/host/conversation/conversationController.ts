@@ -1,3 +1,4 @@
+import { modelApiStatusSchema } from '../../shared/serviceStatus'
 import { Usd } from '../../shared/usd'
 import type { PaidUseDecision, SearchSettlement } from '../../shared/paid'
 import type { UsdAmount } from '../../shared/usd'
@@ -428,6 +429,7 @@ export interface ConversationDeps {
   /** Session history (M6). */
   readonly sessions: SessionMemory
   /** The usage modal's Account section (M14). */
+  readonly readServiceStatus?: (() => Promise<unknown>) | undefined
   readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
@@ -7846,6 +7848,14 @@ export class ConversationController {
     this.latestUsage = subscription
     const shown = subscription
     const account = await this.deps.accountFacts(host.info.kind)
+    let serviceStatus
+    if (host.info.kind === 'modelApi' && this.deps.readServiceStatus !== undefined) {
+      try {
+        serviceStatus = modelApiStatusSchema.parse(await this.deps.readServiceStatus())
+      } catch {
+        // Public health is optional; unavailable health never replaces usage or breaks the dialog.
+      }
+    }
     const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
@@ -7853,6 +7863,7 @@ export class ConversationController {
     }
     this.post({
       type: 'usageReport',
+      ...(serviceStatus !== undefined && { serviceStatus }),
       backend: host.info.kind,
       account,
       ...(shown !== undefined && { subscription: shown }),
@@ -9188,6 +9199,18 @@ export class ConversationController {
    * panel on it: restarted already when no turn ran, or, in a panel whose
    * turn runs, the offer to restart it (D26's Restart, which stops the turn).
    */
+  /** A final Meta 5xx has a fixed, translated status action; no service prose. */
+  public modelApiServiceFailed(): void {
+    if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'modelApi')
+      return
+    this.post({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.modelApiServiceFailure,
+      actions: ['openModelApiStatus'],
+    })
+  }
+
   public museCodeStoppedAnswering(isRestarted: boolean): void {
     if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'museCode') {
       return

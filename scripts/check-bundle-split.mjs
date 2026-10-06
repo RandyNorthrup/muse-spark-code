@@ -78,6 +78,7 @@ import {
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
+  MODEL_API_OPTIONAL_ONLY,
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
@@ -129,6 +130,8 @@ const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
   'pacing.ts',
+  'repeatGuard.ts',
+  'toolScheduler.ts',
   'ModelApiHost.ts',
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
@@ -141,7 +144,6 @@ const LAZY_ONLY = [
   'permissionPolicy.ts',
   'shellSyntax.ts',
   // M67: the code intelligence tools' Model API side (reads and the rename's write).
-  'codeIntelCalls.ts',
   'glob.ts',
   'goals.ts',
   'hooks.ts',
@@ -168,16 +170,11 @@ const LAZY_ONLY = [
   'verifyLedger.ts',
   'verifyLoop.ts',
   'verifyTools.ts',
-  'mcp/connection.ts',
   // M91-M: MCP forms' types and log text load with the backend; their checks
   // load with dist/hookRuntime.js, and the browser reuses value validation.
   'mcp/elicitation.ts',
   'mcp/functions.ts',
-  'mcp/http.ts',
-  'mcp/pool.ts',
   'mcp/protocol.ts',
-  'mcp/servers.ts',
-  'mcp/stdio.ts',
 ]
 
 /** The bundle's source files and the bytes each contributed, from its metafile. */
@@ -210,6 +207,7 @@ for (const name of onDisk) {
     Number(ACTIVATION_ALLOWED.has(name)) +
     Number(lazy.has(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
+    Number(MODEL_API_OPTIONAL_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
@@ -226,6 +224,7 @@ for (const name of [
   ...ACTIVATION_ALLOWED.keys(),
   ...lazy,
   ...DEFERRED_ONLY,
+  ...MODEL_API_OPTIONAL_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
@@ -487,6 +486,7 @@ for (const bundle of [
   }
   const { outputs } = JSON.parse(readFileSync(bundle.metafile, 'utf8'))
   if (
+    bundle.output !== 'dist/structuredSchema.js' &&
     outputs[bundle.output].imports.every((entry) => entry.path !== './uiText.js' || !entry.external)
   ) {
     problems.push(`${bundle.output} no longer loads the shared English table`)
@@ -755,12 +755,12 @@ const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output],
+    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
-    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output],
+    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',
@@ -794,13 +794,13 @@ const TEXT_BLOCKS = [
   {
     block: 'WEB_FETCH_MODEL_TEXT',
     sentinels: ['webFetchUntrusted', 'webFetchMovedOpen'],
-    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output],
+    readers: ['dist/webFetch.js', BUNDLES.modelApi.output, BUNDLES.acp.output, 'dist/exec.js'],
   },
   // A headless run's attached files (M80): the ACP agent's runtime only.
   {
     block: 'EXEC_MODEL_TEXT',
     sentinels: ['execUntrustedLead'],
-    readers: [BUNDLES.acp.output],
+    readers: ['dist/exec.js'],
   },
   // The Auto reviewer (M78, M90): the paid reviewer and the reviewer on Muse
   // Code. dist/modelApi.js carries autoReviewer.ts for its types and policy
@@ -947,6 +947,7 @@ const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
   'src/webview/highlightRuntime.ts',
+  'src/webview/components/ToolArgumentPreview.tsx',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>

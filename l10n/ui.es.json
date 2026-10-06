@@ -2992,7 +2992,9 @@
     "description": "--description <text>  Qué estaba pasando, en tus palabras",
     "no-facts": "--no-facts           Omitir los datos de soporte",
     "no-events": "--no-events          Omitir los eventos recientes",
-    "no-auto-compaction": "Desactivar la compactación automática"
+    "no-auto-compaction": "Desactivar la compactación automática",
+    "output-schema": "Validar la respuesta final con un archivo de esquema JSON limitado (solo Model API).",
+    "output-schema-outside": "Permitir que el archivo del esquema de salida se resuelva fuera del espacio de trabajo."
   },
   "referenceExecImages": "Las imágenes sin interfaz requieren --image-generation, acceptEdits y un presupuesto estricto suficiente. No se pregunta por el precio; se rechazan las solicitudes que requieren permiso.",
   "referencePopoverKeys": "Recorrer opciones, ajustar un valor, elegir una opción o cerrar el menú.",

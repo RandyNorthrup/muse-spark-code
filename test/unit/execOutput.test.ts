@@ -74,7 +74,7 @@ describe('M106 structured exec egress', () => {
         type: 'result',
         result: {
           status: 'failed',
-          exitCode: 4,
+          exitCode: 10,
           error: { kind: 'output_schema_mismatch' },
           usage: resultRecord().usage,
           ledger: { outputSchemaSha256: schema.sha256 },
@@ -82,7 +82,7 @@ describe('M106 structured exec egress', () => {
       })
       if (final.type !== 'result') throw new Error('missing result')
       expect(Object.hasOwn(final.result, 'output')).toBe(false)
-      expect(h.sink.resultExitCode).toBe(4)
+      expect(h.sink.resultExitCode).toBe(10)
     },
   )
   it.each(['__proto__', 'constructor', 'prototype'])(
@@ -163,7 +163,7 @@ describe('M106 structured exec egress', () => {
       complete: true,
     })
     await h.sink.finish(resultRecord())
-    expect(h.sink.resultExitCode).toBe(4)
+    expect(h.sink.resultExitCode).toBe(10)
     expect(validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))).toMatchObject({
       status: 'failed',
       error: { kind: 'output_schema_validation_budget' },
@@ -210,13 +210,13 @@ describe('M106 structured exec egress', () => {
       const h = harness('jsonl', answerSchema())
       h.sink.message({ itemId: 'final', kind: 'agentMessage', text, complete: true })
       await h.sink.finish(resultRecord())
-      expect(h.sink.resultExitCode).toBe(4)
+      expect(h.sink.resultExitCode).toBe(10)
       const event = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''))
       expect(event).toMatchObject({
         type: 'result',
         result: {
           status: 'failed',
-          exitCode: 4,
+          exitCode: 10,
           finalMessage: UI_TEXT.execMessageWithheld,
           error: { kind: 'output_schema_mismatch' },
         },
@@ -253,7 +253,7 @@ describe('M106 structured exec egress', () => {
       complete: true,
     })
     await constrained.sink.finish(resultRecord())
-    expect(constrained.sink.resultExitCode).toBe(4)
+    expect(constrained.sink.resultExitCode).toBe(10)
     expect(constrained.out.chunks.join('')).not.toContain(KEY)
     const placeholder = harness(
       'json',
@@ -266,7 +266,7 @@ describe('M106 structured exec egress', () => {
       complete: true,
     })
     await placeholder.sink.finish(resultRecord())
-    expect(placeholder.sink.resultExitCode).toBe(4)
+    expect(placeholder.sink.resultExitCode).toBe(10)
   })
   it('never promotes earlier valid commentary over a withheld final response or a stop', async () => {
     const h = harness('json', answerSchema())

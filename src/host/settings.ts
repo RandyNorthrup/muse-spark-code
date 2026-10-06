@@ -10,6 +10,7 @@ import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
   PAID_DAILY_BUDGET,
+  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
   BROWSER_RUNTIME_MODES,
@@ -114,6 +115,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Observation packing on the Model API backend (M73): a conversation reads it when it starts. */
   readonly modelApiObservationPacking: boolean
   readonly modelApiAutoCompaction: boolean
+  readonly modelApiStrictTools: boolean
+  readonly modelApiParallelReads: boolean
+  readonly webSearchMaxPerRequest: number
   /** A checkpoint of the workspace's files at each turn boundary (M72). */
   readonly turnCheckpoints: boolean
   /** The hosts beyond loopback the browser check may open and reach (M81, PLAN.md D49). */
@@ -193,6 +197,11 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   modelApiAutoCompaction: z.boolean(),
+  modelApiStrictTools: z.boolean(),
+  modelApiParallelReads: z.boolean(),
+  webSearchMaxPerRequest: z
+    .number()
+    .check(z.int(), z.gte(1), z.lte(WEB_SEARCH_MAX_PER_REQUEST_LIMIT)),
   turnCheckpoints: z.boolean(),
   // Each entry a plain host name or IP address (no port, path or wildcard):
   // one that is not refuses the whole list, so a typo warns rather than
@@ -295,6 +304,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepoMap: readSetting(config, 'modelApiRepoMap', log),
     modelApiObservationPacking: readSetting(config, 'modelApiObservationPacking', log),
     modelApiAutoCompaction: readSetting(config, 'modelApiAutoCompaction', log),
+    modelApiStrictTools: readSetting(config, 'modelApiStrictTools', log),
+    modelApiParallelReads: readSetting(config, 'modelApiParallelReads', log),
+    webSearchMaxPerRequest: readSetting(config, 'webSearchMaxPerRequest', log),
     turnCheckpoints: readSetting(config, 'turnCheckpoints', log),
     browserCheckExtraHosts: readSetting(config, 'browserCheckExtraHosts', log),
     browserCheckRuntime: readSetting(config, 'browserCheckRuntime', log),

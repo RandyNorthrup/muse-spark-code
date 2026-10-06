@@ -101,6 +101,26 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly sessionBudgetUsd: () => UsdAmount
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
+  readonly strictTools?: ModelApiHostDeps['strictTools']
+  readonly parallelReads?: ModelApiHostDeps['parallelReads']
+  readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
+  readonly modelFacts?: ModelApiHostDeps['modelFacts']
+  readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
+  readonly argumentPreviewCapabilities?: ModelApiHostDeps['argumentPreviewCapabilities']
+  readonly modelOutputMaxTokens?: ModelApiHostDeps['modelOutputMaxTokens']
+  readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+  readonly forceSideCallTool?: ModelApiHostDeps['forceSideCallTool']
+  readonly repeatResultWitness?: ModelApiHostDeps['repeatResultWitness']
+  readonly outputContinuation?: ModelApiHostDeps['outputContinuation']
+  readonly pacingOwner?: object | undefined
+  readonly pacing?: ModelApiClientDeps['pacing']
+  readonly isRetryableFailure?: ModelApiClientDeps['isRetryableFailure']
+  readonly pacingProvider?: ModelApiClientDeps['pacingProvider']
+  readonly onServiceFailure?: ModelApiClientDeps['onServiceFailure']
+  readonly providerId?: ModelApiClientDeps['providerId']
+  readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
+  readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
+
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
   /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
@@ -269,6 +289,22 @@ export class ModelApiBackendManager {
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
         }),
+        pacingOwner: this.deps.pacingOwner ?? this,
+        ...(this.deps.isRetryableFailure !== undefined && {
+          isRetryableFailure: this.deps.isRetryableFailure,
+        }),
+        ...(this.deps.pacing !== undefined && { pacing: this.deps.pacing }),
+        ...(this.deps.pacingProvider !== undefined && { pacingProvider: this.deps.pacingProvider }),
+        ...(this.deps.onServiceFailure !== undefined && {
+          onServiceFailure: this.deps.onServiceFailure,
+        }),
+        ...(this.deps.providerId !== undefined && { providerId: this.deps.providerId }),
+        ...(this.deps.webSearchPriceUsd !== undefined && {
+          webSearchPriceUsd: this.deps.webSearchPriceUsd,
+        }),
+        ...(this.deps.searchTokenCostUsd !== undefined && {
+          searchTokenCostUsd: this.deps.searchTokenCostUsd,
+        }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
@@ -309,6 +345,34 @@ export class ModelApiBackendManager {
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
         showReplyUsage: this.deps.showReplyUsage,
+        ...(this.deps.strictTools !== undefined && { strictTools: this.deps.strictTools }),
+        ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
+        ...(this.deps.webSearchMaxPerRequest !== undefined && {
+          webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
+        }),
+        ...(this.deps.modelFacts !== undefined && { modelFacts: this.deps.modelFacts }),
+        ...(this.deps.modelCapabilities !== undefined && {
+          modelCapabilities: this.deps.modelCapabilities,
+        }),
+        ...(this.deps.argumentPreviewCapabilities !== undefined && {
+          argumentPreviewCapabilities: this.deps.argumentPreviewCapabilities,
+        }),
+        ...(this.deps.modelOutputMaxTokens !== undefined && {
+          modelOutputMaxTokens: this.deps.modelOutputMaxTokens,
+        }),
+        ...(this.deps.sideCallFormats !== undefined && {
+          sideCallFormats: this.deps.sideCallFormats,
+        }),
+        ...(this.deps.forceSideCallTool !== undefined && {
+          forceSideCallTool: this.deps.forceSideCallTool,
+        }),
+        ...(this.deps.repeatResultWitness !== undefined && {
+          repeatResultWitness: this.deps.repeatResultWitness,
+        }),
+        ...(this.deps.outputContinuation !== undefined && {
+          outputContinuation: this.deps.outputContinuation,
+        }),
+
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
         browserCheck: variant.browserCheck,

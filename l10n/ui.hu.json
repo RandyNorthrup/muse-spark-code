@@ -2889,7 +2889,9 @@
     "description": "--description <text>  Mi történt, saját szavakkal",
     "no-facts": "--no-facts           A támogató tények kihagyása",
     "no-events": "--no-events          A legutóbbi események kihagyása",
-    "no-auto-compaction": "Az automatikus kontextustömörítés kikapcsolása"
+    "no-auto-compaction": "Az automatikus kontextustömörítés kikapcsolása",
+    "output-schema": "A végső válasz ellenőrzése korlátozott JSON-sémafájllal (csak Model API).",
+    "output-schema-outside": "A kimeneti sémafájl a munkaterületen kívülre is mutathat."
   },
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",

@@ -82,6 +82,10 @@ export const EN = {
   referenceExecImages:
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceCliOptions: {
+    'output-schema':
+      'Validate the final answer against a bounded JSON schema file (Model API only).',
+    'output-schema-outside': 'Allow the output schema file to resolve outside the workspace.',
+
     'no-auto-compaction': 'Disable automatic compaction',
     backend:
       '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',

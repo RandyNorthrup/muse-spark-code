@@ -3095,7 +3095,9 @@
     "description": "--description <text>  Co się działo, własnymi słowami",
     "no-facts": "--no-facts           Pominąć dane wsparcia",
     "no-events": "--no-events          Pominąć ostatnie zdarzenia",
-    "no-auto-compaction": "Wyłącz automatyczne zagęszczanie kontekstu"
+    "no-auto-compaction": "Wyłącz automatyczne zagęszczanie kontekstu",
+    "output-schema": "Sprawdź końcową odpowiedź względem ograniczonego pliku schematu JSON (tylko Model API).",
+    "output-schema-outside": "Zezwól, by plik schematu wyjściowego wskazywał poza obszar roboczy."
   },
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
   "referencePopoverKeys": "Przeglądaj opcje, zmień wartość, wybierz opcję albo zamknij menu.",

@@ -31,6 +31,10 @@ const METAFILE_DIR = path.join('dist', 'meta')
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
+  path.join('dist', 'meta-acp', 'exec.json'),
+  ...['mcpPool', 'modelApiCodeIntel', 'structuredSchema', 'reference', 'imageResizeWorker'].map(
+    (name) => path.join(METAFILE_DIR, `${name}.json`),
+  ),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'wire.json'),

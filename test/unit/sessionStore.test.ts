@@ -330,3 +330,26 @@ it('R3 P3: migrates historical numeric transcript fees only at the disk boundary
   if (!parsed.ok) throw new Error('historical transcript was refused')
   expect(parsed.session.transcript[0]?.item.costUsd).toBe('0.000000002')
 })
+
+it('preserves captured message phase values and future words across persistence', () => {
+  for (const phase of ['commentary', 'final_answer', 'future_phase', null]) {
+    const stored = {
+      ...full,
+      replay: [
+        {
+          turnId: 't1',
+          item: {
+            type: 'message',
+            role: 'assistant',
+            phase,
+            content: [{ type: 'output_text', text: 'answer' }],
+          },
+        },
+      ],
+    }
+    const parsed = parseStoredSession(stored)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(parsed.reason)
+    expect(parsed.session.replay[0]?.item).toMatchObject({ phase })
+  }
+})

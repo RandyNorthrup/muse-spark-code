@@ -390,3 +390,11 @@ Every new command, setting or feature updates `src/shared/featureCatalog.ts`
 in the same PR (and the shared CLI table for runtime commands). Run
 `npm run reference:generate`, then `npm run check:reference`; the gate rejects
 missing descriptions, invalid relationships and stale generated references.
+
+M106 keeps optional work behind built entry points. The Model API loads code
+intelligence from `dist/modelApiCodeIntel.js` and MCP transport from
+`dist/mcpPool.js`; schema conversion uses `dist/structuredSchema.js`.
+`dist/exec.js` belongs only to the standalone package and its notices inventory.
+Install the caller's language before using a lazy Node factory. New artifacts
+use their measured size plus 15%, rounded up to 25 KiB; the activation, Model
+API, ACP, startup and original deferred caps stay fixed.

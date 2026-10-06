@@ -15,8 +15,11 @@ import {
   loadHookDefinitions,
   sparkHooksFiles,
 } from '../../core/backends/modelapi/hooks'
-import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
-import { metaModelFacts } from '../../core/backends/modelapi/modelCapabilities'
+import {
+  metaModelFacts,
+  metaSideCallFormats,
+  metaHostedCapabilities,
+} from '../../core/backends/modelapi/modelCapabilities'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -85,11 +88,22 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             hostDeps.log.warn(`Hooks: ${message}`)
           },
         }
+  const mcpEntry =
+    deps.createMcpServers === undefined
+      ? undefined
+      : await import('../../core/backends/modelapi/mcpPoolEntry.js')
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
+    sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
+    modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
     client: new ModelApiClient(deps.client),
-    mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
+    mcpServers:
+      mcpEntry === undefined
+        ? undefined
+        : await deps.createMcpServers?.((poolDeps) =>
+            mcpEntry.createMcpPool(poolDeps, deps.uiText, deps.uiLocale),
+          ),
     loadHooks: async () => {
       const sources = sourcesFor()
       // Hooks imported in another agent's format live in spark-hooks.json and

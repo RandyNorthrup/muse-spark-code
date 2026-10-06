@@ -36,20 +36,50 @@ import {
 } from '../toolPresentation'
 import { ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
-import { QuestionCard, type QuestionCardProps } from './QuestionCard'
-import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
+import type { QuestionCardProps } from './QuestionCard'
+import type { ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
-import {
-  GoalBody,
-  ImageBody,
-  MemoryBody,
-  ScheduleBody,
-  ToolImage,
-  WebBody,
-  WorkflowBody,
-} from './ToolBodies'
+
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
+
+import { deferred } from './DeferredSurface'
+const QuestionCard = deferred(async () => {
+  const entry = await import('./QuestionCard')
+  return { default: entry.QuestionCard }
+}, false)
+const ElicitationCard = deferred(async () => {
+  const entry = await import('./ElicitationCard')
+  return { default: entry.ElicitationCard }
+}, false)
+const GoalBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.GoalBody }
+}, false)
+const ImageBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ImageBody }
+}, false)
+const MemoryBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.MemoryBody }
+}, false)
+const ScheduleBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ScheduleBody }
+}, false)
+const ToolImage = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ToolImage }
+}, false)
+const WebBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WebBody }
+}, false)
+const WorkflowBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WorkflowBody }
+}, false)
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 

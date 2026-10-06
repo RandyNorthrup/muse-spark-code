@@ -1,3 +1,4 @@
+import type { modelApiStatusSchema } from '../../shared/serviceStatus'
 import type { JudgeStatus } from '../../shared/judge'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
@@ -115,6 +116,7 @@ export type {
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
+  readonly serviceStatus?: ReturnType<typeof modelApiStatusSchema.parse> | undefined
   readonly backend: BackendKind
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
@@ -2718,6 +2720,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         usageReport: {
           backend: message.backend,
           subscription: message.subscription,
+          ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
           providers: message.providers === undefined ? undefined : [...message.providers],

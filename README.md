@@ -84,7 +84,9 @@ key to the CLI.
   plugins on the Model API backend. Hooks keep their permission and paid-use limits.
 - **Report a problem** (see [Reporting a problem](#reporting-a-problem)). Preview
   the exact scrubbed report, remove items, then copy, save or open an issue.
-  The report is built locally and the extension sends nothing.
+  The draft stays local. On the Model API backend, Account & usage and report
+  preparation also read Meta’s public service status without sending the draft
+  or an API key.
 - **Muse Judge phase 1** (see [Muse Judge](#muse-judge)). The conversation model
   can add uncalibrated caution to an approval; it cannot grant permission.
   Model API Judge asks for paid-use consent and shares the durable daily budget.
@@ -4460,3 +4462,50 @@ The shared production Node English fallback uses the same built-in compression.
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
+
+### Agent loop guarantees
+
+Model API strict tool declarations and safe parallel reads are on by default.
+`museSpark.modelApiStrictTools` and `museSpark.modelApiParallelReads` are
+machine-scoped switches; each conversation snapshots the choice. Strict
+schemas require the selected model's known support. Turning strict schemas
+off preserves the previous declarations. Safe reads run at most four at a
+time; writes and other tools retain their order. An output-limit continuation
+is bounded to one request, and repeated unchanged tool results stop the turn.
+
+`museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
+where the selected model supports that bound. The first paid use presents the
+existing Allow once / Always in this workspace / Deny choices, its price and
+`museSpark.paidDailyBudgetUsd`. Allow once covers hosted search in this window;
+Always remains revocable. Unknown prices cannot spend under a dollar cap.
+Charges and durable claims use exact decimal USD, and uncertain dispatches
+retain liability.
+
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
+schema format, allow one repair and retain the text fallback. Retry waits,
+idle deadlines and fan-out pacing are bounded and Stop aborts the wait.
+
+The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion
+ports are present, but this integration does not yet have the recorded MSP
+feature frames needed to enable them. No receipt or terminal parser is
+inferred from SDK declarations. Until those readers are bound, current model
+effort controls and History archive behavior continue; feedback and permanent
+deletion refuse before dispatch. This release is unofficial.
+
+### Models and providers
+
+The Models & Agents panel and Start with my own model command are supplied by
+the provider lane. Provider capability records and captured transport bindings
+remain required before an agent-loop enhancement is enabled for a non-Meta
+model. A single-model setup retains its current selection and controls.
+
+### Headless runs
+
+The headless parser accepts `--output-schema <file>` and the explicit
+`--output-schema-outside` opt-in. The bounded strict-subset compiler and final
+answer validator preserve accounting, withhold an invalid answer and record
+only the schema digest. The captured Meta contributor model uses its strict schema format; unknown
+models use the explicitly reported local validator. Provider formats can be
+bound through the selected-record port. Schema mismatches exit with code 10. See
+[the ACP guide](docs/acp.md) and [the CI contract](docs/ci.md).

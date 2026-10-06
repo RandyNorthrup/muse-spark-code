@@ -544,6 +544,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     )
       errors.push(`Paid registry identity is missing or duplicated: ${feature}`)
   }
+  const moneySettings = new Set([
+    'modelApiSessionBudgetUsd',
+    'paidDailyBudgetUsd',
+    'tabDailyBudgetUsd',
+  ])
+  const isSameSetting = (key, actual, expected) =>
+    moneySettings.has(key)
+      ? source.Usd.from(actual).compare(source.Usd.from(expected)) === 0
+      : JSON.stringify(actual) === JSON.stringify(expected)
   for (const [id, schema] of Object.entries(properties)) {
     const key = id.slice('museSpark.'.length)
     const canonical = source.SETTING_DEFAULTS[key]
@@ -554,8 +563,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         { get: (requested) => (requested === key ? value : undefined) },
         silentLog,
       )[key]
-      if (JSON.stringify(actual) !== JSON.stringify(value))
-        errors.push(`Runtime value mismatch: ${id}`)
+      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -574,14 +582,16 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (readSetting(key, value) !== value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (!isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
       schema.minimum === undefined ? undefined : schema.minimum - 1,
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (readSetting(key, value) === value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
   const duplicateChecks = [

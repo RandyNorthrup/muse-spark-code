@@ -4,6 +4,7 @@
 // headers are buttons; the active row is tracked with
 // aria-activedescendant so the grid keeps the single Tab stop.
 
+import { webviewKey } from '../../../shared/keybindings'
 import { type KeyboardEvent, type ReactNode, useState } from 'react'
 
 export interface DataColumn {
@@ -71,18 +72,18 @@ export function DataTable({
     if (event.target !== event.currentTarget) {
       return
     }
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('models.grid', event)) {
+      case 'next': {
         event.preventDefault()
         move(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         event.preventDefault()
         move(-1)
         break
       }
-      case 'Home': {
+      case 'first': {
         event.preventDefault()
         const first = rows[0]
         if (first !== undefined) {
@@ -90,7 +91,7 @@ export function DataTable({
         }
         break
       }
-      case 'End': {
+      case 'last': {
         event.preventDefault()
         const last = rows.at(-1)
         if (last !== undefined) {
@@ -98,7 +99,7 @@ export function DataTable({
         }
         break
       }
-      case 'Enter': {
+      case 'accept': {
         if (activeIndex !== -1) {
           const row = rows[activeIndex]
           if (row !== undefined) {
@@ -108,7 +109,7 @@ export function DataTable({
         }
         break
       }
-      case 'Escape': {
+      case 'close': {
         setActiveId(undefined)
         break
       }

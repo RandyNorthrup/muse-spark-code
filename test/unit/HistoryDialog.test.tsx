@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import type { SessionRow } from '../../src/shared/sessions'
 import {
   HistoryDialog,
@@ -52,6 +52,14 @@ function renderDialog(overrides: Partial<HistoryDialogProps> = {}) {
   render(<HistoryDialog {...props} />)
   return { props, search: screen.getByRole('combobox') }
 }
+
+// Exercise the real first lazy render once; subsequent cases test settled interaction.
+beforeAll(async () => {
+  renderDialog()
+  expect(document.querySelector('[data-deferred-loading]')).not.toBeNull()
+  await screen.findByRole('option', { name: /Fix the parser/ })
+  cleanup()
+})
 
 function optionTitles(): string[] {
   return screen

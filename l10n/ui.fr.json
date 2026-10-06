@@ -2992,7 +2992,9 @@
     "description": "--description <text>  Ce qui se passait, avec vos mots",
     "no-facts": "--no-facts           Omettre les informations de support",
     "no-events": "--no-events          Omettre les événements récents",
-    "no-auto-compaction": "Désactiver la compression automatique du contexte"
+    "no-auto-compaction": "Désactiver la compression automatique du contexte",
+    "output-schema": "Valider la réponse finale avec un fichier de schéma JSON borné (Model API uniquement).",
+    "output-schema-outside": "Autoriser le fichier du schéma de sortie à pointer hors de l’espace de travail."
   },
   "referenceExecImages": "Les images sans interface exigent --image-generation, acceptEdits et un budget strict suffisant. Aucune confirmation du prix ; les demandes nécessitant une autorisation sont refusées.",
   "referencePopoverKeys": "Parcourir les options, ajuster une valeur, choisir une option ou fermer le menu.",

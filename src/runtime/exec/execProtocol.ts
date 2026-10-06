@@ -17,6 +17,7 @@ import {
   EXEC_MIN_TIMEOUT_SECONDS,
   EXEC_MAX_TIMEOUT_SECONDS,
 } from '../../shared/constants'
+import { outputJsonSchema, parseExecRecord } from './outputSchema'
 import type { AcpBackendKind } from '../../shared/constants'
 import type { ExecMode, ExecPaidFeature } from './execArgs'
 
@@ -111,6 +112,7 @@ export interface ExecResult {
   sessionId: string | null
   ephemeral: boolean
   finalMessage: string
+  output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' } | undefined
   filesChanged: string[]
   denials: ExecDenial[]
   questionsDeclined: number
@@ -125,6 +127,7 @@ export interface ExecResult {
     paid: PaidTotals
   }
   ledger: {
+    outputSchemaSha256?: string | undefined
     capUsd: UsdAmount
     breach: boolean
     refusal: Refusal | null
@@ -297,6 +300,7 @@ const limitsSchema = z.strictObject({
   timeoutSeconds: counter.check(z.gte(EXEC_MIN_TIMEOUT_SECONDS), z.lte(EXEC_MAX_TIMEOUT_SECONDS)),
 })
 const ledgerSchema = z.strictObject({
+  outputSchemaSha256: z.optional(z.string().check(z.regex(/^[a-f\d]{64}$/u))),
   capUsd: capAmount,
   breach: z.boolean(),
   refusal: z.nullable(z.enum(REFUSALS)),
@@ -403,7 +407,11 @@ function isBackendAccountingValid(value: ExecResult): boolean {
   )
 }
 
-export function exitCodeFor(status: ExecStatus, signal: ExecSignal | null): number {
+export function exitCodeFor(
+  status: ExecStatus,
+  signal: ExecSignal | null,
+  errorKind?: string,
+): number {
   switch (status) {
     case 'completed': {
       return EXEC_EXIT.ok
@@ -416,7 +424,10 @@ export function exitCodeFor(status: ExecStatus, signal: ExecSignal | null): numb
       return EXEC_EXIT.auth
     }
     case 'failed': {
-      return EXEC_EXIT.failed
+      return errorKind === 'output_schema_mismatch' ||
+        errorKind === 'output_schema_validation_budget'
+        ? EXEC_EXIT.outputSchemaMismatch
+        : EXEC_EXIT.failed
     }
     case 'budget_exceeded':
     case 'request_cap': {
@@ -455,6 +466,9 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
     sessionId: nullableText,
     ephemeral: z.boolean(),
     finalMessage: z.string(),
+    output: z.optional(
+      z.strictObject({ value: outputJsonSchema, validation: z.enum(['provider', 'local']) }),
+    ),
     filesChanged: paths,
     denials: z.array(
       z.strictObject({ toolCallId: z.string(), title: z.string(), kind: z.string(), paths }),
@@ -490,7 +504,9 @@ export const execResultSchema: z.ZodMiniType<ExecResult> = z
       (value) =>
         hasCompletionEvidence(value) &&
         isBackendAccountingValid(value) &&
-        value.exitCode === exitCodeFor(value.status, value.signal) &&
+        value.exitCode === exitCodeFor(value.status, value.signal, value.error?.kind) &&
+        (value.output !== undefined) ===
+          (value.ledger?.outputSchemaSha256 !== undefined && value.status === 'completed') &&
         (value.status === 'cancelled') === (value.signal !== null) &&
         (value.status === 'completed') === (value.error === null) &&
         (value.usage.cachedTokens === null ||
@@ -596,5 +612,5 @@ export const execEventSchema: z.ZodMiniType<ExecEvent> = z.union([
 ])
 
 export function validateResult(value: unknown): ExecResult {
-  return execResultSchema.parse(value)
+  return execResultSchema.parse(parseExecRecord(value))
 }

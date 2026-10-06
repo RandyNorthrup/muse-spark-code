@@ -454,6 +454,9 @@ export const SETTING_DEFAULTS = {
   // run held the capability floors (docs/certification/m73.md); D78 enables it.
   modelApiObservationPacking: true,
   modelApiAutoCompaction: true,
+  modelApiStrictTools: true,
+  modelApiParallelReads: true,
+  webSearchMaxPerRequest: 5,
   // Restore by the tools' own writes (M86, PLAN.md D63): each Model API turn
   // records what its file tools write, with nothing of the workspace
   // captured, so it is on by default.
@@ -578,6 +581,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   // to a turn on the key, are the user's choice, never a repository's (M73).
   'modelApiObservationPacking',
   'modelApiAutoCompaction',
+  'modelApiStrictTools',
+  'modelApiParallelReads',
+  'webSearchMaxPerRequest',
   // What runs on every turn (git) and what is copied out of the workspace (M72).
   'turnCheckpoints',
   // Only the user widens what a page in the browser check may reach (M81).
@@ -1704,6 +1710,8 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
   'muse-spark-1.2-contributor',
   'muse-spark-1.3-contributor',
 ]
+// U8/U10 captured selected model; other models retain unknown capability states.
+export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
 export const MODEL_API_MAX_OUTPUT_TOKENS = 32_768
 // M101 C1: keep whole recent turns; summaries and the tail scale down for small windows.
 export const NO_COMPACTABLE_HISTORY = 'no_compactable_history'
@@ -1800,6 +1808,7 @@ export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
 // The model list and the token count have no turn to stop them (PLAN.md D25).
+export const MODEL_API_STATUS_READ_TIMEOUT_MS = 3000
 export const MODEL_API_REQUEST_TIMEOUT_MS = 30_000
 // A reply stream that sends nothing for this long, headers or frames, ends
 // its turn (M39): it would otherwise hold the turn until Stop. Long enough
@@ -3270,6 +3279,7 @@ export const EXEC_EXIT = {
   denied: 7,
   incomplete: 8,
   accounting: 9,
+  outputSchemaMismatch: 10,
   sigint: 130,
   sigterm: 143,
 } as const
@@ -4977,6 +4987,15 @@ export const JUDGE_MODEL_TEXT = {
 // native tools (dist/modelApi.js); the bundle-split gate fails when
 // dist/extension.js or dist/acp.js carries them (PLAN.md D6).
 export const CODE_INTEL_MODEL_TEXT = {
+  renameChanged:
+    '{path} changed after the rename was planned; nothing was changed, so call rename_symbol again',
+  renameChangedPartway:
+    '{path} changed after the rename was planned, so it was not written. The rename was written to {written} of {total} files ({paths}); the rest are unchanged, and the row can revert what was written',
+  renameDone:
+    'Renamed `{from}` to `{to}`: {edits} edits in {files} files ({paths}). Read a file again before replacing it with write_file.',
+  renamePartial:
+    'writing {path} failed: {reason}. The rename was written to {written} of {total} files ({paths}); the rest are unchanged, and the row can revert what was written',
+
   codeIntelNoService:
     'no language service answered for {path} (language {language}): VS Code has no provider of this kind for it here, or the file declares no symbols; use search and read_file instead',
   codeIntelNothingAt:
@@ -5113,14 +5132,6 @@ export const MODEL_API_MODEL_TEXT = {
   // rename_symbol's write, which only the Model API backend applies itself.
   codeIntelInstructions:
     "For code, find_definition, find_references, workspace_symbols, document_symbols, hover, call_hierarchy and repo_map answer from VS Code's language services, as an IDE does: prefer them to search when you look for where a symbol is defined or used. rename_symbol renames a symbol everywhere it is used.",
-  renameChanged:
-    '{path} changed after the rename was planned; nothing was changed, so call rename_symbol again',
-  renameChangedPartway:
-    '{path} changed after the rename was planned, so it was not written. The rename was written to {written} of {total} files ({paths}); the rest are unchanged, and the row can revert what was written',
-  renameDone:
-    'Renamed `{from}` to `{to}`: {edits} edits in {files} files ({paths}). Read a file again before replacing it with write_file.',
-  renamePartial:
-    'writing {path} failed: {reason}. The rename was written to {written} of {total} files ({paths}); the rest are unchanged, and the row can revert what was written',
   // Custom agents (M76) as the Model API backend runs them.
   subagentContributorBlocked:
     'the agent names a contributor-tier model, which is blocked while the workspace is confidential',

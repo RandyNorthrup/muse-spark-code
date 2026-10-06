@@ -2786,7 +2786,9 @@
     "description": "--description <text>  用自己的话描述当时发生了什么",
     "no-facts": "--no-facts           不包含支持信息",
     "no-events": "--no-events          不包含最近事件",
-    "no-auto-compaction": "禁用自动上下文压缩"
+    "no-auto-compaction": "禁用自动上下文压缩",
+    "output-schema": "使用有界 JSON 架构文件验证最终回答（仅限 Model API）。",
+    "output-schema-outside": "允许输出架构文件指向工作区之外。"
   },
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
   "referencePopoverKeys": "浏览选项、调整值、选择选项或关闭菜单。",

@@ -527,7 +527,7 @@ describe('M106 output schema runtime binding', () => {
       configure: vi.fn(() => Promise.resolve()),
     }
     const run = await h.run()
-    expect(run.code).toBe(4)
+    expect(run.code).toBe(10)
     expect(run.result).toMatchObject({
       status: 'failed',
       error: { kind: 'output_schema_mismatch' },
@@ -591,10 +591,10 @@ describe('M106 output schema runtime binding', () => {
     writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
     h.deps.outputSchema = strictSchemaBinding()
     const run = await h.run()
-    expect(run.code).toBe(4)
+    expect(run.code).toBe(10)
     expect(run.result).toMatchObject({
       status: 'failed',
-      exitCode: 4,
+      exitCode: 10,
       error: { kind: 'output_schema_mismatch' },
       ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
       usage: { requests: 1 },

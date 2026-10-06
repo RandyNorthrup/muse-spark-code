@@ -1,5 +1,6 @@
 // The report dialog's facts and scrub context in the extension (M93, PLAN.md
-// D72), gathered locally: versions, the platform, the backend and sandbox
+// D72), gathered from local state and an optional public status read: versions,
+// the platform, the backend and sandbox
 // settings, the CLI's presence and the version its installer recorded, the
 // sign-in from the credential file's structure alone, whether a key is
 // stored or set, and the names (never values) of the settings the user
@@ -13,7 +14,7 @@ import {
   type CredentialFileVerdict,
 } from '../../core/backends/musecode/credentialFile'
 import type { ReportScrubContext } from '../../core/support/problemReport'
-import { modelApiStatusSchema } from '../../core/backends/modelapi/schemas'
+import { modelApiStatusSchema } from '../../shared/serviceStatus'
 import { SETTINGS_SECTION, type BackendMode, type ShellSandboxMode } from '../../shared/constants'
 
 const manifestSettingsSchema = z.object({

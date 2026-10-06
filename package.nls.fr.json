@@ -171,5 +171,8 @@
   "config.suggestedProvider.description": "Un espace de travail peut suggérer un préréglage de fournisseur de modèles par son id ; le panneau propose d’ouvrir Modèles et agents avec ce préréglage. Vide ne suggère rien. Un espace de travail ne peut définir ni adresse ni identifiant.",
   "walkthrough.gettingStarted.step.ownModel.title": "Commencez avec votre propre modèle",
   "walkthrough.gettingStarted.step.ownModel.description": "Pas d’abonnement Muse ni de clé API Meta ? Ajoutez votre propre fournisseur de modèles — OpenRouter, Anthropic, OpenAI ou un serveur local — et choisissez un modèle.\n[Commencer avec votre propre modèle](command:museSpark.startWithOwnModel)",
-  "config.modelApiAutoCompaction.description": "Compacter automatiquement les longues conversations Model API. Activé par défaut, mais inactif jusqu’à la réussite d’une évaluation appariée. Chaque appel payant supplémentaire exige un consentement au prix et au budget quotidien."
+  "config.modelApiAutoCompaction.description": "Compacter automatiquement les longues conversations Model API. Activé par défaut, mais inactif jusqu’à la réussite d’une évaluation appariée. Chaque appel payant supplémentaire exige un consentement au prix et au budget quotidien.",
+  "config.modelApiStrictTools.description": "Utiliser des schémas d’outils stricts lorsque le modèle sélectionné les prend en charge. Désactivez cette option pour conserver les déclarations précédentes.",
+  "config.modelApiParallelReads.description": "Exécuter simultanément les appels d’outils sûrs en lecture seule, jusqu’à quatre à la fois. Les autres appels sont exécutés dans l’ordre.",
+  "config.webSearchMaxPerRequest.description": "Nombre maximal de recherches web hébergées par réponse (1–20 ; valeur par défaut 5). Le tarif et le budget quotidien partagé sont affichés avant la première facturation."
 }

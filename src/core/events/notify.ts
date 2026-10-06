@@ -9,6 +9,7 @@ type NotificationSite =
   | 'modelApi.changed'
   | 'modelApi.disposed'
   | 'modelApi.usage'
+  | 'modelApi.serviceFailure'
   | 'modelApi.list'
   | 'museCode.lifecycle'
   | 'museCode.deleteTerminal'

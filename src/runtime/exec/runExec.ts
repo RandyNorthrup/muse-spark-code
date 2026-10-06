@@ -59,6 +59,7 @@ import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import { metaSideCallFormats } from '../../core/backends/modelapi/modelCapabilities'
 import { compileOutputSchema, type OutputSchema } from './outputSchema'
 
 /** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
@@ -74,6 +75,28 @@ export interface ExecOutputSchemaPort {
     schema: Readonly<Record<string, unknown>>
     signal: AbortSignal
   }): Promise<void>
+}
+
+/** Production binding: captured selected formats, or the documented local-validation arm. */
+export const execOutputSchemaPort: ExecOutputSchemaPort = {
+  formatsFor: (model) => {
+    const formats = metaSideCallFormats(model)
+    return Promise.resolve(
+      formats.state === 'yes'
+        ? (formats.value ?? []).filter(
+            (format): format is 'strict_schema' | 'json_schema' | 'forced_tool' =>
+              ['strict_schema', 'json_schema', 'forced_tool'].includes(format),
+          )
+        : [],
+    )
+  },
+  configure: async ({ runtime, sessionId, model, mode, schema, signal }) => {
+    signal.throwIfAborted()
+    if (mode === 'forced_tool' || runtime.configureOutputSchema === undefined)
+      throw new Error(UI_TEXT.execRequestShape)
+    await runtime.configureOutputSchema(sessionId, model, mode, schema)
+    signal.throwIfAborted()
+  },
 }
 
 export interface ExecDeps {

@@ -1,3 +1,4 @@
+import { notify } from './core/events/notify'
 import { PAID_APPROVAL_ORDER_DIRECTORY } from './shared/constants'
 import { PaidAuthority } from './core/paid/paidAuthority'
 import { Usd } from './shared/usd'
@@ -229,6 +230,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
@@ -1767,10 +1769,12 @@ async function activateWindow(
   })
   // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
   // never by `muse serve`, each one confirmed with its price.
+  const requestPacingOwner = {}
   const keyClient = modelApiClientLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
     log,
     client: {
+      pacingOwner: requestPacingOwner,
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
@@ -2187,6 +2191,16 @@ async function activateWindow(
           }),
         })
   const modelApi = new ModelApiBackendManager({
+    onServiceFailure: () => {
+      notify(
+        Array.from(controllers.values(), (controller) => () => {
+          controller.modelApiServiceFailed()
+        }),
+        undefined,
+        log,
+        'modelApi.serviceFailure',
+      )
+    },
     judge,
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
@@ -2364,7 +2378,11 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    strictTools: () => currentSettings().modelApiStrictTools,
+    parallelReads: () => currentSettings().modelApiParallelReads,
+    webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
@@ -2454,14 +2472,26 @@ async function activateWindow(
     log,
   })
   // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
-  // local reads only. The CLI's sign-in comes from its credential file's
+  // Local facts plus an optional unauthenticated public status read. The CLI's
+  // sign-in comes from its credential file's
   // structure (no `account/read`), the key's presence from the secret store.
   const reportSource: ReportDataSource = {
     readFacts: async () => {
       const settings = currentSettings()
       const resolution = backend.resolveLaunch()
       const configuration = vscode.workspace.getConfiguration()
+      let serviceStatus
+      if (settings.backend === 'modelApi') {
+        try {
+          serviceStatus = await keyClient().readServiceStatus(
+            AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS),
+          )
+        } catch {
+          // An optional public status read cannot prevent the local report.
+        }
+      }
       return extensionReportFacts({
+        ...(serviceStatus !== undefined && { serviceStatus }),
         extensionVersion: version,
         vscodeVersion: vscode.version,
         nodeVersion: process.versions.node,
@@ -2688,6 +2718,10 @@ async function activateWindow(
       }
       case 'openPullRequestInConversation': {
         await openPullRequestInConversation(gitFeatures, gitPopups.showError)
+        break
+      }
+      case 'openModelApiStatus': {
+        await vscode.env.openExternal(vscode.Uri.parse(`${MODEL_API_BASE_URL}/status`))
         break
       }
       case 'restartMuseCode': {
@@ -3003,6 +3037,8 @@ async function activateWindow(
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
+          readServiceStatus: () =>
+            keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()

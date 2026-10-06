@@ -27,6 +27,10 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  { path: 'dist/exec.js', budgetKiB: 950 },
+  { path: 'dist/modelApiCodeIntel.js', budgetKiB: 100 },
+  { path: 'dist/mcpPool.js', budgetKiB: 75 },
+  { path: 'dist/structuredSchema.js', budgetKiB: 50 },
   // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
   { path: 'dist/providers.js', budgetKiB: 125 },

@@ -391,8 +391,7 @@ independent $1/day journal is excluded. ACP and headless policies are unchanged.
     this workspace); a due prompt never runs on its own.
 
 The extension itself has **no telemetry**, no analytics, no automatic crash
-reporting and no hosted server of its own. **Report a problem** contacts
-nothing: it builds a draft that leaves only through an export you choose
+reporting and no hosted server of its own. **Report a problem** builds a local draft that leaves only through an export you choose
 (see [Reporting a problem](#reporting-a-problem)). It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
 with **Run now**, or open a panel while signed in (to list models; that request
@@ -714,8 +713,10 @@ hands it and what its tools read or run, the same way the extension does:
 The panel reaches the same dialog from the palette's **Report an issue…**,
 from **Report this** on a recorded error notice or failed turn, and from
 **Report a problem** on the panel's crash screen. The extension never posts
-or uploads the report and calls no network service or model for it; there
-is no telemetry and no GitHub access.
+or uploads the report and makes no model call for it. On the Model API backend,
+preparing facts reads Meta’s public service-status endpoint without authorization
+or report content; only the alive flag and an allowlisted operational word enter
+the draft. Read failure omits that fact. There is no telemetry or GitHub access.
 
 - **The flight recorder.** Each VS Code window keeps its own journal in the
   extension's global storage, `reports/journal-<window>.jsonl`, with an
