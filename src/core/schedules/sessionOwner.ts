@@ -31,7 +31,8 @@ export class SessionOwner {
   private sequence = 0
   private readonly liveTurns = new Map<string, number>()
   private readonly terminalTurns = new Set<string>()
-  private readonly starts = new Set<SessionToken>()
+  private readonly stoppedTurns = new Map<string, number>()
+  private readonly starts = new Map<SessionToken, number>()
 
   public constructor(mode?: string) {
     this.mode = mode
@@ -152,15 +153,20 @@ export class SessionOwner {
       this.fire.startDispatched = true
       this.fire.hasStopEvidence = false
     }
-    this.starts.add(token)
+    this.starts.set(token, ++this.sequence)
     return true
   }
 
   public startAcknowledged(token: SessionToken, turnId: string, didStart: boolean): void {
-    const wasPending = this.starts.delete(token)
-    if (!wasPending || token.generation !== this.generation) return
+    const dispatchedAt = this.starts.get(token)
+    this.starts.delete(token)
+    if (dispatchedAt === undefined || token.generation !== this.generation) return
     // A queued turn's terminal cannot discard evidence for another turn.
-    if (!didStart || this.terminalTurns.has(turnId)) {
+    if (
+      !didStart ||
+      this.terminalTurns.has(turnId) ||
+      (this.stoppedTurns.get(turnId) ?? -1) > dispatchedAt
+    ) {
       return
     }
 
@@ -243,7 +249,12 @@ export class SessionOwner {
   public stopped(): SessionEffect | undefined {
     const observedAt = ++this.sequence
     for (const [turnId, startedAt] of this.liveTurns) {
-      if (startedAt < observedAt) this.liveTurns.delete(turnId)
+      if (!(startedAt < observedAt)) {
+        continue
+      }
+
+      this.stoppedTurns.set(turnId, observedAt)
+      this.liveTurns.delete(turnId)
     }
     // Outstanding commands can start after this observation. Only their own
     // acknowledgement/failure resolves them; idle never supplies that proof.

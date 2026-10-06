@@ -27,6 +27,22 @@ function fire(owner: SessionOwner) {
 }
 
 describe('native session serialized authority', () => {
+  it('RVM115U6 P2-2: a late acknowledgement cannot revive an observed stopped turn', () => {
+    for (const isFire of [false, true]) {
+      const owner = new SessionOwner('denyUnmatched')
+      const claimed = isFire ? fire(owner) : undefined
+      const token = claimed?.token ?? owner.token()
+      expect(owner.start(token, claimed?.run)).toBe(true)
+      owner.observedStart('observed')
+      owner.stopped()
+      owner.terminal('unrelated')
+      owner.startAcknowledged(token, 'observed', true)
+      expect(owner.currentTurnId).toBeUndefined()
+      if (claimed !== undefined) applied(owner, owner.admitted(token, 'observed'))
+      expect(owner.claim(owner.token(), unattendedRun().run)).toBeDefined()
+    }
+  })
+
   it('RVM115U5 P1-1: idle cannot erase an in-flight ordinary start', () => {
     for (const order of permutations(['idle', 'ack', 'unrelated'] as const)) {
       const owner = new SessionOwner('denyUnmatched')

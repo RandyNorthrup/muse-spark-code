@@ -432,6 +432,7 @@ export class ModelApiSchedules {
 }
 
 interface VerificationContext {
+  readonly getScheduledRun: () => UnattendedRun | undefined
   readonly deps: Pick<ModelApiHostDeps, 'verify' | 'isWorkspaceTrusted' | 'log' | 'newId'>
   readonly ledger: VerifyLedger
   readonly checkScope: (check: CheckCommandSetting, files: readonly EditedFile[]) => CheckScope
@@ -493,7 +494,10 @@ export async function verifyRound(
   if (verify === undefined || isAbortRequested(signal)) {
     return undefined
   }
-  if (turn.scheduleRun !== undefined && edited.length > 0) {
+  if (
+    (context.getScheduledRun() !== undefined || turn.scheduleRun !== undefined) &&
+    edited.length > 0
+  ) {
     // Language-server/check dependencies cannot be confined or inventoried
     // by the editor port. Refuse before it can disclose protected content.
     const recorded = RecordingScope.build((reader) =>

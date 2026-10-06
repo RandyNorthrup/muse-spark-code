@@ -1,0 +1,20 @@
+[
+  {
+    "drill": "late-ack",
+    "file": "src/core/schedules/sessionOwner.ts",
+    "test": "RVM115U6 P2-2: a late acknowledgement",
+    "command": "npx vitest run test/unit/scheduleSessionOwner.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "ada8f3f93f02041b6e12060904b87d77b26a643c9a6ee47797867d046713b57c",
+    "restored": "ada8f3f93f02041b6e12060904b87d77b26a643c9a6ee47797867d046713b57c"
+  },
+  {
+    "drill": "claimed-steer",
+    "file": "src/core/backends/modelapi/schedulesEntry.ts",
+    "test": "RVM115U6 P2-3: a claimed steer",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "a29e814c7c54ac584ceb1a9cabfbb912c0058f4c4df4b232520b7874076a4c82",
+    "restored": "a29e814c7c54ac584ceb1a9cabfbb912c0058f4c4df4b232520b7874076a4c82"
+  }
+]

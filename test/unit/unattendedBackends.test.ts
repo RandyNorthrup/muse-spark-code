@@ -1,4 +1,5 @@
 import * as ts from 'typescript'
+import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import type { EditedFile, FileDiagnostics } from '../../src/core/verify/diagnosticsReport'
 import { describeEnvironment } from '../../src/host/backend/environment'
 import { ProvenanceLedger, contentHash } from '../../src/core/schedules/provenance'
@@ -338,6 +339,67 @@ async function heldOrdinaryStart(fixture: Awaited<ReturnType<typeof museBackend>
 }
 
 describe('scheduled Model API dispatch', () => {
+  it('RVM115U6 P2-3: a claimed steer refuses automatic verification before adoption', async () => {
+    const marker = 'ProtectedPendingDiagnosticMarker'
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    const diagnostics = vi.fn().mockResolvedValue([
+      {
+        file: { absolute: '/workspace/src/new.ts', relative: 'src/new.ts' },
+        entries: [{ severity: 'error', line: 1, column: 1, message: marker, path: 'src/new.ts' }],
+      },
+    ])
+    const io = memoryToolIo({}, '/workspace')
+    io.runHook = async () => {
+      entered.resolve(undefined)
+      await release.promise
+      return { stdout: '{}', stderr: '', exitCode: 0, isTimedOut: false, isCancelled: false }
+    }
+    const fixture = await modelBackend({
+      io,
+      verify: diagnosticsOnly(diagnostics),
+      loadHooks: () =>
+        Promise.resolve(
+          parseHookConfig(
+            JSON.stringify({
+              hooks: {
+                PostToolBatch: [{ hooks: [{ type: 'command', command: 'hold-verification' }] }],
+              },
+            }),
+            'project',
+            'linux',
+          ).hooks,
+        ),
+    })
+    await fixture.session.setApprovalMode('allowAll')
+    fixture.api.script(
+      { calls: [writeCall('src/new.ts', 'export const value = 1;')] },
+      { text: 'done' },
+    )
+    const done = fixture.turnDone()
+    const ordinary = await fixture.session.sendTurn([{ type: 'text', text: 'Edit' }])
+    await entered.promise
+    const { run } = fixture.run({ ...fakeRunContext(), mode: 'acceptEdits' })
+    try {
+      await fixture.session.steerScheduledTurn(
+        ordinary.turnId,
+        [{ type: 'text', text: 'Fire' }],
+        run,
+      )
+      expect(fixture.session.getScheduledRun()).toBe(run)
+      release.resolve(undefined)
+      await done
+      expect(diagnostics).not.toHaveBeenCalled()
+      expect(JSON.stringify(fixture.session.snapshot().replay)).not.toContain(marker)
+      expect(JSON.stringify(fixture.session.snapshot().replay)).toContain(
+        MODEL_API_MODEL_TEXT.verifyAccessRefused,
+      )
+    } finally {
+      release.resolve(undefined)
+      await fixture.host.close()
+    }
+  })
+
   it.each([false, true])(
     'RVM115U5 P1-2: undelivered cached Git subjects refuse (recorded=%s)',
     async (recorded) => {
@@ -2036,6 +2098,33 @@ describe('scheduled Model API dispatch', () => {
 })
 
 describe('scheduled Muse Code dispatch over captured MSP frames', () => {
+  it('RVM115U6 P2-2: observed start and idle before acknowledgement allow the next fire', async () => {
+    const fixture = await museBackend('denyUnmatched')
+    const { ordinary } = await heldOrdinaryStart(fixture)
+    fixture.server.notify('turn/started', {
+      sessionId: fixture.session.sessionId,
+      turnId: 'ordinary',
+      viewCursor: '',
+    })
+    fixture.server.notify('session/statusChanged', {
+      sessionId: fixture.session.sessionId,
+      status: 'idle',
+    })
+    await settle()
+    answerNative(fixture, 'turn/start', 0, () => ({
+      turnId: 'ordinary',
+      disposition: 'started',
+      startedNewTurn: true,
+    }))
+    await ordinary
+    fixture.server.unsilence('turn/start')
+    const { run } = unattendedRun()
+    await expect(
+      fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),
+    ).resolves.toMatchObject({ disposition: 'started' })
+    await fixture.host.close()
+  })
+
   it('RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode', async () => {
     const fixture = await museBackend('denyUnmatched')
     const { ordinary } = await heldOrdinaryStart(fixture)

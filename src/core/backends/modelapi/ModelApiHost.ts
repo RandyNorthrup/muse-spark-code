@@ -10650,6 +10650,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     entry.installLanguage(UI_TEXT, uiLocale())
     return await entry.verifyRound(
       {
+        getScheduledRun: () => this.getScheduledRun(),
         deps: this.deps,
         ledger: this.ledger,
         scheduleLedger: turn.scheduleLedger,

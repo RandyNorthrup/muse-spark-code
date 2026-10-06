@@ -6876,6 +6876,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115U7 — Final RVM115U6 repair (2026-10-06)
+
+Repair all three confirmed P2s inside lane U. Recording factories accept only
+an allowlist of module-level named builders with exactly one reader parameter;
+recorded content carries a private brand, and builder modules forbid native
+filesystem, Git and skill-store imports, including dynamic imports. Enumerate
+all registered builders in a source/type regression. Pure helper functions
+still require code review to ensure their projections depend only on reader
+inputs; record that precise residual in §9 and the certification.
+Retain stopped observed turn sequences so late acknowledgements cannot revive
+them while unseen pending starts still block fires. Automatic verification
+checks claimed session authority before scheduled steer adoption in the same
+synchronous guard. Each finding gets a failing regression and byte-exact
+restored red drill. Run bounded default-timeout suites and required static/build
+checks on Kubuntu; aggregate quality remains the lead's gate. No dependency,
+wire shape, paid/live call, merge, push or rebase.
+
 ### FIXM115U6 — Structural inventories and per-turn idle evidence (2026-10-06)
 
 Repair all three RVM115U5 P1s. Pending native commands survive idle snapshots;

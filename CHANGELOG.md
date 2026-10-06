@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Discard late native acknowledgements for turns already observed idle, and
+  refuse automatic verification as soon as a scheduled steer claims the
+  session, before its input is adopted.
+
 - Record cached scheduled-context inputs in closed reader scopes, including
   Git facts and directory indexes. Undelivered Git subjects refuse replay;
   automatic verification refuses before reading unconfined editor dependencies.
