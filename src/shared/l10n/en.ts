@@ -16,6 +16,50 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M107 / D87: resource surfaces and manifest-ready settings text.
+  resourceTitle: 'Resources',
+  resourceNormal: 'Normal',
+  resourceThrottle: 'Throttling',
+  resourceRelocate: 'Relocating',
+  resourcePause: 'Paused',
+  resourceUnknown: 'Unknown',
+  resourceWaiting: 'Waiting: machine busy',
+  resourceResumeNow: 'Resume now',
+  resourceRunNow: 'Run now',
+  resourceShow: 'Show resources',
+  resourceMoveTo: 'Move to {device}',
+  resourceKeepHere: 'Keep here',
+  resourcePauseNotice:
+    'Machine busy: {metric} is {reading} (limit {threshold}). New background work is paused.',
+  resourceOverrideNotice: 'Work resumed until {time}.',
+  resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
+  resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceCpu: 'CPU use',
+  resourceMemory: 'Memory in use',
+  resourceAvailableMemory: 'Available memory',
+  resourceGpu: 'GPU use',
+  resourceDisk: 'Disk busy',
+  resourceHistory: 'Resource history',
+  resourceHarness: 'Harness work',
+  resourceCpuTime: 'CPU time',
+  resourcePeakMemory: 'Peak memory',
+  resourceGovernorDescription:
+    'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
+  resourceCpuMaxPercentDescription:
+    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+  resourceMemoryMaxPercentDescription:
+    'Throttle when memory in use stays above this percentage for two samples.',
+  resourceMemoryMinFreeGiBDescription:
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+  resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
+  resourceDiskBusyMaxPercentDescription:
+    'Optional disk busy limit in percent. Unset means no disk probe.',
+  resourceRelocateDescription:
+    'Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.',
+  resourceRelocatePairedDescription:
+    'Use an already approved paired device with normal resource load.',
+  resourceRelocateAskDescription: 'Ask before moving queued work.',
+  resourceRelocateOffDescription: 'Keep work on this machine.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

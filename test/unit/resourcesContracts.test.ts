@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
+import execV1 from '../../docs/schemas/exec-event-v1.schema.json'
+import execV2 from '../../docs/schemas/exec-event-v2.schema.json'
 import * as constants from '../../src/shared/constants'
 import {
   deviceResourceSchema,
@@ -18,9 +20,14 @@ import {
   resourceTicketSchema,
   resourceTreeUsageSchema,
   type ResourceEvent,
+  type ResourceClass,
+  type ResourceExecEvent,
+  type ResourceKind,
+  type ResourceLevel,
   type ResourceRecord,
   type ResourceSample,
   type ResourceSettingsReader,
+  type ResourceStatus,
 } from '../../src/shared/resources'
 
 const sample: ResourceSample = {
@@ -129,6 +136,9 @@ describe('M107 resource contracts', () => {
         .success,
     ).toBe(false)
     expect(resourceSampleSchema.safeParse({ ...sample, cpuPercent: 101 }).success).toBe(false)
+    expect(resourceSampleSchema.safeParse({ ...sample, cpuPercent: -1 }).success).toBe(false)
+    expect(resourceSampleSchema.safeParse({ ...sample, atMs: -1 }).success).toBe(false)
+    expect(resourceSampleSchema.safeParse({ ...sample, memoryTotalBytes: 0 }).success).toBe(false)
     expect(
       resourceSampleSchema.safeParse({
         ...sample,
@@ -146,14 +156,33 @@ describe('M107 resource contracts', () => {
     expect(resourceTreeUsageSchema.safeParse({ cpuSeconds: -1, residentBytes: 0 }).success).toBe(
       false,
     )
+    expect(resourceTreeUsageSchema.safeParse({ cpuSeconds: 0, residentBytes: -1 }).success).toBe(
+      false,
+    )
     expect(resourceTreeUsageSchema.safeParse({ cpuSeconds: 0.5, residentBytes: 0 }).success).toBe(
       true,
     )
   })
   it('defines all kinds, classes and levels without extra authority', () => {
-    expect(resourceKindSchema.options).toHaveLength(12)
-    expect(resourceClassSchema.options).toEqual(['foreground', 'background'])
-    expect(resourceLevelSchema.options).toEqual(['normal', 'throttle', 'relocate', 'pause'])
+    const kinds: readonly ResourceKind[] = resourceKindSchema.options
+    const classes: readonly ResourceClass[] = resourceClassSchema.options
+    const levels: readonly ResourceLevel[] = resourceLevelSchema.options
+    expect(kinds).toEqual([
+      'toolShell',
+      'backgroundTask',
+      'check',
+      'mcpServer',
+      'worker',
+      'subagent',
+      'bestOfN',
+      'schedule',
+      'browserCheck',
+      'hook',
+      'museServe',
+      'other',
+    ])
+    expect(classes).toEqual(['foreground', 'background'])
+    expect(levels).toEqual(['normal', 'throttle', 'relocate', 'pause'])
     expect(resourceKindSchema.safeParse('terminal').success).toBe(false)
     expect(
       resourceTicketSchema.safeParse({
@@ -194,7 +223,7 @@ describe('M107 resource contracts', () => {
       ).toBe(false)
   })
   it('excludes process, command, path and environment canaries at every egress depth', () => {
-    const status = {
+    const status: ResourceStatus = {
       level: 'normal',
       sample,
       settings: defaults,
@@ -241,7 +270,13 @@ describe('M107 resource contracts', () => {
     expect(resourceRecordSchema.safeParse({ ...record, minute }).success).toBe(false)
   })
   it('validates the versioned exec resource event, rejecting v1 and private fields', () => {
-    const envelope = { v: 2, seq: 1, time: '2026-10-05T00:00:00Z', type: 'resource', event }
+    const envelope: ResourceExecEvent = {
+      v: 2,
+      seq: 1,
+      time: '2026-10-05T00:00:00Z',
+      type: 'resource',
+      event,
+    }
     expect(resourceExecEventSchema.safeParse(envelope).success).toBe(true)
     for (const extra of [
       { v: 1 },
@@ -255,5 +290,17 @@ describe('M107 resource contracts', () => {
       v: { const: 2 },
       type: { const: 'resource' },
     })
+  })
+  it('freezes v1 and adds the strict resource variant to the complete v2 event schema', () => {
+    const resourceJson = z.toJSONSchema(resourceExecEventSchema)
+    delete resourceJson.$schema
+    const expected = structuredClone(execV1)
+    for (const variant of expected.anyOf) variant.properties.v.const = 2
+    expect(execV2.anyOf.slice(0, -1)).toEqual(expected.anyOf)
+    expect(execV2.anyOf.at(-1)).toEqual(resourceJson)
+    expect(execV1.anyOf.every((variant) => variant.properties.v.const === 1)).toBe(true)
+    expect(execV2.$defs).toEqual(execV1.$defs)
+    const result = execV2.anyOf.find((variant) => variant.properties.type.const === 'result')
+    expect(result?.properties).toMatchObject({ result: { properties: { v: { const: 1 } } } })
   })
 })
