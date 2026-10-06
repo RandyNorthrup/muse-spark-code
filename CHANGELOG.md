@@ -33,25 +33,6 @@ happened, not what was planned; superseded entries are kept.
   uses installed manifest translations in CLI help, and offers retry after a
   help-loading failure. The reference gate checks these source inventories.
 
-- ACP help and argument errors now use one complete localized usage table,
-  including the Setup hooks command, so the installed package passes the
-  release job's strict English fallback check.
-- Windows shell directory tracking now uses the native long workspace path
-  when starting or resetting a command, so 8.3 aliases keep the correct cwd
-  and workspace-relative directory tail.
-- Production bundle regression tests now build their own compressed English and
-  shared wire fixtures, so macOS CI's test job works without a prior build.
-- Windows CI hook fixtures now use the platform their captured paths describe;
-  Cline discovery exercises both POSIX and Windows path handling on every OS.
-  Deferred-bundle checks load their in-memory builds without requiring stale
-  or pre-existing files in `dist`.
-- Cline hook quoting is checked through native PowerShell on Windows and the
-  POSIX shell on Unix, without requiring a Windows Bash installation.
-- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
-  missing-browser-chunk checks accept Windows filesystem error paths.
-- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
-  Windows while retaining native-platform parsing and containment checks.
-
 ### Added
 
 - **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
@@ -64,6 +45,40 @@ happened, not what was planned; superseded entries are kept.
 ### Performance
 
 - Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
+
+## [0.14.1] - 2026-10-05
+
+### Security
+
+- Cover common credential suffix families, Azure DevOps PATs,
+  `SYSTEM_ACCESSTOKEN` and Terraform's `TF_TOKEN_*` in the shared environment
+  fence. A scheduled shell delayed in directory preparation now retains its
+  original unattended admission after backgrounding and turn completion;
+  a later interactive turn cannot grant it credential pass-through.
+- Fence credential environment variables from VS Code Model API shell commands,
+  verification/`then_run`, schedules, child workers, hooks/plugins, Git and native
+  helpers, using the same matcher as ACP/headless. Terminal overrides are fenced
+  too. The new machine-scoped `museSpark.shell.passEnvironmentVariables` array
+  permits named variables only for interactive top-level shell commands; its
+  description warns that output can expose them to the model provider. MCP's
+  explicitly configured environment and Muse Code's own credentials are unchanged.
+
+### Fixed
+
+- Marketplace/Open VSX and ACP npm landing pages now show static version badges
+  generated from the packaged version, avoiding stale badge-service caches.
+  Release refresh discovers every GitHub README badge, including CI and
+  Markdown images, before purging GitHub's image proxy. A packaging/quality
+  check rejects broken images, dynamic store versions and version mismatches.
+
+- Timed-out and stopped POSIX shell commands now wait for their process
+  group to exit before returning. Cleanup is bounded and reports a group
+  that remains; macOS monitor tests recognize exited zombies correctly.
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
 
 ## [0.14.0] - 2026-10-05
 
@@ -300,6 +315,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
 - Extension hooks use the held-project trust check before loading or running, including Setup and Manual hooks.
 
 - Register every newly merged and split bundle in the report’s exact frame

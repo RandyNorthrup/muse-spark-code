@@ -163,5 +163,6 @@
   "config.judge.engine.enumDescriptions.auto": "Seu próprio modelo de conversa avalia (`same` na fase 1); um avaliador separado se junta quando um for configurado.",
   "config.judge.engine.enumDescriptions.same": "Somente seu próprio modelo de conversa avalia; ele nunca troca de modelo.",
   "config.judge.engine.enumDescriptions.off": "Sem avaliador: as aprovações se comportam exatamente como sem ele.",
-  "command.openHelp.title": "Ajuda e referência"
+  "command.openHelp.title": "Ajuda e referência",
+  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente."
 }

@@ -525,7 +525,8 @@ const webviewOptions = {
   platform: 'browser',
   format: 'esm',
   splitting: true,
-  chunkNames: 'chunks/[name]-[hash]',
+  // STARTDIET: content hashes identify chunks; repeated names inflate every import.
+  chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
 }

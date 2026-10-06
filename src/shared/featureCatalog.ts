@@ -50,6 +50,7 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
+  'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
 }
 
 /** The generator uses these explicit selectors on every description surface. */
@@ -360,6 +361,7 @@ export function featureCatalog(): readonly Feature[] {
         'allowDangerouslySkipPermissions',
         'shellSandbox',
         'sandboxNetwork',
+        'shell.passEnvironmentVariables',
       ],
       'permission-modes',
     ),

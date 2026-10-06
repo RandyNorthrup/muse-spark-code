@@ -427,7 +427,7 @@ These Auto descriptions concern requests not settled by rules. The Model API rev
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.setUpSandbox`. Settings: `museSpark.initialPermissionMode`, `museSpark.allowDangerouslySkipPermissions`, `museSpark.shellSandbox`, `museSpark.sandboxNetwork`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#permission-modes)
+Commands: `museSpark.setUpSandbox`. Settings: `museSpark.initialPermissionMode`, `museSpark.allowDangerouslySkipPermissions`, `museSpark.shellSandbox`, `museSpark.sandboxNetwork`, `museSpark.shell.passEnvironmentVariables`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#permission-modes)
 
 ### Resume
 
@@ -2477,6 +2477,23 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 - `"auto"`: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
 - `"same"`: Only your own chat model judges; it never switches models.
 - `"off"`: No judge: approvals behave exactly as without one.
+
+### museSpark.shell.passEnvironmentVariables
+
+backend=modelApi&shellOrigin=interactive: Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.
+
+Type: `"array"`. Default: `[]`. Scope: `machine`.
+
+```json
+{
+  "type": "array",
+  "default": [],
+  "items": {
+    "type": "string",
+    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+  }
+}
+```
 
 ## Keyboard shortcuts
 

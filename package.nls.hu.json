@@ -163,5 +163,6 @@
   "config.judge.engine.enumDescriptions.auto": "A saját csevegőmodellje értékel (az 1. fázisban `same`); külön értékelő csatlakozik, ha beállít egyet.",
   "config.judge.engine.enumDescriptions.same": "Csak a saját csevegőmodellje értékel; modellt soha nem vált.",
   "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle.",
-  "command.openHelp.title": "Súgó és referencia"
+  "command.openHelp.title": "Súgó és referencia",
+  "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét."
 }

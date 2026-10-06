@@ -50,10 +50,13 @@ function fixture(overrides = {}) {
 }
 
 describe('README badge parsing and release comparison', () => {
-  it('finds the ten actual README badges, excluding local images and the GitHub CI badge', () => {
+  it('finds every actual README badge, including GitHub CI and excluding screenshots', () => {
     const urls = imageUrls(readFileSync('README.md', 'utf8'))
-    expect(urls).toHaveLength(10)
+    expect(urls).toHaveLength(11)
     expect(urls.filter((url) => new URL(url).hostname === 'badgen.net')).toHaveLength(5)
+    expect(urls).toContain(
+      'https://github.com/RandyNorthrup/muse-spark-code/actions/workflows/ci.yml/badge.svg',
+    )
   })
   it('handles quotes, unquoted src, entities, duplicate URLs and attributes containing >', () => {
     expect(
@@ -63,7 +66,24 @@ describe('README badge parsing and release comparison', () => {
       <img alt=" src='https://badgen.net/fake-src'" src="media/local.png">
       <img src="${'https://badgen.net/insecure'.replace('https:', 'http:')}"><img src="https://badgen.net.evil.test/x">
       <img src="https://user:password@badgen.net/private"><img src="invalid">`),
-    ).toEqual([badge, 'https://img.shields.io/badge/test-ok-green'])
+    ).toEqual([
+      badge,
+      'https://img.shields.io/badge/test-ok-green',
+      'https://badgen.net.evil.test/x',
+    ])
+  })
+  it('discovers a new trusted service and Markdown/reference badges without a maintained URL list', () => {
+    const workflow = 'https://github.com/owner/repo/actions/workflows/ci.yml/badge.svg'
+    expect(
+      imageUrls(
+        `![CI](${workflow})\n![coverage][coverage]\n\n[coverage]: https://codecov.io/gh/owner/repo/branch/main/graph/badge.svg`,
+      ),
+    ).toEqual([workflow, 'https://codecov.io/gh/owner/repo/branch/main/graph/badge.svg'])
+    expect(
+      imageUrls(`<img src="${camo}"><img src="https://camo.githubusercontent.com.evil.test/x">`, [
+        'camo.githubusercontent.com',
+      ]),
+    ).toEqual([camo])
   })
   it.each([
     ['v0.13.0', '0.13.0', 0],
@@ -83,6 +103,22 @@ describe('README badge parsing and release comparison', () => {
 })
 
 describe('public propagation, badge retries and camo purge', () => {
+  it('fetches every discovered badge, including CI and a new service, before purging camo', async () => {
+    const deps = fixture()
+    const ci = 'https://github.com/owner/repo/actions/workflows/ci.yml/badge.svg'
+    const coverage = 'https://codecov.io/gh/owner/repo/branch/main/graph/badge.svg'
+    await refreshReadmeBadges(
+      manifest,
+      `${readme}\n\n![CI](${ci})\n![coverage](${coverage})`,
+      repository,
+      deps,
+    )
+    const calls = deps.fetch.mock.calls.map(([url]) => url)
+    for (const url of [badge, ci, coverage]) {
+      expect(calls.indexOf(url)).toBeGreaterThan(-1)
+      expect(calls.indexOf(url)).toBeLessThan(calls.indexOf(camo))
+    }
+  })
   it.each([
     ['marketplace.visualstudio.com', 'Marketplace'],
     ['open-vsx.org', 'Open VSX'],
