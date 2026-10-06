@@ -98,3 +98,21 @@ inherited stale record in `docs/ide-compatibility/host-api.md`: Node built-in
 counts already differ on base `989077534`; this lane changes no `src/**`,
 `scripts/**`, package manifest or host API document. Regeneration/review is a
 named J/lead integration handoff, not an owned-file fix or a weakened gate.
+
+The reviewed second piece is `b7f7cf3c5`; both hooks passed after the first
+pre-commit attempt correctly flagged `archiveKeyFingerprint` as a generic
+API-key pattern. That value is the archive's public signing fingerprint;
+renaming its field to `archiveSigningFingerprint` made its meaning precise.
+The scanner and its configuration were not changed.
+
+Final fixture integration adds a safe refusal test and an explicit exported
+entry point consumed by the owned suite. The native harness bundles that
+entry point itself and injects the **installed** `NodeService` and
+`nodeHealth`; Vitest's state-store mock is never in that native bundle.
+The refusal drill reaches that mock, not a host state path. **48 tests** and
+**45 source drills** pass; Knip now passes. `npx jscpd` finds **0 clones**.
+
+The post-log-exclusion comparison is `m110-os1-repro-final.json`: immutable
+root, usr/hash, boot and kernel artifacts match, persistent `/var` and the
+whole raw still do not. OS6 must investigate the remaining mutable-filesystem
+difference; no reproducibility claim or blocking comparison is weakened.

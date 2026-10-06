@@ -22,6 +22,38 @@ name = (
 )
 qual = base / "out/qualification" / name
 qual.mkdir(parents=True, exist_ok=True)
+probe = qual / "probe.mjs"
+entry = (
+    "import { runOsBootProbe } from "
+    + json.dumps(str(base / "test/unit/helpers/osBootProbe.mjs"))
+    + "; import { NodeService, nodeHealth } from '/usr/lib/muse-spark-code/dist/node.js'; "
+    + "await runOsBootProbe({NodeService,nodeHealth});"
+)
+subprocess.run(
+    [
+        "node",
+        "-e",
+        "require('esbuild').buildSync("
+        + json.dumps(
+            {
+                "stdin": {
+                    "contents": entry,
+                    "resolveDir": str(base),
+                    "sourcefile": "os1-probe-entry.mjs",
+                },
+                "outfile": str(probe),
+                "bundle": True,
+                "platform": "node",
+                "format": "esm",
+                "target": "node24",
+                "external": ["/usr/lib/muse-spark-code/dist/node.js"],
+            }
+        )
+        + ")",
+    ],
+    cwd=base,
+    check=True,
+)
 copy = qual / ("fixture-" + image.name)
 subprocess.run(["cp", "--sparse=always", str(image), str(copy)], check=True)
 parts = json.loads(subprocess.check_output(["sfdisk", "--json", str(copy)]))[
@@ -64,7 +96,7 @@ WantedBy=multi-user.target
 commands = qual / "debugfs.txt"
 commands.write_text(f"""mkdir /opt
 rm /opt/os1-probe.mjs
-write {base/'temp/os1-probe.mjs'} /opt/os1-probe.mjs
+write {probe} /opt/os1-probe.mjs
 rm /etc/systemd/system/os1-probe.service
 write {unit} /etc/systemd/system/os1-probe.service
 rm /etc/systemd/system/os1-finish.service

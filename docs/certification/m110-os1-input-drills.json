@@ -437,5 +437,15 @@
     "exit": 1,
     "failedTests": ["M110-OS1 immutable image inputs refuses a truncated native Pi boot partition"],
     "restoredSha256": "5acb631002f6632d0c489ddd07dcacc1ef83db8ff5e19850f88bc83cc8f02084"
+  },
+  {
+    "control": "native fixture service UID refusal",
+    "file": "test/unit/helpers/osBootProbe.mjs",
+    "sourceSha256": "174d54d5c9e2eef4517bc05ce4a16035f81d036b47f580e00264eb337e6876df",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses to execute the native boot fixture outside the service UID"
+    ],
+    "restoredSha256": "174d54d5c9e2eef4517bc05ce4a16035f81d036b47f580e00264eb337e6876df"
   }
 ]

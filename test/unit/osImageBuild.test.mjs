@@ -3,7 +3,15 @@ import { mkdtempSync, cpSync, rmSync, writeFileSync, readFileSync } from 'node:f
 import path from 'node:path'
 import os from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { runOsBootProbe } from './helpers/osBootProbe.mjs'
+
+// The refusal drill must stop before it can touch any host state.
+vi.mock('../../src/runtime/node/state', () => ({
+  NodeStateStore: function rejectHostState() {
+    throw new Error('OS1 fixture reached filesystem')
+  },
+}))
 
 const root = fileURLToPath(new URL('../../os/', import.meta.url))
 const interpreter = process.platform === 'win32' ? 'python' : 'python3'
@@ -20,6 +28,11 @@ function python(code) {
   return spawnSync(interpreter, ['-c', code], { encoding: 'utf8' })
 }
 describe('M110-OS1 immutable image inputs', () => {
+  it('refuses to execute the native boot fixture outside the service UID', async () => {
+    await expect(runOsBootProbe({ NodeService: null, nodeHealth: null })).rejects.toThrow(
+      'OS1 wrong service UID',
+    )
+  })
   it('accepts the pinned Debian/Node policy and A/B partition layout', () => {
     expect(
       execFileSync(interpreter, [path.join(root, 'check.py')], { encoding: 'utf8' }),
