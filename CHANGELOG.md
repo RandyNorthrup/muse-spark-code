@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Isolate M95's built exec package and bundle-split drills so parallel unit
+  suites cannot delete each other's browser chunks or read partially written
+  metafiles. Share the verified restored-fixture check across cases, cutting
+  repeated source parsing under CPU load. Keep real production builds, exact
+  guard failures, coverage thresholds and default deadlines unchanged.
+
 - Package only allowlisted build artifacts with a short landing guide and recent
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.
