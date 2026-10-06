@@ -96,7 +96,7 @@ export class AttachmentStore {
   public constructor(
     private readonly newId: () => string,
     private readonly maxEncodedMediaChars: number = MAX_ENCODED_MEDIA_CHARS,
-    private readonly media?: AttachmentMediaPort,
+    private media?: AttachmentMediaPort,
   ) {}
 
   /** Encoded data URL characters held for this message's images and PDFs. */
@@ -261,6 +261,11 @@ export class AttachmentStore {
     }
     this.entries.set(summary.id, { summary, bytes, text: content, mspPartBytes, modelApiTextBytes })
     return { ok: true, attachment: summary }
+  }
+
+  /** The first media action installs its lazy bundle without losing existing attachments. */
+  public installMediaPort(media: AttachmentMediaPort): void {
+    this.media = media
   }
 
   /**

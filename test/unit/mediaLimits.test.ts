@@ -105,9 +105,32 @@ describe('M105 media admission', () => {
     ])
       expect(checkMediaLimits(info)).toMatchObject({ ok: false })
   })
+
+  it('offers conversion only when the selected model accepts the resulting mp4', () => {
+    const webm = sniffMediaBytes(ebmlFixture())!
+    expect(
+      checkMediaLimits(webm, { converterAvailable: true, acceptedMediaTypes: ['video/quicktime'] }),
+    ).not.toHaveProperty('convertToMp4')
+    const quicktime = sniffMediaBytes(videoFixture({ brand: 'qt  ' }))!
+    expect(
+      checkMediaLimits(quicktime, { converterAvailable: true, acceptedMediaTypes: ['video/mp4'] }),
+    ).toMatchObject({ ok: false, convertToMp4: true })
+  })
 })
 
 describe('M105 lazy AttachmentStore media port', () => {
+  it('installs the lazy media port after construction without losing existing attachments', () => {
+    let id = 0
+    const attachments = new AttachmentStore(() => String(++id))
+    expect(attachments.add('pages.pdf', pdfFixture(1), true).ok).toBe(true)
+    attachments.installMediaPort(port())
+    expect(attachments.addMedia('clip.mp4', video()).ok).toBe(true)
+    expect(attachments.list()).toHaveLength(2)
+    expect(attachments.partsFor(['1', '2'])).toMatchObject([
+      { type: 'file', mediaType: 'application/pdf' },
+      { type: 'text', text: '2' },
+    ])
+  })
   it('dispatches renamed video by bytes before PDF/text/image names and gates before storing', () => {
     const media = port()
     const attachments = new AttachmentStore(() => 'media-1', undefined, media)

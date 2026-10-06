@@ -40,7 +40,12 @@ export type MediaLimitResult =
   | { readonly ok: false; readonly reason: string; readonly convertToMp4?: true }
 
 const DEFAULT_FORMATS = new Set(['video/mp4', 'video/quicktime', 'audio/wav', 'audio/mpeg'])
-const CONVERTIBLE_FORMATS = new Set(['video/webm', 'video/x-matroska', 'audio/mp4'])
+const CONVERTIBLE_FORMATS = new Set([
+  'video/webm',
+  'video/x-matroska',
+  'video/quicktime',
+  'audio/mp4',
+])
 
 function refused(): { readonly ok: false; readonly reason: string } {
   return { ok: false, reason: fill(UI_TEXT.media.attachmentUnknownType, { type: 'media' }) }
@@ -125,6 +130,8 @@ export function checkMediaLimits(info: MediaFileInfo, limits: MediaLimits = {}):
       ok: false,
       reason,
       ...(limits.converterAvailable === true &&
+        (limits.acceptedMediaTypes === undefined ||
+          limits.acceptedMediaTypes.includes('video/mp4')) &&
         CONVERTIBLE_FORMATS.has(info.mediaType) && { convertToMp4: true }),
     }
   }
