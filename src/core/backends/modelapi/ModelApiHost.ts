@@ -1913,7 +1913,10 @@ export class ModelApiSession implements AgentSession {
   private readonly transcript: TranscriptItem[] = []
   /** Display rows only; consumed by runCall, never included in the request body. */
   private readonly argumentPreviewRows = new Map<string, ItemSnapshot>()
-  private readonly argumentPreviewTimers = new Map<string, ReturnType<typeof setTimeout>>()
+  private readonly argumentPreviewTimers = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; flush: () => void }
+  >()
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
@@ -3894,16 +3897,18 @@ export class ModelApiSession implements AgentSession {
       entry.previewAt === undefined ? TOOL_ARGUMENT_PREVIEW_INTERVAL_MS : now - entry.previewAt
     if (!isForced && elapsed < TOOL_ARGUMENT_PREVIEW_INTERVAL_MS) {
       if (!this.argumentPreviewTimers.has(entry.call.call_id)) {
-        const timer = setTimeout(() => {
-          this.argumentPreviewTimers.delete(entry.call.call_id)
+        const flush = () => {
           this.showArgumentPreview(entry, turnId, true)
-        }, TOOL_ARGUMENT_PREVIEW_INTERVAL_MS - elapsed)
+        }
+        const timer = setTimeout(flush, TOOL_ARGUMENT_PREVIEW_INTERVAL_MS - elapsed)
         timer.unref()
-        this.argumentPreviewTimers.set(entry.call.call_id, timer)
+        this.argumentPreviewTimers.set(entry.call.call_id, { timer, flush })
       }
       return
     }
     this.clearArgumentPreviewTimer(entry.call.call_id)
+    // The bound covers processing even when the snapshot will be deduplicated.
+    entry.previewAt = now
     const item = {
       itemId: entry.ourId,
       turnId,
@@ -3925,18 +3930,18 @@ export class ModelApiSession implements AgentSession {
       this.rerecordTranscript(item)
     }
     this.argumentPreviewRows.set(entry.call.call_id, item)
-    entry.previewAt = now
     this.emit({ type: 'toolArgumentPreview', item })
   }
 
   private clearArgumentPreviewTimer(callId: string): void {
     const timer = this.argumentPreviewTimers.get(callId)
-    if (timer !== undefined) clearTimeout(timer)
+    if (timer !== undefined) clearTimeout(timer.timer)
     this.argumentPreviewTimers.delete(callId)
   }
 
   /** A failed/abandoned preview has no executable arguments or successful result. */
   private interruptArgumentPreview(callId: string): void {
+    this.argumentPreviewTimers.get(callId)?.flush()
     this.clearArgumentPreviewTimer(callId)
     const preview = this.argumentPreviewRows.get(callId)
     if (preview === undefined) return

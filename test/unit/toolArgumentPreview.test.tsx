@@ -167,28 +167,82 @@ describe('argument preview across editor surfaces', () => {
     },
   )
 
-  it.each(['completed', 'interrupted'] as const)(
-    'clears a stale restored preview from an already %s row',
-    (status) => {
-      const state = uiReducer({ ...initialUiState, sessionId: 's1' }, action(PREVIEW))
+  it.each(
+    (['inProgress', 'completed', 'interrupted'] as const).flatMap((status) =>
+      (['idle', 'live', 'history'] as const).map((route) => ({ status, route })),
+    ),
+  )(
+    'settles stale restored previews and preserves only the running turn: $route/$status',
+    ({ status, route }) => {
+      const current = { ...PREVIEW.item, itemId: 'new-row', turnId: 'new-turn' }
+      const state =
+        route === 'history'
+          ? uiReducer(initialUiState, {
+              type: 'hostMessage',
+              message: {
+                type: 'historyLoaded',
+                sessionId: 's1',
+                items: [PREVIEW.item, current],
+                todos: [],
+                activeTurnId: 'new-turn',
+              },
+              at: 1,
+            })
+          : uiReducer(
+              uiReducer({ ...initialUiState, sessionId: 's1' }, action(PREVIEW)),
+              action({ ...PREVIEW, item: current }),
+            )
       const saved = webviewStateOf(
         {
           ...state,
           transcript: state.transcript.map((entry) =>
-            entry.kind === 'tool' ? { ...entry, status } : entry,
+            entry.id === PREVIEW.item.itemId && entry.kind === 'tool'
+              ? { ...entry, status }
+              : entry,
           ),
         },
         true,
       )
       const restored = restoredUiState(saved)
+      const activeTurnId = route === 'idle' ? undefined : 'new-turn'
       const settled = uiReducer(restored, {
         type: 'hostMessage',
-        message: { type: 'surfaceState', sessionId: 's1' },
+        message: { type: 'surfaceState', sessionId: 's1', activeTurnId },
         at: 2,
       })
-      expect(settled.transcript[0]).toMatchObject({ status, argumentPreview: undefined })
+      expect(settled.activeTurnId).toBe(activeTurnId)
+      expect(settled.transcript[0]).toMatchObject({
+        status: status === 'inProgress' ? 'interrupted' : status,
+        argumentPreview: undefined,
+      })
+      expect(settled.transcript[1]).toMatchObject({
+        status: route === 'idle' ? 'interrupted' : 'inProgress',
+        argumentPreview: route === 'idle' ? undefined : PREVIEW.item.argumentPreview,
+      })
     },
   )
+
+  it('retains the preview turn when an existing row receives its first preview', () => {
+    const started = uiReducer(
+      { ...initialUiState, sessionId: 's1' },
+      action({
+        type: 'itemStarted',
+        item: { ...PREVIEW.item, turnId: undefined, argumentPreview: undefined },
+      }),
+    )
+    const state = uiReducer(started, action(PREVIEW))
+    const restored = restoredUiState(webviewStateOf(state, true))
+    const reconciled = uiReducer(restored, {
+      type: 'hostMessage',
+      message: { type: 'surfaceState', sessionId: 's1', activeTurnId: 'turn' },
+      at: 2,
+    })
+    expect(reconciled.transcript[0]).toMatchObject({
+      turnId: 'turn',
+      status: 'inProgress',
+      argumentPreview: PREVIEW.item.argumentPreview,
+    })
+  })
 
   it('sends the same labeled preview through ACP, pending until the real call begins', () => {
     const translator = new UpdateTranslator('/ws', false)

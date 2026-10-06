@@ -20,7 +20,10 @@ import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
 import { UpdateTranslator } from '../../src/acp/translate'
-import { TOOL_ARGUMENT_PREVIEW_INTERVAL_MS } from '../../src/shared/constants'
+import {
+  TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
+  TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+} from '../../src/shared/constants'
 
 const ROOT = '/ws'
 const WRITE_PROMPT = [{ type: 'text' as const, text: 'write the file' }]
@@ -69,6 +72,7 @@ async function setup(options: Partial<ModelApiHostDeps> = {}) {
 function controlledStream(
   client: ReturnType<typeof fakeModelApiClient>,
   events: readonly StreamEvent[],
+  beforeEvent?: (index: number) => void,
 ) {
   const gate = Promise.withResolvers<undefined>()
   const reached = Promise.withResolvers<undefined>()
@@ -81,7 +85,10 @@ function controlledStream(
       yield terminal([])
       return
     }
-    for (const event of events) yield event
+    for (const [index, event] of events.entries()) {
+      beforeEvent?.(index)
+      yield event
+    }
     reached.resolve(undefined)
     await gate.promise
     signal.throwIfAborted()
@@ -415,12 +422,69 @@ describe('Model API argument preview admission', () => {
   })
 
   it.each([
+    ['bounded', 100, String.raw`x\n`.repeat(6000)],
+    ['unfinished', 5000, 'x'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS - 20)],
+  ] as const)(
+    'bounds processing of unchanged %s previews under a burst',
+    async (_kind, count, content) => {
+      vi.useFakeTimers()
+      let now = 0
+      const h = await setup({ now: () => now })
+      const snapshots = vi.spyOn(ArgumentPreview.prototype, 'snapshot')
+      const frames: StreamEvent[] = [
+        DELTAS[0]!,
+        {
+          type: 'response.function_call_arguments.delta',
+          item_id: 'wire-call',
+          delta: '{"content":"' + content,
+        },
+        ...Array.from({ length: count }, (): StreamEvent => ({
+          type: 'response.function_call_arguments.delta',
+          item_id: 'wire-call',
+          delta: 'x',
+        })),
+      ]
+      const stream = controlledStream(h.client, frames, (index) => {
+        if (index === 1 || index === 2) now += TOOL_ARGUMENT_PREVIEW_INTERVAL_MS
+      })
+      const done = h.turnDone()
+      try {
+        await h.session.sendTurn(WRITE_PROMPT)
+        await stream.reached.promise
+        // The third snapshot is identical: dedup must still start a new window.
+        expect(snapshots).toHaveBeenCalledTimes(3)
+        expect(previewEvents(h.events)).toHaveLength(2)
+        now += TOOL_ARGUMENT_PREVIEW_INTERVAL_MS
+        await vi.advanceTimersByTimeAsync(TOOL_ARGUMENT_PREVIEW_INTERVAL_MS)
+        expect(snapshots).toHaveBeenCalledTimes(4)
+        stream.gate.resolve(undefined)
+        await done
+        const settled = h.events.length
+        await vi.advanceTimersByTimeAsync(TOOL_ARGUMENT_PREVIEW_INTERVAL_MS * 2)
+        expect(h.events).toHaveLength(settled)
+      } finally {
+        snapshots.mockRestore()
+        stream.gate.resolve(undefined)
+        await h.host.close()
+        vi.useRealTimers()
+      }
+    },
+  )
+
+  it.each([
     ['flushes a coalesced preview while streaming and cancels it on interruption', true],
-    ['cancels a queued coalesced preview before interrupt settlement', false],
+    ['flushes a queued redacted preview before interrupt settlement', false],
   ] as const)('%s', async (_name, isFlushed) => {
     vi.useFakeTimers()
     const h = await setup({ now: () => Date.now() })
-    const stream = controlledStream(h.client, DELTAS)
+    const stream = controlledStream(h.client, [
+      DELTAS[0]!,
+      {
+        type: 'response.function_call_arguments.delta',
+        item_id: 'wire-call',
+        delta: String.raw`{"password":{"value":"dummy-first\ndummy-second"},"content":"first\nsecond\nthird`,
+      },
+    ])
     const done = h.turnDone()
     try {
       await h.session.sendTurn(WRITE_PROMPT)
@@ -433,6 +497,16 @@ describe('Model API argument preview admission', () => {
       await h.session.cancel()
       stream.gate.resolve(undefined)
       await done
+      const flushed = previewEvents(h.events).at(-1)
+      expect(flushed?.item.argumentPreview.text).toContain('second')
+      expect(flushed?.item.argumentPreview.text).toContain('[redacted]')
+      expect(flushed?.item.argumentPreview.text).not.toContain('dummy')
+      const completedAt = h.events.findIndex((event) => event.type === 'itemCompleted')
+      expect(h.events.indexOf(flushed!)).toBeLessThan(completedAt)
+      const translator = new UpdateTranslator(ROOT, false)
+      const updates = h.events.flatMap((event) => translator.updates(event))
+      expect(JSON.stringify(updates)).toContain('second')
+      expect(updates.at(-1)).toMatchObject({ status: 'failed', content: [] })
       const settled = h.events.length
       await vi.advanceTimersByTimeAsync(TOOL_ARGUMENT_PREVIEW_INTERVAL_MS * 2)
       expect(h.events).toHaveLength(settled)

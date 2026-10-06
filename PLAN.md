@@ -21250,10 +21250,14 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M106-L1 review repairs (FIXM106L1, 2026-10-06).** RVM106L1's P1,
-  both P2 findings and P3 are fixed; no finding is left as a residual.
-  Decoded sensitive JSON string values never enter previews, updates are
-  coalesced across every editor, and all row settlement clears them.
+- **M106-L1 review repairs (FIXM106L1 / FIXM106L13, 2026-10-06).**
+  RVM106L1's four findings and RVM106L12's five findings are fixed;
+  no review finding is left as a residual. Sensitive classification is
+  inherited through entire JSON values, including nested keys, containers
+  and scalars. Registered literal prefixes remain private until resolved.
+  The processing bound includes unchanged snapshots; interruption flushes
+  redacted final content before settlement. Validated saved tool rows keep
+  turn identity, so a newer live turn clears only stale restored previews.
   Remaining integration/evidence handoffs are named separately:
   **L1-CAPTURE:** U9 lacks argument frames; synthetic regressions prove the
   existing parser contract only. Safe for now: no guessed wire fields or
@@ -21263,7 +21267,7 @@ before a repaired one loads (2026-09-30).
   off. Follow-up: W binds and certifies the factories.
   **L1-DOCS:** README, CHANGELOG and the new help registry remain W-owned.
   Safe for now: there is no new command, setting or public support claim.
-  Follow-up: W documents decoded-field redaction, coalescing and settlement.
+  Follow-up: W documents whole-value redaction, processing bounds, final flush and settlement.
   The previous **L1-BUNDLE** registration handoff is resolved in this repair.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its

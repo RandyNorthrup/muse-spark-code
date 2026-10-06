@@ -1051,6 +1051,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
     kind: 'tool',
     id: item.itemId,
+    turnId: item.turnId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
     argumentPreview: item.argumentPreview,
@@ -1207,6 +1208,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
+        turnId: item.turnId ?? entry.turnId,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
         argumentPreview: item.argumentPreview,
@@ -2449,9 +2451,19 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  return message.activeTurnId === undefined
-    ? { ...live, transcript: settleAll(live.transcript, at) }
-    : live
+  if (message.activeTurnId === undefined) {
+    return { ...live, transcript: settleAll(live.transcript, at) }
+  }
+  const transcript = live.transcript.map((entry) =>
+    entry.kind === 'tool' &&
+    entry.argumentPreview !== undefined &&
+    entry.turnId !== message.activeTurnId
+      ? settleEntry(entry, at)
+      : entry,
+  )
+  return transcript.every((entry, index) => entry === live.transcript[index])
+    ? live
+    : { ...live, transcript }
 }
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {

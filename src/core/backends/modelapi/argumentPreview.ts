@@ -167,7 +167,13 @@ export class ArgumentPreview {
     }
     // Exact registered values precede M84 patterns, on decoded text only.
     let text = redactSecrets(decoded, this.literals)
-    if (!this.done) {
+    if (
+      !this.done ||
+      this.truncated ||
+      this.invalid ||
+      this.containers.length > 0 ||
+      this.string !== undefined
+    ) {
       // Even outside strings, a trailing prefix may become a registered
       // literal on the next frame. Keep it private until it is disambiguated.
       let end = text.length

@@ -167,6 +167,22 @@ describe('display-only argument prefixes', () => {
     expect(append(closed, '{"count":987').text).toBe('{"count":')
     expect(append(closed, '}').text).toBe('{"count":987}')
     expect(finish(preview, '{"count":987}').text).toBe('{"count":987}')
+    expect(finish(preview, '987').text).toBe('987')
+  })
+
+  it('holds registered prefixes through incomplete or truncated done values', () => {
+    const literal = '9876543210'
+    expect(finish(new ArgumentPreview([literal]), '{"count":987').text).toBe('{"count":')
+    const lead = '{"padding":"'
+    const field = '","count":'
+    const partial = '987'
+    const prefix =
+      lead +
+      'x'.repeat(TOOL_ARGUMENT_PREVIEW_MAX_CHARS - lead.length - field.length - partial.length) +
+      field
+    const bounded = finish(new ArgumentPreview([literal]), prefix + literal + '}')
+    expect(bounded.truncated).toBe(true)
+    expect(bounded.text).toBe(prefix)
   })
 
   it('keeps a PEM block split across lines out of all emitted previews', () => {
