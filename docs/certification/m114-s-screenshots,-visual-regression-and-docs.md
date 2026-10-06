@@ -170,3 +170,21 @@ and regenerated host API pass. The integrated startup receipt in
 869,689 bytes before, 882,430 after, **12,741 bytes growth**. This exceeds
 the milestone's 4 KiB target while all hard artifact caps stay green; the
 owning lanes/lead retain the explicitly recorded compaction handoff.
+
+## Complete before bytes and bounded PNG work
+
+S read all **804** A-before archive PNGs: every SHA-256, byte size and decoded
+320/690 × 760 dimension matched the tracked before manifest, totaling
+**40,041,082 bytes**. These remain before observations, not the post-polish
+regression baseline.
+
+The native PNG decoder now computes its predictor without allocating two
+arrays per decoded byte. Its independent known scanline test retains every
+PNG filter, dimensional and encoding assertion. Replacing the Average
+predictor with zero failed the complete named `decodes Chromium PNG filters
+and refuses dimensions, unsupported encoding, truncation and corrupt data`
+test (exit 1); restored SHA-256
+`b43b569784250826d793fdbab81bfb9acbeb3dca77e7bdf21990c84d6a6c049c`.
+All three pure owning suites passed **21/21** with default timeouts afterward.
+This changes decoding cost, not captured pixels or the strict comparison
+policy. No gate is relaxed.

@@ -8,6 +8,31 @@ export const ARCHIVE_BUDGET = 512 * 1024 * 1024
 export const PIXEL_POLICY = Object.freeze({ threshold: 0, includeAA: true, maxChangedPixels: 0 })
 const SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
 
+function pngPredictor(filter, left, above, corner) {
+  switch (filter) {
+    case 1: {
+      return left
+    }
+    case 2: {
+      return above
+    }
+    case 3: {
+      return Math.floor((left + above) / 2)
+    }
+    case 4: {
+      const prediction = left + above - corner
+      const leftDistance = Math.abs(prediction - left)
+      const aboveDistance = Math.abs(prediction - above)
+      const cornerDistance = Math.abs(prediction - corner)
+      if (leftDistance <= aboveDistance && leftDistance <= cornerDistance) return left
+      return aboveDistance <= cornerDistance ? above : corner
+    }
+    default: {
+      return 0
+    }
+  }
+}
+
 /** Decode the bounded, non-interlaced 8-bit RGB/RGBA PNGs Chromium emits. */
 export function decodePng(bytes, width, height) {
   if (!bytes.subarray(0, 8).equals(SIGNATURE) || bytes.toString('ascii', 12, 16) !== 'IHDR') {
@@ -46,16 +71,7 @@ export function decodePng(bytes, width, height) {
       const left = x >= channels ? decoded[index - channels] : 0
       const above = y > 0 ? decoded[index - stride] : 0
       const corner = y > 0 && x >= channels ? decoded[index - stride - channels] : 0
-      const prediction = left + above - corner
-      const distances = [
-        Math.abs(prediction - left),
-        Math.abs(prediction - above),
-        Math.abs(prediction - corner),
-      ]
-      let paeth = corner
-      if (distances[0] <= distances[1] && distances[0] <= distances[2]) paeth = left
-      else if (distances[1] <= distances[2]) paeth = above
-      const predictor = [0, left, above, Math.floor((left + above) / 2), paeth][filter]
+      const predictor = pngPredictor(filter, left, above, corner)
       decoded[index] = (raw[y * (stride + 1) + x + 1] + predictor) & 255
     }
   }
