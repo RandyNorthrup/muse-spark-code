@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The macOS screen-recorder implementation keeps size and duration bounds
+  active through conversion, verifies the installed helper and its pinned
+  signature before each launch, and finalizes on sleep. Its read-only probe
+  reports permissions and encoders, and the signed screen-helper bundle has
+  permission descriptions in all 14 languages. Editor binding and packaging
+  remain part of M105 integration.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

@@ -2589,6 +2589,13 @@
     "recordingStop": "Parar gravação",
     "uploadDeleteFailed": "Não foi possível excluir {name}: {reason}",
     "conversionFailed": "Falha na conversão: {reason}",
-    "replayMetadata": "Mídia: {name} ({duration}, {size})"
+    "replayMetadata": "Mídia: {name} ({duration}, {size})",
+    "nativeMicrophonePurpose": "O Muse Spark Code usa o microfone para digitar sua fala no campo de mensagem. Se o recurso pago Muse Voice estiver ativado, o áudio será enviado ao Muse Voice Transcribe da Meta; caso contrário, o macOS fará o reconhecimento. As gravações de tela incluem o áudio do microfone somente quando você o seleciona. Você visualiza cada gravação de tela antes de anexá-la.",
+    "nativeScreenPurpose": "O Muse Spark Code grava sua tela somente quando você inicia uma gravação de tela. Ela pode incluir qualquer conteúdo da tela selecionada. Você visualiza a gravação e escolhe Anexar ou Descartar antes que qualquer conteúdo seja enviado.",
+    "nativeSpeechPurpose": "O Muse Spark Code transforma sua fala em texto com o reconhecimento de voz integrado ao macOS.",
+    "recordingScreenPermissionRequired": "A permissão para gravar a tela não foi concedida.",
+    "recordingMicrophonePermissionDenied": "A permissão do microfone foi negada.",
+    "recordingMicrophonePermissionRestricted": "O acesso ao microfone é restrito pela política do sistema.",
+    "recordingMicrophonePermissionPending": "A permissão do microfone ainda não foi decidida. Inicie uma gravação para solicitar acesso."
   }
 }

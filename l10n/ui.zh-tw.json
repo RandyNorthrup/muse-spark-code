@@ -2399,6 +2399,13 @@
     "recordingStop": "停止錄製",
     "uploadDeleteFailed": "無法刪除 {name}：{reason}",
     "conversionFailed": "轉換失敗：{reason}",
-    "replayMetadata": "媒體：{name}（{duration}、{size}）"
+    "replayMetadata": "媒體：{name}（{duration}、{size}）",
+    "nativeMicrophonePurpose": "Muse Spark Code 使用麥克風將您的語音輸入至訊息編輯區。啟用付費功能 Muse Voice 後，音訊會傳送至 Meta 的 Muse Voice Transcribe；否則由 macOS 辨識。只有在您選取麥克風音訊時，螢幕錄製才會包含該音訊。您可以在附加每段螢幕錄製前預覽它。",
+    "nativeScreenPurpose": "Muse Spark Code 只會在您開始螢幕錄製時錄製螢幕。錄製內容可能包含所選顯示器上的任何內容。在傳送任何內容之前，您會預覽錄製並選擇「附加」或「捨棄」。",
+    "nativeSpeechPurpose": "Muse Spark Code 使用 macOS 內建的語音辨識功能將您的語音轉換為文字。",
+    "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
+    "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",
+    "recordingMicrophonePermissionRestricted": "系統原則限制了麥克風存取。",
+    "recordingMicrophonePermissionPending": "麥克風權限尚未確定。請開始錄製以要求存取權限。"
   }
 }

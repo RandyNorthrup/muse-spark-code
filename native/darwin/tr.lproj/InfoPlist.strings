@@ -1,0 +1,3 @@
+"NSMicrophoneUsageDescription" = "Muse Spark Code, konuşmanızı mesaj alanına yazmak için mikrofonu kullanır. Ücretli Muse Voice özelliği açıksa sesi Meta’nın Muse Voice Transcribe hizmetine gönderir; aksi takdirde macOS sesi tanır. Ekran kayıtları, mikrofon sesini yalnızca siz seçtiğinizde içerir. Her ekran kaydını eklemeden önce önizlersiniz.";
+"NSScreenCaptureUsageDescription" = "Muse Spark Code, ekranınızı yalnızca bir ekran kaydı başlattığınızda kaydeder. Seçilen ekrandaki her türlü içerik kayda dahil olabilir. Herhangi bir içerik gönderilmeden önce kaydı önizler ve Ekle ya da Sil seçeneğini seçersiniz.";
+"NSSpeechRecognitionUsageDescription" = "Muse Spark Code, macOS’in yerleşik konuşma tanıma özelliğiyle söylediklerinizi metne dönüştürür.";

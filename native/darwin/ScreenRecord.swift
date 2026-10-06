@@ -1,9 +1,11 @@
 // M105 R1. The build inserts runIfRequested() after the existing disclaim,
 // before dictation asks for permissions. This mode never transcribes or sends.
+import AppKit
 import AVFoundation
 import CoreGraphics
 import Foundation
 import ScreenCaptureKit
+import VideoToolbox
 
 struct ScreenRecordOptions {
     static let minimumSeconds = 10
@@ -100,11 +102,38 @@ enum ScreenRecord {
         return nil
     }
 
+    static func probe(screenAllowed: Bool = CGPreflightScreenCaptureAccess(),
+                      microphone: AVAuthorizationStatus = AVCaptureDevice.authorizationStatus(for: .audio),
+                      hasDisplay: Bool = CGMainDisplayID() != kCGNullDirectDisplay,
+                      encoderAvailable: Bool? = nil) -> [String: String] {
+        var session: VTCompressionSession?
+        let status = VTCompressionSessionCreate(allocator: kCFAllocatorDefault, width: 32, height: 32,
+            codecType: kCMVideoCodecType_H264, encoderSpecification: nil, imageBufferAttributes: nil,
+            compressedDataAllocator: nil, outputCallback: nil, refcon: nil, compressionSessionOut: &session)
+        if let session { VTCompressionSessionInvalidate(session) }
+        var audioFormat = kAudioFormatMPEG4AAC
+        var encoderBytes: UInt32 = 0
+        let audioAvailable = AudioFormatGetPropertyInfo(kAudioFormatProperty_Encoders,
+            UInt32(MemoryLayout.size(ofValue: audioFormat)), &audioFormat, &encoderBytes) == noErr && encoderBytes > 0
+        let mic: String
+        switch microphone {
+        case .authorized: mic = "authorized"
+        case .notDetermined: mic = "notDetermined"
+        case .denied: mic = "denied"
+        case .restricted: mic = "restricted"
+        @unknown default: mic = "restricted"
+        }
+        return ["type": "available", "screen": screenAllowed ? "authorized" : "notAuthorized",
+            "microphone": mic, "display": hasDisplay ? "available" : "unavailable",
+            "encoder": (encoderAvailable ?? (status == noErr && session != nil && audioAvailable)) ? "available" : "unavailable",
+            "responsibility": ProcessInfo.processInfo.environment["MUSE_DICTATE_DISCLAIMED"] == nil ? "parent" : "helper"]
+    }
+
     static func runIfRequested() {
         guard let flag = CommandLine.arguments.firstIndex(of: "--record-screen") else { return }
-        // This read-only probe exercises the disclaimed mode without asking TCC.
+        // Authorization status only: this never requests screen/audio access.
         if Array(CommandLine.arguments.suffix(from: flag + 1)) == ["--probe"] {
-            send(["type": "available", "responsibility": ProcessInfo.processInfo.environment["MUSE_DICTATE_DISCLAIMED"] == nil ? "parent" : "helper"])
+            send(probe())
             exit(0)
         }
         let options: ScreenRecordOptions
@@ -132,12 +161,12 @@ enum ScreenRecord {
             let recorder = ScreenKitRecorder(options: options)
             recorder.listen()
             recorder.queue.async { recorder.start() }
-            withExtendedLifetime(recorder) { dispatchMain() }
+            recorder.waitForExit()
         } else {
             let recorder = ScreenFallbackRecorder(options: options)
             recorder.listen()
             recorder.queue.async { recorder.start() }
-            withExtendedLifetime(recorder) { dispatchMain() }
+            recorder.waitForExit()
         }
     }
 }
@@ -148,15 +177,38 @@ class ScreenRecordLifecycle: NSObject {
     let queue = DispatchQueue(label: "muse-dictate.screen-record")
     private var signals: [DispatchSourceSignal] = []
     private var timer: DispatchSourceTimer?
+    private var sleepObservers: [NSObjectProtocol] = []
+    private let notifications: NotificationCenter
+    // Finalization stays under the same monitor, with a bounded close/export grace.
+    static let finalizationSeconds: TimeInterval = 30
     var stopping = false
     var started = false
     private let now: () -> Date
 
-    init(options: ScreenRecordOptions, now: @escaping () -> Date = Date.init) { self.options = options; self.now = now }
+    init(options: ScreenRecordOptions, now: @escaping () -> Date = Date.init,
+         notifications: NotificationCenter = NSWorkspace.shared.notificationCenter) {
+        self.options = options; self.now = now; self.notifications = notifications
+    }
+    deinit { sleepObservers.forEach { notifications.removeObserver($0) } }
+    func listenForSleep() {
+        guard sleepObservers.isEmpty else { return }
+        for name in [NSWorkspace.willSleepNotification, NSWorkspace.screensDidSleepNotification] {
+            sleepObservers.append(notifications.addObserver(forName: name, object: nil, queue: nil) { [weak self] _ in
+                self?.queue.async { [weak self] in self?.stop(cancel: false) }
+            })
+        }
+    }
+    // NSWorkspace's OS notifications need the Cocoa run loop, not just GCD.
+    func waitForExit() -> Never {
+        withExtendedLifetime(self) { RunLoop.main.run() }
+        abort(.failed)
+        ScreenRecord.fail(.failed)
+    }
     func start() { ScreenRecord.fail(.unavailable) }
     func stop(cancel: Bool) { ScreenRecord.fail(cancel ? .cancelled : .failed) }
 
     func listen() {
+        listenForSleep()
         for number in [SIGTERM, SIGINT, SIGHUP] {
             let source = DispatchSource.makeSignalSource(signal: number, queue: queue)
             source.setEventHandler { [weak self] in self?.stop(cancel: true) }
@@ -181,6 +233,7 @@ class ScreenRecordLifecycle: NSObject {
         started = true
         ScreenRecord.send(["type": "recording"])
         let deadline = now().addingTimeInterval(Double(options.seconds))
+        let pipelineDeadline = deadline.addingTimeInterval(Self.finalizationSeconds)
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now(), repeating: 1)
         timer.setEventHandler { [weak self] in
@@ -188,7 +241,8 @@ class ScreenRecordLifecycle: NSObject {
             let files = (try? FileManager.default.contentsOfDirectory(at: options.output.deletingLastPathComponent(), includingPropertiesForKeys: [.fileSizeKey])) ?? []
             let tooLarge = files.contains { ((try? $0.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0) > self.options.maxBytes }
             if tooLarge { abort(.tooLarge) }
-            if now() >= deadline { stop(cancel: false) }
+            if now() >= pipelineDeadline { abort(.failed) }
+            if !stopping && now() >= deadline { stop(cancel: false) }
         }
         self.timer = timer
         timer.resume()
@@ -203,6 +257,7 @@ class ScreenRecordLifecycle: NSObject {
         }
     }
     func finished() {
+        endBounds()
         let size = (try? options.output.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
         guard size > 0, size <= options.maxBytes else { removeFiles(); ScreenRecord.fail(.tooLarge) }
         chmod(options.output.path, 0o600)
@@ -283,7 +338,7 @@ final class ScreenMovieWriter {
         return converted
     }
 
-    static func mixSoundtracks(source: URL, output: URL, completion: @escaping (Bool) -> Void) throws {
+    static func mixSoundtracks(source: URL, output: URL, completion: @escaping (Bool) -> Void) throws -> AVAssetExportSession {
         let asset = AVURLAsset(url: source)
         let composition = AVMutableComposition()
         let range = CMTimeRange(start: .zero, duration: asset.duration)
@@ -300,6 +355,7 @@ final class ScreenMovieWriter {
         }
         export.audioMix = mix; export.outputURL = output; export.outputFileType = .mp4
         export.exportAsynchronously { completion(export.status == .completed) }
+        return export
     }
 }
 
@@ -308,6 +364,7 @@ final class ScreenKitRecorder: ScreenRecordLifecycle, SCStreamOutput, SCStreamDe
     private var stream: SCStream?
     private var movie: ScreenMovieWriter?
     private var microphoneSession: AVCaptureSession?
+    private var export: AVAssetExportSession?
 
     override func start() {
         SCShareableContent.getExcludingDesktopWindows(false, onScreenWindowsOnly: true) { content, error in
@@ -374,7 +431,7 @@ final class ScreenKitRecorder: ScreenRecordLifecycle, SCStreamOutput, SCStreamDe
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         queue.async {
             if ScreenRecord.stoppedByUser(error) && !self.stopping {
-                self.stopping = true; self.endBounds(); self.microphoneSession?.stopRunning()
+                self.stopping = true; self.microphoneSession?.stopRunning()
                 self.finishMovie()
             } else if !self.stopping {
                 self.removeFiles(); ScreenRecord.fail((error as NSError).code == SCStreamError.Code.userDeclined.rawValue ? .screenPermissionDenied : .failed)
@@ -383,9 +440,9 @@ final class ScreenKitRecorder: ScreenRecordLifecycle, SCStreamOutput, SCStreamDe
     }
 
     override func stop(cancel: Bool) {
-        if cancel { stream?.stopCapture(); microphoneSession?.stopRunning(); movie?.writer.cancelWriting(); removeFiles(); ScreenRecord.fail(.cancelled) }
+        if cancel { abort(.cancelled) }
         guard !stopping else { return }
-        stopping = true; endBounds()
+        stopping = true
         guard started else { return }
         microphoneSession?.stopRunning()
         stream?.stopCapture { error in
@@ -396,23 +453,29 @@ final class ScreenKitRecorder: ScreenRecordLifecycle, SCStreamOutput, SCStreamDe
         }
     }
 
+    override func abort(_ code: ScreenRecordFailure) {
+        stream?.stopCapture(); microphoneSession?.stopRunning()
+        movie?.writer.cancelWriting(); export?.cancelExport()
+        super.abort(code)
+    }
+
     private func finishMovie() {
-        guard let movie else { removeFiles(); ScreenRecord.fail(.failed) }
-        movie.finish { success in
-            guard success else { self.removeFiles(); ScreenRecord.fail(.failed) }
+        guard let movie else { abort(.failed); return }
+        movie.finish { success in self.queue.async {
+            guard success else { self.abort(.failed); return }
             if self.options.systemAudio && self.options.microphone { self.mixSoundtracks(source: movie.writer.outputURL) }
             else { self.finished() }
-        }
+        } }
     }
 
     private func mixSoundtracks(source: URL) {
         do {
-            try ScreenMovieWriter.mixSoundtracks(source: source, output: options.output) { success in
-                guard success else { self.removeFiles(); ScreenRecord.fail(.failed) }
+            export = try ScreenMovieWriter.mixSoundtracks(source: source, output: options.output) { success in self.queue.async {
+                guard success else { self.abort(.failed); return }
                 try? FileManager.default.removeItem(at: source)
                 self.finished()
-            }
-        } catch { removeFiles(); ScreenRecord.fail(.failed) }
+            } }
+        } catch { abort(.failed) }
     }
 }
 
@@ -420,9 +483,10 @@ final class ScreenFallbackRecorder: ScreenRecordLifecycle {
     private var process: Process?
     private let runProcess: (Process) throws -> Void
 
-    init(options: ScreenRecordOptions, runProcess: @escaping (Process) throws -> Void = { try $0.run() }) {
+    init(options: ScreenRecordOptions, now: @escaping () -> Date = Date.init,
+         runProcess: @escaping (Process) throws -> Void = { try $0.run() }) {
         self.runProcess = runProcess
-        super.init(options: options)
+        super.init(options: options, now: now)
     }
     override func start() {
         do {
@@ -432,7 +496,6 @@ final class ScreenFallbackRecorder: ScreenRecordLifecycle {
             capture.arguments = args
             capture.standardOutput = FileHandle.nullDevice; capture.standardError = FileHandle.nullDevice
             capture.terminationHandler = { child in self.queue.async {
-                self.endBounds()
                 guard child.terminationStatus == 0 || self.stopping else { self.removeFiles(); ScreenRecord.fail(.failed) }
                 self.stopping = true
                 self.convert(source: args.last ?? "")
@@ -446,7 +509,7 @@ final class ScreenFallbackRecorder: ScreenRecordLifecycle {
     override func stop(cancel: Bool) {
         if cancel { abort(.cancelled) }
         guard !stopping else { return }
-        stopping = true; endBounds(); process?.interrupt()
+        stopping = true; process?.interrupt()
     }
     override func abort(_ code: ScreenRecordFailure) {
         if let process, process.isRunning { kill(process.processIdentifier, SIGKILL); process.waitUntilExit() }
@@ -457,11 +520,11 @@ final class ScreenFallbackRecorder: ScreenRecordLifecycle {
         converter.executableURL = URL(fileURLWithPath: "/usr/bin/avconvert")
         converter.arguments = options.conversionArguments(source: source)
         converter.standardOutput = FileHandle.nullDevice; converter.standardError = FileHandle.nullDevice
-        converter.terminationHandler = { child in
+        converter.terminationHandler = { child in self.queue.async {
             guard child.terminationStatus == 0 else { self.removeFiles(); ScreenRecord.fail(.failed) }
             try? FileManager.default.removeItem(atPath: source)
             self.finished()
-        }
+        } }
         process = converter
         do { try runProcess(converter) } catch { removeFiles(); ScreenRecord.fail(.unavailable) }
     }

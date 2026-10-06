@@ -39,11 +39,25 @@ function permissionForCode(code: string): Permission | undefined {
 export interface MacosScreenRecordingDeps {
   readonly platform: NodeJS.Platform
   readonly remoteName?: string
-  /** Absolute installed native/darwin/muse-dictate path, never a workspace command. */
+  /** Installed screen .app executable, never a workspace command. */
   readonly helperPath: string
   readonly tempRoot: string
   readonly environment: NodeJS.ProcessEnv
   readonly fileExists: (file: string) => boolean
+  /** REDM104L3's installed-root/link verifier, bound at integration. Absence refuses.
+   * The requirement comes from trusted release metadata: expected Team ID and
+   * designated requirement, or the exact ad-hoc CDHash; never workspace settings.
+   */
+  readonly verifyTrustedHelper?: (file: string) => Promise<
+    | {
+        readonly path: string
+        readonly signaturePath: string
+        readonly designatedRequirement: string
+      }
+    | undefined
+  >
+  /** Host power-suspend subscription. Unsubscribe when the run settles. */
+  readonly onSuspend?: (listener: () => void) => () => void
   /** Spawn directly with this exact argument array and environment; no shell. */
   readonly spawn: (command: string, args: readonly string[], env: NodeJS.ProcessEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
@@ -74,6 +88,16 @@ const lineSchema = z.discriminatedUnion('type', [
   }),
 ])
 
+// Native --probe capture: see the R1 correction receipt; no permission request.
+const probeSchema = z.strictObject({
+  type: z.literal('available'),
+  responsibility: z.enum(['parent', 'helper']),
+  screen: z.enum(['authorized', 'notAuthorized']),
+  microphone: z.enum(['authorized', 'denied', 'restricted', 'notDetermined']),
+  display: z.enum(['available', 'unavailable']),
+  encoder: z.enum(['available', 'unavailable']),
+})
+
 /** Called only from the recovery action the user chose. */
 export async function openMacosRecordingPermissions(
   permission: Permission,
@@ -101,27 +125,141 @@ function childEnvironment(base: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 }
 
 export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): ScreenRecordingDriver {
-  const available: ScreenRecordingDriver['available'] = () => {
-    if (deps.remoteName !== undefined)
-      return Promise.resolve({ ok: false, reason: UI_TEXT.media.recordingRemote })
-    return Promise.resolve(
-      deps.platform === 'darwin' &&
-        path.isAbsolute(deps.helperPath) &&
-        deps.fileExists(deps.helperPath)
-        ? { ok: true }
-        : unavailable('native/darwin/muse-dictate'),
-    )
+  // Used for both fixed codesign and the read-only native probe. Bound all
+  // subprocesses; discard diagnostics and refuse malformed/truncated output.
+  const readCheck = (command: string, args: readonly string[]): Promise<string | undefined> =>
+    new Promise((resolve) => {
+      let child: HelperChild
+      try {
+        child = deps.spawn(command, args, childEnvironment(deps.environment))
+      } catch {
+        resolve(undefined)
+        return
+      }
+      let isDone = false
+      let output = ''
+      const decoder = new StringDecoder('utf8')
+      const finish = (value: string | undefined) => {
+        if (isDone) return
+        isDone = true
+        clearTimeout(timer)
+        resolve(value)
+      }
+      const timer = setTimeout(() => {
+        finish(undefined)
+        child.kill()
+      }, deps.startupTimeoutMs)
+      child.stdout.on('data', (chunk) => {
+        if (isDone) return
+        output += typeof chunk === 'string' ? chunk : decoder.write(Buffer.from(chunk))
+        if (output.length <= deps.maxProtocolChars) return
+        finish(undefined)
+        child.kill()
+      })
+      child.stderr.on('data', () => {
+        /* Discard signature/native diagnostics. */
+      })
+      child.onExit((description) => {
+        finish(description === 'exit code 0' && decoder.end() === '' ? output : undefined)
+      })
+    })
+  const verifiedPath = async (): Promise<string | undefined> => {
+    if (!deps.verifyTrustedHelper) return undefined
+    try {
+      const verified = await deps.verifyTrustedHelper(deps.helperPath)
+      if (
+        !verified ||
+        !path.isAbsolute(verified.path) ||
+        !path.isAbsolute(verified.signaturePath) ||
+        path.extname(verified.signaturePath) !== '.app' ||
+        verified.path.replaceAll('\\', '/') !==
+          path
+            .join(verified.signaturePath, 'Contents', 'MacOS', 'muse-dictate')
+            .replaceAll('\\', '/') ||
+        !verified.designatedRequirement.trim()
+      )
+        return undefined
+      const signature = await readCheck('/usr/bin/codesign', [
+        '--verify',
+        '--strict',
+        '-R',
+        `=${verified.designatedRequirement}`,
+        verified.signaturePath,
+      ])
+      return signature === undefined ? undefined : verified.path
+    } catch {
+      return undefined
+    }
   }
+  const availability = async (
+    isMicrophoneSelected: boolean,
+    canRequestPermissions = false,
+  ): ReturnType<ScreenRecordingDriver['available']> => {
+    if (deps.remoteName !== undefined) return { ok: false, reason: UI_TEXT.media.recordingRemote }
+    if (
+      deps.platform !== 'darwin' ||
+      !path.isAbsolute(deps.helperPath) ||
+      !deps.fileExists(deps.helperPath)
+    )
+      return unavailable('native/darwin/muse-dictate-screen.app')
+    const helper = await verifiedPath()
+    if (!helper) return unavailable('helperIntegrity')
+    const output = await readCheck(helper, ['--record-screen', '--probe'])
+    try {
+      const probe = probeSchema.parse(JSON.parse(output ?? ''))
+      // The public probe never prompts. Explicit Start lets the native helper
+      // request access in its existing screen-first / selected-microphone order.
+      if (
+        !canRequestPermissions &&
+        (probe.screen !== 'authorized' ||
+          (isMicrophoneSelected && probe.microphone !== 'authorized'))
+      ) {
+        deps.onPermissionDenied?.(probe.screen === 'authorized' ? 'microphone' : 'screen')
+        if (probe.screen !== 'authorized')
+          return unavailable(UI_TEXT.media.recordingScreenPermissionRequired)
+        if (probe.microphone === 'notDetermined')
+          return unavailable(UI_TEXT.media.recordingMicrophonePermissionPending)
+        return unavailable(
+          probe.microphone === 'restricted'
+            ? UI_TEXT.media.recordingMicrophonePermissionRestricted
+            : UI_TEXT.media.recordingMicrophonePermissionDenied,
+        )
+      }
+      if (probe.display !== 'available' || probe.encoder !== 'available')
+        return unavailable(probe.display === 'available' ? 'encoder' : 'display')
+      return { ok: true }
+    } catch {
+      return unavailable('probe')
+    }
+  }
+  const available: ScreenRecordingDriver['available'] = () => availability(true)
   return {
     available,
     async start(input, onCountdown) {
       const options = screenRecordingOptionsSchema.safeParse(input)
-      const ready = await available()
-      if (!ready.ok || !options.success) {
+      if (!options.success) {
         return {
           stop: () => Promise.resolve(),
           cancel: () => Promise.resolve(),
-          result: Promise.resolve(ready.ok ? unavailable('invalidOptions') : ready),
+          result: Promise.resolve(unavailable('invalidOptions')),
+        }
+      }
+      const ready = await availability(options.data.microphone, true)
+      if (!ready.ok) {
+        return {
+          stop: () => Promise.resolve(),
+          cancel: () => Promise.resolve(),
+          result: Promise.resolve(ready),
+        }
+      }
+      // Reverify immediately before recording: availability's probe is a separate launch.
+      const helperPath = await verifiedPath()
+      const subscribeSuspend = deps.onSuspend
+      if (!helperPath || !subscribeSuspend) {
+        return {
+          stop: () => Promise.resolve(),
+          cancel: () => Promise.resolve(),
+          result: Promise.resolve(unavailable('helperIntegrity')),
         }
       }
       const folder = await mkdtemp(path.join(deps.tempRoot, 'muse-screen-'))
@@ -134,7 +272,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       try {
         await chmod(folder, PRIVATE_DIRECTORY_MODE)
         child = deps.spawn(
-          deps.helperPath,
+          helperPath,
           [
             '--record-screen',
             '--output',
@@ -196,6 +334,7 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
           clearTimeout(watchdog)
           clearTimeout(killTimer)
           clearInterval(tick)
+          unsubscribeSuspend()
           try {
             if (!hasFinished || !hasCleanExit || shouldDiscard()) {
               await dispose()
@@ -244,6 +383,9 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
         watchdog = setTimeout(() => {
           terminate('muse-dictate')
         }, deps.startupTimeoutMs)
+        const unsubscribeSuspend = subscribeSuspend(() => {
+          void stop()
+        })
         let pending = ''
         const decoder = new StringDecoder('utf8')
         child.stdout.on('data', (chunk) => {

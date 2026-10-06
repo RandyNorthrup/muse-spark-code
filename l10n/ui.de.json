@@ -2494,6 +2494,13 @@
     "recordingStop": "Aufnahme stoppen",
     "uploadDeleteFailed": "{name} konnte nicht gelöscht werden: {reason}",
     "conversionFailed": "Umwandlung fehlgeschlagen: {reason}",
-    "replayMetadata": "Medien: {name} ({duration}, {size})"
+    "replayMetadata": "Medien: {name} ({duration}, {size})",
+    "nativeMicrophonePurpose": "Muse Spark Code verwendet das Mikrofon, um Ihre Sprache in das Eingabefeld zu schreiben. Ist die kostenpflichtige Funktion Muse Voice aktiviert, wird der Ton an Metas Muse Voice Transcribe gesendet; andernfalls erkennt macOS die Sprache. Bildschirmaufnahmen enthalten Mikrofonton nur, wenn Sie ihn auswählen. Sie sehen sich jede Bildschirmaufnahme vor dem Anhängen an.",
+    "nativeScreenPurpose": "Muse Spark Code nimmt Ihren Bildschirm nur auf, wenn Sie eine Bildschirmaufnahme starten. Die Aufnahme kann alles auf dem ausgewählten Bildschirm enthalten. Sie sehen sich die Aufnahme an und wählen Anhängen oder Verwerfen, bevor etwas gesendet wird.",
+    "nativeSpeechPurpose": "Muse Spark Code wandelt Ihre Sprache mit der integrierten Spracherkennung von macOS in Text um.",
+    "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
+    "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",
+    "recordingMicrophonePermissionRestricted": "Der Mikrofonzugriff ist durch eine Systemrichtlinie eingeschränkt.",
+    "recordingMicrophonePermissionPending": "Über die Mikrofonberechtigung wurde noch nicht entschieden. Starten Sie eine Aufnahme, um Zugriff anzufragen."
   }
 }

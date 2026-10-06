@@ -18,6 +18,19 @@ import { forms } from './forms'
 export const EN = {
   // M105 / D85: read UI_TEXT.media at use time. Lane W isolates this region.
   media: {
+    recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
+    recordingMicrophonePermissionDenied: 'Microphone permission was denied.',
+    recordingMicrophonePermissionRestricted: 'Microphone access is restricted by system policy.',
+    recordingMicrophonePermissionPending:
+      'Microphone permission is undecided. Start a recording to request access.',
+
+    nativeMicrophonePurpose:
+      "Muse Spark Code uses the microphone to type your speech into the composer. With paid Muse Voice enabled, it sends the audio to Meta's Muse Voice Transcribe; otherwise macOS recognizes it. Screen recordings include microphone audio only when you select it. You preview each screen recording before attaching it.",
+    nativeScreenPurpose:
+      'Muse Spark Code records your screen only when you start a screen recording. It may include anything on the selected display. You preview the recording and choose Attach or Discard before anything is sent.',
+    nativeSpeechPurpose:
+      'Muse Spark Code turns what you say into text with the speech recogniser built into macOS.',
+
     durationUnknown: 'Duration unknown',
     sound: 'Sound',
     noSound: 'No sound',

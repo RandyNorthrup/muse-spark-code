@@ -1,4 +1,5 @@
 // Synthetic, permission-free tests of the production encoder and guards.
+import AppKit
 import AVFoundation
 import Foundation
 import ScreenCaptureKit
@@ -20,6 +21,47 @@ func refuses(_ name: String, code: ScreenRecordFailure, _ operation: () throws -
 let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 let output = folder.appendingPathComponent("recording.mp4")
 let base = ["--output", output.path, "--max-seconds", "10", "--max-bytes", "209715200", "--microphone", "false", "--system-audio", "false"]
+
+// Exercise the actual fallback transition and kill, while replacing only capture/conversion input.
+if CommandLine.arguments.contains("--conversion-size") || CommandLine.arguments.contains("--conversion-deadline") {
+    let sizeTest = CommandLine.arguments.contains("--conversion-size")
+    var arguments = base
+    if sizeTest { arguments[5] = "1" }
+    var clock = Date(timeIntervalSince1970: 0)
+    let recorder = ScreenFallbackRecorder(options: try ScreenRecordOptions(arguments: arguments), now: { clock }, runProcess: { process in
+        if process.arguments?.contains("-v") == true {
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/true"); process.arguments = []
+        } else {
+            process.executableURL = URL(fileURLWithPath: "/bin/sh")
+            process.arguments = ["-c", "printf xx > \"$1\"; exec /bin/sleep 60", "test", output.path]
+            if !sizeTest { clock = clock.addingTimeInterval(41) }
+            print("PASS: converter entered the bounded finalization phase")
+        }
+        try process.run()
+        if process.executableURL?.path == "/bin/sh" { print("CONVERTER_PID=\(process.processIdentifier)") }
+    })
+    recorder.start()
+    DispatchQueue.global().asyncAfter(deadline: .now() + 3) { check(false, sizeTest ? "conversion size monitor stays alive" : "conversion deadline stays alive") }
+    withExtendedLifetime(recorder) { dispatchMain() }
+}
+
+if CommandLine.arguments.contains("--sleep") || CommandLine.arguments.contains("--display-sleep") {
+    final class SleepLifecycle: ScreenRecordLifecycle {
+        override func stop(cancel: Bool) {
+            check(!cancel, "native sleep finalizes instead of cancelling")
+            exit(0)
+        }
+    }
+    let center = NSWorkspace.shared.notificationCenter
+    let recorder = SleepLifecycle(options: try ScreenRecordOptions(arguments: base), notifications: center)
+    recorder.listenForSleep(); recorder.began()
+    CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue) {
+        center.post(name: CommandLine.arguments.contains("--sleep") ? NSWorkspace.willSleepNotification : NSWorkspace.screensDidSleepNotification, object: nil)
+    }
+    CFRunLoopWakeUp(CFRunLoopGetMain())
+    DispatchQueue.global().asyncAfter(deadline: .now() + 2) { check(false, "native Cocoa run loop delivers sleep notifications") }
+    recorder.waitForExit()
+}
 
 // Test-only processes replace capture, never requesting screen/microphone access.
 if CommandLine.arguments.contains("--fallback-finalize") {
@@ -124,6 +166,15 @@ if #available(macOS 12.3, *) {
     check(!ScreenRecord.stoppedByUser(NSError(domain: "foreign", code: SCStreamError.Code.userStopped.rawValue)), "foreign errors do not become OS indicator Stop")
     check(!ScreenRecord.stoppedByUser(NSError(domain: SCStreamErrorDomain, code: SCStreamError.Code.userDeclined.rawValue)), "permission denial is not OS indicator Stop")
 }
+let deniedProbe = ScreenRecord.probe(screenAllowed: false, microphone: .denied, hasDisplay: false, encoderAvailable: false)
+check(deniedProbe["screen"] == "notAuthorized", "probe reports ungranted Screen Recording access without guessing denial")
+check(deniedProbe["microphone"] == "denied", "probe honestly reports microphone denial without requesting it")
+check(deniedProbe["display"] == "unavailable", "probe refuses a missing local display")
+check(deniedProbe["encoder"] == "unavailable", "probe refuses an unavailable encoder")
+check(ScreenRecord.probe(screenAllowed: true, microphone: .notDetermined, hasDisplay: true, encoderAvailable: true)["microphone"] == "notDetermined", "probe distinguishes unrequested microphone permission")
+check(ScreenRecord.probe(screenAllowed: true, microphone: .restricted, hasDisplay: true, encoderAvailable: true)["microphone"] == "restricted", "probe distinguishes restricted microphone permission")
+check(ScreenRecord.probe(screenAllowed: true, microphone: .authorized, hasDisplay: true)["encoder"] == "available", "probe finds real H264 and AAC encoders")
+
 let silentFallback = try valid.fallbackArguments(audioDevice: 0)
 check(silentFallback == ["-v", "-V", "10", "-D", "1", folder.appendingPathComponent("capture.mov").path], "silent fallback is bounded with no audio argument")
 let micOptions = try options(replacing: "--microphone", with: "true")
@@ -239,7 +290,7 @@ let source = try encode(system: true, microphone: true, name: "both.mp4")
 let mixed = folder.appendingPathComponent("mixed.mp4")
 let exported = DispatchSemaphore(value: 0)
 var success = false
-try ScreenMovieWriter.mixSoundtracks(source: source, output: mixed) { value in success = value; exported.signal() }
+_ = try ScreenMovieWriter.mixSoundtracks(source: source, output: mixed) { value in success = value; exported.signal() }
 check(exported.wait(timeout: .now() + 5) == .success && success, "mix finalizes both sound sources")
 check(AVURLAsset(url: mixed).tracks(withMediaType: .audio).count == 1, "both sound sources are mixed into one playable AAC track")
 let mixedAsset = AVURLAsset(url: mixed)

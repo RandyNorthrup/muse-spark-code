@@ -2684,6 +2684,13 @@
     "recordingStop": "Остановить запись",
     "uploadDeleteFailed": "Не удалось удалить {name}: {reason}",
     "conversionFailed": "Не удалось преобразовать: {reason}",
-    "replayMetadata": "Медиа: {name} ({duration}, {size})"
+    "replayMetadata": "Медиа: {name} ({duration}, {size})",
+    "nativeMicrophonePurpose": "Muse Spark Code использует микрофон, чтобы вводить вашу речь в поле сообщения. Если включена платная функция Muse Voice, звук отправляется в сервис Muse Voice Transcribe компании Meta; иначе его распознаёт macOS. Записи экрана включают звук микрофона только при его выборе. Перед прикреплением каждой записи экрана вы просматриваете её.",
+    "nativeScreenPurpose": "Muse Spark Code записывает экран только после запуска записи экрана. Запись может включать любое содержимое выбранного дисплея. Прежде чем что-либо будет отправлено, вы просматриваете запись и выбираете «Прикрепить» или «Отменить».",
+    "nativeSpeechPurpose": "Muse Spark Code преобразует вашу речь в текст с помощью встроенного в macOS распознавания речи.",
+    "recordingScreenPermissionRequired": "Разрешение на запись экрана не предоставлено.",
+    "recordingMicrophonePermissionDenied": "В разрешении на использование микрофона отказано.",
+    "recordingMicrophonePermissionRestricted": "Доступ к микрофону ограничен политикой системы.",
+    "recordingMicrophonePermissionPending": "Решение о разрешении на использование микрофона ещё не принято. Начните запись, чтобы запросить доступ."
   }
 }
