@@ -14,6 +14,7 @@ import {
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
@@ -34,9 +35,9 @@ import {
   type ToolPresentation,
   writtenContent,
 } from '../toolPresentation'
-import { ExpandChevron, FileIcon, RewindIcon } from './icons'
+import { CloseIcon, ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
-import { QuestionCard, type QuestionCardProps } from './QuestionCard'
+import { QuestionCard, type QuestionCardProps, useAttentionSurface } from './QuestionCard'
 import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -200,11 +201,18 @@ function ShellBody({
 
 /** What a settled question card says: the answers, the explanation given instead (M46), or Cancelled. */
 function questionOutcomeText(outcome: NonNullable<ToolEntry['questionOutcome']>): string {
+  const labels: Readonly<Record<string, string>> = {
+    answered: UI_TEXT.questionAnswered,
+    clarified: UI_TEXT.questionClarified,
+    cancelled: UI_TEXT.questionDeclined,
+    deferred: UI_TEXT.questionDeferred,
+  }
+  const label = labels[outcome.outcome] ?? outcome.outcome
   if (outcome.clarification !== undefined) {
-    return `${UI_TEXT.questionClarified}: ${outcome.clarification}`
+    return `${label}: ${outcome.clarification}`
   }
   if (outcome.answers.length === 0) {
-    return UI_TEXT.questionCancelled
+    return label
   }
   const answers = outcome.answers
     .map(
@@ -212,7 +220,7 @@ function questionOutcomeText(outcome: NonNullable<ToolEntry['questionOutcome']>)
         answer.selectedLabel ?? answer.selectedLabels?.join(', ') ?? answer.freeText ?? '',
     )
     .join('; ')
-  return `${UI_TEXT.questionAnswered}: ${answers}`
+  return `${label}: ${answers}`
 }
 
 /** "Rejected", "Interrupted", "Stopped" (M46) or "Failed" under a row that did not complete. */
@@ -382,9 +390,12 @@ function ToolRowView({
   onStopTask,
   quoteMenu,
 }: ToolRowProps) {
+  const attention = useAttentionSurface()
   const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
-  const isWaiting = entry.approval !== undefined || entry.question !== undefined
+  const isQuestionOpen =
+    entry.question !== undefined && ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
+  const isWaiting = entry.approval !== undefined || isQuestionOpen
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
@@ -467,6 +478,19 @@ function ToolRowView({
       onSelect: () => {
         menu.close()
         onRevertEdit(entry.id, reviewRef.id)
+      },
+    })
+  }
+  if (attention !== undefined && entry.question?.state === 'open') {
+    const question = entry.question
+    items.push({
+      id: 'dismiss-question',
+      label: UI_TEXT.questionDismiss,
+      icon: <CloseIcon />,
+      disabled: question.isSubmitted === true,
+      onSelect: () => {
+        menu.close()
+        attention.onDismiss(question.userInputId)
       },
     })
   }
@@ -560,16 +584,44 @@ function ToolRowView({
           />
         ))
       : []
+  const elicitationOutcomeLabel =
+    entry.elicitationOutcome?.action === 'accept'
+      ? UI_TEXT.questionAnswered
+      : UI_TEXT.questionDeclined
+  let elicitationCard: ReactNode = null
+  if (entry.elicitation !== undefined) {
+    elicitationCard =
+      attention === undefined ? (
+        <ElicitationCard
+          key={entry.elicitation.elicitationId}
+          form={entry.elicitation}
+          onAccept={onAcceptElicitation}
+          onDecline={onDeclineElicitation}
+          onCancel={onCancelElicitation}
+        />
+      ) : (
+        <button
+          type="button"
+          className="button-secondary elicitation-docked"
+          onClick={() => {
+            if (entry.elicitation !== undefined)
+              attention.selectDockCard({ kind: 'elicitation', id: entry.elicitation.elicitationId })
+          }}
+        >
+          {entry.elicitation.server}: {UI_TEXT.questionAnswer}
+        </button>
+      )
+  }
   const hasBody = body !== null || images.length > 0
   return (
     <li
-      className={isWaiting ? 'tool tool-waiting' : 'tool'}
+      className={`${isWaiting ? 'tool tool-waiting' : 'tool'}${isQuestionOpen ? ' tool-question-open' : ''}`}
       data-status={entry.status}
       data-entry-id={entry.id}
       data-role="tool"
       {...menu.rowProps}
     >
-      <div className="tool-header" inert={menu.isOpen}>
+      <div className="tool-header" hidden={entry.question !== undefined} inert={menu.isOpen}>
         <button
           type="button"
           className="tool-toggle"
@@ -621,7 +673,7 @@ function ToolRowView({
           {entry.failureReason === undefined ? '' : `: ${entry.failureReason}`}
         </div>
       ) : null}
-      {isOpen ? (
+      {isOpen && entry.question === undefined ? (
         <div className="tool-body" inert={menu.isOpen}>
           {body}
           {images}
@@ -645,22 +697,24 @@ function ToolRowView({
       )}
       {entry.question === undefined ? null : (
         <QuestionCard
+          key={`${attention?.sessionId ?? ''}:${entry.question.userInputId}`}
           question={entry.question}
           onAnswer={onAnswer}
           onCancel={onCancelQuestion}
           onClarify={onClarifyQuestion}
         />
       )}
-      {entry.elicitation === undefined ? null : (
-        <ElicitationCard
-          key={entry.elicitation.elicitationId}
-          form={entry.elicitation}
-          onAccept={onAcceptElicitation}
-          onDecline={onDeclineElicitation}
-          onCancel={onCancelElicitation}
-        />
+      {elicitationCard}
+      {entry.elicitationOutcome === undefined ? null : (
+        <div className="tool-outcome">
+          {entry.elicitationOutcome.action === 'cancel'
+            ? fill(UI_TEXT.elicitationExpired, { server: entry.elicitationOutcome.server })
+            : elicitationOutcomeLabel}
+        </div>
       )}
-      {entry.questionOutcome === undefined ? null : (
+      {entry.questionOutcome === undefined ||
+      (entry.question?.state === 'open' &&
+        entry.questionOutcome.clarification === undefined) ? null : (
         <div className="tool-outcome" dir="auto">
           {questionOutcomeText(entry.questionOutcome)}
         </div>

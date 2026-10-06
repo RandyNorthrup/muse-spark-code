@@ -139,6 +139,7 @@ export function ElicitationCard({ form, onAccept, onDecline, onCancel }: Elicita
   return (
     <form
       className="question"
+      tabIndex={-1}
       aria-label={fill(UI_TEXT.elicitationTitle, { server: form.server })}
       aria-busy={isLocked}
       noValidate

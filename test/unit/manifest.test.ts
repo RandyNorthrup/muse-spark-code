@@ -16,6 +16,8 @@ import {
   EXTENSION_NAME,
   EXTENSION_PUBLISHER,
   MACHINE_SCOPED_SETTINGS,
+  QUESTION_DEFER_SETTING,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
@@ -23,6 +25,9 @@ import {
   WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
 import { findBash } from './helpers/shellParsers'
+
+// M112 U owns command/manifest bindings; lane 0 froze the separate setting constants.
+const questionCommands = ['museSpark.nextOpenQuestion', 'museSpark.previousOpenQuestion']
 
 const byText = (a: string, b: string) => a.localeCompare(b)
 
@@ -72,7 +77,7 @@ describe('package.json manifest', () => {
 
   it('contributes exactly the commands the extension registers', () => {
     const contributed = manifest.contributes.commands.map((command) => command.command)
-    const registered = Object.values(COMMAND_IDS)
+    const registered = [...Object.values(COMMAND_IDS), ...questionCommands]
     expect(new Set(contributed)).toEqual(new Set(registered))
     expect(contributed).toHaveLength(registered.length)
   })
@@ -114,7 +119,7 @@ describe('package.json manifest', () => {
           when: 'editorTextFocus && museSpark.tabOn',
         })
       } else {
-        expect(Object.values(COMMAND_IDS)).toContain(command)
+        expect([...Object.values(COMMAND_IDS), ...questionCommands]).toContain(command)
       }
     }
   })
@@ -125,7 +130,12 @@ describe('package.json manifest', () => {
       { default: unknown }
     >
     const declared = Object.keys(properties).map((key) => key.replace(`${SETTINGS_SECTION}.`, ''))
-    expect(new Set(declared)).toEqual(new Set(Object.keys(SETTING_DEFAULTS)))
+    expect(new Set(declared)).toEqual(
+      new Set([...Object.keys(SETTING_DEFAULTS), QUESTION_DEFER_SETTING]),
+    )
+    expect(properties[`${SETTINGS_SECTION}.${QUESTION_DEFER_SETTING}`]?.default).toBe(
+      QUESTION_DEFER_DEFAULT_SECONDS,
+    )
     for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.default, key).toEqual(value)
     }

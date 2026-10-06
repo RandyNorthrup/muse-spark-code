@@ -297,6 +297,16 @@
         "command": "museSpark.openPullRequestInConversation",
         "title": "%command.openPullRequestInConversation.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.nextOpenQuestion",
+        "title": "%command.nextOpenQuestion.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.previousOpenQuestion",
+        "title": "%command.previousOpenQuestion.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -347,6 +357,18 @@
         "command": "editor.action.inlineSuggest.trigger",
         "key": "alt+\\",
         "when": "editorTextFocus && museSpark.tabOn"
+      },
+      {
+        "command": "museSpark.nextOpenQuestion",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j",
+        "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
+      },
+      {
+        "command": "museSpark.previousOpenQuestion",
+        "key": "ctrl+alt+shift+j",
+        "mac": "cmd+alt+shift+j",
+        "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
       }
     ],
     "menus": {
@@ -1118,6 +1140,14 @@
             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
           },
           "description": "%config.shell.passEnvironmentVariables.description%",
+          "scope": "machine"
+        },
+        "museSpark.questions.deferAfterSeconds": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "%config.questions.deferAfterSeconds.description%",
           "scope": "machine"
         }
       }

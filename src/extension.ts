@@ -2793,9 +2793,31 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
   })
+  // Navigation commands need only the session identity, never question text.
+  const questionCommandSessions = new Map<string, string>()
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
+      const post = surface.post.bind(surface)
+      surface.post = (message) => {
+        switch (message.type) {
+          case 'sessionInfo':
+          case 'historyLoaded':
+          case 'surfaceState': {
+            if (message.sessionId === undefined) questionCommandSessions.delete(surface.id)
+            else questionCommandSessions.set(surface.id, message.sessionId)
+            break
+          }
+          case 'conversationCleared': {
+            questionCommandSessions.delete(surface.id)
+            break
+          }
+          default: {
+            break
+          }
+        }
+        post(message)
+      }
       const factory = loadConversation()
       const tasksTab = new TasksPanel(
         hostContext,
@@ -3154,6 +3176,7 @@ async function activateWindow(
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
+    questionCommandSessions.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
@@ -3617,6 +3640,20 @@ async function activateWindow(
         },
       })
     }),
+    ...(['next', 'previous'] as const).map((direction) =>
+      registerLoggedCommand(
+        log,
+        direction === 'next' ? 'museSpark.nextOpenQuestion' : 'museSpark.previousOpenQuestion',
+        () => {
+          const surface = registry.active
+          if (surface === undefined) return
+          const sessionId = questionCommandSessions.get(surface.id)
+          if (sessionId === undefined) return
+          surface.reveal()
+          surface.post({ type: 'jumpToOpenQuestion', sessionId, direction })
+        },
+      ),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.toggleFocusView, async () => {
       await runHostAction('toggleFocusView')
     }),

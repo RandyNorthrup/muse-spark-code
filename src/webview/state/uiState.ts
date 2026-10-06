@@ -37,7 +37,8 @@ import {
   USER_SHELL_PREFIX,
   WORKFLOW_KIND,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { QUESTION_STATES, type OpenQuestion } from '../../shared/questions'
+import { fill, formatNumber } from '../../shared/l10n/text'
 import type {
   AttachmentSummary,
   AuthStatus,
@@ -401,6 +402,14 @@ export interface UiState {
   readonly attachmentsToRelease: readonly string[]
   /** The composer banner (M14): an unsupported upload, until dismissed. */
   readonly banner: string | undefined
+  /** Registry records for this session; drafts remain in the surface's React tree. */
+  readonly openQuestions: readonly OpenQuestion[]
+  readonly submittedQuestions: readonly string[]
+  /** Counts observed for History; text never crosses into a history row. */
+  readonly openQuestionCounts: Readonly<Record<string, number>>
+  readonly questionNavigation:
+    | { readonly userInputId: string; readonly sequence: number; readonly isReminder?: true }
+    | undefined
   readonly announcement: Announcement | undefined
   /** The microphone button (M9): `reason` explains an unavailable one. */
   readonly dictation: DictationUiState
@@ -516,6 +525,7 @@ export type UiAction =
     }
   /** The user answered or cancelled a question card; lock it until the host settles it (M25). */
   | { readonly type: 'questionSubmitted'; readonly userInputId: string }
+  | { readonly type: 'questionJump'; readonly direction: 'next' | 'previous' }
   /** The user answered, declined or cancelled an elicitation form; lock it until the host settles it. */
   | { readonly type: 'elicitationSubmitted'; readonly elicitationId: string }
   /** A row's Move to background or Stop (M46): its button waits for the host. */
@@ -629,6 +639,10 @@ export const initialUiState: UiState = {
   attachmentsToRelease: [],
   banner: undefined,
   announcement: undefined,
+  openQuestions: [],
+  submittedQuestions: [],
+  openQuestionCounts: {},
+  questionNavigation: undefined,
   dictation: { status: 'idle', reason: undefined, engine: 'system' },
   paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] },
   todos: [],
@@ -1311,7 +1325,10 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
         approval: undefined,
-        question: undefined,
+        question:
+          entry.question?.state !== undefined && entry.question.state !== 'waiting'
+            ? entry.question
+            : undefined,
         elicitation: undefined,
         // A Move to background the turn's end overtook asks nothing any more (M46).
         taskRequest: isCutOff ? undefined : entry.taskRequest,
@@ -2072,13 +2089,20 @@ function applyAgentEvent(
       )
     }
     case 'questionSettled': {
+      const settledState =
+        event.outcome === 'deferred'
+          ? 'open'
+          : QUESTION_STATES.find((value) => value === event.outcome)
       return {
         ...state,
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.question?.userInputId === event.userInputId
             ? {
                 ...entry,
-                question: undefined,
+                question:
+                  settledState === undefined
+                    ? undefined
+                    : { ...entry.question, state: settledState, isSubmitted: false },
                 questionOutcome: {
                   outcome: event.outcome,
                   answers: event.answers,
@@ -2122,7 +2146,11 @@ function applyAgentEvent(
         ...state,
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.elicitation?.elicitationId === event.elicitationId
-            ? { ...entry, elicitation: undefined }
+            ? {
+                ...entry,
+                elicitation: undefined,
+                elicitationOutcome: { server: entry.elicitation.server, action: event.action },
+              }
             : entry,
         ),
       }
@@ -2324,6 +2352,9 @@ function clearedConversation(state: UiState): UiState {
     banner: undefined,
     title: undefined,
     sessionId: undefined,
+    openQuestions: [],
+    submittedQuestions: [],
+    questionNavigation: undefined,
     restoredSessionId: undefined,
     transcript: [],
     attachments: [],
@@ -2354,6 +2385,7 @@ function clearedAccountView(state: UiState): UiState {
     canEditSessions: initialUiState.canEditSessions,
     checkpoints: initialUiState.checkpoints,
     sessions: [],
+    openQuestionCounts: {},
     archivedIds: [],
     board: undefined,
     bestOfN: undefined,
@@ -2449,6 +2481,131 @@ function reconcile(
     : live
 }
 
+/** Transcript order for loaded rows, then missing-history cards in arrival order. */
+export function questionsInOrder(state: UiState): readonly PendingQuestion[] {
+  const records = new Map(state.openQuestions.map((question) => [question.userInputId, question]))
+  const cards: PendingQuestion[] = []
+  const seen = new Set<string>()
+  for (const entry of state.transcript) {
+    if (
+      entry.kind !== 'tool' ||
+      entry.question === undefined ||
+      seen.has(entry.question.userInputId)
+    )
+      continue
+    const record = records.get(entry.question.userInputId)
+    cards.push(
+      record === undefined
+        ? entry.question
+        : { ...record, isSubmitted: state.submittedQuestions.includes(record.userInputId) },
+    )
+    seen.add(entry.question.userInputId)
+  }
+  const ordered = state.openQuestions.toSorted((a, b) => a.askedAt - b.askedAt)
+  for (const record of ordered) {
+    if (seen.has(record.userInputId)) continue
+    cards.push({ ...record, isSubmitted: state.submittedQuestions.includes(record.userInputId) })
+    seen.add(record.userInputId)
+  }
+  return cards
+}
+
+function jumpQuestion(state: UiState, direction: 'next' | 'previous'): UiState {
+  const questions = questionsInOrder(state).filter((question) => question.state === 'open')
+  if (questions.length === 0) return state
+  const current = questions.findIndex(
+    (question) => question.userInputId === state.questionNavigation?.userInputId,
+  )
+  const firstIndex = direction === 'next' ? 0 : questions.length - 1
+  const offset = direction === 'next' ? 1 : -1
+  const index =
+    current === -1 ? firstIndex : (current + offset + questions.length) % questions.length
+  const question = questions[index]
+  return question === undefined
+    ? state
+    : {
+        ...state,
+        questionNavigation: {
+          userInputId: question.userInputId,
+          sequence: (state.questionNavigation?.sequence ?? 0) + 1,
+        },
+      }
+}
+
+function withOpenQuestions(
+  state: UiState,
+  questions: readonly OpenQuestion[],
+  at: number,
+): UiState {
+  const before = new Map(state.openQuestions.map((question) => [question.userInputId, question]))
+  const submittedQuestions = state.submittedQuestions.filter((id) => {
+    const previous = before.get(id)
+    const next = questions.find((question) => question.userInputId === id)
+    return next !== undefined && next.state === previous?.state && next.state !== 'answeredLater'
+  })
+  const next: UiState = {
+    ...state,
+    openQuestions: questions,
+    submittedQuestions,
+    openQuestionCounts: {
+      ...state.openQuestionCounts,
+      [state.sessionId ?? '']: questions.filter((question) => question.state === 'open').length,
+    },
+    transcript: state.transcript.map((entry) => {
+      if (entry.kind !== 'tool') return entry
+      const record = questions.find(
+        (question) =>
+          question.itemId === entry.id || question.userInputId === entry.question?.userInputId,
+      )
+      return record === undefined
+        ? entry
+        : {
+            ...entry,
+            question: { ...record, isSubmitted: submittedQuestions.includes(record.userInputId) },
+          }
+    }),
+  }
+  const late = questions.find(
+    (question) =>
+      question.state === 'answeredLater' &&
+      before.get(question.userInputId)?.state !== 'answeredLater',
+  )
+  if (late !== undefined) return announce(next, UI_TEXT.announceLateAnswerSent)
+  const reminder = questions.find(
+    (question) => question.reminders > (before.get(question.userInputId)?.reminders ?? 0),
+  )
+  if (reminder !== undefined)
+    return announce(
+      {
+        ...next,
+        questionNavigation: {
+          userInputId: reminder.userInputId,
+          isReminder: true,
+          sequence: (state.questionNavigation?.sequence ?? 0) + 1,
+        },
+      },
+      fill(UI_TEXT.announceQuestionReminder, { header: reminder.questions[0]?.header ?? '' }),
+    )
+  const isDeferred = questions.some(
+    (question) =>
+      question.state === 'open' && before.get(question.userInputId)?.state === 'waiting',
+  )
+  if (isDeferred) return announce(next, UI_TEXT.announceQuestionDeferred)
+  const arrived = questions.find(
+    (question) => question.state === 'waiting' && !before.has(question.userInputId),
+  )
+  return arrived?.deadlineAt === undefined
+    ? next
+    : announce(
+        next,
+        fill(UI_TEXT.questionCountdown, {
+          seconds: formatNumber(
+            Math.max(0, Math.ceil((arrived.deadlineAt - at) / MILLISECONDS_PER_SECOND)),
+          ),
+        }),
+      )
+}
+
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {
   switch (message.type) {
     case 'init': {
@@ -2466,6 +2623,14 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'settingsChanged': {
       return { ...state, settings: message.settings }
+    }
+    case 'openQuestions': {
+      return message.snapshot.sessionId === state.sessionId
+        ? withOpenQuestions(state, message.snapshot.questions, at)
+        : state
+    }
+    case 'jumpToOpenQuestion': {
+      return message.sessionId === state.sessionId ? jumpQuestion(state, message.direction) : state
     }
     case 'focusInput': {
       return { ...state, focusRequests: state.focusRequests + 1 }
@@ -2575,6 +2740,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         isSideChat: message.sideChat ?? state.isSideChat,
         model: { modelId: message.modelId, contextLimit: message.contextLimit },
         sessionId: message.sessionId,
+        openQuestions: message.sessionId === state.sessionId ? state.openQuestions : [],
+        submittedQuestions: message.sessionId === state.sessionId ? state.submittedQuestions : [],
+        questionNavigation:
+          message.sessionId === state.sessionId ? state.questionNavigation : undefined,
         canEditSessions: message.canEditSessions ?? true,
         // A live session replaces the one a restored panel was waiting for.
         restoredSessionId: message.sessionId === undefined ? state.restoredSessionId : undefined,
@@ -2728,6 +2897,9 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             isSideChat: message.sideChat ?? state.isSideChat,
             isImported: message.imported === true,
             sessionId: message.sessionId,
+            openQuestions: isSameSession ? state.openQuestions : [],
+            submittedQuestions: isSameSession ? state.submittedQuestions : [],
+            questionNavigation: isSameSession ? state.questionNavigation : undefined,
             restoredSessionId: undefined,
             title: message.name,
             transcript: replayed.entries,
@@ -3055,7 +3227,19 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       )
       return announce(
         message.level === 'error'
-          ? { ...noticed, transcript: unlockQuestions(noticed.transcript) }
+          ? {
+              ...noticed,
+              transcript:
+                message.text === UI_TEXT.questionAnswerUncertain
+                  ? noticed.transcript
+                  : unlockQuestions(noticed.transcript),
+              submittedQuestions:
+                message.text === UI_TEXT.questionAnswerFailed
+                  ? []
+                  : noticed.submittedQuestions.filter((id) =>
+                      noticed.openQuestions.some((question) => question.userInputId === id),
+                    ),
+            }
           : noticed,
         message.level === 'info' ? undefined : message.text,
       )
@@ -3373,9 +3557,18 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ),
       }
     }
+    case 'questionJump': {
+      return jumpQuestion(state, action.direction)
+    }
     case 'questionSubmitted': {
+      if (
+        state.submittedQuestions.includes(action.userInputId) ||
+        questionsInOrder(state).every((question) => question.userInputId !== action.userInputId)
+      )
+        return state
       return {
         ...state,
+        submittedQuestions: [...state.submittedQuestions, action.userInputId],
         transcript: state.transcript.map((entry) =>
           entry.kind === 'tool' && entry.question?.userInputId === action.userInputId
             ? { ...entry, question: { ...entry.question, isSubmitted: true } }
@@ -3667,7 +3860,7 @@ export function hasPendingRequest(state: UiState): boolean {
     (entry) =>
       entry.kind === 'tool' &&
       (entry.approval !== undefined ||
-        entry.question !== undefined ||
+        (entry.question !== undefined && (entry.question.state ?? 'waiting') === 'waiting') ||
         entry.elicitation !== undefined),
   )
 }
