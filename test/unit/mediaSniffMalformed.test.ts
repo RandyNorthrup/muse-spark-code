@@ -35,9 +35,11 @@ describe('M105 hostile and partial metadata', () => {
       const bytes = Buffer.from(videoFixture({ soundtrack: false }))
       bytes.write('xxxx', bytes.indexOf(type))
       const info = sniffMediaBytes(bytes)
-      expect(info).toBeDefined()
-      if (type === 'hdlr') expect(info).toMatchObject({ hasSoundtrack: null })
-      expect(info).not.toHaveProperty('width')
+      if (type === 'hdlr') expect(info).toBeUndefined()
+      else {
+        expect(info).toBeDefined()
+        expect(info).not.toHaveProperty('width')
+      }
     }
     const version = Buffer.from(videoFixture())
     version[version.indexOf('tkhd') + 4] = 2

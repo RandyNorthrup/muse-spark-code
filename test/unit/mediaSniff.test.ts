@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
-import { sniffMedia, sniffMediaBytes } from '../../src/core/media/limits'
+import { checkMediaLimits, sniffMedia, sniffMediaBytes } from '../../src/core/media/limits'
 import { MEDIA_SNIFF_MAX_BYTES } from '../../src/shared/constants'
 import { ebmlFixture, mp3Fixture, videoFixture, wavFixture } from './helpers/media/fixtures'
 
@@ -80,15 +80,12 @@ describe('M105 bounded media sniffing', () => {
     )
   })
 
-  it('keeps metadata unknown when moov is outside both windows and ignores payload decoys', async () => {
+  it('refuses unknown track kind when moov is outside both windows and ignores payload decoys', async () => {
     const { ftyp, moov } = splitVideo()
     const mdat = box('mdat', Buffer.alloc(MEDIA_SNIFF_MAX_BYTES * 2))
     const bytes = Buffer.concat([ftyp, mdat, moov, mdat])
     moov.copy(bytes, bytes.length - moov.length)
-    expect(await sniffMedia(source(bytes))).toMatchObject({
-      ok: true,
-      info: { durationSeconds: null, hasSoundtrack: null },
-    })
+    expect(await sniffMedia(source(bytes))).toMatchObject({ ok: false })
   })
 
   it('reads version-one headers, extended boxes and compatible brands', () => {
@@ -123,7 +120,12 @@ describe('M105 bounded media sniffing', () => {
       hasSoundtrack: false,
     })
     mvhd.writeBigUInt64BE(0xff_ff_ff_ff_ff_ff_ff_ffn, 24)
-    expect(sniffMediaBytes(Buffer.concat([ftyp, box('moov', box('mvhd', mvhd))]))).toMatchObject({
+    const tracks = Buffer.from(videoFixture()).subarray(136, -24)
+    expect(
+      sniffMediaBytes(
+        Buffer.concat([ftyp, box('moov', Buffer.concat([box('mvhd', mvhd), tracks]))]),
+      ),
+    ).toMatchObject({
       durationSeconds: null,
     })
   })
@@ -171,17 +173,35 @@ describe('M105 bounded media sniffing', () => {
     expect(sniffMediaBytes(ebmlFixture('matroska'))).toMatchObject({
       mediaType: 'video/x-matroska',
     })
-    expect(sniffMediaBytes(videoFixture({ brand: 'M4A ' }))).toMatchObject({
-      kind: 'audio',
-      mediaType: 'audio/mp4',
-      durationSeconds: 10,
-    })
     for (const bytes of [
       ebmlFixture().subarray(0, 5),
       Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0xff]),
       Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0x81, 0]),
     ])
       expect(sniffMediaBytes(bytes)).toBeUndefined()
+  })
+
+  it('classifies M4A and audio-only MP4 from tracks and blocks video-only admission', () => {
+    for (const brand of ['M4A ', 'isom', 'qt  '] as const) {
+      const bytes = Buffer.from(videoFixture({ brand }))
+      bytes.write('free', bytes.indexOf('trak'))
+      const info = sniffMediaBytes(bytes)!
+      expect(info).toEqual({
+        kind: 'audio',
+        mediaType: 'audio/mp4',
+        durationSeconds: 10,
+        sizeBytes: bytes.length,
+      })
+      expect(checkMediaLimits(info, { acceptedMediaTypes: ['video/mp4'] }).ok).toBe(false)
+      expect(checkMediaLimits(info, { acceptedMediaTypes: ['audio/mp4'] }).ok).toBe(true)
+    }
+    expect(sniffMediaBytes(videoFixture({ brand: 'M4A ' }))).toMatchObject({
+      kind: 'video',
+      mediaType: 'video/mp4',
+    })
+    const malformed = Buffer.from(videoFixture())
+    malformed.writeUInt32BE(7, malformed.indexOf('hdlr') - 4)
+    expect(sniffMediaBytes(malformed)).toBeUndefined()
   })
 
   it('reads wav duration from fmt/data, skips padded chunks, refuses truncation', () => {

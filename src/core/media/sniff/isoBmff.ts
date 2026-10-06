@@ -96,7 +96,8 @@ function dimensions(bytes: Buffer): { width: number; height: number } | undefine
 function movieInfo(bytes: Buffer):
   | {
       durationSeconds: number | null
-      hasSoundtrack: boolean | null
+      hasSoundtrack: boolean
+      hasVideo: boolean
       width?: number
       height?: number
     }
@@ -104,7 +105,8 @@ function movieInfo(bytes: Buffer):
   const boxes = children(bytes, 0, bytes.length)
   if (boxes === undefined) return undefined
   let durationSeconds: number | null = null
-  let soundtrack: boolean | null = false
+  let hasSoundtrack = false
+  let hasVideo = false
   let size: { width: number; height: number } | undefined
   for (const box of boxes) {
     if (box.type === 'mvhd') durationSeconds = duration(bytes.subarray(box.body, box.end))
@@ -125,13 +127,14 @@ function movieInfo(bytes: Buffer):
         )
       }
     }
-    if (handler === 'soun') soundtrack = true
-    else if (handler === undefined && soundtrack !== true) soundtrack = null
+    if (handler === undefined) return undefined
+    if (handler === 'soun') hasSoundtrack = true
     if (handler !== 'vide') continue
+    hasVideo = true
     const tkhd = track.find((item) => item.type === 'tkhd')
     if (tkhd !== undefined) size = dimensions(bytes.subarray(tkhd.body, tkhd.end)) ?? size
   }
-  return { durationSeconds, hasSoundtrack: soundtrack, ...size }
+  return { durationSeconds, hasSoundtrack, hasVideo, ...size }
 }
 
 /** Head and disjoint tail windows, already bounded by the caller. */
@@ -175,15 +178,16 @@ export function sniffIsoBmff(
     }
     cursor = box.end + origin
   }
-  const durationSeconds = metadata?.durationSeconds ?? null
-  return mediaType === 'audio/mp4'
-    ? { kind: 'audio', mediaType, sizeBytes, durationSeconds }
-    : {
+  if (metadata === undefined || (!metadata.hasVideo && !metadata.hasSoundtrack)) return undefined
+  const durationSeconds = metadata.durationSeconds
+  return metadata.hasVideo
+    ? {
         kind: 'video',
-        mediaType,
+        mediaType: mediaType === 'video/quicktime' ? mediaType : 'video/mp4',
         sizeBytes,
         durationSeconds,
-        hasSoundtrack: metadata?.hasSoundtrack ?? null,
-        ...(metadata?.width !== undefined && { width: metadata.width, height: metadata.height }),
+        hasSoundtrack: metadata.hasSoundtrack,
+        ...(metadata.width !== undefined && { width: metadata.width, height: metadata.height }),
       }
+    : { kind: 'audio', mediaType: 'audio/mp4', sizeBytes, durationSeconds }
 }

@@ -19097,6 +19097,20 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**M1 review corrections (RVM105M1, 2026-10-06).** Resolve all three findings:
+discover converters only at explicit configured paths or documented installation
+locations, require the shared StrictModes/safe_path verifier before each version
+probe and encoding launch, and strictly parse a bounded version probe. The
+verifier is a required integration port while REDM104L3's `trustedPath.ts` is
+absent; an absent binding refuses conversion. Enforce the output-byte cap,
+RSS watchdog and deadline during encoding, with a portable RSS/governor binding
+required where the Linux kernel sampler is unavailable. Classify ISO-BMFF from
+`vide`/`soun` track handlers; unknown tracks refuse rather than claim video,
+and audio-only output cannot satisfy a video conversion. Lane A still owns
+wrapping audio with a still frame. Tests and byte-exact red drills are recorded
+in `docs/certification/m105-m1-media-core-(a).md`; no new dependency or wider
+guard. W owns the shipped docs, reference and host/bundle binding updates.
+
 **Lane F review corrections (RVM105F, 2026-10-05).** Serialize each session's
 saves and removals, check save generations before releasing references, and
 hold the account storage lock across ownership and session publication. Persist

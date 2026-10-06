@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import { AttachmentStore, type AttachmentMediaPort } from '../../src/core/attachments'
 import { checkMediaLimits, sniffMediaBytes, type MediaFileInfo } from '../../src/core/media/limits'
@@ -69,7 +70,9 @@ describe('M105 media admission', () => {
   })
 
   it('refuses WebM/Matroska/m4a with conversion offered only after the machine probe', () => {
-    for (const bytes of [ebmlFixture(), ebmlFixture('matroska'), videoFixture({ brand: 'M4A ' })]) {
+    const m4a = Buffer.from(videoFixture({ brand: 'M4A ' }))
+    m4a.write('free', m4a.indexOf('trak'))
+    for (const bytes of [ebmlFixture(), ebmlFixture('matroska'), m4a]) {
       const info = sniffMediaBytes(bytes)!
       expect(checkMediaLimits(info)).toMatchObject({ ok: false })
       expect(checkMediaLimits(info)).not.toHaveProperty('convertToMp4')

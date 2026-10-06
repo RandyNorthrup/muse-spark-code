@@ -189,6 +189,17 @@ describe('M105 private local conversion', () => {
     }
   })
 
+  it('refuses audio-only MP4 output from a conversion advertised as video', async () => {
+    const audio = Buffer.from(videoFixture())
+    audio.write('free', audio.indexOf('trak'))
+    const result = await convertToMp4(fixture.input, fake, {
+      run: (_command, args) => writeFile(outputPath(args), audio),
+      limits: { acceptedMediaTypes: ['video/mp4'] },
+    })
+    expect(result.ok).toBe(false)
+    await expect(lstat(directories.at(-1)!)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('enforces output size/duration limits and removes refused conversions', async () => {
     for (const limits of [{ maxUploadBytes: 1 }, { maxDurationSeconds: 9 }]) {
       expect(

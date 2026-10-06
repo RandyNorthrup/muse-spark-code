@@ -1,5 +1,41 @@
 # M105 M1 — Media core (a)
 
+## RVM105M1 corrections (2026-10-06)
+
+The follow-up rig brief and shared rules were read in full. No merge is
+authorized by the rig override; work stays on `m105/m1`. Full quality remains
+the lead's integrated-tree gate. All review findings are being fixed, with
+no dependency, paid call, install or gate change.
+
+**P2-2: actual ISO-BMFF tracks.** `vide` decides video; a movie with only
+`soun` is `audio/mp4`, including an ordinary isom MP4, M4A and QuickTime.
+A brand is only a container recognition check. Missing/unreadable track
+handlers and a moov outside the bounded windows now refuse: the current
+metadata contract cannot represent an unknown kind honestly. Duration can
+still be unknown when readable tracks establish the kind. Audio-only
+conversion output is refused by the existing video output check. Lane A
+still owns wrapping audio with a real still frame.
+
+Regression: “classifies M4A and audio-only MP4 from tracks and blocks
+video-only admission”; “refuses audio-only MP4 output from a conversion
+advertised as video”. All 35 sniff/malformed/admission assertions and all
+35 conversion/attachment assertions passed on Kubuntu with default timeouts.
+An initial adjusted malformed assertion tried `toHaveProperty` on undefined;
+the assertion now checks absent kind and absent dimensions separately.
+
+Red drills run full files, restore source byte-exact and compare SHA-256:
+
+| Guard broken                      | Expected named failure                                                                                                                             | Outcome              |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| choose kind from brand again      | classifies M4A and audio-only MP4 from tracks and blocks video-only admission; refuses audio-only MP4 output from a conversion advertised as video | exit 1; SHA restored |
+| accept unknown track kind         | refuses unknown track kind when moov is outside both windows and ignores payload decoys                                                            | exit 1; SHA restored |
+| assume a missing handler is video | does not invent sound or dimensions from missing/unreadable track fields                                                                           | exit 1; SHA restored |
+
+Sniffer SHA before/after all three drills:
+`86ba4e764d07eed18b22bdf56a98931b53faf4a68f8301318a047bfc44ffb47e`.
+
+## Original implementation record
+
 Kubuntu, 2026-10-06. Branch `m105/m1`, base `10ff139c7` (lane 0 and F,
 including F's review fixes). Read the rig brief, shared rules, AGENTS.md,
 PLAN.md D85/M105 in full, the coverage audit and M105 capture/research records.
