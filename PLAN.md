@@ -19696,6 +19696,8 @@ FIXM101P2; everything else starts against lane 0's contracts.
 Constrain creation records to direct random children of one verified private
 base, require an ownership marker and fresh tree-exit proof after reload,
 persist creation intent before mkdir, and quarantine before recursive removal.
+Resolve initial OS temp ancestor aliases once to the verified canonical base;
+later operations remain bound to that identity and never follow the alias.
 Linux pins the base by fd; macOS/Windows verify its identity around rename.
 Keep per-entry refusals protected while continuing cleanup. Checkpoints use
 a separate admission class without temp allocation and check their destination;

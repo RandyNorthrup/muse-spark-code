@@ -581,4 +581,25 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await h.cleanup()
     }
   })
+  it('canonicalizes an initial OS temp ancestor alias while keeping the base itself non-link', async () => {
+    const h = await fixture()
+    try {
+      const alias = path.join(h.root, 'os-temp-alias')
+      await symlink(h.root, alias, 'junction')
+      const opened = await CreatedRegistry.open(
+        path.join(alias, 'records', 'created.json'),
+        h.now,
+        h.proof,
+        path.join(alias, 'trees'),
+      )
+      expect(opened.base).toBe(h.registry.base)
+      const temp = await new TreeTempRoots(opened.base, opened).create('tree')
+      expect(path.dirname(temp.root)).toBe(h.registry.base)
+      h.exit()
+      await temp.finish(false)
+      await expect(readFile(temp.root)).rejects.toMatchObject({ code: 'ENOENT' })
+    } finally {
+      await h.cleanup()
+    }
+  })
 })

@@ -78,12 +78,14 @@ export class CreatedRegistry {
       ))
         throw error
     }
-    const registry = new CreatedRegistry(file, base, now, proof)
+    // Initial OS aliases (macOS /var, Windows spelling) resolve once; later checks
+    // bind only the verified canonical base, never the supplied ancestor alias.
+    const registry = new CreatedRegistry(file, await realpath(base), now, proof)
     const sample = await lstatIdentity(base)
     registry.checkPrivate(sample, true)
     registry.baseIdentity = fileIdentityKey(sample)
-    if (registry.baseIdentity === undefined || (await realpath(base)) !== base)
-      throw new Error('Unsafe creation base')
+    if (registry.baseIdentity === undefined) throw new Error('Unsafe creation base')
+    await registry.verifyBase()
     try {
       const entries = z.array(entrySchema).parse(JSON.parse(await registry.checkManifest()))
       for (const entry of entries) {

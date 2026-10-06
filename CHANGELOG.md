@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   confinement and an ownership marker, and quarantines roots before removal.
   Linux pins the base directory during cleanup. Creation intent is saved before
   mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+  Initial OS temp ancestor aliases resolve to the verified canonical base,
+  supporting macOS temp paths without following those aliases during cleanup.
 - Checkpoint Git checks its storage volume and stays available at critical temp
   pressure without allocating a temp root. Admission abort/disposal no longer
   waits for sampling; stalled statfs publishes unknown readings within a bound.
