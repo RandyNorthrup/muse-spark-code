@@ -361,7 +361,9 @@ export interface ToolContext {
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
    */
-  readonly seen: Map<string, string>
+  readonly seen: ReadonlyMap<string, string>
+  /** Call-owned fingerprints; the dispatcher commits them with the result. */
+  readonly provisionalSeen: Map<string, string>
   /** Format on edit (M68); present only while it is on. */
   readonly formatter?: EditFormatter
   /** Captured owner admission, rechecked by the actual writer after its awaits. */
@@ -1197,7 +1199,7 @@ async function readFile(
   if (raw === undefined) {
     return { ...failure(`file not found: ${resolved.relative}`), touched }
   }
-  context.seen.set(resolved.absolute, fingerprint(raw))
+  context.provisionalSeen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
   const limit = Math.max(args.limit ?? READ_FILE_DEFAULT_LIMIT, 1)
@@ -1210,7 +1212,7 @@ async function readFile(
   const remaining = lines.length - (start + shown.length)
   const tail = remaining > 0 ? `\n[${String(remaining)} more lines]` : ''
   const body = `Read text file \`${resolved.relative}\`.\n${shown.join('\n')}${tail}`
-  // A refused read leaves no trace: the host forgets `seen` with the outcome.
+  // The dispatcher publishes this proof only together with the read result.
   return {
     output: clip(body),
     visibleOutput: clip(body),
@@ -1307,7 +1309,7 @@ async function publishText(
     writeAdmission(file, context),
   )
   const final = await formatWritten(written, file, context)
-  context.seen.set(file.absolute, fingerprint(final))
+  context.provisionalSeen.set(file.absolute, fingerprint(final))
   return final
 }
 

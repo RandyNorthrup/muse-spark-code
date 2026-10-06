@@ -835,7 +835,7 @@ interface PreparedToolCall {
   readonly started: ItemSnapshot
   readonly startedAt: number
   readonly selectionReason: string | undefined
-  seen: string | undefined
+  readonly provisionalSeen: Map<string, string>
 }
 
 interface ExecutedToolCall {
@@ -5904,6 +5904,7 @@ export class ModelApiSession implements AgentSession {
         signal: stop.signal,
         limit,
         seen: this.seenFiles,
+        provisionalSeen: new Map(),
         assertCanRun: () => {
           if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
             throw new AbortedError()
@@ -6025,13 +6026,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** One read-only tool call of a hook's agent turn; any other name is refused. */
-  private fileToolContext(signal: AbortSignal) {
+  private fileToolContext(signal: AbortSignal, provisionalSeen: Map<string, string>) {
     return {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
       io: this.toolWrites()?.io ?? this.deps.io,
       signal,
       seen: this.seenFiles,
+      provisionalSeen,
       files: this.policy().files,
     }
   }
@@ -6056,14 +6058,20 @@ export class ModelApiSession implements AgentSession {
       )
       return outcome.output
     }
-    const context = this.fileToolContext(signal)
-    const outcome = await executeTool(name, argsJson, {
-      ...context,
-      assertCanWrite: () => {
-        throw new AbortedError()
-      },
-    })
-    return outcome.output
+    // A hook agent's private reads never authorize the conversation's writes.
+    const provisionalSeen = new Map<string, string>()
+    try {
+      const outcome = await executeTool(name, argsJson, {
+        ...this.fileToolContext(signal, provisionalSeen),
+        assertCanWrite: () => {
+          throw new AbortedError()
+        },
+      })
+      signal.throwIfAborted()
+      return outcome.output
+    } finally {
+      provisionalSeen.clear()
+    }
   }
 
   /**
@@ -7225,6 +7233,7 @@ export class ModelApiSession implements AgentSession {
     isAllowed: CallAdmission,
     admission: Admission,
     turnId: string,
+    provisionalSeen: Map<string, string>,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -7290,7 +7299,7 @@ export class ModelApiSession implements AgentSession {
         const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
-            ...this.fileToolContext(signal),
+            ...this.fileToolContext(signal, provisionalSeen),
             assertCanWrite,
             ...(approvedTarget !== undefined && { approvedTarget }),
             ...(formatter !== undefined && { formatter }),
@@ -8603,6 +8612,7 @@ export class ModelApiSession implements AgentSession {
     shouldForceApproval: boolean,
     isAllowed: () => boolean,
     slot: AdmissionSlot,
+    provisionalSeen: Map<string, string>,
   ): Promise<CallResult> {
     const assertFirstWrite = this.editAdmission(call, isAllowed)
     const deps = this.codeIntelDeps()
@@ -8661,7 +8671,7 @@ export class ModelApiSession implements AgentSession {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
         io: this.toolWrites()?.io ?? this.deps.io,
-        seen: this.seenFiles,
+        provisionalSeen,
         signal,
         beforeAccess: (file) => {
           if (
@@ -8680,7 +8690,7 @@ export class ModelApiSession implements AgentSession {
         },
         onWritten: (file) => {
           hasWritten = true
-          this.noteEdited(file)
+          this.noteEdited(file, provisionalSeen)
         },
       })
       return {
@@ -8706,6 +8716,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     goalCommandRevision: number,
     slot: AdmissionSlot,
+    provisionalSeen: Map<string, string>,
     shouldForceApproval = false,
   ): Promise<CallResult> {
     // The Reviewer only reads (M70): a tool it names that is not one of its
@@ -8765,6 +8776,7 @@ export class ModelApiSession implements AgentSession {
         shouldForceApproval,
         isAllowed,
         slot,
+        provisionalSeen,
       )
     }
     if (
@@ -8939,6 +8951,7 @@ export class ModelApiSession implements AgentSession {
         isAllowed,
         admission,
         turnId,
+        provisionalSeen,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
@@ -8952,7 +8965,7 @@ export class ModelApiSession implements AgentSession {
     const isEdited =
       performed.outcome.patch !== undefined && performed.outcome.failureReason === undefined
     if (isEdited) {
-      this.noteEdited(target)
+      this.noteEdited(target, provisionalSeen)
     }
     const command = thenRunOf(call.arguments)
     if (command === undefined) {
@@ -8976,6 +8989,7 @@ export class ModelApiSession implements AgentSession {
         signal,
         shouldForceApproval,
         isAllowed,
+        provisionalSeen,
       )),
       isRejected: false,
     }
@@ -8986,17 +9000,20 @@ export class ModelApiSession implements AgentSession {
    * after this round, the runs on its earlier state no longer counting, and
    * remembered since the user's input.
    */
-  private noteEdited(target: {
-    readonly relative: string
-    readonly absolute: string
-    readonly canonical: string
-    readonly checkedAbsolute: string
-  }): void {
+  private noteEdited(
+    target: {
+      readonly relative: string
+      readonly absolute: string
+      readonly canonical: string
+      readonly checkedAbsolute: string
+    },
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): void {
     // By the real path and canonical name confinement found at the edit, with
     // what the edit left: nothing later follows a link retargeted since, and
     // the editor reads the file only while it still holds that (the Codex
     // review of PR #54).
-    const fingerprint = this.seenFiles.get(target.absolute)
+    const fingerprint = provisionalSeen.get(target.absolute)
     const file: EditedFile = {
       relative: target.canonical,
       absolute: target.checkedAbsolute,
@@ -9049,6 +9066,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     isForced: boolean,
     isAllowed: () => boolean,
+    provisionalSeen: ReadonlyMap<string, string>,
   ): Promise<Performed> {
     const effects = newHookEffects()
     // The state a check of the same command would start on, taken before it runs.
@@ -9070,7 +9088,7 @@ export class ModelApiSession implements AgentSession {
               description: THEN_RUN_DESCRIPTION,
               timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
               isForced,
-              guard: () => this.isAsEdited(target, isAllowed),
+              guard: () => this.isAsEdited(target, isAllowed, provisionalSeen),
             },
             signal,
             effects,
@@ -9138,7 +9156,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Whether the file still holds what the edit left: `then_run`'s guard (M68). */
-  private async isAsEdited(target: FormatTarget, isAllowed: () => boolean): Promise<boolean> {
+  private async isAsEdited(
+    target: FormatTarget,
+    isAllowed: () => boolean,
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): Promise<boolean> {
     if (!isAllowed() || this.policy().files.isDenied([target.relative, target.canonical]))
       return false
     let current: string | undefined
@@ -9152,7 +9174,7 @@ export class ModelApiSession implements AgentSession {
       isAllowed() &&
       !this.policy().files.isDenied([target.relative, target.canonical]) &&
       current !== undefined &&
-      fingerprint(current) === this.seenFiles.get(target.absolute)
+      fingerprint(current) === provisionalSeen.get(target.absolute)
     )
   }
 
@@ -9168,6 +9190,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
+    provisionalSeen?: ReadonlyMap<string, string>,
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -9187,7 +9210,6 @@ export class ModelApiSession implements AgentSession {
       ...(outcome.verifySummary !== undefined && { verifySummary: outcome.verifySummary }),
       ...(outcome.thenRun !== undefined && { thenRun: outcome.thenRun }),
     }
-    this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     const replay: ReplayItem = {
       turnId,
@@ -9198,6 +9220,10 @@ export class ModelApiSession implements AgentSession {
       },
     }
     this.replay.push(replay)
+    // No await or observer callback splits publication from its write proof.
+    if (provisionalSeen !== undefined)
+      for (const [absolute, hash] of provisionalSeen) this.seenFiles.set(absolute, hash)
+    this.emit({ type: 'itemCompleted', item: completed })
     const outputImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
     if (outputImages.length > 0) {
       this.pendingOutputMedia.set(replay, outputImages)
@@ -9319,6 +9345,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<PreparedToolCall> {
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
+    const provisionalSeen = new Map<string, string>()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
     // refused at admission, before any PreToolUse hook sees it, while the
     // declared tool list stays exactly as the model saw it (M91 lane E).
@@ -9375,7 +9402,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
-    return { call, effectiveCall, pre, started, startedAt, selectionReason, seen: undefined }
+    return { call, effectiveCall, pre, started, startedAt, selectionReason, provisionalSeen }
   }
 
   /** A hook's question or refusal is a barrier, even for a read-only name. */
@@ -9422,11 +9449,15 @@ export class ModelApiSession implements AgentSession {
       : JSON.stringify([[file.relative, file.canonical], fingerprint(raw)])
   }
 
-  private observedRepeatWitness(call: FunctionCallItem, outcome: ToolOutcome): string | undefined {
+  private observedRepeatWitness(
+    call: FunctionCallItem,
+    outcome: ToolOutcome,
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): string | undefined {
     if (this.deps.repeatResultWitness !== undefined)
       return this.deps.repeatResultWitness.observed(call, outcome)
     const { touched } = outcome
-    const seen = touched?.seen === undefined ? undefined : this.seenFiles.get(touched.seen)
+    const seen = touched?.seen === undefined ? undefined : provisionalSeen.get(touched.seen)
     return seen !== undefined && outcome.failureReason === undefined && this.canWitnessRead(call)
       ? JSON.stringify([touched?.names, seen])
       : undefined
@@ -9480,10 +9511,12 @@ export class ModelApiSession implements AgentSession {
               signal,
               goalCommandRevision,
               slot,
+              prepared.provisionalSeen,
               pre.forceApproval,
             )
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
     } catch (error: unknown) {
+      prepared.provisionalSeen.clear()
       if (error instanceof AbortedError || signal.aborted) {
         throw new AbortedError()
       }
@@ -9492,9 +9525,10 @@ export class ModelApiSession implements AgentSession {
       // about, not the end of the turn.
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
+    if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
+      prepared.provisionalSeen.clear()
     if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')
       signal.throwIfAborted()
-    prepared.seen = result.outcome.touched?.seen
     return { result, slot, isParallelExecution, isRepeatSuppressed: false, isRepeatStopped: false }
   }
 
@@ -9507,6 +9541,28 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
+    try {
+      return await this.settlePreparedCall(
+        turnId,
+        prepared,
+        executed,
+        signal,
+        goalCommandRevision,
+        correctionsUsed,
+      )
+    } finally {
+      prepared.provisionalSeen.clear()
+    }
+  }
+
+  private async settlePreparedCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    executed: PromiseSettledResult<ExecutedToolCall>,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    correctionsUsed: number,
+  ): Promise<HookToolResult> {
     const { call, effectiveCall, pre, started, startedAt, selectionReason } = prepared
     const isNativeRead =
       isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp'
@@ -9514,7 +9570,7 @@ export class ModelApiSession implements AgentSession {
       executed.status === 'rejected' ||
       (signal.aborted && (isNativeRead || executed.value.isParallelExecution))
     ) {
-      if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
+      prepared.provisionalSeen.clear()
       this.finishCall(
         turnId,
         started,
@@ -9530,7 +9586,7 @@ export class ModelApiSession implements AgentSession {
     const checkStopped = () => {
       if (isCommitted || !signal.aborted || (!isNativeRead && !executed.value.isParallelExecution))
         return
-      if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
+      prepared.provisionalSeen.clear()
       this.finishCall(
         turnId,
         started,
@@ -9578,7 +9634,17 @@ export class ModelApiSession implements AgentSession {
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
       }
-      attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
+      attemptReplay = this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        outcome,
+        status,
+        outcome.failureReason === undefined && !signal.aborted
+          ? prepared.provisionalSeen
+          : undefined,
+      )
+      prepared.provisionalSeen.clear()
       isCommitted = true
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
@@ -9596,7 +9662,11 @@ export class ModelApiSession implements AgentSession {
     this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
     let repeatWitness: string | undefined
     try {
-      repeatWitness = this.observedRepeatWitness(effectiveCall, outcome)
+      repeatWitness = this.observedRepeatWitness(
+        effectiveCall,
+        outcome,
+        executed.value.isParallelExecution ? prepared.provisionalSeen : this.seenFiles,
+      )
     } catch {
       // A failed proof leaves this call eligible to run again.
     }
@@ -9907,29 +9977,14 @@ export class ModelApiSession implements AgentSession {
     if (turn.steered.length > 0) this.repeatGuard.reset()
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
-    for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
-      // Admitted user input (M68): the fix loop, rejections and runs start
-      // afresh; what the conversation wrote stays until the next message. A
-      // subagent's steers come from its parent model, not the user.
-      if (!this.isSubagent) {
-        this.ledger.resetForSteer()
-      }
+    while (turn.steered.length > 0) {
+      const steer = turn.steered[0]
+      if (steer === undefined) break
+      const { parts, userMessageId: itemId } = steer
       const text = typedText(parts)
       const replayStart = this.replay.length
-      this.replay.push({
-        turnId: turn.turnId,
-        userMessageId: itemId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
-            ...this.contentParts(parts),
-          ],
-        },
-      })
       const attachments = attachmentsOf(parts)
-      this.recordTranscript(turn.turnId, {
+      const row: ItemSnapshot = {
         itemId,
         kind: 'userMessage',
         status: COMPLETED,
@@ -9937,8 +9992,46 @@ export class ModelApiSession implements AgentSession {
         text,
         ...(attachments.length > 0 && { attachments }),
         recordedAt: this.recordedNow(),
-      })
-      await this.expandSkillsForHooks(turn.turnId, parts, replayStart, turn.abort.signal)
+      }
+      try {
+        turn.abort.signal.throwIfAborted()
+        this.replay.push({
+          turnId: turn.turnId,
+          userMessageId: itemId,
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
+              ...this.contentParts(parts),
+            ],
+          },
+        })
+        await this.expandSkillsForHooks(turn.turnId, parts, replayStart, turn.abort.signal)
+        turn.abort.signal.throwIfAborted()
+        // Admitted user input starts the fix loop afresh (M68); a subagent's
+        // steers come from its parent model rather than the user.
+        if (turn.steered[0] === steer && !this.isSubagent) this.ledger.resetForSteer()
+      } catch (error: unknown) {
+        this.replay.splice(replayStart)
+        // Only a definitive refusal consumes the head; every other failure
+        // leaves it and the untouched tail for common finalization promotion.
+        if (error instanceof HookStoppedError && turn.steered[0] === steer) {
+          const refused = { ...row, status: REJECTED, failureReason: describe(error) }
+          this.recordTranscript(turn.turnId, refused)
+          turn.steered.shift()
+          turn.acceptedTextAttachmentBytes -= textAttachmentBytes(parts)
+          this.emit({ type: 'itemCompleted', item: refused })
+        }
+        throw error
+      }
+      // Withdrawal during the hook await owns this message instead.
+      if (turn.steered[0] !== steer) {
+        this.replay.splice(replayStart)
+        continue
+      }
+      this.recordTranscript(turn.turnId, row)
+      turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
       if (!this.isSubagent) {
         this.emit({ type: 'messageAdmitted', userMessageId: itemId })
@@ -10444,7 +10537,7 @@ export class ModelApiSession implements AgentSession {
           skip: (call, prepared) => {
             if (prepared === undefined) this.skipCalls(turn.turnId, [call], skipReason)
             else {
-              if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
+              prepared.provisionalSeen.clear()
               this.finishCall(
                 turn.turnId,
                 prepared.started,

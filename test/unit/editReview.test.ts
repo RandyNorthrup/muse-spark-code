@@ -812,6 +812,7 @@ describe('EditReview for the review pane (M70)', () => {
       platform: 'linux' as const,
       io,
       seen: new Map<string, string>(),
+      provisionalSeen: new Map<string, string>(),
     }
     await executeTool('read_file', '{"path":"notes.md"}', context)
     const hunks: unknown[] = []

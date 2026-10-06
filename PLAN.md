@@ -19407,6 +19407,25 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**L2 second review repair (FIXM106L22, 2026-10-06).** Close both
+RVM106L22 P2 findings by construction. The steering buffer owns each accepted
+message until admission or a definitive refusal recorded against its id;
+process only its head, retaining the unprocessed tail on every throw for
+next-turn promotion. File fingerprints remain in a call-owned provisional
+map from call creation through execution/settlement, and enter the session
+only synchronously with the successful result's transcript/replay commit.
+Cancellation, detachment, refusal and exceptions discard that map. Audit
+every tool proof writer (including edits/rename and hook-agent reads), test
+the exact expansion refusal and two-microtask Stop races with concurrency
+off/on, retain the completed-read/write control and golden request bytes,
+and record byte-exact red drills in `docs/certification/m106-l2.md`.
+The proof-writer audit also requires the existing rename adapter in
+`codeIntelCalls.ts` and mechanical context updates in its
+`codeIntelPolicy.test.ts` and `editReview.test.ts` consumers; no unrelated
+behavior or ownership region changes.
+Both findings must be fixed; no review residual is accepted. Lane ownership,
+default timeouts, no live/paid calls and existing W gate handoffs still apply.
+
 **L2 review repair (FIXM106L2, 2026-10-06).** Repair all four RVM106L2
 P2 findings: preserve accepted steering on every turn exit with normal
 next-turn admission; discard speculative results and seen-file proofs when
@@ -20062,7 +20081,7 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
-**FIXM106L2 bounded review repairs (2026-10-06).** The rig/shared brief
+**FIXM106L2 / FIXM106L22 bounded review repairs (2026-10-06).** The rig/shared brief
 prohibits aggregate `npm run quality` and requires scoped tests, at most
 three files/three workers per run, with the repository timeout. Run the
 focused regressions, typecheck, changed-file lint/format, localization,
@@ -21247,7 +21266,7 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **FIXM106L2-W-integration (lane L2, 2026-10-06).** All four RVM106L2 P2
-  findings are repaired, with fake-only regressions and byte-exact red
+  findings and both RVM106L22 P2 findings are repaired, with fake-only regressions and byte-exact red
   drills. No review finding is left. The original W handoffs remain:
   capability/settings bindings across hosts, the trusted-witness policy
   decision, integrated CHANGELOG/README/feature-reference updates, and

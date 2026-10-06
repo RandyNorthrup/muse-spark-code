@@ -13,9 +13,15 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { fakeModelApi, fakeModelApiClientSettings, TINY_PNG_BASE64 } from './helpers/fakeModelApi'
+import {
+  fakeModelApi,
+  fakeModelApiClientSettings,
+  TINY_PNG_BASE64,
+  type ScriptedReply,
+} from './helpers/fakeModelApi'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
+import { memoryContextIo } from './helpers/fakeContextIo'
 import { startWatchedSession } from './helpers/sessionTurns'
 
 const ROOT = '/ws'
@@ -52,10 +58,73 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
   return { api, io, host, rawBodies, ...watched }
 }
 
+async function setupSkillSteering() {
+  const hooks = parseSparkHooksConfig(
+    '{"hooks":{"UserPromptExpansion":[{"hooks":[{"type":"command","command":"veto"}]}]}}',
+    'project',
+    'linux',
+  ).hooks
+  return await setup({
+    contextIo: memoryContextIo(
+      new Map([
+        [
+          '/ws/.agents/skills/shout/SKILL.md',
+          '---\nname: shout\ndescription: Repeat in caps\n---\nUPPER CASE.',
+        ],
+      ]),
+    ),
+    loadExtensionHooks: () => Promise.resolve(hooks),
+    isHooksEnabled: () => true,
+  })
+}
+
+async function beginHeldReply(
+  rig: Awaited<ReturnType<typeof setup>>,
+  ...following: readonly ScriptedReply[]
+) {
+  const held = Promise.withResolvers<undefined>()
+  const requested = Promise.withResolvers<undefined>()
+  rig.api.script(
+    {
+      text: 'First reply.',
+      hold: held.promise,
+      onRequest() {
+        requested.resolve(undefined)
+      },
+    },
+    ...following,
+  )
+  const turn = await rig.session.sendTurn([{ type: 'text', text: 'Work.' }])
+  await requested.promise
+  return {
+    turnId: turn.turnId,
+    release: () => {
+      held.resolve(undefined)
+    },
+  }
+}
+
 async function send(rig: Awaited<ReturnType<typeof setup>>) {
   const done = rig.turnDone()
   await rig.session.sendTurn([{ type: 'text', text: 'Work.' }])
   await done
+}
+
+async function attemptOverwrite(rig: Awaited<ReturnType<typeof setup>>) {
+  rig.api.script(
+    {
+      calls: [
+        {
+          name: 'write_file',
+          arguments: '{"path":"0.txt","content":"OVERWRITTEN"}',
+          callId: 'write',
+        },
+      ],
+    },
+    { text: 'Write answered.' },
+  )
+  await send(rig)
+  return JSON.stringify(rig.api.responseBodies().at(-1)?.['input'])
 }
 
 function repeatReplies(onRequest?: (id: number) => void) {
@@ -254,6 +323,108 @@ describe('M106 loop guarantees', () => {
       )
       await rig.host.close()
     }
+  })
+
+  it('preserves later accepted steering when a skill expansion is refused', async () => {
+    const rig = await setupSkillSteering()
+    rig.io.runHook = () =>
+      Promise.resolve(hookResult('{"decision":{"behavior":"deny","message":"not now"}}'))
+    const submitted = await beginHeldReply(rig, { text: 'Steering answered.' })
+    const refused = await rig.session.steer(submitted.turnId, [
+      { type: 'skill', selector: 'shout', arguments: 'hello' },
+    ])
+    const plain = await rig.session.steer(submitted.turnId, [
+      { type: 'text', text: 'SURVIVING_PLAIN_STEERING' },
+    ])
+    expect(refused.disposition).toBe('steered')
+    expect(plain.disposition).toBe('steered')
+    submitted.release()
+    await rig.session.settled()
+    expect(rig.api.responseBodies()).toHaveLength(2)
+    const next = JSON.stringify(rig.api.responseBodies()[1]?.['input'])
+    expect(next).toContain('SURVIVING_PLAIN_STEERING')
+    expect(next).not.toContain('UPPER CASE.')
+    expect(rig.session.history().items).toContainEqual(
+      expect.objectContaining({
+        itemId: refused.userMessageId,
+        kind: 'userMessage',
+        status: 'rejected',
+        failureReason: 'A hook refused /shout: not now',
+      }),
+    )
+    expect(rig.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({
+          itemId: refused.userMessageId,
+          status: 'rejected',
+        }),
+      }),
+    )
+    const reassigned = rig.events.find(
+      (event) =>
+        event.type === 'userMessageTurnChanged' && event.userMessageId === plain.userMessageId,
+    )
+    if (reassigned?.type !== 'userMessageTurnChanged') throw new Error('missing reassignment')
+    expect(rig.events).toContainEqual({ type: 'turnStarted', turnId: reassigned.turnId })
+    expect(rig.session.history().items).toContainEqual(
+      expect.objectContaining({
+        itemId: plain.userMessageId,
+        text: 'SURVIVING_PLAIN_STEERING',
+        status: 'completed',
+      }),
+    )
+    await rig.host.close()
+  })
+
+  it('promotes the unprocessed steering head and tail when Stop interrupts skill hooks', async () => {
+    const rig = await setupSkillSteering()
+    const expansion = Promise.withResolvers<undefined>()
+    const hookHeld = Promise.withResolvers<undefined>()
+    let runs = 0
+    rig.io.runHook = async () => {
+      runs += 1
+      if (runs === 1) {
+        expansion.resolve(undefined)
+        await hookHeld.promise
+      }
+      return hookResult('')
+    }
+    const submitted = await beginHeldReply(
+      rig,
+      { text: 'Skill answered.' },
+      { text: 'Plain answered.' },
+    )
+    const skill = await rig.session.steer(submitted.turnId, [
+      { type: 'skill', selector: 'shout', arguments: 'hello' },
+    ])
+    const plain = await rig.session.steer(submitted.turnId, [
+      { type: 'text', text: 'SURVIVING_STOP_STEERING' },
+    ])
+    submitted.release()
+    await expansion.promise
+    await rig.session.cancel()
+    hookHeld.resolve(undefined)
+    await rig.session.settled()
+    expect(rig.api.responseBodies()).toHaveLength(3)
+    expect(JSON.stringify(rig.api.responseBodies()[1]?.['input'])).toContain('UPPER CASE.')
+    expect(JSON.stringify(rig.api.responseBodies()[2]?.['input'])).toContain(
+      'SURVIVING_STOP_STEERING',
+    )
+    expect(
+      rig.events
+        .filter((event) => event.type === 'userMessageTurnChanged')
+        .map((event) => event.userMessageId),
+    ).toEqual([skill.userMessageId, plain.userMessageId])
+    for (const id of [skill.userMessageId, plain.userMessageId]) {
+      const reassigned = rig.events.find(
+        (event) => event.type === 'userMessageTurnChanged' && event.userMessageId === id,
+      )
+      if (reassigned?.type !== 'userMessageTurnChanged') throw new Error('missing reassignment')
+      expect(rig.events).toContainEqual({ type: 'turnStarted', turnId: reassigned.turnId })
+      expect(rig.session.history().items.filter((item) => item.itemId === id)).toHaveLength(1)
+    }
+    await rig.host.close()
   })
 
   it('suppresses the third unchanged text read, stops the fourth and resets for a new turn', async () => {
@@ -616,6 +787,113 @@ describe('M106 loop guarantees', () => {
     expect(JSON.stringify(rig.api.responseBodies().at(-1)?.['input'])).toContain(
       MODEL_API_MODEL_TEXT.fileChangedSinceRead,
     )
+    await rig.host.close()
+  })
+
+  it.each([false, true])(
+    'drops provisional text-read proofs when Stop lands two microtasks after native resolution (parallel %s)',
+    async (isParallel) => {
+      const rig = await setup({ parallelReads: () => isParallel })
+      rig.io.files.set('/ws/0.txt', 'ORIGINAL')
+      const originalRead = rig.io.readFile
+      rig.io.readFile = (absolute, expected, signal) => {
+        const resolved = originalRead(absolute, expected, signal)
+        if (absolute.replaceAll('\\', '/') === '/ws/0.txt')
+          queueMicrotask(() => {
+            queueMicrotask(() => {
+              void rig.session.cancel()
+            })
+          })
+        return resolved
+      }
+      rig.api.script({ calls: [read(0)] })
+      await send(rig)
+      const rows = rig.session.history().items.filter((item) => item.kind === 'toolCall')
+      expect(rows).toHaveLength(1)
+      expect(rows[0]?.status).toBe('cancelled')
+      expect(rig.session).toHaveProperty('seenFiles.size', 0)
+      expect(JSON.stringify(rig.session.history().items)).not.toContain('1|ORIGINAL')
+      rig.io.readFile = originalRead
+      const next = await attemptOverwrite(rig)
+      expect(rig.io.files.get('/ws/0.txt')).toBe('ORIGINAL')
+      expect(next).not.toContain('1|ORIGINAL')
+      expect(next).toContain(MODEL_API_MODEL_TEXT.fileChangedSinceRead)
+      await rig.host.close()
+    },
+  )
+
+  it.each([false, true])(
+    'commits completed read proofs with replay and authorizes a later write (parallel %s)',
+    async (isParallel) => {
+      const rig = await setup({ parallelReads: () => isParallel })
+      const proofsAtCompletion: number[] = []
+      const subscription = rig.session.onEvent((event) => {
+        if (
+          event.type !== 'itemCompleted' ||
+          event.item.tool !== 'read_file' ||
+          event.item.status !== 'completed'
+        )
+          return
+        expect(rig.session).toHaveProperty('seenFiles.size', 1)
+        expect(rig.session.history().items).toContainEqual(
+          expect.objectContaining({
+            itemId: event.item.itemId,
+            status: 'completed',
+            visibleOutput: expect.stringContaining('1|first'),
+          }),
+        )
+        expect(rig.session).toHaveProperty(
+          'replay',
+          expect.arrayContaining([
+            expect.objectContaining({
+              item: expect.objectContaining({
+                type: 'function_call_output',
+                call_id: 'c0',
+                output: expect.stringContaining('1|first'),
+              }),
+            }),
+          ]),
+        )
+        proofsAtCompletion.push(1)
+      })
+      rig.api.script({ calls: [read(0)] }, { text: 'Read complete.' })
+      await send(rig)
+      expect(proofsAtCompletion).toEqual([1])
+      await attemptOverwrite(rig)
+      expect(rig.io.files.get('/ws/0.txt')).toBe('OVERWRITTEN')
+      expect(rig.session.history().items).toContainEqual(
+        expect.objectContaining({
+          tool: 'write_file',
+          status: 'completed',
+        }),
+      )
+      subscription()
+      await rig.host.close()
+    },
+  )
+
+  it('keeps hook-agent read proofs private so they cannot authorize conversation writes', async () => {
+    const hooks = parseHookConfig(
+      '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"agent","prompt":"Check the prompt."}]}]}}',
+      'project',
+      'linux',
+    ).hooks
+    expect(hooks).toHaveLength(1)
+    let isEnabled = true
+    const rig = await setup({
+      loadHooks: () => Promise.resolve(hooks),
+      isHooksEnabled: () => isEnabled,
+      isPaidFeatureOn: (feature) => feature === 'hookModels',
+      allowsPaidUse: () => Promise.resolve(true),
+    })
+    rig.api.script({ calls: [read(0)] }, { text: '{}' }, { text: 'Main reply.' })
+    await send(rig)
+    expect(JSON.stringify(rig.api.responseBodies()[1]?.['input'])).toContain('1|first')
+    expect(rig.session).toHaveProperty('seenFiles.size', 0)
+    isEnabled = false
+    const next = await attemptOverwrite(rig)
+    expect(rig.io.files.get('/ws/0.txt')).toBe('first')
+    expect(next).toContain(MODEL_API_MODEL_TEXT.fileChangedSinceRead)
     await rig.host.close()
   })
 

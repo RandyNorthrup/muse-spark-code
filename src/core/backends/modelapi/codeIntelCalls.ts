@@ -110,8 +110,8 @@ export interface RenameWriteContext {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
-  /** The session's fingerprints of what the model last read or wrote (D27). */
-  readonly seen: Map<string, string>
+  /** Call-owned write fingerprints, committed by the dispatcher with its result. */
+  readonly provisionalSeen: Map<string, string>
   /** The turn's: a Stop before the first write writes nothing. */
   readonly signal: AbortSignal
   /** The Model API's live file policy, before each disk read and write. */
@@ -271,7 +271,7 @@ export async function applyRename(
       )
     }
     written.push(file)
-    context.seen.set(result.key, fingerprint(file.after))
+    context.provisionalSeen.set(result.key, fingerprint(file.after))
     context.onWritten?.(file)
   }
   const output = fill(MODEL_API_MODEL_TEXT.renameDone, {
