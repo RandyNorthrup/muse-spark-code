@@ -12,6 +12,10 @@ happened, not what was planned; superseded entries are kept.
 - An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
   1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
   unchanged package and startup budgets, and side-load installation guidance.
+- A validated optional Arduino board-selection reader and an Arduino IDE
+  host job running every integration test. The first real IDE run loaded the
+  extension and passed 21 of 34 tests; 13 host compatibility failures remain
+  recorded, so Arduino qualification is incomplete.
 
 ### Fixed
 

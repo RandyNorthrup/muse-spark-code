@@ -326,12 +326,31 @@ from Open VSX or a `.vsix`.
 
 ### Install in your editor
 
+Get it from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
+[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
+[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
+(both the `.vsix` and the agent's `.tgz`).
+
+| Editor                                                   | How                                                                                                                                                                                                                                                |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
+| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.13.0.vsix` |
+| **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
+| **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
+| **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
+| **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
 #### Arduino IDE 2.3.x
 
-Use the release asset ending in **`-arduino.vsix`**. It is the same Muse
+The experimental Arduino package ends in **`-arduino.vsix`**. It is the same Muse
 Spark Code (Unofficial) product, built for Arduino IDE's VS Code API 1.96,
 Node 20.14 and Chromium 124. Arduino supports themes officially; this full
 extension is an unsupported side-load. There is no extension store in the IDE.
+Qualification is still incomplete: the real IDE loaded the extension, but
+13 of 34 integration tests failed in language services, tabs, walkthroughs
+and machine-scoped settings. See [the Arduino certification record](docs/certification/m103-a.md)
+before using this experimental package.
 
 Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
 `~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
@@ -360,20 +379,7 @@ regular project's declarations. Packaging runs the regular bundle-size,
 split, host-global, notices, localization and VSIX-size gates. The regular
 VS Code and ACP builds retain their existing floors.
 
-Get it from the
-[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code),
-[Open VSX](https://open-vsx.org/extension/RandyNorthrup/muse-spark-code) or
-[GitHub Releases](https://github.com/RandyNorthrup/muse-spark-code/releases)
-(both the `.vsix` and the agent's `.tgz`).
-
-| Editor                                                   | How                                                                                                                                                                                                                                                |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **VS Code**                                              | Search **Muse Spark Code** in the Extensions view, or run `code --install-extension RandyNorthrup.muse-spark-code`                                                                                                                                 |
-| **Cursor**                                               | Search **Muse Spark Code** in the Extensions view (Open VSX), or download the `.vsix` from the [latest release](https://github.com/RandyNorthrup/muse-spark-code/releases/latest) and run `cursor --install-extension muse-spark-code-0.13.0.vsix` |
-| **Windsurf (Devin Desktop), VSCodium, Kiro, Positron**   | Search **Muse Spark Code** in the Extensions view (Open VSX); in VSCodium also `codium --install-extension RandyNorthrup.muse-spark-code`. Any of them: **Extensions: Install from VSIX…** with the release's `.vsix`                              |
-| **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
-| **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
-| **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+#### ACP agent and editors
 
 **The ACP agent** needs Node.js 22 or later. Install it from the release:
 
