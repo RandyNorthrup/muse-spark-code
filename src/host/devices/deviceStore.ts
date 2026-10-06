@@ -174,40 +174,52 @@ export class DeviceStore {
     return await this.ordered(async () => await this.readNow())
   }
   public async update(change: (state: DeviceStoreState) => DeviceStoreState): Promise<void> {
-    const operation = this.ordered(async () => {
+    await this.ordered(async () => {
       const before = await this.readNow()
-      const after = stateSchema.parse(change(structuredClone(before)))
-      validateState(after)
-      if (
-        after.deviceId !== before.deviceId ||
-        before.usedInvitationIds.some((value) => !after.usedInvitationIds.includes(value)) ||
-        before.revokedPairIds.some((value) => !after.revokedPairIds.includes(value))
-      )
-        throw new DevicePairingError('storage')
-      const bytes = Buffer.from(JSON.stringify(after))
-      if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DevicePairingError('storage')
-      const stage = path.join(
-        this.directory,
-        `.${randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')}.stage`,
-      )
-      const handle = await open(stage, 'wx', Number('0o600'))
+      let candidate: DeviceStoreState
       try {
-        await this.checkPrivate(stage, false)
-        await handle.writeFile(bytes)
-        await handle.sync()
-        await checkDirectory(this.directory, this.protection)
-        await rename(stage, path.join(this.directory, 'pairs.json'))
-        await this.syncDirectory()
-      } finally {
-        await handle.close()
+        candidate = change(structuredClone(before))
+      } catch (error) {
+        // Only typed pre-write policy refusals leave the storage lane usable.
+        if (
+          error instanceof DevicePairingError &&
+          ['revoked', 'unpaired', 'grant'].includes(error.reason)
+        )
+          throw error
+        this.hasFailed = true
+        throw new DevicePairingError('storage')
+      }
+      try {
+        const after = stateSchema.parse(candidate)
+        validateState(after)
+        if (
+          after.deviceId !== before.deviceId ||
+          before.usedInvitationIds.some((value) => !after.usedInvitationIds.includes(value)) ||
+          before.revokedPairIds.some((value) => !after.revokedPairIds.includes(value))
+        )
+          throw new DevicePairingError('storage')
+        const bytes = Buffer.from(JSON.stringify(after))
+        if (bytes.length > DEVICE_LIMITS.journalBytes) throw new DevicePairingError('storage')
+        const stage = path.join(
+          this.directory,
+          `.${randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')}.stage`,
+        )
+        const handle = await open(stage, 'wx', Number('0o600'))
+        try {
+          await this.checkPrivate(stage, false)
+          await handle.writeFile(bytes)
+          await handle.sync()
+          await checkDirectory(this.directory, this.protection)
+          await rename(stage, path.join(this.directory, 'pairs.json'))
+          await this.syncDirectory()
+        } finally {
+          await handle.close()
+        }
+      } catch {
+        this.hasFailed = true
+        throw new DevicePairingError('storage')
       }
     })
-    try {
-      await operation
-    } catch {
-      this.hasFailed = true
-      throw new DevicePairingError('storage')
-    }
   }
   public async close(): Promise<void> {
     await this.queue

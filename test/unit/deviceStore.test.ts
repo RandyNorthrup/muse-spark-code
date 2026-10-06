@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os'
 import type * as FileSystem from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
+import { DevicePairingError } from '../../src/core/devices/pairing'
 import { removeDeviceFixture } from './helpers/deviceFixtures'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 
@@ -37,6 +38,55 @@ async function create() {
 }
 
 describe('private nonsync device store', () => {
+  it.each(['revoked', 'grant', 'unpaired'] as const)(
+    'preserves the %s policy refusal without poisoning subsequent reads or writes',
+    async (reason) => {
+      const { store, directory } = await create()
+      const before = await readFile(path.join(directory, 'pairs.json'))
+      await expect(
+        store.update((state) => {
+          state.usedInvitationIds.push('b'.repeat(32))
+          throw new DevicePairingError(reason)
+        }),
+      ).rejects.toThrow(reason)
+      expect(await readFile(path.join(directory, 'pairs.json'))).toEqual(before)
+      const refused = await store.read()
+      expect(refused.usedInvitationIds).toEqual([])
+      await store.update((state) => {
+        state.usedInvitationIds.push('c'.repeat(32))
+        return state
+      })
+      const updated = await store.read()
+      expect(updated.usedInvitationIds).toEqual(['c'.repeat(32)])
+    },
+  )
+  it('latches an unexpected update callback failure with only the storage reason', async () => {
+    const { store, directory } = await create()
+    const before = await readFile(path.join(directory, 'pairs.json'))
+    await expect(
+      store.update(() => {
+        throw new Error('private-callback-sentinel')
+      }),
+    ).rejects.toThrow(/^storage$/)
+    expect(await readFile(path.join(directory, 'pairs.json'))).toEqual(before)
+    await expect(store.read()).rejects.toThrow('storage')
+  })
+  it('latches a persistence failure even when it carries a policy error type', async () => {
+    const syncDirectory = vi.fn(() => Promise.resolve())
+    const store = await DeviceStore.create(path.join(fixture.parent, 'devices'), 'a'.repeat(32), {
+      assertPrivate: () => Promise.resolve(),
+      syncDirectory,
+    })
+    stores.push(store)
+    syncDirectory.mockRejectedValueOnce(new DevicePairingError('grant'))
+    await expect(
+      store.update((state) => {
+        state.usedInvitationIds.push('b'.repeat(32))
+        return state
+      }),
+    ).rejects.toThrow(/^storage$/)
+    await expect(store.read()).rejects.toThrow('storage')
+  })
   it('requires explicit initialization and durably persists state across close/reopen', async () => {
     const directory = path.join(fixture.parent, 'devices')
     await expect(DeviceStore.open(directory)).rejects.toThrow('storage')

@@ -576,7 +576,7 @@ it('disconnects and blocks a requested pair even when damaged metadata prevents 
 })
 it('refuses a grant assigned to another executing device and a non-increasing grant revision', async () => {
   const { a, grant } = await offeredPair()
-  await expect(a.adapter.grant(grant)).rejects.toThrow('storage')
+  await expect(a.adapter.grant(grant)).rejects.toThrow('grant')
   const c = await harness('c')
   const d = await harness('d')
   const other = await pairHosts(c, d)
@@ -589,9 +589,7 @@ it('refuses a grant assigned to another executing device and a non-increasing gr
       return next
     })
   })
-  await expect(c.adapter.grant(deviceGrant(other.pairId, 'a'.repeat(32)))).rejects.toThrow(
-    'storage',
-  )
+  await expect(c.adapter.grant(deviceGrant(other.pairId, 'a'.repeat(32)))).rejects.toThrow('grant')
   expect(scopeChanged).not.toHaveBeenCalled()
 })
 
@@ -652,10 +650,57 @@ it('does not reactivate another receiver incarnation’s durable offers after re
   expect(a.secretStore.get).not.toHaveBeenCalled()
   const staleOwner = structuredClone(old)
   staleOwner.offer.grantRevision = 2
-  await expect(next.grant(staleOwner)).rejects.toThrow('storage')
+  await expect(next.grant(staleOwner)).rejects.toThrow('grant')
   const state = await readFile(path.join(a.directory, 'pairs.json'), 'utf8')
   expect(state).toContain(paired.pairId)
 })
+
+it.each(['stale-pause', 'unknown-pause', 'duplicate-grant', 'stale-grant'] as const)(
+  'keeps unrelated A–C authorizable after an A–B %s policy refusal',
+  async (kind) => {
+    const a = await harness('a')
+    const first = await pairHosts(a, await harness('b'))
+    const second = await pairHosts(a, await harness('c'))
+    const original = deviceGrant(first.pairId)
+    const unrelated = deviceGrant(second.pairId)
+    await a.adapter.grant(original)
+    await a.adapter.grant(unrelated)
+    let reason: string | undefined
+    let expectedReason = 'grant'
+    if (kind === 'stale-pause') {
+      expect(await a.act({ kind: 'unlink', pairId: first.pairId })).not.toHaveProperty('failure')
+      const result = await a.act({ kind: 'pauseOffers', pairId: first.pairId })
+      reason = result.failure
+      expectedReason = 'revoked'
+    } else if (kind === 'unknown-pause') {
+      const result = await a.act({ kind: 'pauseOffers', pairId: '0'.repeat(32) })
+      reason = result.failure
+      expectedReason = 'unpaired'
+    } else {
+      if (kind === 'stale-grant') {
+        const next = structuredClone(original)
+        next.offer.grantRevision = 2
+        await a.adapter.grant(next)
+      }
+      const result = await Promise.allSettled([a.adapter.grant(original)])
+      expect(result[0]).toMatchObject({ status: 'rejected' })
+      if (result[0].status === 'rejected') {
+        const error: unknown = result[0].reason
+        reason = error instanceof Error ? error.message : undefined
+      }
+    }
+    let canAuthorize = true
+    try {
+      await a.adapter.authorize(second.peer.fingerprint, deviceCheck(unrelated))
+    } catch {
+      canAuthorize = false
+    }
+    expect({ reason, canAuthorize }).toEqual({
+      reason: expectedReason,
+      canAuthorize: true,
+    })
+  },
+)
 
 it('serializes an in-progress native identity read with replacement so ordinary updates do not poison storage', async () => {
   const entered = Promise.withResolvers<boolean>()

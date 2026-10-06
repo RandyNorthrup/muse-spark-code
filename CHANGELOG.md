@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M100's device store keeps expected pairing/grant policy refusals distinct
+  from persistence failures, preserving unrelated pairs after stale requests.
 - M100's pairing/storage test fixtures create and clean their own OS temporary
   directories, so a clean worktree does not need an ignored `temp/` directory.
 
