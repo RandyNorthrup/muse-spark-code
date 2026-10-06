@@ -950,6 +950,37 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
+// M105 / D85: portable media contracts. These are our bounds and defaults,
+// not evidence that a model supports a modality or that storage is free.
+export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
+export const MEDIA_FILE_EXPIRY_MIN_S = 3600
+export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
+export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
+export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
+export const MEDIA_MAX_UPLOAD_MIB = 1024
+export const MEDIA_NAME_MAX_CHARS = 256
+export const MEDIA_ID_MAX_CHARS = 256
+export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
+export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
+export const MEDIA_AUDIO_ACTIONS = [
+  'transcribe',
+  'useSoundtrackModel',
+  'sendWithoutSound',
+  'wrapAsVideo',
+  'sendAudio',
+] as const
+export const MEDIA_CONTRIBUTOR_CHOICES = ['send', 'useStandard', 'remove'] as const
+export const MEDIA_UPLOAD_EXPIRY_SETTING = 'museSpark.mediaUploadExpiryDays'
+export const MEDIA_MAX_UPLOAD_SETTING = 'museSpark.mediaMaxUploadMiB'
+export const MEDIA_AUDIO_ACTION_SETTING = 'museSpark.mediaAudioAction'
+export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMaxSeconds'
+export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
+export const SCREEN_RECORDING_MIN_SECONDS = 10
+export const SCREEN_RECORDING_MAX_SECONDS = 600
+export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
+
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference (dev.meta.ai/docs/file-handling, read
 // 2026-09-25), sent inline as `input_file`, never uploaded. 32 MB encodes
