@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep signed-out `/legal` keyboard navigation free of spurious sign-in
+  warnings by requesting authenticated skills only after sign-in.
+
 - Skip unavailable Python launchers when compressing the VSIX on Windows,
   so a Microsoft Store alias cannot hide an installed interpreter. Preserve
   real compression failures and the existing archive-content checks.

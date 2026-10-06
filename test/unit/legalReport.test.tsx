@@ -162,6 +162,27 @@ function expectSelection(
 }
 
 describe('the legal report (M97 lane W)', () => {
+  it('opens the signed-out legal slash command without requesting authenticated skills', () => {
+    const postMessage = renderReady()
+    deliver({ type: 'authState', status: 'signedOut' })
+    const prompt = screen.getByRole('textbox', { name: 'Message Muse' })
+    fireEvent.change(prompt, { target: { value: '/legal' } })
+    expect(posted(postMessage, 'listSkills')).toEqual([])
+    fireEvent.keyDown(prompt, { key: 'Enter' })
+    fireEvent.keyDown(prompt, { key: 'Enter' })
+    expect(posted(postMessage, 'requestLegalScan')).toEqual([
+      { type: 'requestLegalScan', input: {} },
+    ])
+    expect(posted(postMessage, 'sendMessage')).toEqual([])
+  })
+
+  it('still requests skills when the signed-in legal slash menu opens', () => {
+    const postMessage = renderReady()
+    const prompt = screen.getByRole('textbox', { name: 'Message Muse' })
+    fireEvent.change(prompt, { target: { value: '/legal' } })
+    expect(posted(postMessage, 'listSkills')).toEqual([{ type: 'listSkills' }])
+  })
+
   it('opens on the host report with the disclaimer, evidence and fixability', () => {
     const { postMessage, dialog } = openReport()
     expect(within(dialog).getByText(UI_TEXT.legalScanDisclaimer)).toBeDefined()

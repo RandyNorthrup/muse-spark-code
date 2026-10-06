@@ -1645,7 +1645,8 @@ export function App({
     [onPromptAction],
   )
   const onSlashMenuOpen = useCallback(() => {
-    if (store.getState().skills === undefined) {
+    const current = store.getState()
+    if (current.auth.status === 'signedIn' && current.skills === undefined) {
       postMessage({ type: 'listSkills' })
     }
   }, [store, postMessage])

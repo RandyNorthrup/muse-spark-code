@@ -13982,6 +13982,15 @@ joined with M57, M58 and PR #49's sign-in
   escapes; retain every real UTF-8 archive byte/value and metadata assertion,
   and the parsed table must still equal the complete original translation.
 
+- **Installed Windows screen-reader repair (2026-10-05, M97SR; before implementation).**
+  NVDA's input/output log from the installed VSIX shows a spurious sign-in
+  warning when an unauthenticated user types `/legal`: opening the local
+  slash menu requests authenticated skills before the free scanner runs.
+  Request skills only while signed in. Keep the local legal command available,
+  and prove both the signed-out scan and signed-in skill request in the full
+  report test file before rebuilding the installed artifact and repeating
+  the keyboard/speech receipt. This adds no new command, string or auth bypass.
+
 ## 7. Gates
 
 **CIFLOW — tiered CI and merge queue (owner request, 2026-10-04).** The owner
