@@ -524,8 +524,18 @@ Plan requests never consume the harness's USD cap or open its paid-use popup.
 Account & usage counts each dispatched request, with reported ChatGPT tokens
 and estimated Copilot tokens kept separately. Optional paid extras continue
 to require their own supported credential and consent; a subscription does
-not pay for them. Plan-key presets and Hugging Face OAuth remain pending their
-M95 transport/capture prerequisites and application registration.
+not pay for them. The captured **Mistral plan** preset now uses the same
+origin-bound key transport in VS Code and ACP, shows **plan** in the picker,
+links its plan limits, and counts reported tokens and every dispatched
+attempt. Its key is read from each host's credential store immediately
+before sending. Configured API-key and local providers share the captured
+Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
+are refused and each request pins checked DNS answers. ACP reads the same
+user-level `providers.json`, using its own OS credential store. The general
+ACP credential-management and headless provider commands remain pending;
+installed-editor and live provider certification are still open. MiniMax
+and Alibaba plan presets await captures, and Hugging Face OAuth awaits
+application registration.
 
 ## Permission modes
 

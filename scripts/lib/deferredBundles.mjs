@@ -4,10 +4,19 @@ import path from 'node:path'
 
 export const BUNDLES = {
   providers: { output: 'dist/providers.js', metafile: 'dist/meta/providers.json' },
+  subscriptions: { output: 'dist/subscriptions.js', metafile: 'dist/meta/subscriptions.json' },
+  configured: {
+    output: 'dist/configuredProviders.js',
+    metafile: 'dist/meta/configuredProviders.json',
+  },
   activation: { output: 'dist/extension.js', metafile: 'dist/meta/extension.json' },
   modelApi: { output: 'dist/modelApi.js', metafile: 'dist/meta/modelApi.json' },
   acp: { output: 'dist/acp.js', metafile: 'dist/meta-acp/acp.json' },
 }
+export const SUBSCRIPTION_ONLY = [
+  'src/core/providers/subscriptions/chatgpt.ts',
+  'src/core/providers/subscriptions/registry.ts',
+]
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
@@ -227,6 +236,14 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
   const problems = []
+  if (!inputsOf(BUNDLES.configured).has('src/core/providers/configured.ts'))
+    problems.push('dist/configuredProviders.js no longer carries src/core/providers/configured.ts')
+  for (const source of SUBSCRIPTION_ONLY) {
+    if (!inputsOf(BUNDLES.subscriptions).has(source))
+      problems.push(`dist/subscriptions.js no longer carries ${source}`)
+    if (inputsOf(BUNDLES.providers).has(source))
+      problems.push(`dist/providers.js carries ${source}, which loads only on subscription use`)
+  }
   for (const bundle of [...DEFERRED, ...ON_FIRST_USE]) {
     const inputs = inputsOf(bundle)
     const parents = DEFERRED.includes(bundle)
@@ -279,7 +296,12 @@ export function checkDeferredBundles(inputsOf) {
   ]) {
     if (bundle === BUNDLES.providers) continue
     for (const source of inputsOf(bundle).keys()) {
-      if (source.startsWith(`${MODEL_API_DIR}/codecs/`) || source.startsWith('src/core/providers/'))
+      if (
+        (source.startsWith(`${MODEL_API_DIR}/codecs/`) ||
+          source.startsWith('src/core/providers/')) &&
+        !(bundle === BUNDLES.subscriptions && SUBSCRIPTION_ONLY.includes(source)) &&
+        !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured)
+      )
         problems.push(`${bundle.output} carries ${source}, which loads only in dist/providers.js`)
     }
   }
@@ -326,7 +348,9 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
-  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/providers.js'],
+  [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
+  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -343,10 +367,14 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:providersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
-        if (args.kind !== 'dynamic-import' && !args.path.endsWith('providersEntry')) return
+        if (
+          args.kind !== 'dynamic-import' &&
+          !/(?:providersEntry|subscriptionsEntry)$/.test(args.path)
+        )
+          return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         const output = DEFERRED_OUTFILES.get(source)
         return output === undefined

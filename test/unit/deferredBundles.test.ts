@@ -71,6 +71,8 @@ beforeAll(async () => {
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         providers: 'src/host/backend/providersEntry.ts',
+        subscriptions: 'src/host/backend/subscriptionsEntry.ts',
+        configuredProviders: 'src/host/backend/configuredProvidersEntry.ts',
         modelsPanel: 'src/host/models/modelsPanelEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
         reviewer: 'src/core/backends/modelapi/reviewerEntry.ts',
@@ -306,7 +308,7 @@ describe('deferred cohort bundles', () => {
     }
   })
   it('installs the caller language before translated ChatGPT failures leave the lazy bundle', () => {
-    const loaded = loadSupportBundle('providers')
+    const loaded = loadSupportBundle('subscriptions')
     if (
       typeof loaded !== 'object' ||
       loaded === null ||
@@ -354,18 +356,18 @@ describe('deferred cohort bundles', () => {
       Reflect.apply(loaded.setUiText, undefined, [EN, 'en'])
     }
   })
-  it('keeps ChatGPT runtime and core in providers.js behind the real ACP dynamic import', () => {
+  it('keeps ChatGPT runtime and core in subscriptions.js behind the real ACP dynamic import', () => {
     const acpInputs = inputs('acp')
-    expect(bundleText('acp')).toContain('./providers.js')
+    expect(bundleText('acp')).toContain('./subscriptions.js')
     for (const file of [
       'src/runtime/chatGptProviderCommands.ts',
       'src/runtime/chatGptHost.ts',
       'src/core/providers/subscriptions/chatgpt.ts',
     ]) {
-      expect(inputs('providers')).toContain(file)
+      expect(inputs('subscriptions')).toContain(file)
       expect(acpInputs).not.toContain(file)
     }
-    const bundle = loadSupportBundle('providers')
+    const bundle = loadSupportBundle('subscriptions')
     expect(bundle).toHaveProperty('runtimeChatGptCommandDeps', expect.any(Function))
     expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
     expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
@@ -567,6 +569,9 @@ describe('deferred cohort bundles', () => {
     ['providers', 'src/core/backends/modelapi/codecs/responses.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/chat.ts', 'missing'],
     ['providers', 'src/core/backends/modelapi/codecs/ollama.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/chatgpt.ts', 'missing'],
+    ['subscriptions', 'src/core/providers/subscriptions/registry.ts', 'missing'],
+    ['configuredProviders', 'src/core/providers/configured.ts', 'missing'],
     // M90: the Auto reviewer on Muse Code, required on the first review.
     ['extension', 'src/host/review/museCodeReviewer.ts', 'on the first review'],
   ])(

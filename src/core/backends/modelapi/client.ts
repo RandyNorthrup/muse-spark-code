@@ -49,9 +49,11 @@ import {
 import { parseSse } from './sse'
 import { estimateCostUsd } from '../../usage/insights'
 import type { PlanUsageRow } from '../../../shared/usage'
+import type { ModelResolver } from './modelPolicy'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<ModelApiClient, keyof ModelApiClient> & {
+  readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]

@@ -108,6 +108,16 @@ the extension. Fake-server inference now passes; installed-editor and live
 success certification remain open. Copilot requires VS Code and is unavailable
 in the standalone agent.
 
+Configured API-key and local providers use the same captured codecs and
+pinned request factory as VS Code, reading the user-level `providers.json`
+and origin-bound records from this agent's OS credential store. Mistral's
+captured plan-key preset is marked **plan**, links its limits, and records
+request/token tallies outside USD caps. No Meta key is needed for its
+inference. The general provider credential-management and headless command
+surface is still pending; the existing ChatGPT commands above are unchanged.
+The npm package includes the shared catalogue and lazy provider bundles.
+Installed-editor and live provider certification remain open.
+
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
 unlocked Secret Service the Model API backend is unavailable; there is no

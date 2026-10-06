@@ -1,3 +1,4 @@
+import path from 'node:path'
 // Production subscriptions live in the lazy Models panel bundle. Core and
 // codecs are supplied by providers.js, shared with the ACP runtime.
 import type * as vscode from 'vscode'
@@ -6,14 +7,17 @@ import { createChatGptSignIn } from './chatgptSignIn'
 import { connectCopilotFromClick } from './copilotClient'
 import {
   createModelsPanelSeam,
-  createSubscriptionClient,
-  chatGptModels,
-  chatGptAccountId,
-  chatGptPlanAccount,
   setUiText,
   providersFile,
   recordPlanUsage,
 } from '../backend/providersEntry'
+import {
+  createSubscriptionClient,
+  chatGptModels,
+  chatGptAccountId,
+  chatGptPlanAccount,
+  setUiText as setSubscriptionUiText,
+} from '../backend/subscriptionsEntry'
 import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
@@ -25,6 +29,7 @@ export function createSubscriptionFeatures(options: {
   readonly log: CoreLogger
   readonly secrets: SecretStore
   readonly globalStorageUri: vscode.Uri
+  readonly catalogFile?: string
   readonly configFile: string
   readonly l10n: UiTable
   readonly globalState: {
@@ -40,6 +45,7 @@ export function createSubscriptionFeatures(options: {
 }) {
   setHostUiText(options.l10n.table, options.l10n.locale)
   setUiText(options.l10n.table, options.l10n.locale)
+  setSubscriptionUiText(options.l10n.table, options.l10n.locale)
   const fetcher = options.fetch ?? globalThis.fetch
   let signIn: ReturnType<typeof createChatGptSignIn> | undefined
   const chatgpt = () =>
@@ -72,6 +78,23 @@ export function createSubscriptionFeatures(options: {
       }
     })()
   }
+  const configured = async (meta?: ProviderClient) => {
+    const entry = await import('../backend/configuredProvidersEntry')
+    entry.setUiText(options.l10n.table, options.l10n.locale)
+    return entry.createConfiguredProviderServices(meta, {
+      configFile: options.configFile,
+      catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
+      secrets: options.secrets,
+      hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+      loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
+      saveUsage: (rows) => {
+        persist([
+          ...tallies.filter((row) => ['chatgpt', 'copilot'].includes(row.providerId)),
+          ...rows,
+        ])
+      },
+    })
+  }
   const seam = createModelsPanelSeam({
     configFile: options.configFile,
     subscriptionModels: async (id) => {
@@ -84,10 +107,29 @@ export function createSubscriptionFeatures(options: {
       return ids
     },
   })
+  const panelFetch: typeof seam.fetcher.fetchModels = (...args) => seam.fetcher.fetchModels(...args)
+  const fetchModels: typeof seam.fetcher.fetchModels = async (provider, key, signal) => {
+    if (provider.auth === 'subscription') return await panelFetch(provider, key, signal)
+    const services = await configured()
+    return {
+      rows: await services.scanRows(providersFile.providerEntrySchema.parse(provider), key, signal),
+    }
+  }
+  const panelSeam = {
+    ...seam,
+    fetcher: { fetchModels },
+    tester: {
+      test: async (provider: Parameters<typeof fetchModels>[0], key: string) => {
+        const services = await configured()
+        return await services.test(providersFile.providerEntrySchema.parse(provider), key)
+      },
+    },
+  }
   const accountId = async () => {
     if (copilot.size > 0 && !options.isConfidential()) return 'copilot-host-grant'
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
-    return chatGptAccountId(stored)
+    const services = await configured()
+    return chatGptAccountId(stored) ?? (await services.accountId())
   }
   const save = async (id: 'chatgpt' | 'copilot', models: readonly string[]) => {
     if (models.length === 0) throw new Error(UI_TEXT.actionFailed)
@@ -104,7 +146,7 @@ export function createSubscriptionFeatures(options: {
     await options.connected(ref)
   }
   return {
-    seam,
+    seam: panelSeam,
     hasCopilotAccess: () => copilot.size > 0 && !options.isConfidential(),
     accountId,
     planAccount: async () => {
@@ -113,24 +155,28 @@ export function createSubscriptionFeatures(options: {
     },
     createClient: async (meta: ProviderClient): Promise<ProviderClient> => {
       const entries = await seam.store.list()
-      if (entries.every((row) => row.auth !== 'subscription')) return meta
-      return createSubscriptionClient(meta, {
-        fetch: fetcher,
-        hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
-        chatgpt,
-        accountId,
-        providers: async () =>
-          providersFile.providersFileSchema.parse({ v: 1, providers: await seam.store.list() }),
-        copilot: () => (options.isConfidential() ? new Map() : copilot),
-        copilotUsage: () => tallies.filter((row) => row.providerId === 'copilot'),
-        loadUsage: () => tallies,
-        saveUsage: (rows) => {
-          persist([
-            ...rows.filter((row) => row.providerId !== 'copilot'),
-            ...tallies.filter((row) => row.providerId === 'copilot'),
-          ])
-        },
-      })
+      const subscribed = entries.some((row) => row.auth === 'subscription')
+        ? createSubscriptionClient(meta, {
+            fetch: fetcher,
+            hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+            chatgpt,
+            accountId,
+            providers: async () =>
+              providersFile.providersFileSchema.parse({ v: 1, providers: await seam.store.list() }),
+            copilot: () => (options.isConfidential() ? new Map() : copilot),
+            copilotUsage: () => tallies.filter((row) => row.providerId === 'copilot'),
+            loadUsage: () => tallies,
+            saveUsage: (rows) => {
+              persist([
+                ...rows.filter((row) => row.providerId !== 'copilot'),
+                ...tallies.filter((row) => row.providerId === 'copilot'),
+              ])
+            },
+          })
+        : meta
+      if (entries.every((row) => row.auth === 'subscription')) return subscribed
+      const services = await configured(subscribed)
+      return services.client
     },
     connectChatGpt: async () => {
       const core = await chatgpt()

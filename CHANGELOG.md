@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Restore Copilot's production tool loop by binding admission to the same
+  host grant identity used when the request was confirmed.
+- Connect the captured Mistral plan-key preset and configured providers to
+  a shared, pinned transport in VS Code and ACP. Resolve capabilities and
+  pricing from the selected model, reread origin-bound credentials at each
+  send, and count plan requests separately from dollar budgets.
+- Load subscription authentication and account details lazily so the joined
+  release passes the existing provider and deferred browser size caps.
 - Integrate the M95 capability, host, deflake and subscription lanes onto
   release 0.14.0, retaining lazy bundle boundaries and translated strings.
   Keep bundle drills in memory and include the release build inputs and
@@ -29,8 +37,8 @@ happened, not what was planned; superseded entries are kept.
   parses headerless SSE, including usage limits inside HTTP 200; ACP editors
   use the same dispatch. Plan attempts have separate token/request tallies
   and bypass USD reservations. Copilot uses host consent and remains reduced
-  and unavailable in confidential workspaces. Live success certification and
-  plan-key transport integration remain pending.
+  and unavailable in confidential workspaces. Live success certification
+  remains pending; Mistral plan-key transport is wired in both hosts.
 
 ### Fixed
 

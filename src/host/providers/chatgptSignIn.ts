@@ -33,7 +33,7 @@ import {
   ChatGptSignInError,
   parseChatGptCallback,
   type ChatGptHostPort,
-} from '../backend/providersEntry'
+} from '../backend/subscriptionsEntry'
 import type { RecordStore } from './credentialRecords'
 
 type ChatGptCallback = Awaited<ReturnType<ChatGptHostPort['startCallback']>> & {

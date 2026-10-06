@@ -22,24 +22,7 @@ export * as wizardFlow from '../../core/providers/wizardFlow'
 export { setUiText } from '../../shared/l10n/text'
 
 export { createProviderRegistry } from '../../core/providers/providerRegistry'
-export {
-  ChatGptSignIn,
-  ChatGptSignInError,
-  parseChatGptCallback,
-} from '../../core/providers/subscriptions/chatgpt'
-export type { ChatGptHostPort } from '../../core/providers/subscriptions/chatgpt'
-export { isPkceState, pkceRandom } from '../../core/providers/pkce'
-export {
-  createSubscriptionClient,
-  chatGptModels,
-  chatGptAccountId,
-  chatGptPlanAccount,
-} from '../../core/providers/subscriptions/registry'
 export { createModelsPanelSeam } from '../../core/providers/panelSeam'
 export { recordPlanUsage } from '../../core/providers/subscriptions/planUsage'
-export {
-  runtimeChatGptCommandDeps,
-  runChatGptProviderCommand,
-  chatGptAuthenticationMethods,
-  runtimeSubscriptionClient,
-} from '../../runtime/chatGptProviderCommands'
+export { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
+export { isPkceState, pkceRandom } from '../../core/providers/pkce'

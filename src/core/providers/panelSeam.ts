@@ -4,7 +4,7 @@ function unavailable(): never {
 // Compose the panel's existing ports with the nonsecret providers file.
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
 import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
-import { listedPresets, isKeyShape } from './presets'
+import { listedPresets, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -89,13 +89,17 @@ export function createModelsPanelSeam(options: {
       }),
   }
   const catalog = new Map<string, PresetInfo>()
-  for (const preset of listedPresets()) {
+  for (const preset of [...listedPresets(), ...PLAN_KEY_PRESETS]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
     catalog.set(preset.id, {
       id: preset.id,
       name: preset.label,
       description: preset.description,
-      kind: preset.category === 'custom' ? 'cloud' : preset.category,
+      kind: PLAN_KEY_PRESETS.some((plan) => plan.id === preset.id)
+        ? 'subscription'
+        : preset.category === 'custom'
+          ? 'cloud'
+          : preset.category,
       origin,
       format: preset.format,
       auth: preset.auth,
@@ -148,7 +152,7 @@ export function createModelsPanelSeam(options: {
           : { kind: 'refused', detail: verdict.reason }
       },
     },
-    // Other providers retain the explicit unavailable transport seam from M95.
+    // The host composes key tests and scans from the shared pinned transport.
     tester: { test: unavailable },
     exchanger: { exchange: unavailable },
     usage: { read: unavailable },

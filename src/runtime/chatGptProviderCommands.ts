@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { uiLocale } from '../shared/l10n/text'
 // Terminal and editor entry points use the same runtime host. Only the
 // browser's authorize URL and translated status reach the command output.
 import {
@@ -8,12 +10,9 @@ import {
 } from '../core/providers/subscriptions/chatgpt'
 import * as z from 'zod/mini'
 import type { SignInMethod } from '../acp/agent'
-import {
-  emptyProvidersFile,
-  readProvidersFile,
-  writeProvidersFileAtomic,
-} from '../core/providers/providersFile'
-import { parseModelRef } from '../core/providers/modelRef'
+import { providersFile, modelRef } from '../host/backend/providersEntry'
+const { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } = providersFile
+const { parseModelRef } = modelRef
 import { createRuntimeChatGptHost, type RuntimeChatGptOptions } from './chatGptHost'
 import { ACP_AGENT_NAME, OAUTH_CODE_TTL_MS, UI_TEXT } from '../shared/constants'
 import { fill, setUiText } from '../shared/l10n/text'
@@ -26,7 +25,7 @@ import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../shared/constants'
 
 /** The same registry serves JetBrains, Visual Studio, Eclipse and every ACP client. */
 export function runtimeSubscriptionClient(
-  options: RuntimeChatGptOptions & { readonly configFile: string },
+  options: RuntimeChatGptOptions & { readonly configFile: string; readonly catalogFile?: string },
 ) {
   let host: Promise<ChatGptHostPort> | undefined
   const getHost = () =>
@@ -40,7 +39,16 @@ export function runtimeSubscriptionClient(
     })())
   const accountId = async () => {
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
-    return chatGptAccountId(stored)
+    if (stored !== undefined) return chatGptAccountId(stored)
+    const entry = await import('../host/backend/configuredProvidersEntry')
+    entry.setUiText(UI_TEXT, uiLocale())
+    return await entry
+      .createConfiguredProviderServices(undefined, {
+        configFile: options.configFile,
+        catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
+        secrets: options.secrets,
+      })
+      .accountId()
   }
   return {
     accountId,
@@ -52,14 +60,24 @@ export function runtimeSubscriptionClient(
         throw new Error(UI_TEXT.actionFailed)
       }
       const file = await read()
-      if (file.providers.every((entry) => entry.id !== 'chatgpt')) return meta
-      return createSubscriptionClient(meta, {
-        fetch: options.fetch,
+      const subscribed = file.providers.some((entry) => entry.id === 'chatgpt')
+        ? createSubscriptionClient(meta, {
+            fetch: options.fetch,
+            hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
+            providers: read,
+            accountId,
+            chatgpt: async () => new ChatGptSignIn(await getHost()),
+          })
+        : meta
+      if (file.providers.every((entry) => entry.auth === 'subscription')) return subscribed
+      const entry = await import('../host/backend/configuredProvidersEntry')
+      entry.setUiText(UI_TEXT, uiLocale())
+      return entry.createConfiguredProviderServices(subscribed, {
+        configFile: options.configFile,
+        catalogFile: options.catalogFile ?? path.resolve(__dirname, 'providerCatalog.json'),
+        secrets: options.secrets,
         hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
-        providers: read,
-        accountId,
-        chatgpt: async () => new ChatGptSignIn(await getHost()),
-      })
+      }).client
     },
   }
 }

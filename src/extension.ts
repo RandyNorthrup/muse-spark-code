@@ -901,6 +901,11 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
+  const providerConfigFile = path.join(
+    process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
+  )
   let isSubscriptionConnecting = false
   let subscriptions:
     ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
@@ -911,11 +916,8 @@ async function activateWindow(
       globalStorageUri: context.globalStorageUri,
       globalState: context.globalState,
       l10n,
-      configFile: path.join(
-        process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
-        PROVIDERS_CONFIG_DIR_NAME,
-        PROVIDERS_FILE_NAME,
-      ),
+      catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
+      configFile: providerConfigFile,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
@@ -2232,6 +2234,7 @@ async function activateWindow(
     judge,
     createProviderClient: async (meta) =>
       subscriptions === undefined &&
+      !existsSync(providerConfigFile) &&
       (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
         ? meta
         : await subscriptionFeatures().createClient(meta),

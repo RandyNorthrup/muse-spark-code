@@ -3323,6 +3323,7 @@ export class ConversationController {
         outputUsdPerMTokens: model.outputUsdPerMTokens,
       }),
       ...(model.isPinned === true && { isPinned: model.isPinned }),
+      ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
       ...(model.trainsOnContent === true && { trainsOnContent: model.trainsOnContent }),
     }))
     this.post({ type: 'modelList', models: [...this.models] })

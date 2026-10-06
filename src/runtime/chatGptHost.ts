@@ -5,7 +5,8 @@ import {
   chatGptRecordSchema,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
-import { isPkceState, pkceRandom } from '../core/providers/pkce'
+import { pkce } from '../host/backend/providersEntry'
+const { isPkceState, pkceRandom } = pkce
 import type { SecretStore } from '../host/auth/credentialStore'
 import { PKCE_STATE_BYTES, PROVIDER_SECRET_PREFIX } from '../shared/constants'
 import { startChatGptCallback } from './chatGptCallback'

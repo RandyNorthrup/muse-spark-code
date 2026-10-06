@@ -23,6 +23,8 @@ const HOST_BUNDLES = [
   'dist/tab.js',
   'dist/modelApi.js',
   'dist/providers.js',
+  'dist/subscriptions.js',
+  'dist/configuredProviders.js',
   'dist/validation.js',
   'dist/modelsPanel.js',
   'dist/review.js',

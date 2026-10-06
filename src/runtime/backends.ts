@@ -13,6 +13,7 @@ import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 // through the client (M63c).
 
 import { randomUUID } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
@@ -163,6 +164,11 @@ function modelApiManager(
   assertWorkspaceCurrent: () => void,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
+  const providerConfigFile = path.join(
+    deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
+  )
   let subscriptions: Promise<ReturnType<typeof runtimeSubscriptionClient>> | undefined
   const subscriptionClient = () =>
     (subscriptions ??= (async () => {
@@ -170,11 +176,8 @@ function modelApiManager(
       return bundle.runtimeSubscriptionClient({
         secrets: deps.secrets,
         fetch: deps.fetch,
-        configFile: path.join(
-          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
-          PROVIDERS_CONFIG_DIR_NAME,
-          PROVIDERS_FILE_NAME,
-        ),
+        catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+        configFile: providerConfigFile,
         openBrowser: () => Promise.reject(new Error(UI_TEXT.acpChatGpt.failure)),
         callbackText: () => UI_TEXT.acpChatGpt.callback,
       })
@@ -275,7 +278,11 @@ function modelApiManager(
     fetch: deps.fetch,
     ...(deps.exec === undefined && {
       createProviderClient: async (meta: ProviderClient) => {
-        if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined) return meta
+        if (
+          !existsSync(providerConfigFile) &&
+          (await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        )
+          return meta
         const factory = await subscriptionClient()
         return await factory.createClient(meta)
       },
@@ -450,6 +457,23 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       try {
         if ((await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) !== undefined)
           return { state: 'ready' }
+        const configFile = path.join(
+          deps.env['XDG_CONFIG_HOME'] ?? path.join(deps.homeDir, '.config'),
+          PROVIDERS_CONFIG_DIR_NAME,
+          PROVIDERS_FILE_NAME,
+        )
+        if (existsSync(configFile)) {
+          const entry = await import('./chatGptProviderCommands')
+          const factory = entry.runtimeSubscriptionClient({
+            secrets: deps.secrets,
+            fetch: deps.fetch,
+            configFile,
+            catalogFile: path.join(deps.distDir, 'providerCatalog.json'),
+            openBrowser: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
+            callbackText: () => UI_TEXT.acpChatGpt.callback,
+          })
+          if ((await factory.accountId()) !== undefined) return { state: 'ready' }
+        }
       } catch {
         return { state: 'unavailable', message: UI_TEXT.acpChatGpt.storeUnavailable }
       }

@@ -30,6 +30,8 @@ const BUDGETS = [
   // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
   { path: 'dist/providers.js', budgetKiB: 125 },
+  { path: 'dist/subscriptions.js', budgetKiB: 50 },
+  { path: 'dist/configuredProviders.js', budgetKiB: 25 },
   { path: 'dist/modelsPanel.js', budgetKiB: 75 },
   { path: 'dist/webview/models.js', budgetKiB: 475 },
   // The review (M70): git's material, the review turn's text, the Plan-mode

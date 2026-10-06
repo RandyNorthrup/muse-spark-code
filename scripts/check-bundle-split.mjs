@@ -75,6 +75,7 @@ import ts from 'typescript'
 import { createRequire } from 'node:module'
 import {
   BUNDLES,
+  SUBSCRIPTION_ONLY,
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
@@ -674,7 +675,9 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
       for (const input of Object.keys(bundle.inputs)) {
         if (
           input.startsWith(`${MODEL_API_DIR}/codecs/`) ||
-          input.startsWith('src/core/providers/')
+          (input.startsWith('src/core/providers/') &&
+            !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
+            !(input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output))
         ) {
           problems.push(`${output} carries ${input}, which loads only in dist/providers.js`)
         }

@@ -92,6 +92,10 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
+const SUBSCRIPTIONS_ENTRY = 'src/host/backend/subscriptionsEntry.ts'
+const SUBSCRIPTIONS_OUTFILE = 'dist/subscriptions.js'
+const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
+const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
@@ -220,6 +224,18 @@ const providersOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const configuredOptions = {
+  ...modelApiOptions,
+  entryPoints: [CONFIGURED_ENTRY],
+  outfile: CONFIGURED_OUTFILE,
+}
+
+const subscriptionsOptions = {
+  ...modelApiOptions,
+  entryPoints: [SUBSCRIPTIONS_ENTRY],
+  outfile: SUBSCRIPTIONS_OUTFILE,
+}
+
 const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
@@ -588,6 +604,8 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(providersOptions),
+    esbuild.context(subscriptionsOptions),
+    esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
@@ -629,6 +647,8 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     providers: esbuild.build(providersOptions),
+    subscriptions: esbuild.build(subscriptionsOptions),
+    configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
@@ -688,6 +708,8 @@ if (isWatch) {
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
+  reportSize(SUBSCRIPTIONS_OUTFILE)
+  reportSize(CONFIGURED_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)

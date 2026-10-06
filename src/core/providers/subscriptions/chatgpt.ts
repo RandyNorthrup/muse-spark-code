@@ -9,13 +9,14 @@ import {
   OAUTH_CODE_TTL_MS,
   PKCE_STATE_BYTES,
 } from '../../../shared/constants'
-import {
+import { pkce } from '../../../host/backend/providersEntry'
+const {
   createPkcePair,
   isPkceState,
   isPkceVerifier,
   pkceRandom,
-  pkceChallenge as createChallenge,
-} from '../pkce'
+  pkceChallenge: createChallenge,
+} = pkce
 
 const ISSUER = 'https://auth.openai.com'
 const ORIGIN = 'https://api.openai.com'
@@ -127,7 +128,7 @@ export function buildChatGptAuthorizeUrl(options: {
   if (
     redirect.search !== '' ||
     !isPkceVerifier(options.verifier) ||
-    ![options.state, options.nonce, options.hostId].every(isPkceState)
+    [options.state, options.nonce, options.hostId].some((value) => !isPkceState(value))
   ) {
     throw new ChatGptSignInError('invalid-callback')
   }

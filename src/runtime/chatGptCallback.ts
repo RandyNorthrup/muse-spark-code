@@ -7,7 +7,8 @@ import {
   parseChatGptCallback,
   type ChatGptHostPort,
 } from '../core/providers/subscriptions/chatgpt'
-import { isPkceState } from '../core/providers/pkce'
+import { pkce } from '../host/backend/providersEntry'
+const { isPkceState } = pkce
 import { HTTP_STATUS, OAUTH_CODE_TTL_MS, OAUTH_LOOPBACK_HOST } from '../shared/constants'
 
 type Callback = Awaited<ReturnType<ChatGptHostPort['startCallback']>>

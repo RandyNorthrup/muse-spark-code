@@ -97,9 +97,11 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     }
   }
   const meta = new ModelApiClient(deps.client)
+  const client = (await deps.createProviderClient?.(meta)) ?? meta
   const host = new ModelApiHost({
     ...hostDeps,
-    client: (await deps.createProviderClient?.(meta)) ?? meta,
+    client,
+    ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {
       models: {
         resolve: async (ref: string) => {

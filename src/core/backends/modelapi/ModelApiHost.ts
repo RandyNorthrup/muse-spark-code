@@ -2231,7 +2231,8 @@ export class ModelApiSession implements AgentSession {
 
   private async resolveModel(ref = this.modelId): Promise<ResolvedModel> {
     const model =
-      ref.includes('/') && this.deps.client.isPlanModel?.(ref) !== true
+      ref.includes('/') &&
+      (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
         : metaResolvedModel(ref, this.deps.client)
     if (model?.ref !== ref || !model.isCurrent()) {

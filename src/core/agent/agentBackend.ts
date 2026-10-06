@@ -268,6 +268,7 @@ export interface ModelSummary {
   readonly outputUsdPerMTokens?: number | undefined
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
+  readonly planLimitsUrl?: string | undefined
 }
 
 export interface SkillSummary {

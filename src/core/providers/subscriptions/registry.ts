@@ -15,20 +15,17 @@ import {
   type StreamEvent,
   type Usage,
 } from '../../backends/modelapi/schemas'
-import {
-  ChatgptPlanLimitError,
-  createResponsesCodec,
-  ResponsesOutputCapError,
-} from '../../backends/modelapi/codecs/responses'
+import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
+const { ChatgptPlanLimitError, createResponsesCodec, ResponsesOutputCapError } = responses
+const { parseModelRef } = modelRef
 import {
   MODEL_API_REQUEST_TIMEOUT_MS,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   UI_TEXT,
 } from '../../../shared/constants'
-import { parseModelRef } from '../modelRef'
 import type { ProvidersFile } from '../providersFile'
 import { type ChatGptSignIn, ChatGptSignInError, chatGptRecordSchema } from './chatgpt'
-import { recordPlanUsage, type PlanUsageRow } from './planUsage'
+import type { PlanUsageRow } from './planUsage'
 
 // Owner captures acdc0f60 / 577bc807 (0 + 1 model attempts), 2026-10-05.
 const catalogueSchema = z.object({
@@ -220,7 +217,8 @@ export function createSubscriptionClient(
         if (ref.providerId === 'copilot') {
           const adapter = deps.copilot?.().get(ref.modelId)
           if (adapter === undefined) throw new Error(UI_TEXT.actionFailed)
-          const guard = Object.assign(() => admitAttempt?.(undefined), {
+          const account = await deps.accountId()
+          const guard = Object.assign(() => admitAttempt?.(account), {
             onRequestStarted: () => {
               isDispatched = true
               admitAttempt?.onRequestStarted?.()

@@ -7102,12 +7102,10 @@ Decisions:
 
 ## 3. Open questions (need the owner)
 
-- **Q-M95R3 transport size (2026-10-05):** the required general transport,
-  per-attempt credential/network checks, capability-record registry and
-  host/ACP composition exceed the shared lane brief's approximate 300-line
-  limit for one fix. May this required implementation exceed that limit?
-  Clarification is pending; independent merge, test and documentation work
-  continues. No partial production transport is installed.
+- **Q-M95R3 transport size (closed by M95R4 brief, 2026-10-05):** the
+  continuation explicitly requires completion of the shared transport and
+  host/ACP composition. Its scope paragraph in M95b records this authorization;
+  the shared configured-provider implementation is installed and tested offline.
 
 - **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
   commit supplies ProviderClient/transport/authSource for this checkout?
@@ -18199,6 +18197,19 @@ Record acceptance 1–19 and M95b 1–10 separately from the exact counted live
 receipts still needed by the lead. No live/paid calls, credentials read from
 the rig, push, rebase or further branch merge. Evidence: `m95-r4.md`.
 
+The completion keeps every existing cap. Subscription execution moves to
+`dist/subscriptions.js` (50 KiB) and configured-provider requests to
+`dist/configuredProviders.js` (25 KiB), both loaded on first use and both
+included with the nonsecret provider catalogue in the ACP package. Captured
+codecs stay exclusively in `dist/providers.js`. M95 plan/provider usage sections
+share the existing action-dialog cohort; the seven legacy deferred components
+still count against their unchanged 50 KiB cap, with their shared dependencies.
+Selected capability records, origin-bound per-request credentials, pinned DNS,
+configuration revalidation and plan attempt accounting are exercised through
+the real VS Code factory and shared ACP runtime. General credential-management
+CLI/headless commands and live OpenRouter connect/usage remain separate open
+acceptance work; no unsupported command is advertised.
+
 **M95R3 cost and gate repairs (2026-10-05).** Strengthen the unpriced
 usage regression with a cached total and retain dollar estimates only when
 the legacy Model API tariff is known and pricing is not unpriced, local or
@@ -21087,6 +21098,18 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M95R4 continuation (2026-10-05).** The requested two diet merges and
+shared configured-provider completion repair the round-three cap and Copilot
+failures. PSScriptAnalyzer 1.25.0 is installed for the current user and its gate
+reports zero findings. Production size/split/host-global/notices gates pass
+without changing an existing cap. The complete accessibility scan and single
+three-worker aggregate quality run are recorded in `docs/certification/m95-r4.md`.
+The common help-reference gate is unavailable in this checkout: its catalogue,
+generator and package script are absent; integrating that system is a lead
+prerequisite. General provider credential CLI/headless and OpenRouter
+connect/usage are still explicit open acceptance work. No live/support closure
+is inferred from the offline transport tests.
 
 **M95R3 integration gate status (2026-10-05).** The rig authorizes local
 merge/repair commits with unchanged hooks and one final full quality run.

@@ -23,6 +23,8 @@
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
+    "src/host/backend/subscriptionsEntry.ts",
+    "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
