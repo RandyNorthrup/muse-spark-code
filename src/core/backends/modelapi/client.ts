@@ -593,8 +593,11 @@ export class ModelApiClient {
         (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
       )
         throw new Error('Media reservation does not match this request')
+      // Media accounting already owns all input/output tokens for this
+      // request, including a paid helper's tokens. Its final admission guard
+      // still checks consent/caps and any independently admitted hosted fees.
       const claim =
-        feature === undefined
+        feature === undefined || media !== undefined
           ? undefined
           : await this.deps.reservePaidRequest?.(
               body,

@@ -21230,7 +21230,7 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **FIXM105C-W-integration (2026-10-06).** The four RVM105C P2 findings
-  and P3 are being repaired in lane C; release still waits on W's existing lazy
+  and P3 are repaired in lane C; release still waits on W's existing lazy
   surface registration/bundle fitting, real calibration/tariff/store and
   editor bindings. Money now crosses media ledger and chip ports as
   canonical decimal strings with the identical M106H/M108T `Usd` API.

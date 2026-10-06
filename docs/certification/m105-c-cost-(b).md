@@ -346,3 +346,78 @@ the lane's file-scope rule.
 Money/display verification after restoration: 68 tests passed across all
 six affected whole files (21 + 47); all five typecheck projects passed.
 Changed-file ESLint passed after fixing two test-only style violations.
+
+### Transport/lifecycle repairs
+
+- **RVM105C-P2-one-claim:** `streamResponse` does not call the additional
+  paid-helper token-reservation port when media accounting already reserves
+  the complete request. The existing final admission guard and both media
+  ledger fences still run. Regression: media + subagent + enabled web search
+  succeeds with one HTTP request and one actual token settlement per ledger;
+  an attempted second paid token claim would fail the test. Hosted fees are
+  independent of this token charge and must be explicitly admitted by the
+  media builder's final guard; an unpriced hosted fee still refuses before
+  dispatch in its dedicated regression. No hosted fee is enabled here.
+- **RVM105C-P2-cache-result:** a calibration observation write failure logs
+  `Media calibration cache write failed` through the injected CoreLogger
+  warning port. The store's arbitrary error/path is never logged. Actual
+  charges stay settled; the successful `response.completed` is delivered.
+  The accounting factory now requires the caller's warning logger; W must
+  inject it with the real store. Direct estimator callers still receive
+  write failures, and failed cache writes keep the earlier calibration.
+- **RVM105C-P3-concurrent-settlement:** one pending-to-settled selection
+  records the immutable actual/refund/uncertain outcome synchronously.
+  `settle` and `finish` share one in-flight promise before writes begin.
+  Success retains that promise (one observation); a ledger failure clears
+  only the write promise so a later finish retries unclosed claims at the
+  already-selected amount. Refusal cannot change an outcome during writes.
+  Tests hold a ledger write while concurrent settle/finish/repeated settle
+  calls arrive, and cover concurrent nonsent and uncertain finalization.
+
+All four new lifecycle/transport regressions failed before the code fix
+(three settlement calls, refusal during finalization, discarded terminal
+response and duplicate token-claim rejection). New code adds no escape,
+provider parser, dependency, setting, command, paid consent bypass or live
+call. Runtime scheduling uses the host's supported Promise API; lint exposed
+that `Promise.withResolvers` is available only in the test project's library
+on this base, so production uses a microtask before publishing writes.
+
+| Broken guard                                       | Named failing test                                                                                                   | Result / final restored SHA-256                                            |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Restore unconditional second token reservation     | `mediaClient > uses one whole-request token claim for media with a paid feature and web search enabled`              | exit 1; `097e6978933b5d35de9a653aff1751c0930a7f0c0394a2f8e5a4b861460f0254` |
+| Throw instead of warning after calibration failure | `mediaClient > delivers a successful terminal response and warns when the local calibration cache cannot be written` | exit 1; `0f1beee85c50cdbd546aa84b96f6af4bc860a2d411811934badbda4b386ed10f` |
+| Remove sharing of the in-flight settlement         | `mediaAccounting > coalesces concurrent settle and finish calls while a ledger write is held`                        | exit 1; same final mediaCost digest                                        |
+
+Three successive drill batches each restored their original bytes. The
+initial two mediaCost digests were
+`b167919b9159e5c3e71feea9c1016475680241e2db8873fff4cb641f12b9f4c3`
+and `0e09e633d47577461c0ee1b11837a94e251c0377c5d106bcacfa78b6eb8bcb88`;
+they changed only when lint-driven Promise scheduling was made compatible
+with this host project. The last batch above uses the final implementation.
+No timeout or rule was changed. All seven distinct fix drills are red with
+byte-exact restoration; money/display has an additional initial passed
+chip-only mutation that led to the stronger property regression.
+
+No RVM105C P1/P2/P3 finding is left as a residual. Existing integration
+handoffs remain named as FIXM105C-W-integration in PLAN §9, with the build
+and full-quality deferral in PLAN §7. Final comprehensive lane verification
+is appended below.
+
+Additional proof drills: replacing exact `Usd.times` with binary arithmetic
+failed `usd > preserves exact addition, subtraction, rational prices and
+comparisons over generated amounts` (exit 1; restored helper SHA-256
+`10fea8369cef7407d603a8ba534fac0327263b56729f45a466059125ce89e9a1`).
+Removing the final admission callback failed `mediaClient > keeps hosted-fee
+refusal in the final admission guard before a media request dispatches`
+(exit 1; restored client SHA-256
+`097e6978933b5d35de9a653aff1751c0930a7f0c0394a2f8e5a4b861460f0254`).
+These make nine distinct red guard drills for this repair, 17 recorded red
+mutation runs across the successive source versions plus the one initial
+chip mutation that passed and prompted a stronger property test.
+
+Final implementation checks before the transport commit: all five typecheck
+projects pass again; changed-source/test ESLint passes. Restored whole-file
+mediaAccounting/mediaClient/mediaCost runs pass, 47 tests. No review finding
+is deferred; no threshold, ignore, timer or unsupported provider shape was
+changed. The warning and exact-money ports remain shared core contracts for
+all editor/runtime bindings rather than VS Code-only logic.

@@ -45,6 +45,7 @@ function setup() {
     modelId,
     items: [item],
     estimator,
+    log: { warn: vi.fn() },
     textInputTokens: 170,
     maxOutputTokens: 100,
     captureId: 'settled-turn',
@@ -56,6 +57,56 @@ function setup() {
 }
 
 describe('media request accounting', () => {
+  it('coalesces concurrent settle and finish calls while a ledger write is held', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    reservation.started()
+    const entered = Promise.withResolvers<undefined>()
+    const held = Promise.withResolvers<undefined>()
+    t.daily.claim.settle.mockImplementation(() => {
+      entered.resolve(undefined)
+      return held.promise
+    })
+    const usage = { input_tokens: 3000, output_tokens: 40 }
+    const settling = reservation.settle(usage)
+    await entered.promise
+    const finishing = reservation.finish()
+    const repeated = reservation.settle(usage)
+    held.resolve(undefined)
+    await Promise.all([settling, finishing, repeated])
+    expect(t.session.claim.settle).toHaveBeenCalledExactlyOnceWith('0.000308', false)
+    expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith('0.000308', false)
+    expect(t.write).toHaveBeenCalledOnce()
+  })
+
+  it('coalesces concurrent finalization of a nonsent or uncertain request', async () => {
+    for (const wasSent of [false, true]) {
+      const t = setup()
+      const reservation = await reserveMediaRequest(t.request)
+      if (wasSent) reservation.started()
+      const entered = Promise.withResolvers<undefined>()
+      const held = Promise.withResolvers<undefined>()
+      t.daily.claim.settle.mockImplementation(() => {
+        entered.resolve(undefined)
+        return held.promise
+      })
+      const first = reservation.finish()
+      await entered.promise
+      const second = reservation.finish()
+      expect(() => {
+        reservation.refused()
+      }).toThrow('retry')
+      held.resolve(undefined)
+      await Promise.all([first, second])
+      for (const ledger of [t.session, t.daily])
+        expect(ledger.claim.settle).toHaveBeenCalledExactlyOnceWith(
+          wasSent ? reservation.reservedUsd : Usd.from(0).toAmount(),
+          wasSent,
+        )
+      expect(t.write).not.toHaveBeenCalled()
+    }
+  })
+
   it('admits the exact reservation at an equal cap without a floating-point overage', async () => {
     const t = setup()
     t.session.reserve.mockImplementation((amount) =>

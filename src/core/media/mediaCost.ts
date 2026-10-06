@@ -12,6 +12,7 @@ import { fill } from '../../shared/l10n/text'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import { mediaInfoSchema, mediaEstimateSchema, type MediaInfo } from '../../shared/media'
 import { usageSchema, type Usage } from '../backends/modelapi/schemas'
+import type { CoreLogger } from '../logging'
 
 const positive = z.number().check(z.gt(0))
 const tokens = z.int().check(z.gte(0), z.lte(Number.MAX_SAFE_INTEGER))
@@ -230,6 +231,7 @@ export async function reserveMediaRequest(request: {
   readonly maxOutputTokens: number
   readonly captureId: string
   readonly estimator: MediaCostEstimator
+  readonly log: Pick<CoreLogger, 'warn'>
   readonly prices: { readonly input: number; readonly output: number; readonly cachedInput: number }
   readonly session: MediaCostLedger
   readonly daily: MediaCostLedger
@@ -276,19 +278,50 @@ export async function reserveMediaRequest(request: {
     throw error
   }
   let wasSent = false
-  let isSettled = false
   const closed = new Set<MediaCostClaim>()
-  let bill: { costUsd: UsdAmount; hasUnknownCost: boolean; usage: Usage } | undefined
-  const settleBoth = async (costUsd: UsdAmount, hasUnknownCost = false) => {
-    const results = await Promise.allSettled(
-      [session, daily]
-        .filter((claim) => !closed.has(claim))
-        .map(async (claim) => {
-          await claim.settle(costUsd, hasUnknownCost)
-          closed.add(claim)
-        }),
-    )
-    for (const result of results) if (result.status === 'rejected') throw result.reason
+  // Selecting the terminal outcome is synchronous. Every settle/finish caller
+  // then shares its write; a failed ledger write retries only unclosed claims.
+  let settled: { costUsd: UsdAmount; hasUnknownCost: boolean; usage?: Usage } | undefined
+  let completion: Promise<void> | undefined
+  const complete = () => {
+    if (completion !== undefined) return completion
+    const bill = settled
+    if (bill === undefined) throw new Error('Media settlement has no terminal outcome')
+    const write = async () => {
+      // Publish completion before a ledger can reenter settle/finish.
+      await Promise.resolve()
+      try {
+        const results = await Promise.allSettled(
+          [session, daily]
+            .filter((claim) => !closed.has(claim))
+            .map(async (claim) => {
+              await claim.settle(bill.costUsd, bill.hasUnknownCost)
+              closed.add(claim)
+            }),
+        )
+        for (const result of results) if (result.status === 'rejected') throw result.reason
+        if (bill.usage !== undefined) {
+          try {
+            await request.estimator.observe(
+              request.provider,
+              request.modelId,
+              request.items,
+              bill.usage,
+              request.captureId,
+            )
+          } catch {
+            // Local calibration is optional evidence, not the provider result.
+            // Fixed words keep a store's error text (possibly a path) out of logs.
+            request.log.warn('Media calibration cache write failed')
+          }
+        }
+      } catch (error: unknown) {
+        completion = undefined
+        throw error
+      }
+    }
+    completion = write()
+    return completion
   }
   return {
     modelId: request.modelId,
@@ -297,20 +330,23 @@ export async function reserveMediaRequest(request: {
     reservedUsd,
     check() {
       // An uncertain first dispatch never spends the same claims on a retry.
-      if (wasSent || isSettled) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       session.check()
       daily.check()
     },
     started() {
-      if (wasSent || isSettled) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       wasSent = true
     },
     refused() {
-      if (isSettled) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       wasSent = false
     },
     async settle(usage) {
-      if (isSettled) return
+      if (settled !== undefined) {
+        await complete()
+        return
+      }
       if (!wasSent) throw new Error('Unsent media cannot have billed usage')
       const reported = usageSchema.parse(usage)
       const input = tokens.parse(reported.input_tokens)
@@ -323,32 +359,15 @@ export async function reserveMediaRequest(request: {
         .add(prices.output.times(output))
         .divide(TOKENS_PER_MILLION)
         .toAmount()
-      bill = { costUsd, hasUnknownCost: false, usage: reported }
-      await settleBoth(costUsd)
-      isSettled = true
-      await request.estimator.observe(
-        request.provider,
-        request.modelId,
-        request.items,
-        reported,
-        request.captureId,
-      )
+      settled = { costUsd, hasUnknownCost: false, usage: reported }
+      await complete()
     },
     async finish() {
-      if (isSettled) return
-      await settleBoth(
-        bill?.costUsd ?? (wasSent ? reservedUsd : Usd.from(0).toAmount()),
-        bill?.hasUnknownCost ?? wasSent,
-      )
-      isSettled = true
-      if (bill !== undefined)
-        await request.estimator.observe(
-          request.provider,
-          request.modelId,
-          request.items,
-          bill.usage,
-          request.captureId,
-        )
+      settled ??= {
+        costUsd: wasSent ? reservedUsd : Usd.from(0).toAmount(),
+        hasUnknownCost: wasSent,
+      }
+      await complete()
     },
   }
 }

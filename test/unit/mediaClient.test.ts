@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
+import { UI_TEXT } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { MediaCostEstimator, reserveMediaRequest } from '../../src/core/media/mediaCost'
@@ -42,6 +43,7 @@ async function setup(reply?: ScriptedReply) {
     provider: 'meta',
     modelId,
     estimator,
+    log,
     items: [
       {
         info: {
@@ -81,10 +83,62 @@ async function setup(reply?: ScriptedReply) {
     Array.fromAsync(
       client.streamResponse(requestBody, new AbortController().signal, undefined, undefined, guard),
     )
-  return { api, client, settings, body, accounting, claims, write, guard, run }
+  return { api, client, settings, body, accounting, claims, write, guard, run, log }
 }
 
 describe('media accounting at the transport', () => {
+  it('delivers a successful terminal response and warns when the local calibration cache cannot be written', async () => {
+    const t = await setup()
+    t.write.mockRejectedValueOnce(new Error('calibration store unavailable: /private/path'))
+    const events = await t.run()
+    expect(events.at(-1)?.type).toBe('response.completed')
+    for (const claim of t.claims)
+      expect(claim.settle).toHaveBeenCalledExactlyOnceWith('0.000233', false)
+    expect(t.log.warn).toHaveBeenCalledExactlyOnceWith('Media calibration cache write failed')
+    expect(t.write).toHaveBeenCalledOnce()
+  })
+
+  it('uses one whole-request token claim for media with a paid feature and web search enabled', async () => {
+    const t = await setup()
+    const reservePaidRequest = vi.fn(() => Promise.reject(new Error('duplicate token claim')))
+    const client = new ModelApiClient({
+      ...t.settings,
+      fetch: t.api.fetch,
+      reservePaidRequest,
+    })
+    const guard = Object.assign(t.guard, {
+      paidFeature: 'subagents' as const,
+      paidEstimatedInputTokens: t.accounting.inputTokens,
+    })
+    const events = await Array.fromAsync(
+      client.streamResponse(
+        { ...t.body, tools: [{ type: 'web_search' }] },
+        new AbortController().signal,
+        undefined,
+        undefined,
+        guard,
+      ),
+    )
+    expect(events.at(-1)?.type).toBe('response.completed')
+    expect(reservePaidRequest).not.toHaveBeenCalled()
+    expect(t.guard).toHaveBeenCalledOnce()
+    expect(t.api.requests).toHaveLength(1)
+    for (const claim of t.claims)
+      expect(claim.settle).toHaveBeenCalledExactlyOnceWith('0.000233', false)
+  })
+
+  it('keeps hosted-fee refusal in the final admission guard before a media request dispatches', async () => {
+    const t = await setup()
+    t.guard.mockImplementation(() => {
+      throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+    })
+    await expect(t.run({ ...t.body, tools: [{ type: 'web_search' }] })).rejects.toThrow(
+      UI_TEXT.sessionBudgetSearchUnavailable,
+    )
+    expect(t.api.requests).toHaveLength(0)
+    for (const claim of t.claims) expect(claim.settle).toHaveBeenCalledExactlyOnceWith('0', false)
+  })
+
   it.each(['complete', 'incomplete', 'failed'])(
     'settles a verified %s terminal bill',
     async (terminal) => {
