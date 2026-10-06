@@ -50,8 +50,10 @@ const call = (method: string, params: unknown, id: string | number = 1) => ({
 })
 const notification = (method: string, params: unknown) => ({ jsonrpc: '2.0', method, params })
 
-describe('MHP v1 boundary and export', () => {
+describe('MHP 1.2 boundary and native export', () => {
   it('round trips initialization and a versioned atomic edit with one undo label', () => {
+    expect(MHP_METHODS.initialize.direction).toBe('hostToRuntime')
+    expect(MHP_METHODS.shutdown.direction).toBe('hostToRuntime')
     const frame = call('initialize', initialize)
     const wire = JSON.stringify(frame)
     expect(parseMhpCall(JSON.parse(wire))).toEqual(frame)
@@ -301,6 +303,24 @@ describe('MHP v1 boundary and export', () => {
     ).toEqualTypeOf<MhpResult<'documents/list'>>()
   })
 
+  it('refuses silent re-adoption of the frozen version and preserves all snapshot bytes', async () => {
+    const files = [
+      'src/shared/hostApi/mhp-v1.schema.json',
+      'src/shared/hostApi/mhp-v1.lock.json',
+      'src/shared/hostApi/mhp-v1.1.schema.json',
+      'src/shared/hostApi/mhp-v1.1.lock.json',
+    ]
+    const before = await Promise.all(files.map((file) => readFile(file, 'utf8')))
+    await expect(
+      promisify(execFile)(
+        process.execPath,
+        ['scripts/mhp-schema.mjs', '--adopt-version=mhp/1.2.0'],
+        { cwd: process.cwd() },
+      ),
+    ).rejects.toThrow('MHP_VERSION_ALREADY_ADOPTED')
+    expect(await Promise.all(files.map((file) => readFile(file, 'utf8')))).toEqual(before)
+  })
+
   it('exports current JSON Schemas for the native plugins', async () => {
     const { stdout } = await promisify(execFile)(
       process.execPath,
@@ -310,7 +330,7 @@ describe('MHP v1 boundary and export', () => {
     expect(stdout).toContain('MHP schemas match.')
     const snapshot = JSON.parse(await readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8'))
     expect(snapshot).toMatchObject({
-      protocol: 'mhp/1.0.0',
+      protocol: 'mhp/1.2.0',
       methods: {
         initialize: {
           call: {
@@ -340,8 +360,8 @@ describe('MHP v1 boundary and export', () => {
 describe('MHP negotiation and feature skeleton', () => {
   it.each([
     ['mhp/1.0.0', 'mhp/2.0.0', true],
-    ['mhp/0.9.0', 'mhp/1.0.1', true],
-    ['mhp/1.0.1', 'mhp/2.0.0', false],
+    ['mhp/0.9.0', 'mhp/1.0.1', false],
+    ['mhp/1.2.0', 'mhp/1.3.0', true],
     ['mhp/1.0.0', 'mhp/1.0.0', false],
     ['mhp/2.0.0', 'mhp/3.0.0', false],
     ['mhp/0.0.0', 'mhp/1.0.0', false],

@@ -1,33 +1,39 @@
-# MHP 1.1.0 panel carrier
+# MHP 1.2.0 panel carrier
 
-Authored contract for Muse Spark Code (Unofficial), lead decision 2026-10-05
-(E01). Runtime delivery is lane B; companion HTTP/SSE is lane C; browser
-bridges are lane D and the native-plugin lanes. This document and the JSON
-Schemas define their contract; they do not claim those implementations ship.
+Reviewed replacement contract for Muse Spark Code (Unofficial), lead decision
+2026-10-06 (M104PA). No native plugin has shipped; 1.0/1.1 are not negotiated
+or supported. Native D/E/F adoption and assembled-editor qualification remain
+required; this document does not promote editor support.
 
 ## Compatibility and negotiation
 
-`mhp-v1.schema.json` and its lock retain the frozen `mhp/1.0.0` contract.
-`mhp-v1.1.schema.json` exports `mhp/1.1.0`, range
-`[mhp/1.0.0, mhp/1.2.0)` (`mhp/1.0.0..1.1.x`). Every v1 method, call,
-capability, error and non-initialize result is unchanged. The 1.1 initialize
-result additionally accepts `protocolVersion: "mhp/1.1.0"`.
+Both legacy-named native build inputs, `mhp-v1.schema.json` and
+`mhp-v1.1.schema.json`, now advertise `mhp/1.2.0` and range
+`[mhp/1.2.0, mhp/1.3.0)`. Their locks pin the current shared payloads as a
+reviewed version change. The first exports editor methods; the second also
+exports panel/bridge/lifecycle schemas. The filenames retain native build
+references; their headers and validators do not retain 1.0/1.1.
 
-`selectMhpVersion` selects the newest implemented version in an explicit
-minor-range offer bounded through `mhp/1.2.0`. Frozen v1 peers can advertise
-`[mhp/1.0.0, mhp/2.0.0)`; that legacy wide offer conservatively selects
-`mhp/1.0.0` and receives only v1 traffic. Existing v1 peers keep their old
-range and validation unchanged. A carrier peer opts in with
-`[mhp/1.0.0, mhp/1.2.0)` (or a narrower range containing 1.1.0). Panel
-traffic starts only after initialization actually selects 1.1.0. Unknown
-later revisions are never selected by inference. The original
-`isMhpVersionSupported` and `parseMhpResult` remain frozen v1 boundaries.
+The editor spawns the runtime and sends `initialize` with its host id/version,
+locale, theme tokens, folders, trust and supported capability groups. The
+runtime answers with `protocolVersion: "mhp/1.2.0"` and its capabilities.
+`shutdown` is also host-to-runtime; cancellation is bidirectional. A range
+containing 1.2.0 selects only that version. Every incompatible range receives
+`MHP_INCOMPATIBLE_VERSION`; 1.0/1.1 and speculative future versions are refused.
+The earlier runtime-initiated hostMetadata/surfaceHtml proposals are dropped.
+
+`workspace/didChangeTrust` supplies both trust grant and revocation;
+`surfaces/close` closes a superseded immutable binding before its fresh view
+opens. Settings/storage calls are bidirectional with the runtime as the
+portable record authority; settings notifications are bidirectional. Capabilities
+promise complete groups, never partial implementations. Runtime and native
+fixtures must use the exact current snapshot and request/result schemas.
 
 ## Envelope and admission
 
 ```json
 {
-  "mhp": "1.1",
+  "mhp": "1.2",
   "kind": "panel",
   "surface": "opaque-id",
   "direction": "toHost",
@@ -39,7 +45,7 @@ later revisions are never selected by inference. The original
 `toHost` carries the panel's payload to the runtime's conversation host;
 `toPanel` carries the runtime's payload through the editor/companion to the
 browser. These names describe the shared panel boundary, independently of
-which process physically forwards the frame. No JSON-RPC method is added.
+which process physically forwards the frame. Panel payloads reuse the existing shared UI vocabulary.
 
 `panel.envelope` is strict about envelope keys and discriminates direction.
 It reuses `src/shared/protocol.ts` in both directions, `tasksProtocol.ts`
@@ -79,7 +85,7 @@ then parse the envelope and check contextual admission before dispatch.
 
 ## Surface lifecycle
 
-Lifecycle notifications have `mhp: "1.1"`, `kind: "surface"`, the full
+Lifecycle notifications have `mhp: "1.2", `kind: "surface"`, the full
 binding (`surface`, `sessionId`, `surfaceKind`) and an `event`. They travel
 host/editor-to-runtime, separately from the editor-service method table.
 

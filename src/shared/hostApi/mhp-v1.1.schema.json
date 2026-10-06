@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.1.0",
-  "range": { "minimum": "mhp/1.0.0", "maximumExclusive": "mhp/1.2.0" },
+  "protocol": "mhp/1.2.0",
+  "range": { "minimum": "mhp/1.2.0", "maximumExclusive": "mhp/1.3.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -55,9 +55,9 @@
     "permissionDenied": -32006
   },
   "conventions": {
-    "transport": "one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.1 envelopes",
+    "transport": "one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.2 envelopes",
     "positions": "zero-based UTF-16 line and character",
-    "initialize": "legacy wide v1 offers select 1.0.0; offers bounded through mhp/1.2.0 opt into newest implemented minor; 1.0 receives only v1",
+    "initialize": "hostToRuntime; select mhp/1.2.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION",
     "requiredCapability": "lifecycle",
     "versioning": "breaking schema or semantic changes require a new protocol version and snapshot",
     "edits": "reject stale versions, dirty buffers and invalid/overlapping ranges before any side effect; apply atomically with one undo transaction",
@@ -153,7 +153,7 @@
   "methods": {
     "initialize": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "hostToRuntime",
       "capability": "lifecycle",
       "fallback": "required",
       "call": {
@@ -279,7 +279,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "enum": ["mhp/1.0.0", "mhp/1.1.0"] },
+              "protocolVersion": { "type": "string", "const": "mhp/1.2.0" },
               "capabilities": {
                 "type": "array",
                 "items": {
@@ -318,7 +318,7 @@
     },
     "shutdown": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "hostToRuntime",
       "capability": "lifecycle",
       "fallback": "required",
       "call": {
@@ -492,6 +492,28 @@
           "params": {
             "type": "object",
             "properties": { "trusted": { "type": "boolean", "const": true } },
+            "required": ["trusted"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jsonrpc", "method", "params"],
+        "additionalProperties": false
+      }
+    },
+    "workspace/didChangeTrust": {
+      "kind": "notification",
+      "direction": "hostToRuntime",
+      "capability": "workspace",
+      "fallback": "runtime-workspace",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "workspace/didChangeTrust" },
+          "params": {
+            "type": "object",
+            "properties": { "trusted": { "type": "boolean" } },
             "required": ["trusted"],
             "additionalProperties": false
           }
@@ -3652,6 +3674,57 @@
         "additionalProperties": false
       }
     },
+    "surfaces/close": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "surfaces",
+      "fallback": "companion-tabs",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "surfaces/close" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "surfaceId": {
+                "anyOf": [
+                  { "type": "string", "minLength": 1 },
+                  { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                ]
+              }
+            },
+            "required": ["surfaceId"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "null" }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
     "surfaces/focus": {
       "kind": "request",
       "direction": "runtimeToHost",
@@ -3761,7 +3834,7 @@
     },
     "settings/get": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "settings",
       "fallback": "runtime-settings",
       "call": {
@@ -3828,7 +3901,7 @@
     },
     "settings/update": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "settings",
       "fallback": "runtime-settings",
       "call": {
@@ -3892,7 +3965,7 @@
     },
     "settings/didChange": {
       "kind": "notification",
-      "direction": "hostToRuntime",
+      "direction": "bidirectional",
       "capability": "settings",
       "fallback": "runtime-settings",
       "call": {
@@ -3919,7 +3992,7 @@
     },
     "storage/global.get": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "storage",
       "fallback": "runtime-storage",
       "call": {
@@ -3984,7 +4057,7 @@
     },
     "storage/global.set": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "storage",
       "fallback": "runtime-storage",
       "call": {
@@ -4044,7 +4117,7 @@
     },
     "storage/workspace.get": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "storage",
       "fallback": "runtime-storage",
       "call": {
@@ -4109,7 +4182,7 @@
     },
     "storage/workspace.set": {
       "kind": "request",
-      "direction": "runtimeToHost",
+      "direction": "bidirectional",
       "capability": "storage",
       "fallback": "runtime-storage",
       "call": {
@@ -4824,9 +4897,9 @@
     {
       "id": "F5",
       "name": "permission-modes",
-      "methods": [],
-      "capabilities": [],
-      "fallback": "shared-controller",
+      "methods": ["workspace/didChangeTrust"],
+      "capabilities": ["workspace"],
+      "fallback": "runtime-workspace",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
         "cursor": { "status": "M", "evidence": [] },
@@ -5318,7 +5391,7 @@
     {
       "id": "F19",
       "name": "tasks",
-      "methods": ["surfaces/open", "surfaces/focus", "surfaces/state"],
+      "methods": ["surfaces/open", "surfaces/close", "surfaces/focus", "surfaces/state"],
       "capabilities": ["surfaces"],
       "fallback": "companion-tabs",
       "editors": {
@@ -6640,7 +6713,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "panel" },
             "surface": { "type": "string", "minLength": 1 },
             "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
@@ -6709,7 +6782,9 @@
                           "required": ["intent", "role", "text"],
                           "additionalProperties": false
                         },
-                        "secretAccepted": { "type": "boolean" }
+                        "secretAccepted": { "type": "boolean" },
+                        "gitDraft": { "type": "string", "enum": ["commitMessage", "pullRequest"] },
+                        "gitDraftBase": { "type": "string" }
                       },
                       "required": ["type", "localId", "text", "attachmentIds"],
                       "additionalProperties": false
@@ -6723,6 +6798,15 @@
                         "userMessageId": { "type": "string", "minLength": 1 }
                       },
                       "required": ["type", "localId", "turnId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "runManualHook" },
+                        "name": { "type": "string", "minLength": 1 }
+                      },
+                      "required": ["type", "name"],
                       "additionalProperties": false
                     },
                     {
@@ -7032,6 +7116,7 @@
                             "showMemory",
                             "newWorktree",
                             "removeWorktree",
+                            "openPullRequestInConversation",
                             "restartMuseCode",
                             "openTasksTab",
                             "installBundledSkills",
@@ -7071,6 +7156,21 @@
                         "userInputId": { "type": "string" }
                       },
                       "required": ["type", "userInputId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "elicitationAnswer" },
+                        "elicitationId": { "type": "string" },
+                        "action": { "type": "string", "enum": ["accept", "decline", "cancel"] },
+                        "values": {
+                          "type": "object",
+                          "propertyNames": { "type": "string" },
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": ["type", "elicitationId", "action"],
                       "additionalProperties": false
                     },
                     {
@@ -7635,7 +7735,10 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         },
                         "isOn": { "type": "boolean" }
@@ -7647,6 +7750,161 @@
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "forgetPaidUse" } },
                       "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitAction" },
+                        "action": {
+                          "type": "string",
+                          "enum": [
+                            "openCommit",
+                            "push",
+                            "openPullRequest",
+                            "refreshPullRequest",
+                            "signInGitHub",
+                            "trustWorktree",
+                            "cancel"
+                          ]
+                        }
+                      },
+                      "required": ["type", "action"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitCommit" },
+                        "message": { "type": "string" },
+                        "includeUnstaged": { "type": "boolean" }
+                      },
+                      "required": ["type", "message", "includeUnstaged"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitCreatePullRequest" },
+                        "head": { "type": "string" },
+                        "base": { "type": "string" },
+                        "title": { "type": "string" },
+                        "body": { "type": "string" },
+                        "isDraft": { "type": "boolean" }
+                      },
+                      "required": ["type", "head", "base", "title", "body", "isDraft"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "openReport" },
+                        "ref": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "activationFailed",
+                                "backendExit",
+                                "toolCallFailed",
+                                "windowError",
+                                "unhandledRejection",
+                                "reactBoundary",
+                                "errorNotice"
+                              ]
+                            },
+                            "entryIndex": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": ["kind", "entryIndex"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "updateReport" },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 9007199254740991
+                        },
+                        "description": { "type": "string", "maxLength": 2000 },
+                        "includeFacts": { "type": "boolean" },
+                        "includeEvents": { "type": "boolean" },
+                        "removedEventIndexes": {
+                          "maxItems": 50,
+                          "type": "array",
+                          "items": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "revision",
+                        "description",
+                        "includeFacts",
+                        "includeEvents",
+                        "removedEventIndexes"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "exportReport" },
+                        "via": {
+                          "type": "string",
+                          "enum": ["copy", "issue", "save", "vscodeReporter"]
+                        },
+                        "hash": { "type": "string", "minLength": 64, "maxLength": 64 }
+                      },
+                      "required": ["type", "via", "hash"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "reportWebviewError" },
+                        "kind": {
+                          "type": "string",
+                          "enum": ["windowError", "unhandledRejection", "reactBoundary"]
+                        },
+                        "source": {
+                          "type": "string",
+                          "enum": ["render", "window", "promise", "hostMessage"]
+                        },
+                        "code": { "type": "string", "minLength": 1, "maxLength": 64 },
+                        "frames": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "path": { "type": "string", "minLength": 1, "maxLength": 260 },
+                              "line": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "maximum": 9007199254740991
+                              },
+                              "column": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              }
+                            },
+                            "required": ["path", "line", "column"],
+                            "additionalProperties": false
+                          }
+                        }
+                      },
+                      "required": ["type", "kind", "source", "code", "frames"],
                       "additionalProperties": false
                     }
                   ]
@@ -7713,7 +7971,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "panel" },
             "surface": { "type": "string", "minLength": 1 },
             "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
@@ -7818,6 +8076,12 @@
                     {
                       "type": "object",
                       "properties": { "type": { "type": "string", "const": "focusInput" } },
+                      "required": ["type"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": { "type": { "type": "string", "const": "openUsage" } },
                       "required": ["type"],
                       "additionalProperties": false
                     },
@@ -8159,6 +8423,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -8257,7 +8522,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -8503,6 +8771,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -8601,7 +8870,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -8725,6 +8997,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -8823,7 +9096,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -8968,7 +9244,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               }
                             },
@@ -9031,7 +9310,60 @@
                                   "minimum": 0,
                                   "maximum": 9007199254740991
                                 },
-                                "bestOfNCostUsd": { "type": "number", "minimum": 0 }
+                                "bestOfNCostUsd": { "type": "number", "minimum": 0 },
+                                "tabRequests": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "tabUnknownRequests": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "tabTokens": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "tabCachedTokens": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "tabCostUsd": { "type": "number", "minimum": 0 },
+                                "hookModelRuns": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "hookModelUnknownRequests": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "hookModelTokens": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "hookModelCostUsd": { "type": "number", "minimum": 0 },
+                                "judgeCalls": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "judgeUnknownRequests": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "judgeTokens": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "judgeCostUsd": { "type": "number", "minimum": 0 }
                               },
                               "required": [
                                 "webSearches",
@@ -9053,12 +9385,55 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               }
+                            },
+                            "tab": {
+                              "type": "object",
+                              "properties": {
+                                "budgetUsd": { "type": "number", "minimum": 0 },
+                                "todayUsd": { "type": "number", "minimum": 0 }
+                              },
+                              "required": ["budgetUsd"],
+                              "additionalProperties": false
                             }
                           },
                           "required": ["features", "tally", "isKeyStored", "alwaysAllowed"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type", "state"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "judgeState" },
+                        "state": {
+                          "type": "object",
+                          "properties": {
+                            "mode": { "type": "string", "enum": ["same", "off"] },
+                            "modelId": { "type": "string" },
+                            "billing": { "type": "string", "enum": ["subscription", "modelApi"] },
+                            "reason": {
+                              "type": "string",
+                              "enum": [
+                                "explicit-off",
+                                "unknown-setting",
+                                "consent-needed",
+                                "consent-declined",
+                                "source-unavailable",
+                                "ready-rate-low",
+                                "auto-same",
+                                "explicit-same"
+                              ]
+                            }
+                          },
+                          "required": ["mode", "modelId", "billing", "reason"],
                           "additionalProperties": false
                         }
                       },
@@ -9214,6 +9589,7 @@
                                     "status": { "type": "string" },
                                     "turnId": { "type": "string" },
                                     "text": { "type": "string" },
+                                    "displayText": { "type": "string" },
                                     "summary": { "type": "array", "items": { "type": "string" } },
                                     "tool": { "type": "string" },
                                     "args": { "type": "string" },
@@ -9312,7 +9688,10 @@
                                         "subagents",
                                         "scheduledPrompts",
                                         "autoReviewer",
-                                        "bestOfN"
+                                        "bestOfN",
+                                        "tab",
+                                        "hookModels",
+                                        "judge"
                                       ]
                                     },
                                     "modelVisibleContent": { "type": "array", "items": {} },
@@ -9445,6 +9824,7 @@
                                     "status": { "type": "string" },
                                     "turnId": { "type": "string" },
                                     "text": { "type": "string" },
+                                    "displayText": { "type": "string" },
                                     "summary": { "type": "array", "items": { "type": "string" } },
                                     "tool": { "type": "string" },
                                     "args": { "type": "string" },
@@ -9543,7 +9923,10 @@
                                         "subagents",
                                         "scheduledPrompts",
                                         "autoReviewer",
-                                        "bestOfN"
+                                        "bestOfN",
+                                        "tab",
+                                        "hookModels",
+                                        "judge"
                                       ]
                                     },
                                     "modelVisibleContent": { "type": "array", "items": {} },
@@ -9665,6 +10048,7 @@
                                     "status": { "type": "string" },
                                     "turnId": { "type": "string" },
                                     "text": { "type": "string" },
+                                    "displayText": { "type": "string" },
                                     "summary": { "type": "array", "items": { "type": "string" } },
                                     "tool": { "type": "string" },
                                     "args": { "type": "string" },
@@ -9763,7 +10147,10 @@
                                         "subagents",
                                         "scheduledPrompts",
                                         "autoReviewer",
-                                        "bestOfN"
+                                        "bestOfN",
+                                        "tab",
+                                        "hookModels",
+                                        "judge"
                                       ]
                                     },
                                     "modelVisibleContent": { "type": "array", "items": {} },
@@ -9915,7 +10302,12 @@
                                 "cachedTokens": { "type": "number" },
                                 "reasoningTokens": { "type": "number" },
                                 "modelId": { "type": "string" },
-                                "packedTokensAvoided": { "type": "number" }
+                                "packedTokensAvoided": { "type": "number" },
+                                "hookTokensAdded": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
                               },
                               "required": ["type", "inputTokens", "outputTokens"],
                               "additionalProperties": false
@@ -10039,6 +10431,7 @@
                               "type": "object",
                               "properties": {
                                 "type": { "type": "string", "const": "approvalRequested" },
+                                "judgeCaution": { "type": "boolean" },
                                 "approvalId": { "type": "string" },
                                 "itemId": { "type": "string" },
                                 "toolName": { "type": "string" },
@@ -10152,6 +10545,24 @@
                                 "isJudgeEscalated",
                                 "isProtectedWrite"
                               ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": { "type": "string", "const": "approvalCaution" },
+                                "approvalId": { "type": "string" },
+                                "requirementId": {
+                                  "type": "object",
+                                  "properties": {
+                                    "approvalId": { "type": "string" },
+                                    "sourceIndex": { "type": "number" }
+                                  },
+                                  "required": ["approvalId", "sourceIndex"],
+                                  "additionalProperties": false
+                                }
+                              },
+                              "required": ["type", "approvalId", "requirementId"],
                               "additionalProperties": false
                             },
                             {
@@ -10353,6 +10764,64 @@
                             {
                               "type": "object",
                               "properties": {
+                                "type": { "type": "string", "const": "elicitationRequested" },
+                                "elicitationId": { "type": "string" },
+                                "server": { "type": "string" },
+                                "message": { "type": "string" },
+                                "fields": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "name": { "type": "string" },
+                                      "title": { "type": "string" },
+                                      "description": { "type": "string" },
+                                      "type": {
+                                        "type": "string",
+                                        "enum": ["string", "number", "integer", "boolean"]
+                                      },
+                                      "required": { "type": "boolean" },
+                                      "enum": { "type": "array", "items": { "type": "string" } },
+                                      "enumNames": {
+                                        "type": "array",
+                                        "items": { "type": "string" }
+                                      },
+                                      "format": {
+                                        "type": "string",
+                                        "enum": ["email", "uri", "date", "date-time"]
+                                      },
+                                      "default": { "type": ["string", "number", "boolean"] },
+                                      "minLength": { "type": "number" },
+                                      "maxLength": { "type": "number" },
+                                      "minimum": { "type": "number" },
+                                      "maximum": { "type": "number" }
+                                    },
+                                    "required": ["name", "type", "required"],
+                                    "additionalProperties": false
+                                  }
+                                },
+                                "itemId": { "type": "string" }
+                              },
+                              "required": ["type", "elicitationId", "server", "message", "fields"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "type": { "type": "string", "const": "elicitationSettled" },
+                                "elicitationId": { "type": "string" },
+                                "action": {
+                                  "type": "string",
+                                  "enum": ["accept", "decline", "cancel"]
+                                },
+                                "reason": { "type": "string" }
+                              },
+                              "required": ["type", "elicitationId", "action"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
                                 "type": { "type": "string", "const": "todoChanged" },
                                 "items": {
                                   "type": "array",
@@ -10432,6 +10901,30 @@
                               "additionalProperties": false
                             }
                           ]
+                        },
+                        "reportRef": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "activationFailed",
+                                "backendExit",
+                                "toolCallFailed",
+                                "windowError",
+                                "unhandledRejection",
+                                "reactBoundary",
+                                "errorNotice"
+                              ]
+                            },
+                            "entryIndex": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": ["kind", "entryIndex"],
+                          "additionalProperties": false
                         }
                       },
                       "required": ["type", "event"],
@@ -10578,6 +11071,30 @@
                               "declineBundledSkills"
                             ]
                           }
+                        },
+                        "reportRef": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "activationFailed",
+                                "backendExit",
+                                "toolCallFailed",
+                                "windowError",
+                                "unhandledRejection",
+                                "reactBoundary",
+                                "errorNotice"
+                              ]
+                            },
+                            "entryIndex": {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 9007199254740991
+                            }
+                          },
+                          "required": ["kind", "entryIndex"],
+                          "additionalProperties": false
                         }
                       },
                       "required": ["type", "level", "text"],
@@ -10642,6 +11159,201 @@
                         "itemId": { "type": "string" }
                       },
                       "required": ["type", "itemId"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitState" },
+                        "state": {
+                          "type": "object",
+                          "properties": {
+                            "hold": {
+                              "type": "object",
+                              "properties": {
+                                "pullRequest": {
+                                  "type": "object",
+                                  "properties": {
+                                    "repository": { "type": "string" },
+                                    "number": { "type": "number" },
+                                    "title": { "type": "string" },
+                                    "author": { "type": "string" },
+                                    "url": { "type": "string" }
+                                  },
+                                  "required": ["repository", "number", "title", "author", "url"],
+                                  "additionalProperties": false
+                                },
+                                "isRestricted": { "type": "boolean" }
+                              },
+                              "required": ["isRestricted"],
+                              "additionalProperties": false
+                            },
+                            "worktree": {
+                              "type": "object",
+                              "properties": {
+                                "branch": { "type": "string" },
+                                "repositoryRoot": { "type": "string" },
+                                "pullRequestNumber": { "type": "number" }
+                              },
+                              "required": ["repositoryRoot"],
+                              "additionalProperties": false
+                            },
+                            "pullRequest": {
+                              "type": "object",
+                              "properties": {
+                                "repository": { "type": "string" },
+                                "number": { "type": "number" },
+                                "title": { "type": "string" },
+                                "url": { "type": "string" },
+                                "state": { "type": "string" },
+                                "isDraft": { "type": "boolean" },
+                                "isMerged": { "type": "boolean" },
+                                "checks": {
+                                  "type": "object",
+                                  "properties": {
+                                    "passed": { "type": "number" },
+                                    "failed": { "type": "number" },
+                                    "running": { "type": "number" },
+                                    "skipped": { "type": "number" },
+                                    "cancelled": { "type": "number" },
+                                    "failedNames": {
+                                      "type": "array",
+                                      "items": { "type": "string" }
+                                    },
+                                    "other": { "type": "array", "items": { "type": "string" } },
+                                    "notRead": { "type": "number" }
+                                  },
+                                  "required": [
+                                    "passed",
+                                    "failed",
+                                    "running",
+                                    "skipped",
+                                    "cancelled",
+                                    "failedNames",
+                                    "other",
+                                    "notRead"
+                                  ],
+                                  "additionalProperties": false
+                                },
+                                "problem": { "type": "string" },
+                                "needsSignIn": { "type": "boolean" },
+                                "checkedAt": { "type": "number" }
+                              },
+                              "required": ["repository", "number", "title", "url"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type", "state"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitCommitForm" },
+                        "form": {
+                          "type": "object",
+                          "properties": {
+                            "branch": { "type": "string" },
+                            "staged": { "type": "number" },
+                            "unstaged": { "type": "number" },
+                            "files": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "path": { "type": "string" },
+                                  "isStaged": { "type": "boolean" }
+                                },
+                                "required": ["path", "isStaged"],
+                                "additionalProperties": false
+                              }
+                            },
+                            "moreFiles": { "type": "number" }
+                          },
+                          "required": ["staged", "unstaged", "files", "moreFiles"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type", "form"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitPullRequestForm" },
+                        "form": {
+                          "type": "object",
+                          "properties": {
+                            "repository": { "type": "string" },
+                            "headRepository": { "type": "string" },
+                            "remote": { "type": "string" },
+                            "remoteUrl": { "type": "string" },
+                            "head": { "type": "string" },
+                            "base": { "type": "string" },
+                            "push": { "type": "string", "enum": ["pushed", "needed", "behind"] },
+                            "commits": { "type": "number" }
+                          },
+                          "required": ["repository", "remote", "remoteUrl", "head", "base", "push"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": ["type", "form"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitDraft" },
+                        "draft": {
+                          "oneOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "const": "commitMessage" },
+                                "message": { "type": "string" }
+                              },
+                              "required": ["kind", "message"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "const": "pullRequest" },
+                                "title": { "type": "string" },
+                                "body": { "type": "string" }
+                              },
+                              "required": ["kind", "title", "body"],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": { "type": "string", "const": "failed" },
+                                "forKind": {
+                                  "type": "string",
+                                  "enum": ["commitMessage", "pullRequest"]
+                                }
+                              },
+                              "required": ["kind", "forKind"],
+                              "additionalProperties": false
+                            }
+                          ]
+                        }
+                      },
+                      "required": ["type", "draft"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "gitDone" },
+                        "form": { "type": "string", "enum": ["commit", "pullRequest"] },
+                        "ok": { "type": "boolean" }
+                      },
+                      "required": ["type", "form", "ok"],
                       "additionalProperties": false
                     },
                     {
@@ -10731,6 +11443,86 @@
                       },
                       "required": ["type", "itemId", "path"],
                       "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "reportDraft" },
+                        "session": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                        "revision": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "description": { "type": "string", "maxLength": 2000 },
+                        "includeFacts": { "type": "boolean" },
+                        "includeEvents": { "type": "boolean" },
+                        "items": {
+                          "maxItems": 51,
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "kind": { "type": "string", "enum": ["facts", "event"] },
+                              "eventIndex": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 9007199254740991
+                              },
+                              "label": { "type": "string", "minLength": 1 }
+                            },
+                            "required": ["kind", "label"],
+                            "additionalProperties": false
+                          }
+                        },
+                        "title": { "type": "string" },
+                        "text": { "type": "string" },
+                        "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+                        "canUseVscodeReporter": { "type": "boolean" },
+                        "recordingUnavailable": { "type": "boolean" }
+                      },
+                      "required": [
+                        "type",
+                        "session",
+                        "revision",
+                        "description",
+                        "includeFacts",
+                        "includeEvents",
+                        "items",
+                        "title",
+                        "text",
+                        "hash",
+                        "canUseVscodeReporter",
+                        "recordingUnavailable"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "reportExported" },
+                        "session": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                        "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+                        "via": {
+                          "type": "string",
+                          "enum": ["copy", "issue", "save", "vscodeReporter"]
+                        },
+                        "ok": { "type": "boolean" },
+                        "issueFallback": { "type": "boolean" },
+                        "reason": {
+                          "type": "string",
+                          "enum": [
+                            "stale",
+                            "cancelled",
+                            "copyFailed",
+                            "saveFailed",
+                            "openFailed",
+                            "reporterFailed"
+                          ]
+                        }
+                      },
+                      "required": ["type", "session", "hash", "via", "ok"],
+                      "additionalProperties": false
                     }
                   ]
                 },
@@ -10800,7 +11592,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "surface" },
             "surface": { "type": "string", "minLength": 1 },
             "sessionId": { "type": "string", "minLength": 1 },
@@ -10830,7 +11622,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "surface" },
             "surface": { "type": "string", "minLength": 1 },
             "sessionId": { "type": "string", "minLength": 1 },
@@ -10860,7 +11652,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "surface" },
             "surface": { "type": "string", "minLength": 1 },
             "sessionId": { "type": "string", "minLength": 1 },
@@ -10924,7 +11716,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "surface" },
             "surface": { "type": "string", "minLength": 1 },
             "sessionId": { "type": "string", "minLength": 1 },
@@ -10954,7 +11746,7 @@
         {
           "type": "object",
           "properties": {
-            "mhp": { "type": "string", "const": "1.1" },
+            "mhp": { "type": "string", "const": "1.2" },
             "kind": { "type": "string", "const": "surface" },
             "surface": { "type": "string", "minLength": 1 },
             "sessionId": { "type": "string", "minLength": 1 },
@@ -10996,7 +11788,7 @@
       "$schema": "https://json-schema.org/draft/2020-12/schema",
       "type": "object",
       "properties": {
-        "mhp": { "type": "string", "const": "1.1" },
+        "mhp": { "type": "string", "const": "1.2" },
         "kind": { "type": "string", "const": "panelError" },
         "surface": { "anyOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }] },
         "seq": {
@@ -11067,7 +11859,7 @@
       "maximumQueuedMessages": 128
     },
     "invariants": [
-      "Panel frames require negotiated mhp/1.1.0. Validate shared payload and bound surface kind before delivery.",
+      "Panel frames require negotiated mhp/1.2.0. Validate shared payload and bound surface kind before delivery.",
       "One immutable session binding per surface; unknown/closed surfaces produce typed errors and no delivery.",
       "Sequence starts at 1 per surface and direction; reject duplicates and gaps without advancing.",
       "Reload retains binding and sequence, suspends delivery until ready, then replays stateRequest once.",
@@ -11141,7 +11933,9 @@
                     "required": ["intent", "role", "text"],
                     "additionalProperties": false
                   },
-                  "secretAccepted": { "type": "boolean" }
+                  "secretAccepted": { "type": "boolean" },
+                  "gitDraft": { "type": "string", "enum": ["commitMessage", "pullRequest"] },
+                  "gitDraftBase": { "type": "string" }
                 },
                 "required": ["type", "localId", "text", "attachmentIds"],
                 "additionalProperties": false
@@ -11155,6 +11949,15 @@
                   "userMessageId": { "type": "string", "minLength": 1 }
                 },
                 "required": ["type", "localId", "turnId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "runManualHook" },
+                  "name": { "type": "string", "minLength": 1 }
+                },
+                "required": ["type", "name"],
                 "additionalProperties": false
               },
               {
@@ -11461,6 +12264,7 @@
                       "showMemory",
                       "newWorktree",
                       "removeWorktree",
+                      "openPullRequestInConversation",
                       "restartMuseCode",
                       "openTasksTab",
                       "installBundledSkills",
@@ -11500,6 +12304,21 @@
                   "userInputId": { "type": "string" }
                 },
                 "required": ["type", "userInputId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "elicitationAnswer" },
+                  "elicitationId": { "type": "string" },
+                  "action": { "type": "string", "enum": ["accept", "decline", "cancel"] },
+                  "values": {
+                    "type": "object",
+                    "propertyNames": { "type": "string" },
+                    "additionalProperties": {}
+                  }
+                },
+                "required": ["type", "elicitationId", "action"],
                 "additionalProperties": false
               },
               {
@@ -12043,7 +12862,10 @@
                       "subagents",
                       "scheduledPrompts",
                       "autoReviewer",
-                      "bestOfN"
+                      "bestOfN",
+                      "tab",
+                      "hookModels",
+                      "judge"
                     ]
                   },
                   "isOn": { "type": "boolean" }
@@ -12055,6 +12877,142 @@
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "forgetPaidUse" } },
                 "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitAction" },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "openCommit",
+                      "push",
+                      "openPullRequest",
+                      "refreshPullRequest",
+                      "signInGitHub",
+                      "trustWorktree",
+                      "cancel"
+                    ]
+                  }
+                },
+                "required": ["type", "action"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitCommit" },
+                  "message": { "type": "string" },
+                  "includeUnstaged": { "type": "boolean" }
+                },
+                "required": ["type", "message", "includeUnstaged"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitCreatePullRequest" },
+                  "head": { "type": "string" },
+                  "base": { "type": "string" },
+                  "title": { "type": "string" },
+                  "body": { "type": "string" },
+                  "isDraft": { "type": "boolean" }
+                },
+                "required": ["type", "head", "base", "title", "body", "isDraft"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "openReport" },
+                  "ref": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "activationFailed",
+                          "backendExit",
+                          "toolCallFailed",
+                          "windowError",
+                          "unhandledRejection",
+                          "reactBoundary",
+                          "errorNotice"
+                        ]
+                      },
+                      "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["kind", "entryIndex"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "updateReport" },
+                  "revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                  "description": { "type": "string", "maxLength": 2000 },
+                  "includeFacts": { "type": "boolean" },
+                  "includeEvents": { "type": "boolean" },
+                  "removedEventIndexes": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                  }
+                },
+                "required": [
+                  "type",
+                  "revision",
+                  "description",
+                  "includeFacts",
+                  "includeEvents",
+                  "removedEventIndexes"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "exportReport" },
+                  "via": { "type": "string", "enum": ["copy", "issue", "save", "vscodeReporter"] },
+                  "hash": { "type": "string", "minLength": 64, "maxLength": 64 }
+                },
+                "required": ["type", "via", "hash"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "reportWebviewError" },
+                  "kind": {
+                    "type": "string",
+                    "enum": ["windowError", "unhandledRejection", "reactBoundary"]
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": ["render", "window", "promise", "hostMessage"]
+                  },
+                  "code": { "type": "string", "minLength": 1, "maxLength": 64 },
+                  "frames": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "path": { "type": "string", "minLength": 1, "maxLength": 260 },
+                        "line": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                        "column": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                      },
+                      "required": ["path", "line", "column"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["type", "kind", "source", "code", "frames"],
                 "additionalProperties": false
               }
             ]
@@ -12218,6 +13176,12 @@
               {
                 "type": "object",
                 "properties": { "type": { "type": "string", "const": "focusInput" } },
+                "required": ["type"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": { "type": { "type": "string", "const": "openUsage" } },
                 "required": ["type"],
                 "additionalProperties": false
               },
@@ -12547,6 +13511,7 @@
                         "status": { "type": "string" },
                         "turnId": { "type": "string" },
                         "text": { "type": "string" },
+                        "displayText": { "type": "string" },
                         "summary": { "type": "array", "items": { "type": "string" } },
                         "tool": { "type": "string" },
                         "args": { "type": "string" },
@@ -12645,7 +13610,10 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         },
                         "modelVisibleContent": { "type": "array", "items": {} },
@@ -12885,6 +13853,7 @@
                         "status": { "type": "string" },
                         "turnId": { "type": "string" },
                         "text": { "type": "string" },
+                        "displayText": { "type": "string" },
                         "summary": { "type": "array", "items": { "type": "string" } },
                         "tool": { "type": "string" },
                         "args": { "type": "string" },
@@ -12983,7 +13952,10 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         },
                         "modelVisibleContent": { "type": "array", "items": {} },
@@ -13101,6 +14073,7 @@
                         "status": { "type": "string" },
                         "turnId": { "type": "string" },
                         "text": { "type": "string" },
+                        "displayText": { "type": "string" },
                         "summary": { "type": "array", "items": { "type": "string" } },
                         "tool": { "type": "string" },
                         "args": { "type": "string" },
@@ -13199,7 +14172,10 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         },
                         "modelVisibleContent": { "type": "array", "items": {} },
@@ -13338,7 +14314,10 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         }
                       },
@@ -13401,7 +14380,60 @@
                             "minimum": 0,
                             "maximum": 9007199254740991
                           },
-                          "bestOfNCostUsd": { "type": "number", "minimum": 0 }
+                          "bestOfNCostUsd": { "type": "number", "minimum": 0 },
+                          "tabRequests": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "tabUnknownRequests": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "tabTokens": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "tabCachedTokens": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "tabCostUsd": { "type": "number", "minimum": 0 },
+                          "hookModelRuns": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "hookModelUnknownRequests": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "hookModelTokens": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "hookModelCostUsd": { "type": "number", "minimum": 0 },
+                          "judgeCalls": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "judgeUnknownRequests": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "judgeTokens": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          "judgeCostUsd": { "type": "number", "minimum": 0 }
                         },
                         "required": ["webSearches", "images", "voiceSeconds", "scheduledRuns"],
                         "additionalProperties": false
@@ -13418,12 +14450,55 @@
                             "subagents",
                             "scheduledPrompts",
                             "autoReviewer",
-                            "bestOfN"
+                            "bestOfN",
+                            "tab",
+                            "hookModels",
+                            "judge"
                           ]
                         }
+                      },
+                      "tab": {
+                        "type": "object",
+                        "properties": {
+                          "budgetUsd": { "type": "number", "minimum": 0 },
+                          "todayUsd": { "type": "number", "minimum": 0 }
+                        },
+                        "required": ["budgetUsd"],
+                        "additionalProperties": false
                       }
                     },
                     "required": ["features", "tally", "isKeyStored", "alwaysAllowed"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "state"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "judgeState" },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "mode": { "type": "string", "enum": ["same", "off"] },
+                      "modelId": { "type": "string" },
+                      "billing": { "type": "string", "enum": ["subscription", "modelApi"] },
+                      "reason": {
+                        "type": "string",
+                        "enum": [
+                          "explicit-off",
+                          "unknown-setting",
+                          "consent-needed",
+                          "consent-declined",
+                          "source-unavailable",
+                          "ready-rate-low",
+                          "auto-same",
+                          "explicit-same"
+                        ]
+                      }
+                    },
+                    "required": ["mode", "modelId", "billing", "reason"],
                     "additionalProperties": false
                   }
                 },
@@ -13579,6 +14654,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -13677,7 +14753,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -13804,6 +14883,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -13902,7 +14982,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -14018,6 +15101,7 @@
                               "status": { "type": "string" },
                               "turnId": { "type": "string" },
                               "text": { "type": "string" },
+                              "displayText": { "type": "string" },
                               "summary": { "type": "array", "items": { "type": "string" } },
                               "tool": { "type": "string" },
                               "args": { "type": "string" },
@@ -14116,7 +15200,10 @@
                                   "subagents",
                                   "scheduledPrompts",
                                   "autoReviewer",
-                                  "bestOfN"
+                                  "bestOfN",
+                                  "tab",
+                                  "hookModels",
+                                  "judge"
                                 ]
                               },
                               "modelVisibleContent": { "type": "array", "items": {} },
@@ -14262,7 +15349,12 @@
                           "cachedTokens": { "type": "number" },
                           "reasoningTokens": { "type": "number" },
                           "modelId": { "type": "string" },
-                          "packedTokensAvoided": { "type": "number" }
+                          "packedTokensAvoided": { "type": "number" },
+                          "hookTokensAdded": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          }
                         },
                         "required": ["type", "inputTokens", "outputTokens"],
                         "additionalProperties": false
@@ -14378,6 +15470,7 @@
                         "type": "object",
                         "properties": {
                           "type": { "type": "string", "const": "approvalRequested" },
+                          "judgeCaution": { "type": "boolean" },
                           "approvalId": { "type": "string" },
                           "itemId": { "type": "string" },
                           "toolName": { "type": "string" },
@@ -14477,6 +15570,24 @@
                           "isJudgeEscalated",
                           "isProtectedWrite"
                         ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "approvalCaution" },
+                          "approvalId": { "type": "string" },
+                          "requirementId": {
+                            "type": "object",
+                            "properties": {
+                              "approvalId": { "type": "string" },
+                              "sourceIndex": { "type": "number" }
+                            },
+                            "required": ["approvalId", "sourceIndex"],
+                            "additionalProperties": false
+                          }
+                        },
+                        "required": ["type", "approvalId", "requirementId"],
                         "additionalProperties": false
                       },
                       {
@@ -14658,6 +15769,58 @@
                       {
                         "type": "object",
                         "properties": {
+                          "type": { "type": "string", "const": "elicitationRequested" },
+                          "elicitationId": { "type": "string" },
+                          "server": { "type": "string" },
+                          "message": { "type": "string" },
+                          "fields": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "name": { "type": "string" },
+                                "title": { "type": "string" },
+                                "description": { "type": "string" },
+                                "type": {
+                                  "type": "string",
+                                  "enum": ["string", "number", "integer", "boolean"]
+                                },
+                                "required": { "type": "boolean" },
+                                "enum": { "type": "array", "items": { "type": "string" } },
+                                "enumNames": { "type": "array", "items": { "type": "string" } },
+                                "format": {
+                                  "type": "string",
+                                  "enum": ["email", "uri", "date", "date-time"]
+                                },
+                                "default": { "type": ["string", "number", "boolean"] },
+                                "minLength": { "type": "number" },
+                                "maxLength": { "type": "number" },
+                                "minimum": { "type": "number" },
+                                "maximum": { "type": "number" }
+                              },
+                              "required": ["name", "type", "required"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "itemId": { "type": "string" }
+                        },
+                        "required": ["type", "elicitationId", "server", "message", "fields"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "elicitationSettled" },
+                          "elicitationId": { "type": "string" },
+                          "action": { "type": "string", "enum": ["accept", "decline", "cancel"] },
+                          "reason": { "type": "string" }
+                        },
+                        "required": ["type", "elicitationId", "action"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
                           "type": { "type": "string", "const": "todoChanged" },
                           "items": {
                             "type": "array",
@@ -14737,6 +15900,26 @@
                         "additionalProperties": false
                       }
                     ]
+                  },
+                  "reportRef": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "activationFailed",
+                          "backendExit",
+                          "toolCallFailed",
+                          "windowError",
+                          "unhandledRejection",
+                          "reactBoundary",
+                          "errorNotice"
+                        ]
+                      },
+                      "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["kind", "entryIndex"],
+                    "additionalProperties": false
                   }
                 },
                 "required": ["type", "event"],
@@ -14883,6 +16066,26 @@
                         "declineBundledSkills"
                       ]
                     }
+                  },
+                  "reportRef": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "activationFailed",
+                          "backendExit",
+                          "toolCallFailed",
+                          "windowError",
+                          "unhandledRejection",
+                          "reactBoundary",
+                          "errorNotice"
+                        ]
+                      },
+                      "entryIndex": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["kind", "entryIndex"],
+                    "additionalProperties": false
                   }
                 },
                 "required": ["type", "level", "text"],
@@ -14944,6 +16147,195 @@
                   "itemId": { "type": "string" }
                 },
                 "required": ["type", "itemId"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitState" },
+                  "state": {
+                    "type": "object",
+                    "properties": {
+                      "hold": {
+                        "type": "object",
+                        "properties": {
+                          "pullRequest": {
+                            "type": "object",
+                            "properties": {
+                              "repository": { "type": "string" },
+                              "number": { "type": "number" },
+                              "title": { "type": "string" },
+                              "author": { "type": "string" },
+                              "url": { "type": "string" }
+                            },
+                            "required": ["repository", "number", "title", "author", "url"],
+                            "additionalProperties": false
+                          },
+                          "isRestricted": { "type": "boolean" }
+                        },
+                        "required": ["isRestricted"],
+                        "additionalProperties": false
+                      },
+                      "worktree": {
+                        "type": "object",
+                        "properties": {
+                          "branch": { "type": "string" },
+                          "repositoryRoot": { "type": "string" },
+                          "pullRequestNumber": { "type": "number" }
+                        },
+                        "required": ["repositoryRoot"],
+                        "additionalProperties": false
+                      },
+                      "pullRequest": {
+                        "type": "object",
+                        "properties": {
+                          "repository": { "type": "string" },
+                          "number": { "type": "number" },
+                          "title": { "type": "string" },
+                          "url": { "type": "string" },
+                          "state": { "type": "string" },
+                          "isDraft": { "type": "boolean" },
+                          "isMerged": { "type": "boolean" },
+                          "checks": {
+                            "type": "object",
+                            "properties": {
+                              "passed": { "type": "number" },
+                              "failed": { "type": "number" },
+                              "running": { "type": "number" },
+                              "skipped": { "type": "number" },
+                              "cancelled": { "type": "number" },
+                              "failedNames": { "type": "array", "items": { "type": "string" } },
+                              "other": { "type": "array", "items": { "type": "string" } },
+                              "notRead": { "type": "number" }
+                            },
+                            "required": [
+                              "passed",
+                              "failed",
+                              "running",
+                              "skipped",
+                              "cancelled",
+                              "failedNames",
+                              "other",
+                              "notRead"
+                            ],
+                            "additionalProperties": false
+                          },
+                          "problem": { "type": "string" },
+                          "needsSignIn": { "type": "boolean" },
+                          "checkedAt": { "type": "number" }
+                        },
+                        "required": ["repository", "number", "title", "url"],
+                        "additionalProperties": false
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "state"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitCommitForm" },
+                  "form": {
+                    "type": "object",
+                    "properties": {
+                      "branch": { "type": "string" },
+                      "staged": { "type": "number" },
+                      "unstaged": { "type": "number" },
+                      "files": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "path": { "type": "string" },
+                            "isStaged": { "type": "boolean" }
+                          },
+                          "required": ["path", "isStaged"],
+                          "additionalProperties": false
+                        }
+                      },
+                      "moreFiles": { "type": "number" }
+                    },
+                    "required": ["staged", "unstaged", "files", "moreFiles"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "form"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitPullRequestForm" },
+                  "form": {
+                    "type": "object",
+                    "properties": {
+                      "repository": { "type": "string" },
+                      "headRepository": { "type": "string" },
+                      "remote": { "type": "string" },
+                      "remoteUrl": { "type": "string" },
+                      "head": { "type": "string" },
+                      "base": { "type": "string" },
+                      "push": { "type": "string", "enum": ["pushed", "needed", "behind"] },
+                      "commits": { "type": "number" }
+                    },
+                    "required": ["repository", "remote", "remoteUrl", "head", "base", "push"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": ["type", "form"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitDraft" },
+                  "draft": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "commitMessage" },
+                          "message": { "type": "string" }
+                        },
+                        "required": ["kind", "message"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "pullRequest" },
+                          "title": { "type": "string" },
+                          "body": { "type": "string" }
+                        },
+                        "required": ["kind", "title", "body"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": { "type": "string", "const": "failed" },
+                          "forKind": { "type": "string", "enum": ["commitMessage", "pullRequest"] }
+                        },
+                        "required": ["kind", "forKind"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": ["type", "draft"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "gitDone" },
+                  "form": { "type": "string", "enum": ["commit", "pullRequest"] },
+                  "ok": { "type": "boolean" }
+                },
+                "required": ["type", "form", "ok"],
                 "additionalProperties": false
               },
               {
@@ -15024,6 +16416,79 @@
                   "error": { "type": "string" }
                 },
                 "required": ["type", "itemId", "path"],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "reportDraft" },
+                  "session": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                  "revision": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "description": { "type": "string", "maxLength": 2000 },
+                  "includeFacts": { "type": "boolean" },
+                  "includeEvents": { "type": "boolean" },
+                  "items": {
+                    "maxItems": 51,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": { "type": "string", "enum": ["facts", "event"] },
+                        "eventIndex": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        },
+                        "label": { "type": "string", "minLength": 1 }
+                      },
+                      "required": ["kind", "label"],
+                      "additionalProperties": false
+                    }
+                  },
+                  "title": { "type": "string" },
+                  "text": { "type": "string" },
+                  "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+                  "canUseVscodeReporter": { "type": "boolean" },
+                  "recordingUnavailable": { "type": "boolean" }
+                },
+                "required": [
+                  "type",
+                  "session",
+                  "revision",
+                  "description",
+                  "includeFacts",
+                  "includeEvents",
+                  "items",
+                  "title",
+                  "text",
+                  "hash",
+                  "canUseVscodeReporter",
+                  "recordingUnavailable"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": { "type": "string", "const": "reportExported" },
+                  "session": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                  "hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+                  "via": { "type": "string", "enum": ["copy", "issue", "save", "vscodeReporter"] },
+                  "ok": { "type": "boolean" },
+                  "issueFallback": { "type": "boolean" },
+                  "reason": {
+                    "type": "string",
+                    "enum": [
+                      "stale",
+                      "cancelled",
+                      "copyFailed",
+                      "saveFailed",
+                      "openFailed",
+                      "reporterFailed"
+                    ]
+                  }
+                },
+                "required": ["type", "session", "hash", "via", "ok"],
                 "additionalProperties": false
               }
             ]

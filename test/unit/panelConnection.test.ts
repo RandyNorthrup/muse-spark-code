@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { MhpParams } from '../../src/shared/hostApi/methods'
 import { PanelConnection } from '../../src/runtime/panel/connection'
 import { MHP_ERROR_CODES, MHP_PANEL, RUNTIME_PANEL } from '../../src/shared/constants'
 
-async function rig() {
+async function rig(protocolRange?: MhpParams<'initialize'>['protocolRange']) {
   const frames: unknown[] = []
   const closed = vi.fn()
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
@@ -29,7 +30,7 @@ async function rig() {
       method: 'initialize',
       params: {
         host: { id: 'fake-editor', version: 'fake' },
-        protocolRange: {
+        protocolRange: protocolRange ?? {
           minimum: MHP_PANEL.version,
           maximumExclusive: MHP_PANEL.maximumVersionExclusive,
         },
@@ -157,3 +158,22 @@ describe('native request correlation', () => {
     t.peer.close()
   })
 })
+
+it.each([
+  ['mhp/1.0.0', 'mhp/1.1.0'],
+  ['mhp/1.1.0', 'mhp/1.2.0'],
+  ['mhp/1.3.0', 'mhp/3.0.0'],
+  ['mhp/2.0.0', 'mhp/3.0.0'],
+])(
+  'refuses unsupported version %s with the named negotiation error',
+  async (minimum, maximumExclusive) => {
+    const t = await rig({ minimum, maximumExclusive })
+    expect(t.frames).toContainEqual({
+      jsonrpc: '2.0',
+      id: 1,
+      error: { code: MHP_ERROR_CODES.incompatibleVersion, message: 'MHP_INCOMPATIBLE_VERSION' },
+    })
+    await expect(t.peer.request('ui/input', input)).rejects.toThrow('MHP_NOT_INITIALIZED')
+    t.peer.close()
+  },
+)

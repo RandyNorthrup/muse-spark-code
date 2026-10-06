@@ -25,14 +25,14 @@ const binding: MhpPanelBinding = {
 }
 const context = { binding, expectedSeq: 1, direction: 'toHost' as const, ready: true }
 const envelope = {
-  mhp: '1.1',
+  mhp: '1.2',
   kind: 'panel',
   surface: binding.surface,
   direction: 'toHost',
   seq: 1,
   payload: { type: 'ready' },
 }
-const lifecycle = { mhp: '1.1', kind: 'surface', ...binding }
+const lifecycle = { mhp: '1.2', kind: 'surface', ...binding }
 const stdio = { protocolVersion: MHP_PANEL.version }
 const snapshotSchema = z.object({
   errorCodes: z.unknown(),
@@ -41,7 +41,7 @@ const snapshotSchema = z.object({
   methods: z.record(z.string(), z.looseObject({ call: z.unknown() })),
 })
 
-describe('MHP 1.1 additive panel contract', () => {
+describe('MHP 1.2 replacement panel contract', () => {
   it('preserves every v1 call, error and non-initialize result schema', async () => {
     const [v1, next] = await Promise.all([
       readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8'),
@@ -68,11 +68,11 @@ describe('MHP 1.1 additive panel contract', () => {
   })
 
   it.each([
-    ['mhp/1.0.0', 'mhp/1.1.0', 'mhp/1.0.0'],
-    ['mhp/1.0.0', 'mhp/1.2.0', 'mhp/1.1.0'],
-    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.0.0'],
-    ['mhp/1.0.1', 'mhp/2.0.0', undefined],
-    ['mhp/1.1.1', 'mhp/1.2.0', undefined],
+    ['mhp/1.0.0', 'mhp/1.1.0', undefined],
+    ['mhp/1.1.0', 'mhp/1.2.0', undefined],
+    ['mhp/1.2.0', 'mhp/1.3.0', 'mhp/1.2.0'],
+    ['mhp/1.0.0', 'mhp/2.0.0', 'mhp/1.2.0'],
+    ['mhp/1.2.1', 'mhp/1.3.0', undefined],
     ['mhp/2.0.0', 'mhp/3.0.0', undefined],
     ['mhp/01.0.0', 'mhp/2.0.0', undefined],
   ])('selects only an implemented version in [%s, %s)', (minimum, maximumExclusive, selected) => {
@@ -330,7 +330,7 @@ describe('MHP 1.1 additive panel contract', () => {
         parseMhpStdioLine(`${JSON.stringify(frame)}\r\n`, { ...stdio, pendingMethod: 'shutdown' }),
       ).toEqual(frame)
     expect(() =>
-      parseMhpStdioLine(JSON.stringify(envelope), { protocolVersion: MHP.version }),
+      parseMhpStdioLine(JSON.stringify(envelope), { protocolVersion: 'mhp/1.1.0' }),
     ).toThrow('MHP_INCOMPATIBLE_VERSION')
     expect(() => parseMhpStdioLine(JSON.stringify(frames[2]), stdio)).toThrow(
       'MHP_UNCORRELATED_RESULT',

@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { MHP, MHP_PANEL, MHP_ZERO_VERSION_COMPONENT } from '../constants'
+import { MHP, MHP_ZERO_VERSION_COMPONENT } from '../constants'
 
 // A capability promises every method in its group, including notifications.
 // Hosts with a partial implementation omit that group and use its fallback.
@@ -95,18 +95,8 @@ export function isMhpVersionSupported(range: z.infer<typeof versionRangeSchema>)
   )
 }
 
-// Frozen v1 offers can end at 2.0.0 without implementing a carrier. Only an
-// explicit offer bounded to the implemented minor range opts into 1.1.
+// The editor offers a range; only the reviewed 1.2 contract is implemented.
+// A range containing it can select it, but no older/future version is guessed.
 export function selectMhpVersion(range: z.infer<typeof versionRangeSchema>) {
-  if (!versionRangeSchema.safeParse(range).success) return
-  const versions =
-    compareVersions(range.maximumExclusive, MHP_PANEL.maximumVersionExclusive) <=
-    MHP_ZERO_VERSION_COMPONENT
-      ? [MHP_PANEL.version, MHP.version]
-      : [MHP.version]
-  return versions.find(
-    (version) =>
-      compareVersions(range.minimum, version) <= MHP_ZERO_VERSION_COMPONENT &&
-      compareVersions(version, range.maximumExclusive) < MHP_ZERO_VERSION_COMPONENT,
-  )
+  return isMhpVersionSupported(range) ? MHP.version : undefined
 }

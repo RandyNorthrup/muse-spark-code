@@ -6905,25 +6905,15 @@ have equivalent functionality even if we need to develop it ourselves".
   inside document write actions. Add regressions, byte-exact red drills and
   repeat strict Plugin Verifier on the three declared IDEA releases. Keep
   frozen wire, dependencies, shared runtime and gates unchanged.
-- **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
-  `initialize` direction is runtime-to-host, but its result cannot carry the
-  host's actual metadata. Add capability `hostMetadata` and protocol version
-  `mhp/1.2.0` to initialize only. When the runtime offers that capability
-  and a range containing 1.2, and the host implements it, the result adds
-  required `hostMetadata: { host: { id: string, version: string }, locale:
-string, theme: { kind: light|dark|highContrastLight|highContrastDark,
-tokens: Record<--muse-token,string> }, folders: { uri: URI, name: string }[],
-trusted: boolean }`, with no additional properties at any object level
-  except the token record. These schemas exactly reuse the 1.1 initialize
-  parameter fields. Otherwise select 1.1 and omit the capability and field.
-  Panel envelopes remain `mhp: "1.1"`; this minor changes initialize only.
-  JetBrains validates this opt-in extension locally; the frozen files and
-  every other host stay byte-exact. A runtime must use the legacy initialize
-  request for a host whose 1.2 support is unknown: frozen 1.1 capability enums
-  reject unknown words. Sending `hostMetadata` therefore requires independently
-  established peer support, not a speculative flag sent to old hosts.
-  Runtime/contract adoption remains with
-  lanes 0/B. No credential/account field belongs in this metadata.
+- **MHP 1.2 adoption (M104PA, 2026-10-06).** The lead drops the earlier
+  runtime-initiated `hostMetadata` and `surfaceHtml` proposals. Only 1.2 is
+  supported: the editor initiates initialize and provides its metadata,
+  locale, theme, folders, trust and capability groups; the runtime returns
+  1.2 and its capabilities. Both legacy-named native snapshot inputs and locks
+  are explicitly adopted as 1.2 through `mhp-schema.mjs --adopt-version`;
+  their filenames preserve build references, not older validators. Frozen
+  payload drift and repeated current-version adoption still fail. The native
+  owners adopt this shared contract and qualify their assembled services.
 
 ## 3. Open questions (need the owner)
 

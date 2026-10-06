@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- MHP 1.2 replaces the unshipped 1.1 contract. Editors initiate initialization with host metadata, locale, theme and capabilities; incompatible versions are refused by name.
+
 - Standalone settings and session activity records coordinate independent writers with versioned atomic publication; older activity cannot replace the newest restore target.
 
 - Native panel requests retain bounded, method-validated late-reply correlation after cancellation or timeout so unrelated requests keep working.

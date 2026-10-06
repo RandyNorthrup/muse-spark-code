@@ -185,5 +185,44 @@
       "\u00d7 refuses an owned or abandoned lock at the fixed deadline without stealing it 50ms"
     ],
     "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "mhp-only-reviewed-version",
+    "file": "src/shared/hostApi/capabilities.ts",
+    "beforeSha256": "1ed9a46d68a7e691622349378604993096096107950e96972c26648286bcb5dd",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses unsupported version mhp/1.0.0 with the named negotiation error 6ms",
+      "\u00d7 refuses unsupported version mhp/1.1.0 with the named negotiation error 1ms",
+      "\u00d7 refuses unsupported version mhp/1.3.0 with the named negotiation error 3ms",
+      "\u00d7 refuses unsupported version mhp/2.0.0 with the named negotiation error 1ms",
+      "\u00d7 selects only an implemented version in [mhp/1.0.0, mhp/1.1.0) 6ms",
+      "\u00d7 selects only an implemented version in [mhp/1.1.0, mhp/1.2.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/1.2.1, mhp/1.3.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/2.0.0, mhp/3.0.0) 1ms",
+      "\u00d7 selects only an implemented version in [mhp/01.0.0, mhp/2.0.0) 1ms"
+    ],
+    "restoredSha256": "1ed9a46d68a7e691622349378604993096096107950e96972c26648286bcb5dd"
+  },
+  {
+    "name": "mhp-editor-init-direction",
+    "file": "src/shared/hostApi/methods.ts",
+    "beforeSha256": "cd6b767b74d1477542ffa89b47ef6a623c031c8017dcb2306afb93dc0cdb0fbd",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 round trips initialization and a versioned atomic edit with one undo label 7ms",
+      "\u00d7 exports current JSON Schemas for the native plugins 306ms"
+    ],
+    "restoredSha256": "cd6b767b74d1477542ffa89b47ef6a623c031c8017dcb2306afb93dc0cdb0fbd"
+  },
+  {
+    "name": "mhp-no-silent-readoption",
+    "file": "scripts/mhp-schema.mjs",
+    "beforeSha256": "7423eda3a9d56d81e6a788fae296a72c91744421fca675a79a9c1b3db78c0f15",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses silent re-adoption of the frozen version and preserves all snapshot bytes 877ms"
+    ],
+    "restoredSha256": "7423eda3a9d56d81e6a788fae296a72c91744421fca675a79a9c1b3db78c0f15"
   }
 ]

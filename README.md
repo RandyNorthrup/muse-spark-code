@@ -417,7 +417,7 @@ Get it from the
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
 
 **Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
-panel --stdio` speaks negotiated MHP 1.1 NDJSON to a native editor host;
+panel --stdio` speaks negotiated MHP 1.2 NDJSON to a native editor host;
 `muse-spark-code-acp panel --companion` opens the authenticated loopback
 carrier through that host's `ui/openExternal` service. Exactly one transport
 is required. Both accept the agent's existing backend, trust and paid-use
@@ -3945,8 +3945,13 @@ The [integration record](docs/certification/m104-int.md) lists all 56 features
 and the remaining native bootstrap, auxiliary-view and editor conformance
 work. These development artifacts do not qualify a new editor as supported.
 
-The additive MHP 1.1.0 panel contract for native and companion adapters is
-[documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
+The replacement MHP 1.2.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). The editor initiates
+`initialize` with its metadata, locale, theme and capabilities; the runtime
+answers with its capabilities. Only 1.2 is supported. `node scripts/mhp-schema.mjs
+--adopt-version=mhp/1.2.0` performed the reviewed version adoption; repeating
+adoption of the current version refuses. `npm run check:mhp` checks the frozen
+snapshots and locks. Their legacy filenames remain native build inputs. Its JSON
 Schemas reuse the shared panel payload validators and preserve frozen v1.
 Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
 snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native

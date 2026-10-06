@@ -15,7 +15,7 @@ afterEach(async () => {
   for (const server of servers.splice(0)) await server.close()
 })
 const binding = {
-  mhp: '1.1',
+  mhp: '1.2',
   kind: 'surface',
   surface: 'a/b',
   sessionId: 'session',
@@ -23,7 +23,7 @@ const binding = {
   event: 'opened',
 }
 const input = {
-  mhp: '1.1',
+  mhp: '1.2',
   kind: 'panel',
   surface: 'a/b',
   direction: 'toHost',
@@ -101,7 +101,7 @@ describe('MHP companion endpoints', () => {
       ['MHP_PANEL_BACKPRESSURE', 429],
     ] as const) {
       f.post.mockRejectedValueOnce(
-        new MhpPanelError({ mhp: '1.1', kind: 'panelError', surface: 'a/b', seq: 1, code }),
+        new MhpPanelError({ mhp: '1.2', kind: 'panelError', surface: 'a/b', seq: 1, code }),
       )
       const result = await call(
         f.server,

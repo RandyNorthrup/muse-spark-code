@@ -84,8 +84,9 @@ export const MHP_METHODS = {
       trusted: z.boolean(),
     }),
     initialized,
+    'hostToRuntime',
   ),
-  shutdown: request('lifecycle', 'required', empty, z.null()),
+  shutdown: request('lifecycle', 'required', empty, z.null(), 'hostToRuntime'),
   '$/cancelRequest': notification(
     'lifecycle',
     'required',
@@ -103,6 +104,11 @@ export const MHP_METHODS = {
     'workspace',
     'runtime-workspace',
     z.strictObject({ trusted: z.literal(true) }),
+  ),
+  'workspace/didChangeTrust': notification(
+    'workspace',
+    'runtime-workspace',
+    z.strictObject({ trusted: z.boolean() }),
   ),
   'workspace/findFiles': request(
     'workspace',
@@ -367,6 +373,7 @@ export const MHP_METHODS = {
     }),
     surface,
   ),
+  'surfaces/close': request('surfaces', 'companion-tabs', surface, z.null()),
   'surfaces/focus': request('surfaces', 'companion-tabs', surface, z.null()),
   'surfaces/state': request(
     'surfaces',
@@ -379,6 +386,7 @@ export const MHP_METHODS = {
     'runtime-settings',
     setting,
     z.strictObject({ value: jsonValueSchema }),
+    'bidirectional',
   ),
   'settings/update': request(
     'settings',
@@ -389,26 +397,42 @@ export const MHP_METHODS = {
       scope: z.enum(['user', 'workspace']),
     }),
     z.null(),
+    'bidirectional',
   ),
   'settings/didChange': notification(
     'settings',
     'runtime-settings',
     z.strictObject({ keys: z.array(settingKeySchema) }),
+    'bidirectional',
   ),
   'storage/global.get': request(
     'storage',
     'runtime-storage',
     storedKey,
     z.strictObject({ value: jsonValueSchema }),
+    'bidirectional',
   ),
-  'storage/global.set': request('storage', 'runtime-storage', storedValue, z.null()),
+  'storage/global.set': request(
+    'storage',
+    'runtime-storage',
+    storedValue,
+    z.null(),
+    'bidirectional',
+  ),
   'storage/workspace.get': request(
     'storage',
     'runtime-storage',
     storedKey,
     z.strictObject({ value: jsonValueSchema }),
+    'bidirectional',
   ),
-  'storage/workspace.set': request('storage', 'runtime-storage', storedValue, z.null()),
+  'storage/workspace.set': request(
+    'storage',
+    'runtime-storage',
+    storedValue,
+    z.null(),
+    'bidirectional',
+  ),
   'commands/register': request(
     'commands',
     'panel-palette',

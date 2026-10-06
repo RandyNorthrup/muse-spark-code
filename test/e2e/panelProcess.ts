@@ -185,7 +185,7 @@ export async function panelProcessFixture() {
         locale: 'en',
         theme: { kind: 'dark', tokens: {} },
         trusted: false,
-        protocolRange: protocolRange ?? { minimum: 'mhp/1.1.0', maximumExclusive: 'mhp/1.2.0' },
+        protocolRange: protocolRange ?? { minimum: 'mhp/1.2.0', maximumExclusive: 'mhp/1.3.0' },
         capabilities: ['lifecycle', 'surfaces', 'ui'],
         folders: [{ uri: pathToFileURL(workspace).href, name: 'fake workspace' }],
       })
@@ -198,7 +198,7 @@ export async function panelProcessFixture() {
           z
             .object({
               id: z.literal(1),
-              result: z.object({ protocolVersion: z.literal('mhp/1.1.0') }),
+              result: z.object({ protocolVersion: z.literal('mhp/1.2.0') }),
             })
             .safeParse(frame).success,
       )

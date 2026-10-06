@@ -1,5 +1,4 @@
-// Authored MHP 1.1 boundaries only: runtime registries, queues and browser
-// implementations belong to lanes B/C/D. Never introduce a panel vocabulary.
+// Reviewed MHP 1.2 boundaries reuse the current shared UI payload schemas.
 import * as z from 'zod/mini'
 import { MHP, MHP_PANEL } from '../constants'
 import { hostToWebviewMessageSchema, webviewToHostMessageSchema } from '../protocol'
@@ -198,12 +197,12 @@ export function parseMhpSurfaceNotification(value: unknown, binding: MhpPanelBin
   return frame
 }
 
-// Additive initialization result; parseMhpResult and its v1 schema stay frozen.
+// The editor initiates initialize; the runtime answers with the sole reviewed version.
 export const panelInitializeResultSchema = z.strictObject({
   jsonrpc: z.literal(MHP.jsonRpcVersion),
   id: z.union([opaqueId, integerSchema]),
   result: z.strictObject({
-    protocolVersion: z.enum([MHP.version, MHP_PANEL.version]),
+    protocolVersion: z.literal(MHP.version),
     capabilities: offeredCapabilitiesSchema,
   }),
 })

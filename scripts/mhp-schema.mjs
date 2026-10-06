@@ -98,7 +98,8 @@ const contract = {
   conventions: {
     transport: 'JSON-RPC 2.0, one UTF-8 JSON object per line over stdio; no batches',
     positions: 'zero-based UTF-16 line and character',
-    initialize: 'runtimeToHost; host returns the selected version and supported capabilities',
+    initialize:
+      'hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.2.0 and its capabilities',
     requiredCapability: 'lifecycle',
     versioning: 'breaking schema or semantic changes require a new protocol version and snapshot',
     edits:
@@ -127,9 +128,9 @@ const panelContract = {
   },
   conventions: {
     ...contract.conventions,
-    transport: 'one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.1 envelopes',
+    transport: 'one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.2 envelopes',
     initialize:
-      'legacy wide v1 offers select 1.0.0; offers bounded through mhp/1.2.0 opt into newest implemented minor; 1.0 receives only v1',
+      'hostToRuntime; select mhp/1.2.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION',
     panel: 'docs/ide-compatibility/host-api-panel-1.1.md',
   },
   methods: {
@@ -149,7 +150,7 @@ const panelContract = {
       maximumQueuedMessages: MHP_PANEL.maximumQueuedMessages,
     },
     invariants: [
-      'Panel frames require negotiated mhp/1.1.0. Validate shared payload and bound surface kind before delivery.',
+      'Panel frames require negotiated mhp/1.2.0. Validate shared payload and bound surface kind before delivery.',
       'One immutable session binding per surface; unknown/closed surfaces produce typed errors and no delivery.',
       'Sequence starts at 1 per surface and direction; reject duplicates and gaps without advancing.',
       'Reload retains binding and sequence, suspends delivery until ready, then replays stateRequest once.',
@@ -181,31 +182,44 @@ const panelContract = {
     logging: 'stdout is protocol only; stderr carries redacted technical diagnostics',
   },
 }
+// Legacy snapshot filenames remain native build inputs. Both now advertise
+// 1.2; neither retains a validator or negotiation route for 1.0/1.1.
+const adoption = process.argv.find((arg) => arg.startsWith('--adopt-version='))
+if (
+  adoption !== undefined &&
+  (adoption !== `--adopt-version=${MHP.version}` || process.argv.includes('--check'))
+)
+  throw new Error('MHP_INVALID_VERSION_ADOPTION')
+const exports = []
 for (const [name, snapshot] of [
   ['v1', contract],
   ['v1.1', panelContract],
 ]) {
   const file = path.join(root, `src/shared/hostApi/mhp-${name}.schema.json`)
+  const lockFile = path.join(root, `src/shared/hostApi/mhp-${name}.lock.json`)
   const { editors: _editors, features: _features, ...wireContract } = snapshot
   const digest = createHash('sha256').update(JSON.stringify(wireContract)).digest('hex')
   const lock = z
-    .strictObject({
-      protocol: z.literal(snapshot.protocol),
-      sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
-    })
-    .parse(
-      JSON.parse(
-        await readFile(path.join(root, `src/shared/hostApi/mhp-${name}.lock.json`), 'utf8'),
-      ),
-    )
-  if (lock.sha256 !== digest)
+    .strictObject({ protocol: z.string(), sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/u)) })
+    .parse(JSON.parse(await readFile(lockFile, 'utf8')))
+  if (adoption !== undefined) {
+    if (lock.protocol === snapshot.protocol) throw new Error('MHP_VERSION_ALREADY_ADOPTED')
+  } else if (lock.protocol !== snapshot.protocol || lock.sha256 !== digest)
     throw new Error(`MHP_VERSION_LOCK: ${name} frozen wire contract changed (expected ${digest})`)
-  const bytes = await format(JSON.stringify(snapshot), {
-    ...(await resolveConfig(file)),
-    filepath: file,
-  })
+  const options = { ...(await resolveConfig(file)), filepath: file }
+  const bytes = await format(JSON.stringify(snapshot), options)
+  const locked = await format(
+    JSON.stringify({ protocol: snapshot.protocol, sha256: digest }),
+    options,
+  )
+  exports.push({ file, lockFile, bytes, locked })
+}
+for (const { file, lockFile, bytes, locked } of exports) {
   if (process.argv.includes('--check')) {
-    if ((await readFile(file, 'utf8')) !== bytes) throw new Error(`MHP_SCHEMA_DRIFT: ${name}`)
-  } else await writeFile(file, bytes)
+    if ((await readFile(file, 'utf8')) !== bytes) throw new Error(`MHP_SCHEMA_DRIFT: ${file}`)
+  } else {
+    if (adoption !== undefined) await writeFile(lockFile, locked)
+    await writeFile(file, bytes)
+  }
 }
 console.log(process.argv.includes('--check') ? 'MHP schemas match.' : 'MHP schemas written.')

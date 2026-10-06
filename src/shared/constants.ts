@@ -5276,9 +5276,9 @@ export const POSIX_TERMINAL_SHELL = '/bin/sh'
 // in-process adapter and the stdio hosts; no credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  version: 'mhp/1.0.0',
-  minimumVersion: 'mhp/1.0.0',
-  maximumVersionExclusive: 'mhp/2.0.0',
+  version: 'mhp/1.2.0',
+  minimumVersion: 'mhp/1.2.0',
+  maximumVersionExclusive: 'mhp/1.3.0',
   jsonRpcVersion: '2.0',
   maximumInteger: Number.MAX_SAFE_INTEGER,
   maximumSelectionChars: 16_384,
@@ -5299,12 +5299,12 @@ export const MHP_ERROR_CODES = {
   permissionDenied: -32_006,
 } as const
 
-// Additive panel contract; the frozen MHP v1 block above stays unchanged.
+// MHP 1.2 is the sole supported contract; editor hosts initiate initialization.
 export const MHP_PANEL = {
-  version: 'mhp/1.1.0',
-  wireVersion: '1.1',
-  minimumVersion: 'mhp/1.0.0',
-  maximumVersionExclusive: 'mhp/1.2.0',
+  version: 'mhp/1.2.0',
+  wireVersion: '1.2',
+  minimumVersion: 'mhp/1.2.0',
+  maximumVersionExclusive: 'mhp/1.3.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,

@@ -18,7 +18,7 @@ async function open(backend: string, args?: readonly string[]) {
   const frame = openSchema.parse(await agent.wait((value) => openSchema.safeParse(value).success))
   agent.send({ jsonrpc: '2.0', id: frame.id, result: { surfaceId: 'native-view' } })
   const binding = {
-    mhp: '1.1',
+    mhp: '1.2',
     kind: 'surface',
     surface: 'native-view',
     sessionId: frame.params.sessionId,
@@ -27,7 +27,7 @@ async function open(backend: string, args?: readonly string[]) {
   agent.send({ ...binding, event: 'opened' })
   agent.send({ ...binding, event: 'ready' })
   agent.send({
-    mhp: '1.1',
+    mhp: '1.2',
     kind: 'panel',
     surface: 'native-view',
     direction: 'toHost',
@@ -56,7 +56,7 @@ describe('runtime panel native process', () => {
           z.object({ code: z.literal('MHP_PANEL_UNKNOWN_SURFACE') }).safeParse(value).success,
       )
       agent.send({
-        mhp: '1.1',
+        mhp: '1.2',
         kind: 'panel',
         surface: 'native-view',
         direction: 'toHost',
@@ -69,7 +69,7 @@ describe('runtime panel native process', () => {
         ),
       )
       agent.send({
-        mhp: '1.1',
+        mhp: '1.2',
         kind: 'panel',
         surface: 'native-view',
         direction: 'toHost',
@@ -88,7 +88,7 @@ describe('runtime panel native process', () => {
     const agent = await open('modelApi', ['--web-search'])
     const before = fixture().api.responseBodies().length
     agent.send({
-      mhp: '1.1',
+      mhp: '1.2',
       kind: 'panel',
       surface: 'native-view',
       direction: 'toHost',
@@ -121,7 +121,7 @@ describe('runtime panel native process', () => {
         payload.safeParse(value).success && payload.parse(value).payload.type === 'sessionInfo',
     )
     agent.send({
-      mhp: '1.1',
+      mhp: '1.2',
       kind: 'panel',
       surface: 'native-view',
       direction: 'toHost',
