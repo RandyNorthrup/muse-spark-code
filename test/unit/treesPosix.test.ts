@@ -296,6 +296,14 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
   return { reader, samples, files, read, run, cg }
 }
 
+async function registeredLinuxCgroup() {
+  const world = linuxWorld()
+  const scoped: ResourceTicket = { ...ticket, scope: { type: 'cgroup', path: world.cg } }
+  const registry = new ResourceTreeRegistry(world.reader)
+  await registry.register(scoped)
+  return { ...world, scoped, registry }
+}
+
 describe('POSIX authority during mixed-time scans', () => {
   it.each([
     { platform: 'linux', orphan: false },
@@ -439,6 +447,44 @@ describe('Linux OS reader', () => {
         : original(file)
     })
     expect(await reader.usage({ ...ticket, scope: { type: 'cgroup', path: cg } })).toBeNull()
+  })
+
+  it.each([999, 711])(
+    'omits a vanished cgroup row without losing the healthy tree (pid=%s)',
+    async (vanishedPid) => {
+      const { read, samples, scoped, registry } = await registeredLinuxCgroup()
+      const original = read.getMockImplementation()!
+      read.mockImplementation((file) => {
+        if (file !== `/proc/${String(vanishedPid)}/cgroup`) return original(file)
+        samples.delete(vanishedPid)
+        return Promise.reject(Object.assign(new Error('vanished during scan'), { code: 'ENOENT' }))
+      })
+      expect(await registry.usage(scoped)).toEqual({
+        cpuSeconds: 12.5,
+        residentBytes: vanishedPid === 999 ? 8192 : 4096,
+      })
+      const survivor = vanishedPid === 999 ? { pid: 711, startTime: '1001' } : ticket.root
+      expect(await registry.contains(scoped, survivor)).toBe(true)
+      expect(await registry.members(scoped)).toContainEqual(survivor)
+    },
+  )
+
+  it.each(['EACCES', 'EIO'])('keeps genuine cgroup read failures unknown (%s)', async (code) => {
+    const { read, samples, scoped, registry } = await registeredLinuxCgroup()
+    const original = read.getMockImplementation()!
+    read.mockImplementation((file) =>
+      file === '/proc/999/cgroup'
+        ? Promise.reject(Object.assign(new Error('unreadable cgroup'), { code }))
+        : original(file),
+    )
+    expect(await registry.usage(scoped)).toBeNull()
+    expect(await registry.members(scoped)).toEqual([])
+    const child = { pid: 711, startTime: '1001' }
+    expect(await registry.contains(scoped, child)).toBe(false)
+    read.mockImplementation(original)
+    samples.delete(710)
+    expect(await registry.contains(scoped, child)).toBe(true)
+    expect(await registry.usage(scoped)).toEqual({ cpuSeconds: 12.5, residentBytes: 4096 })
   })
 
   it('rechecks a target after the table scan before authorizing an action', async () => {

@@ -95,10 +95,17 @@ class LinuxTreeSource implements PosixTreeSource {
   }
 
   private async inCgroup(pid: number, scope: string): Promise<boolean> {
-    const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read(`/proc/${String(pid)}/cgroup`))?.[1]
-    if (member === undefined) return false
-    const current = path.resolve('/sys/fs/cgroup', `.${member}`)
-    return current === scope || current.startsWith(`${scope}/`)
+    try {
+      const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read(`/proc/${String(pid)}/cgroup`))?.[1]
+      if (member === undefined) return false
+      const current = path.resolve('/sys/fs/cgroup', `.${member}`)
+      return current === scope || current.startsWith(`${scope}/`)
+    } catch (error: unknown) {
+      // /proc rows may disappear after stat; other failures leave the whole sample unknown.
+      if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')
+        return false
+      throw error
+    }
   }
 
   private async readTable(): Promise<readonly ProcessSample[]> {

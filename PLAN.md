@@ -19627,6 +19627,8 @@ guard-break drill for each finding, restoring SHA-256-identical source.
 Record receipts in `docs/certification/m107-t.md`; no dependency, new surface,
 guard relaxation, branch merge or full quality run in this rig lane. The
 integration lead retains the existing W/native/full-gate handoffs.
+All three RVM107T P2s are now fixed and proved by the owning regressions and
+byte-exact guard drills; no reviewed finding is left as an accepted residual.
 
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
@@ -20043,6 +20045,21 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107T bounded-lane certification (2026-10-05).** The rig brief/shared
+rules prohibit aggregate `npm run quality` and full tests in this worktree.
+Hook-on commits use complete owning files, deliberate guard-break drills,
+typecheck, scoped lint/format and the required static/build checks. The lead
+retains full integrated quality, coverage, native platform and editor receipts.
+No threshold, timeout, rule, skip policy or guard is weakened.
+
+**M107-T-host-api-record (W handoff).** `npm run check:host-api` still exits 1
+for the original lane's Node import counts: `node:child_process` 13→14,
+`node:fs/promises` 47→48, `node:path` 84→86, `node:process` 1→2. FIXM107T adds
+no production import or host API. W owns the generated file; after integration
+run `npm run check:host-api -- --write`, review those four rows and rerun the
+gate. This is the named existing snapshot deferral, not an unfixed review
+finding or a green host-API claim. See `docs/certification/m107-t.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21216,6 +21233,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
+  The three RVM107T P2 findings are fixed; native Windows job execution,
+  macOS's production `inspect` binding, the combined lazy governor bundle,
+  all-spawn/editor wiring and full integrated quality remain the original
+  integration handoffs. Safe for this unmerged lane: exact identity/scope
+  proofs stay mandatory, unavailable reads refuse authority, and there is
+  no native fallback or release certification claim. Follow-up: W/M96 K bind
+  the readers, Win11 runs the existing native test, and the lead certifies
+  the integrated governor, including the host-API record above. Detailed
+  receipts and the six original named handoffs are in
+  `docs/certification/m107-t.md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
