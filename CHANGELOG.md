@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The unshipped paired-device receiver cancels live attempts before consulting
+  its journal, including after a failed flush, corruption or file loss. Full
+  attempt identity stays bound to the live lease; unavailable cancellation
+  evidence is reported and occupancy remains held until durable retirement.
 - M100 queues receiver grants with pairing actions and preserves a later Pause
   across pending secret reads and writes; stale grants cannot resume the pair.
 - M100's device store keeps expected pairing/grant policy refusals distinct

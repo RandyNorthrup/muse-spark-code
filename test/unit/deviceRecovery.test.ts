@@ -63,6 +63,57 @@ function envelope(incarnation: string, body: DeviceFrame['body']): DeviceFrame {
 }
 
 describe('receiver restart and ownership reconciliation', () => {
+  it.each(['flush-failure', 'file-loss', 'corruption'])(
+    'RVM100E-P2-1 cancels live work despite journal %s and keeps occupancy',
+    async (damage) => {
+      const { receiver, request, directory, lease, fixture: counts } = fixture()
+      const actual = await vi.importActual<typeof FileSystem>('node:fs/promises')
+      if (damage === 'flush-failure') {
+        let stages = 0
+        vi.mocked(open).mockImplementation(async (...args) => {
+          const handle = await actual.open(...args)
+          if (String(args[0]).replaceAll('\\', '/').endsWith('.stage') && ++stages === 3)
+            vi.spyOn(handle, 'sync').mockRejectedValueOnce(new Error('synthetic flush failure'))
+          return handle
+        })
+      }
+      await receiver.dispatch(request)
+      expect(counts.launches).toBe(1)
+      if (damage === 'file-loss') await rm(path.join(directory, 'attempts.json'))
+      else if (damage === 'corruption') await writeFile(path.join(directory, 'attempts.json'), '{}')
+      await expect(receiver.cancel(request.identity)).rejects.toThrow('storage')
+      expect(lease.cancel).toHaveBeenCalledOnce()
+      expect(lease.release).not.toHaveBeenCalled()
+      expect(counts.occupied).toBe(1)
+      expect(receiver.blockedReason).toBe('storage')
+      expect(await responseBody(receiver.dispatch(request))).toEqual({
+        kind: 'failure',
+        reason: 'storage',
+      })
+    },
+  )
+  it.each(['pairId', 'boardId', 'taskId', 'attemptId', 'receiverIncarnationId'] as const)(
+    'RVM100E-P2-1 refuses changed %s control even with an unreadable journal',
+    async (field) => {
+      const { receiver, request, directory, lease } = fixture()
+      await receiver.dispatch(request)
+      await rm(path.join(directory, 'attempts.json'))
+      await expect(
+        receiver.cancel({ ...request.identity, [field]: 'f'.repeat(32) }),
+      ).rejects.toThrow()
+      expect(lease.cancel).not.toHaveBeenCalled()
+    },
+  )
+  it('RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt', async () => {
+    const { receiver, request, journal, lease } = fixture()
+    await receiver.dispatch(request)
+    await receiver.cancel(request.identity)
+    expect(lease.cancel).toHaveBeenCalledOnce()
+    expect(await journal.lookup(request.identity)).toMatchObject({
+      outcome: { state: 'uncertain', occupied: request.caps, usage: executionUsage },
+    })
+    expect(lease.release).not.toHaveBeenCalled()
+  })
   it('recovers launch-before-confirmation with original identity, occupancy and uncertain spending', async () => {
     const { request, journal, execution, fixture: counts } = fixture()
     await journal.admit(request, executionUsage, Date.now())

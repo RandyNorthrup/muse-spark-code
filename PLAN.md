@@ -17776,6 +17776,18 @@ receipt in `docs/certification/m100-t.md`. Loopback only; no new dependency,
 paid/live calls, merge or push. Full quality and the existing I-owned
 host-API/split registration remain joined-tree gates, without any waiver.
 
+**FIXM100E review repair (2026-10-06).** Repair both RVM100E P2 findings:
+bind complete immutable attempt identities to the receiver's in-memory live
+leases, so cancellation reaches the local owner before any journal operation.
+Storage failure still blocks new attempts and reports unavailable cancellation
+evidence without releasing occupancy. Give authenticated cancel controls a
+bounded priority channel path independent of dispatch, local approval and
+start confirmation; cancelled pending dispatches cannot launch later. E owns
+the necessary `deviceChannel.ts` control-path change and its regressions for
+this repair. Each finding gets a regression and byte-exact red/restored drill
+in `docs/certification/m100-e.md`. No new dependency or physical-action
+adapter is introduced; D83's concrete physical-action UI remains unqualified.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18656,6 +18668,14 @@ weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
 registration stay I-owned; §9 names that joined-tree handoff. Full quality,
 coverage, installed-host/firewall/multicast, security and packaging evidence
 remain the lead's exact integrated-tree prerequisites.
+
+**FIXM100E execution/control review repair (2026-10-06).** The rig brief
+requires local scoped checks, hooks-on commits, no merges and no aggregate
+quality run. Both RVM100E P2s are repaired with owning regressions and
+byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
+quality, installed physical-device/UI qualification and the inherited
+host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
+no existing gate, timeout or permission boundary is weakened.
 
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and

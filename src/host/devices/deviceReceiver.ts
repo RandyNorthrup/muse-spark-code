@@ -95,7 +95,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
   private queue: Promise<void> = Promise.resolve()
   private isPaused = true
   private failure: Failure | undefined
-  private readonly live = new Map<string, DeviceLocalAttempt>()
+  private readonly live = new Map<
+    string,
+    { readonly identity: DeviceAttemptIdentity; readonly lease: DeviceLocalAttempt }
+  >()
   private readonly pendingReconciliation = new Set<string>()
   private constructor(
     private readonly incarnationId: string,
@@ -185,10 +188,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
   }
   public disconnect(): void {
     this.isPaused = true
-    for (const [attemptId, lease] of this.live) {
+    for (const [attemptId, live] of this.live) {
       this.pendingReconciliation.add(attemptId)
-      void lease.pause().catch(() => {
-        if (this.live.get(attemptId) === lease) this.failure = 'uncertain'
+      void live.lease.pause().catch(() => {
+        if (this.live.get(attemptId) === live) this.failure = 'uncertain'
       })
     }
   }
@@ -214,7 +217,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
         await boundary.beforeAction()
         const lease = await this.execution.admit(request)
         hasReserved = true
-        this.live.set(request.identity.attemptId, lease)
+        this.live.set(request.identity.attemptId, {
+          identity: Object.freeze(request.identity),
+          lease,
+        })
         // Capacity belongs to M96. Neither durable write can be bypassed by a retry.
         await this.journal.admit(request, lease.usage, Date.now())
         // Attach the local retirement observer before the only start operation.
@@ -308,9 +314,35 @@ export class DeviceReceiver implements DeviceExecutionPort {
   public async cancel(identity: DeviceAttemptIdentity): Promise<void> {
     if (identity.receiverIncarnationId !== this.incarnationId)
       throw new DeviceJournalError('uncertain')
-    const row = await this.journal.lookup(identity)
-    if (row?.kind !== 'receiver-record') throw new DeviceJournalError('uncertain')
-    await this.live.get(identity.attemptId)?.cancel()
+    this.frame(identity.pairId, { kind: 'cancel', identity })
+    const live = this.live.get(identity.attemptId)
+    if (live === undefined) {
+      const row = await this.journal.lookup(identity)
+      if (row?.kind !== 'receiver-record') throw new DeviceJournalError('uncertain')
+      return
+    }
+    if (
+      live.identity.pairId !== identity.pairId ||
+      live.identity.receiverIncarnationId !== identity.receiverIncarnationId ||
+      live.identity.boardId !== identity.boardId ||
+      live.identity.taskId !== identity.taskId ||
+      live.identity.attemptId !== identity.attemptId
+    )
+      throw new DeviceJournalError('payload-changed')
+    // Stop reaches the local owner even when persistence is broken or stalled.
+    await live.lease.cancel()
+    try {
+      await this.journal.advance(
+        live.identity,
+        (previous) => ({ ...previous, revision: previous.revision + 1, state: 'uncertain' }),
+        Date.now(),
+      )
+    } catch (error) {
+      this.isPaused = true
+      this.failure = error instanceof DeviceJournalError ? error.reason : 'uncertain'
+      this.pendingReconciliation.add(identity.attemptId)
+      throw error
+    }
     // A cancellation acknowledgement never writes terminal state or releases capacity.
   }
   /** Called only by T after pinned mutual authentication/current-pair validation. */

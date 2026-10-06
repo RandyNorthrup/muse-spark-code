@@ -926,5 +926,50 @@
         "receiver restart and ownership reconciliation ignores a delayed pause rejection after authoritative retirement"
       ]
     }
+  ],
+  "reviewRepairDrills": [
+    {
+      "guard": "RVM100E-P2-1-journal-first",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-identity",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed pairId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed boardId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-evidence",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt"
+      ]
+    }
   ]
 }
