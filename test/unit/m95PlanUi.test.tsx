@@ -315,7 +315,7 @@ describe('M95b shared subscription UI', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'setModel' }))
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.planUi.chooseModel }))
     expect(screen.queryByRole('dialog', { name: UI_TEXT.planUi.limitTitle })).toBeNull()
-    expect(screen.getByRole('listbox')).toBeTruthy()
+    expect(await screen.findByRole('listbox')).toBeTruthy()
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'sendMessage' }))
   })
 
@@ -559,7 +559,7 @@ describe('M95b shared subscription UI', () => {
     },
   )
 
-  it('shows plan rows in Account & usage and never displays an invented dollar cost', () => {
+  it('shows plan rows in Account & usage and never displays an invented dollar cost', async () => {
     render(
       <UsageDialog
         report={{
@@ -594,7 +594,7 @@ describe('M95b shared subscription UI', () => {
         onClose={vi.fn()}
       />,
     )
-    expect(screen.getByRole('region', { name: UI_TEXT.planUi.usageHeading })).toBeTruthy()
+    expect(await screen.findByRole('region', { name: UI_TEXT.planUi.usageHeading })).toBeTruthy()
     expect(screen.queryByText(UI_TEXT.usageCost)).toBeNull()
     expect(screen.queryByText(UI_TEXT.usagePlanPayAsYouGo)).toBeNull()
     expect(screen.queryByText(/\$99/)).toBeNull()

@@ -250,7 +250,9 @@ quality`) and as a CI job.
 ESM graph and one emitted React/shared UI owner. Their static startup totals
 count that shared chunk per page, not duplicated package files. Main’s native
 English codec replaces the train’s older browser codec. Models and Usage
-bodies load through DeferredSurface; their full non-bootstrap static closures
+bodies load through DeferredSurface under their existing page error boundaries,
+so Usage retains its specific failure and Models still reports render errors
+to the host. Their full non-bootstrap static closures
 are 57,621 and 36,212 bytes. New caps are measured +15%, rounded up to 25 KiB:
 75 KiB and 50 KiB. Existing bundle caps remain unchanged. The authenticated
 companion import map resolves dynamic imports as well as static ones and
@@ -462,7 +464,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | Webview team UI import closure        | ≤ 25 KiB (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)                                                                                                                                                                                                                                                                                           |
-| `.vsix`                               | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,730 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
+| `.vsix`                               | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -935,7 +937,7 @@ other budget changes.
 | `dist/searchWorker.js`         | ≤ 50 KiB                                                                                                                                                                                                                                                                                             |
 | `dist/pageWorker.js`           | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                           |
 | `dist/webview/main.js`         | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                                                                                                        |
-| `.vsix`                        | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,730 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
+| `.vsix`                        | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
 | `dist/acp.js`                  | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                    |
 | `dist/planMarkdown.js`         | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                      |
 | `dist/checkpointStore.js`      | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                 |
@@ -9594,6 +9596,13 @@ have equivalent functionality even if we need to develop it ourselves".
   `docs/certification/m104-research.md` (this file, moved in).
 
 ## 3. Open questions (need the owner)
+
+- **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
+  regression capture does not fit the integrated train, although unchanged
+  900/50-KiB production gates pass. The rig brief approves only the universal
+  VSIX formula. Does the lead want an additional startup diet, or a separately
+  reviewed train measurement expectation? Keep the existing assertion enabled
+  and unchanged pending that decision; the scoped result is in section 7.
 
 - **Q-TRAIN15E-D78 (2026-10-06):** the train's immutable Meta golden requests
   declare `recall_output` from the first packing-enabled request; M102's D78

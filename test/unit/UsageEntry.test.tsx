@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { isValidElement, type ReactNode } from 'react'
-import { render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 import { setUsageText } from '../../src/shared/l10n/usageTable'
@@ -24,15 +24,11 @@ function renderedType(): string {
     throw new Error('No mounted component')
   return node.type.name
 }
-function childType(): string {
+async function showSharedPage(title = USAGE_EN.title): Promise<void> {
   const node = draw.mock.calls.at(-1)?.[0]
   if (!isValidElement(node)) throw new Error('No mounted element')
-  const props = node.props
-  if (props === null || typeof props !== 'object' || !('children' in props))
-    throw new Error('No child')
-  if (!isValidElement(props.children) || typeof props.children.type !== 'function')
-    throw new Error('No child component')
-  return props.children.type.name
+  render(node)
+  expect(await screen.findByRole('heading', { name: title, level: 1 })).toBeTruthy()
 }
 beforeEach(() => {
   vi.resetModules()
@@ -47,6 +43,7 @@ beforeEach(() => {
   )
 })
 afterEach(() => {
+  cleanup()
   vi.unstubAllGlobals()
   setUsageText(USAGE_EN)
   setUiText(EN, 'en')
@@ -67,7 +64,7 @@ describe('usage entry', () => {
       })
       await import('../../src/webview/usage/usage')
       expect(renderedType()).toBe('UsageBoundary')
-      expect(childType()).toBe('UsageApp')
+      await showSharedPage()
       expect(acquireVsCodeApi).toHaveBeenCalledTimes(kind === 'vscode' ? 1 : 0)
     },
   )
@@ -91,12 +88,14 @@ describe('usage entry', () => {
     })
     document.head.append(element)
     await import('../../src/webview/usage/usage')
-    expect(childType()).toBe('UsageApp')
+    await showSharedPage('Nutzung und Kosten')
     expect(document.documentElement.lang).toBe('de')
     vi.resetModules()
     element.textContent = 'not JSON'
     await import('../../src/webview/usage/usage')
-    expect(childType()).toBe('Unavailable')
+    cleanup()
+    render(draw.mock.calls.at(-1)?.[0])
+    expect(await screen.findByRole('alert')).toHaveTextContent(USAGE_EN.invalidMessage)
   })
   it('refuses to mount without its root', async () => {
     document.body.replaceChildren()
@@ -120,7 +119,7 @@ describe('usage entry', () => {
       await import('../../src/webview/usage/usage')
       const node = draw.mock.calls.at(-1)?.[0]
       render(node)
-      expect(screen.getByRole('alert')).toHaveTextContent('Usage history could not be read.')
+      expect(await screen.findByRole('alert')).toHaveTextContent('Usage history could not be read.')
       expect(screen.queryByText('private content')).toBeNull()
     } finally {
       errors.mockRestore()

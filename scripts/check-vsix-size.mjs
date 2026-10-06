@@ -1,4 +1,4 @@
-// TRAIN15G, 2026-10-06: measured universal VSIX 2,688,730 bytes +5%, rounded
+// TRAIN15G, 2026-10-06: measured universal VSIX 2,688,776 bytes +5%, rounded
 // up to 25 KiB = 2,841,600 bytes. Lead-approved for the 0.15.0 train only
 // (PLAN.md D6); existing individual bundle caps are unchanged.
 import { statSync } from 'node:fs'

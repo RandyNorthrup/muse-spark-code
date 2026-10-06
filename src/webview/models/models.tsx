@@ -8,16 +8,16 @@
 // before the first render (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
-import { Component, type ReactNode } from 'react'
+import { Component, lazy, type ReactNode } from 'react'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
 import type { ErrorReporter } from '../errorReport'
 import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
 import { installEmbeddedTable } from '../installTable'
-import { deferred } from '../components/DeferredSurface'
+import { DeferredSurface } from '../components/DeferredSurface'
 import './models.css'
 
-const ModelsApp = deferred(async () => {
+const ModelsApp = lazy(async () => {
   const module = await import('./panel')
   return { default: module.ModelsApp }
 })
@@ -94,7 +94,9 @@ function startModelsPanel(root: Element, bridge: HostBridge): void {
         report('render', error)
       }}
     >
-      <ModelsApp host={bridge} report={report} />
+      <DeferredSurface isModal={false}>
+        <ModelsApp host={bridge} report={report} />
+      </DeferredSurface>
     </PanelBoundary>,
   )
 }

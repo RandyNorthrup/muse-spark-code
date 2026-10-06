@@ -9,6 +9,7 @@ happened, not what was planned; superseded entries are kept.
 
 - Share chat, Models and Usage browser dependencies in one emitted graph;
   load the optional panel bodies on demand with separate measured budgets.
+  Preserve the pages' specific failures and Models' host error reports.
   The authenticated ACP companion resolves their dynamic shared chunks under
   its existing nonce policy.
   Set this train's universal VSIX cap to 2775 KiB from the measured package

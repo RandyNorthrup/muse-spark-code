@@ -1,4 +1,4 @@
-import { Component, type ReactNode } from 'react'
+import { Component, lazy, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
@@ -11,11 +11,11 @@ import { swtHostBridge } from '../hostBridges/swtHostBridge'
 import { webView2HostBridge, type WebView2UsagePort } from '../hostBridges/webView2HostBridge'
 import type { NativeUsagePort } from '../hostBridges/usageBridge'
 import { installUsageTable } from './installUsageTable'
-import { deferred } from '../components/DeferredSurface'
+import { DeferredSurface } from '../components/DeferredSurface'
 import './usage.css'
 import { companionUsagePort } from './companion'
 
-const UsageApp = deferred(async () => {
+const UsageApp = lazy(async () => {
   const module = await import('./UsageApp')
   return { default: module.UsageApp }
 })
@@ -111,7 +111,13 @@ try {
   const host = create(bridgeKind(document.body.dataset['hostBridge']))
   root.render(
     <UsageBoundary>
-      {isInvalidTable ? <Unavailable code="invalidMessage" /> : <UsageApp host={host} />}
+      {isInvalidTable ? (
+        <Unavailable code="invalidMessage" />
+      ) : (
+        <DeferredSurface isModal={false}>
+          <UsageApp host={host} />
+        </DeferredSurface>
+      )}
     </UsageBoundary>,
   )
 } catch {

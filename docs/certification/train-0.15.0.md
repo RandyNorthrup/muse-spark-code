@@ -1056,7 +1056,7 @@ The initial browser inventory already has one emitted React/shared UI owner
 across chat, Models and Usage. Their 425/413-KiB startup totals count shared
 files per page, rather than separate copies in the VSIX. Keep the common ESM
 graph, replace the older train English codec with main’s native codec, and
-defer both optional panel bodies through DeferredSurface. Models startup
+defer both optional panel bodies through DeferredSurface under their existing page error boundaries. Models startup
 falls from 431.6 to 379.7 KiB; Usage from 420.1 to 396.1 KiB. Full non-bootstrap
 body closures are 57,621 / 36,212 bytes, with new 75/50-KiB caps from measured
 +15%, rounded up to 25 KiB. Existing individual caps remain unchanged.
@@ -1070,8 +1070,8 @@ Windows metafile output/import/entry paths are normalized before traversal.
 
 | Actual variant | Post-main before bytes | After bytes | Change |
 | -------------- | ---------------------: | ----------: | -----: |
-| Helperless     |              2,607,225 |   2,609,182 |  1,957 |
-| Universal      |              2,686,773 |   2,688,730 |  1,957 |
+| Helperless     |              2,607,225 |   2,609,228 |  2,003 |
+| Universal      |              2,686,773 |   2,688,776 |  2,003 |
 
 The incoming TRAIN15F archives were 2,600,909 / 2,680,457 bytes. New lazy
 chunks add small ZIP/import overhead; no duplicated vendor asset was found
@@ -1080,7 +1080,7 @@ f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36, with
 0755 ZIP metadata. Inventories include every entry and its compressed bytes.
 
 The lead’s explicitly approved train-only decision is exact:
-ceil(2,688,730 × 1.05 / 25,600) × 25,600 =
+ceil(2,688,776 × 1.05 / 25,600) × 25,600 =
 **2,841,600 bytes (2775 KiB)**, replacing 2,534,400. Actual npm run package
 passes for both variants; ACP packaging, exact staged localization/badges
 and native module export checks pass. No other existing cap is raised.
@@ -1109,3 +1109,21 @@ the lead’s checks under common.md.
 
 Exact files, conflicts, inventories, golden hashes, package and drill logs:
 [train-0.15.0-train15g.json](train-0.15.0-train15g.json).
+
+## TRAIN15G final default-timeout and browser receipts
+
+The complete final owning record covers **159 files: 4860 passed tests, 1 failed test and 3 existing Windows signal skips (4864 total)**. Each run uses at most three files/workers and the repository’s default timeout; no command-level timeout override. Exec stdio, ACP stdio, version/README, What’s New, packaging and offline badge owning files pass. Fourteen golden fixtures and their hashes stay unchanged.
+
+The remaining failure is the inherited main-only FIXDIET1 measurement assertion: 815,782 bytes versus 751,411.2; its original deferred group is 33,326 versus 32,870.4. The unchanged production caps are 921,600 / 51,200 bytes and pass. PLAN section 3 asks for the lead’s diet/baseline decision, and section 7 records the justified integration deferral. No assertion is removed, filtered or loosened.
+
+The original failed batches and default-timeout reruns remain in the JSON. Two unchanged 50-ms idle cases and the unchanged subscription browser scenario pass in isolated complete-file reruns; the subscription scenario remains close to its default deadline (4938.2 ms). Loaded-body tests replace eager component-name assumptions; menu and plan-region assertions wait for the real UI. Mounting exposes and then proves the page-boundary repair: Usage keeps its read-error text, and Models sends its render-error report and shows its specific failure. A seventh deliberate regression makes the Models boundary guard fail; source SHA-256 is identical after restoration.
+
+All five final type projects, scoped ESLint/Prettier, CSS, PSScriptAnalyzer (zero findings), cycle detection, plain knip, host API and reference pass. Production builds, bundle size/split/global/notices checks and actual VSIX/ACP package runs pass. Earlier localization, duplication, schema and offline source badge checks pass. Normal hooks run on every local commit.
+
+The new README browser command succeeds against real production ESM: all eight deferred surfaces load first-use under CSP and recover from rejected imports, with draft preservation and dismissal/focus checks. The authenticated companion page also renders in real Chrome under its nonce CSP.
+
+Final actual archives are helperless **2,609,228 bytes**, SHA-256 bc03297914bd4c5abe3a3497f96a8956a7f7631dede4911487899e0f8cf058b9, and universal **2,688,776 bytes**, SHA-256 6327978420b7a8f5ebe274a230aaff98db2ad98d11723fd0e444051b66a528e9. Each is 2,003 bytes over the post-main pre-lazy measurement; React/shared UI already had a single physical owner, so no vendor copy was deleted. The final formula is ceil(2,688,776 × 1.05 / 25,600) × 25,600 = **2,841,600 bytes (2775 KiB)**, with 152,824 bytes of headroom. The ACP tarball is **1,713,250 bytes**, SHA-256 1f152b806341ce5ad1a991a7b51f3061f464db98e1eb632e9a03a0329cf76a9d. Archive inspection finds no tests, maps, fonts or node_modules; universal helper bytes/hash/0755 match the certified native receipt. Version, README What’s New and all released changelog text are unchanged.
+
+Full accessibility is running; its completed receipt will be committed separately.
+
+Full aggregate quality and the hosted/native/live release matrices remain with the lead under the rig’s scoped-check rule. No public network, credentials or paid/live model calls; no push or Git configuration changes.
