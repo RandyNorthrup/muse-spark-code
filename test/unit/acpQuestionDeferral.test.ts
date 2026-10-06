@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { AcpQuestionDeferral } from '../../src/acp/questionDeferral'
-import { createAcpQuestions } from '../../src/acp/questionDeferralEntry'
+import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { questionDeferSeconds } from '../../src/shared/questionDeadline'
 import { questionCommand, questionForm } from '../../src/acp/questions'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
@@ -469,7 +469,7 @@ function agentHarness(
     response: ReturnType<typeof Promise.withResolvers<acp.CreateElicitationResponse>>
   }[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
-  const questionBundle = vi.fn(() => ({ createAcpQuestions }))
+  const questionBundle = vi.fn(() => questionFactories)
   const agent = createAcpAgent({
     backend: {
       kind: 'museCode',
@@ -706,7 +706,7 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
-  it('a Stop during queue loading starts no turn and leaves queued answers unacknowledged', async () => {
+  it('a Stop during queue loading starts no turn and restores the leased queue prefix', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
       const gate = Promise.withResolvers<readonly never[]>()
@@ -722,7 +722,7 @@ describe('M112 through the pinned ACP SDK client', () => {
       gate.resolve([])
       expect(await response).toEqual({ stopReason: 'cancelled' })
       expect(h.session.sendTurn).not.toHaveBeenCalled()
-      expect(h.registries[0]?.acknowledgeQueued).not.toHaveBeenCalled()
+      expect(h.registries[0]?.acknowledgeQueued).toHaveBeenCalledExactlyOnceWith('notTaken')
     })
   })
 

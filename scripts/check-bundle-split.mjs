@@ -699,16 +699,15 @@ function shipped(output) {
 const TEXT_BLOCKS = [
   {
     block: 'QUESTION_MODEL_TEXT',
-    sentinels: ['deferredClarification', 'lateAnswer'],
-    // M112 Q binds these readers. The controller moved to its own lazy
-    // bundle after D92 was written; do not drag its text into activation
-    // simply to satisfy a stale reader list.
-    readers: [
-      BUNDLES.activation.output,
-      'dist/conversation.js',
-      BUNDLES.modelApi.output,
-      BUNDLES.acp.output,
-    ],
+    sentinels: ['deferredClarification'],
+    // The two backends share one first-deferral helper; ordinary startup
+    // carries neither the note nor the registry's late-delivery templates.
+    readers: ['dist/questionNotes.js'],
+  },
+  {
+    block: 'QUESTION_DELIVERY_MODEL_TEXT',
+    sentinels: ['lateAnswer'],
+    readers: ['dist/conversation.js', 'dist/runtimeQuestions.js'],
   },
   {
     block: 'CONVERSATION_MODEL_TEXT',
@@ -950,7 +949,11 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
   .map((name) => `dist/meta/${name}`)
-nodeMetafiles.push('dist/meta-acp/acp.json', 'dist/meta-acp/acpQuestions.json')
+nodeMetafiles.push(
+  'dist/meta-acp/acp.json',
+  'dist/meta-acp/acpQuestions.json',
+  'dist/meta-acp/runtimeQuestions.json',
+)
 const validationReaders = new Set()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))

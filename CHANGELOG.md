@@ -9,13 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- M112 lane A's ACP question adapter: deadlines and cooperative form
+- Questions stay in the dock and transcript, defer after a machine-scoped
+  deadline, and accept late answers exactly once. Open counts appear in
+  History, the tab title and the composer; Next and Previous navigate them.
+- ACP question handling: deadlines and cooperative form
   withdrawal, immediate deferral without forms, late form answers, and local
   `/questions` and `/answer` commands. The runtime parses
   `--questions-defer-after` and its help is translated in all 14 languages.
-  The portable registry, durable idle-answer queue and runtime launch binding
-  remain named integration handoffs; no new installed-editor certification
-  is claimed. Headless's explicit policy declines immediately with no clock.
+  The real registry and private durable idle-answer queue are connected to
+  the launcher. Headless's explicit policy declines immediately with no clock.
 
 ### Fixed
 
@@ -29,9 +31,16 @@ happened, not what was planned; superseded entries are kept.
   wait for registry opening, failed deferrals explicitly cancel the waiting
   tool, and released sessions cannot queue refused steers. Idle answers are
   announced as queued until the next prompt actually sends them.
-- ACP question forms, local commands and late-answer admission load on first
-  use from the agent package's `acpQuestions.js`; CLI deadline parsing keeps
-  only the small shared normalizer. Startup growth meets M112's 2 KiB target.
+- Question cards and settled outcomes load when first shown. ACP forms and
+  elicitation parsing use `acpQuestions.js`; private registry and queue storage
+  use `runtimeQuestions.js`. Both backends load the shared deferral note only
+  when a question defers. The five M112 startup growth targets remain intact.
+- Cancelling ACP preparation restores a leased answer queue before any turn
+  starts; an uncertain submission retires its prefix so a restart cannot send
+  it again. Failed grouped deferrals cancel each failed backend request.
+- History shows the same open count as the chat badge and discards a private
+  count read after its surface changes, including a failed read, so an old list
+  cannot reappear on the new surface.
 
 - Correct the frozen question contract: scheduled/unattended prompts defer
   immediately, including when interactive deferral is disabled.

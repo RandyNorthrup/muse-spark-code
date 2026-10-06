@@ -60,7 +60,7 @@ import type {
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
-import { QuestionSurface } from './components/QuestionCard'
+import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
@@ -1020,67 +1020,45 @@ export function App({
     [dispatch, postMessage],
   )
   // Both views lock before dispatch; only an explicit nothing-taken failure unlocks.
-  const onQuestionReply = useCallback(
-    (userInputId: string, reply: OpenQuestionAnswer | undefined) => {
-      const current = store.getState()
-      const question = questionsInOrder(current).find((card) => card.userInputId === userInputId)
-      if (
-        question === undefined ||
-        question.isSubmitted === true ||
-        current.submittedQuestions.includes(userInputId) ||
-        (reply === undefined && (question.state ?? 'waiting') !== 'waiting')
-      )
-        return
-      dispatch({ type: 'questionSubmitted', userInputId })
-      if (reply !== undefined && question.state === 'open' && current.sessionId !== undefined) {
-        postMessage({
-          type: 'answerOpenQuestion',
-          sessionId: current.sessionId,
-          userInputId,
-          reply,
+  const onQuestionAction = useCallback(
+    (userInputId: string, reply: OpenQuestionAnswer | 'dismiss' | undefined) => {
+      const sessionId = store.getState().sessionId
+      const attachmentEpoch = store.getState().attachmentEpoch
+      void import('./components/QuestionDock')
+        .then((actions) => {
+          const current = store.getState()
+          if (current.sessionId === sessionId && current.attachmentEpoch === attachmentEpoch)
+            actions.questionAction(store, postMessage, userInputId, reply)
         })
-      } else if ((question.state ?? 'waiting') === 'waiting') {
-        if (reply === undefined) postMessage({ type: 'cancelQuestion', userInputId })
-        else if ('explanation' in reply)
-          postMessage({ type: 'clarifyQuestion', userInputId, text: reply.explanation })
-        else postMessage({ type: 'answerQuestion', userInputId, answers: reply.answers })
-      }
+        .catch((error: unknown) => {
+          postMessage(webviewErrorReport('promise', error))
+        })
     },
-    [dispatch, postMessage, store],
+    [postMessage, store],
   )
   const onAnswer = useCallback(
     (userInputId: string, answers: readonly QuestionAnswer[]) => {
-      onQuestionReply(userInputId, { answers: [...answers] })
+      onQuestionAction(userInputId, { answers: [...answers] })
     },
-    [onQuestionReply],
+    [onQuestionAction],
   )
   const onCancelQuestion = useCallback(
     (userInputId: string) => {
-      onQuestionReply(userInputId, undefined)
+      onQuestionAction(userInputId, undefined)
     },
-    [onQuestionReply],
+    [onQuestionAction],
   )
   const onClarifyQuestion = useCallback(
     (userInputId: string, text: string) => {
-      onQuestionReply(userInputId, { explanation: text })
+      onQuestionAction(userInputId, { explanation: text })
     },
-    [onQuestionReply],
+    [onQuestionAction],
   )
   const onDismissQuestion = useCallback(
     (userInputId: string) => {
-      const current = store.getState()
-      if (
-        current.sessionId === undefined ||
-        current.submittedQuestions.includes(userInputId) ||
-        questionsInOrder(current).every(
-          (question) => !(question.userInputId === userInputId && question.state === 'open'),
-        )
-      )
-        return
-      dispatch({ type: 'questionSubmitted', userInputId })
-      postMessage({ type: 'dismissOpenQuestion', sessionId: current.sessionId, userInputId })
+      onQuestionAction(userInputId, 'dismiss')
     },
-    [dispatch, postMessage, store],
+    [onQuestionAction],
   )
   const onJumpQuestion = useCallback(
     (direction: 'next' | 'previous') => {
@@ -1088,19 +1066,7 @@ export function App({
     },
     [dispatch],
   )
-  useLayoutEffect(() => {
-    const target = state.questionNavigation
-    if (target === undefined || target.isReminder === true) return
-    const candidates = [...document.querySelectorAll<HTMLElement>('[data-question-id]')].filter(
-      (element) => element.dataset['questionId'] === target.userInputId,
-    )
-    const card =
-      candidates.find((element) => element.dataset['questionSlot'] === 'row') ??
-      candidates.find((element) => !element.hidden)
-    if (card?.closest('[inert]') !== null) return
-    card.scrollIntoView({ block: 'nearest' })
-    card.focus()
-  }, [state.questionNavigation])
+
   useEffect(() => {
     const count = state.openQuestions.filter((question) => question.state === 'open').length
     const title = state.title ?? UI_TEXT.untitledConversation

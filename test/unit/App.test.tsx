@@ -134,7 +134,7 @@ function expectRewindRequest(
 }
 
 /** The agent asks one single-choice question and the user picks Red. */
-function askColour() {
+async function askColour() {
   deliver({
     type: 'agentEvent',
     event: {
@@ -151,6 +151,10 @@ function askColour() {
         },
       ],
     },
+  })
+  await act(async () => {
+    await import('../../src/webview/components/QuestionDock')
+    await import('../../src/webview/components/QuestionCard')
   })
   fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
 }
@@ -942,7 +946,7 @@ describe('App approval card: one decision per stage (D26)', () => {
 })
 
 describe('App transcript (M4)', () => {
-  it('decides an approval from its card and answers a question from its card', () => {
+  it('decides an approval from its card and answers a question from its card', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'agentEvent',
@@ -1003,9 +1007,12 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeDisabled()
     stageUpdate(1)
     expect(screen.getByText('Allow once')).toBeEnabled()
-    askColour()
+    await askColour()
 
-    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    await act(async () => {
+      await import('../../src/webview/components/QuestionDock')
+      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
       userInputId: 'q1',
@@ -2377,13 +2384,16 @@ describe('App webview and UI state (M25)', () => {
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'openFile' }))
   })
 
-  it('posts a question answer once, however often Submit is pressed', () => {
+  it('posts a question answer once, however often Submit is pressed', async () => {
     const postMessage = renderReady()
-    askColour()
+    await askColour()
 
-    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-    fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
+    await act(async () => {
+      await import('../../src/webview/components/QuestionDock')
+      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
+    })
     const answers = () =>
       postMessage.mock.calls.filter(
         ([message]) => message.type === 'answerQuestion' || message.type === 'cancelQuestion',
@@ -2391,7 +2401,10 @@ describe('App webview and UI state (M25)', () => {
     expect(answers()).toHaveLength(1)
     // The host refused the answer: the card opens again for another try.
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
-    fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    await act(async () => {
+      await import('../../src/webview/components/QuestionDock')
+      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+    })
     expect(answers()).toHaveLength(2)
   })
 

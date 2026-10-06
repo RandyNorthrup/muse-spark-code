@@ -23,6 +23,11 @@ export function webviewStartupOutputs(meta) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    name: 'question cards',
+    entries: ['src/webview/components/QuestionCard.tsx', 'src/webview/components/QuestionDock.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

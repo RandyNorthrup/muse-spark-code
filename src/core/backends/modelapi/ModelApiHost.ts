@@ -88,7 +88,6 @@ import {
   type PromptCacheRetention,
   QUESTION_OUTCOME_CLARIFIED,
   QUESTION_OUTCOME_DEFERRED,
-  QUESTION_MODEL_TEXT,
   REPO_MAP_PROMPT_TRIES,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
@@ -1289,11 +1288,8 @@ function noteItem(text: string): InputItem {
 }
 
 /** What the model is told a question card settled with. */
-export function questionResultText(reply: QuestionReply): string {
+export function questionResultText(reply: Exclude<QuestionReply, { kind: 'deferred' }>): string {
   switch (reply.kind) {
-    case 'deferred': {
-      return fill(QUESTION_MODEL_TEXT.deferred, { id: reply.userInputId })
-    }
     case 'answered': {
       return `${MODEL_API_MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
     }
@@ -4867,7 +4863,11 @@ export class ModelApiSession implements AgentSession {
       answers: reply.kind === 'answered' ? [...reply.answers] : [],
       ...(reply.kind === 'clarified' && { clarification: reply.text }),
     })
-    const text = questionResultText(reply)
+    let text: string
+    if (reply.kind === 'deferred') {
+      const notes = await import('../../questions/deferralEntry')
+      text = notes.questionDeferralText(reply.userInputId)
+    } else text = questionResultText(reply)
     return { output: text, visibleOutput: text }
   }
 

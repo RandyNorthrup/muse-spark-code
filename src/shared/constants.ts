@@ -3199,6 +3199,7 @@ export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
 export const QUESTION_OUTCOME_DEFERRED = 'deferred'
 export const QUESTION_DEFER_DEFAULT_SECONDS = 60
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
+export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
@@ -3210,18 +3211,21 @@ export const QUESTION_ID_MAX_CHARS = 100
 export const LATE_ANSWER_QUESTION_MAX_CHARS = 2000
 export const ATTENTION_DOCK_MAX_VIEWPORT_FRACTION = 0.5
 
-// Fixed English for the model, separate from MODEL_TEXT. Final readers:
-// dist/extension.js, dist/modelApi.js and dist/acp.js (D92.10); the
-// controller's lazy dist/conversation.js also needs lateAnswer/dismissed.
-// Lane Q binds these readers; lane 0 introduces only their contracts.
+// Backend deferral text: questionNotes.js, loaded on the first deferral.
+const QUESTION_DEFERRAL_NOTE =
+  '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>'
 export const QUESTION_MODEL_TEXT = {
-  deferred:
-    '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>',
-  deferredClarification:
-    '<harness_note>The user has not answered question {id} yet. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again. The answer will arrive later as a user message that begins "Answer to your earlier question {id}".</harness_note>',
+  deferred: QUESTION_DEFERRAL_NOTE,
+  deferredClarification: QUESTION_DEFERRAL_NOTE,
+} as const
+
+// Late delivery stays in conversation.js and runtimeQuestions.js.
+export const QUESTION_DELIVERY_MODEL_TEXT = {
   lateAnswer: 'Answer to your earlier question {id}\nQuestion:\n{question}\n{answer}',
   dismissed:
     '<harness_note>The user dismissed question {id} without answering. Continue with work that does not depend on the answer. Do not guess the answer and do not ask again.</harness_note>',
+  answersPrefix: 'The user answered:',
+  clarificationLead: 'The user chose none of the options and explained instead:',
 } as const
 
 // --- Subagents, background tasks and usage insights (M14, PLAN.md D17) ---

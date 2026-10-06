@@ -20,8 +20,6 @@ import {
   APPROVAL_REJECT_ATTEMPTS,
   APPROVAL_REJECT_DEADLINE_MS,
   CLARIFICATION_FORMAT,
-  CLARIFICATION_MAX_CHARS,
-  QUESTION_MODEL_TEXT,
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
@@ -1109,26 +1107,17 @@ export class MuseSession implements AgentSession {
 
   /** M46's captured clarification settles the tool; only our reserved ids display Deferred. */
   public async deferQuestions(userInputId: string): Promise<void> {
-    const text = fill(QUESTION_MODEL_TEXT.deferredClarification, { id: userInputId })
-    if (text.length > CLARIFICATION_MAX_CHARS || !this.prompts.markQuestionDeferred(userInputId)) {
-      throw new PromptSettledError('alreadySettled', `question ${userInputId} cannot defer`)
-    }
-    // Install the settlement listener before dispatch; MSP can settle before the ack.
-    let release: (() => void) | undefined
-    const settled = new Promise<void>((resolve) => {
-      release = this.onEvent((event) => {
-        if (event.type === 'questionSettled' && event.userInputId === userInputId) resolve()
-      })
-    })
-    try {
-      await this.clarifyQuestions(userInputId, text)
-      await withDeadline(settled, this.timeouts.normalMs, UI_TEXT.questionAnswerUncertain)
-    } catch (error: unknown) {
-      if (isPromptSettledError(error)) this.prompts.unmarkQuestionDeferred(userInputId)
-      throw error
-    } finally {
-      release?.()
-    }
+    const bundle = await import('../../questions/deferralEntry')
+    await bundle.deferMuseQuestions(
+      this,
+      userInputId,
+      () => this.prompts.markQuestionDeferred(userInputId),
+      () => {
+        this.prompts.unmarkQuestionDeferred(userInputId)
+      },
+      this.timeouts.normalMs,
+      UI_TEXT.questionAnswerUncertain,
+    )
   }
 
   /** Explain instead of choosing (`userInput/clarify`, M46): the model decides again. */

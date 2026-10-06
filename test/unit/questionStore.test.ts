@@ -13,11 +13,8 @@ import { tmpdir } from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { createQuestionStore } from '../../src/runtime/questions/questionStore'
-import {
-  createHostQuestionStore,
-  questionClock,
-  questionsDeferAfterSeconds,
-} from '../../src/host/questions/questionStore'
+import { questionClock, questionsDeferAfterSeconds } from '../../src/host/questions/questionStore'
+import { createHostQuestionStore } from '../../src/host/questions/questionStorage'
 import { UI_TEXT } from '../../src/shared/constants'
 import { questionFixture } from './helpers/questions/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'

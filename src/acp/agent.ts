@@ -85,7 +85,6 @@ import {
   type AcpQuestionBundle,
 } from './questionDeferralBundle'
 import type { QuestionClock } from '../shared/questions'
-import { elicitationSchema, elicitationText, parseElicitationResult } from './questions'
 import {
   approvalToolCall,
   decidedChoice,
@@ -305,7 +304,7 @@ class AcpSession {
           this.questionNotice(text)
         },
         failed: () => {
-          this.deps.log.warn(`ACP session ${this.sessionId}: question operation failed`)
+          this.questionFailed()
           observeError(this.deps, 'questionFailed')
         },
       },
@@ -315,10 +314,16 @@ class AcpSession {
     return this.questions
   }
 
+  private questionStateNotSaved(): void {
+    this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+  }
+
+  private questionFailed(): void {
+    this.deps.log.warn(`ACP session ${this.sessionId}: question operation failed`)
+  }
+
   private async endQuestions(isCancelled: boolean): Promise<void> {
-    await (this.questions?.turnEnded(isCancelled) ??
-      this.questionRegistry?.turnEnded(isCancelled) ??
-      Promise.resolve())
+    await (this.questions?.turnEnded(isCancelled) ?? this.questionRegistry?.turnEnded(isCancelled))
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
@@ -490,7 +495,7 @@ class AcpSession {
     }
     if (pending === undefined && wasActive) {
       void this.endQuestions(event.terminal === CANCELLED_TERMINAL).catch(() => {
-        this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+        this.questionStateNotSaved()
       })
       return
     }
@@ -509,7 +514,7 @@ class AcpSession {
     this.pending = undefined
     void this.endQuestions(pending.isCancelled || event.terminal === CANCELLED_TERMINAL).catch(
       () => {
-        this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+        this.questionStateNotSaved()
       },
     )
     if (pending.isCancelled || event.terminal === CANCELLED_TERMINAL) {
@@ -590,6 +595,8 @@ class AcpSession {
     const settle = this.session.settleElicitation
     const message = `${fill(UI_TEXT.elicitationTitle, { server: event.server })}\n${event.message}`
     try {
+      const { elicitationSchema, elicitationText, parseElicitationResult } =
+        this.questionBundle().acpElicitation(UI_TEXT, uiLocale())
       if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
         this.send({
           sessionUpdate: 'agent_message_chunk',
@@ -663,13 +670,13 @@ class AcpSession {
         this.pending?.turnId ?? this.activeTurnId,
       )
     } catch {
-      this.deps.log.warn(`ACP session ${this.sessionId}: question operation failed`)
+      this.questionFailed()
       observeError(this.deps, 'questionFailed')
       if (this.questionRegistry === undefined) return
       try {
         await this.session.cancelQuestions(event.userInputId)
       } catch {
-        this.deps.log.warn(`ACP session ${this.sessionId}: question operation failed`)
+        this.questionFailed()
       }
     }
   }
@@ -922,9 +929,11 @@ class AcpSession {
       this.preparing = undefined
     }
     if ('error' in preparing) {
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       throw preparing.error
     }
     if (preparing.isCancelled) {
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       await this.outbox
       return 'cancelled'
     }
@@ -960,7 +969,7 @@ class AcpSession {
       try {
         await this.questionRegistry?.acknowledgeQueued('uncertain')
       } catch {
-        this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+        this.questionStateNotSaved()
       }
       this.pending = undefined
       if (this.isDisposed) {
@@ -995,7 +1004,7 @@ class AcpSession {
     if (this.pending === undefined) this.activeTurnId = undefined
     else this.pending.isCancelled = true
     void this.endQuestions(true).catch(() => {
-      this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+      this.questionStateNotSaved()
     })
     // Stopped once its start is answered, as in release(): a stop sent
     // while the turn is still starting finds no turn, and the turn would
@@ -1017,7 +1026,7 @@ class AcpSession {
     this.pending?.reject(error)
     this.pending = undefined
     void this.endQuestions(false).catch(() => {
-      this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+      this.questionStateNotSaved()
     })
   }
 

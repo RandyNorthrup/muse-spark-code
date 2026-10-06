@@ -32,6 +32,8 @@ const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
+  path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
+  path.join(METAFILE_DIR, 'questionNotes.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'wire.json'),

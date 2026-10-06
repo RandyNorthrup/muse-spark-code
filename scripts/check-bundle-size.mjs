@@ -16,6 +16,8 @@ const WHATS_NEW_CONTENT_BUDGET_KIB = 40
 const BUDGETS = [
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
+  { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },

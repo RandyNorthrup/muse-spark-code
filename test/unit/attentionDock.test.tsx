@@ -91,14 +91,24 @@ function waitingQuestion(overrides: Partial<PendingQuestion> = {}): PendingQuest
 afterEach(() => {
   vi.useRealTimers()
 })
+async function renderScene(tree: ReturnType<typeof scene>) {
+  let result: ReturnType<typeof render> | undefined
+  await act(async () => {
+    result = render(tree)
+    await import('../../src/webview/components/QuestionDock')
+  })
+  if (result === undefined) throw new Error('Scene did not render')
+  return result
+}
+
 describe('M112 attention dock and the two views', () => {
-  it('pins waiting questions oldest first, MCP forms next, with one full dock card', () => {
+  it('pins waiting questions oldest first, MCP forms next, with one full dock card', async () => {
     const older = waitingQuestion({
       userInputId: 'old',
       askedAt: 0,
       questions: [{ ...questionFixture().questions[0]!, header: 'Oldest' }],
     })
-    render(scene(group([waitingQuestion(), older], [form])))
+    await renderScene(scene(group([waitingQuestion(), older], [form])))
     const region = within(dock())
     expect(
       region
@@ -115,9 +125,9 @@ describe('M112 attention dock and the two views', () => {
     expect(MCP_ELICITATION_TIMEOUT_MS).toBe(300_000)
   })
 
-  it('puts approvals first and keeps every question/form compact until the approval settles', () => {
+  it('puts approvals first and keeps every question/form compact until the approval settles', async () => {
     const questions = group([waitingQuestion(), questionFixture({ userInputId: 'open-2' })], [form])
-    const { rerender } = render(scene(questions, [approval]))
+    const { rerender } = await renderScene(scene(questions, [approval]))
     const region = within(dock())
     expect(region.getByRole('button', { name: 'Allow once' })).toBeEnabled()
     expect(region.queryByRole('radio')).toBeNull()
@@ -127,9 +137,9 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
   })
 
-  it('shares choices, explanation and active tab between row and dock without coupling radio groups', () => {
+  it('shares choices, explanation and active tab between row and dock without coupling radio groups', async () => {
     const questions = group([waitingQuestion()])
-    render(scene(questions))
+    await renderScene(scene(questions))
     const row = within(screen.getByRole('main'))
     fireEvent.click(row.getByRole('radio', { name: 'Blue' }))
     expect(within(dock()).getByRole('radio', { name: 'Blue' })).toBeChecked()
@@ -143,9 +153,9 @@ describe('M112 attention dock and the two views', () => {
     )
   })
 
-  it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', () => {
+  it('defers on the host snapshot while keeping a focused or drafted card full, preserving its late answer', async () => {
     const actions = group([waitingQuestion()])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await renderScene(scene(actions))
     const box = within(dock()).getByLabelText('Other: Colour')
     act(() => {
       box.focus()
@@ -165,14 +175,14 @@ describe('M112 attention dock and the two views', () => {
     ])
   })
 
-  it('folds an unfocused undrafted question at deferral and opens it from the chip', () => {
+  it('folds an unfocused undrafted question at deferral and opens it from the chip', async () => {
     const actions = group([waitingQuestion()])
     // Typing in the composer prevents arrival focus, as it does for approvals.
     const composer = document.createElement('textarea')
     composer.value = 'typing'
     document.body.append(composer)
     composer.focus()
-    const { rerender } = render(scene(actions))
+    const { rerender } = await renderScene(scene(actions))
     rerender(scene({ ...actions, questions: [questionFixture()] }))
     expect(composer).toHaveFocus()
     const region = within(dock())
@@ -185,9 +195,9 @@ describe('M112 attention dock and the two views', () => {
     composer.remove()
   })
 
-  it('preserves an MCP draft while selecting another card; settlement removes its send controls', () => {
+  it('preserves an MCP draft while selecting another card; settlement removes its send controls', async () => {
     const actions = group([waitingQuestion()], [form])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await renderScene(scene(actions))
     fireEvent.click(within(dock()).getByRole('button', { name: 'Profile' }))
     fireEvent.change(within(dock()).getByLabelText('nickname'), { target: { value: 'River' } })
     fireEvent.click(within(dock()).getByRole('button', { name: 'Open question: Colour' }))
@@ -200,9 +210,9 @@ describe('M112 attention dock and the two views', () => {
     expect(within(dock()).queryByRole('form')).toBeNull()
   })
 
-  it('clears only the question draft on a session change and never takes focus behind a modal', () => {
+  it('clears only the question draft on a session change and never takes focus behind a modal', async () => {
     const actions = group([waitingQuestion()])
-    const { rerender } = render(scene(actions))
+    const { rerender } = await renderScene(scene(actions))
     const box = within(dock()).getByLabelText('Other: Colour')
     fireEvent.change(box, { target: { value: 'Old draft' } })
     rerender(scene(actions, [], true, 'other'))
@@ -210,11 +220,11 @@ describe('M112 attention dock and the two views', () => {
     expect(dock()).toHaveAttribute('inert')
   })
 
-  it('has a non-ticking countdown, no live region in the card, and distinct terminal state labels/icons', () => {
+  it('has a non-ticking countdown, no live region in the card, and distinct terminal state labels/icons', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(1000)
     const actions = group([waitingQuestion()])
-    const { container, rerender } = render(scene(actions))
+    const { container, rerender } = await renderScene(scene(actions))
     expect(within(dock()).getByText('Muse keeps working in 60 s if you don’t answer')).toBeVisible()
     act(() => {
       vi.advanceTimersByTime(1000)

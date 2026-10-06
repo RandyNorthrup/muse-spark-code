@@ -22,6 +22,7 @@ describe('ACP question loader', () => {
   it('rejects a nonfunction factory export', () => {
     expect(isAcpQuestionBundle({ createAcpQuestions: 1 })).toBe(false)
     expect(isAcpQuestionBundle(null)).toBe(false)
+    expect(isAcpQuestionBundle({ createAcpQuestions: vi.fn(), acpElicitation: 1 })).toBe(false)
   })
 
   it('installs the caller language before the same-build factory handles a question', () => {

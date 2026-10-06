@@ -1,13 +1,12 @@
 import * as vscode from 'vscode'
-import path from 'node:path'
-import { createQuestionStore } from '../../runtime/questions/questionStore'
-import { questionDeferSeconds } from '../../core/questions/registry'
+import { questionDeferSeconds } from '../../shared/questionDeadline'
 import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   QUESTION_DEFER_SETTING,
+  QUESTION_DEFER_MAX_SECONDS,
   SETTINGS_SECTION,
 } from '../../shared/constants'
-import type { QuestionClock, QuestionStore } from '../../shared/questions'
+import type { QuestionClock } from '../../shared/questions'
 
 /** Machine scope deliberately excludes values supplied by a repository or workspace folder. */
 export function questionsDeferAfterSeconds(): number {
@@ -15,12 +14,13 @@ export function questionsDeferAfterSeconds(): number {
     .getConfiguration(SETTINGS_SECTION)
     .inspect<unknown>(QUESTION_DEFER_SETTING)
   const value = setting?.globalValue
-  return questionDeferSeconds(typeof value === 'number' ? value : QUESTION_DEFER_DEFAULT_SECONDS)
-}
-
-/** Bound at activation by the integration lane; no question text is placed in workspace storage. */
-export function createHostQuestionStore(globalStoragePath: string): QuestionStore {
-  return createQuestionStore(path.join(globalStoragePath, 'questions'))
+  return (
+    questionDeferSeconds(
+      typeof value === 'number'
+        ? Math.min(QUESTION_DEFER_MAX_SECONDS, Math.max(0, value))
+        : QUESTION_DEFER_DEFAULT_SECONDS,
+    ) ?? QUESTION_DEFER_DEFAULT_SECONDS
+  )
 }
 
 export function questionClock(): QuestionClock {

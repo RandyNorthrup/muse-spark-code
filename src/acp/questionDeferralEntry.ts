@@ -2,6 +2,12 @@
 import type { UiText } from '../shared/l10n/en'
 import { setUiText } from '../shared/l10n/text'
 import { AcpQuestionDeferral, type AcpQuestionDeferralDeps } from './questionDeferral'
+import { elicitationSchema, elicitationText, parseElicitationResult } from './questions'
+
+export function acpElicitation(table: UiText, locale: string) {
+  setUiText(table, locale)
+  return { elicitationSchema, elicitationText, parseElicitationResult }
+}
 
 export function createAcpQuestions(
   deps: AcpQuestionDeferralDeps,

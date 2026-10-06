@@ -1094,6 +1094,7 @@ export class ConversationController {
   private confirmedContributor: string | undefined
   /** The workspace's stored sessions once the dialog asked for them (M6). */
   private sessionRecords: Map<string, SessionRecord> | undefined
+  private readonly historyQuestionCounts = new Map<string, number>()
   private readonly listWatch = new HostWatch()
   private historyWatchEpoch = 0
   private readonly usageWatch = new HostWatch()
@@ -1587,6 +1588,7 @@ export class ConversationController {
       type: 'sessionList',
       sessions,
       archivedIds: [...this.deps.sessions.archivedIds()],
+      openQuestionCounts: Object.fromEntries(this.historyQuestionCounts),
     })
   }
 
@@ -2829,7 +2831,13 @@ export class ConversationController {
         },
         changed: (snapshot) => {
           const surfaces = sessionSurfaces.get(session) ?? []
-          for (const surface of surfaces) surface.post({ type: 'openQuestions', snapshot })
+          for (const surface of surfaces) {
+            surface.historyQuestionCounts.set(
+              snapshot.sessionId,
+              snapshot.questions.filter((entry) => entry.state === 'open').length,
+            )
+            surface.post({ type: 'openQuestions', snapshot })
+          }
         },
         failed: () => {
           const surfaces = sessionSurfaces.get(session) ?? []
@@ -4060,6 +4068,22 @@ export class ConversationController {
         }
       }
       this.sessionRecords = new Map(records.map((record) => [record.sessionId, record]))
+      if (this.deps.questions !== undefined) {
+        for (const record of records) {
+          try {
+            const questions = await this.deps.questions.store.load(record.sessionId)
+            if (generation !== this.sendInvalidationEpoch) return
+            this.historyQuestionCounts.set(
+              record.sessionId,
+              questions.filter((entry) => entry.state === 'open').length,
+            )
+          } catch {
+            if (generation !== this.sendInvalidationEpoch) return
+            this.historyQuestionCounts.delete(record.sessionId)
+            this.deps.log.warn('History question count unavailable')
+          }
+        }
+      }
       this.postSessionList()
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
@@ -9612,6 +9636,11 @@ export class ConversationController {
         `${UI_TEXT.hostExited} (${exit.description}). ${UI_TEXT.hostRestartsOnSend}`,
       )
     }
+  }
+
+  public jumpToOpenQuestion(direction: 'next' | 'previous'): void {
+    if (this.session !== undefined)
+      this.post({ type: 'jumpToOpenQuestion', sessionId: this.session.sessionId, direction })
   }
 
   public dispose(): void {

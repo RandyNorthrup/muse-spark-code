@@ -264,11 +264,9 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 ## Questions
 
-M112's ACP adapter is implemented against a required portable registry port;
-the Q/runtime binding and installed-editor checks remain integration work.
-See [the certification record](certification/m112-a.md). These instructions
-describe the integrated behavior, not a claim that every listed editor has
-been tested with it.
+The launcher connects the shared question registry and private durable queue.
+See [the integration certification](certification/m112.md). Installed-client
+capability and withdrawal checks remain with the release lead.
 
 A client with forms receives `elicitation/create`. The agent owns its clock:
 after 60 seconds it defers the backend question, sends cooperative withdrawal
@@ -304,6 +302,12 @@ immediate scheduled/unattended deferral, or `exec`'s immediate decline.
 Open questions are bounded to 20 per session by the shared registry and are
 kept in owner-only storage, removed with their session and excluded from
 logs, exports and report text. A report may include counts only.
+
+Before sending the next prompt, the agent leases its queued answer prefix by
+removing that prefix from disk. Cancellation before dispatch restores it.
+After a taken or uncertain submission it is retired, so a restart cannot send
+an uncertain answer again. A crash between leasing and dispatch can lose the
+prefix; the policy favors avoiding a duplicate when admission is unknown.
 
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain

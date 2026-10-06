@@ -65,7 +65,7 @@ export function layoutHistory(groups: readonly SessionGroup[]): readonly History
   return entries
 }
 
-function metaOf(row: SessionRow, nowMs: number): string {
+function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
   const parts = [
     relativeTime(row.lastActivityAt ?? row.updatedAt, nowMs),
     plural(UI_TEXT.historyTurns, row.turnCount),
@@ -76,6 +76,7 @@ function metaOf(row: SessionRow, nowMs: number): string {
   if (row.isFork) {
     parts.push(UI_TEXT.historyForkMark)
   }
+  if (openCount > 0) parts.push(plural(UI_TEXT.openQuestionsCount, openCount))
   return parts.join(' · ')
 }
 
@@ -222,11 +223,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
               isRowArchived={archivedIds.includes(entry.row.sessionId)}
-              meta={
-                (props.openQuestionCounts?.[entry.row.sessionId] ?? 0) > 0
-                  ? `${metaOf(entry.row, nowMs)} · ${plural(UI_TEXT.openQuestionsCount, props.openQuestionCounts?.[entry.row.sessionId] ?? 0)}`
-                  : metaOf(entry.row, nowMs)
-              }
+              meta={metaOf(entry.row, nowMs, props.openQuestionCounts?.[entry.row.sessionId])}
               onHover={() => {
                 setActiveIndex(entry.index)
               }}

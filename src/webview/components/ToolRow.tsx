@@ -37,7 +37,12 @@ import {
 } from '../toolPresentation'
 import { CloseIcon, ExpandChevron, FileIcon, RewindIcon } from './icons'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
-import { QuestionCard, type QuestionCardProps, useAttentionSurface } from './QuestionCard'
+import {
+  DeferredQuestionCard as QuestionCard,
+  DeferredQuestionCard as DeferredQuestionOutcome,
+} from './DeferredQuestionCard'
+import type { QuestionCardProps } from './QuestionCard'
+import { useAttentionSurface } from './QuestionSurface'
 import { ElicitationCard, type ElicitationCardProps } from './ElicitationCard'
 import { Clipped, DiffTable } from './ToolBlocks'
 import {
@@ -197,30 +202,6 @@ function ShellBody({
       ) : null}
     </div>
   )
-}
-
-/** What a settled question card says: the answers, the explanation given instead (M46), or Cancelled. */
-function questionOutcomeText(outcome: NonNullable<ToolEntry['questionOutcome']>): string {
-  const labels: Readonly<Record<string, string>> = {
-    answered: UI_TEXT.questionAnswered,
-    clarified: UI_TEXT.questionClarified,
-    cancelled: UI_TEXT.questionDeclined,
-    deferred: UI_TEXT.questionDeferred,
-  }
-  const label = labels[outcome.outcome] ?? outcome.outcome
-  if (outcome.clarification !== undefined) {
-    return `${label}: ${outcome.clarification}`
-  }
-  if (outcome.answers.length === 0) {
-    return label
-  }
-  const answers = outcome.answers
-    .map(
-      (answer) =>
-        answer.selectedLabel ?? answer.selectedLabels?.join(', ') ?? answer.freeText ?? '',
-    )
-    .join('; ')
-  return `${label}: ${answers}`
 }
 
 /** "Rejected", "Interrupted", "Stopped" (M46) or "Failed" under a row that did not complete. */
@@ -715,9 +696,7 @@ function ToolRowView({
       {entry.questionOutcome === undefined ||
       (entry.question?.state === 'open' &&
         entry.questionOutcome.clarification === undefined) ? null : (
-        <div className="tool-outcome" dir="auto">
-          {questionOutcomeText(entry.questionOutcome)}
-        </div>
+        <DeferredQuestionOutcome outcome={entry.questionOutcome} />
       )}
       {menu.menu}
       {quoteMenu}

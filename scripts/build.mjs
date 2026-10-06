@@ -155,6 +155,8 @@ const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
+const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
+const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
@@ -455,6 +457,11 @@ const acpQuestionsOptions = {
   outfile: ACP_QUESTIONS_OUTFILE,
   banner: {},
 }
+const runtimeQuestionsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_QUESTIONS_ENTRY],
+  outfile: RUNTIME_QUESTIONS_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -594,6 +601,12 @@ if (isWatch) {
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
     esbuild.context(acpQuestionsOptions),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
+    esbuild.context(runtimeQuestionsOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -605,6 +618,11 @@ if (isWatch) {
   console.log('watching for changes…')
 } else {
   const shipped = {
+    questionNotes: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/questions/deferralEntry.ts'],
+      outfile: 'dist/questionNotes.js',
+    }),
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
@@ -647,7 +665,8 @@ if (isWatch) {
   }
   const acp = esbuild.build(acpOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)
-  const builds = [...Object.values(shipped), acp, acpQuestions]
+  const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
+  const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -662,6 +681,11 @@ if (isWatch) {
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
     const { metafile: questionsMetafile } = await acpQuestions
+    const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
+      JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
       JSON.stringify(questionsMetafile),

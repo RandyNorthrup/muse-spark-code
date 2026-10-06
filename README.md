@@ -478,8 +478,9 @@ JupyterLab (Jupyter AI) with the agent.
 
 ## Questions
 
-M112 is pending integration; [lane A's certification](docs/certification/m112-a.md)
-records the ACP implementation and the remaining bindings and editor checks.
+The integrated question paths and fake-only checks are recorded in
+[M112's certification](docs/certification/m112.md); live model and installed
+editor checks remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
 composer, after approvals, and keeps the same card in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card

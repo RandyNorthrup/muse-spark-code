@@ -1,5 +1,6 @@
 **
 !dist/extension.js
+!dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js

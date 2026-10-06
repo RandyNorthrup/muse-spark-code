@@ -8,19 +8,18 @@
 // "Explain instead" (M46, MSP `userInput/clarify`) answers with a short text
 // in place of the options; the model reads it and decides again.
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useCallback,
-  useMemo,
-  useId,
-  useState,
-} from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { Question, QuestionAnswer } from '../../shared/agentEvents'
 import { CLARIFICATION_MAX_CHARS, MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
-import type { PendingQuestion, UiState } from '../state/uiState'
+import type { ToolEntry } from '../state/uiState'
+import type { PendingQuestion } from '../state/uiState'
+import {
+  EMPTY_DRAFT,
+  EMPTY_CARD_DRAFT,
+  useAttentionSurface,
+  type QuestionDraft,
+  type CardDraft,
+} from './QuestionSurface'
 import type { QuestionState } from '../../shared/questions'
 import { fill, formatNumber } from '../../shared/l10n/text'
 import { ExpandChevron, CloseIcon } from './icons'
@@ -92,15 +91,6 @@ function ExplainForm({
   )
 }
 
-interface QuestionDraft {
-  readonly chosen: readonly string[]
-  readonly isOther: boolean
-  readonly other: string
-}
-
-const EMPTY_DRAFT: QuestionDraft = { chosen: [], isOther: false, other: '' }
-type Draft = Readonly<Record<string, QuestionDraft>>
-
 function isMultiple(question: Question): boolean {
   return question.selection.mode === 'multiple'
 }
@@ -167,85 +157,7 @@ function Choice({
   )
 }
 
-interface CardDraft {
-  readonly choices: Draft
-  readonly activeIndex: number
-  readonly isExplaining: boolean
-  readonly explanation: string
-}
-const EMPTY_CARD_DRAFT: CardDraft = {
-  choices: {},
-  activeIndex: 0,
-  isExplaining: false,
-  explanation: '',
-}
-interface DockCard {
-  readonly kind: 'question' | 'elicitation'
-  readonly id: string
-}
-interface AttentionSurface {
-  readonly sessionId: string | undefined
-  readonly drafts: Readonly<Record<string, CardDraft>>
-  readonly update: (id: string, change: Partial<CardDraft>) => void
-  readonly navigation: UiState['questionNavigation']
-  readonly dockCard: DockCard | undefined
-  readonly dockRequests: number
-  readonly selectDockCard: (card: DockCard | undefined) => void
-  readonly onDismiss: (id: string) => void
-}
-const AttentionContext = createContext<AttentionSurface | undefined>(undefined)
-export function useAttentionSurface() {
-  return useContext(AttentionContext)
-}
-
-/** One in-memory draft shared by row and dock; a session boundary discards it. */
-export function QuestionSurface({
-  children,
-  navigation,
-  sessionId,
-  onDismiss,
-}: {
-  readonly children: ReactNode
-  readonly navigation: UiState['questionNavigation']
-  readonly sessionId: string | undefined
-  readonly onDismiss: (id: string) => void
-}) {
-  const [draftSession, setDraftSession] = useState(sessionId)
-  const [drafts, setDrafts] = useState<Readonly<Record<string, CardDraft>>>({})
-  const [dockCard, setDockCard] = useState<DockCard>()
-  const [dockRequests, setDockRequests] = useState(0)
-  const selectDockCard = useCallback((card: DockCard | undefined) => {
-    setDockCard(card)
-    if (card !== undefined) setDockRequests((previous) => previous + 1)
-  }, [])
-  const update = useCallback((id: string, change: Partial<CardDraft>) => {
-    setDrafts((previous) => ({
-      ...previous,
-      [id]: { ...(previous[id] ?? EMPTY_CARD_DRAFT), ...change },
-    }))
-  }, [])
-  const value = useMemo(
-    () => ({
-      sessionId,
-      drafts,
-      update,
-      navigation,
-      dockCard,
-      dockRequests,
-      selectDockCard,
-      onDismiss,
-    }),
-    [sessionId, drafts, update, navigation, dockCard, dockRequests, selectDockCard, onDismiss],
-  )
-  if (draftSession !== sessionId) {
-    setDraftSession(sessionId)
-    setDrafts({})
-    setDockCard(undefined)
-    setDockRequests(0)
-  }
-  return <AttentionContext value={value}>{children}</AttentionContext>
-}
-
+export { QuestionSurface } from './QuestionSurface'
 function questionStateLabel(state: QuestionState): string {
   switch (state) {
     case 'waiting':
@@ -626,4 +538,44 @@ export function QuestionCard({
       {menu.menu}
     </div>
   )
+}
+
+/** What a settled question card says: the answers, the explanation given instead (M46), or Cancelled. */
+function questionOutcomeText(outcome: NonNullable<ToolEntry['questionOutcome']>): string {
+  const labels: Readonly<Record<string, string>> = {
+    answered: UI_TEXT.questionAnswered,
+    clarified: UI_TEXT.questionClarified,
+    cancelled: UI_TEXT.questionDeclined,
+    deferred: UI_TEXT.questionDeferred,
+  }
+  const label = labels[outcome.outcome] ?? outcome.outcome
+  if (outcome.clarification !== undefined) {
+    return `${label}: ${outcome.clarification}`
+  }
+  if (outcome.answers.length === 0) {
+    return label
+  }
+  const answers = outcome.answers
+    .map(
+      (answer) =>
+        answer.selectedLabel ?? answer.selectedLabels?.join(', ') ?? answer.freeText ?? '',
+    )
+    .join('; ')
+  return `${label}: ${answers}`
+}
+
+export function QuestionOutcome({
+  outcome,
+}: {
+  readonly outcome: NonNullable<ToolEntry['questionOutcome']>
+}) {
+  return (
+    <div className="tool-outcome" dir="auto">
+      {questionOutcomeText(outcome)}
+    </div>
+  )
+}
+
+export function QuestionView(props: QuestionCardProps | Parameters<typeof QuestionOutcome>[0]) {
+  return 'outcome' in props ? <QuestionOutcome {...props} /> : <QuestionCard {...props} />
 }

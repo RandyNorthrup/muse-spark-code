@@ -3,7 +3,7 @@ import type { Question, QuestionAnswer } from '../../shared/agentEvents'
 import {
   CLARIFICATION_MAX_CHARS,
   LATE_ANSWER_QUESTION_MAX_CHARS,
-  QUESTION_MODEL_TEXT,
+  QUESTION_DELIVERY_MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -16,6 +16,13 @@ import {
 
 /** The backend's existing question-result formatter, injected to preserve its exact English output. */
 export type QuestionAnswerText = (reply: OpenQuestionAnswer) => string
+
+/** Matches the existing Model API tool-result text without loading its engine. */
+export function questionAnswerText(reply: OpenQuestionAnswer): string {
+  return 'answers' in reply
+    ? `${QUESTION_DELIVERY_MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
+    : `${QUESTION_DELIVERY_MODEL_TEXT.clarificationLead}\n${reply.explanation}`
+}
 
 export function validatedAnswer(entry: OpenQuestion, raw: OpenQuestionAnswer): OpenQuestionAnswer {
   const reply = openQuestionAnswerSchema.parse(raw)
@@ -89,7 +96,7 @@ export function lateAnswer(
   return {
     sessionId: entry.sessionId,
     userInputId: entry.userInputId,
-    text: fill(QUESTION_MODEL_TEXT.lateAnswer, {
+    text: fill(QUESTION_DELIVERY_MODEL_TEXT.lateAnswer, {
       id: entry.userInputId,
       question: entry.questions
         .map((question) => question.question)

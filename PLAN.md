@@ -6459,6 +6459,254 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+### D92 — Questions that never block (M112, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "verify the questions get pinned same as the allow reject stuff so they
+  dont get lost and if the question times out it should just proceed with
+  other stuff and ask again later but it should not block lets say the
+  question stays up for like 1 minute then collapses but if the user scrolls
+  back in the chat they can answer anytime"
+- "in the chat unanswered questions should be easily identifiable so a user
+  scrolling through the chat can pick them out easily, re-expand them and
+  answer the question"
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **Approvals are pinned; questions are not.** The approvals Muse waits on
+  sit in a dock above the composer (`ApprovalDock.tsx:40–84`, D26), which
+  takes focus unless the user is typing (`DOCK_TYPING_GRACE_MS`,
+  `ApprovalDock.tsx:25–62`). A question card renders only inside its tool
+  row (`ToolRow.tsx:646–653`), and so does an MCP server's form
+  (`ToolRow.tsx:654–662`), so both scroll away.
+- **A question blocks its turn with no deadline.**
+  - Model API: `askUser` awaits `waitFor(signal, …)` until the user answers
+    or Stop aborts the signal (`ModelApiHost.ts:4828–4865`).
+  - Muse Code: `userInput/requested` becomes `questionRequested`
+    (`mapNotification.ts:362–367`), admitted once by the prompt ledger
+    (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
+    `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
+    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
+    (`constants.ts:3172–3176`).
+  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
+    seconds (`constants.ts:717`), after which it is cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+- **A settled question can no longer be answered.** The outcomes are
+  answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
+  settled row drops the card (`uiState.ts:2075–2093`).
+- **What tells the user.** A question raises one notice while the window is
+  unfocused (`turnNotifications.ts:64–71`, under
+  `museSpark.notifyOnBackgroundTurn`). The view's badge is the unread dot
+  only (`ChatViewProvider.ts:27–33`).
+- **A message can reach a running turn.** The controller's `submit` steers
+  into the running turn, and sends a new turn only when the steer was
+  refused with nothing taken (`conversationController.ts:5724–5765`).
+- **Runs nobody watches answer at once.** Headless `exec` counts
+  `question_declined` (`runExec.ts:249–251`); best-of-N candidates and
+  worktree conversations cancel (`worktreeConversationHost.ts:211–215`); the
+  M75 evaluation clarifies with a fixed text (`eval/driver.ts:202–205`).
+  **Scheduled prompts are not among them:** a schedule runs as a turn of the
+  open conversation after the user confirms it
+  (`conversationController.ts:7015–7046`), so its questions are interactive
+  and block today.
+- **ACP.** A client with forms gets the question as `elicitation/create`,
+  and the agent waits for its answer; a client without forms gets the text
+  and an immediate decline (`acp/agent.ts:560–600`). The pinned SDK (1.5.0)
+  withdraws a request it sent, by `$/cancel_request`, when given a
+  `cancellationSignal` (`@agentclientprotocol/sdk/dist/jsonrpc.d.ts:84–92`,
+  `acp.d.ts:172`).
+
+1. **One attention dock.**
+   - `ApprovalDock` becomes `AttentionDock`, still above the composer.
+   - **Approvals come first and are unchanged.** They block, never defer and
+     never collapse. D26's order, D48's paid popup and the focus rule are as
+     today.
+   - **Below them, the question group,** oldest first: waiting questions,
+     then MCP forms, then the open questions (decision 3) as one compact
+     chip, "N open questions", with **Answer**, **Previous** and **Next**.
+   - **One card is full at a time.** While an approval waits, the question
+     group is one line. The dock stays within
+     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
+     scroll, so the composer and the newest reply stay in sight.
+   - **The dock and the row are two views of one question.** The transcript
+     row keeps its card (decision 7); answering either settles both.
+   - **MCP forms join the dock** (a lead addition: they are questions too,
+     and get lost the same way). They keep their 300-second deadline and
+     their cancel. MCP has no late answer, so an expired form says so and
+     cannot be sent.
+
+2. **A question defers instead of blocking.**
+   - **The setting.** `museSpark.questions.deferAfterSeconds`, machine-scoped
+     (D15), so a repository can make questions neither block nor vanish:
+     - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
+     - 0 means never;
+     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
+       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+   - **The clock** starts when the question arrives, in the process that
+     holds the session: the extension host in VS Code; the runtime for the
+     companion page, the native plugins, the TUI, Muse Desktop and ACP
+     clients. It is injected, so the tests drive it.
+   - **At the deadline the backend settles the tool call with a deferral,**
+     and the agent goes on:
+     - **Model API:** `askUser`'s wait resolves with a fourth reply,
+       `deferred`. The tool's output is `QUESTION_MODEL_TEXT.deferred`.
+     - **Muse Code:** `userInput/clarify` with
+       `QUESTION_MODEL_TEXT.deferredClarification`, the shape captured for
+       M46 (2026-09-25). The host keeps the ids it deferred, so the
+       `userInput/settled` that follows (`clarified`) is shown as
+       `deferred`. An explanation the user typed stays `clarified`.
+     - **The text** is fixed English, filled with the question's id, and at
+       most 500 characters for Muse Code's limit: "<harness_note>The user
+       has not answered question {id} yet. Continue with work that does not
+       depend on the answer. Do not guess the answer and do not ask again.
+       The answer will arrive later as a user message that begins "Answer to
+       your earlier question {id}".</harness_note>"
+   - **The cache stays warm.** The system prompt, the tool declarations and
+     `instructions.ts:107`'s line on `ask_user` do not change. Every request
+     before a deferral is byte-identical (the SoL-Pi invariants); the
+     deferral's own request differs only in that tool output.
+   - **Nothing collapses under the user's hands.**
+     - The deferral happens on time, even while the user types in the card.
+     - The card stays full while it holds focus or a draft, and collapses
+       when focus leaves. The draft is kept.
+     - A draft sent after the deferral goes as a late answer (decision 4).
+   - **The dock card says it once.** A quiet line, "Muse keeps working in
+     {seconds} s if you don't answer", is announced on arrival only, never
+     as a ticking live region.
+   - **Stop** settles a waiting question as today (cancelled). A turn that
+     ends any other way (interrupted, failed, the window reloaded) leaves its
+     waiting question open, never lost.
+
+3. **Open questions are kept until settled.**
+   - **States.** `waiting` → `open` (deferred) → `answeredLater`,
+     `answeredOnReask`, `dismissed` or `expired`. A waiting question still
+     settles `answered`, `cancelled` or `clarified` as today.
+   - **One portable registry** (`src/core/questions/**`, no `vscode`) holds
+     them per session, written through a port: the extension's global
+     storage in VS Code, the runtime's data folder elsewhere.
+     - Owner-only files, zod-validated, deleted with their session.
+     - Never exported or logged (ids only), and sent nowhere but to the model
+       inside the answer.
+   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
+     Past it the oldest becomes `expired`, and its row says so.
+   - **They survive** a reload, a resume and another editor. The host posts
+     the open set when a surface attaches. A row found by its item id shows
+     its card; one whose row is not in the loaded history shows in the dock
+     alone.
+   - **Dismiss** (in the card's ⋯ menu) settles an open question without an
+     answer. The agent is told lazily: steered into the running turn if
+     there is one, otherwise put in front of the next message the user
+     sends; never as a turn of its own.
+
+4. **A late answer reaches the agent exactly once.**
+   - It is given from the transcript row or the dock chip, at any time.
+   - **While a turn runs** in that session, it is steered into the turn
+     (`submit`'s steer). A steer refused with nothing taken goes as a new
+     turn, as `submit` already does.
+   - **While the session is idle,** it starts a turn.
+     - The transcript shows the user's own row: "Answer to your earlier
+       question: {header}".
+     - The model reads `QUESTION_DELIVERY_MODEL_TEXT.lateAnswer`: the question's id,
+       its text (at most `LATE_ANSWER_QUESTION_MAX_CHARS`), and the answers
+       in the shape `questionResultText` already sends
+       (`ModelApiHost.ts:1294–1306`).
+   - **Both backends alike.** It is the user's own message: it runs in the
+     session's current mode, bills as any user turn, and approves nothing.
+   - **Once.** The registry marks the question before sending, and puts it
+     back only when nothing was taken. A second click or a second surface
+     never sends it twice.
+
+5. **Asked again, answered once.** A question's key is the text of its
+   questions and their option labels: NFC-normalised, trimmed, runs of white
+   space folded, letters lower-cased (`toLowerCase`, no locale), the options
+   as a sorted set.
+   - A new request whose key matches an open question reuses that card,
+     back in the dock as waiting. The answer goes to the new request in its
+     own turn, and the open one becomes `answeredOnReask`, with no late
+     message.
+   - Two waiting requests with one key (two calls in flight) share one card,
+     and one answer settles both.
+
+6. **"Ask again later", bounded.** When a turn of the session ends with open
+   questions:
+   - the dock expands the oldest open question once, unless an approval
+     waits;
+   - `attentionNotice` raises `notifyOpenQuestions`, keyed by session and
+     turn, under the existing setting and only while the window is
+     unfocused (`BackgroundNotifier`'s rule).
+
+   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
+   times in all, and at most one question per turn end. The model is never
+   asked to ask again.
+
+7. **Easy to pick out in the transcript.**
+   - **Waiting and open rows** carry a left accent, the `question` codicon
+     and the label **Open question** before the header. An open row is
+     folded to one line (the header, **Answer** and an expand chevron) and
+     opens in place.
+   - **Settled rows** each have their own label and icon: Answered, Answered
+     later, Answered when asked again, Explained, Declined, Dismissed,
+     Expired. None is told by colour alone; high-contrast themes use
+     `contrastBorder`.
+   - **Moving between them.** **Next open question** and **Previous open
+     question** (`museSpark.nextOpenQuestion`,
+     `museSpark.previousOpenQuestion`) in the palette, on the dock chip and
+     as keys. Proposed: `Ctrl+Alt+J` and `Ctrl+Alt+Shift+J` (`Cmd+Alt+J` and
+     `Cmd+Alt+Shift+J` on macOS), with a `when` on the chat's focus (D15's
+     hygiene). Lane 0 checks them against each editor's default keymap
+     first.
+   - **Counts outside the panel.**
+     - The view's badge shows the open count (tooltip "N open questions"),
+       taking precedence over the unread dot.
+     - An editor tab's title gains "· N open"; the companion page's
+       `document.title` likewise.
+     - The History dialog marks conversations with open questions.
+   - **Screen readers.** The live region speaks the arrival (as today), the
+     deferral ("Moved to open questions; you can answer any time"), a
+     reminder, and a late answer sent. The chip is a button whose name
+     carries the count.
+
+8. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
+   candidates, worktree conversations and the M75 evaluation still decline
+   or clarify at once; M96's workers, when they merge, decline as unattended
+   work does. Scheduled prompts are interactive (above) and get decision 2.
+   `docs/ci.md` and the README say so.
+   - **Amended 2026-10-06 by D95:** scheduled prompts become unattended
+     (M115). Their questions defer at once, without the minute, and stay open
+     and answerable like any other.
+
+9. **Every editor** (D84):
+
+   | Surface                                                                                                           | The question                                                                                                | Deferral clock                                                                            | Late answer                                                                                                                        | Counts and keys                                                             | When                                           |
+   | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+   | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia; Remote SSH, WSL, Dev Containers, Codespaces           | `AttentionDock` in the sidebar and every editor tab; the row's card                                         | the extension host                                                                        | steered, or a new turn (`submit`)                                                                                                  | the view badge, the tab title, the History marker; the commands and keys    | M112                                           |
+   | JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                                                  | the same panel through the bridges                                                                          | the runtime                                                                               | as VS Code                                                                                                                         | MHP's status item carries the count; each bridge maps it to its tool window | contract and fakes in M112; wired by M104b–d   |
+   | The companion page                                                                                                | the same panel                                                                                              | the runtime                                                                               | as VS Code                                                                                                                         | `document.title`; the page's keys                                           | M112 once M104 lane C has merged, else with it |
+   | ACP clients with forms (Zed, Xcode 27, JetBrains AI Assistant, Neovim, Emacs, Sublime and the rest of D62's list) | `elicitation/create`, as today                                                                              | the agent: at the deadline it defers the call and withdraws the form (`$/cancel_request`) | `/answer <n> <text>`; a form returned after the deadline is a late answer: steered into a running prompt, else put before the next | `/questions` lists the open ones; one notice per deferral                   | M112                                           |
+   | ACP clients without forms                                                                                         | the text, then deferred at once (today: declined), so the agent goes on and the user answers with `/answer` | —                                                                                         | `/answer <n> <text>`                                                                                                               | `/questions`                                                                | M112                                           |
+   | Headless `exec`                                                                                                   | declined at once (unchanged)                                                                                | —                                                                                         | —                                                                                                                                  | `question_declined`                                                         | unchanged                                      |
+   | The TUI (M110a0 lane T)                                                                                           | its question view, pinned above the input line                                                              | the runtime                                                                               | as the runtime                                                                                                                     | the status line's count; a key for the next open question                   | with lane T, on lane 0's MHP messages          |
+   | Muse Desktop (M111b)                                                                                              | the panel inside the workbench                                                                              | the node                                                                                  | as the runtime                                                                                                                     | the bar's agents item shows the count                                       | with M111b                                     |
+   | The Muse Code backend, in any editor                                                                              | as its editor                                                                                               | its host                                                                                  | `turn/steer`, or a new turn                                                                                                        | as its editor                                                               | M112                                           |
+
+10. **Text, help and docs.**
+    - Every string is in `en.ts` and the 14 tables.
+    - The deferral text is `QUESTION_MODEL_TEXT`, read only by the lazy
+      `dist/questionNotes.js`. Late-answer and dismissal text is
+      `QUESTION_DELIVERY_MODEL_TEXT`, read by `dist/conversation.js` and
+      `dist/runtimeQuestions.js`. The split check guards both blocks.
+      This ownership was measured at M112 integration; neither backend
+      startup carries the note or registry delivery templates.
+    - The setting, the two commands, the dock and `/answer` join the `/help`
+      reference (`src/shared/featureCatalog.ts`, `check:reference`).
+
+11. **No dependency, nothing new at startup.** The dock replaces a component
+    already in the webview's startup bundle; the registry is small and pure;
+    nothing loads at activation that did not before; no cap rises (D6).
+
+---
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -18392,7 +18640,265 @@ joined with M57, M58 and PR #49's sign-in
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
+### M112 — Questions that never block (D92)
+
+**Status 2026-10-05: planned.** Small: about 48 lane-hours in lane 0 and
+three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
+ready together). Lanes Q, U and A start together once lane 0's contracts
+freeze, and none waits on an unmerged milestone. The native-host, TUI and
+desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
+lane T and M111b. One short live check per backend (step 3).
+
+- **Goal.** A question from the agent is pinned above the composer like an
+  approval, so it is never lost. If the user has not answered after a minute,
+  the agent carries on with work that does not depend on the answer, and the
+  question folds into a chip. It stays easy to find and answer at any time,
+  from the dock or the transcript, and the answer reaches the agent exactly
+  once. Approvals stay exactly as they are.
+- **Depends on.** Main only:
+  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
+  - M16's question card and M46's `userInput/clarify`;
+  - M82's background notices and M6's view badge;
+  - the controller's steer path (`conversationController.ts:5724–5765`);
+  - M63's ACP agent, and M91 lane M's MCP forms;
+  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
+    rows land with lane HELPREF.
+- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
+  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
+  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
+  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
+  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
+  harness screenshots, certification.
+- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
+  3,600), machine-scoped. The runtime reads the same key from its settings
+  store once M104 lane B has one, and `--questions-defer-after <seconds>`
+  until then.
+- **Commands.** **Next open question** and **Previous open question**, with
+  keys; ACP's `/answer <n> <text>` and `/questions`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m112-questions`, under M87's region rules. Muse implements U and
+  A, Codex reviews each in one pass by class, and the lead integrates. Q
+  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
+  **Order:**
+  1. Lane 0.
+  2. Q, U and A in parallel against lane 0's fakes.
+  3. The lead's integration, the live checks and the full gate.
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
+| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
+| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
+| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
+| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
+
+- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
+  alone against them:
+  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
+    `userInputId`, session, item and turn ids, the questions, the key, the
+    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
+    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
+    registry's port (`load`, `save` and `remove` per session; `now`;
+    `setTimer`; `deliver`).
+  - **`agentEvents.ts`:** `questionSettled.outcome` gains
+    `QUESTION_OUTCOME_DEFERRED`.
+  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
+    resolving once the tool call is settled. Both hosts implement it.
+  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
+    session; webview to host, `answerOpenQuestion` (answers or an
+    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
+    previous). Each zod-parsed (rule 7).
+  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
+    `questions/answer`, `questions/dismiss`, and the count on the status
+    item, for the bridges and the TUI.
+  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
+    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
+    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
+    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
+    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
+  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
+    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
+    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
+  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
+    setting and the two commands in `package.nls*.json`.
+- **Steps.**
+  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
+     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
+     `ask_user` tool output the Model API already sends.
+  2. Q, U and A against the fakes, each with its drills.
+  3. **The live checks** (owner-authorized live spend, the contributor model,
+     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
+     CLAUDE.md's rule), with the deadline at 10 seconds:
+     - **Model API:** one turn that asks, defers and carries on, then a late
+       answer as a new turn. Expected: 3 inference requests.
+     - **Muse Code:** the same in two turns, counted from the CLI's trace
+       log.
+     - The record states what the model did after the deferral: carried on,
+       did not guess, did not ask again. If it guessed or asked again, lane 0
+       revises the text and the check runs once more.
+  4. The lead's integration, the full gate and the README shots.
+- **Acceptance** (fakes unless named; no model call outside step 3):
+  1. **Pinned.**
+     - A question's card appears in the dock and in its row. Answering in
+       either settles both.
+     - Approvals stay first, block and never defer (a red drill lets the
+       clock defer an approval, and the test fails).
+     - An MCP form sits in the dock with its 300-second deadline unchanged.
+  2. **Deferral.**
+     - At 60 seconds on the fake clock, the Model API's tool output is
+       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
+     - Muse Code receives `userInput/clarify` with at most 500 characters,
+       and the settled row reads Deferred. A user's own explanation stays
+       Explained (a red drill maps every clarification to deferred, and the
+       test fails).
+     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
+       red drill reads it, and the test fails).
+  3. **The cache.** Every request before a deferral is byte-identical to
+     today's goldens; the deferral's request differs only in that tool
+     output.
+  4. **Under the user's hands.** A card holding focus or a draft does not
+     fold; the draft survives the fold and is sent as a late answer.
+  5. **Late answers.**
+     - During a turn: one steer. A refused steer: one new turn. Idle: one new
+       turn showing "Answer to your earlier question".
+     - Exactly once: a double click, and the same answer from two surfaces,
+       send one message (a red drill drops the mark, and the test fails).
+  6. **Asked again.** A re-asked question shows one card; one answer settles
+     both requests; the open one becomes Answered when asked again, with no
+     late message.
+  7. **Reminders.** A turn ending with open questions expands the oldest once
+     and raises one notice (window unfocused, setting on). No question is
+     expanded more than twice, and no model request follows (a spy counts
+     none; a red drill removes the bound, and the test fails).
+  8. **Kept.**
+     - Open questions survive a reload, a resume and a second surface.
+     - The 21st open question expires the oldest, which says so.
+     - Deleting the session deletes them.
+     - No question text reaches a log (a planted canary).
+  9. **Easy to pick out.**
+     - The accent, icon and label on waiting and open rows; each settled
+       state's own label.
+     - Next and Previous cycle in transcript order; the keys work only with
+       the chat focused.
+     - The badge's count and tooltip, the tab title, the History marker.
+     - The live region's texts for arrival, deferral, reminder and late
+       answer.
+     - axe passes in VS Code's four themes and at 320 px for: waiting,
+       open, the chip, an approval with a question, and each settled state.
+  10. **Runs nobody watches.** `exec` still emits `question_declined` and
+      starts no clock; best-of-N and worktree conversations cancel; the M75
+      evaluation clarifies; a scheduled prompt's question defers.
+  11. **ACP.**
+      - With forms: at the deadline the call defers and the fake client
+        records `$/cancel_request`.
+      - A client that answers anyway after the deadline delivers a late
+        answer: steered into a running prompt, else put before the next one.
+      - Without forms: the question as text, deferred at once, answered by
+        `/answer`. `/questions` lists the open ones.
+  12. **Editors.** The companion page; the native hosts' count through fake
+      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
+      lane 0's MHP fakes, or named as waiting for their lanes.
+  13. **Budgets.** As below; activation unchanged.
+- **Tests.** Every test can fail: each runs against a fake that can be made
+  to lie (the clock, the session, the store, the ACP client), and each has a
+  red drill recorded in `docs/certification/m112-<lane>.md`:
+  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
+  - `questionKey.test.ts`;
+  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
+  - `modelApiQuestionDeferral.test.ts` and the request goldens;
+  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
+    set);
+  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
+    focus and drafts, jumps);
+  - `openQuestionNotices.test.ts` (reminders and their bound);
+  - `acpQuestionDeferral.test.ts`;
+  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
+    Model API through a deferral, a late steer and a late new turn.
+
+  **Red drills:**
+  - remove the clock (the turn blocks);
+  - defer an approval;
+  - show a user's explanation as deferred;
+  - send a late answer twice;
+  - fold a card under focus;
+  - remove the reminder bound;
+  - start a clock in `exec`;
+  - fill the clarification past 500 characters;
+  - drop the Open question label;
+  - read the workspace setting.
+
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
+  `test:a11y`, the request goldens, `check:reference`.
+- **Security.**
+  - An answer is the user's own message: it approves nothing, changes no
+    mode and grants no rule. Approvals and D48's paid popup never enter the
+    question path.
+  - The registry holds question text and the user's drafts: owner-only,
+    deleted with the session, never in a log, an export or a report beyond
+    counts.
+  - A noisy agent is bounded: one card per key, 20 open per session, two
+    reminders per question.
+  - Agent-written text is rendered as text, as today.
+  - PLAN §9 records the residual: an agent that ignores the deferral note and
+    guesses an answer is not stopped by this milestone; the live check
+    records how the contributor model behaves.
+- **Docs.** README ("Questions": the dock, the minute, open questions,
+  answering later, the keys, the setting, what headless runs do); CHANGELOG;
+  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
+  plan; certification.
+- **Performance and bundles.**
+
+  | Artifact               |                    M112 adds (target) | Cap                                                            |
+  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
+  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
+  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
+  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
+  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
+  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
+
+- **Size.** S: about 48 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contracts and the keymap check recorded
+  - [ ] Lanes Q, U and A with their drills
+  - [ ] The live checks counted from the trace logs, with what the model did
+        after the deferral
+  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+---
+
 ## 7. Gates
+
+**M112 integration closure (2026-10-06, Windows 11 rig).** The listed U
+and A merges close the frozen Q/runtime, History and build-reader handoffs.
+The extension supplies its real private store and machine clock through the
+first-conversation factory; ACP supplies the real registry and bounded durable
+queue through runtimeQuestions.js; exec explicitly declines. ACP owns its
+only deadline timer. Queue prefixes are removed durably before dispatch,
+restored only before admission, and retired after uncertain admission; a
+crash before dispatch can lose a prefix, avoiding an unsafe replay. Initial
+corrupt-store failures are observed immediately, and failed flushing cannot
+prevent backend/journal shutdown. The exact existing answer text stays intact.
+
+The question cards, dock body and action/outcome rendering use a measured
+25 KiB lazy browser closure. ACP question/elicitation handling, runtime
+registry/queue and the first-deferral notes use separate measured 25 KiB
+ceilings; every existing aggregate/hard cap is unchanged. QUESTION_MODEL_TEXT
+is read only by questionNotes.js; QUESTION_DELIVERY_MODEL_TEXT only by
+conversation.js and runtimeQuestions.js. Both are guarded. The baseline and
+all production artifact measurements, owning suites and failure drills are
+in docs/certification/m112.md.
+
+The rig brief prohibits full quality locally; hosted CI owns that gate.
+check:reference, featureCatalog.ts and its generator are absent on this base,
+so HELPREF must add the named dock, setting, navigation, ACP commands and flag
+when its sources arrive. Native MHP adapters/envelopes are absent; acceptance
+12 certifies only shared schemas/fakes, with M104b–d/M110a0/M111b handoffs
+named in the record. Live model behavior, installed editor keys, README
+shots and the U review continuation remain release-lead checks. No paid/live
+call, dependency install, cap increase or gate suppression was made.
 
 **FIXM112A (2026-10-06, RVM112A).** Repair all six ACP findings in lane A:
 Stop dispatches cancellation without waiting on question storage; late forms
@@ -19499,9 +20005,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                                       | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
-| ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/acp/questionDeferralBundle.ts` (FIXM112A) | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
+| Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
+| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -19625,6 +20132,8 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures to meet additive targets; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks, U review continuation and hosted full quality remain with the lead.
 
 - **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is
   accepted as a residual. Permission admission and session recovery are the

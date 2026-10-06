@@ -861,6 +861,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('sessionList'),
     sessions: z.array(sessionRowSchema),
     archivedIds: z.array(z.string()),
+    openQuestionCounts: z.optional(z.record(z.string(), z.number().check(z.int(), z.minimum(0)))),
   }),
   // A resumed or forked session's history: the transcript is rebuilt from it.
   z.object({

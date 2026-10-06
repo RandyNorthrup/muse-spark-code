@@ -36,6 +36,29 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
+  it('charges lazy question closures to their measured cap and counts eager imports at startup', () => {
+    const meta = metafile()
+    const question = 'dist/webview/chunks/question.js'
+    meta.outputs[question] = output([edge(SHARED)], 'src/webview/components/QuestionCard.tsx')
+    meta.outputs[MAIN].imports.push(edge(question, 'dynamic-import'))
+    expect(webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'question cards')).toEqual(
+      {
+        name: 'question cards',
+        budgetKiB: 25,
+        entries: [
+          'src/webview/components/QuestionCard.tsx',
+          'src/webview/components/QuestionDock.tsx',
+        ],
+        outputs: [question, SHARED],
+      },
+    )
+    expect(webviewStartupOutputs(meta)).not.toContain(question)
+    meta.outputs[MAIN].imports.push(edge(question))
+    expect(webviewStartupOutputs(meta)).toContain(question)
+    expect(
+      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'question cards')?.outputs,
+    ).toEqual([])
+  })
   it('counts the whole static closure exactly once, excluding dynamic and external imports', () => {
     expect(webviewStartupOutputs(metafile())).toEqual([MAIN, CORE])
   })

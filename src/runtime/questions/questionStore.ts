@@ -1,13 +1,19 @@
 import { randomUUID } from 'node:crypto'
 import { chmod, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
   CHECKPOINT_STORAGE_MODE,
   QUESTION_ID_MAX_CHARS,
   REPORT_STORAGE_FILE_MODE,
   UI_TEXT,
+  OPEN_QUESTIONS_MAX,
 } from '../../shared/constants'
-import { openQuestionStoreSchema, type QuestionStore } from '../../shared/questions'
+import {
+  openQuestionStoreSchema,
+  type QuestionDelivery,
+  type QuestionStore,
+} from '../../shared/questions'
 
 async function regular(file: string): Promise<void> {
   try {
@@ -18,7 +24,11 @@ async function regular(file: string): Promise<void> {
   }
 }
 /** Shared owner-only persistence for the runtime and the extension's private global storage. */
-export function createQuestionStore(directory: string): QuestionStore {
+function privateStore<T>(
+  directory: string,
+  parse: (raw: unknown, sessionId: string) => T,
+  empty: () => T,
+) {
   const fileFor = (sessionId: string) => {
     if (!/^[A-Za-z0-9_-]+$/u.test(sessionId) || sessionId.length > QUESTION_ID_MAX_CHARS)
       throw new Error(UI_TEXT.answerNotAccepted)
@@ -31,7 +41,7 @@ export function createQuestionStore(directory: string): QuestionStore {
     if (process.platform !== 'win32') await chmod(directory, CHECKPOINT_STORAGE_MODE)
   }
   return {
-    async load(sessionId) {
+    async load(sessionId: string) {
       const file = fileFor(sessionId)
       await prepare()
       await regular(file)
@@ -39,30 +49,24 @@ export function createQuestionStore(directory: string): QuestionStore {
       try {
         raw = JSON.parse(await readFile(file, 'utf8'))
       } catch (error: unknown) {
-        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return empty()
         // JSON parser errors can quote question text. Never propagate the raw exception.
         raw = undefined
       }
-      const parsed = openQuestionStoreSchema.safeParse(raw)
-      if (!parsed.success || parsed.data.snapshot.sessionId !== sessionId)
-        throw new Error(UI_TEXT.questionAnswerFailed)
+      const parsed = parse(raw, sessionId)
       if (process.platform !== 'win32') await chmod(file, REPORT_STORAGE_FILE_MODE)
-      return parsed.data.snapshot.questions
+      return parsed
     },
-    async save(sessionId, questions) {
+    async save(sessionId: string, value: unknown) {
       const file = fileFor(sessionId)
-      const parsed = openQuestionStoreSchema.safeParse({
-        version: 1,
-        snapshot: { sessionId, questions },
-      })
-      if (!parsed.success) throw new Error(UI_TEXT.questionAnswerFailed)
+      parse(value, sessionId)
       await prepare()
       await regular(file)
       const temporary = `${file}.${randomUUID()}.tmp`
       try {
         const handle = await open(temporary, 'wx', REPORT_STORAGE_FILE_MODE)
         try {
-          await handle.writeFile(JSON.stringify(parsed.data), 'utf8')
+          await handle.writeFile(JSON.stringify(value), 'utf8')
           await handle.sync()
         } finally {
           await handle.close()
@@ -72,7 +76,7 @@ export function createQuestionStore(directory: string): QuestionStore {
         await rm(temporary, { force: true })
       }
     },
-    async remove(sessionId) {
+    async remove(sessionId: string) {
       const file = fileFor(sessionId)
       await prepare()
       await rm(file, { force: true })
@@ -82,5 +86,64 @@ export function createQuestionStore(directory: string): QuestionStore {
         if (name.startsWith(prefix) && name.endsWith('.tmp'))
           await rm(path.join(directory, name), { force: true })
     },
+  }
+}
+
+export function createQuestionStore(directory: string): QuestionStore {
+  const store = privateStore(
+    directory,
+    (raw, sessionId) => {
+      const parsed = openQuestionStoreSchema.safeParse(raw)
+      if (!parsed.success || parsed.data.snapshot.sessionId !== sessionId)
+        throw new Error(UI_TEXT.questionAnswerFailed)
+      return parsed.data.snapshot.questions
+    },
+    () => [],
+  )
+  return {
+    ...store,
+    save: (sessionId, questions) =>
+      store.save(sessionId, { version: 1, snapshot: { sessionId, questions } }),
+  }
+}
+
+const queueSchema = z.strictObject({
+  version: z.literal(1),
+  sessionId: z.string(),
+  messages: z
+    .array(
+      z.strictObject({
+        sessionId: z.string(),
+        userInputId: z.string(),
+        text: z.string(),
+        displayText: z.optional(z.string()),
+      }),
+    )
+    .check(z.maxLength(OPEN_QUESTIONS_MAX)),
+})
+
+/** The queue shares the registry's atomic owner-only storage and removal rules. */
+export function createQuestionQueueStore(directory: string) {
+  const store = privateStore(
+    directory,
+    (raw, sessionId): QuestionDelivery[] => {
+      const parsed = queueSchema.safeParse(raw)
+      if (
+        !parsed.success ||
+        parsed.data.sessionId !== sessionId ||
+        parsed.data.messages.some((message) => message.sessionId !== sessionId)
+      )
+        throw new Error(UI_TEXT.questionAnswerFailed)
+      return parsed.data.messages.map((message) => ({
+        ...message,
+        displayText: message.displayText,
+      }))
+    },
+    () => [],
+  )
+  return {
+    ...store,
+    save: (sessionId: string, messages: readonly QuestionDelivery[]) =>
+      store.save(sessionId, { version: 1, sessionId, messages }),
   }
 }

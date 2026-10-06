@@ -2804,7 +2804,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       }
     }
     case 'sessionList': {
-      return { ...state, sessions: message.sessions, archivedIds: message.archivedIds }
+      return {
+        ...state,
+        sessions: message.sessions,
+        archivedIds: message.archivedIds,
+        openQuestionCounts: { ...state.openQuestionCounts, ...message.openQuestionCounts },
+      }
     }
     case 'sessionBoard': {
       return { ...state, board: message.rows }

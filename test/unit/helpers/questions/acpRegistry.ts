@@ -6,7 +6,7 @@ import type {
   AcpQuestionRegistryFactory,
 } from '../../../../src/acp/questionDeferral'
 import type { AgentEvent } from '../../../../src/shared/agentEvents'
-import { QUESTION_MODEL_TEXT } from '../../../../src/shared/constants'
+import { QUESTION_DELIVERY_MODEL_TEXT } from '../../../../src/shared/constants'
 import { fill } from '../../../../src/shared/l10n/text'
 import type { OpenQuestion, QuestionDelivery } from '../../../../src/shared/questions'
 import { questionFixture } from './fixtures'
@@ -59,7 +59,7 @@ export class FakeAcpQuestionRegistry implements AcpQuestionRegistry {
       sessionId: this.input.session.sessionId,
       userInputId: id,
       displayText: undefined,
-      text: fill(QUESTION_MODEL_TEXT.lateAnswer, {
+      text: fill(QUESTION_DELIVERY_MODEL_TEXT.lateAnswer, {
         id,
         question: record.questions.map((question) => question.question).join('\n'),
         answer:

@@ -52,6 +52,7 @@ import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
@@ -757,6 +758,16 @@ async function activateWindow(
   // D49): a window on a folder under the extension's pull request worktrees is
   // held until the user trusts it in the card, whatever VS Code's trust says.
   const storageRoot = context.globalStorageUri.fsPath
+  let loadedQuestionsStore: QuestionStore | undefined
+  const questionStore = () => {
+    loadedQuestionsStore ??= loadConversation().createHostQuestionStore(storageRoot)
+    return loadedQuestionsStore
+  }
+  const questionsStore: QuestionStore = {
+    load: (id) => questionStore().load(id),
+    save: (id, questions) => questionStore().save(id, questions),
+    remove: (id) => questionStore().remove(id),
+  }
   const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
   const windowHold = new WindowHold(
     holdFor(
@@ -2234,6 +2245,7 @@ async function activateWindow(
         ? undefined
         : createFileSessionStore({
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
             log,
             retentionDays: () => currentSettings().cleanupPeriodDays,
             now: () => Date.now(),
@@ -2793,31 +2805,9 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
   })
-  // Navigation commands need only the session identity, never question text.
-  const questionCommandSessions = new Map<string, string>()
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
-      const post = surface.post.bind(surface)
-      surface.post = (message) => {
-        switch (message.type) {
-          case 'sessionInfo':
-          case 'historyLoaded':
-          case 'surfaceState': {
-            if (message.sessionId === undefined) questionCommandSessions.delete(surface.id)
-            else questionCommandSessions.set(surface.id, message.sessionId)
-            break
-          }
-          case 'conversationCleared': {
-            questionCommandSessions.delete(surface.id)
-            break
-          }
-          default: {
-            break
-          }
-        }
-        post(message)
-      }
       const factory = loadConversation()
       const tasksTab = new TasksPanel(
         hostContext,
@@ -2841,6 +2831,7 @@ async function activateWindow(
             return await runner?.rewriteMessage(text)
           },
           surface,
+          questions: factory.questionsForHost(questionsStore),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
@@ -3176,7 +3167,6 @@ async function activateWindow(
   registry.onRemoved((surface) => {
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
-    questionCommandSessions.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
   })
   registry.onActiveChanged(refreshTaskContext)
@@ -3647,10 +3637,8 @@ async function activateWindow(
         () => {
           const surface = registry.active
           if (surface === undefined) return
-          const sessionId = questionCommandSessions.get(surface.id)
-          if (sessionId === undefined) return
           surface.reveal()
-          surface.post({ type: 'jumpToOpenQuestion', sessionId, direction })
+          controllers.get(surface.id)?.jumpToOpenQuestion(direction)
         },
       ),
     ),

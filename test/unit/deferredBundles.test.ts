@@ -68,6 +68,7 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: {
         extension: 'src/extension.ts',
+        questionNotes: 'src/core/questions/deferralEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
@@ -100,6 +101,7 @@ beforeAll(async () => {
       entryPoints: {
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
+        runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
@@ -139,7 +141,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${name === 'acp' || name === 'acpQuestions' ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -219,12 +221,33 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 
 function inputs(name: string): string[] {
   return Object.keys(
-    fixture(`dist/${name === 'acp' || name === 'acpQuestions' ? 'meta-acp' : 'meta'}/${name}.json`)
-      .meta.inputs,
+    fixture(
+      `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+    ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
+    for (const [source, destination] of [
+      ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],
+      ['src/core/questions/deferralEntry.ts', 'questionNotes'],
+    ]) {
+      if (source === undefined || destination === undefined)
+        throw new Error('Missing question split fixture')
+      expect(inputs(destination)).toContain(source)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(source)
+      const problems = checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/acp.js'
+          ? new Map([...bundleInputs(bundle), [source, 1]])
+          : bundleInputs(bundle),
+      )
+      expect(problems.some((problem) => problem.includes(`dist/acp.js carries ${source}`))).toBe(
+        true,
+      )
+    }
+  })
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -437,11 +460,15 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
-    ['acp', 'src/acp/questionDeferral.ts', 'on the first ACP question or question command'],
+    [
+      'acp',
+      'src/acp/questionDeferral.ts',
+      'on the first ACP question, elicitation or question command',
+    ],
     [
       'modelApi',
       'src/acp/questionDeferralEntry.ts',
-      'on the first ACP question or question command',
+      'on the first ACP question, elicitation or question command',
     ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],

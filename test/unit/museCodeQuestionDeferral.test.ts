@@ -57,7 +57,9 @@ describe('Muse Code question deferral uses the M46 capture', () => {
         isSettled = true
       })()
       void pending.catch(() => undefined)
-      await settle()
+      await vi.waitFor(() => {
+        expect(clarify).toHaveBeenCalled()
+      })
       expect(isSettled).toBe(false)
       expect(clarify).toHaveBeenCalledWith(
         expect.objectContaining({

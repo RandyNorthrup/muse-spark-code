@@ -4354,6 +4354,7 @@ describe('ConversationController: session history (M6)', () => {
         expect.objectContaining({ sessionId: 'page2' }),
       ],
       archivedIds: ['page2'],
+      openQuestionCounts: {},
     })
   })
 
@@ -15458,6 +15459,69 @@ function openAnswer(): Extract<ConversationMessage, { type: 'answerOpenQuestion'
 }
 
 describe('ConversationController: durable open questions (M112 Q)', () => {
+  it.each([false, true])(
+    'discards a stale History question read, including a failed read (%s)',
+    async (isFailed) => {
+      const t = await questionConversation()
+      t.server.handle('session/list', () => ({
+        sessions: [{ ...storedSession, sessionId: 'unvisited', workspaceRoot: '/ws' }],
+        nextCursor: null,
+      }))
+      const held = Promise.withResolvers<Awaited<ReturnType<typeof t.questionStore.load>>>()
+      t.questionStore.load.mockImplementationOnce(() => held.promise)
+      const listing = t.controller.handle({ type: 'listSessions' })
+      await vi.waitFor(() => {
+        expect(t.questionStore.load).toHaveBeenCalledWith('unvisited')
+      })
+      t.controller.dispose()
+      const before = t.surface.posted.length
+      if (isFailed) held.reject(new Error('PRIVATE-HISTORY-CANARY'))
+      else held.resolve([questionFixture({ sessionId: 'unvisited' })])
+      await listing
+      expect(
+        t.surface.posted.slice(before).filter((message) => message.type === 'sessionList'),
+      ).toEqual([])
+      await t.host.close()
+    },
+  )
+
+  it('loads History question counts for authenticated sessions never opened by this surface', async () => {
+    const t = await questionConversation()
+    await t.questionStore.save('unvisited', [
+      questionFixture({ sessionId: 'unvisited' }),
+      questionFixture({
+        sessionId: 'unvisited',
+        state: 'waiting',
+        deferredAt: undefined,
+        userInputId: 'waiting',
+        itemId: 'waiting',
+        key: 'waiting',
+      }),
+      questionFixture({
+        sessionId: 'unvisited',
+        state: 'answeredLater',
+        userInputId: 'answered',
+        itemId: 'answered',
+        key: 'answered',
+      }),
+    ])
+    t.server.handle('session/list', () => ({
+      sessions: [{ ...storedSession, sessionId: 'unvisited', workspaceRoot: '/ws' }],
+      nextCursor: null,
+    }))
+    await t.controller.handle({ type: 'listSessions' })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionList')).toMatchObject({
+      openQuestionCounts: { unvisited: 1 },
+    })
+    t.controller.jumpToOpenQuestion('previous')
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'jumpToOpenQuestion',
+      sessionId: 's1',
+      direction: 'previous',
+    })
+    await t.host.close()
+  })
+
   it('holds a late answer behind Bypass revocation until the restrictive mode is acknowledged', async () => {
     const t = await questionConversation({
       hasApprovalUi: true,

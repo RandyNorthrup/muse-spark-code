@@ -10,6 +10,7 @@ import {
   QUESTION_DEFER_MIN_SECONDS,
   QUESTION_ID_MAX_CHARS,
   QUESTION_MODEL_TEXT,
+  QUESTION_DELIVERY_MODEL_TEXT,
   QUESTION_OUTCOME_DEFERRED,
   QUESTION_REMINDERS_MAX,
 } from '../../src/shared/constants'
@@ -167,6 +168,19 @@ describe('M112 question boundary contracts', () => {
     ).toBe(false)
   })
 
+  it('validates optional History counts as nonnegative integers', () => {
+    const message = { type: 'sessionList', sessions: [], archivedIds: [] }
+    expect(parseHostToWebviewMessage(message).ok).toBe(true)
+    expect(parseHostToWebviewMessage({ ...message, openQuestionCounts: { unvisited: 2 } }).ok).toBe(
+      true,
+    )
+    for (const count of [-1, 0.5, '2']) {
+      expect(
+        parseHostToWebviewMessage({ ...message, openQuestionCounts: { unvisited: count } }).ok,
+      ).toBe(false)
+    }
+  })
+
   it('accepts late answers, explanations, dismissals and navigation', () => {
     const identity = { sessionId: 'session-1', userInputId: 'q-1' }
     const explanation: OpenQuestionAnswer = { explanation: 'I prefer green.' }
@@ -285,7 +299,7 @@ describe('M112 policy constants and model text', () => {
       expect(text).toContain(`Answer to your earlier question ${id}`)
     }
     expect(
-      fill(QUESTION_MODEL_TEXT.lateAnswer, {
+      fill(QUESTION_DELIVERY_MODEL_TEXT.lateAnswer, {
         id: 'q-1',
         question: 'Which colour?',
         answer: 'Answers:\n[{"questionId":"colour","selectedLabel":"Blue"}]',
@@ -293,7 +307,7 @@ describe('M112 policy constants and model text', () => {
     ).toBe(
       'Answer to your earlier question q-1\nQuestion:\nWhich colour?\nAnswers:\n[{"questionId":"colour","selectedLabel":"Blue"}]',
     )
-    expect(fill(QUESTION_MODEL_TEXT.dismissed, { id: 'q-1' })).toContain(
+    expect(fill(QUESTION_DELIVERY_MODEL_TEXT.dismissed, { id: 'q-1' })).toContain(
       'dismissed question q-1 without answering',
     )
   })

@@ -5,7 +5,7 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   QUESTION_DEFER_MAX_SECONDS,
   QUESTION_DEFER_MIN_SECONDS,
-  QUESTION_MODEL_TEXT,
+  QUESTION_DELIVERY_MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -28,6 +28,8 @@ import {
 import { nextQuestionReminder } from './reminders'
 
 export interface QuestionRegistryDeps extends QuestionRegistryPort {
+  /** ACP owns its form deadline; its registry only applies the transition. */
+  readonly hasExternalTimer?: boolean
   readonly formatAnswer: QuestionAnswerText
   /** Waiting requests settle on their own turn, never through user-message delivery. */
   readonly reply: (userInputId: string, reply: OpenQuestionAnswer | undefined) => Promise<void>
@@ -146,7 +148,11 @@ export class QuestionRegistry {
   }
 
   private armTimer(entry: OpenQuestion): void {
-    if (entry.state === 'waiting' && entry.deadlineAt !== undefined) {
+    if (
+      !this.deps.hasExternalTimer &&
+      entry.state === 'waiting' &&
+      entry.deadlineAt !== undefined
+    ) {
       this.timers.set(
         entry.userInputId,
         this.deps.setTimer(Math.max(0, entry.deadlineAt - this.deps.now()), () => {
@@ -205,8 +211,9 @@ export class QuestionRegistry {
     request: QuestionRequest,
     seconds: number,
     isImmediate = false,
+    timing?: { readonly askedAt: number; readonly deadlineAt?: number },
   ): Promise<OpenQuestion> {
-    const askedAt = this.deps.now()
+    const askedAt = timing?.askedAt ?? this.deps.now()
     return this.run(async () => {
       const existingRequest = this.requests.get(request.userInputId)
       const existing =
@@ -221,7 +228,8 @@ export class QuestionRegistry {
       const scheduledDeadline = isImmediate ? askedAt : undefined
       const interactiveDeadline =
         duration === 0 ? undefined : askedAt + duration * MILLISECONDS_PER_SECOND
-      const deadlineAt = scheduledDeadline ?? interactiveDeadline
+      const deadlineAt =
+        timing === undefined ? (scheduledDeadline ?? interactiveDeadline) : timing.deadlineAt
       const entry =
         previous?.state === 'waiting'
           ? previous
@@ -444,7 +452,7 @@ export class QuestionRegistry {
     })
     return {
       text: entries
-        .map((entry) => fill(QUESTION_MODEL_TEXT.dismissed, { id: entry.userInputId }))
+        .map((entry) => fill(QUESTION_DELIVERY_MODEL_TEXT.dismissed, { id: entry.userInputId }))
         .join('\n'),
       finish: async (outcome) => {
         if (outcome === 'notTaken')
