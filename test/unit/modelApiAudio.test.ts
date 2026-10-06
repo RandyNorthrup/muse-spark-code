@@ -12,6 +12,11 @@ import {
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { startWatchedSession } from './helpers/sessionTurns'
+import { PaidUseConsent, type PaidUseAnswer } from '../../src/core/paid/paidConsent'
+import {
+  prepareAudioAttachment,
+  type AudioPreparationDeps,
+} from '../../src/core/voice/transcribeBatch'
 
 async function setup(
   prepareAudioMessage?: ModelApiHostDeps['prepareAudioMessage'],
@@ -230,6 +235,89 @@ describe('M105-A per-message Model API audio preparation port', () => {
       expectFailedWithoutDispatch(r)
     } finally {
       released.resolve(undefined)
+      await r.host.close()
+    }
+  })
+
+  it('finishes a real session on Stop while batch consent is unanswered and releases the next turn', async () => {
+    const entered = Promise.withResolvers<undefined>()
+    const answer = Promise.withResolvers<PaidUseAnswer>()
+    const reserve = vi.fn<AudioPreparationDeps['reserve']>(() =>
+      Promise.reject(new Error('must not reserve before consent')),
+    )
+    const consent = new PaidUseConsent({
+      isOn: () => true,
+      windowOnceFeatures: new Set(['voice']),
+      canRemember: () => false,
+      readGrants: () => new Set(),
+      writeGrants: () => Promise.resolve(),
+      ask: () => {
+        entered.resolve(undefined)
+        return answer.promise
+      },
+      log: new FakeLogOutputChannel(),
+    })
+    const model = {
+      modelId: 'muse-spark-1.3',
+      video: 'yes' as const,
+      videoFormats: ['video/mp4'],
+      hearsSoundtrack: 'no' as const,
+      audio: 'no' as const,
+      audioFormats: [],
+    }
+    let isFirst = true
+    const r = await setup(async ({ signal, parts, modelId }) => {
+      if (!isFirst) return undefined
+      isFirst = false
+      const prepared = await prepareAudioAttachment(
+        {
+          name: 'speech.wav',
+          pathToken: 'confined-speech',
+          info: { kind: 'audio', mediaType: 'audio/wav', sizeBytes: 1000, durationSeconds: 10 },
+        },
+        'transcribe',
+        {
+          context: {
+            backend: 'modelApi',
+            model,
+            batchFormats: ['audio/wav'],
+            canExtractWav: false,
+            canWrapMp4: false,
+            isVoiceOn: true,
+          },
+          assertCurrent: () => undefined,
+          gate: { isOn: () => true },
+          consent,
+          reserve,
+          usage: { addVoiceBatch: () => undefined },
+          batch: {
+            billableSecondsUpperBound: () => 10,
+            transcribe: () => Promise.reject(new Error('must not send before consent')),
+          },
+        },
+        signal,
+      )
+      return {
+        modelId,
+        parts: [...parts, ...(prepared.transcript === undefined ? [] : [prepared.transcript])],
+        assertCurrent: () => undefined,
+      }
+    })
+    try {
+      await r.session.sendTurn([{ type: 'text', text: 'transcribe this audio' }])
+      await entered.promise
+      await r.session.cancel()
+      await expect
+        .poll(() => r.events.findLast((event) => event.type === 'turnCompleted'))
+        .toMatchObject({ terminal: 'cancelled' })
+      expect(reserve).not.toHaveBeenCalled()
+      expect(r.api.responseBodies()).toEqual([])
+      r.api.script({ text: 'next turn runs while the old popup is unanswered' })
+      await r.session.sendTurn([{ type: 'text', text: 'next message' }])
+      await r.turnDone()
+      expect(r.api.responseBodies()).toHaveLength(1)
+    } finally {
+      answer.resolve('deny')
       await r.host.close()
     }
   })

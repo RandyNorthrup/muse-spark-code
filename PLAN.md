@@ -19097,6 +19097,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**FIXM105A (RVM105A, 2026-10-06).** Repair the audio integration ports only:
+Stop cancels an unanswered consent wait (pass the turn signal into consent
+and race the wait); a validated billing receipt settles exactly once even
+when transcript text is rejected; admission and settlement preserve exact
+`Usd` through `src/shared/usd.ts`, which is absent on this base and will be
+added without a dependency. Extend the shared consent signature compatibly
+for the supplied signal. Regression tests and byte-restored red drills live
+in `docs/certification/m105-a-audio-(b).md`. Existing captured-adapter,
+converter, UI-budget and production-ledger bindings remain with their named
+integration owners. No guard, cap, paid default or credential path changes.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:

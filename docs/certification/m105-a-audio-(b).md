@@ -198,3 +198,36 @@ adapter and blank output: **37 distinct guard drills, all proved**.
 | `src/core/voice/transcribeBatch.ts`          | `7919b8dc3c45ba4c469c9f54de82b6deb58ea6971d3efb799e02ddb0c989223f` |
 | `src/core/voice/transcribeBatch.ts`          | `9c3ff3c25d1a4a6ea9d8fd757d66be2b7c04c84ec727d65804757f45c0a91d3a` |
 | `src/webview/components/AttachmentSound.tsx` | `a3a1ba980e65ad238641cfa2445b1b10ec72c92f473680eddb98f793d82bb17e` |
+
+## FIXM105A review repairs (RVM105A, 2026-10-06)
+
+Base `ba42150df`; read the complete rig brief, shared common rules and review.
+The rig override forbids merging and full quality runs; verification runs
+here directly, at the repository timeout, in batches of at most three files.
+
+### Finding 1 (P2): Stop during unanswered paid consent — fixed
+
+The turn signal is passed to the compatible optional third parameter of
+`PaidUseConsent.allows`. Both that caller's consent wait and the batch port
+wait race cancellation through the existing `unlessAborted`; its abort
+listener is removed and late promise failures remain handled. The shared
+popup retains ownership of its eventual answer; Stop needs no answer or
+paid permission and cannot proceed to reserve or dispatch.
+
+Regression tests first failed on the original source: the direct preparation
+passed no signal, and a real ModelApiSession never completed cancellation
+while its popup was unanswered. The real-session regression now also runs
+the next ordinary turn before answering that popup. Added shared-consent
+coverage checks Stop's listener cleanup and an already-aborted caller.
+All 65 tests passed across `transcribeBatch`, `modelApiAudio`, `paidConsent`.
+
+| Red drill                               | Full file and named failing test                                                           | Result and restored source SHA-256                                         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Remove batch signal forwarding          | transcribeBatch: passes Stop into consent and cancels even a popup that ignores its signal | exit 1; `0316534751ecd1601d3655f773dac48941a80b70ad7c55653b5b64383cdeeac8` |
+| Remove batch cancellation race          | transcribeBatch: passes Stop into consent and cancels even a popup that ignores its signal | exit 1; same SHA-256                                                       |
+| Remove shared-consent cancellation race | paidConsent: ends a signaled wait on Stop while preserving the shared unanswered popup     | exit 1; `d75e26deac09a9b22cb02658310473e9cdcadd61b3d1ed13789c258c9067df82` |
+| Remove pre-abort check                  | paidConsent: does not open a popup for an already stopped caller                           | exit 1; same SHA-256                                                       |
+
+Each drill ran its complete file with `--maxWorkers=3`, no timeout override
+or test filtering. Each source was restored byte-for-byte and its before
+and restored SHA-256 matched. No credentials, model calls or network calls.

@@ -16,6 +16,7 @@ import type { TextFilePart } from '../agent/agentBackend'
 import type { PaidUseConsent } from '../paid/paidConsent'
 import type { PaidFeatureGate, PaidUsage } from '../paid/paidFeatures'
 import { paidFeaturePrice } from '../../shared/paid'
+import { unlessAborted } from '../timeouts'
 
 type SoundMedia = Extract<MediaInfo, { kind: 'video' | 'audio' }>
 
@@ -260,8 +261,12 @@ export async function prepareAudioAttachment(
   const upperSeconds = deps.batch.billableSecondsUpperBound(source)
   if (upperSeconds === undefined || !Number.isFinite(upperSeconds) || upperSeconds < seconds)
     throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
-  if (!(await deps.consent.allows({ feature: 'voice' }))) throw new Error(UI_TEXT.museVoiceRefused)
+  const allowed = await unlessAborted(
+    deps.consent.allows({ feature: 'voice' }, false, signal),
+    signal,
+  )
   check(deps, signal)
+  if (!allowed) throw new Error(UI_TEXT.museVoiceRefused)
   let converted: Awaited<ReturnType<AudioConversionPort['convert']>> | undefined
   let claim: BatchSpendClaim | undefined
   const accounting: { hasSent: boolean; settledCost: number | undefined; countedSeconds: number } =

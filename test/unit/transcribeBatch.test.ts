@@ -403,6 +403,32 @@ describe('batch preparation and accounting', () => {
     },
   )
 
+  it('passes Stop into consent and cancels even a popup that ignores its signal', async () => {
+    const r = rig()
+    const answer = Promise.withResolvers<boolean>()
+    const allows = vi.fn(() => answer.promise)
+    const stop = new AbortController()
+    let outcome: unknown
+    const waiting = (async () => {
+      try {
+        await r.prepare(wav, 'transcribe', { consent: { allows } }, stop.signal)
+      } catch (error: unknown) {
+        outcome = error
+      }
+    })()
+    try {
+      expect(allows).toHaveBeenCalledWith({ feature: 'voice' }, false, stop.signal)
+      stop.abort(new Error('stopped during consent'))
+      await expect.poll(() => outcome).toEqual(new Error('stopped during consent'))
+      await waiting
+      expect(r.reserve).not.toHaveBeenCalled()
+      expect(r.transcribe).not.toHaveBeenCalled()
+    } finally {
+      answer.resolve(true)
+      await waiting
+    }
+  })
+
   it('rebinds after the question and after reservation, refunding an unsent claim', async () => {
     const r = rig()
     r.ask.mockImplementationOnce(() => {
