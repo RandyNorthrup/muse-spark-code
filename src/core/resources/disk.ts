@@ -204,7 +204,10 @@ export class ResourceDiskSampler {
           etaMs: null,
         })
         if (diskPressure([volume], this.settings()).isCritical)
-          throw new Error(fill(UI_TEXT.resourceDiskWriteRefused, { volume: candidate }))
+          throw Object.assign(
+            new Error(fill(UI_TEXT.resourceDiskWriteRefused, { volume: candidate })),
+            { code: 'resourceDiskCritical', volume: candidate },
+          )
         return
       } catch (error: unknown) {
         // Only absence permits walking upwards; permission/invalid readings are explicit errors.

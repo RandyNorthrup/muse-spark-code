@@ -1,3 +1,4 @@
+import type { ResourceDiskSampler } from '../disk'
 import { execFile } from 'node:child_process'
 import { access, open, readdir } from 'node:fs/promises'
 import * as os from 'node:os'
@@ -133,6 +134,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
 export function createMachineResourceSampler(
   settings: () => ResourceSettings,
   limits: ResourceProbeLimits,
+  disks?: ResourceDiskSampler,
 ): ResourceSampler {
   const io = createSamplerIo(limits)
   // Node versions without availableMemory remain supported; Darwin then reports unknown.
@@ -152,5 +154,6 @@ export function createMachineResourceSampler(
       },
     },
     settings,
+    disks,
   )
 }

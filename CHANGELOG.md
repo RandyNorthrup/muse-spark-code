@@ -13,7 +13,8 @@ happened, not what was planned; superseded entries are kept.
   uses the existing governor's levels and recovery, and blocks disk-heavy
   admission before the foreground deadline can bypass it. Owned-tree temp
   environments and a persisted creation registry provide guarded cleanup
-  and failed-run retention; remaining host/device/platform bindings are
+  after proved exit, with 24-hour retention for failed runs and idempotent
+  cleanup when tree exit and disk pressure coincide. Remaining host/device/platform bindings are
   tracked in the M107 DK certification.
 
 - Windows Muse Code shutdown stops the verified registered job, bounds all

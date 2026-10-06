@@ -1,3 +1,6 @@
+import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
+import de from '../../l10n/ui.de.json'
+import { UI_TEXT, setUiText, uiLocale } from '../../src/shared/l10n/text'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -40,9 +43,10 @@ function setup() {
     hasRelocationTarget: () => false,
     onError: vi.fn(),
   })
-  const read = async (disk: ResourceDiskVolume) => {
+  const read = async (disk: ResourceDiskVolume | undefined, isInvalid = false, isEmpty = false) => {
+    const volumes = disk === undefined ? undefined : [disk]
     steps.push({
-      atMs: clock.now(),
+      atMs: isInvalid ? -1 : clock.now(),
       cpuPercent: 20,
       memoryUsedPercent: 40,
       memoryAvailableBytes: 8 * GiB,
@@ -50,7 +54,7 @@ function setup() {
       gpuPercent: null,
       diskBusyPercent: null,
       pressure: null,
-      diskVolumes: [disk],
+      diskVolumes: isEmpty ? [] : volumes,
     })
     await governor.refresh()
   }
@@ -74,13 +78,12 @@ describe('D87.14 disk policy', () => {
     await h.read(volume(10))
     expect(h.governor.level()).toBe('throttle')
     expect(h.governor.diskBlocked()).toBe(true)
-    h.clock.advance(RESOURCE_MIN_DWELL_MS)
-    await h.read(volume(null))
-    expect(h.governor.level()).toBe('throttle')
-    expect(h.governor.diskBlocked()).toBe(true)
-    h.clock.advance(RESOURCE_MIN_DWELL_MS)
-    await h.read(volume(null))
-    expect(h.governor.level()).toBe('throttle')
+    for (const free of [null, null]) {
+      h.clock.advance(RESOURCE_MIN_DWELL_MS)
+      await h.read(volume(free))
+      expect(h.governor.level()).toBe('throttle')
+      expect(h.governor.diskBlocked()).toBe(true)
+    }
     await h.read(volume(12))
     h.clock.advance(RESOURCE_MIN_DWELL_MS)
     await h.read(volume(12))
@@ -89,6 +92,23 @@ describe('D87.14 disk policy', () => {
     h.clock.advance(RESOURCE_MIN_DWELL_MS)
     await h.read(volume(13))
     expect(h.governor.level()).toBe('normal')
+    expect(h.governor.diskBlocked()).toBe(false)
+  })
+  it('retains disk admission during dwell when the complete sampler fails', async () => {
+    const h = setup()
+    await h.read(volume(9))
+    h.governor.updateSettings({ ...settings, enabled: false })
+    h.governor.updateSettings(settings)
+    await h.read(volume(9))
+    expect(h.governor.level()).toBe('normal')
+    expect(h.governor.diskBlocked()).toBe(true)
+    await h.read(volume(13), true)
+    expect(h.governor.diskBlocked()).toBe(true)
+    await h.read(undefined)
+    expect(h.governor.diskBlocked()).toBe(true)
+    await h.read(volume(13), false, true)
+    expect(h.governor.diskBlocked()).toBe(true)
+    await h.read(volume(13))
     expect(h.governor.diskBlocked()).toBe(false)
   })
   it('pauses directly at half the floor and critical uses the larger 1 GiB or 1% value', async () => {
@@ -166,9 +186,39 @@ describe('D87.14 disk policy', () => {
       { now: () => 0, read },
     )
     await expect(sampler.assertWrite(newFile)).rejects.toThrow(`Cannot write to ${workspace}:`)
-    expect(read.mock.calls.map(([file]) => file)).toEqual([newFile, workspace])
+    await expect(sampler.assertWrite(newFile)).rejects.toMatchObject({
+      code: 'resourceDiskCritical',
+      volume: workspace,
+    })
+    expect(read.mock.calls.map(([file]) => file)).toEqual([newFile, workspace, newFile, workspace])
     read.mockRejectedValue(new Error('inaccessible'))
     await expect(sampler.assertWrite(workspace)).rejects.toThrow('inaccessible')
+  })
+  it('reads the installed refusal text when the write runs', async () => {
+    const original = { ...UI_TEXT }
+    const locale = uiLocale()
+    const sampler = new ResourceDiskSampler(
+      [{ role: 'temp', path: process.cwd() }],
+      () => settings,
+      {
+        now: () => 0,
+        read: () => Promise.resolve({ bsize: BigInt(GiB), blocks: 100n, bavail: 1n }),
+      },
+    )
+    try {
+      const host = resourceGovernorHost({
+        inspect: () => undefined,
+        onError: vi.fn(),
+        localization: {
+          table: { ...original, resourceDiskWriteRefused: de.resourceDiskWriteRefused },
+          locale: 'de',
+        },
+      })
+      host.dispose()
+      await expect(sampler.assertWrite(process.cwd())).rejects.toThrow('Schreiben auf')
+    } finally {
+      setUiText(original, locale)
+    }
   })
   it('refuses relative and duplicate watch targets', () => {
     expect(
@@ -207,6 +257,27 @@ describe('D87.14 disk policy', () => {
         diskFree: { freeBytes: 11 * GiB, floorBytes: 10 * GiB },
       }),
     ).toBe(true)
+    expect(
+      hasDeviceDiskHeadroom({
+        level: 'throttle',
+        headroom: 'ample',
+        diskFree: { freeBytes: 11 * GiB, floorBytes: 10 * GiB },
+      }),
+    ).toBe(false)
+    expect(
+      hasDeviceDiskHeadroom({
+        level: 'normal',
+        headroom: 'ample',
+        diskFree: { freeBytes: null, floorBytes: 10 * GiB },
+      }),
+    ).toBe(false)
+    expect(
+      hasDeviceDiskHeadroom({
+        level: 'normal',
+        headroom: 'ample',
+        diskFree: { freeBytes: 11 * GiB, floorBytes: null },
+      }),
+    ).toBe(false)
     expect(
       deviceResourceSchema.safeParse({
         level: 'normal',

@@ -1,4 +1,14 @@
+import type { UiText } from '../../shared/l10n/en'
+import { setUiText } from '../../shared/l10n/text'
 import process from 'node:process'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { statfs } from 'node:fs/promises'
+import { TreeTempRoots } from '../../host/resources/tempRoots'
+import type { ResourceTempRoots } from './launch'
+import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
+import { CreatedRegistry, type CreatedCleanup } from './createdRegistry'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
 import {
   readResourceSettings,
@@ -17,6 +27,15 @@ export interface ResourceHostSettings {
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
   readonly bindNativeTree?:
     ((launch: ResourceProcessLaunch) => Promise<ResourceTreeBinding | null>) | undefined
+  /** W/U/H supply workspace/worktree, data/log and optional node-state roots. */
+  readonly diskTargets?: (() => readonly ResourceDiskTarget[]) | undefined
+  /** Portable TreeTempRoots adapter, shared by every editor/runtime. */
+  readonly tempRoots?: ResourceTempRoots | undefined
+  readonly created?: CreatedRegistry | undefined
+  /** W supplies a per-harness persisted manifest in app data for recovery. */
+  readonly registryFile?: string | undefined
+  readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
+  readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
   readonly windowsJob?:
@@ -29,6 +48,8 @@ const state: { host?: ResourceLaunchHost } = {}
 
 /** Loaded by the first governed launch; a CommonJS module is shared by all bundles. */
 export function resourceGovernorHost(options: ResourceHostSettings): ResourceLaunchHost {
+  if (options.localization !== undefined)
+    setUiText(options.localization.table, options.localization.locale)
   if (state.host !== undefined) return state.host
   const settings = () => readResourceSettings(options.inspect)
   const clock: ResourceClock = {
@@ -41,15 +62,63 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       }
     },
   }
+  let registryPending: Promise<CreatedRegistry> | undefined
+  const registry = (): Promise<CreatedRegistry> => {
+    registryPending ??=
+      options.created === undefined
+        ? CreatedRegistry.open(
+            options.registryFile ??
+              path.join(tmpdir(), 'muse-spark-code-resources', `${randomUUID()}.json`),
+            () => clock.now(),
+            {
+              exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
+              archivedAndClean: () =>
+                Promise.reject(new Error('Archive/clean proof is not installed')),
+              freeBytes: async (file) => {
+                try {
+                  const stats = await statfs(path.dirname(file), { bigint: true })
+                  const bytes = Number(stats.bsize * stats.bavail)
+                  return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null
+                } catch {
+                  return null
+                }
+              },
+            },
+          )
+        : Promise.resolve(options.created)
+    return registryPending
+  }
+  const created = options.created ?? {
+    finish: async (owner: string, isFailed: boolean) => {
+      const store = await registry()
+      await store.finish(owner, isFailed)
+    },
+    clean: async () => {
+      const store = await registry()
+      return await store.clean()
+    },
+  }
+  const disks = new ResourceDiskSampler(
+    options.diskTargets?.() ?? [{ role: 'temp', path: tmpdir() }],
+    settings,
+  )
+  const tempRoots = options.tempRoots ?? {
+    create: async (owner: string) =>
+      await new TreeTempRoots(tmpdir(), await registry(), disks).create(owner),
+  }
   const events = new ResourceEvents(options.onError)
   const governor = new ResourceGovernor({
     clock,
     events,
     settings: settings(),
-    sampler: createMachineResourceSampler(settings, {
-      timeoutMs: RESOURCE_SAMPLE_MS,
-      maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
-    }),
+    sampler: createMachineResourceSampler(
+      settings,
+      {
+        timeoutMs: RESOURCE_SAMPLE_MS,
+        maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
+      },
+      disks,
+    ),
     hasRelocationTarget: () => false,
     onError: options.onError,
   })
@@ -115,6 +184,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     clock,
     settings,
     bindTree,
+    disks,
+    tempRoots,
+    created,
+    onCleanup: options.onCleanup,
     onError: options.onError,
   })
   return state.host

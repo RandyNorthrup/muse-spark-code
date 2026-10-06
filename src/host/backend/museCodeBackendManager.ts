@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../../core/resources/launch'
 // Owns the single `muse serve` process for this extension host: locates the
 // CLI, shapes its environment, spawns it through the SDK, and hands out the
 // MuseCodeHost wrapper. Everything platform-specific is delegated to the pure
@@ -241,7 +242,7 @@ export class MuseCodeBackendManager {
         `museSpark.sandboxNetwork is ${network}, but the shell sandbox is off for this host, so commands have the network you have`,
       )
     }
-    const env = this.childEnvironment()
+    const env = resourceEnvironment(this.childEnvironment(), resource)
     // The CLI's own credential pays (its login or its own key); the key the
     // panel stores is for the Model API backend and is never passed here.
     this.deps.log.info(

@@ -20225,6 +20225,9 @@ DK runs complete owned test files (at most three per invocation), all
 project typechecks, changed-source lint/format, localization, deadcode,
 duplication, cycle, host-API and production build checks. No gate is weakened.
 Scoped results and deliberate failures are in `m107-dk.md`.
+`check:host-api` is deliberately left red only for W's generated Node import
+counts (crypto 47→49, fs/promises 51→55, os 12→13, path 92→96); DK's ownership
+rule forbids editing that record. W regenerates and reviews it at integration.
 
 **FIXM107INT bounded review certification (2026-10-06).** The user's rig
 brief/common rules prohibit full quality and aggregate unit/coverage runs.
@@ -21465,7 +21468,10 @@ before a repaired one loads (2026-09-30).
 S/G/C1, without guessing external leftover locations. U/H/W must supply the
 remaining workspace/worktree/data/log/node-state watch targets, persisted
 per-harness registry discovery/recovery, safe-point and pre-write adapter
-bindings, manifest setting and surfaces. M100/R consumes validated disk
+bindings, manifest setting and surfaces. C1/C2/H mark install/build/worktree/
+download admissions disk-heavy through the explicit fourth admission argument;
+checks/browser checks are marked by default. W installs its table/locale
+through the lazy factory port. M100/R consumes validated disk
 headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
 supplies archived/merged-and-clean proof for worktrees/dependency copies.
 Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the

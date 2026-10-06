@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../../resources/launch'
 // M91 lane X: the plugin host. Amp and OpenCode plugins run OUT OF PROCESS
 // in a short-lived child under the user's own runtime (pluginChild.ts is the
 // entry; the host writes one JSON request line on stdin and reads one JSON
@@ -135,7 +136,7 @@ async function defaultRunVersion(
   try {
     if (signal?.aborted === true) throw new Error('Plugin runtime probe cancelled')
     child = await tree.spawn(command, ['--version'], {
-      env,
+      env: resourceEnvironment(env, resource),
       cwd: path.dirname(command),
       ...(resource !== undefined && { resource }),
     })
@@ -374,10 +375,12 @@ export const posixProcessTree: PluginProcessTree = {
       stdio: ['pipe', 'pipe', 'pipe'],
     })
     options.resource?.register({ pid: child.pid, group: true })
-    child.once('exit', () => {
+    child.once('exit', (code) => {
+      if (code !== 0) options.resource?.failed?.()
       options.resource?.complete(false)
     })
     child.once('error', () => {
+      options.resource?.failed?.()
       options.resource?.complete(child.pid === undefined)
     })
     return Promise.resolve(nodeChildHandle(child))
@@ -607,7 +610,7 @@ async function runInScope(
   let child: PluginChildHandle
   try {
     child = await tree.spawn(runtime.command, [...runtime.args, source], {
-      env: withoutCredentials(deps.env),
+      env: resourceEnvironment(withoutCredentials(deps.env), resource),
       cwd: path.dirname(call.pluginPath),
       ...(resource !== undefined && { resource }),
     })

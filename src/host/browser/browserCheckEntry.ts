@@ -35,6 +35,8 @@ export async function runBrowserCheck(
     resource === undefined
       ? undefined
       : {
+          temp: resource.temp,
+          failed: resource.failed,
           register: (launch) => {
             wasSpawned = true
             resource.register(launch)

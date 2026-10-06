@@ -1,3 +1,4 @@
+import { resourceEnvironment } from '../core/resources/launch'
 // How the extension runs git (the mention index, the Model API prompt's
 // environment facts): by absolute path, found on the absolute PATH entries
 // only, so a `git.exe` committed to the workspace is never the one that runs
@@ -402,7 +403,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
           job === undefined
             ? deps.spawn(git, [...args], {
                 cwd: options.cwd,
-                env: options.env,
+                env: resourceEnvironment(options.env, resource),
                 stdio: ['pipe', 'pipe', 'pipe'],
                 windowsHide: true,
                 ...treeSpawnOptions(deps.platform),
@@ -412,7 +413,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
                 file: git,
                 args,
                 cwd: options.cwd,
-                env: options.env,
+                env: resourceEnvironment(options.env, resource),
                 isVerbatim: false,
                 log: () => {
                   /* The launcher returns its failure through the process streams. */

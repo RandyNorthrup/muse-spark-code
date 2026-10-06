@@ -175,6 +175,20 @@ export class ResourceGovernor {
   }
 
   private evaluate(sample: ResourceSample): void {
+    if (
+      (sample.diskVolumes === undefined || sample.diskVolumes.length === 0) &&
+      this.sample?.diskVolumes !== undefined
+    )
+      sample = {
+        ...sample,
+        diskVolumes: this.sample.diskVolumes.map((volume) => ({
+          role: volume.role,
+          atMs: this.options.clock.now(),
+          freeBytes: null,
+          totalBytes: null,
+          etaMs: null,
+        })),
+      }
     this.sample = sample
     const now = this.options.clock.now()
     const readings = this.thresholds(sample)

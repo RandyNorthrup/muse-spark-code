@@ -20,7 +20,7 @@ import path from 'node:path'
 import { Duplex } from 'node:stream'
 import type { BrowserProcess, BrowserRunDeps, CheckFolder } from '../../core/browser/browserRun'
 import { startProbeFixture } from '../../core/browser/canaries'
-import type { ResourceLease } from '../../core/resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { startCheckProxy } from '../../core/browser/checkProxy'
@@ -112,7 +112,7 @@ function spawnBrowser(
     deps.windowsJob === undefined
       ? spawn(executable, [...args], {
           stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
-          env: { ...env },
+          env: resourceEnvironment(env, deps.resource),
           windowsHide: true,
           // Its own process group on POSIX, so the kill ends everything it started.
           detached: deps.platform !== 'win32',
@@ -123,7 +123,7 @@ function spawnBrowser(
           file: executable,
           args,
           cwd: path.dirname(executable),
-          env: { ...env },
+          env: resourceEnvironment(env, deps.resource),
           isVerbatim: false,
           debugPipes: true,
           resource: deps.resource,
@@ -286,7 +286,7 @@ export function hostBrowserRunDeps(deps: HostBrowserDeps): BrowserRunDeps {
   return {
     platform: deps.platform,
     env: deps.env,
-    createFolder,
+    createFolder: (storageDir) => createFolder(deps.resource?.temp?.root ?? storageDir),
     removeFolder: async (folder) => {
       try {
         await rm(folder.root, {
