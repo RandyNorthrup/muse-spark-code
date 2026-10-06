@@ -16,10 +16,11 @@
 // made. Built into dist/bundledSkills.js and loaded on first use (PLAN.md
 // D6); every result is data, worded by the activation side.
 
+import { createHash } from 'node:crypto'
 import { constants as fsConstants } from 'node:fs'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { redactSecrets } from '../../core/redact'
+import { redactSecrets } from '../redact'
 import * as z from 'zod/mini'
 import {
   BUNDLED_SKILLS_DIR,
@@ -30,6 +31,7 @@ import {
   BUNDLED_SKILLS_VENDOR_FILE,
   SKILL_FILE_NAME,
   SKILL_ID_PATTERN,
+  NODE_DIGEST_PATTERN,
 } from '../../shared/constants'
 
 export interface BundledSkillsPaths {
@@ -102,6 +104,7 @@ export type BundledSkillsStatus =
 interface VendoredPackage {
   readonly tag: string
   readonly skillIds: readonly string[]
+  readonly files: readonly { readonly path: string; readonly sha256: string }[]
 }
 
 type CopyState =
@@ -110,11 +113,16 @@ type CopyState =
   | { readonly kind: 'notOurs' }
 
 // VENDOR.json: the release's tag and path/hash records (`skills/<id>/SKILL.md`
-// among them), relative, with forward slashes; hashes are checked by the vendor
-// suite. The installer needs only the paths to discover the bundled skill ids.
+// among them), relative, with forward slashes. Verify the staged copy against
+// every hash before publication, including the scripts a skill may execute.
 const vendorSchema = z.object({
   tag: z.string().check(z.minLength(1)),
-  files: z.array(z.object({ path: z.string() })),
+  files: z.array(
+    z.object({
+      path: z.string().check(z.regex(/^[\w.-]+(?:\/[\w.-]+)*$/)),
+      sha256: z.string().check(z.regex(new RegExp(NODE_DIGEST_PATTERN))),
+    }),
+  ),
 })
 const markerSchema = z.object({ tag: z.string().check(z.minLength(1)), installedAt: z.string() })
 const VENDOR_PATH_SEPARATOR = '/'
@@ -161,7 +169,18 @@ async function readVendor(vendorRoot: string): Promise<VendoredPackage> {
   if (skillIds.length === 0) {
     throw new Error(`${file} lists no skills`)
   }
-  return { tag: parsed.data.tag, skillIds }
+  const names = parsed.data.files.map(({ path: name }) => name.toLowerCase())
+  if (
+    new Set(names).size !== names.length ||
+    names.some(
+      (name) =>
+        name === BUNDLED_SKILLS_VENDOR_FILE.toLowerCase() ||
+        name.split('/').some((part) => part === '.' || part === '..' || part.endsWith('.')),
+    )
+  ) {
+    throw new Error(`${file} lists unsafe or duplicate files`)
+  }
+  return { tag: parsed.data.tag, skillIds, files: parsed.data.files }
 }
 
 /** Whether the copy's folder is absent, the extension's (a real folder with a valid mark) or someone else's. */
@@ -240,6 +259,33 @@ async function copyTree(from: string, to: string): Promise<void> {
     } else {
       throw new Error(`${source} is neither a file nor a folder`)
     }
+  }
+}
+
+/** Verify all staged bytes and refuse files absent from the release record (H17). */
+async function verifyCopy(folder: string, vendor: VendoredPackage): Promise<void> {
+  const expected = new Map(vendor.files.map((file) => [file.path, file.sha256]))
+  const visit = async (directory: string, prefix: string): Promise<void> => {
+    const entries = await fs.readdir(directory, { withFileTypes: true })
+    for (const entry of entries) {
+      const relative = `${prefix}${entry.name}`
+      const target = path.join(directory, entry.name)
+      if (entry.isDirectory()) {
+        await visit(target, `${relative}/`)
+      } else if (relative !== BUNDLED_SKILLS_VENDOR_FILE) {
+        const digest = createHash('sha256')
+          .update(await fs.readFile(target))
+          .digest('hex')
+        if (digest !== expected.get(relative)) {
+          throw new Error(`${relative}: vendor SHA-256 mismatch`)
+        }
+        expected.delete(relative)
+      }
+    }
+  }
+  await visit(folder, '')
+  if (expected.size > 0) {
+    throw new Error('Vendor files missing from staged copy')
   }
 }
 
@@ -347,6 +393,7 @@ export async function installBundledSkills(
     at = staging
     try {
       await copyTree(deps.vendorRoot, staging)
+      await verifyCopy(staging, vendor)
       const marker = { tag: vendor.tag, installedAt: new Date(deps.now()).toISOString() }
       await fs.writeFile(
         path.join(staging, BUNDLED_SKILLS_MARKER_FILE),

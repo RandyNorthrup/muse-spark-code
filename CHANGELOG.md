@@ -29,6 +29,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The bundled workflow-skills installer is shared portable core logic for
+  node and editor adapters. It verifies every staged file against the
+  vendored release before replacing a working copy, and refuses unsafe or
+  case-aliased release paths.
+
 - Home-node WebSocket upgrades accept the browser's `websocket` Fetch
   Metadata destination while HTTP requests keep `empty`; both transports
   continue to reject foreign origins and sites.

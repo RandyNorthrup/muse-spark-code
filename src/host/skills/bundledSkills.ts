@@ -18,7 +18,7 @@ import type {
   BundledSkillsPaths,
   BundledSkillsRemoveResult,
   BundledSkillsStatus,
-} from './bundledSkillsInstall'
+} from '../../core/context/bundledSkillsInstall'
 
 /** The installer's three entries, shipped and loaded together. */
 export interface BundledSkillsBundle {

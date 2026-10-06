@@ -8,4 +8,4 @@ export {
   bundledSkillsStatus,
   installBundledSkills,
   removeBundledSkills,
-} from './bundledSkillsInstall'
+} from '../../core/context/bundledSkillsInstall'

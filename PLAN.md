@@ -9239,6 +9239,21 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
       people reach them from their own browsers, and automation uses Chrome
       for Testing in the sandbox.
 
+27. **Base agent toolset (M110-B0, rig brief 2026-10-06).**
+    `deploy/toolset/base.json` pins git, gh, Node 24, Python 3, uv,
+    ripgrep, fd, jq, curl, unzip, build-essential, clang, make, cmake and
+    gitleaks by version, source URL and SHA-256, verified by download on the
+    rig for amd64 and arm64. The reusable toolset container layer belongs to
+    B0; C binds it to the two-user image, W to the default workspace sandbox,
+    and OS1 to the sandbox image (compilers never enter the OS host).
+    Bundled workflow skills remain the vendored `bundled` source, with the
+    Muse Code copy/link installer in portable core logic. First boot prepares
+    Chrome for Testing through M81's existing verified store after download
+    consent, never the user's Chrome. Missing platform pins refuse explicitly.
+    No Muse Code binary, credentials, autonomous approvals or new dependency.
+    Record measured compressed sizes against the existing image target and
+    list `/help` integration entries if the feature catalog is absent.
+
 **Suggested additions** (not in the owner's words; each with its reason):
 
 - **The local gateway** (decision 12): the remote web UI on the user's own
@@ -22698,6 +22713,17 @@ or M109):
 | A1 Passkeys and the pinned certificate    | D90.11's first part and 23: the setup code; passkeys with a pinned WebAuthn library (SimpleWebAuthn, MIT); cookie-free sessions and bearers; step-up; throttling and lockout; the sign-in audit; the node's self-signed certificate and its fingerprint; the browser-pairing page with steps for each OS; the name checks                                                                                                                                                                                                                                                                      | new `src/runtime/node/auth/**`, `src/runtime/node/tls/**`, `src/webview/node/auth/**`                                                                                     | `src/runtime/companion/guard.ts` (a bearer issued from a sign-in; the WebSocket first-frame rule; with M104 lane C's owner)                                                                                                                                               | after N                              |
 | S0 Install on a home PC                   | D90.23: the native Linux installer's LAN profile (signature check, two systemd units, the node's port only); the Docker Desktop guides for Windows and macOS (published address, firewall prompt); `node wipe` for a home node; qualification on the owner's PCs                                                                                                                                                                                                                                                                                                                               | new `deploy/install/**` (LAN profile), `docs/node/home.md`, `docs/certification/m110a0-hosts.md`                                                                          | —                                                                                                                                                                                                                                                                         | after C                              |
 | J Docs and certification                  | README's "Muse Node" section for the home node; the operator guide's home pages; SECURITY, PRIVACY, CHANGELOG; AGENTS.md (layout, rule 8's node row); the editor matrix rows; certification                                                                                                                                                                                                                                                                                                                                                                                                    | new `docs/node/**`, `docs/certification/m110a0*.md`                                                                                                                       | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/ide-compatibility/**`; PLAN (D90 and M110 only)                                                                                                                                                                    | throughout                           |
+
+**M110-B0 lane scope (2026-10-06).** The rig brief adds D90.27's base
+agent toolset: `deploy/toolset/**`, portable bundled-skills installation,
+first-boot preparation ports and `docs/certification/m110-b0-base-agent-toolset.md`.
+This base lacks D90.27 and the B0 row from the newer lead plan; the preceding
+D90.27 records the brief before implementation. Do not edit C's deployment,
+OS1's recipes, U2's help UI or N's boot wiring: deliver explicit injected
+ports and named handoffs. H09/H10/H11/H17 bind download integrity, bounded
+artifacts, installed-tool ownership, copy containment and supply chain.
+Final local verification follows the rig/common brief (scoped suites, default
+timeouts, no full quality run); the lead runs the complete quality gate.
 
 **The later phases' lanes:**
 

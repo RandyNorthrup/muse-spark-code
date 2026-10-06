@@ -596,7 +596,7 @@ for (const file of GIT_ONLY) {
 // offer; the activation bundle has its loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
-  'src/host/skills/bundledSkillsInstall.ts',
+  'src/core/context/bundledSkillsInstall.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {

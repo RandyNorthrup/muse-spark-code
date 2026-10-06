@@ -4212,3 +4212,9 @@ The shared production Node English fallback uses the same built-in compression.
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
+
+The bundled workflow-skills copy/link installer is shared by editor and node
+adapters. It verifies the complete staged copy against the vendored release
+hashes before publication and preserves user-owned skill folders. Node image
+and first-boot integration remains in progress (see
+[the B0 certification record](docs/certification/m110-b0-base-agent-toolset.md)).

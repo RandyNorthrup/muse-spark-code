@@ -40,7 +40,7 @@ import {
   installBundledSkills,
   type MakeLink,
   removeBundledSkills,
-} from '../../src/host/skills/bundledSkillsInstall'
+} from '../../src/core/context/bundledSkillsInstall'
 import { BUNDLED_SKILLS_BUNDLE_FILE, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryMemento as memento } from './helpers/fakeGit'
@@ -146,6 +146,49 @@ function linkFolder(target: string, link: string): void {
 }
 
 describe('installBundledSkills', () => {
+  it.each(['changed', 'extra', 'missing'])(
+    'refuses %s release bytes before replacing an installed copy',
+    async (kind) => {
+      const f = fixture()
+      const installed = await installBundledSkills(deps(f))
+      expect(installed.failure).toBeUndefined()
+      const original = readFileSync(path.join(f.copy, 'scripts/skill-root.sh'), 'utf8')
+      const newer = vendor(path.join(f.root, 'newer'), 'v0.8.0')
+      if (kind === 'missing') await fs.unlink(path.join(newer, 'scripts/skill-root.sh'))
+      else
+        writeFile(
+          path.join(newer, kind === 'extra' ? 'extra.sh' : 'scripts/skill-root.sh'),
+          'changed\n',
+        )
+      const result = await installBundledSkills(deps({ ...f, vendorRoot: newer }))
+      expect(result.failure?.reason.kind).toBe('error')
+      expect(result.installed).toEqual([])
+      expect(readFileSync(path.join(f.copy, 'scripts/skill-root.sh'), 'utf8')).toBe(original)
+      expect(readdirSync(f.sourcesRoot)).toEqual([PACKAGE])
+    },
+  )
+
+  it.each([
+    '../outside',
+    'skills/../outside',
+    '/absolute',
+    String.raw`skills\outside`,
+    'README.md.',
+    'README.md',
+  ])('refuses unsafe or duplicate vendor path %s before writing', async (name) => {
+    const f = fixture()
+    const file = path.join(f.vendorRoot, 'VENDOR.json')
+    const manifest: { files: { path: string; sha256: string }[] } = JSON.parse(
+      readFileSync(file, 'utf8'),
+    )
+    manifest.files.push({ path: name, sha256: 'ab'.repeat(32) })
+    if (name === 'README.md') manifest.files.push({ path: 'readme.md', sha256: 'ab'.repeat(32) })
+    writeFileSync(file, JSON.stringify(manifest))
+    const installed = await installBundledSkills(deps(f))
+    expect(installed.failure?.reason.kind).toBe('error')
+    expect(existsSync(f.sourcesRoot)).toBe(false)
+  })
+
   it('copies the package, marks it, and links each skill into Muse Code’s skills folder', async () => {
     const f = fixture()
     const result = await installBundledSkills(deps(f))
