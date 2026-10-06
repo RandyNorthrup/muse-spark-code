@@ -19172,6 +19172,35 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
+`ensureHost` in the real portable controller, including refusal and selected
+host delegation. Keep the existing one-time session adoption and registry/ACP
+binding fences. Test injected admission through `RuntimeConversation.prepare`,
+login model warm-up and the absent-contribution refusal. Record a failing
+control and byte-exact restoration in `docs/certification/m104-pa.md`.
+Run scoped sequential checks directly on macmini at repository deadlines;
+no new dependency, guard widening, merge, push or live/paid call.
+
+**FIXM104PA review repair (2026-10-06).** Close RVM104PA's two P2 and
+two P3 findings in lane A's files. Publish settings and revoke Bypass using
+each held conversation's own live settings; republish only effective changes.
+Extend the existing typed engine contribution with paid policy/accounting,
+Model API budget/edit/attempt-host and authentication/account ports, preserving
+existing contract names and explicit refusals when an adapter is absent.
+Qualify the companion Chrome fixture with the repository's default test
+timeouts, and correct the replacement guide: MHP 1.2 replaces 1.1 and both
+legacy snapshot filenames now carry 1.2. The default-timeout audit also
+exposed the existing carrier asset/security fixtures: share Chrome startup,
+split independent integrity scenarios and wait on explicit panel readiness,
+retaining every assertion and deadline. Graceful Chrome shutdown also hangs
+past the default hook deadline; the fixtures own a loopback-only Playwright
+BrowserServer and use its public process-kill cleanup. All four findings are
+fixed: 931 unique tests in 28 files pass at default deadlines, the reviewer's
+18-test batch passes, and 14 failing controls restore byte-exact. See
+`docs/certification/m104-pa.md` and its review receipts. Scoped gates run
+directly on macmini, no aggregate quality, merge, dependency or live/paid call;
+no RVM104PA residual remains and no unsupported adapter is promoted.
+
 **M104PA parity lane A (2026-10-06, lead decisions).** First close the
 integration review's preparation/release barrier, method-aware bounded late
 reply correlation and same-record storage publication races. Storage uses a

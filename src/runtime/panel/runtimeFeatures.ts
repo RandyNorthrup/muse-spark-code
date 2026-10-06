@@ -204,6 +204,9 @@ export type RuntimeEnginePorts = Pick<
   | 'createGit'
   | 'checkpoints'
   | 'runBestOfNGit'
+  | 'auth'
+  | 'ensureHost'
+  | 'accountFacts'
 >
 export type RuntimePresentationPorts = Pick<
   ConversationFeaturePorts,
@@ -222,6 +225,13 @@ export interface RuntimeFeatureContribution<Features> {
   readonly actions?: Partial<Record<HostAction, () => Promise<void>>>
   readonly dispose?: () => Promise<void>
 }
+/** Engine-owned policy and request boundaries, including daily-budget admission. */
+export interface RuntimeEngineContribution extends RuntimeFeatureContribution<RuntimeEnginePorts> {
+  readonly paid?: ConversationCompositionPorts['paid']
+  /** Hosts own final request admission/settlement; attempt guards and usage remain explicit. */
+  readonly modelApi?: ConversationCompositionPorts['modelApi']
+  readonly isKeyStored?: ConversationCompositionPorts['isKeyStored']
+}
 export interface RuntimePresentationContribution extends RuntimeFeatureContribution<RuntimePresentationPorts> {
   readonly view?: (binding: MhpPanelBinding) => PanelView | undefined
 }
@@ -238,7 +248,7 @@ export interface RuntimeFeatureFactories {
     context: RuntimeFeatureContext,
     table: UiText,
     locale: string,
-  ) => Promise<RuntimeFeatureContribution<RuntimeEnginePorts>>
+  ) => Promise<RuntimeEngineContribution>
   readonly presentation?: (
     context: RuntimeFeatureContext,
     table: UiText,
@@ -300,7 +310,7 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     surface.post(auth.toMessage())
     return snapshot
   }
-  const auth: AuthPort = {
+  let auth: AuthPort = {
     get current() {
       return snapshot
     },
@@ -345,7 +355,6 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       return snapshot
     },
   }
-  await refresh()
   if (ports.ownsPaidConsent !== false)
     runtime.paid.attach(async (_sessionId, request, canRemember) => {
       const question = paidUseQuestion(request)
@@ -664,8 +673,8 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     }
     Object.assign(features, contribution.features)
   }
-  if (ports.factories?.engines !== undefined)
-    applyContribution(await ports.factories.engines(context, UI_TEXT, uiLocale()))
+  const engine = await ports.factories?.engines?.(context, UI_TEXT, uiLocale())
+  if (engine !== undefined) applyContribution(engine)
   if (ports.factories?.presentation !== undefined) {
     const presentation = await ports.factories.presentation(context, UI_TEXT, uiLocale())
     applyContribution(presentation)
@@ -678,6 +687,8 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       })
     }
   }
+  auth = features.auth
+  await auth.refresh()
   const composition: ConversationCompositionPorts = {
     features,
     settings: () => ({
@@ -685,7 +696,7 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       allowDangerouslySkipPermissions:
         options.canBypass && settings.current().allowDangerouslySkipPermissions,
     }),
-    paid: {
+    paid: engine?.paid ?? {
       gate: {
         isOn: (feature) => runtime.paid.isOn(feature),
         turnOn: () => unavailable('paidSettings'),
@@ -703,7 +714,7 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
         addBestOfNUsage: () => unavailable('bestOfN'),
       },
     },
-    modelApi: {
+    modelApi: engine?.modelApi ?? {
       accountId: () => unavailable('modelApiAccount'),
       ensureHost: () => unavailable('modelApiBudget'),
       captureExternalEditOwner: () => unavailable('workspaceEdits'),
@@ -711,7 +722,9 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       bestOfNBudgetScope: () => unavailable('bestOfN'),
       buildAttemptHost: () => unavailable('bestOfN'),
     },
-    isKeyStored: () => options.backend === 'modelApi' && auth.current.status === 'signedIn',
+    isKeyStored:
+      engine?.isKeyStored ??
+      (() => options.backend === 'modelApi' && auth.current.status === 'signedIn'),
     museVoiceSetup: features.dictation,
     controllers: ports.controllers,
     isProjectTrusted: () => options.trustWorkspace,

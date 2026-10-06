@@ -1,9 +1,17 @@
-import { chromium } from 'playwright-core'
+import { startBrowserFixture } from '../unit/helpers/companion'
 import * as z from 'zod/mini'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { panelProcessSuite } from './panelProcess'
 
 const fixture = panelProcessSuite()
+// Chrome startup belongs to the suite; each backend gets its own default-deadline test.
+const browser: { current?: Awaited<ReturnType<typeof startBrowserFixture>> } = {}
+beforeAll(async () => {
+  browser.current = await startBrowserFixture()
+})
+afterAll(async () => {
+  await browser.current?.close()
+})
 const launchSchema = z.object({
   id: z.string(),
   method: z.literal('ui/openExternal'),
@@ -112,83 +120,80 @@ describe('runtime companion panel process', () => {
       agent.child.stdin.end()
       expect(await agent.exited).toBe(0)
     })
-  it('mounts the authenticated shared React graph and streams both fake backends in Chrome', async () => {
-    const browser = await chromium.launch({ channel: 'chrome', headless: true })
-    try {
-      for (const backend of ['museCode', 'modelApi']) {
-        const agent = fixture().launch(
-          'companion',
-          backend,
-          {},
-          backend === 'modelApi' ? ['--web-search'] : [],
+  for (const backend of ['museCode', 'modelApi'])
+    it(`mounts the authenticated shared React graph and streams fake ${backend} in Chrome`, async () => {
+      const runningBrowser = browser.current?.browser
+      if (runningBrowser === undefined)
+        throw new Error('Shared fake browser fixture was not prepared')
+      const agent = fixture().launch(
+        'companion',
+        backend,
+        {},
+        backend === 'modelApi' ? ['--web-search'] : [],
+      )
+      const uri = await acknowledgeLaunch(agent)
+      const context = await runningBrowser.newContext()
+      try {
+        const page = await context.newPage()
+        const errors: string[] = []
+        const requests: string[] = []
+        page.on('pageerror', (error) => {
+          errors.push(error.message)
+        })
+        page.on('request', (request) => {
+          requests.push(request.url())
+        })
+        await page.goto(uri)
+        await page.waitForFunction(
+          () => typeof Reflect.get(window, 'musePanel')?.postMessage === 'function',
         )
-        const uri = await acknowledgeLaunch(agent)
-        const context = await browser.newContext()
         try {
-          const page = await context.newPage()
-          const errors: string[] = []
-          const requests: string[] = []
-          page.on('pageerror', (error) => {
-            errors.push(error.message)
-          })
-          page.on('request', (request) => {
-            requests.push(request.url())
-          })
-          await page.goto(uri)
-          await page.waitForFunction(
-            () => typeof Reflect.get(window, 'musePanel')?.postMessage === 'function',
+          await page.waitForFunction(() => document.querySelector('textarea') !== null)
+        } catch (error: unknown) {
+          throw new Error(
+            `Browser did not mount: ${JSON.stringify(errors)}; ${await page.locator('body').innerText()}`,
+            { cause: error },
           )
-          try {
-            await page.waitForFunction(() => document.querySelector('textarea') !== null)
-          } catch (error: unknown) {
-            throw new Error(
-              `Browser did not mount: ${JSON.stringify(errors)}; ${await page.locator('body').innerText()}`,
-              { cause: error },
-            )
-          }
-          const before = fixture().api.responseBodies().length
-          await page.evaluate(() => {
-            const panel = globalThis.window.musePanel
-            if (panel === undefined) throw new Error('Missing fake panel bridge')
-            panel.postMessage({
-              type: 'sendMessage',
-              localId: 'browser',
-              text: 'hello browser',
-              attachmentIds: [],
-            })
-          })
-          if (backend === 'modelApi') {
-            const dialog = page.getByRole('dialog')
-            await dialog.waitFor()
-            expect(await dialog.innerText()).toContain('$')
-            expect(fixture().api.responseBodies()).toHaveLength(before)
-            await page.getByRole('button', { name: 'Deny', exact: true }).click()
-          }
-          await page
-            .getByText(
-              backend === 'museCode' ? 'echo: hello browser' : 'From the fake panel model.',
-              { exact: false },
-            )
-            .first()
-            .waitFor()
-          expect(errors).toEqual([])
-          expect(requests.some((url) => url.includes('/assets/portable/chunks/'))).toBe(true)
-          expect(requests.some((url) => url.includes('#k='))).toBe(false)
-          expect(new URL(page.url()).hash).toBe('')
-          expect(await context.cookies()).toEqual([])
-          const noBearer = await fetch(new URL('/assets/portable/main.js', uri))
-          expect(noBearer.status).toBe(401)
-          expect(agent.output().stdout).not.toContain('LLM|')
-        } finally {
-          await context.close()
         }
-        agent.child.stdin.end()
-        expect(await agent.exited).toBe(0)
+        const before = fixture().api.responseBodies().length
+        await page.evaluate(() => {
+          const panel = globalThis.window.musePanel
+          if (panel === undefined) throw new Error('Missing fake panel bridge')
+          panel.postMessage({
+            type: 'sendMessage',
+            localId: 'browser',
+            text: 'hello browser',
+            attachmentIds: [],
+          })
+        })
+        if (backend === 'modelApi') {
+          const dialog = page.getByRole('dialog')
+          await dialog.waitFor()
+          expect(await dialog.innerText()).toContain('$')
+          expect(fixture().api.responseBodies()).toHaveLength(before)
+          await page.getByRole('button', { name: 'Deny', exact: true }).click()
+        }
+        await page
+          .getByText(
+            backend === 'museCode' ? 'echo: hello browser' : 'From the fake panel model.',
+            { exact: false },
+          )
+          .first()
+          .waitFor()
+        expect(errors).toEqual([])
+        expect(requests.some((url) => url.includes('/assets/portable/chunks/'))).toBe(true)
+        expect(requests.some((url) => url.includes('#k='))).toBe(false)
+        expect(new URL(page.url()).hash).toBe('')
+        expect(await context.cookies()).toEqual([])
+        const noBearer = await fetch(new URL('/assets/portable/main.js', uri))
+        expect(noBearer.status).toBe(401)
+        expect(agent.output().stdout).not.toContain('LLM|')
+      } finally {
+        await context.close()
       }
-    } finally {
-      await browser.close()
-    }
-  })
+      agent.child.stdin.end()
+      expect(await agent.exited).toBe(0)
+    })
   it('fails initialization and exits after the fake CLI dies', async () => {
     const agent = fixture().launch('companion', 'museCode', { MUSE_FAKE_START: 'crash' })
     agent.sendInitialize()

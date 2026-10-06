@@ -94,6 +94,11 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
   let applyingSettings: Promise<void> = Promise.resolve()
   let opening: Promise<void> = Promise.resolve()
   const ownedSettings = new Set<Awaited<ReturnType<typeof runtimeSettings>>>()
+  const conversationSettings = new WeakMap<
+    RuntimeConversation,
+    Awaited<ReturnType<typeof runtimeSettings>>
+  >()
+  const publishedSettings = new WeakMap<RuntimeConversation, string>()
   const roots = new WeakMap<RuntimeConversation, string>()
   const sides = new WeakSet<RuntimeConversation>()
   const registry = new ControllerRegistry<RuntimeConversation>(log)
@@ -162,12 +167,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         signal.throwIfAborted()
         conversation = await startConversation(root)
         settings.onChanged((keys) => {
-          applyingSettings = transact(() => settingsChanged(keys))
-          void applyingSettings.catch(() => {
-            if (!ending.signal.aborted) {
-              log.warn('MHP_SETTINGS_APPLY_FAILED')
-            }
-          })
+          applySettings(() => settingsChanged(keys))
         })
       },
       initialized: () => {
@@ -374,14 +374,27 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     await runtime.forgetUnflaggedGrants()
   }
   async function settingsChanged(keys: readonly string[]): Promise<void> {
-    const current = requireSettings().current()
-    for (const held of registry.controllers()) {
-      held.publishSettings(current)
-      if (!current.allowDangerouslySkipPermissions) await held.controller?.revokeBypass()
-    }
+    for (const held of registry.controllers()) await publishHeldSettings(held)
     if (keys.length > 0) peer.notify('settings/didChange', { keys: [...keys] })
     if (keys.length === 0 || keys.some((key) => RUNTIME_PANEL.reconfigureSettings.includes(key)))
       await replaceProfile()
+  }
+  function applySettings(work: () => Promise<void>): void {
+    applyingSettings = transact(work)
+    void applyingSettings.catch(() => {
+      if (!ending.signal.aborted) log.warn('MHP_SETTINGS_APPLY_FAILED')
+    })
+  }
+  async function publishHeldSettings(held: RuntimeConversation): Promise<void> {
+    const ownSettings = conversationSettings.get(held)
+    if (ownSettings === undefined || held.isReleased) return
+    await ownSettings.settled()
+    const current = ownSettings.current()
+    const snapshot = JSON.stringify(current)
+    if (publishedSettings.get(held) === snapshot) return
+    held.publishSettings(current)
+    publishedSettings.set(held, snapshot)
+    if (!current.allowDangerouslySkipPermissions) await held.controller?.revokeBypass()
   }
   async function retire(sessionId: string): Promise<void> {
     const retired = peer.surfaces.retireSession(sessionId)
@@ -578,12 +591,16 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         ),
     )
     roots.set(adopted, workspaceRoot)
+    conversationSettings.set(adopted, contextSettings)
+    publishedSettings.set(adopted, JSON.stringify(contextSettings.current()))
     if (isSideChat) sides.add(adopted)
     if (workspaceRoot !== root)
       contextSettings.onChanged((keys) => {
-        for (const held of registry.controllers())
-          if (roots.get(held) === workspaceRoot) held.publishSettings(contextSettings.current())
-        peer.notify('settings/didChange', { keys: [...keys] })
+        applySettings(async () => {
+          for (const held of registry.controllers())
+            if (roots.get(held) === workspaceRoot) await publishHeldSettings(held)
+          peer.notify('settings/didChange', { keys: [...keys] })
+        })
       })
     return adopted
   }

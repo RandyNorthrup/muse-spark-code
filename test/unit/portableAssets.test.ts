@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile, symlink, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { chromium } from 'playwright-core'
+import { startBrowserFixture } from './helpers/companion'
 import * as z from 'zod/mini'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { portablePage } from '../../src/runtime/panel/portablePage'
@@ -20,12 +20,15 @@ function noSubscription() {
 }
 
 const rig = { root: '' }
+const browser: { current?: Awaited<ReturnType<typeof startBrowserFixture>> } = {}
 const theme = { kind: 'dark', tokens: {} } as const
 beforeAll(async () => {
   rig.root = await mkdtemp(path.join(tmpdir(), 'm104-assets-'))
   await buildPortableBundle(rig.root)
+  browser.current = await startBrowserFixture()
 })
 afterAll(async () => {
+  await browser.current?.close()
   await removeFolder(rig.root)
 })
 const directory = () => path.join(rig.root, 'webview', 'portable')
@@ -57,7 +60,9 @@ it('admits only exact packaged module paths and refuses an unlisted module or li
   }
 })
 
-it('loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes', async () => {
+async function assetFixture() {
+  const runningBrowser = browser.current?.browser
+  if (runningBrowser === undefined) throw new Error('Shared asset browser was not prepared')
   const page = await portablePage(directory(), theme)
   const assets = new Map(page.assets)
   const manifest = portableManifestSchema.parse(
@@ -65,71 +70,87 @@ it('loads the static and deferred authenticated graph under nonce CSP, and refus
   )
   const originalManifest = JSON.stringify(manifest).replaceAll('<', String.raw`\u003c`)
   const rendering = { manifest: originalManifest }
-  const start = () =>
-    startCompanionServer({
-      handler: {
-        inputSchema: panelEnvelopeSchema,
-        outputSchema: panelEnvelopeSchema,
-        surfaceSchema: panelLifecycleSchema,
-        surface: () => Promise.resolve(),
-        post: () => Promise.resolve(),
-        subscribe: noSubscription,
-      },
-      services: {
-        inputSchema: fallbackUiReplySchema,
-        outputSchema: fallbackUiCallSchema,
-        post: () => Promise.resolve(),
-        subscribe: noSubscription,
-      },
-      assets,
-      renderPage: (nonce) =>
-        page
-          .render({ surface: 'asset-view', sessionId: 'fake', surfaceKind: 'chat' }, nonce)
-          .replace(originalManifest, () => rendering.manifest),
-      limits: {
-        maxBodyBytes: 1_048_576,
-        maxEventBytes: 1_048_576,
-        requestTimeoutMs: 1000,
-        idleTimeoutMs: 120_000,
-        launchCodeTtlMs: 10_000,
-        sessionTtlMs: 120_000,
-        maxSessions: 4,
-      },
-    })
-  let companion = await start()
-  const code = new URLSearchParams(new URL(companion.launchUrl()).hash.slice(1)).get('k')
-  const origin = new URL(companion.url).origin
-  const headers = { Origin: origin, 'X-Muse-Panel': '1', 'Content-Type': 'application/json' }
-  const session = await fetch(new URL('/session', companion.url), {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ code }),
+  const companion = await startCompanionServer({
+    handler: {
+      inputSchema: panelEnvelopeSchema,
+      outputSchema: panelEnvelopeSchema,
+      surfaceSchema: panelLifecycleSchema,
+      surface: () => Promise.resolve(),
+      post: () => Promise.resolve(),
+      subscribe: noSubscription,
+    },
+    services: {
+      inputSchema: fallbackUiReplySchema,
+      outputSchema: fallbackUiCallSchema,
+      post: () => Promise.resolve(),
+      subscribe: noSubscription,
+    },
+    assets,
+    renderPage: (nonce) =>
+      page
+        .render({ surface: 'asset-view', sessionId: 'fake', surfaceKind: 'chat' }, nonce)
+        .replace(originalManifest, () => rendering.manifest),
+    limits: {
+      maxBodyBytes: 1_048_576,
+      maxEventBytes: 1_048_576,
+      requestTimeoutMs: 1000,
+      idleTimeoutMs: 120_000,
+      launchCodeTtlMs: 10_000,
+      sessionTtlMs: 120_000,
+      maxSessions: 4,
+    },
   })
-  const bearer = session.headers.get('Authorization')
-  if (bearer === null) throw new Error('Missing fake bearer')
-  const post = (
-    supplied: Record<string, string>,
-    body = '{"jsonrpc":"2.0","id":"ui-1","result":null}',
-  ) => fetch(new URL('/host/message', companion.url), { method: 'POST', headers: supplied, body })
-  const noBearer = await post(headers)
-  expect(noBearer.status).toBe(401)
-  const foreign = await post({
-    ...headers,
-    Authorization: bearer,
-    Origin: 'https://foreign.example.test',
-  })
-  expect(foreign.status).toBe(403)
-  const noHeader = await post({
-    Origin: origin,
-    'Content-Type': 'application/json',
-    Authorization: bearer,
-  })
-  expect(noHeader.status).toBe(403)
-  const invalid = await post({ ...headers, Authorization: bearer }, '{}')
-  expect(invalid.status).toBe(400)
-  const browser = await chromium.launch({ channel: 'chrome', headless: true })
+  const context = await runningBrowser.newContext()
+  return {
+    companion,
+    context,
+    assets,
+    manifest,
+    rendering,
+    close: async () => {
+      try {
+        await context.close()
+      } finally {
+        await companion.close()
+      }
+    },
+  }
+}
+
+it('loads the static and deferred authenticated graph under nonce CSP', async () => {
+  const f = await assetFixture()
+  const { companion, context } = f
   try {
-    const context = await browser.newContext()
+    const code = new URLSearchParams(new URL(companion.launchUrl()).hash.slice(1)).get('k')
+    const origin = new URL(companion.url).origin
+    const headers = { Origin: origin, 'X-Muse-Panel': '1', 'Content-Type': 'application/json' }
+    const session = await fetch(new URL('/session', companion.url), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ code }),
+    })
+    const bearer = session.headers.get('Authorization')
+    if (bearer === null) throw new Error('Missing fake bearer')
+    const post = (
+      supplied: Record<string, string>,
+      body = '{"jsonrpc":"2.0","id":"ui-1","result":null}',
+    ) => fetch(new URL('/host/message', companion.url), { method: 'POST', headers: supplied, body })
+    const noBearer = await post(headers)
+    expect(noBearer.status).toBe(401)
+    const foreign = await post({
+      ...headers,
+      Authorization: bearer,
+      Origin: 'https://foreign.example.test',
+    })
+    expect(foreign.status).toBe(403)
+    const noHeader = await post({
+      Origin: origin,
+      'Content-Type': 'application/json',
+      Authorization: bearer,
+    })
+    expect(noHeader.status).toBe(403)
+    const invalid = await post({ ...headers, Authorization: bearer }, '{}')
+    expect(invalid.status).toBe(400)
     const requests: string[] = []
     context.on('request', (request) => {
       requests.push(request.url())
@@ -148,7 +169,21 @@ it('loads the static and deferred authenticated graph under nonce CSP, and refus
       return typeof value === 'object' && value !== null && 'createFallbackUi' in value
     })
     expect(isLazy).toBe(true)
+    expect(requests.some((url) => url.endsWith('/assets/portable/fallbacks.js'))).toBe(true)
     expect(errors).toEqual([])
+    // Unauthenticated module requests cannot execute outside the private fetch closure.
+    const refused = await fetch(new URL('/assets/portable/main.js', companion.url))
+    expect(refused.status).toBe(401)
+    expect(z.string().parse(await window.evaluate(() => location.hash))).toBe('')
+  } finally {
+    await f.close()
+  }
+})
+
+it('refuses altered authenticated module bytes before executing them', async () => {
+  const f = await assetFixture()
+  const { companion, context, assets } = f
+  try {
     const original = assets.get('/assets/portable/main.js')
     if (original === undefined) throw new Error('Missing main')
     assets.set('/assets/portable/main.js', {
@@ -172,11 +207,21 @@ it('loads the static and deferred authenticated graph under nonce CSP, and refus
       }),
     ).toBeUndefined()
     expect(await corrupted.locator('#launch-error').isVisible()).toBe(true)
-    assets.set('/assets/portable/main.js', original)
-    for (const defect of ['duplicate', 'import-span', 'cycle', 'unlisted-import']) {
-      // Each defect uses a fresh server with the same bounded session policy.
-      await companion.close()
-      companion = await start()
+  } finally {
+    await f.close()
+  }
+})
+
+it.each(['duplicate', 'import-span', 'cycle', 'unlisted-import'])(
+  'refuses a %s manifest before loading its graph',
+  async (defect) => {
+    const f = await assetFixture()
+    const { companion, context, manifest, rendering } = f
+    const requests: string[] = []
+    context.on('request', (request) => {
+      requests.push(request.url())
+    })
+    try {
       const changed = structuredClone(manifest)
       const main = changed.modules.find((module) => module.path === '/assets/portable/main.js')
       const imported = main?.imports[0]
@@ -202,14 +247,8 @@ it('loads the static and deferred authenticated graph under nonce CSP, and refus
       expect(await refused.locator('#launch-error').isVisible(), defect).toBe(true)
       if (defect === 'unlisted-import')
         expect(requests.some((url) => url.endsWith('/assets/portable/missing.js'))).toBe(false)
+    } finally {
+      await f.close()
     }
-    // Unauthenticated module requests cannot execute outside the private fetch closure.
-    const refused = await fetch(new URL('/assets/portable/main.js', companion.url))
-    expect(refused.status).toBe(401)
-    expect(z.string().parse(await window.evaluate(() => location.hash))).toBe('')
-    await context.close()
-  } finally {
-    await browser.close()
-    await companion.close()
-  }
-})
+  },
+)

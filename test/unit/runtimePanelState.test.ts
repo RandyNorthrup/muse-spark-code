@@ -12,6 +12,7 @@ import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { panelEnvelopeSchema } from '../../src/shared/hostApi/panel'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { buildHostBundles } from './helpers/modelApiBundle'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -43,7 +44,7 @@ const frameSchema = z.union([
   z.object({ id: frameId, error: z.object({ code: z.number(), message: z.string() }) }),
 ])
 
-async function fixture(kind: 'museCode' | 'modelApi') {
+async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
   const root = await realpath(await mkdtemp(path.join(rig.root, 'workspace-')))
   const worktree = path.join(root, 'worktree')
   await mkdir(worktree)
@@ -59,7 +60,7 @@ async function fixture(kind: 'museCode' | 'modelApi') {
     trustWorkspace: true,
     museBinary: '',
     shellSandbox: 'off',
-    canBypass: false,
+    canBypass: isTrusted,
     allowsContributorModels: false,
     paidFeatures: [],
     isVerbose: false,
@@ -184,7 +185,7 @@ async function fixture(kind: 'museCode' | 'modelApi') {
       locale: 'de',
       theme: { kind: 'dark', tokens: {} },
       folders: [{ uri: pathToFileURL(root).href, name: 'fake' }],
-      trusted: false,
+      trusted: isTrusted,
     },
   })
   const waitReply = async (id: number) => {
@@ -224,6 +225,104 @@ async function fixture(kind: 'museCode' | 'modelApi') {
 }
 
 for (const kind of ['museCode', 'modelApi'] as const) {
+  it(`${kind}: each conversation publishes only its own effective settings and revokes its own Bypass`, async () => {
+    const t = await fixture(kind, true)
+    try {
+      const rootContext = t.contexts[0]
+      if (rootContext === undefined) throw new Error('Missing fake root')
+      await rootContext.openWorkspace(t.worktree)
+      const worktreeContext = t.contexts.at(-1)
+      if (worktreeContext === undefined) throw new Error('Missing fake worktree')
+      const rootController = [...rootContext.ports.controllers()][0]
+      const worktreeController = [...rootContext.ports.controllers()][1]
+      if (rootController === undefined || worktreeController === undefined)
+        throw new Error('Missing fake controllers')
+      const worktreeBinding = t.bindings.get('surface-2')
+      const rootBinding = t.bindings.get('surface-1')
+      if (worktreeBinding === undefined || rootBinding === undefined)
+        throw new Error('Missing fake bindings')
+      const inits = (surface: string) =>
+        t.frames.flatMap((frame) => {
+          const parsed = panelEnvelopeSchema.safeParse(frame)
+          return parsed.success &&
+            parsed.data.surface === surface &&
+            parsed.data.payload.type === 'init'
+            ? [parsed.data.payload.settings]
+            : []
+        })
+      let requestId = 10
+      const update = async (
+        context: RuntimeFeatureContext,
+        key: string,
+        value: boolean | number,
+        scope: 'workspace' | 'user' = 'workspace',
+      ) => {
+        const params = { key: `museSpark.${key}`, value, scope }
+        if (context === rootContext) {
+          const id = ++requestId
+          t.send({ jsonrpc: '2.0', id, method: 'settings/update', params })
+          await t.waitReply(id)
+        } else {
+          await context.ports.host.request('settings/update', params)
+        }
+      }
+      await update(worktreeContext, 'autosave', false)
+      await update(worktreeContext, 'modelApiWebSearch', false)
+      await update(worktreeContext, 'allowDangerouslySkipPermissions', true)
+      await vi.waitFor(() => {
+        expect(inits(worktreeBinding.surface).at(-1)).toMatchObject({
+          autosave: false,
+          allowDangerouslySkipPermissions: true,
+        })
+      })
+      await update(rootContext, 'autosave', false)
+      await update(rootContext, 'modelApiWebSearch', false)
+      await update(rootContext, 'allowDangerouslySkipPermissions', true)
+      await vi.waitFor(() => {
+        expect(inits(rootBinding.surface).at(-1)).toMatchObject({
+          autosave: false,
+          allowDangerouslySkipPermissions: true,
+        })
+      })
+      const worktreeCount = inits(worktreeBinding.surface).length
+      const rootRevocation = vi.spyOn(rootController, 'revokeBypass')
+      const worktreeRevocation = vi.spyOn(worktreeController, 'revokeBypass')
+      await update(rootContext, 'autosave', true)
+      await update(rootContext, 'modelApiWebSearch', true)
+      await update(rootContext, 'allowDangerouslySkipPermissions', false)
+      await vi.waitFor(() => {
+        expect(inits(rootBinding.surface).at(-1)).toMatchObject({
+          autosave: true,
+          allowDangerouslySkipPermissions: false,
+        })
+      })
+      expect(worktreeContext.ports.settings.current()).toMatchObject({
+        autosave: false,
+        modelApiWebSearch: false,
+        allowDangerouslySkipPermissions: true,
+      })
+      expect(inits(worktreeBinding.surface)).toHaveLength(worktreeCount)
+      expect(rootRevocation).toHaveBeenCalledTimes(1)
+      expect(worktreeRevocation).not.toHaveBeenCalled()
+      await update(worktreeContext, 'allowDangerouslySkipPermissions', false)
+      await vi.waitFor(() => {
+        expect(worktreeRevocation).toHaveBeenCalledTimes(1)
+      })
+      // A common user value affects both stores; workspace overrides still win.
+      await update(rootContext, 'paidDailyBudgetUsd', 9, 'user')
+      await vi.waitFor(() => {
+        expect(rootContext.ports.settings.current().paidDailyBudgetUsd).toBe(9)
+        expect(worktreeContext.ports.settings.current().paidDailyBudgetUsd).toBe(9)
+        expect(inits(worktreeBinding.surface)).toHaveLength(worktreeCount + 2)
+        expect(inits(worktreeBinding.surface).at(-1)).toMatchObject({
+          autosave: false,
+          allowDangerouslySkipPermissions: false,
+        })
+      })
+    } finally {
+      await t.close()
+    }
+  })
   it(`${kind}: profile failures return a named error and a later valid change recovers a fresh root conversation`, async () => {
     const t = await fixture(kind)
     try {

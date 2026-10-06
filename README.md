@@ -3957,8 +3957,9 @@ The replacement MHP 1.2.0 panel contract for native and companion adapters is
 answers with its capabilities. Only 1.2 is supported. `node scripts/mhp-schema.mjs
 --adopt-version=mhp/1.2.0` performed the reviewed version adoption; repeating
 adoption of the current version refuses. `npm run check:mhp` checks the frozen
-snapshots and locks. Their legacy filenames remain native build inputs. Its JSON
-Schemas reuse the shared panel payload validators and preserve frozen v1.
+snapshots and locks. Their legacy filenames remain native build inputs.
+MHP 1.2 replaces 1.1; both legacy-named snapshots carry the current 1.2 schemas
+and reuse the shared panel payload validators.
 Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
 snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
 bridge implementation and editor qualification remain in M104's other lanes. The

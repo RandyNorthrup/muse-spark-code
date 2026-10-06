@@ -42,6 +42,21 @@ const snapshotSchema = z.object({
 })
 
 describe('MHP 1.2 replacement panel contract', () => {
+  it('documents replacement of 1.1 and current 1.2 schemas behind legacy filenames', async () => {
+    const readme = await readFile('README.md', 'utf8')
+    const guide = readme
+      .split('The replacement MHP 1.2.0 panel contract', 2)[1]
+      ?.split('Regenerate with', 1)[0]
+      ?.replaceAll(/\s+/gu, ' ')
+    expect(guide).toContain('MHP 1.2 replaces 1.1')
+    expect(guide).toContain('both legacy-named snapshots carry the current 1.2 schemas')
+    expect(guide).not.toContain('preserve frozen v1')
+    const header = z.object({ protocol: z.string() })
+    for (const file of ['mhp-v1.schema.json', 'mhp-v1.1.schema.json'])
+      expect(
+        header.parse(JSON.parse(await readFile(`src/shared/hostApi/${file}`, 'utf8'))).protocol,
+      ).toBe(MHP.version)
+  })
   it('preserves every v1 call, error and non-initialize result schema', async () => {
     const [v1, next] = await Promise.all([
       readFile('src/shared/hostApi/mhp-v1.schema.json', 'utf8'),

@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, writeFile, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, symlink, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -7,6 +7,12 @@ import { createRuntimeBackend } from '../../src/runtime/backends'
 import type { ServeOptions } from '../../src/runtime/cliArgs'
 import { RuntimeSettingsStore } from '../../src/runtime/settingsStore'
 import { runtimeConversationDeps, runtimeSettings } from '../../src/runtime/panel/runtimeFeatures'
+import type {
+  RuntimeEngineContribution,
+  RuntimeFeatureFactories,
+} from '../../src/runtime/panel/runtimeFeatures'
+import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
+import { FakeAgentHost, FakeAgentSession } from './helpers/fakeAgent'
 import type {
   HostServices,
   MhpParams,
@@ -21,8 +27,8 @@ const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const close of cleanup.splice(0)) await close()
 })
-async function setup(isTrusted = true) {
-  const root = await mkdtemp(path.join(tmpdir(), 'm104-ports-'))
+async function setup(isTrusted = true, factories?: RuntimeFeatureFactories) {
+  const root = await realpath(await mkdtemp(path.join(tmpdir(), 'm104-ports-')))
   const workspace = path.join(root, 'workspace')
   await mkdir(workspace)
   const file = path.join(workspace, 'source.ts')
@@ -90,13 +96,16 @@ async function setup(isTrusted = true) {
     },
   }
   const store = new RuntimeSettingsStore(root, workspace)
+  const settings = await runtimeSettings(store, log)
+  cleanup.push(() => settings.dispose())
   const deps = await runtimeConversationDeps({
     host,
     runtime,
     options,
     workspaceRoot: workspace,
     store,
-    settings: await runtimeSettings(store, log),
+    settings,
+    ...(factories !== undefined && { factories }),
     surface: fakeSurface('session'),
     controllers: () => [],
     runGit: () => Promise.reject(new Error('No test git')),
@@ -108,6 +117,139 @@ async function setup(isTrusted = true) {
 }
 
 describe('standalone conversation ports', () => {
+  it('delegates paid policy, accounting, account/budget/attempt hosts and authentication to the engine contribution', async () => {
+    const snapshot: AuthSnapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+    const auth: AuthPort = {
+      current: snapshot,
+      backend: 'modelApi',
+      admissionGeneration: 7,
+      toMessage: vi.fn(() => ({ type: 'authState' as const, status: snapshot.status })),
+      signIn: vi.fn(() => Promise.resolve(snapshot)),
+      installMuseCode: vi.fn(() => Promise.resolve(snapshot)),
+      cancelSignIn: vi.fn(),
+      signOut: vi.fn(() => Promise.resolve(snapshot)),
+      refresh: vi.fn(() => Promise.resolve(snapshot)),
+      checkAgain: vi.fn(() => Promise.resolve(snapshot)),
+      markAuthRequired: vi.fn(() => snapshot),
+      markBackendError: vi.fn(() => snapshot),
+    }
+    const host = new FakeAgentHost()
+    const exhausted = new Error('Fake daily budget exhausted before dispatch')
+    const owner = vi.fn()
+    const finishEdit = vi.fn()
+    const paid: NonNullable<RuntimeEngineContribution['paid']> = {
+      gate: {
+        isOn: vi.fn(() => true),
+        turnOn: vi.fn(() => Promise.resolve(true)),
+        turnOff: vi.fn(() => Promise.resolve()),
+      },
+      consent: {
+        allows: vi.fn(() => Promise.resolve(false)),
+        forget: vi.fn(() => Promise.resolve()),
+      },
+      usage: { add: vi.fn(), addBestOfNRequest: vi.fn(), addBestOfNUsage: vi.fn() },
+    }
+    const modelApi: NonNullable<RuntimeEngineContribution['modelApi']> = {
+      accountId: vi.fn(() => Promise.resolve('fake-account-digest')),
+      ensureHost: vi.fn(() => Promise.reject(exhausted)),
+      captureExternalEditOwner: vi.fn(() => owner),
+      beginExternalEdit: vi.fn(() => finishEdit),
+      bestOfNBudgetScope: vi.fn(() => Promise.resolve(undefined)),
+      buildAttemptHost: vi.fn(() => Promise.reject(exhausted)),
+    }
+    const ensureHost = vi.fn(() => Promise.resolve(host))
+    const facts = { signInMethod: 'apiKey' as const, cliVersion: 'fake-account-facts' }
+    const accountFacts = vi.fn(() => Promise.resolve(facts))
+    const isKeyStored = vi.fn(() => true)
+    const f = await setup(true, {
+      engines: () =>
+        Promise.resolve({
+          features: { auth, ensureHost, accountFacts },
+          paid,
+          modelApi,
+          isKeyStored,
+        }),
+    })
+    expect(f.deps.auth).toBe(auth)
+    expect(auth.refresh).toHaveBeenCalledOnce()
+    await f.deps.auth.signIn('browser')
+    await f.deps.auth.installMuseCode()
+    f.deps.auth.cancelSignIn()
+    await f.deps.auth.signOut()
+    await f.deps.auth.checkAgain()
+    f.deps.auth.markAuthRequired('fake auth required')
+    f.deps.auth.markBackendError('fake backend failure')
+    expect(auth.signIn).toHaveBeenCalledWith('browser')
+    for (const method of [
+      'installMuseCode',
+      'cancelSignIn',
+      'signOut',
+      'checkAgain',
+      'markAuthRequired',
+      'markBackendError',
+    ] as const)
+      expect(auth[method]).toHaveBeenCalledOnce()
+    expect(await f.deps.ensureHost()).toBe(host)
+    expect(ensureHost).toHaveBeenCalledOnce()
+    expect(await f.deps.accountFacts('modelApi')).toEqual(facts)
+    expect(accountFacts).toHaveBeenCalledWith('modelApi')
+    await f.deps.setPaidFeature('bestOfN', true)
+    await f.deps.setPaidFeature('bestOfN', false)
+    expect(paid.gate.turnOn).toHaveBeenCalledWith('bestOfN')
+    expect(paid.gate.turnOff).toHaveBeenCalledWith('bestOfN')
+    await f.deps.forgetPaidUse()
+    expect(paid.consent.forget).toHaveBeenCalledOnce()
+    const request = {
+      feature: 'bestOfN' as const,
+      modelId: 'fake-model',
+      prompt: 'fake prompt',
+      attempts: 2,
+      requestCeilingPerAttempt: 1,
+    }
+    expect(await f.deps.allowsPaidUse(request)).toBe(false)
+    expect(paid.consent.allows).toHaveBeenCalledWith(request)
+    f.deps.notePaidUse('bestOfN', 2)
+    f.deps.noteBestOfNRequest()
+    const usage = { inputTokens: 2, outputTokens: 1, cachedTokens: 0 }
+    f.deps.noteBestOfNUsage('fake-model', usage)
+    expect(paid.usage.add).toHaveBeenCalledWith('bestOfN', 2)
+    expect(paid.usage.addBestOfNRequest).toHaveBeenCalledOnce()
+    expect(paid.usage.addBestOfNUsage).toHaveBeenCalledWith('fake-model', usage)
+    expect(f.deps.isPaidFeatureOn('bestOfN')).toBe(true)
+    expect(await f.deps.modelApiAccountId()).toBe('fake-account-digest')
+    expect(await f.deps.voiceAccountId()).toBe('fake-account-digest')
+    expect(await f.deps.bestOfNBudgetScope?.('session')).toBeUndefined()
+    expect(modelApi.bestOfNBudgetScope).toHaveBeenCalledWith('session')
+    await expect(f.deps.ownedVoiceBudgetScope('session')).rejects.toBe(exhausted)
+    expect(modelApi.ensureHost).toHaveBeenCalledOnce()
+    const session = new FakeAgentSession('session', 'fake-model')
+    const edits = f.deps.bestOfNWorkspaceEdits?.(session)
+    if (edits === undefined) throw new Error('Missing fake external-edit port')
+    const finish = await edits(f.workspace, ['source.ts'])
+    expect(modelApi.captureExternalEditOwner).toHaveBeenCalledWith(session)
+    expect(modelApi.beginExternalEdit).toHaveBeenCalledWith(owner, [
+      { relative: 'source.ts', absolute: f.file },
+    ])
+    finish(false)
+    expect(finishEdit).toHaveBeenCalledWith(false)
+    const admit = vi.fn()
+    const note = vi.fn()
+    await expect(f.deps.buildAttemptHost(f.workspace, admit, note, undefined)).rejects.toBe(
+      exhausted,
+    )
+    expect(modelApi.buildAttemptHost).toHaveBeenCalledWith(f.workspace, admit, note, undefined)
+    f.deps.museVoice()
+    expect(isKeyStored).toHaveBeenCalledOnce()
+  })
+  it('keeps explicit refusals when engine policy/authentication groups are absent', async () => {
+    const { deps } = await setup(true, { engines: () => Promise.resolve({ features: {} }) })
+    await expect(deps.setPaidFeature('bestOfN', true)).rejects.toThrow('MHP_UNSUPPORTED_CAPABILITY')
+    await expect(deps.forgetPaidUse()).rejects.toThrow('MHP_UNSUPPORTED_CAPABILITY')
+    expect(() => deps.bestOfNBudgetScope?.('session')).toThrow('MHP_UNSUPPORTED_CAPABILITY')
+    expect(() => deps.modelApiAccountId()).toThrow('MHP_UNSUPPORTED_CAPABILITY')
+    await expect(deps.auth.installMuseCode()).rejects.toThrow()
+    await expect(deps.auth.signOut()).rejects.toThrow()
+  })
   it('reads a confined regular file and refuses size, expected-path and link escapes', async () => {
     const f = await setup()
     const file = await f.deps.files.readFile(f.file, 16)

@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import type * as ConversationBundle from '../../src/host/conversation/conversationBundle'
+import type { AuthPort, AuthSnapshot } from '../../src/host/auth/authService'
 import type { SessionHistoryOutcome } from '../../src/core/agent/agentBackend'
 import { pdfFixture } from './helpers/pdfFixture'
 import { commandApproval } from './helpers/acpWaits'
@@ -133,6 +134,179 @@ async function setup(kind: 'museCode' | 'modelApi' = 'museCode') {
     bundle: path.join(rig.root, 'conversation.js'),
   }
 }
+
+for (const kind of ['museCode', 'modelApi'] as const) {
+  it(`${kind}: contributed host admission refuses preparation through the real portable controller`, async () => {
+    const t = await setup(kind)
+    const ensureHost = vi.fn(() => Promise.reject(new Error('Fake contributed host unavailable')))
+    const registry = new ControllerRegistry<RuntimeConversation>(t.ports.log)
+    t.host.listModels.mockClear()
+    try {
+      await expect(
+        registry.adopt(
+          t.host,
+          t.session,
+          registry.claimSession(t.session.sessionId),
+          () => t.conversation,
+          (controller) =>
+            controller.prepare(
+              {
+                ...t.ports,
+                factories: { engines: () => Promise.resolve({ features: { ensureHost } }) },
+              },
+              t.loaded,
+              t.bundle,
+              runtimeConversationDeps,
+            ),
+        ),
+      ).rejects.toThrow('MHP_PANEL_SESSION_ADOPTION_FAILED')
+      expect(ensureHost).toHaveBeenCalledOnce()
+      expect(t.host.listModels).not.toHaveBeenCalled()
+      expect(registry.held(t.session.sessionId)).toBeUndefined()
+      expect(t.session.dispose).toHaveBeenCalledOnce()
+      expect(t.ports.log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Fake contributed host unavailable'),
+      )
+    } finally {
+      await registry.close()
+      await t.runtime.close()
+    }
+  })
+
+  it(`${kind}: selected hosts reach adoption and login warm-up while ACP binding fences remain`, async () => {
+    const t = await setup(kind)
+    const first = new FakeAgentHost()
+    first.info = { ...first.info, kind }
+    const next = new FakeAgentHost()
+    next.info = { ...next.info, kind }
+    let selected = first
+    const ensureHost = vi.fn(() => Promise.resolve(selected))
+    const snapshot: AuthSnapshot = { status: 'signedIn', backend: kind, detail: undefined }
+    const auth: AuthPort = {
+      current: snapshot,
+      backend: kind,
+      admissionGeneration: 1,
+      toMessage: () => ({ type: 'authState', status: snapshot.status, backend: kind }),
+      signIn: vi.fn(() => Promise.resolve(snapshot)),
+      installMuseCode: () => Promise.reject(new Error('Fake installer unavailable')),
+      cancelSignIn: vi.fn(),
+      signOut: () => Promise.reject(new Error('Fake sign-out unavailable')),
+      refresh: () => Promise.resolve(snapshot),
+      checkAgain: vi.fn(() => Promise.resolve(snapshot)),
+      markAuthRequired: () => snapshot,
+      markBackendError: () => snapshot,
+    }
+    const fork = vi.spyOn(first, 'forkSession')
+    const list = vi.spyOn(first, 'onSessionListEvent')
+    t.host.listModels.mockClear()
+    try {
+      await t.conversation.prepare(
+        {
+          ...t.ports,
+          factories: { engines: () => Promise.resolve({ features: { auth, ensureHost } }) },
+        },
+        t.loaded,
+        t.bundle,
+        runtimeConversationDeps,
+        'manual',
+      )
+      expect(ensureHost).toHaveBeenCalledOnce()
+      expect(first.listModels).toHaveBeenCalledWith(t.session.sessionId)
+      expect(t.host.listModels).not.toHaveBeenCalled()
+      expect(t.conversation.controller?.boardSession()?.sessionId).toBe(t.session.sessionId)
+      expect(first.resumeSession).not.toHaveBeenCalled()
+      expect(t.conversation.host).toBe(t.host)
+      await t.conversation.handle({ type: 'forkSession' })
+      await t.conversation.handle({ type: 'resumeSession', sessionId: 'unowned' })
+      expect(fork).not.toHaveBeenCalled()
+      expect(first.resumeSession).not.toHaveBeenCalled()
+      expect(list).toHaveBeenCalledTimes(2)
+
+      await t.conversation.handle({ type: 'retryBackend' })
+      selected = next
+      await t.conversation.handle({ type: 'signIn', method: 'browser' })
+      await vi.waitFor(() => {
+        expect(next.listModels).toHaveBeenCalledOnce()
+      })
+      expect(auth.checkAgain).toHaveBeenCalledOnce()
+      expect(auth.signIn).toHaveBeenCalledWith('browser')
+      expect(t.host.listModels).not.toHaveBeenCalled()
+      await expect(t.conversation.controller?.startFreshSession()).rejects.toThrow(
+        'MHP_PANEL_BINDING_MISMATCH',
+      )
+      expect(next.startSession).not.toHaveBeenCalled()
+      expect(next.resumeSession).not.toHaveBeenCalled()
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+
+  it(`${kind}: absent host contributions retain the runtime's honest refusal`, async () => {
+    const t = await setup(kind)
+    const hostFor = vi.fn(() => Promise.reject(new Error('Fake runtime host unavailable')))
+    t.host.listModels.mockClear()
+    try {
+      await expect(
+        t.conversation.prepare(
+          {
+            ...t.ports,
+            runtime: { ...t.ports.runtime, backend: { ...t.ports.runtime.backend, hostFor } },
+          },
+          t.loaded,
+          t.bundle,
+          runtimeConversationDeps,
+        ),
+      ).rejects.toThrow('MHP_PANEL_SESSION_ADOPTION_FAILED')
+      expect(hostFor).toHaveBeenCalledWith(rig.root)
+      expect(t.host.listModels).not.toHaveBeenCalled()
+      expect(t.conversation.controller?.boardSession()).toBeUndefined()
+      expect(t.ports.log.error).toHaveBeenCalledWith(
+        expect.stringContaining('Fake runtime host unavailable'),
+      )
+    } finally {
+      await t.conversation.release()
+      await t.runtime.close()
+    }
+  })
+}
+
+it('release waits for contributed host admission and fences its late result before model reads', async () => {
+  const t = await setup()
+  const entered = Promise.withResolvers<boolean>()
+  const proceed = Promise.withResolvers<boolean>()
+  const settled = vi.spyOn(t.store, 'settled')
+  const ensureHost = async () => {
+    entered.resolve(true)
+    await proceed.promise
+    return t.host
+  }
+  t.host.listModels.mockClear()
+  try {
+    const preparing = t.conversation.prepare(
+      {
+        ...t.ports,
+        factories: { engines: () => Promise.resolve({ features: { ensureHost } }) },
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    const refused = expect(preparing).rejects.toThrow('MHP_PANEL_UNKNOWN_SURFACE')
+    await entered.promise
+    const releasing = t.conversation.release()
+    expect(settled).not.toHaveBeenCalled()
+    proceed.resolve(true)
+    await Promise.all([refused, releasing])
+    expect(t.host.listModels).not.toHaveBeenCalled()
+    expect(t.session.dispose).toHaveBeenCalledOnce()
+    expect(settled).toHaveBeenCalledOnce()
+  } finally {
+    proceed.resolve(true)
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})
 
 it('release fences suspended composition and concurrent callers await the final drain', async () => {
   const t = await setup()
