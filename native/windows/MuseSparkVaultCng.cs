@@ -11,10 +11,13 @@ internal static class VaultCng
     internal const int RsaBits = 2048, RsaBytes = RsaBits / 8;
     private static readonly CngProvider Provider = new CngProvider("Microsoft Platform Crypto Provider");
     private const int Silent = 0x40;
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("ncrypt.dll", CharSet = CharSet.Unicode)]
     private static extern int NCryptOpenStorageProvider(out IntPtr provider, string name, int flags);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("ncrypt.dll", CharSet = CharSet.Unicode)]
     private static extern int NCryptIsAlgSupported(IntPtr provider, string algorithm, int flags);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("ncrypt.dll")]
     private static extern int NCryptFreeObject(IntPtr handle);
 

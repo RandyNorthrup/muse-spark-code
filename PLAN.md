@@ -20630,6 +20630,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109PW / RVM109PW Windows repair (2026-10-06).** Authenticate each
+cached EXE by its build SHA-256 through a handle denying write/delete sharing,
+check file/directory ownership and ACLs and ancestor ACLs/reparse points,
+retain the handle during execution, and rebuild into fresh private storage
+on refusal without deleting the suspect cache. Restrict every native import
+and startup DLL search to System32. Validate DPAPI wrap title/use before
+selecting the tier. Each finding receives regression tests and byte-exact
+red-drill receipts in `docs/certification/m109-pw.md`; no dependency, gate or
+shipped feature changes. No review finding is deferred.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
@@ -21590,6 +21600,11 @@ checks passed; no VS Code API was added. M109's ownership table assigns
 file untouched. W regenerates it with `npm run check:host-api -- --write`
 on the integrated tree and runs the unmodified check before certification.
 
+FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
+**9 → 10**, from the trusted build digest and protected temporary-directory
+fallback. The other counts above are unchanged. W owns this same generated
+snapshot handoff; the portable-module check and all build checks pass.
+
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
 this worktree. Hook-on repair commits require the owning regression files,
@@ -22063,9 +22078,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                                          | Escape hatch                                 | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                               | `as UiText` on the descriptor clone          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW) | `(int)` on the reflected native entry result | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                        |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -22185,6 +22201,23 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM109PW / RVM109PW (2026-10-06).** Both P1s (cached helper identity,
+  DLL search order) and P3 (DPAPI title/use validation) are repaired with no
+  finding residual. A build supplies its EXE digest in memory; no mutable
+  sidecar or file name authenticates a prior process's cache. Each launch
+  verifies content through a deny-write/delete read handle, file/directory
+  ownership and ACLs, and ancestor ACLs/reparse points. The absolute system
+  PowerShell hosts the verified managed entry point while retaining that
+  handle; private input follows readiness. A refusal reports a fixed error
+  and rebuilds fresh private storage without removing the suspect path.
+  An unsafe storage parent selects the user's protected temporary tree.
+  Current user, SYSTEM and Administrators remain trusted, as the owner
+  explicitly decided; this does not claim same-user debugger isolation.
+  Native startup and every P/Invoke restrict DLL search to System32.
+  Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
+  remain the original integration requirements, not residual review findings.
+  See `docs/certification/m109-pw.md` for regression and red-drill evidence.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

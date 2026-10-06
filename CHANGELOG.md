@@ -21,6 +21,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M109's Windows vault seam authenticates cached helper contents and ACLs on
+  every launch, holds the verified file against replacement during execution,
+  and rebuilds refused caches into fresh private storage without deleting
+  suspect files. Native DLL search is restricted to System32, and DPAPI wrap
+  validates title and use before acting.
 - M109's preparation contracts now accept complete HTTPS OAuth issuer
   identifiers, including tenant paths and trailing slashes, while preserving
   exact issuer identity in grants, token material and use digests.

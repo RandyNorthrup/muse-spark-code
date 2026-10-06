@@ -18,8 +18,29 @@ internal static class VaultGuardCapture
     }
     private static void Validate(CngKey key, bool presence)
     { typeof(VaultCng).GetMethod("Validate", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { key, presence }); }
-    private static void Main()
+    private static int Main(string[] args)
     {
+        if (args.Length == 1 && (args[0] == "protocol" || args[0] == "dllCapture"))
+        {
+            // This declared entry point returns int; reflection is used only by the test fixture.
+            int code = (int)typeof(MuseSparkVault).GetMethod("Main", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { new string[0] });
+            if (args[0] == "dllCapture")
+            {
+                bool system = false, foreign = false;
+                string windows = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+                using (var process = System.Diagnostics.Process.GetCurrentProcess())
+                foreach (System.Diagnostics.ProcessModule module in process.Modules)
+                {
+                    if (!String.Equals(System.IO.Path.GetFileName(module.FileName), "ncrypt.dll", StringComparison.OrdinalIgnoreCase)) continue;
+                    string directory = System.IO.Path.GetDirectoryName(module.FileName);
+                    bool trusted = String.Equals(directory, System.IO.Path.Combine(windows, "System32"), StringComparison.OrdinalIgnoreCase) ||
+                        String.Equals(directory, System.IO.Path.Combine(windows, "SysWOW64"), StringComparison.OrdinalIgnoreCase);
+                    system |= trusted; foreign |= !trusted;
+                }
+                MuseSparkVault.Reply(new { systemNcryptLoaded = system, foreignNcryptLoaded = foreign }, null);
+            }
+            return code;
+        }
         var result = new Dictionary<string, object>();
         var identity = new Dictionary<string, object> { { "slotId", new String('1', 32) }, { "vaultId", new String('2', 32) }, { "tier", "hardware" } };
         result.Add("identityAcceptsOwn", MuseSparkVault.Identity(identity).StartsWith("MuseSparkVault."));
@@ -93,6 +114,7 @@ internal static class VaultGuardCapture
         result.Add("currentUserCreation", VaultMemoryKsp.OnlyCurrentUser);
         VaultMemoryHello.Capture(result);
         Console.WriteLine(MuseSparkVault.Json.Serialize(result));
+        return 0;
     }
 }
 }

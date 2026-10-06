@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events'
-import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { windowsVaultTransport } from '../../src/runtime/vault/slots/windowsVaultTransport'
 import { UI_TEXT, VAULT_APPROVAL_TTL_MS, VAULT_LIMITS } from '../../src/shared/constants'
@@ -12,6 +12,28 @@ import type { RunProgram } from '../../src/host/processTree'
 const processStub = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn() }))
 vi.mock('node:child_process', () => processStub)
 const folders: string[] = []
+beforeEach(() => {
+  processStub.execFile.mockImplementation(
+    (_file, args: string[], _options, callback: (error: Error | null) => void) => {
+      const encoded = args.at(-1)
+      const directory =
+        encoded === undefined
+          ? undefined
+          : /\$target = '([^']+)'/u.exec(Buffer.from(encoded, 'base64').toString('utf16le'))?.[1]
+      if (directory === undefined) {
+        callback(new Error('unexpected compiler'))
+        return
+      }
+      void mkdir(directory)
+        .then(() => {
+          callback(null)
+        })
+        .catch(() => {
+          callback(new Error('prepare failed'))
+        })
+    },
+  )
+})
 afterEach(async () => {
   vi.useRealTimers()
   vi.resetAllMocks()
@@ -28,11 +50,17 @@ function child() {
   processStub.spawn.mockReturnValue(instance)
   return instance
 }
-const helper = path.resolve('temp/MuseSparkVault.exe')
+const helper = {
+  file: path.resolve('temp/MuseSparkVault.exe'),
+  sha256: 'a'.repeat(64),
+  powershell: path.resolve('Windows/System32/WindowsPowerShell/v1.0/powershell.exe'),
+  rebuild: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+  report: vi.fn(),
+}
 const header = Buffer.from(JSON.stringify({ v: 1, operation: 'probe' }))
 
 describe('Windows helper private transport', () => {
-  it('uses empty argv/environment, hidden console and binary stdin only', async () => {
+  it('verifies before sending binary stdin, with empty environment and hidden console', async () => {
     const instance = child()
     const input: Buffer[] = []
     instance.stdin.on('data', (bytes: Buffer) => {
@@ -49,12 +77,15 @@ describe('Windows helper private transport', () => {
       }),
     )
     const pending = windowsVaultTransport(helper).exchange(wrapHeader, key)
-    expect(processStub.spawn).toHaveBeenCalledWith(helper, [], {
+    expect(processStub.spawn).toHaveBeenCalledWith(helper.powershell, expect.any(Array), {
+      cwd: path.dirname(helper.powershell),
       env: {},
       stdio: 'pipe',
       shell: false,
       windowsHide: true,
     })
+    expect(input).toHaveLength(0)
+    instance.stdout.emit('data', Buffer.from([1]))
     const raw = Buffer.concat(input)
     expect(raw.readUInt32BE()).toBe(wrapHeader.length)
     expect(raw.subarray(4, 4 + wrapHeader.length)).toEqual(wrapHeader)
@@ -73,9 +104,51 @@ describe('Windows helper private transport', () => {
     output.fill(0)
   })
   it('rejects relative paths and non-executable targets', () => {
-    expect(() => windowsVaultTransport('helper.exe')).toThrow(UI_TEXT.vault.noAccess)
-    expect(() => windowsVaultTransport(path.resolve('helper.cmd'))).toThrow(UI_TEXT.vault.noAccess)
+    expect(() => windowsVaultTransport({ ...helper, file: 'helper.exe' })).toThrow(
+      UI_TEXT.vault.noAccess,
+    )
+    expect(() => windowsVaultTransport({ ...helper, file: path.resolve('helper.cmd') })).toThrow(
+      UI_TEXT.vault.noAccess,
+    )
+    expect(() => windowsVaultTransport({ ...helper, sha256: 'invalid' })).toThrow(
+      UI_TEXT.vault.noAccess,
+    )
+    expect(() => windowsVaultTransport({ ...helper, powershell: 'powershell.exe' })).toThrow(
+      UI_TEXT.vault.noAccess,
+    )
     expect(processStub.spawn).not.toHaveBeenCalled()
+  })
+  it('reports and rebuilds a refused helper without sending private input', async () => {
+    const instance = child()
+    const rebuild = vi.fn<() => Promise<void>>(() => Promise.resolve())
+    const report = vi.fn()
+    const pending = windowsVaultTransport({ ...helper, rebuild, report }).exchange(
+      header,
+      new Uint8Array(),
+    )
+    instance.emit('close', 23)
+    await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(instance.stdin.readableLength).toBe(0)
+    expect(report).toHaveBeenCalledOnce()
+    expect(rebuild).toHaveBeenCalledOnce()
+  })
+  it('refuses unrecognized readiness without sending input', async () => {
+    const instance = child()
+    const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    instance.stdout.emit('data', Buffer.from([2]))
+    instance.emit('close', 0)
+    await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(instance.stdin.readableLength).toBe(0)
+  })
+  it('sanitizes synchronous stdin failure after verified readiness', async () => {
+    const instance = child()
+    vi.spyOn(instance.stdin, 'write').mockImplementation(() => {
+      throw new Error('private write failure')
+    })
+    const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
+    instance.stdout.emit('data', Buffer.from([1]))
+    await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(instance.kill).toHaveBeenCalledWith('SIGKILL')
   })
   it('refuses malformed headers and pre-aborted calls without spawning', async () => {
     const abort = new AbortController()
@@ -105,6 +178,7 @@ describe('Windows helper private transport', () => {
         new Uint8Array(),
       )
       const rejection = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
+      instance.stdout.emit('data', Buffer.from([1]))
       const chunk = Buffer.from('private value')
       instance.stdout.emit('data', chunk)
       switch (fault) {
@@ -175,6 +249,7 @@ describe('Windows helper private transport', () => {
     const instance = child()
     const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
     const rejected = expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
+    instance.stdout.emit('data', Buffer.from([1]))
     const oversized = Buffer.alloc(VAULT_LIMITS.text + 32 + 4 + 1, 42)
     instance.stdout.emit('data', oversized)
     instance.emit('close', 0)
@@ -204,6 +279,7 @@ describe('Windows helper private transport', () => {
       header,
       new Uint8Array(),
     )
+    instance.stdout.emit('data', Buffer.from([1]))
     instance.emit('close', 0)
     await pending
     controller.abort()
@@ -245,7 +321,7 @@ describe('Windows vault helper compiler', () => {
       '/reference:' +
         path.win32.join(deps.systemRoot, 'Microsoft.NET/Framework/v4.0.30319/System.Security.dll'),
     )
-    expect(await readdir(path.dirname(first))).toEqual([path.basename(first)])
+    expect(await readdir(path.dirname(first.file))).toEqual([path.basename(first.file)])
     const second = await windowsVaultExecutable({
       ...deps,
       readSource: () => Promise.resolve('test source two'),
@@ -262,7 +338,8 @@ describe('Windows vault helper compiler', () => {
       run: () => Promise.reject(new Error('private compiler diagnostic')),
     }
     await expect(windowsVaultExecutable(deps)).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(await readdir(path.join(storageDir, 'vault-helper'))).toEqual([])
+    const names = await readdir(storageDir)
+    for (const name of names) expect(await readdir(path.join(storageDir, name))).toEqual([])
     await expect(windowsVaultExecutable({ ...deps, storageDir: 'relative' })).rejects.toThrow(
       UI_TEXT.vault.noAccess,
     )
@@ -291,6 +368,6 @@ describe('Windows vault helper compiler', () => {
         readSource: () => Promise.resolve('test source'),
       }),
     ).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(processStub.execFile).toHaveBeenCalledOnce()
+    expect(processStub.execFile).toHaveBeenCalledTimes(2)
   })
 })

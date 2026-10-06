@@ -5,12 +5,17 @@ namespace MuseSparkVaultNative
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web.Script.Serialization;
 
 internal static class MuseSparkVault
 {
+    private const uint System32Search = 0x800;
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool SetDefaultDllDirectories(uint flags);
     internal const int Version = 1, KeyBytes = 32, HeaderLimit = 4096;
     internal static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = HeaderLimit };
 
@@ -103,6 +108,7 @@ internal static class MuseSparkVault
         byte[] key = null; byte[] outputKey = null;
         try
         {
+            if (!SetDefaultDllDirectories(System32Search)) throw new InvalidOperationException();
             if (args.Length != 0) throw new InvalidDataException();
             Dictionary<string, object> request;
             using (var input = Console.OpenStandardInput())
@@ -143,6 +149,7 @@ internal static class MuseSparkVault
                 else if (operation == "wrap")
                 {
                     Fields(request, "v", "operation", "identity", "title", "use");
+                    Text(request, "title"); Text(request, "use");
                     var container = new Dictionary<string, object> { { "v", Version }, { "identity", identity } };
                     byte[] wrapped = null;
                     try

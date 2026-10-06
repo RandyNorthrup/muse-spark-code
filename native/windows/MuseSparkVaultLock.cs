@@ -7,8 +7,10 @@ using System.Windows.Forms;
 internal sealed class VaultScreenLock : Form
 {
     private const int WmSessionChange = 0x2b1, SessionLock = 0x7, NotifyThisSession = 0;
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("wtsapi32.dll", SetLastError = true)]
     private static extern bool WTSRegisterSessionNotification(IntPtr window, int flags);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("wtsapi32.dll")]
     private static extern bool WTSUnRegisterSessionNotification(IntPtr window);
     private VaultScreenLock() { ShowInTaskbar = false; }

@@ -3918,6 +3918,13 @@ M109's Windows vault helper is prepared for integration with the shared broker.
 It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
 presence uses a forced-protection key plus a fresh Windows Hello signature in
 the helper's own window. Missing TPM or Hello support refuses those slots.
+Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
+and every ancestor for unsafe permissions or reparse points. The system
+PowerShell process holds a handle denying writes and deletion while running
+the verified managed entry point; private input follows its readiness signal.
+A refused cache is left intact and rebuilt in a fresh private directory.
+Only this process's completed builds are reused; native DLL imports and the
+helper's startup search are restricted to System32.
 Existing credential storage is unchanged until the broker and migration lanes
 are integrated. The [Windows certification](docs/certification/m109-pw.md)
 records the generated-material captures and the remaining hardware checks.
