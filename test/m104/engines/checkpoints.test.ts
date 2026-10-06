@@ -2,6 +2,7 @@ import { realpathSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   createRuntimeCheckpoints,
@@ -37,6 +38,10 @@ import { paidHarness } from './paidHarness'
 import { createRuntimeMcp } from '../../../src/runtime/features/mcp'
 import { readMcpServerEntries } from '../../../src/core/backends/musecode/museConfigView'
 import { FAKE_MCP_SERVER, fixtureJobLifecycle } from '../../unit/helpers/mcpFixtures'
+import { createRuntimeCodeIntel } from '../../../src/runtime/features/codeIntel'
+import type { HostServices } from '../../../src/shared/hostApi/methods'
+import { parseMhpResult } from '../../../src/shared/hostApi/protocol'
+import { MHP } from '../../../src/shared/constants'
 
 const folders: string[] = []
 const runtimes: RuntimeBackend[] = []
@@ -110,6 +115,7 @@ async function setup() {
       | 'paidUsage'
       | 'exec'
       | 'mcp'
+      | 'codeIntel'
     > = {},
   ) => {
     const runtime = createRuntimeBackend({
@@ -186,6 +192,64 @@ async function changeNote(
 }
 
 describe('portable checkpoint backend recording', () => {
+  it('runs native definition data through the actual Model API tool and drains it with the backend', async () => {
+    const { root, create, backend, api } = await setup()
+    const file = path.join(root, 'note.ts')
+    const text = 'const a = 1\r\n'
+    await writeFile(file, text)
+    const uri = pathToFileURL(file).href
+    const range = { start: { line: 0, character: 6 }, end: { line: 0, character: 7 } }
+    const requests: string[] = []
+    const host: HostServices = {
+      request: (method) => {
+        requests.push(method)
+        const result =
+          method === 'documents/read'
+            ? { document: { uri, version: 1, dirty: false, languageId: 'typescript' }, text }
+            : [{ uri, range }]
+        return Promise.resolve(
+          parseMhpResult(method, { jsonrpc: MHP.jsonRpcVersion, id: 1, result }).result,
+        )
+      },
+      notify: () => undefined,
+    }
+    const service = createRuntimeCodeIntel({
+      host,
+      workspaceRoot: root,
+      platform: process.platform,
+      realPath: (target) => Promise.resolve(realpathSync.native(target)),
+      assertCurrent: () => undefined,
+      canUseTools: () => true,
+      libraryRoots: () => [],
+    })
+    const runtime = backend('modelApi', () => create(), { codeIntel: () => service })
+    const agent = await runtime.backend.hostFor(root)
+    const session = await agent.startSession({
+      workspaceRoot: root,
+      modelId: 'muse-spark-1.3',
+      approvalMode: 'allowAll',
+    })
+    const watched = watchSessionTurns(session)
+    api.script(
+      { calls: [{ name: 'find_definition', arguments: '{"path":"note.ts","line":1,"column":7}' }] },
+      { text: 'done' },
+    )
+    const done = watched.turnDone()
+    await session.sendTurn([{ type: 'text', text: 'find the definition' }])
+    await done
+    expect(requests).toContain('codeIntel/definition')
+    expect(watched.events).toContainEqual(
+      expect.objectContaining({
+        type: 'itemCompleted',
+        item: expect.objectContaining({
+          tool: 'find_definition',
+          visibleOutput: expect.stringContaining('note.ts:1:7'),
+        }),
+      }),
+    )
+    await runtime.close()
+    await expect(service.service.open(file)).rejects.toThrow()
+  })
   it('uses the installed pool factory in the actual runtime session and exposes its live snapshot', async () => {
     const { root, create, backend, api, log } = await setup()
     const service = await create()
@@ -247,9 +311,13 @@ describe('portable checkpoint backend recording', () => {
     const { paid } = paidHarness(['imageGeneration'])
     const checkpointFactory = vi.fn(() => create())
     const mcp = vi.fn(() => Promise.reject(new Error('exec must not start an interactive pool')))
+    const codeIntel = vi.fn(() => {
+      throw new Error('exec must not acquire an editor service')
+    })
     const runtime = backend('modelApi', checkpointFactory, {
       interactivePaid: paid,
       mcp,
+      codeIntel,
       exec: { isEphemeral: true, headlessPaid: () => Promise.resolve(false), streamIdleMs: 1 },
     })
     expect(runtime.paid).not.toBe(paid)
@@ -257,6 +325,7 @@ describe('portable checkpoint backend recording', () => {
     expect(runtime.checkpointsFor).toBeUndefined()
     expect(runtime.hooksFor).toBeUndefined()
     expect(runtime.mcpSnapshotFor).toBeUndefined()
+    expect(runtime.codeIntelFor).toBeUndefined()
     const host = await runtime.backend.hostFor(root)
     const session = await host.startSession({
       workspaceRoot: root,
@@ -265,6 +334,7 @@ describe('portable checkpoint backend recording', () => {
     })
     expect(session.schedules).toBeUndefined()
     expect(mcp).not.toHaveBeenCalled()
+    expect(codeIntel).not.toHaveBeenCalled()
     expect(checkpointFactory).not.toHaveBeenCalled()
     await runtime.close()
     await paid.dispose()

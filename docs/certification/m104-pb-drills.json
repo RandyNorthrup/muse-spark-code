@@ -1,19 +1,5 @@
 [
   {
-    "drill": "review-trust",
-    "file": "src/runtime/features/editReview.ts",
-    "exitCode": 1,
-    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
-    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9"
-  },
-  {
-    "drill": "review-release",
-    "file": "src/runtime/features/editReview.ts",
-    "exitCode": 1,
-    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
-    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9"
-  },
-  {
     "drill": "review-admission",
     "file": "src/runtime/features/editReview.ts",
     "exitCode": 1,
@@ -299,5 +285,110 @@
     "exitCode": 1,
     "sha256Before": "3b072e96daded539cb1983157b2c5310df940ab6d13a471d00e99b08ec3b00d9",
     "sha256Restored": "3b072e96daded539cb1983157b2c5310df940ab6d13a471d00e99b08ec3b00d9"
+  },
+  {
+    "drill": "intel-owner",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-capability",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-release",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-protected",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-version",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-dirty",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-document-uri",
+    "file": "src/runtime/features/codeIntel.ts",
+    "exitCode": 1,
+    "sha256Before": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2",
+    "sha256Restored": "665b64a4a75d8b56258ec423a8042916fdde6bc52e1409ac03bdc50f4a9e06d2"
+  },
+  {
+    "drill": "intel-runtime-binding",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "04dc240d74b5dc89701c3e114ec1dfa0efa1d5117ceea004cc17e35ea40cb75c",
+    "sha256Restored": "04dc240d74b5dc89701c3e114ec1dfa0efa1d5117ceea004cc17e35ea40cb75c"
+  },
+  {
+    "drill": "intel-exec-exclusion",
+    "file": "src/runtime/backends.ts",
+    "exitCode": 1,
+    "sha256Before": "04dc240d74b5dc89701c3e114ec1dfa0efa1d5117ceea004cc17e35ea40cb75c",
+    "sha256Restored": "04dc240d74b5dc89701c3e114ec1dfa0efa1d5117ceea004cc17e35ea40cb75c"
+  },
+  {
+    "drill": "review-trust",
+    "file": "src/runtime/features/review.ts",
+    "exitCode": 1,
+    "sha256Before": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4",
+    "sha256Restored": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4"
+  },
+  {
+    "drill": "review-capability",
+    "file": "src/runtime/features/review.ts",
+    "exitCode": 1,
+    "sha256Before": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4",
+    "sha256Restored": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4"
+  },
+  {
+    "drill": "review-owner",
+    "file": "src/runtime/features/review.ts",
+    "exitCode": 1,
+    "sha256Before": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4",
+    "sha256Restored": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4"
+  },
+  {
+    "drill": "review-release",
+    "file": "src/runtime/features/review.ts",
+    "exitCode": 1,
+    "sha256Before": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4",
+    "sha256Restored": "fb9c3504d6ffb4af6a237b9c9be2dce7f3ff421bbca15a31e23bf65edd3e65c4"
+  },
+  {
+    "drill": "review-mode-pre-admission",
+    "file": "src/core/review/planModeHold.ts",
+    "exitCode": 1,
+    "sha256Before": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555",
+    "sha256Restored": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555"
+  },
+  {
+    "drill": "review-mode-owner",
+    "file": "src/core/review/planModeHold.ts",
+    "exitCode": 1,
+    "sha256Before": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555",
+    "sha256Restored": "ea9f1ab472411c92452883c6fb2966e68acf96921b9b8266952742c25b386555"
   }
 ]

@@ -220,3 +220,40 @@ they do not supply provider wire captures or installed-provider qualification.
 Add these adapters to A's own named lazy entry/knip discovery without increasing
 startup/deferred caps or broadening MODEL_TEXT readers. No build/config or
 shared-schema file was changed by B.
+
+### A/C/D/E/F — portable review support and F30 native language services
+
+Bind `RuntimeBackendDeps.codeIntel(root)` to `createRuntimeCodeIntel` from
+`src/runtime/features/codeIntel.ts`. Supply the validated HostServices pipe,
+canonical workspace/platform, realPath, immutable current owner, negotiated
+native language capability, selected-model tool capability and native editor/
+SDK library roots. The backend shares the owner per workspace, exposes
+`codeIntelFor(root)`, injects its real service into the Model API engine and
+aborts/drains it at shutdown. Exec ignores it. Muse Code's ide endpoint must
+reuse `service` with the existing `ideCodeIntelTools`/codeIntel.js bundle and
+checkpoint/process admission. No editor-only side path replaces the tool.
+
+All frozen definition/reference/hover/symbol/hierarchy/rename/read methods are
+validated and consumed. The symbol schema is flat and omits detail/children:
+capture the actual native nested data before A expands it; never invent a
+provider shape. Rename replies require correct expectedVersion for EVERY file,
+fileOperations (none/present/unknown) and current saved-buffer data; core rename
+still checks confinement, ranges, text and dirty aliases before guarded writes.
+Publish the live dirty buffer paths via the existing unsavedPaths binding.
+Exercise Windows separators/URI casing, symlink retarget, version/dirty races,
+virtual/outside results, null hierarchy, missing service and release cancellation.
+
+Bind `createRuntimeReview(deps, table, locale)` from
+`src/runtime/features/review.ts` as the existing conversation `review` port;
+register its awaited dispose immediately with the owning conversation/profile.
+It reuses real shared Git collection and Plan-mode hold, not UI events alone.
+Its runGit accepts args/cwd/timeout plus AbortSignal: use the trusted sanitized
+Git process, exact before-launch owner fence and native cancellation. Supply the
+real single-picker, live trust/current owner and selected catalog support for
+the backend's review path. Captured support is not a provider-name inference.
+Keep REVIEW_MODEL_TEXT in its existing declared review.js reader: A should ship
+the factory in that lazy entry or explicitly guard a new named reader without
+raising any cap. C renders the resulting material/findings using shared views.
+The optional PlanModeHoldDeps.isCurrent is now checked before each mode change;
+the controller's original callback still protects turn admission and user mode
+choices. Dispose before a replaced conversation can send/restore any old hold.

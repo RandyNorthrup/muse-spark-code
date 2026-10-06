@@ -51,6 +51,8 @@ import type { RuntimeCheckpoints } from './features/checkpoints'
 import type { VerifyHooks } from '../core/backends/modelapi/verifyLoop'
 import type { createRuntimeVerify } from './features/verify'
 import type { createRuntimeHooks } from './features/hooks'
+import type { createRuntimeCodeIntel } from './features/codeIntel'
+import type { LanguageServiceHost } from '../core/codeIntel/languageService'
 import type { McpPoolSnapshot, McpToolSource } from '../core/backends/modelapi/mcp/pool'
 import type { ScheduleStore } from '../shared/schedule'
 import type { McpPoolFactory } from '../host/backend/modelApiBundle'
@@ -115,6 +117,7 @@ export interface RuntimeBackendDeps {
   /** Interactive editor verification; its portable owner drains it during profile release. */
   readonly verify?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
   readonly hooks?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
+  readonly codeIntel?: (workspaceRoot: string) => ReturnType<typeof createRuntimeCodeIntel>
   readonly mcp?: (
     workspaceRoot: string,
     newPool: McpPoolFactory,
@@ -148,6 +151,7 @@ export interface RuntimeBackend {
   readonly checkpointsFor?: (workspaceRoot: string) => Promise<RuntimeCheckpoints>
   readonly verifyFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeVerify>
   readonly hooksFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeHooks>
+  readonly codeIntelFor?: (workspaceRoot: string) => ReturnType<typeof createRuntimeCodeIntel>
   readonly mcpSnapshotFor?: (workspaceRoot: string) => McpPoolSnapshot | undefined
 }
 
@@ -203,6 +207,7 @@ function modelApiManager(
   assertWorkspaceCurrent: () => void,
   checkpoints: RuntimeCheckpoints | undefined,
   verify: VerifyHooks | undefined,
+  codeIntel: LanguageServiceHost | undefined,
 ): ModelApiBackendManager {
   const { options, log, platform } = deps
   const paidUsage = deps.exec === undefined ? deps.paidUsage : undefined
@@ -325,6 +330,7 @@ function modelApiManager(
     workspaceEdits,
     io,
     ...(verify !== undefined && { verify }),
+    ...(codeIntel !== undefined && { codeIntel }),
     ...(checkpoints !== undefined && {
       beforeTurnRuns: (sessionId, turnId, top) =>
         prepareCheckpointTurn(checkpoints.port, recorder, sessionId, turnId, log, top),
@@ -441,6 +447,8 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   const verifyFactory = deps.exec === undefined ? deps.verify : undefined
   const hookHosts = new Map<string, ReturnType<typeof createRuntimeHooks>>()
   const hookFactory = deps.exec === undefined ? deps.hooks : undefined
+  const codeIntelHosts = new Map<string, ReturnType<typeof createRuntimeCodeIntel>>()
+  const codeIntelFactory = deps.exec === undefined ? deps.codeIntel : undefined
   let isDisposed = false
   let closing: Promise<void> | undefined
   const assertOpen = () => {
@@ -458,6 +466,13 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     if (hookFactory === undefined) throw new Error('MHP_HOOKS_UNAVAILABLE')
     const service = hookHosts.get(root) ?? hookFactory(root)
     hookHosts.set(root, service)
+    return service
+  }
+  const codeIntelFor = (root: string) => {
+    assertOpen()
+    if (codeIntelFactory === undefined) throw new Error('MHP_CODE_INTEL_UNAVAILABLE')
+    const service = codeIntelHosts.get(root) ?? codeIntelFactory(root)
+    codeIntelHosts.set(root, service)
     return service
   }
   const checkpointsFor = async (root: string): Promise<RuntimeCheckpoints> => {
@@ -605,6 +620,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       assertWorkspaceCurrent,
       checkpoints,
       verifyFactory === undefined ? undefined : verifyFor(cwd).verify,
+      codeIntelFactory === undefined ? undefined : codeIntelFor(cwd).service,
     )
     modelApiHosts.set(cwd, { manager, identity: key })
     return await manager.ensureHost()
@@ -637,6 +653,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     ...(checkpointFactory !== undefined && { checkpointsFor }),
     ...(verifyFactory !== undefined && { verifyFor }),
     ...(hookFactory !== undefined && { hooksFor }),
+    ...(codeIntelFactory !== undefined && { codeIntelFor }),
     ...(deps.exec === undefined &&
       deps.mcp !== undefined && {
         mcpSnapshotFor: (root: string) => modelApiHosts.get(root)?.manager.mcpSnapshot(),
@@ -653,6 +670,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         const checking = [
           ...Array.from(verifyHosts.values(), (service) => service.dispose()),
           ...Array.from(hookHosts.values(), (service) => service.dispose()),
+          ...Array.from(codeIntelHosts.values(), (service) => service.dispose()),
           ...(deps.exec === undefined && deps.interactivePaid !== undefined
             ? [deps.interactivePaid.dispose()]
             : []),
@@ -665,6 +683,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
         const verified = await Promise.allSettled(checking)
         verifyHosts.clear()
         hookHosts.clear()
+        codeIntelHosts.clear()
         const released = await Promise.allSettled(
           Array.from(checkpointHosts.values(), async (pending) => {
             const services = await pending
