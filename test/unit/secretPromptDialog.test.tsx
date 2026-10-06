@@ -55,7 +55,7 @@ afterEach(() => {
 })
 
 describe('the secret-prompt hold (M92e)', () => {
-  it('holds the send, shows the dialog over the restored draft, and sends on anyway with the acceptance', () => {
+  it('holds the send, shows the dialog over the restored draft, and sends on anyway with the acceptance', async () => {
     const { postMessage, deliver } = renderPanel()
     submit(TEXT)
     expect(postMessage).toHaveBeenCalledWith(
@@ -63,7 +63,7 @@ describe('the secret-prompt hold (M92e)', () => {
     )
     expect(postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ secretAccepted: true }))
     deliver(HOLD)
-    const dialog = screen.getByRole('dialog', { name: UI_TEXT.secretPromptTitle })
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.secretPromptTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.secretPromptDetail)
     expect(dialog).toHaveTextContent(REDACTED)
     // The draft is back for editing; the optimistic card is gone.

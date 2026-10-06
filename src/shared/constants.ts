@@ -347,6 +347,7 @@ export const SETTING_DEFAULTS = {
   cleanupPeriodDays: 30,
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
+  'shell.passEnvironmentVariables': [] as readonly string[],
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -488,6 +489,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'allowDangerouslySkipPermissions',
   'museBinaryPath',
   'environmentVariables',
+  'shell.passEnvironmentVariables',
   'modelApiWebSearch',
   'modelApiImageGeneration',
   'modelApiVoice',
@@ -628,6 +630,19 @@ export const HOOK_FORBIDDEN_ENV_NAMES: ReadonlySet<string> = new Set([
   'OPENAI_KEY',
   'ANTHROPIC_KEY',
   'META_KEY',
+  'GEMINI_KEY',
+  'GOOGLE_APPLICATION_CREDENTIALS',
+])
+// D89.5: harmless names remain available; only these exact look-alikes are exempt.
+export const CREDENTIAL_ENV_ALLOWED_NAMES: ReadonlySet<string> = new Set([
+  'TOKENIZERS_PARALLELISM',
+  'KEY_PATH',
+])
+// Credential routes whose names do not end in a standard credential suffix.
+export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
+  'SYSTEM_ACCESSTOKEN',
+  'DOCKER_AUTH_CONFIG',
+  'AZURE_STORAGE_SAS',
 ])
 // M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one
@@ -2962,6 +2977,10 @@ export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
 // tool returns anyway: a background process it started (`server &`) can
 // hold the pipes open for as long as it runs (PLAN.md D25).
 export const SHELL_DRAIN_GRACE_MS = 250
+// SIGKILL delivery to the leader can precede a descendant's actual exit.
+// Keep POSIX cleanup bounded even if a process cannot finish exiting.
+export const POSIX_TREE_EXIT_WAIT_MS = 2000
+export const POSIX_TREE_EXIT_POLL_MS = 20
 // A child the shell starts while `taskkill /T` enumerates its tree outlives
 // the kill (PLAN.md D25, M27). On Windows each command therefore runs in a
 // job object of its own, named so a Stop can end it whole; the helper type

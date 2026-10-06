@@ -4,6 +4,7 @@
 // recording; no `vscode` here.
 
 import { spawn } from 'node:child_process'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import type { Readable, Writable } from 'node:stream'
 import type { HelperChild, HelperInvocation } from '../../core/voice/dictation'
 import { helperEnvironment } from '../../core/voice/helperLocation'
@@ -25,7 +26,7 @@ export interface HelperProcess {
 function startProcess(invocation: HelperInvocation): HelperProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is fixed by helperLocation.ts (Windows PowerShell under %SystemRoot% with the bundled script, or the bundled macOS binary with VS Code's own app name) and passed as an argument array; nothing from the user, the model or the workspace is in it (PLAN.md §8)
   return spawn(invocation.command, [...invocation.args], {
-    env: helperEnvironment(process.env, invocation, process.platform),
+    env: withoutCredentials(helperEnvironment(process.env, invocation, process.platform)),
     windowsHide: true,
     stdio: ['pipe', 'pipe', 'pipe'],
   })
@@ -129,7 +130,11 @@ export function openWebSocket(url: string, handlers: VoiceSocketHandlers): Voice
 /** The system's recorder, one process per recording (Linux, M35). */
 export function startRecorder(command: string, args: readonly string[]): RecorderProcess {
   // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command is arecord or parec found by absolute path on PATH (helperLocation.ts, resolveExecutable) with fixed arguments from constants.ts; nothing from the user, the model or the workspace is in it (PLAN.md §8)
-  const child = spawn(command, [...args], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+  const child = spawn(command, [...args], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
+    env: withoutCredentials(process.env),
+  })
   let exitListener: ((description: string) => void) | undefined
   watchExit(child, (description) => {
     exitListener?.(description)

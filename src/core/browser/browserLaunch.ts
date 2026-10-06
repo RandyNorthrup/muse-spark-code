@@ -13,6 +13,7 @@
 // folders, and a home and temporary folder under the check's own folder.
 // Pure.
 
+import { isCredentialVariable } from '../credentialEnvironment'
 import {
   BROWSER_BLANK_PAGE,
   BROWSER_FORBIDDEN_SWITCHES,
@@ -162,6 +163,7 @@ export function browserEnvironment(
 ): Readonly<Record<string, string>> {
   const out: Record<string, string> = {}
   const keep = (name: string): void => {
+    if (isCredentialVariable(name)) return
     const value = valueOf(env, platform, name)
     if (value !== undefined) {
       out[name] = value

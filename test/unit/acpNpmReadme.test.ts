@@ -25,7 +25,8 @@ describe('the ACP agent npm landing page', () => {
     const declaration = /^const README = .*$/m.exec(script)?.[0] ?? ''
     expect(declaration).toContain('npm-readme.md')
     expect(declaration).not.toContain('acp.md')
-    expect(script).toContain("copyFileSync(README, path.join(STAGE, 'README.md'))")
+    expect(script).toContain("renderPackageReadme(readFileSync(README, 'utf8'), manifest.version)")
+    expect(script).toContain("['scripts/check-badges.mjs', '--packaged-acp', STAGE]")
   })
 
   it('has no relative link or image target', () => {

@@ -24,6 +24,8 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 
+import { withoutCredentials } from '../core/credentialEnvironment'
+
 const GIT = 'git'
 const PATH_VARIABLE = 'PATH'
 const GIT_MISSING = 'git was not found on the absolute entries of PATH'
@@ -142,7 +144,7 @@ function gitLocator(
 
 /** The extension's git environment: no optional locks, and never a credential prompt. */
 export function quietGitEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  return { ...env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
+  return { ...withoutCredentials(env), GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' }
 }
 
 export interface GitRunnerDeps {
@@ -381,7 +383,7 @@ export function createGitProcess(deps: GitProcessDeps): GitProcess {
       }
       const child = deps.spawn(git, [...args], {
         cwd: options.cwd,
-        env: options.env,
+        env: withoutCredentials(options.env),
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
       })
