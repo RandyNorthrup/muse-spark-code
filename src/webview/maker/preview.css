@@ -3,6 +3,15 @@ body {
   color: var(--vscode-foreground);
   background: var(--vscode-editorWidget-background);
   font-family: var(--vscode-font-family);
+  padding-bottom: 48px;
+}
+
+[data-maker-stop] {
+  position: fixed;
+  bottom: 8px;
+  right: 8px;
+  z-index: 1;
+  max-width: calc(100vw - 16px);
 }
 
 [id='maker-canvas'] {
@@ -10,6 +19,10 @@ body {
   width: min(100%, 640px);
   aspect-ratio: 1;
   margin: auto;
+}
+
+[id='maker-canvas'][data-rendered='false'] {
+  visibility: hidden;
 }
 
 .maker-preview-controls {

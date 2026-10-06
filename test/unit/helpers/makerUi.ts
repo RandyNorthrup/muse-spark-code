@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { createHash, webcrypto } from 'node:crypto'
 import type {
   ApprovalRequest,
   MakerHostMessage,
@@ -26,11 +27,11 @@ export const MAKER_UI_STATE: Extract<MakerHostMessage, { type: 'makerState' }> =
   machines: [MAKER_UI_MACHINE],
   ports: [{ kind: 'serial', port: 'COM7', vid: '303a', pid: '1001', serialNumber: 'board-one' }],
 }
-export function uiApproval(now = Date.now()): ApprovalRequest {
+export function uiApproval(now = Date.now()): Extract<ApprovalRequest, { kind: 'machine' }> {
   return {
     kind: 'machine',
     id: MAKER_UI_ID,
-    digest: 'a'.repeat(64),
+    digest: createHash('sha256').update('M104 S190').digest('hex'),
     expiresAt: now + 1000,
     action: 'actuate',
     target: {
@@ -50,6 +51,51 @@ export function uiApproval(now = Date.now()): ApprovalRequest {
       refused: [],
       hasMotion: false,
     },
+  }
+}
+
+export function installMakerBrowser() {
+  let pointed: Element | null = null
+  document.elementFromPoint = () => pointed
+  HTMLElement.prototype.scrollIntoView = vi.fn()
+  const observers: {
+    callback: (entries: IntersectionObserverEntry[]) => void
+    targets: Set<Element>
+  }[] = []
+  vi.stubGlobal('crypto', webcrypto)
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      public readonly targets = new Set<Element>()
+      public constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
+        observers.push({ callback, targets: this.targets })
+      }
+      public observe(target: Element) {
+        this.targets.add(target)
+      }
+      public disconnect() {
+        this.targets.clear()
+      }
+    },
+  )
+  return (indexes?: readonly number[]) => {
+    for (const observer of observers)
+      observer.callback(
+        [...observer.targets]
+          .filter((_target, index) => indexes === undefined || indexes.includes(index))
+          .map((target) => ({
+            target,
+            isIntersecting: true,
+            intersectionRatio: 1,
+            time: 0,
+            get boundingClientRect() {
+              pointed = target
+              return target.getBoundingClientRect()
+            },
+            intersectionRect: target.getBoundingClientRect(),
+            rootBounds: null,
+          })),
+      )
   }
 }
 export function uiBridge() {

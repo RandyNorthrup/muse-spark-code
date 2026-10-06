@@ -27,6 +27,22 @@
   min-height: 26px;
 }
 
+.maker-surface button:not([class]),
+.maker-toolbar button:not([class]) {
+  padding: 6px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ms-radius);
+  font: inherit;
+  cursor: pointer;
+  color: var(--vscode-button-secondaryForeground);
+  background: var(--vscode-button-secondaryBackground);
+}
+
+.maker-surface button:not([class]):hover:enabled,
+.maker-toolbar button:not([class]):hover:enabled {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
 .maker-surface .modal-backdrop {
   z-index: 40;
 }
@@ -50,6 +66,32 @@
 .maker-surface pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+.maker-surface .maker-payload {
+  flex-shrink: 0;
+  max-height: 40vh;
+  overflow: auto;
+  scroll-margin-top: 64px;
+  border: 1px solid var(--vscode-panel-border);
+  padding: 8px;
+}
+
+.maker-payload > span {
+  display: block;
+  min-height: 1em;
+  min-width: 1px;
+  scroll-margin-top: 64px;
+}
+
+.maker-surface form button[type='submit'] {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+
+.maker-approval-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .maker-surface label {

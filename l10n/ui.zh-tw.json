@@ -2409,5 +2409,14 @@
   "judgeStatusDeclined": "關閉：已拒絕付費使用",
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
-  "judgeStatusPaid": "付費"
+  "judgeStatusPaid": "付費",
+  "makerReadPayload": "閱讀傳送內容",
+  "makerNextPage": "下一頁",
+  "makerReviewProgress": "已檢查 {total} 行中的 {count} 行",
+  "makerLoadFailed": "無法載入裝置檢視。停止功能仍可使用。",
+  "makerRetry": "重試",
+  "makerCategoryPrinter": "3D印表機",
+  "makerCategoryCnc": "數控機床",
+  "makerCategoryLaser": "雷射加工機",
+  "makerCategoryRobot": "機器人"
 }

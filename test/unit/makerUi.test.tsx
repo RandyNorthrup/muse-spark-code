@@ -1,14 +1,30 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { MakerSurface } from '../../src/webview/maker/MakerSurface'
 import { MachineWizard } from '../../src/webview/maker/MachineWizard'
-import { uiApproval, uiBridge, MAKER_UI_STATE, MAKER_UI_MACHINE } from './helpers/makerUi'
+import {
+  uiApproval,
+  uiBridge,
+  MAKER_UI_STATE,
+  MAKER_UI_MACHINE,
+  installMakerBrowser,
+} from './helpers/makerUi'
+
+const browser: { visible: ReturnType<typeof installMakerBrowser> } = {
+  visible: () => {
+    throw new Error('browser setup')
+  },
+}
+beforeEach(() => {
+  browser.visible = installMakerBrowser()
+})
 
 afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 function renderMaker() {
   const result = uiBridge()
@@ -36,7 +52,13 @@ describe('shared maker views', () => {
     expect(dialog).toHaveTextContent(request.digest)
     expect(dialog).toHaveTextContent(MAKER_UI_MACHINE.registrationId)
     expect(dialog).toHaveTextContent('Klipper')
-    expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeEnabled()
+    expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeDisabled()
+    act(() => {
+      browser.visible()
+    })
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeEnabled(),
+    )
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce }))
     expect(post).toHaveBeenLastCalledWith({
       v: 1,

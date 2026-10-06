@@ -4153,6 +4153,18 @@ prompt; clients without one and native plugins use the same shared dialog
 through the companion page or their HostBridge. All use the same engine's
 single-use target binding.
 
+Send once stays disabled until every payload line has been visible or traversed
+in the Read payload region. Long payloads have Next page, which focuses the
+payload, and a reviewed-line count. Reject remains available throughout.
+Both payload views post `makerPreviewRendered {id, digest}` from their DOM
+bytes on paint, replacement, appearance changes and visibility return.
+For a native approval preview, the host supplies the approval UUID as the
+payload preview's `id` and its `encoding` (`text`, or `hex` for encoded bytes).
+Hex receipts hash the decoded displayed bytes. Legacy previews without an id
+are read-only and cannot supply an approval receipt. V/R must revoke changed
+receipts under the terminal-latch contract. Failed views retain Stop and offer
+Retry; Stop also remains available for serial-only targets.
+
 The separate `dist/webview/makerPreview.js` / `.css` page has a 25 KiB script
 cap. Its host-rendered HTML supplies localized buttons with `data-maker-view`
 values `left`, `right`, `in`, `out` and `reset`, a labelled `#maker-canvas`,
@@ -4165,6 +4177,10 @@ viewer. Runtime/native hosts can supply their own HostBridge to
 While machines are registered, the host also renders Stop buttons with
 `data-maker-stop="<machine id>"` (an empty value stops all). These work before
 geometry arrives and after a WebGL failure, without approval or admission.
+The Stop buttons stay fixed in the viewport. Invalid matching geometry clears
+the old view and shows the unavailable alert. Array size is checked before
+validation; accepted geometry is validated in bounded chunks with a deadline,
+and Stop cancels pending validation.
 The shared-view receipts and editor equivalence matrix are in
 [the UI certification](docs/certification/m103-u.md).
 

@@ -2599,5 +2599,14 @@
   "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
-  "judgeStatusPaid": "A pagamento"
+  "judgeStatusPaid": "A pagamento",
+  "makerReadPayload": "Leggi il contenuto",
+  "makerNextPage": "Pagina successiva",
+  "makerReviewProgress": "{count} di {total} righe esaminate",
+  "makerLoadFailed": "Impossibile caricare la vista dei dispositivi. L’arresto resta disponibile.",
+  "makerRetry": "Riprova",
+  "makerCategoryPrinter": "Stampante 3D",
+  "makerCategoryCnc": "Macchina CNC",
+  "makerCategoryLaser": "Macchina laser",
+  "makerCategoryRobot": "Dispositivo robotico"
 }

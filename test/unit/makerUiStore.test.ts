@@ -30,6 +30,8 @@ describe('maker UI echoes through the single host authority', () => {
     const request = uiApproval()
     const engine = new MakerApproval(request, () => true)
     store.receive({ v: 1, type: 'makerApproval', request })
+    store.previewRendered(request.id, request.digest)
+    post.mockClear()
     expect(store.answer(request.id, 'allow_once')).toBe(true)
     const raw = post.mock.calls[0]?.[0]
     expect(raw).toEqual({
@@ -68,6 +70,8 @@ describe('maker UI echoes through the single host authority', () => {
         () => now,
       )
       store.receive({ v: 1, type: 'makerApproval', request })
+      store.previewRendered(request.id, request.digest)
+      post.mockClear()
       store.answer(request.id, 'allow_once')
       const raw = post.mock.calls[0]?.[0]
       if (raw?.type !== 'makerAnswer') throw new Error('missing answer')

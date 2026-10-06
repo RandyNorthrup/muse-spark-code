@@ -2599,5 +2599,14 @@
   "judgeStatusDeclined": "Desactivado: uso de pago rechazado",
   "judgeStatusSlow": "Desactivado por defecto: pocos resultados listos al decidir el revisor",
   "judgeStatusSubscription": "Suscripción",
-  "judgeStatusPaid": "De pago"
+  "judgeStatusPaid": "De pago",
+  "makerReadPayload": "Leer contenido",
+  "makerNextPage": "Página siguiente",
+  "makerReviewProgress": "{count} de {total} líneas revisadas",
+  "makerLoadFailed": "No se pudo cargar la vista de dispositivos. Detener sigue disponible.",
+  "makerRetry": "Reintentar",
+  "makerCategoryPrinter": "Impresora 3D",
+  "makerCategoryCnc": "Máquina CNC",
+  "makerCategoryLaser": "Máquina láser",
+  "makerCategoryRobot": "Dispositivo robótico"
 }

@@ -1,0 +1,35 @@
+// @vitest-environment jsdom
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
+import { MakerSurface } from '../../src/webview/maker/MakerSurface'
+import { uiBridge, MAKER_UI_STATE } from './helpers/makerUi'
+
+const view = vi.hoisted(() => ({ fails: true }))
+vi.mock('../../src/webview/maker/DevicePanel', () => ({
+  DevicePanel: () => {
+    if (view.fails) throw new Error('chunk unavailable')
+    return <p>Devices recovered</p>
+  },
+}))
+afterEach(() => {
+  cleanup()
+  vi.restoreAllMocks()
+})
+it('a failed optional view preserves Stop and Retry remounts it', async () => {
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const { store, post } = uiBridge()
+  store.receive({ ...MAKER_UI_STATE, machines: [] })
+  render(<MakerSurface store={store} />)
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevicesTitle }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.makerLoadFailed)
+  expect(document.querySelector('.maker-toolbar')).toBeInTheDocument()
+  fireEvent.click(
+    screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-1) ?? document.body,
+  )
+  expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  view.fails = false
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerRetry }))
+  expect(await screen.findByText('Devices recovered')).toBeInTheDocument()
+  store.dispose()
+})

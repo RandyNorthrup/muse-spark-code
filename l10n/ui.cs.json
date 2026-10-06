@@ -2694,5 +2694,14 @@
   "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
-  "judgeStatusPaid": "Placené"
+  "judgeStatusPaid": "Placené",
+  "makerReadPayload": "Přečíst obsah",
+  "makerNextPage": "Další stránka",
+  "makerReviewProgress": "Zkontrolováno {count} z {total} řádků",
+  "makerLoadFailed": "Zobrazení zařízení se nepodařilo načíst. Zastavení je stále dostupné.",
+  "makerRetry": "Zkusit znovu",
+  "makerCategoryPrinter": "3D tiskárna",
+  "makerCategoryCnc": "CNC stroj",
+  "makerCategoryLaser": "Laserový stroj",
+  "makerCategoryRobot": "Robotické zařízení"
 }

@@ -2504,5 +2504,14 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "makerReadPayload": "Nutzdaten lesen",
+  "makerNextPage": "Nächste Seite",
+  "makerReviewProgress": "{count} von {total} Zeilen geprüft",
+  "makerLoadFailed": "Die Geräteansicht konnte nicht geladen werden. Stopp bleibt verfügbar.",
+  "makerRetry": "Erneut versuchen",
+  "makerCategoryPrinter": "3D-Drucker",
+  "makerCategoryCnc": "CNC-Maschine",
+  "makerCategoryLaser": "Lasermaschine",
+  "makerCategoryRobot": "Roboter"
 }

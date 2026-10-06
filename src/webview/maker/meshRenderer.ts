@@ -37,6 +37,7 @@ export function createMeshRenderer(canvas: HTMLCanvasElement, positions: readonl
   let program: WebGLProgram | null = null
   let buffer: WebGLBuffer | null = null
   const dispose = () => {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
     if (buffer !== null) gl.deleteBuffer(buffer)
     if (program !== null) gl.deleteProgram(program)
     for (const shader of shaders) gl.deleteShader(shader)

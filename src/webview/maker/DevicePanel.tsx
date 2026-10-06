@@ -28,6 +28,17 @@ export function DevicePanel({
   const [reason, setReason] = useState('')
   const isAllowed =
     admission?.isTrusted === true && admission.hardwareEnabled && admission.isInteractive
+  const action = (label: string, message: MakerSurfaceMessage, isDisabled = false) => (
+    <button
+      type="button"
+      disabled={isDisabled}
+      onClick={() => {
+        send(message)
+      }}
+    >
+      {label}
+    </button>
+  )
   return (
     <Modal title={UI_TEXT.makerDevicesTitle} titleId="maker-devices-title" onClose={onClose}>
       {stop}
@@ -40,15 +51,11 @@ export function DevicePanel({
       {admission?.isTrusted !== true && <p role="note">{UI_TEXT.makerTrustRequired}</p>}
       {admission?.isInteractive === false && <p role="note">{UI_TEXT.makerUnattendedDenied}</p>}
       {admission?.hardwareEnabled === true ? (
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={() => {
-            send({ v: MAKER_PROTOCOL_VERSION, type: 'makerHardware', enabled: false })
-          }}
-        >
-          {UI_TEXT.makerDisableHardware}
-        </button>
+        action(UI_TEXT.makerDisableHardware, {
+          v: MAKER_PROTOCOL_VERSION,
+          type: 'makerHardware',
+          enabled: false,
+        })
       ) : (
         <form
           onSubmit={(event) => {
@@ -73,7 +80,6 @@ export function DevicePanel({
           </label>
           <button
             type="submit"
-            className="button-primary"
             disabled={
               admission?.isTrusted !== true || !admission.isInteractive || reason.trim() === ''
             }
@@ -94,31 +100,21 @@ export function DevicePanel({
           <p>
             <code>{machine.kind}</code> · <code>{machine.endpoint}</code>
           </p>
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={!isAllowed}
-            onClick={() => {
-              send({ v: MAKER_PROTOCOL_VERSION, type: 'makerStatus', machineId: machine.id })
-            }}
-          >
-            {UI_TEXT.makerStatusLabel}
-          </button>
-          <button
-            type="button"
-            className="button-secondary"
-            disabled={!admission.isTrusted || !admission.isInteractive}
-            onClick={() => {
-              send({
-                v: MAKER_PROTOCOL_VERSION,
-                type: 'makerRemoveMachine',
-                registrationId: machine.registrationId,
-                machineId: machine.id,
-              })
-            }}
-          >
-            {UI_TEXT.makerRemoveMachine}
-          </button>
+          {action(
+            UI_TEXT.makerStatusLabel,
+            { v: MAKER_PROTOCOL_VERSION, type: 'makerStatus', machineId: machine.id },
+            !isAllowed,
+          )}
+          {action(
+            UI_TEXT.makerRemoveMachine,
+            {
+              v: MAKER_PROTOCOL_VERSION,
+              type: 'makerRemoveMachine',
+              registrationId: machine.registrationId,
+              machineId: machine.id,
+            },
+            !admission.isTrusted || !admission.isInteractive,
+          )}
           {state.statuses.has(machine.id) && (
             <MachineStatus status={state.statuses.get(machine.id)} />
           )}
@@ -129,7 +125,6 @@ export function DevicePanel({
       ))}
       <button
         type="button"
-        className="button-secondary"
         disabled={admission?.isTrusted !== true || !admission.isInteractive}
         onClick={onAdd}
       >
@@ -142,16 +137,13 @@ export function DevicePanel({
             <p key={notice}>{notice}</p>
           ))}
           {state.presets.presets.map((preset) => (
-            <button
-              type="button"
-              className="button-secondary"
-              key={preset.id}
-              onClick={() => {
-                send({ v: MAKER_PROTOCOL_VERSION, type: 'makerChoosePreset', presetId: preset.id })
-              }}
-            >
-              {preset.type === 'command' ? preset.check.name : preset.name}
-            </button>
+            <span key={preset.id}>
+              {action(preset.type === 'command' ? preset.check.name : preset.name, {
+                v: MAKER_PROTOCOL_VERSION,
+                type: 'makerChoosePreset',
+                presetId: preset.id,
+              })}
+            </span>
           ))}
         </section>
       )}
@@ -227,50 +219,38 @@ function SerialControls({
       <h3>{target.port}</h3>
       <pre>{JSON.stringify(target, null, 2)}</pre>
       <p>{UI_TEXT.makerResetWarning}</p>
-      <label>
-        {UI_TEXT.makerBaud}
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={baud}
-          onChange={(event) => {
-            setBaud(event.target.value)
-          }}
-        />
-      </label>
-      <label>
-        {UI_TEXT.makerDuration}
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={duration}
-          onChange={(event) => {
-            setDuration(event.target.value)
-          }}
-        />
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={dtr}
-          onChange={(event) => {
-            setDtr(event.target.checked)
-          }}
-        />
-        DTR
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          checked={rts}
-          onChange={(event) => {
-            setRts(event.target.checked)
-          }}
-        />
-        RTS
-      </label>
+      {[
+        { label: UI_TEXT.makerBaud, value: baud, update: setBaud },
+        { label: UI_TEXT.makerDuration, value: duration, update: setDuration },
+      ].map((field) => (
+        <label key={field.label}>
+          {field.label}
+          <input
+            type="number"
+            min={1}
+            step={1}
+            value={field.value}
+            onChange={(event) => {
+              field.update(event.target.value)
+            }}
+          />
+        </label>
+      ))}
+      {[
+        { label: 'DTR', value: dtr, update: setDtr },
+        { label: 'RTS', value: rts, update: setRts },
+      ].map((field) => (
+        <label key={field.label}>
+          <input
+            type="checkbox"
+            checked={field.value}
+            onChange={(event) => {
+              field.update(event.target.checked)
+            }}
+          />
+          {field.label}
+        </label>
+      ))}
       <label>
         {UI_TEXT.makerPayloadHex}
         <textarea
@@ -283,7 +263,6 @@ function SerialControls({
       <div className="maker-actions">
         <button
           type="button"
-          className="button-secondary"
           disabled={!allowed || !isValid}
           onClick={() => {
             request('read')
@@ -293,7 +272,6 @@ function SerialControls({
         </button>
         <button
           type="button"
-          className="button-secondary"
           disabled={!allowed || !isValid || hex === ''}
           onClick={() => {
             request('write')

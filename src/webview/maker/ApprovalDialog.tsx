@@ -1,18 +1,32 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { MILLIMETERS_PER_METER, MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatUnit } from '../../shared/l10n/text'
 import type { ApprovalRequest } from '../../shared/makerProtocol'
 import { Modal } from '../components/Modal'
+import { PayloadReview } from './PayloadReview'
 
 export function ApprovalDialog({
   request,
   onAnswer,
   stop,
+  onRendered,
 }: {
   readonly stop: ReactNode
   readonly request: ApprovalRequest
   readonly onAnswer: (decision: 'allow_once' | 'reject_once') => void
+  readonly onRendered: (digest: string) => void
 }) {
+  const [reviewed, setReviewed] = useState(false)
+  const [digest, setDigest] = useState<string>()
+  const json = (value: unknown) => (
+    <pre tabIndex={0}>
+      {JSON.stringify(
+        value,
+        (_key, item: unknown) => (typeof item === 'number' ? formatNumber(item) : item),
+        2,
+      )}
+    </pre>
+  )
   return (
     <Modal
       title={UI_TEXT.makerApprovalTitle}
@@ -24,7 +38,7 @@ export function ApprovalDialog({
       {stop}
       <p>{UI_TEXT.makerSoftwareStopWarning}</p>
       <h3>{UI_TEXT.makerTargetLabel}</h3>
-      <pre tabIndex={0}>{JSON.stringify(request.target, null, 2)}</pre>
+      {json(request.target)}
       <p>
         <code>{request.action}</code>
       </p>
@@ -35,33 +49,29 @@ export function ApprovalDialog({
             {UI_TEXT.makerBaud}: {formatNumber(request.baud)} ·{' '}
             {formatUnit(request.durationMs / MILLISECONDS_PER_SECOND, 'second')}
           </p>
-          <pre>
-            {JSON.stringify(
-              {
-                dtr: request.dtr,
-                rts: request.rts,
-                projectTarget: request.projectTarget,
-                flashIdentity: request.flashIdentity,
-              },
-              null,
-              2,
-            )}
-          </pre>
+          {json({
+            dtr: request.dtr,
+            rts: request.rts,
+            projectTarget: request.projectTarget,
+            flashIdentity: request.flashIdentity,
+          })}
           {request.flashIdentity.status === 'unknown' && <p>{UI_TEXT.makerIdentityUnknown}</p>}
         </>
       )}
       <h3>{UI_TEXT.makerPayloadLabel}</h3>
-      <pre tabIndex={0}>{request.kind === 'serial' ? request.payload.value : request.payload}</pre>
+      <PayloadReview
+        content={request.kind === 'serial' ? request.payload.value : request.payload}
+        encoding={request.kind === 'serial' ? request.payload.encoding : 'text'}
+        onReviewed={setReviewed}
+        onRendered={(value) => {
+          setDigest(value)
+          onRendered(value)
+        }}
+      />
       {request.kind === 'machine' && (
         <>
           <h3>{UI_TEXT.makerAnalysisLabel}</h3>
-          <pre tabIndex={0}>
-            {JSON.stringify(
-              request.analysis,
-              (_key, value: unknown) => (typeof value === 'number' ? formatNumber(value) : value),
-              2,
-            )}
-          </pre>
+          {json(request.analysis)}
           <p>
             {fill(UI_TEXT.makerMaximumFeed, {
               feed: formatUnit(
@@ -86,10 +96,17 @@ export function ApprovalDialog({
         <summary>{UI_TEXT.makerAnalysisLabel}</summary>
         <code>{request.digest}</code>
       </details>
-      <div className="maker-actions">
+      <div className="maker-actions maker-approval-actions">
         <button
-          className="button-secondary"
           type="button"
+          onFocus={(event) => {
+            if (
+              !reviewed &&
+              event.relatedTarget instanceof HTMLElement &&
+              event.relatedTarget.closest('.modal-header') !== null
+            )
+              document.querySelector<HTMLElement>('.maker-payload')?.focus()
+          }}
           onClick={() => {
             onAnswer('reject_once')
           }}
@@ -97,10 +114,10 @@ export function ApprovalDialog({
           {UI_TEXT.makerReject}
         </button>
         <button
-          className="button-primary"
           type="button"
+          disabled={!reviewed || digest !== request.digest}
           onClick={() => {
-            onAnswer('allow_once')
+            if (reviewed && digest === request.digest) onAnswer('allow_once')
           }}
         >
           {UI_TEXT.makerSendOnce}

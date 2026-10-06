@@ -1,6 +1,6 @@
 import { MAKER_PROTOCOL_VERSION } from '../../shared/constants'
 import {
-  makerHostMessageSchema,
+  makerUiHostMessageSchema,
   makerSurfaceMessageSchema,
   type ApprovalRequest,
   type MakerHostMessage,
@@ -36,6 +36,7 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
   let isDisposed = false
   const seen = new Set<string>()
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
+  const rendered = new Map<string, string>()
   const publish = (next: MakerState) => {
     state = next
     for (const listener of listeners) listener()
@@ -64,7 +65,10 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
     const request = state.approvals.find((item) => item.id === id)
     if (request === undefined) return false
     const chosen =
-      decision === 'allow_once' && isAdmitted() && now() < request.expiresAt
+      decision === 'allow_once' &&
+      isAdmitted() &&
+      now() < request.expiresAt &&
+      rendered.get(id) === request.digest
         ? 'allow_once'
         : 'reject_once'
     clearTimeout(timers.get(id))
@@ -86,7 +90,7 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
   }
   const receive = (raw: unknown): void => {
     if (isDisposed) return
-    const parsed = makerHostMessageSchema.safeParse(raw)
+    const parsed = makerUiHostMessageSchema.safeParse(raw)
     if (!parsed.success) return
     const message = parsed.data
     switch (message.type) {
@@ -145,9 +149,6 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
         publish({ ...state, result: message })
         break
       }
-      case 'makerMesh': {
-        break // Geometry belongs to the separate preview page.
-      }
     }
   }
   return {
@@ -156,6 +157,12 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
     send: didSend,
     answer: didAnswer,
     isAdmitted,
+    previewRendered: (id: string, digest: string) => {
+      if (!didSend({ v: MAKER_PROTOCOL_VERSION, type: 'makerPreviewRendered', id, digest })) return
+      rendered.set(id, digest)
+      const request = state.approvals.find((item) => item.id === id)
+      if (request !== undefined && digest !== request.digest) didAnswer(id, 'reject_once')
+    },
     subscribe: (listener: () => void) => {
       listeners.add(listener)
       return () => {

@@ -2694,5 +2694,14 @@
   "judgeStatusDeclined": "Выключен: платное использование отклонено",
   "judgeStatusSlow": "По умолчанию выключен: слишком мало результатов готово к решению проверяющего",
   "judgeStatusSubscription": "Подписка",
-  "judgeStatusPaid": "Платно"
+  "judgeStatusPaid": "Платно",
+  "makerReadPayload": "Прочитать содержимое",
+  "makerNextPage": "Следующая страница",
+  "makerReviewProgress": "Проверено {count} из {total} строк",
+  "makerLoadFailed": "Не удалось загрузить представление устройств. Остановка по-прежнему доступна.",
+  "makerRetry": "Повторить",
+  "makerCategoryPrinter": "3D-принтер",
+  "makerCategoryCnc": "Станок с ЧПУ",
+  "makerCategoryLaser": "Лазерный станок",
+  "makerCategoryRobot": "Робот"
 }

@@ -105,6 +105,58 @@ describe('bounded host-owned STL preview', () => {
       }).success,
     ).toBe(false)
   })
+  it.each([false, true])(
+    'invalid matching geometry clears the preview (replacement=%s)',
+    (replacement) => {
+      lifetime.dispose = wireMakerPreview(document, uiBridge().host)
+      if (replacement) emit(mesh)
+      emit({ ...mesh, positions: [0] })
+      expect(document.querySelector('canvas')?.dataset['rendered']).toBe('false')
+      expect(document.querySelector<HTMLElement>('#maker-preview-unavailable')?.hidden).toBe(false)
+      if (replacement) expect(renderer.dispose).toHaveBeenCalledOnce()
+    },
+  )
+  it('a twice-oversized mesh reads zero components and Stop still responds', () => {
+    const { host, post } = uiBridge()
+    lifetime.dispose = wireMakerPreview(document, host)
+    const positions = Array.from(
+      { length: 2 * MAKER_PREVIEW_MAX_TRIANGLES * MAKER_TRIANGLE_COMPONENTS },
+      () => 0,
+    )
+    const read = vi.fn(() => 0)
+    Object.defineProperty(positions, '0', { get: read })
+    emit({ ...mesh, positions })
+    expect(read).not.toHaveBeenCalled()
+    const stop = document.createElement('button')
+    stop.dataset['makerStop'] = ''
+    document.body.append(stop)
+    stop.click()
+    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+    expect(createMeshRenderer).not.toHaveBeenCalled()
+  })
+  it('large accepted input yields before its second chunk and Stop cancels validation', () => {
+    vi.useFakeTimers()
+    const { host, post } = uiBridge()
+    lifetime.dispose = wireMakerPreview(document, host)
+    emit({ ...mesh, positions: Array.from({ length: 18_000 }, () => 0) })
+    expect(createMeshRenderer).not.toHaveBeenCalled()
+    const stop = document.createElement('button')
+    stop.dataset['makerStop'] = ''
+    document.body.append(stop)
+    stop.click()
+    vi.runAllTimers()
+    expect(createMeshRenderer).not.toHaveBeenCalled()
+    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+    vi.useRealTimers()
+  })
+  it('validation has a deadline and refuses late work', () => {
+    lifetime.dispose = wireMakerPreview(document, uiBridge().host)
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(1001)
+    emit(mesh)
+    expect(createMeshRenderer).not.toHaveBeenCalled()
+    expect(document.querySelector<HTMLElement>('#maker-preview-unavailable')?.hidden).toBe(false)
+    clock.mockRestore()
+  })
   it('disposes replaced and closed geometry and removes listeners', () => {
     lifetime.dispose = wireMakerPreview(document, uiBridge().host)
     emit(mesh)

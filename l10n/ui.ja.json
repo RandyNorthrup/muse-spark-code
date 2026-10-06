@@ -2409,5 +2409,14 @@
   "judgeStatusDeclined": "オフ：有料利用が拒否されました",
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
-  "judgeStatusPaid": "有料"
+  "judgeStatusPaid": "有料",
+  "makerReadPayload": "送信内容を読む",
+  "makerNextPage": "次のページ",
+  "makerReviewProgress": "{total} 行中 {count} 行を確認済み",
+  "makerLoadFailed": "デバイス画面を読み込めませんでした。停止は引き続き使用できます。",
+  "makerRetry": "再試行",
+  "makerCategoryPrinter": "3Dプリンター",
+  "makerCategoryCnc": "CNC工作機械",
+  "makerCategoryLaser": "レーザー加工機",
+  "makerCategoryRobot": "ロボット"
 }

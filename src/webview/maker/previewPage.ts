@@ -1,4 +1,10 @@
-import { MAKER_PROTOCOL_VERSION } from '../../shared/makerPreviewConstants'
+import {
+  MAKER_PROTOCOL_VERSION,
+  MAKER_PREVIEW_MAX_TRIANGLES,
+  MAKER_TRIANGLE_COMPONENTS,
+  MAKER_PREVIEW_VALIDATION_CHUNK,
+  MAKER_PREVIEW_VALIDATION_DEADLINE_MS,
+} from '../../shared/makerPreviewConstants'
 import type { MakerSurfaceMessage } from '../../shared/makerProtocol'
 import { makerMeshMessageSchema } from '../../shared/makerProtocolPreview'
 import type { HostBridge } from '../hostBridge'
@@ -16,28 +22,70 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
   const artifactId = artifact.data
   let renderer: ReturnType<typeof createMeshRenderer> | undefined
   let isDisposed = false
+  let generation = 0
+  let timer: ReturnType<typeof setTimeout> | undefined
   const fail = () => {
     renderer?.dispose()
     renderer = undefined
     unavailable.hidden = false
-    delete canvas.dataset['rendered']
+    canvas.dataset['rendered'] = 'false'
   }
   const receive = (event: MessageEvent<unknown>) => {
-    const result = makerMeshMessageSchema.safeParse(event.data)
-    if (isDisposed || !result.success || result.data.artifactId !== artifactId) return
-    renderer?.dispose()
-    try {
-      renderer = createMeshRenderer(canvas, result.data.positions)
-      unavailable.hidden = true
-      canvas.dataset['rendered'] = 'true'
-    } catch {
-      fail()
+    const raw = event.data
+    if (
+      isDisposed ||
+      typeof raw !== 'object' ||
+      raw === null ||
+      !('type' in raw) ||
+      raw.type !== 'makerMesh' ||
+      !('artifactId' in raw) ||
+      raw.artifactId !== artifactId
+    )
+      return
+    const current = ++generation
+    clearTimeout(timer)
+    fail()
+    if (
+      !('positions' in raw) ||
+      !Array.isArray(raw.positions) ||
+      raw.positions.length < MAKER_TRIANGLE_COMPONENTS ||
+      raw.positions.length > MAKER_PREVIEW_MAX_TRIANGLES * MAKER_TRIANGLE_COMPONENTS ||
+      raw.positions.length % MAKER_TRIANGLE_COMPONENTS !== 0
+    )
+      return
+    const positions: unknown[] = raw.positions
+    const parsed: number[] = []
+    const deadline = performance.now() + MAKER_PREVIEW_VALIDATION_DEADLINE_MS
+    let offset = 0
+    const step = () => {
+      if (isDisposed || current !== generation || performance.now() >= deadline) return
+      const result = makerMeshMessageSchema.safeParse({
+        ...raw,
+        positions: positions.slice(offset, offset + MAKER_PREVIEW_VALIDATION_CHUNK),
+      })
+      if (!result.success) return
+      parsed.push(...result.data.positions)
+      offset += result.data.positions.length
+      if (offset < positions.length) {
+        timer = setTimeout(step, 0)
+        return
+      }
+      try {
+        renderer = createMeshRenderer(canvas, parsed)
+        unavailable.hidden = true
+        canvas.dataset['rendered'] = 'true'
+      } catch {
+        fail()
+      }
     }
+    step()
   }
   const onControl = (event: Event) => {
     if (!(event.target instanceof Element)) return
     const stop = event.target.closest<HTMLElement>('[data-maker-stop]')
     if (stop !== null) {
+      generation += 1
+      clearTimeout(timer)
       const machineId = stop.dataset['makerStop']
       host.post({
         v: MAKER_PROTOCOL_VERSION,
@@ -70,6 +118,8 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
     }
   }
   const lost = (event: Event) => {
+    generation += 1
+    clearTimeout(timer)
     event.preventDefault()
     fail()
   }
@@ -79,6 +129,7 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
   host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerReady' })
   return () => {
     isDisposed = true
+    clearTimeout(timer)
     renderer?.dispose()
     host.messages.removeEventListener('message', receive)
     document.removeEventListener('click', onControl)

@@ -2504,5 +2504,14 @@
   "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
-  "judgeStatusPaid": "Ücretli"
+  "judgeStatusPaid": "Ücretli",
+  "makerReadPayload": "İçeriği oku",
+  "makerNextPage": "Sonraki sayfa",
+  "makerReviewProgress": "{total} satırdan {count} satır incelendi",
+  "makerLoadFailed": "Aygıt görünümü yüklenemedi. Durdurma hâlâ kullanılabilir.",
+  "makerRetry": "Yeniden dene",
+  "makerCategoryPrinter": "3D yazıcı",
+  "makerCategoryCnc": "CNC makinesi",
+  "makerCategoryLaser": "Lazer makinesi",
+  "makerCategoryRobot": "Robotik aygıt"
 }

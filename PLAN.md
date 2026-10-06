@@ -18921,6 +18921,24 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103U (2026-10-06, Win11).** Correct all RVM103U P1/P2 findings:
+approval needs the union of visible payload lines (paged for long payloads),
+with sequential keyboard/screen-reader traversal and reviewed-line progress;
+compute rendered SHA-256 receipts from DOM text at paint and on replacement,
+theme/locale changes and visibility return. Keep Stop mounted for serial-only
+targets and failed lazy/initial loads with Retry, fix standalone Stop in the
+viewport, clear invalid replacement geometry, and reject oversized arrays
+before element validation; validate accepted geometry in bounded chunks with
+a deadline. Equalize approval choices and translate category labels. Tests
+must fail under deliberate guard removal and restore SHA-256 byte-exact.
+No new dependency, hardware/model call, guard widening or cap change. Startup
+fallback/validation splitting (RVM103U P3-8) needs a localization/build redesign
+and remains the named M103U-STARTUP-SPLIT residual in §9. Aggregate quality
+and integration remain with the lead under the rig brief.
+The first correction build exceeds the unchanged 25 KiB surface cap. Within
+U's existing files, consolidate repeated button/input markup to fit the new
+safety behavior; preserve every validation and admission condition.
+
 **M103U shared surfaces (2026-10-06, Win11).** Build the approval dialog,
 independent Stop chip, devices/serial panel, secretless machine registration
 wizard, local device log and in-house WebGL preview behind generic HostBridge
@@ -20868,6 +20886,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M103U-STARTUP-SPLIT (RVM103U P3-8, 2026-10-06):** zero browser startup
+  growth remains open. U's new controls fit their unchanged 25 KiB cap and
+  remain deferred, but English fallback and the shared Zod closure plus the
+  loader still grow startup. Deferring the English region and validation
+  helpers needs a localization/build split beyond this repair lane. Safe for
+  now: no maker implementation runs at activation and all numeric caps stay
+  unchanged. Lead/W follow-up: split the fallback/validation closure, measure
+  exact production startup and close D83 acceptance 17; no waiver is claimed.
+- **M103U-ADAPTER-QUALIFICATION (2026-10-06):** this rig has no m103/v objects.
+  Render receipts follow REDM103V's terminal-latch contract and the new shared
+  protocol; V/R/W must deliver payload id/encoding and verify native and
+  companion receipt routing before claiming installed-editor support. The
+  generic views fail closed without a receipt. No native/hardware receipt or
+  aggregate quality pass is claimed here; those remain the lead's gates.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

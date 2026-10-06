@@ -2504,5 +2504,14 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "makerReadPayload": "Tartalom olvasása",
+  "makerNextPage": "Következő oldal",
+  "makerReviewProgress": "{count} / {total} sor áttekintve",
+  "makerLoadFailed": "Az eszköznézet nem tölthető be. A leállítás továbbra is elérhető.",
+  "makerRetry": "Újrapróbálkozás",
+  "makerCategoryPrinter": "3D nyomtató",
+  "makerCategoryCnc": "CNC-gép",
+  "makerCategoryLaser": "Lézergép",
+  "makerCategoryRobot": "Roboteszköz"
 }

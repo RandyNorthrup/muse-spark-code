@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Maker approval now requires review of every payload line before Send once,
+  with paged and keyboard review, rendered-byte receipts and equally sized
+  choices. Serial-only Stop, failed-view recovery and short-pane preview Stop
+  stay available. Invalid meshes clear the old preview; oversized meshes are
+  rejected before component validation and accepted validation yields to Stop.
+  Machine categories now have translated display labels.
+
 ### Added
 
 - Shared lazy maker views for exact per-action approval, independent Stop,

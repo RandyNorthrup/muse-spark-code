@@ -8,28 +8,23 @@ export function StopChip({
   readonly machines: readonly MakerMachineSummary[]
   readonly send: (message: MakerSurfaceMessage) => boolean
 }) {
-  if (machines.length === 0) return null
   return (
-    <div className="maker-stop" role="group" aria-label={UI_TEXT.makerStopMachine}>
-      <button
-        className="button-secondary"
-        type="button"
-        onClick={() => {
-          send({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
-        }}
-      >
-        {UI_TEXT.makerStopAll}
-      </button>
-      {machines.map((machine) => (
+    <div className="maker-stop maker-stop-slot" role="group" aria-label={UI_TEXT.makerStopMachine}>
+      {[undefined, ...machines].map((machine) => (
         <button
-          className="button-secondary"
           type="button"
-          key={machine.registrationId}
+          key={machine?.registrationId ?? ''}
           onClick={() => {
-            send({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop', machineId: machine.id })
+            send({
+              v: MAKER_PROTOCOL_VERSION,
+              type: 'makerStop',
+              ...(machine !== undefined && { machineId: machine.id }),
+            })
           }}
         >
-          {UI_TEXT.makerStopMachine}: {machine.name}
+          {machine === undefined
+            ? UI_TEXT.makerStopAll
+            : `${UI_TEXT.makerStopMachine}: ${machine.name}`}
         </button>
       ))}
     </div>
