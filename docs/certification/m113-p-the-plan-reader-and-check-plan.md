@@ -319,5 +319,9 @@ unchanged repository-wide coverage thresholds. It is additional evidence, not a
 claim that one file satisfies repository-wide coverage thresholds. No review
 finding was deferred, no dependency/tool was installed, and no credential
 read, network/model/paid call, merge, push, rebase or git configuration change
-was made. Live/model attempt count: **0**. Hook verification and final format
-receipts follow after the local commit.
+was made. Live/model attempt count: **0**. Implementation commit `883f7e8438c3169840ff28d771e9f490c70e413c` ran the
+repository’s real pre-commit hook: staged ESLint and Prettier passed, and
+gitleaks scanned about 50.22 KB with no leaks. The hook left every recorded
+source SHA-256 unchanged. Changed-file Prettier and `git diff --check` pass;
+`check:plan` still returns 137 milestones and zero drift. This final receipt
+is committed separately with the same hooks enabled.
