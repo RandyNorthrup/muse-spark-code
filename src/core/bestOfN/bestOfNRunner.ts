@@ -459,6 +459,7 @@ export class BestOfNRunner {
             throw new BestOfNError('attemptNotDone')
           },
           {
+            pacingClass: 'bestOfN' as const,
             onRequestStarted: () => {
               this.requireCurrent(run)
               if (entry.attempt.requestsMade === 0) {

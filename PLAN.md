@@ -19425,6 +19425,22 @@ structured answer schema or fixed Markdown renderer: the new six-field
 answer contract and deterministic rendering specification are M106's,
 while C1's metadata and replay wrapper remain unchanged.
 
+**Lane R implementation (Kubuntu, 2026-10-06).** Captured Meta headers feed
+the request/token bucket; existing subagent, best-of-N and schedule paid
+tags select background pacing. A foreground request never waits for fan-out
+headroom. A 429 pauses fan-out; the originating request's existing retry
+loop honors its own Retry-After. Status reads are public and schema-checked.
+The usage row accepts an injected read; report facts retain only liveness
+and the captured operational word (future words are unknown in the report,
+while the usage row shows the service's word as escaped text). A paid or
+capped ambiguous 504 retains its liability and is refused unless its owning
+admission policy can safely reserve again; no per-image retry is widened.
+The absent M95/M101 provider tables and M96 team admission, plus bindings
+outside R's owned regions, are named integration handoffs in
+`docs/certification/m106-r.md`. No substitute provider resolver or team
+implementation is introduced. The retry-table patch targets the upstream
+`FormatQuirks.retry` data; the current client exposes its classifier port.
+
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
   answers, bounded hosted tools, live previews, concurrent reads, the full

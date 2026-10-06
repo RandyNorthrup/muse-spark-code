@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M106's Model API client now reads captured Meta rate limits, paces tagged
+  fan-out without holding up the foreground, and supports bounded 504 retries.
+  Public service-health reads, the usage row and sanitized report facts are
+  implemented behind explicit host ports; their remaining provider, team and
+  presentation bindings are recorded in the lane R certification.
 - M106 development contracts now include captured Meta hosted-search,
   structured-output, strict-schema refusal, rate-header, message-phase,
   health and model-list fixtures, plus a six-section compaction answer

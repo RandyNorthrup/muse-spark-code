@@ -1,12 +1,21 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import {
   MissingApiKeyError,
   ModelApiClient,
   ModelApiError,
   type RetryNotice,
   retryAfterMs,
+  type ModelApiClientDeps,
+  type ResponseAttemptGuard,
 } from '../../src/core/backends/modelapi/client'
+import {
+  ModelApiPacing,
+  metaPacingLimits,
+  type RequestPacer,
+} from '../../src/core/backends/modelapi/pacing'
 import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -37,6 +46,7 @@ function setup(
   key: string | null = 'LLM|1|secret',
   rawFetch?: typeof fetch,
   streamIdleMs?: number,
+  overrides: Partial<ModelApiClientDeps> = {},
 ) {
   const api = fakeModelApi()
   const sleeps: number[] = []
@@ -53,9 +63,338 @@ function setup(
     random: () => 0.5,
     log,
     ...(streamIdleMs !== undefined && { streamIdleMs }),
+    ...overrides,
   })
   return { api, client, sleeps, log }
 }
+
+describe('M106 client pacing and retry boundaries', () => {
+  it('Stop promptly ends an actual bucket wait before any request is dispatched', async () => {
+    const joined = Promise.withResolvers<undefined>()
+    const sleep = vi.fn(() => {
+      joined.resolve(undefined)
+      return new Promise<void>(() => undefined)
+    })
+    const pacing = new ModelApiPacing({
+      now: () => NOW,
+      wait: (ms, signal) => t.client.waitBeforeRetry(ms, signal),
+    })
+    const t = setup(undefined, undefined, undefined, { pacing, sleep })
+    const account = `meta:https://api.example.test/v1:${await t.client.currentKeyDigest()}`
+    pacing.observe(account, {
+      requests: 150,
+      remainingRequests: 0,
+      tokens: 3_000_000,
+      remainingTokens: 3_000_000,
+    })
+    const guard = Object.assign(vi.fn(), { paidFeature: 'subagents' as const })
+    const stop = new AbortController()
+    const pending = collect(t.client.streamResponse(body, stop.signal, undefined, undefined, guard))
+    await joined.promise
+    stop.abort()
+    await expect(pending).rejects.toMatchObject({ status: 0 })
+    expect(guard).not.toHaveBeenCalled()
+    expect(t.api.responseBodies()).toEqual([])
+  })
+
+  it('reads the captured public status without retrieving or transmitting a credential', async () => {
+    const capture = z
+      .object({ responses: z.array(z.object({ response: z.unknown() })) })
+      .parse(
+        JSON.parse(readFileSync(new URL('../fixtures/m106/status.json', import.meta.url), 'utf8')),
+      )
+    const apiKey = vi.fn(() => Promise.resolve(undefined))
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(Response.json(capture.responses[0]?.response)),
+    )
+    const t = setup(null, fetch, undefined, { apiKey })
+    expect(await t.client.readServiceStatus()).toEqual(capture.responses[0]?.response)
+    expect(apiKey).not.toHaveBeenCalled()
+    expect(fetch).toHaveBeenCalledWith('https://api.meta.ai/v1/status', {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: expect.any(AbortSignal),
+    })
+  })
+
+  it('refuses a malformed status envelope and an uncaptured provider status endpoint', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(() =>
+      Promise.resolve(Response.json({ service_status: 'operational' })),
+    )
+    const t = setup(null, fetch)
+    await expect(t.client.readServiceStatus()).rejects.toThrow()
+    const other = setup(null, fetch, undefined, {
+      pacingProvider: () => ({ identity: { provider: 'openai' } }),
+    })
+    await expect(other.client.readServiceStatus()).rejects.toThrow(
+      UI_TEXT.modelApiStatusUnavailable,
+    )
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('taps captured headers before reading streamed and token-count bodies', async () => {
+    const captures = z
+      .array(z.object({ headers: z.record(z.string(), z.string()) }))
+      .parse(
+        JSON.parse(
+          readFileSync(new URL('../fixtures/m106/u12-rate-headers.json', import.meta.url), 'utf8'),
+        ),
+      )
+    const api = fakeModelApi()
+    let index = 0
+    const pacing = new ModelApiPacing({ now: () => NOW, wait: () => Promise.resolve() })
+    const seen: Headers[] = []
+    const wire: unknown[] = []
+    const t = setup(undefined, undefined, undefined, {
+      pacing,
+      pacingProvider: () => ({
+        identity: { provider: 'meta' },
+        readLimits: (headers) => {
+          seen.push(headers)
+          return metaPacingLimits(headers)
+        },
+      }),
+      fetch: async (input, init) => {
+        wire.push(init?.body)
+        const response = await api.fetch(input, init)
+        const headers = captures[index]?.headers
+        index += 1
+        return new Response(response.body, {
+          status: response.status,
+          ...(headers !== undefined && { headers }),
+        })
+      },
+    })
+    await collect(t.client.streamResponse(body, new AbortController().signal))
+    await t.client.countInputTokens(body)
+    expect(seen).toHaveLength(2)
+    expect(
+      pacing.headroom(`meta:https://api.example.test/v1:${await t.client.currentKeyDigest()}`),
+    ).toMatchObject({
+      requests: 150,
+      remainingRequests: 143,
+      tokens: 3_000_000,
+      remainingTokens: 2_993_903,
+    })
+    expect(api.responseBodies()).toEqual([body])
+    expect(wire[0]).toBe(JSON.stringify(body))
+  })
+
+  it('leaves uncaptured vendors uninterpreted and lets their retry capability refuse 504', async () => {
+    const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+    const t = setup(undefined, undefined, undefined, {
+      pacing,
+      pacingProvider: () => ({ identity: { provider: 'custom' } }),
+      isRetryableFailure: () => false,
+    })
+    t.api.script({ httpError: { status: 504 } })
+    await expect(
+      collect(t.client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({ status: 504 })
+    expect(pacing.observe).toHaveBeenCalledWith(
+      expect.stringContaining('custom:'),
+      undefined,
+      undefined,
+    )
+    expect(t.api.responseBodies()).toHaveLength(1)
+  })
+
+  it.each([
+    ['subagents', 'subagent'],
+    ['bestOfN', 'bestOfN'],
+    ['scheduledPrompts', 'schedule'],
+    ['judge', 'judge'],
+  ] as const)(
+    'paces every %s request using its existing admission tag',
+    async (paidFeature, kind) => {
+      const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+      const t = setup(undefined, undefined, undefined, { pacing })
+      const guard = Object.assign(vi.fn(), { paidFeature, paidEstimatedInputTokens: 25 })
+      await collect(
+        t.client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+      )
+      expect(pacing.acquire).toHaveBeenCalledWith(
+        expect.any(String),
+        kind,
+        125,
+        expect.any(AbortSignal),
+      )
+      expect(guard).toHaveBeenCalledOnce()
+    },
+  )
+
+  it.each(['stop', 'key', 'consent'])(
+    'rechecks %s after pacing without admitting a stale request',
+    async (change) => {
+      const waiting = Promise.withResolvers<undefined>()
+      const joined = Promise.withResolvers<undefined>()
+      const pacing: RequestPacer = {
+        acquire: () => {
+          joined.resolve(undefined)
+          return waiting.promise
+        },
+        observe: vi.fn(),
+      }
+      let key = 'LLM|1|secret'
+      let isAllowed = true
+      const guard: ResponseAttemptGuard = Object.assign(
+        () => {
+          if (!isAllowed) throw new Error('consent changed')
+        },
+        { pacingClass: 'team' as const },
+      )
+      const started = vi.fn()
+      const t = setup(undefined, undefined, undefined, {
+        pacing,
+        apiKey: () => Promise.resolve(key),
+      })
+      const stop = new AbortController()
+      const pending = collect(
+        t.client.streamResponse(
+          body,
+          stop.signal,
+          undefined,
+          undefined,
+          Object.assign(guard, { onRequestStarted: started }),
+        ),
+      )
+      await joined.promise
+      switch (change) {
+        case 'stop': {
+          stop.abort()
+          break
+        }
+        case 'key': {
+          key = 'LLM|1|changed'
+          break
+        }
+        case 'consent': {
+          isAllowed = false
+          break
+        }
+      }
+      waiting.resolve(undefined)
+      await expect(pending).rejects.toThrow()
+      expect(started).not.toHaveBeenCalled()
+      expect(t.api.responseBodies()).toEqual([])
+    },
+  )
+
+  it('sends a foreground request while a fan-out request remains queued', async () => {
+    const waiting = Promise.withResolvers<undefined>()
+    const joined = Promise.withResolvers<undefined>()
+    const pacing: RequestPacer = {
+      acquire: (_account, kind) => {
+        if (kind === 'foreground') return Promise.resolve()
+        joined.resolve(undefined)
+        return waiting.promise
+      },
+      observe: vi.fn(),
+    }
+    const t = setup(undefined, undefined, undefined, { pacing })
+    const guard = Object.assign(() => undefined, { paidFeature: 'subagents' as const })
+    const child = collect(
+      t.client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+    )
+    await joined.promise
+    await collect(t.client.streamResponse(body, new AbortController().signal))
+    expect(t.api.responseBodies()).toHaveLength(1)
+    waiting.resolve(undefined)
+    await child
+    expect(t.api.responseBodies()).toEqual([body, body])
+  })
+
+  it('pauses the shared fan-out bucket on 429 even when no retry remains', async () => {
+    const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+    const t = setup(undefined, undefined, undefined, { pacing })
+    t.api.script({ httpError: { status: 429, retryAfter: '8' } })
+    await expect(
+      collect(
+        t.client.streamResponse(body, new AbortController().signal, undefined, {
+          retriesUsed: MODEL_API_MAX_RETRIES,
+        }),
+      ),
+    ).rejects.toMatchObject({ status: 429 })
+    expect(pacing.observe).toHaveBeenCalledWith(expect.any(String), undefined, 8000)
+  })
+
+  it('retries 504 with jitter, fresh admission and budget re-reservation before the next fetch', async () => {
+    const t = setup()
+    t.api.script({ httpError: { status: 504 } }, { text: 'complete' })
+    const sequence: string[] = []
+    const guard = Object.assign(
+      () => {
+        sequence.push('admit')
+      },
+      {
+        onRequestStarted: () => {
+          sequence.push('fetch')
+        },
+        prepareRetry: () => {
+          sequence.push('reserve')
+          return Promise.resolve()
+        },
+      },
+    )
+    const retries = { retriesUsed: 0 }
+    await collect(
+      t.client.streamResponse(body, new AbortController().signal, undefined, retries, guard),
+    )
+    expect(sequence).toEqual(['admit', 'fetch', 'reserve', 'admit', 'fetch'])
+    expect(retries.retriesUsed).toBe(1)
+    expect(t.sleeps).toEqual([1500])
+    expect(t.api.responseBodies()).toEqual([body, body])
+  })
+
+  it('bounds 504 retries and exposes only a status code and the public health link', async () => {
+    const onServiceFailure = vi.fn()
+    const t = setup(undefined, undefined, undefined, { onServiceFailure })
+    t.api.script({ httpError: { status: 504 } })
+    await expect(
+      collect(t.client.streamResponse(body, new AbortController().signal)),
+    ).rejects.toMatchObject({ status: 504 })
+    expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_RETRIES + 1)
+    expect(onServiceFailure).toHaveBeenCalledWith(504, 'https://api.meta.ai/v1/status')
+    expect(t.sleeps).toHaveLength(MODEL_API_MAX_RETRIES)
+  })
+
+  it('never retries an ambiguously billed paid 504 or releases its retained liability', async () => {
+    const total = { spentUsd: 1, hasUnknownHistoricalFees: false }
+    const claim = {
+      claimId: 'claim-1',
+      reservedUsd: 1,
+      check: vi.fn(() => total),
+      settle: vi.fn(() => Promise.resolve(total)),
+    }
+    const t = setup(undefined, undefined, undefined, {
+      reservePaidRequest: () => Promise.resolve(claim),
+    })
+    t.api.script({ httpError: { status: 504 } })
+    const guard = Object.assign(() => undefined, { paidFeature: 'subagents' as const })
+    await expect(
+      collect(
+        t.client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+      ),
+    ).rejects.toMatchObject({ status: 504 })
+    expect(t.api.responseBodies()).toHaveLength(1)
+    expect(t.sleeps).toEqual([])
+    expect(claim.settle).not.toHaveBeenCalled()
+  })
+
+  it('refuses the next fetch when 504 re-reservation fails', async () => {
+    const t = setup()
+    t.api.script({ httpError: { status: 504 } }, { text: 'unaffordable' })
+    const guard = Object.assign(() => undefined, {
+      prepareRetry: () => Promise.reject(new Error('budget cannot reserve again')),
+    })
+    await expect(
+      collect(
+        t.client.streamResponse(body, new AbortController().signal, undefined, undefined, guard),
+      ),
+    ).rejects.toThrow('budget cannot reserve again')
+    expect(t.api.responseBodies()).toHaveLength(1)
+  })
+})
 
 /** A response body that sends `text` and then nothing, reporting its cancellation. */
 function bodyOf(text: string, cancel: () => void): ReadableStream<Uint8Array> {

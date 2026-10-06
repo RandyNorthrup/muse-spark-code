@@ -2,7 +2,7 @@
 // backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
 // the streamed `POST /responses` and `POST /images/generations` (M34).
 // Errors follow the documented envelope and retry policy
-// (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
+// (PLAN.md D86.6): 429 / 500 / 502 / 503 / 504 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
@@ -13,6 +13,7 @@ import type { SessionBudgetClaim } from './sessionBudget'
 
 import {
   MODEL_API_MAX_RETRIES,
+  MODEL_API_BASE_URL,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
   IMAGE_REQUEST_TIMEOUT_MS,
@@ -43,13 +44,33 @@ import {
   imagesResponseSchema,
   inputTokensSchema,
   modelListSchema,
+  modelApiStatusSchema,
   type StreamEvent,
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
 import { estimateCostUsd } from '../../usage/insights'
+import {
+  ModelApiPacing,
+  metaPacingLimits,
+  type PacingClass,
+  type PacingProvider,
+  type RequestPacer,
+} from './pacing'
+import { fanOutPacingClass } from './subagentTools'
 
 export interface ModelApiClientDeps {
+  /** Share across clients for one process; omitted clients own a bucket themselves. */
+  readonly pacing?: RequestPacer
+  /** M95 binding: project the selected record's provider and captured header interpreter. */
+  readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
+  /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
+  readonly isRetryableFailure?: (
+    failure: ModelApiError,
+    retryAfterMs: number | undefined,
+  ) => boolean
+  /** The host presents a 5xx banner with this public link; no response text crosses this port. */
+  readonly onServiceFailure?: (status: number, statusUrl: string) => void
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
@@ -137,6 +158,8 @@ const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const RETRY_AFTER_HEADER = 'retry-after'
 const NETWORK_FAILURE_STATUS = 0
 const SSE_DONE_SENTINEL = '[DONE]'
+/** HTTP's gateway timeout code, not an inferred vendor error kind. */
+const HTTP_GATEWAY_TIMEOUT = 504
 
 /** Closing a parser that already failed rejects with that failure, which the stream reported. */
 function ignoreClosingError(): void {
@@ -214,11 +237,14 @@ export interface ConfirmedModelRequest {
 
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
+  readonly pacingClass?: PacingClass
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
+  /** A capped owner retains the old liability and reserves the next try before admitting it. */
+  readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -247,8 +273,25 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 export class ModelApiClient {
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
+  private readonly pacing: RequestPacer
 
-  public constructor(private readonly deps: ModelApiClientDeps) {}
+  public constructor(private readonly deps: ModelApiClientDeps) {
+    this.pacing =
+      deps.pacing ??
+      new ModelApiPacing({
+        now: deps.now,
+        wait: (ms, signal) => this.pause(ms, signal),
+      })
+  }
+
+  private pacingProvider(modelId: string | undefined): PacingProvider {
+    return (
+      this.deps.pacingProvider?.(modelId) ?? {
+        identity: { provider: 'meta' },
+        readLimits: metaPacingLimits,
+      }
+    )
+  }
 
   /** The retry delay, cut short by the turn's Stop. */
   private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
@@ -296,6 +339,9 @@ export class ModelApiClient {
     init: {
       readonly method: 'GET' | 'POST'
       readonly body?: unknown
+      readonly modelId?: string
+      readonly pacingClass?: PacingClass
+      readonly estimatedTokens?: number
       readonly accept: string
       /**
        * `rateLimitOnly` for a request that bills per call (M34, the review
@@ -333,6 +379,7 @@ export class ModelApiClient {
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
+    const provider = this.pacingProvider(init.modelId)
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
       let credentials: Awaited<ReturnType<ModelApiClient['headers']>>
       try {
@@ -354,6 +401,24 @@ export class ModelApiClient {
         (credentials.keyDigest !== confirmed.keyDigest || !confirmed.isStillAllowed())
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
+      }
+      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
+      const kind = init.pacingClass ?? 'foreground'
+      if (path === '/responses' && init.method === 'POST') {
+        await this.pacing.acquire(
+          account,
+          kind,
+          init.estimatedTokens ?? 0,
+          signal ?? new AbortController().signal,
+        )
+        // Waiting yields: key, consent, Stop and budget fences still run
+        // immediately before dispatch, never only before joining the bucket.
+        if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest())) {
+          throw new Error(UI_TEXT.notSignedInReason)
+        }
+      }
+      if (isAborted(signal)) {
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       }
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
@@ -405,6 +470,18 @@ export class ModelApiClient {
         await retry(attempt, delay, reason)
         continue
       }
+      const suggestedDelayMs = retryAfterMs(
+        response.headers.get(RETRY_AFTER_HEADER),
+        this.deps.now(),
+      )
+      this.pacing.observe(
+        account,
+        provider.readLimits?.(response.headers),
+        response.status === HTTP_TOO_MANY_REQUESTS
+          ? (suggestedDelayMs ??
+              Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
+          : undefined,
+      )
       if (response.ok) {
         this.deps.log.trace(
           `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
@@ -419,18 +496,29 @@ export class ModelApiClient {
         init.paid.isSent = false
       const isRetryable = isRateLimitOnly
         ? response.status === HTTP_TOO_MANY_REQUESTS
-        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
+        : (this.deps.isRetryableFailure?.(failure, suggestedDelayMs) ??
+          (MODEL_API_RETRYABLE_STATUSES.has(response.status) ||
+            response.status === HTTP_GATEWAY_TIMEOUT))
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
+        if (
+          response.status >= HTTP_STATUS.internalServerError &&
+          provider.identity.provider === 'meta'
+        ) {
+          this.deps.onServiceFailure?.(response.status, `${MODEL_API_BASE_URL}/status`)
+        }
         throw failure
       }
-      const delay = this.backoffMs(
-        attempt,
-        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
-      )
+      const delay = this.backoffMs(attempt, suggestedDelayMs)
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
       )
       await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
+      if (response.status === HTTP_GATEWAY_TIMEOUT && admitAttempt?.prepareRetry !== undefined) {
+        await admitAttempt.prepareRetry(
+          credentials.keyDigest,
+          signal ?? new AbortController().signal,
+        )
+      }
     }
   }
 
@@ -499,6 +587,25 @@ export class ModelApiClient {
     )
     const parsed = modelListSchema.parse(await response.json())
     return parsed.data.map((model) => model.id)
+  }
+
+  /** Public, non-inference health read. The status capture required no authentication. */
+  public async readServiceStatus(
+    signal?: AbortSignal,
+  ): Promise<ReturnType<typeof modelApiStatusSchema.parse>> {
+    if (this.pacingProvider(undefined).identity.provider !== 'meta') {
+      throw new Error(UI_TEXT.modelApiStatusUnavailable)
+    }
+    const response = await this.deps.fetch(`${MODEL_API_BASE_URL}/status`, {
+      method: 'GET',
+      headers: { Accept: JSON_MEDIA_TYPE },
+      signal: AbortSignal.any([
+        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+        ...(signal === undefined ? [] : [signal]),
+      ]),
+    })
+    if (!response.ok) throw await describeFailure(response)
+    return modelApiStatusSchema.parse(await response.json())
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
@@ -592,6 +699,13 @@ export class ModelApiClient {
             method: 'POST',
             body,
             accept: EVENT_STREAM_MEDIA_TYPE,
+            modelId: body.model,
+            pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+            estimatedTokens:
+              (admitAttempt?.paidEstimatedInputTokens ??
+                new TextEncoder().encode(
+                  JSON.stringify([body.input, body.instructions, body.tools]),
+                ).length) + body.max_output_tokens,
             ...(paid !== undefined && { paid }),
           },
           AbortSignal.any([signal, stall.signal]),

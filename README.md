@@ -138,6 +138,12 @@ Earlier releases are in the
 
 ## Screenshots
 
+M106 development: the Model API client paces tagged background requests from
+captured Meta request and token limits, with foreground priority and bounded
+gateway-timeout retries. Its public service-status read and usage/report
+presentation ports await the integration bindings listed in
+[the lane R certification](docs/certification/m106-r.md).
+
 Rendered from the shipped panel by its own UI harness (`npm run
 readme:shots`, one harness scenario per image) against a scripted session,
 so they match the build.

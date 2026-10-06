@@ -287,6 +287,55 @@ describe('the dialog facts', () => {
     changedSettingNames: ['museSpark.backend'],
   } as const
 
+  it('includes captured service health in the report while excluding service prose and unknown entries', () => {
+    const facts = extensionReportFacts({
+      ...VERDICT_FACTS,
+      cli: { isFound: false, version: undefined },
+      credentialFileVerdict: 'absent',
+      serviceStatus: {
+        is_alive: true,
+        service_status: 'operational',
+        service_message: 'PRIVATE /home/account',
+        updated_at: 'PRIVATE date',
+        model_statuses: [{ private: 'PRIVATE account' }],
+      },
+    })
+    const draft = buildProblemReportDraft({
+      description: '',
+      includeFacts: true,
+      includeEvents: false,
+      facts,
+      events: [],
+      recordingUnavailable: false,
+      nowMs: NOW,
+      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+    })
+    expect(draft.text).toContain('model api service: operational; alive: yes')
+    expect(draft.text).not.toContain('PRIVATE')
+    expect(facts).toHaveProperty('modelApiStatus', { isAlive: true, status: 'operational' })
+    const unknown = extensionReportFacts({
+      ...VERDICT_FACTS,
+      cli: { isFound: false, version: undefined },
+      credentialFileVerdict: 'absent',
+      serviceStatus: {
+        is_alive: false,
+        service_status: 'PRIVATE account',
+        service_message: '',
+        updated_at: '',
+        model_statuses: [],
+      },
+    })
+    expect(unknown).toHaveProperty('modelApiStatus', { isAlive: false, status: 'unknown' })
+    expect(() =>
+      extensionReportFacts({
+        ...VERDICT_FACTS,
+        cli: { isFound: false, version: undefined },
+        credentialFileVerdict: 'absent',
+        serviceStatus: { service_status: 'operational' },
+      }),
+    ).toThrow()
+  })
+
   it('reads the sign-in from the credential file structure alone', () => {
     for (const [verdict, isSignedIn] of [
       ['inline', true],

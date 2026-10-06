@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
+  MODEL_API_BASE_URL,
   MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
   PAID_PRICES_VERIFIED_ON,
@@ -47,8 +48,67 @@ import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
+import { modelApiStatusSchema } from '../../core/backends/modelapi/schemas'
+
+type ServiceStatusReader = (signal: AbortSignal) => Promise<unknown>
+
+/** The host supplies the public read through its validated bridge; the webview holds no key. */
+function ServiceStatusRow({
+  read,
+  onOpenExternal,
+}: {
+  readonly read: ServiceStatusReader
+  readonly onOpenExternal: (url: string) => void
+}) {
+  const [answer, setAnswer] = useState<{
+    readonly reader: ServiceStatusReader
+    readonly status: ReturnType<typeof modelApiStatusSchema.parse> | undefined
+  }>()
+  useEffect(() => {
+    const stop = new AbortController()
+    async function readStatus(): Promise<void> {
+      try {
+        const value = await read(stop.signal)
+        const parsed = modelApiStatusSchema.safeParse(value)
+        if (!stop.signal.aborted)
+          setAnswer({ reader: read, status: parsed.success ? parsed.data : undefined })
+      } catch {
+        if (!stop.signal.aborted) setAnswer({ reader: read, status: undefined })
+      }
+    }
+    void readStatus()
+    return () => {
+      stop.abort()
+    }
+  }, [read])
+  const status = answer?.reader === read ? answer.status : undefined
+  const hasAnswered = answer?.reader === read
+  return (
+    <div className="usage-row">
+      <div className="usage-row-head">
+        <span>{UI_TEXT.modelApiStatusLabel}</span>
+        <span role="status">
+          {status?.service_status ??
+            (hasAnswered ? UI_TEXT.modelApiStatusUnavailable : UI_TEXT.usageLoading)}
+        </span>
+      </div>
+      {status?.service_message ? <p className="usage-row-meta">{status.service_message}</p> : null}
+      <button
+        type="button"
+        className="usage-link"
+        onClick={() => {
+          onOpenExternal(`${MODEL_API_BASE_URL}/status`)
+        }}
+      >
+        {UI_TEXT.modelApiStatusOpen}
+      </button>
+    </div>
+  )
+}
 
 export interface UsageDialogProps {
+  /** Offered only for Meta by the selected provider's host adapter (M106 R). */
+  readonly readServiceStatus?: ServiceStatusReader
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
@@ -604,6 +664,7 @@ function InsightsSection({
 }
 
 export function UsageDialog({
+  readServiceStatus,
   report,
   usage,
   context,
@@ -652,6 +713,9 @@ export function UsageDialog({
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
         <AccountSection report={report} modelId={modelId} />
+        {readServiceStatus === undefined ? null : (
+          <ServiceStatusRow read={readServiceStatus} onOpenExternal={onOpenExternal} />
+        )}
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
           <p className="usage-row-meta">
