@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import {
@@ -89,8 +89,11 @@ describe('window-observed retirement', () => {
   it('keeps the slot after its own child exits while a real detached descendant writes late', async () => {
     const root = await mkdtemp(path.join(tmpdir(), 'team-retirement-'))
     const output = path.join(root, 'late.txt')
-    const writer = `setTimeout(() => { require('node:fs').writeFileSync(process.argv[1], 'late'); }, 5000)`
-    const launcher = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(writer)}, process.argv[1]], { detached: true, stdio: ['ignore', process.stdout, process.stderr] }); child.unref()`
+    const release = path.join(root, 'release')
+    // The descendant writes only after parent exit and retained-slot proof.
+    // A wall-clock sleep consumed the full aggregate test deadline.
+    const writer = `const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { fs.writeFileSync(process.argv[1], 'late'); clearInterval(timer); } }, 10); process.send('ready')`
+    const launcher = `const child = require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(writer)}, process.argv[1]], { detached: true, stdio: ['ignore', process.stdout, process.stderr, 'ipc'] }); child.once('message', () => { child.disconnect(); child.unref() })`
     const child = spawn(process.execPath, ['-e', launcher, output], {
       cwd: root,
       env: {},
@@ -101,17 +104,21 @@ describe('window-observed retirement', () => {
     child.stderr.resume()
     try {
       await once(child, 'exit')
+      await expect(readFile(output)).rejects.toMatchObject({ code: 'ENOENT' })
       const f = fixture('engine', 'unproved')
       f.evidence.loopStopped = true
       f.evidence.processes = [{ childExited: true, descendantsEnded: false, method: 'unproved' }]
       f.deps.delay = () => Promise.resolve()
       expect(await f.retirement.retire(f.ref)).toMatchObject({ state: 'uncertain' })
       expect(f.pool.snapshot()).toHaveLength(1)
+      await expect(readFile(output)).rejects.toMatchObject({ code: 'ENOENT' })
+      await writeFile(release, '')
       await drained
       expect(await readFile(output, 'utf8')).toBe('late')
       expect(f.pool.snapshot()).toHaveLength(1)
       expect(f.deps.quarantine).toHaveBeenCalledWith(f.ref)
     } finally {
+      await writeFile(release, '')
       await drained
       await rm(root, { recursive: true, force: true })
     }

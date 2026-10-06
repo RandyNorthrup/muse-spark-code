@@ -20083,6 +20083,29 @@ separate archive repository. Measure startup and VSIX bytes. Windows proof
 remains WINPUB on win11, which the lead merges in the release batch. No push,
 rebase, paid/live calls or other integration merges are authorized.
 
+**Round 3d timing causes.** The detached descendant fixture must wait for
+an explicit release after the parent exit and uncertain-slot assertions,
+instead of spending the entire five-second test deadline asleep. Its real
+process, late write and retained-slot assertions remain. Disposable Git
+fixtures resolve Apple's `/usr/bin/git` launcher to the same installed Xcode
+Git via `/usr/bin/xcrun --find git`; only their child PATH changes, and all
+real Git operations remain. Run the four independent read-only mode queries
+in parallel in staging; keep every command, precedence rule, filesystem
+cross-check and final HEAD check, with index mutations still sequential. The measured launcher takes 27 ms versus 10 ms
+for that binary on this rig. The POSIX runner helper currently forks `tr`
+for every environment name at credential removal; use Bash's case-insensitive
+matching while preserving the incoming shell option and exact removal policy.
+Add mixed-case synthetic credential assertions to the real fake-SSH suite,
+prove removal still fires under a deliberate defect. Keep the exact Node fake
+SSH transport and its JSON argv/environment-name records. Its combined
+five-run cache lifecycle exceeds five seconds even without coverage; express
+that same lifecycle as three sequential cases over one owned fixture: initial
+output/cache reuse, text lockfile change, and raw binary lockfile changes.
+Keep all five runs, exact setup counts, output/argv/security assertions and
+final cleanup; each case retains the unchanged default deadline.
+Retain every check,
+wire shape, process deadline, native boundary and price policy.
+
 **M96INT round 3c (2026-10-05, macmini).** Merge W final fixes at
 `71baf294` and package diet at `be00b172` as merge commits. W remains the
 shared Git classifier owner; retain both lanes' admission regressions.

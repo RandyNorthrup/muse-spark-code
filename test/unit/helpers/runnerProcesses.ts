@@ -3,6 +3,7 @@ import { promisify } from 'node:util'
 import type { CheckProcess } from '../../../src/host/team/checkSlots'
 import { GIT_OUTPUT_MAX_BYTES } from '../../../src/shared/constants'
 import { runnerEnvironment } from '../../../src/core/runners/runnerConfig'
+import { fixtureGitEnvironment } from './fixtureGit'
 
 const execute = promisify(execFile)
 // Only finite fixture children use this adapter. Production must inject lane K's launcher.
@@ -39,7 +40,7 @@ export async function runnerTestGit(cwd: string, ...args: string[]): Promise<str
   const answer = await execute('git', ['-c', 'core.hooksPath=/dev/null', ...args], {
     cwd,
     encoding: 'utf8',
-    env: runnerEnvironment(process.env),
+    env: fixtureGitEnvironment(runnerEnvironment(process.env)),
   })
   return answer.stdout.trim()
 }

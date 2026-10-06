@@ -133,8 +133,14 @@ export class StagingCopy {
     readonly usesFilesystemMode: boolean
   }> {
     const modes = new Map<string, MergeVersion['mode']>()
-    const tree = await this.run(root, ['ls-tree', '-r', '-z', head])
-    const index = await this.run(root, ['ls-files', '--stage', '-z'])
+    // These queries only read metadata; retain every result and its precedence
+    // without paying four serial process launches at each file guard.
+    const [tree, index, difference, configured] = await Promise.all([
+      this.run(root, ['ls-tree', '-r', '-z', head]),
+      this.run(root, ['ls-files', '--stage', '-z']),
+      this.run(root, ['diff-files', '--raw', '-z', '--no-ext-diff', '--no-textconv']),
+      this.run(root, ['config', '--type=bool', '--default=false', '--get', 'core.filemode']),
+    ])
     for (const entry of [
       ...tree.toString('utf8').split('\0'),
       ...index.toString('utf8').split('\0'),
@@ -144,13 +150,6 @@ export class StagingCopy {
       const mode = fileModeSchema.safeParse(entry.slice(0, entry.indexOf(' ')))
       if (mode.success) modes.set(entry.slice(tab + 1), mode.data)
     }
-    const difference = await this.run(root, [
-      'diff-files',
-      '--raw',
-      '-z',
-      '--no-ext-diff',
-      '--no-textconv',
-    ])
     const entries = difference.toString('utf8').split('\0')
     for (const [offset, header] of entries.entries()) {
       if (!header.startsWith(':')) continue
@@ -158,13 +157,6 @@ export class StagingCopy {
       const mode = fileModeSchema.safeParse(header.split(' ', 2)[1])
       if (file !== undefined && mode.success) modes.set(file, mode.data)
     }
-    const configured = await this.run(root, [
-      'config',
-      '--type=bool',
-      '--default=false',
-      '--get',
-      'core.filemode',
-    ])
     return {
       modes,
       usesFilesystemMode:

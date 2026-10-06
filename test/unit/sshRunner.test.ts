@@ -7,11 +7,12 @@ import { chmod, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { fill } from '../../src/shared/l10n/text'
 import { isMissingPath } from '../../src/host/canonicalPath'
 import { SshRunner, runnerSshArgs, type SshRunnerDeps } from '../../src/host/runners/sshRunner'
 import { runnerTestProcess as runProcess, runnerTestGit as git } from './helpers/runnerProcesses'
+import { fixtureGitEnvironment } from './helpers/fixtureGit'
 import type { CheckProcess } from '../../src/host/team/checkSlots'
 import type { Runner } from '../../src/shared/team'
 import type { CheckJob } from '../../src/core/runners/routing'
@@ -95,7 +96,7 @@ appendFileSync(${JSON.stringify(path.join(folder, 'ssh-args'))},JSON.stringify({
 if(args.includes('-G')) process.exit(0);
 const command=args.at(-1);
 if(command.includes("'status'") && command.includes("'drop-run'")) process.exit(255);
-const child=spawn('/bin/bash',['-c',command],{stdio:'inherit',env:{...process.env,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only'}});
+const child=spawn('/bin/bash',['-c',command],{stdio:'inherit',env:{...process.env,VENDOR_API_KEY:'remote-fixture-only',GH_TOKEN:'remote-fixture-only',mIxEd_ApI_kEy:'remote-fixture-only',gH_tOkEn:'remote-fixture-only'}});
 child.on('exit',code=>process.exit(code??1));
 `,
   )
@@ -116,12 +117,12 @@ child.on('exit',code=>process.exit(code??1));
     ssh,
     file: 'git',
     run: runProcess,
-    env: {
+    env: fixtureGitEnvironment({
       ...process.env,
       VENDOR_API_KEY: 'fixture-only',
       GH_TOKEN: 'fixture-only',
       BUILD_MODE: 'fast',
-    },
+    }),
     helperFolder: path.join(process.cwd(), 'native', 'runner'),
     scratch: path.join(folder, 'scratch'),
     isTrusted: () => true,
@@ -169,8 +170,8 @@ async function awaitFixtureExit(marker: string, deadline: number): Promise<void>
     }
   }
 }
-afterEach(async () => {
-  for (const folder of folders.splice(0)) {
+async function cleanupFolders(owned: readonly string[]) {
+  for (const folder of owned) {
     const runs = path.join(folder, 'remote', 'runs')
     let names: string[]
     try {
@@ -185,7 +186,8 @@ afterEach(async () => {
     for (const name of names) await awaitFixtureExit(path.join(runs, name, 'exit.json'), deadline)
     await rm(folder, { recursive: true, force: true })
   }
-})
+}
+afterEach(() => cleanupFolders(folders.splice(0)))
 describe('SSH runner over a fake transport and local repositories', () => {
   it('pins every SSH option, including ports, and closes Windows command stdin', () => {
     const runner: Runner = {
@@ -216,80 +218,98 @@ describe('SSH runner over a fake transport and local repositories', () => {
       'user@host',
     ])
   })
-  it('pushes working edits and untracked files, streams exact output, caches setup and installs only by rename', async () => {
-    const { deps, runner, job, folder } = await fixture()
-    const run = new SshRunner(deps)
-    const health = await run.sample(runner)
-    expect(health).toMatchObject({ freeSlots: 1, inputReady: true })
-    const first = await run.run(runner, {
-      ...job,
-      command:
-        job.command +
-        '\ntest -z "${VENDOR_API_KEY+x}" || exit 9; test -z "${GH_TOKEN+x}" || exit 9; printf mutated > node_modules/value; printf bad > stale',
+  describe('one remote cache lifecycle (PLAN.md M96 round 3d)', { concurrent: false }, () => {
+    let context: Awaited<ReturnType<typeof fixture>>
+    let run: SshRunner
+    beforeAll(async () => {
+      context = await fixture()
+      folders.splice(folders.indexOf(context.folder), 1)
+      run = new SshRunner(context.deps)
     })
-    expect(first.kind).toBe('finished')
-    if (first.kind !== 'finished') throw new Error('run failed')
-    expect(first.result.exitCode).toBe(0)
-    expect(first.result.output).toContain('  working-edit untracked\nfast')
-    expect(
-      vi
-        .mocked(job.onOutput)
-        .mock.calls.map(([text]) => text)
-        .join(''),
-    ).toBe(first.result.output)
-    const second = await run.run(runner, {
-      ...job,
-      runId: 'second-run',
-      command: 'test ! -e stale; test "$(cat node_modules/value)" = seed',
-    })
-    expect(second.kind).toBe('finished')
-    expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('x')
-    await writeFile(path.join(job.cwd, 'package-lock.json'), 'lock-1\n')
-    expect(await run.run(runner, { ...job, runId: 'third-run' })).toMatchObject({
-      kind: 'finished',
-    })
-    expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xx')
-    await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([255]))
-    expect(await run.run(runner, { ...job, runId: 'binary-first' })).toMatchObject({
-      kind: 'finished',
-    })
-    await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([254]))
-    expect(await run.run(runner, { ...job, runId: 'binary-second' })).toMatchObject({
-      kind: 'finished',
-    })
-    expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xxxx')
+    afterAll(() => cleanupFolders([context.folder]))
 
-    const callText = await readFile(path.join(folder, 'ssh-args'), 'utf8')
-    const calls = callText
-      .split('\n')
-      .filter(Boolean)
-      .map((line) =>
-        z
-          .strictObject({ args: z.array(z.string()), environmentNames: z.array(z.string()) })
-          .parse(JSON.parse(line)),
-      )
-    for (const call of calls) {
-      expect(call.args).toContain('StrictHostKeyChecking=yes')
-      expect(call.args.join(' ')).not.toContain('unwanted.invalid')
-      expect(call.environmentNames).not.toContain('VENDOR_API_KEY')
-      expect(call.environmentNames).not.toContain('GH_TOKEN')
-    }
-    expect(calls.some((call) => call.args.at(-1)?.includes(' && mv -f '))).toBe(true)
-    expect(
-      calls
-        .filter(
-          (call) =>
-            call.args.at(-1)?.includes('helper-') && call.args.at(-1)?.includes("printf '%s'"),
+    it('pushes working edits and untracked files, streams exact output and reuses setup', async () => {
+      const { runner, job, folder } = context
+      const health = await run.sample(runner)
+      expect(health).toMatchObject({ freeSlots: 1, inputReady: true })
+      const first = await run.run(runner, {
+        ...job,
+        command:
+          job.command +
+          '\ntest -z "${VENDOR_API_KEY+x}" || exit 9; test -z "${GH_TOKEN+x}" || exit 9; test -z "${mIxEd_ApI_kEy+x}" || exit 9; test -z "${gH_tOkEn+x}" || exit 9; printf mutated > node_modules/value; printf bad > stale',
+      })
+      expect(first.kind).toBe('finished')
+      if (first.kind !== 'finished') throw new Error('run failed')
+      expect(first.result.exitCode).toBe(0)
+      expect(first.result.output).toContain('  working-edit untracked\nfast')
+      expect(
+        vi
+          .mocked(job.onOutput)
+          .mock.calls.map(([text]) => text)
+          .join(''),
+      ).toBe(first.result.output)
+      const second = await run.run(runner, {
+        ...job,
+        runId: 'second-run',
+        command: 'test ! -e stale; test "$(cat node_modules/value)" = seed',
+      })
+      expect(second.kind).toBe('finished')
+      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('x')
+    })
+
+    it('changes the cache when the text lockfile changes', async () => {
+      const { runner, job, folder } = context
+      await writeFile(path.join(job.cwd, 'package-lock.json'), 'lock-1\n')
+      expect(await run.run(runner, { ...job, runId: 'third-run' })).toMatchObject({
+        kind: 'finished',
+      })
+      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xx')
+    })
+
+    it('distinguishes raw binary lockfiles and installs only by rename', async () => {
+      const { runner, job, folder } = context
+      await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([255]))
+      expect(await run.run(runner, { ...job, runId: 'binary-first' })).toMatchObject({
+        kind: 'finished',
+      })
+      await writeFile(path.join(job.cwd, 'package-lock.json'), Buffer.from([254]))
+      expect(await run.run(runner, { ...job, runId: 'binary-second' })).toMatchObject({
+        kind: 'finished',
+      })
+      expect(await readFile(path.join(folder, 'setups'), 'utf8')).toBe('xxxx')
+
+      const callText = await readFile(path.join(folder, 'ssh-args'), 'utf8')
+      const calls = callText
+        .split('\n')
+        .filter(Boolean)
+        .map((line) =>
+          z
+            .strictObject({ args: z.array(z.string()), environmentNames: z.array(z.string()) })
+            .parse(JSON.parse(line)),
         )
-        .every((call) => (call.args.at(-1) ?? '').includes(".new' && mv -f")),
-    ).toBe(true)
-    expect(
-      await git(
-        path.join(runner.workFolder, 'repository.git'),
-        'show-ref',
-        'refs/muse-spark/runs/first-run',
-      ),
-    ).toMatch(/^[a-f0-9]+ refs/u)
+      for (const call of calls) {
+        expect(call.args).toContain('StrictHostKeyChecking=yes')
+        expect(call.args.join(' ')).not.toContain('unwanted.invalid')
+        expect(call.environmentNames).not.toContain('VENDOR_API_KEY')
+        expect(call.environmentNames).not.toContain('GH_TOKEN')
+      }
+      expect(calls.some((call) => call.args.at(-1)?.includes(' && mv -f '))).toBe(true)
+      expect(
+        calls
+          .filter(
+            (call) =>
+              call.args.at(-1)?.includes('helper-') && call.args.at(-1)?.includes("printf '%s'"),
+          )
+          .every((call) => (call.args.at(-1) ?? '').includes(".new' && mv -f")),
+      ).toBe(true)
+      expect(
+        await git(
+          path.join(runner.workFolder, 'repository.git'),
+          'show-ref',
+          'refs/muse-spark/runs/first-run',
+        ),
+      ).toMatch(/^[a-f0-9]+ refs/u)
+    })
   })
   it('keeps the remote slot after disconnect until an exit marker, rejects late run ids and respects maxJobs across windows', async () => {
     const { deps, runner, job } = await fixture()

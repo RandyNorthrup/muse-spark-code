@@ -14,12 +14,17 @@ release_cache_lock() {
   fi
 }
 strip_credentials() {
-  local name
+  local name restore_case=0
+  if ! shopt -q nocasematch; then
+    shopt -s nocasematch
+    restore_case=1
+  fi
   while IFS= read -r name; do
-    case "$(printf '%s' "$name" | tr '[:lower:]' '[:upper:]')" in
+    case "$name" in
       *_API_KEY|AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|OPENAI_KEY|ANTHROPIC_KEY|META_KEY|SSH_AUTH_SOCK|SSH_ASKPASS*|GITHUB_TOKEN|GH_TOKEN|ACTIONS_RUNTIME_TOKEN|ACTIONS_ID_TOKEN_REQUEST_TOKEN|ACTIONS_ID_TOKEN_REQUEST_URL|DBUS_SESSION_BUS_ADDRESS|XDG_RUNTIME_DIR|GNOME_KEYRING_CONTROL|GNOME_KEYRING_PID|GIT_*) unset "$name" ;;
     esac
   done < <(compgen -e)
+  if [[ "$restore_case" == 1 ]]; then shopt -u nocasematch; fi
 }
 case "$action" in
   init) git -c core.hooksPath=/dev/null init --bare "$root/repository.git" >/dev/null; printf '{}\n';;

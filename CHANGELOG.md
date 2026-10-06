@@ -87,6 +87,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Team staging reads independent Git mode metadata concurrently, keeping
+  its raw-byte, executable-mode and final snapshot checks.
+- POSIX runner jobs remove credential variables without starting a process
+  for each environment name. Matching remains case-insensitive, and the
+  helper restores its previous shell option afterward.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

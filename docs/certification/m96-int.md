@@ -886,3 +886,67 @@ its fixture sleeps five seconds. SSH's combined five-run case takes 10.47 s.
 All deadlines, assertions and coverage gates stay unchanged. Final repairs,
 drills, aggregate gate and package measurements follow below and in
 `m96-int-round3d-results.json`.
+
+### Round 3d timing repairs and deliberate drills
+
+Staging's four independent read-only mode queries now run concurrently.
+Every Git command, precedence rule, filesystem race check and final HEAD
+check remains; mutations remain sequential. Disposable real-Git fixtures
+resolve Apple's launcher to the same installed binary through xcrun and
+change only their child PATH. The POSIX runner removes credential names
+with Bash's case-insensitive matching, restores the incoming option, and
+starts no `tr` per environment variable. A mixed-case synthetic API-key
+and token name now accompany the original remote sentinels; none may reach
+the job. The selected model, backend, paid admission and protocol are unchanged.
+
+SSH's original combined five-run lifecycle becomes three ordered cases over
+one owned fixture: initial output/setup reuse; changed text lockfile; changed
+raw binary lockfiles and exact transport/rename checks. All five real runs,
+`x`/`xx`/`xxxx` setup counts, byte/output/argv assertions, private repositories
+and cleanup remain. No timeout, hook deadline, retry, coverage rule or skip
+is changed. The first corrected run's SSH maximum is 3.47 s; a later busy
+three-file run reaches 4.86 s, while batch Git cases vary up to 6.17 s.
+Those observations are not a green aggregate timing claim.
+
+A Bash-only fake SSH attempt was abandoned immediately: its JSON record
+failed the existing strict parse and it increased latency. Restore the exact
+Node transport and keep its native subprocesses. A first sequence spelling
+was rejected by Vitest 5; the installed API's explicit `concurrent: false`
+option now preserves the original ordered lifecycle. These failed attempts
+are recorded separately from the final green file.
+
+The descendant fixture uses real detached processes and an IPC-ready handshake.
+The direct parent exits only after its child is waiting at the file barrier;
+assert no late file exists before and after uncertain-slot admission, release
+that barrier, then require the write and the retained slot. Cleanup releases
+its own barrier even after an assertion failure. Its original five-second
+sleep is gone; the real write/exit/uncertainty behavior remains.
+
+Six deliberate complete-file drills exit 1 and restore byte-exact SHA-256:
+missing private team outdir (suite setup failure), missing explicit Darwin
+adapter (one assertion), premature descendant write (one), disabled
+case-insensitive credential removal (one), bypassed POSIX mode race guard
+(one), and unproved retirement accepted (six). Exact metadata is in
+`m96-int-round3d-drills.json`. Restored batches pass **63 + 37 assertions**
+with the same two actual Linux/Bun platform cases; golden/startup/source-hash
+proofs pass **75**, including all 69 D78 requests. The original golden
+fixtures remain untouched.
+
+| Formerly failing file    | Cause and retained repair                                                                                                                                                 |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| execStdio                | Release package-fixture/probe repair retained; real built exec and package guard assertions pass.                                                                         |
+| teamLanding              | Native Git launch overhead and serialized mode reads; direct fixture binary and concurrent read-only metadata, retaining every holder/write/race check.                   |
+| sshRunner                | Launcher and credential scrub overhead plus a five-run single case; native fixture binary, fork-free scrub, three ordered cases with identical runs and exact assertions. |
+| pluginDispatch           | Darwin Bun cannot be bounded; portable Linux stand-in keeps its heap/prlimit arguments and real children, while the Darwin refusal explicitly uses Darwin.                |
+| teamMergeBatchRepository | Repeated native snapshots/checks under deadline contention; same real batches, queries, exact final trees and admission, using the repaired fixture/metadata path.        |
+| paletteRegistry          | D75 adds the paid worker row and price tip; prior round-3c product/fixture repair retained.                                                                               |
+| htmlToMarkdown           | Prior full-profile timing; unchanged hostile deep/expanding inputs and output bounds pass scoped verification.                                                            |
+| deferredBundles          | New team outputs and private support modules; release in-memory production codec retained and the three-entry team outdir restored.                                       |
+| teamSchedulerRetire      | A five-second sleep exhausted a five-second deadline; real ready/exit/late-write handshake preserves the uncertain slot.                                                  |
+| teamNativeLifetime       | Prior round-3c exact-deadline test-clock repair retained, with real owned children, signals and cleanup.                                                                  |
+| paidDailyBudget          | Prior round-3c async question await retained; Deny still dispatches no paid request.                                                                                      |
+| flightRecorder           | Prior round-3c strict frame vocabulary includes all three shipped team bundles; no privacy allowlist widening beyond package paths.                                       |
+
+The twelve prescribed files pass 306 distinct assertions after the two added
+SSH case boundaries. Aggregate quality, private packages and final byte counts
+follow below; Windows remains WINPUB, not a Mac certification claim.

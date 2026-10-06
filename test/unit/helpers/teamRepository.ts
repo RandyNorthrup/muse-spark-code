@@ -1,7 +1,10 @@
 import { chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { processGitProcess } from '../../../src/host/git'
+import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { createGitProcess } from '../../../src/host/git'
 import { StagingCopy } from '../../../src/host/team/stagingCopy'
+import { fixtureGitEnvironment } from './fixtureGit'
 
 /** Every fixture, clone and journal stays inside this lane's worktree. */
 export async function teamRepository() {
@@ -12,14 +15,19 @@ export async function teamRepository() {
   const storage = path.join(folder, 'storage')
   await mkdir(root)
   await mkdir(storage)
-  const env = {
+  const env = fixtureGitEnvironment({
     PATH: process.env['PATH'],
     SystemRoot: process.env['SystemRoot'],
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_TERMINAL_PROMPT: '0',
-  }
-  const processGit = processGitProcess()
+  })
+  const processGit = createGitProcess({
+    platform: process.platform,
+    env,
+    fileExists: existsSync,
+    spawn,
+  })
   const git = async (args: readonly string[], cwd = root, input?: string): Promise<string> => {
     const output = await processGit(
       [
