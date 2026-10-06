@@ -296,7 +296,7 @@ async function show(
   const before = new Set(existing.map((tab) => tab.group.viewColumn))
   const reused = existing.find((tab) => !tab.group.isActive)
   try {
-    await vscode.window.showTextDocument(document.uri, {
+    await vscode.window.showTextDocument(document, {
       viewColumn: reused?.group.viewColumn ?? vscode.ViewColumn.Beside,
       preview: reused?.isPreview ?? false,
       preserveFocus: true,

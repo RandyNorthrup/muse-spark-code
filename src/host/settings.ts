@@ -8,6 +8,7 @@ import { widenedHost } from '../core/browser/browserPolicy'
 import { checkCommandsSchema } from '../core/verify/checkCommands'
 import {
   BACKEND_MODES,
+  MACHINE_SCOPED_SETTINGS,
   PAID_DAILY_BUDGET,
   type BackendMode,
   BROWSER_CHECK_EXTRA_HOSTS_MAX,
@@ -100,6 +101,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
  */
 export interface SettingsSource {
   get(section: string): unknown
+  inspect?(
+    section: string,
+  ): { readonly globalValue?: unknown; readonly defaultValue?: unknown } | undefined
 }
 
 const environmentVariableSchema = z.object({ name: z.string(), value: z.string() })
@@ -154,6 +158,7 @@ const settingSchemas = {
 } as const
 
 type SettingKey = keyof typeof settingSchemas
+const machineSettings: ReadonlySet<string> = new Set(MACHINE_SCOPED_SETTINGS)
 
 // An invalid value is reported once per logger, not on every read: the
 // settings are read about seven times for each message sent (M39).
@@ -174,7 +179,15 @@ function readSetting<K extends SettingKey>(
   key: K,
   log: Logger,
 ): ExtensionSettings[K] {
-  const raw = config.get(key)
+  // Theia accepts repository overrides even for manifest scope "machine".
+  // Read those keys from the user's lane; a repository cannot opt into
+  // execution, spending or Bypass. Sources without inspection are already
+  // scoped by their caller (the injected tests and standalone adapters).
+  const inspected = config.inspect?.(key)
+  const raw =
+    machineSettings.has(key) && config.inspect !== undefined
+      ? (inspected?.globalValue ?? inspected?.defaultValue)
+      : config.get(key)
   const fallback = SETTING_DEFAULTS[key] as ExtensionSettings[K]
   if (raw === undefined) {
     return fallback

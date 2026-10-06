@@ -3,6 +3,7 @@
 import * as assert from 'node:assert/strict'
 import * as vscode from 'vscode'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
+import { readSettings } from '../../src/host/settings'
 import type { Logger } from '../../src/host/logger'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import type { AgentEvent } from '../../src/shared/agentEvents'
@@ -66,7 +67,7 @@ suite('activation', () => {
     // The fixture workspace overrides one window-scoped setting (next test).
     const defaults = Object.entries(SETTING_DEFAULTS).filter(([key]) => key !== FIXTURE_OVERRIDE)
     for (const [key, value] of defaults) {
-      assert.deepEqual(configuration.get(key), value, `default for ${key}`)
+      assert.deepEqual(configuration.inspect(key)?.defaultValue, value, `default for ${key}`)
     }
   })
 
@@ -91,8 +92,18 @@ suite('activation', () => {
 
   test('a workspace cannot set the machine-scoped settings but sets the others (D15)', () => {
     const configuration = vscode.workspace.getConfiguration(SETTINGS_SECTION)
-    assert.equal(configuration.get('allowDangerouslySkipPermissions'), false)
-    assert.equal(configuration.get('museBinaryPath'), '')
+    const log: Logger = {
+      trace: () => undefined,
+      info: () => undefined,
+      warn: () => undefined,
+      error: () => undefined,
+    }
+    const settings = readSettings(configuration, log)
+    assert.equal(settings.allowDangerouslySkipPermissions, false)
+    assert.equal(
+      settings.museBinaryPath,
+      configuration.inspect('museBinaryPath')?.globalValue ?? '',
+    )
     assert.equal(configuration.inspect(FIXTURE_OVERRIDE)?.workspaceValue, true)
     assert.equal(configuration.get(FIXTURE_OVERRIDE), true)
   })

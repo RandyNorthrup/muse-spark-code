@@ -183,6 +183,7 @@ export const extensions: { all: readonly Pick<vscode.Extension<unknown>, 'extens
 }
 
 export const commands = {
+  getCommands: vi.fn<typeof vscode.commands.getCommands>(),
   executeCommand: vi.fn<typeof vscode.commands.executeCommand>(),
 }
 

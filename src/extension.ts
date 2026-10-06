@@ -141,6 +141,7 @@ import {
   readNetworkFacts,
   readProxySettings,
 } from './host/networkPosture'
+import { openWalkthrough } from './host/commands/openWalkthrough'
 import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
@@ -226,7 +227,6 @@ import {
   SHELL_SANDBOX_SETTING,
   UI_TEXT,
   VSCODE_COMMANDS,
-  WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
   WORKSPACE_STATE_KEYS,
 } from './shared/constants'
@@ -2598,7 +2598,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       },
     }),
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
-      openChatPanel(hostContext, registry)
+      return openChatPanel(hostContext, registry)
     }),
     registerLoggedCommand(
       log,
@@ -2638,7 +2638,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         fileExists: isExistingPath,
         writeFile: (fsPath, content) => writeUserFile(check, fsPath, content),
         openFile: async (fsPath) => {
-          await vscode.window.showTextDocument(vscode.Uri.file(fsPath))
+          await vscode.window.showTextDocument(await vscode.workspace.openTextDocument(vscode.Uri.file(fsPath)))
         },
         runInit: () => {
           check()
@@ -2664,11 +2664,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       })
     }),
     registerLoggedCommand(log, COMMAND_IDS.openWalkthrough, async () => {
-      await vscode.commands.executeCommand(
-        VSCODE_COMMANDS.openWalkthrough,
-        WALKTHROUGH_QUALIFIED_ID,
-        false,
-      )
+      const panel = await openWalkthrough()
+      if (panel !== undefined) context.subscriptions.push(panel)
+      return panel
     }),
     registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {

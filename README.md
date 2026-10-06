@@ -350,7 +350,9 @@ extension is an unsupported side-load. There is no extension store in the IDE.
 Qualification is still incomplete: the real IDE loaded the extension, but
 13 of 34 integration tests failed in language services, tabs, walkthroughs
 and machine-scoped settings. See [the Arduino certification record](docs/certification/m103-a.md)
-before using this experimental package.
+before using this experimental package. Machine-scoped settings are read from
+user/global settings even when the IDE accepts a workspace override; a
+repository cannot enable Bypass or paid features, or replace the CLI.
 
 Quit Arduino IDE, unzip the asset, and copy its `extension/` directory to
 `~/.arduinoIDE/plugins/muse-spark-code/` (on Windows,
