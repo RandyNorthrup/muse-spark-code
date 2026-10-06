@@ -6,6 +6,7 @@ import {
   PLAN_FORMAT_FIXTURE,
   QUALITY_LEDGER_FIXTURE,
   NO_PLAN_FIXTURE,
+  PACKAGE_FIXTURE,
 } from './helpers/reporting/plans'
 import {
   fakeClock,
@@ -23,7 +24,7 @@ import { removeFolder } from './helpers/temporaryFolders'
 describe('deterministic reporting fakes', () => {
   it('names all absent sources, without pretending they returned empty success', () => {
     const snapshot = buildSourceSnapshot()
-    expect(Object.keys(snapshot.sources)).toHaveLength(19)
+    expect(Object.keys(snapshot.sources)).toHaveLength(20)
     for (const [id, result] of Object.entries(snapshot.sources)) {
       expect(result.record).toMatchObject({
         id,
@@ -81,6 +82,7 @@ describe('deterministic reporting fakes', () => {
     expect(PLAN_FORMAT_FIXTURE).toContain('### M110a0')
     expect(PLAN_FORMAT_FIXTURE).toContain('### M91b')
     expect(PLAN_FORMAT_FIXTURE).toContain('### CIFIX14C')
+    expect(PLAN_FORMAT_FIXTURE).toContain('- **Gates.** quality, check:reference.')
     expect(QUALITY_LEDGER_FIXTURE).toContain('"schema_version":1')
     expect(NO_PLAN_FIXTURE).not.toContain('quality-ledger')
   })
@@ -124,6 +126,7 @@ describe('fixed Git fixture', () => {
       left.root.replaceAll('\\', '/'),
     )
     expect(await readFile(path.join(left.root, 'PLAN.md'), 'utf8')).toBe(PLAN_FORMAT_FIXTURE)
+    expect(await readFile(path.join(left.root, 'package.json'), 'utf8')).toBe(PACKAGE_FIXTURE)
     expect(await readFile(path.join(left.root, 'CHANGELOG.md'), 'utf8')).toContain(
       '## [Unreleased]',
     )

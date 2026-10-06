@@ -1,13 +1,53 @@
 // Normalized, scrubbed facts supplied by injected readers. These types are
 // application contracts; upstream HTTP/MSP parsers stay with their source owners.
+import * as z from 'zod/mini'
+import { REPORT_MAX_ROWS, REPORT_MAX_TEXT_CHARS } from '../../../shared/constants'
 import type { SessionExport } from '../../export/sessionTransfer'
-import type { PullRequest, ChecksSummary } from '../../git/github'
+import type { PullRequest } from '../../git/github'
 import type {
   ReportDocument,
   ReportOptions,
   ReportSection,
   ReportSourceRecord,
 } from '../../../shared/reportSchema'
+
+const factText = z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_TEXT_CHARS))
+const factCount = z.number().check(z.int(), z.nonnegative())
+const missingFact = z.strictObject({ status: z.literal('unavailable'), reason: factText })
+
+// Declarations, not executions: a required gate may have no journal entry.
+export const reportRequiredGatesSchema = z.array(factText).check(z.maxLength(REPORT_MAX_ROWS))
+export const reportPackageFactsSchema = z.strictObject({
+  qualityScripts: z
+    .array(z.strictObject({ name: factText, command: factText }))
+    .check(z.maxLength(REPORT_MAX_ROWS)),
+})
+// The export reader retains these facts before portable items lose their turn ids.
+// A legacy export cannot establish them; zero is reserved for an observed zero.
+export const reportSessionActivitySchema = z.strictObject({
+  turns: z.discriminatedUnion('status', [
+    z.strictObject({ status: z.literal('available'), count: factCount }),
+    missingFact,
+  ]),
+  approvals: z.discriminatedUnion('status', [
+    z.strictObject({
+      status: z.literal('available'),
+      approved: factCount,
+      denied: factCount,
+      auto: factCount,
+      expired: factCount,
+    }),
+    missingFact,
+  ]),
+})
+// Null conclusion means the scoped run has not concluded; future words survive.
+export const reportCiRunSchema = z.strictObject({
+  ref: z.strictObject({ kind: z.enum(['head', 'default-branch', 'release-tag']), name: factText }),
+  sha: factText,
+  workflow: factText,
+  conclusion: z.nullable(factText),
+  url: z.url(),
+})
 
 export interface PlanLane {
   readonly id: string
@@ -36,6 +76,7 @@ export interface PlanMilestone {
   readonly dependencies: readonly string[]
   readonly lanes: readonly PlanLane[]
   readonly checklist: readonly { readonly text: string; readonly done: boolean }[]
+  readonly requiredGates: z.infer<typeof reportRequiredGatesSchema>
 }
 export interface ReportQuestion {
   readonly id: string
@@ -120,6 +161,7 @@ export interface CheckRunRecord {
 }
 export interface ReportSourcePayloads {
   readonly plan: PlanFacts
+  readonly package: z.infer<typeof reportPackageFactsSchema>
   readonly git: GitFacts
   readonly changelog: {
     readonly sections: readonly {
@@ -137,6 +179,7 @@ export interface ReportSourcePayloads {
   }
   readonly session: {
     readonly export: SessionExport
+    readonly activity: z.infer<typeof reportSessionActivitySchema>
     readonly backend: string
     readonly usage: UsageFacts
     readonly checkRuns: readonly CheckRunRecord[]
@@ -153,7 +196,7 @@ export interface ReportSourcePayloads {
   readonly checkRuns: readonly CheckRunRecord[]
   readonly github: {
     readonly pullRequests: readonly PullRequest[]
-    readonly checks: ChecksSummary
+    readonly runs: readonly z.infer<typeof reportCiRunSchema>[]
     readonly releases: readonly {
       readonly version: string
       readonly commit: string

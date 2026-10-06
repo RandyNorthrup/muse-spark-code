@@ -129,7 +129,37 @@ export const reportHeaderSchema = z.strictObject({
   scope: text,
   asOf: timestamp,
   generatorVersion: id,
-  contentHash: hash,
+  // Output scrub precedes hashing. Only this schema path is exempt from the
+  // scrub; a hash-looking string in a source cell is still untrusted text.
+  contentHash: hash.register(z.globalRegistry, {
+    description:
+      'SHA-256 of scrubbed canonical JSON, excluding /header/asOf and /header/contentHash. Only /header/contentHash is excluded from output scrubbing by schema path; source text is never exempt.',
+  }),
+})
+
+// Row pairs retain every field for a field-by-field comparison, including
+// changed source references. R computes this from two saved, verified documents.
+export const reportDiffSchema = z.strictObject({
+  from: reportHeaderSchema,
+  to: reportHeaderSchema,
+  sections: z
+    .array(
+      z.strictObject({
+        id,
+        label,
+        added: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
+        removed: z.array(reportRowSchema).check(z.maxLength(REPORT_MAX_ROWS)),
+        changed: z
+          .array(
+            z
+              .strictObject({ key: id, before: reportRowSchema, after: reportRowSchema })
+              .check(z.refine((row) => row.key === row.before.key && row.key === row.after.key)),
+          )
+          .check(z.maxLength(REPORT_MAX_ROWS)),
+        unchangedRows: count,
+      }),
+    )
+    .check(z.maxLength(REPORT_MAX_SECTIONS)),
 })
 
 export const reportDocumentSchema = z

@@ -40,24 +40,54 @@ lanes bind them.
   `(document, locale, theme) => string`. No ambient clock, locale, theme or
   backend is needed by these signatures. Locale installation inside a
   renderer would change process-global state; R uses the supplied locale.
-- `src/shared/hostApi/reports.ts` owns only the three method payloads:
-  `reports/run`, `reports/history`, `reports/open`. Results explicitly name
-  generated/listed/opened or failed with a reason. Workspace/history keys
+- `src/shared/hostApi/reports.ts` owns five method payloads:
+  `reports/run`, `reports/history`, `reports/open`, `reports/get` and
+  `reports/compare`. The latter two select saved ids under history's same
+  workspace/kind authorization; hosts must authorize that scope before touching
+  storage and fail missing or foreign ids, never regenerate historical input.
+  Compare accepts `fromId`/`toId` and returns `reportDiffSchema`: saved headers,
+  sections keyed by id, added/removed rows, changed before/after row pairs
+  (including source references) and an unchanged-row count. Each pair has one
+  matching row key, allowing field-by-field rendering. Results explicitly name
+  generated/listed/opened/retrieved/compared or failed with a reason. Workspace/history keys
   exclude path separators, history is capped at 50, and the port names
-  its `reports` capability. M104 owns its envelope, dispatch and negotiation.
+  its `reports` capability. M104 owns authorization enforcement, envelope,
+  dispatch and negotiation on MHP 1.2's host-initiated transport; lane 0 adds
+  neither a handshake nor an editor-specific storage path.
 - `docs/schemas/report-v1.entry.json` declares the generator's input,
   export, output and runtime invariants. The accompanying JSON Schema is
   generated from production zod. `reportSchema.test.ts` fails on drift;
   lane R adds `scripts/schema-report.mjs` and `schema:report -- --check`
   using this entry. Refinements that JSON Schema cannot express are listed
   as `x-runtime-invariants`; consumers must still run the zod boundary.
+  The output scrub runs over canonical report bytes before SHA-256 is
+  computed. Hash input excludes exactly `/header/asOf` and
+  `/header/contentHash`; the output scrub exempts only `/header/contentHash`
+  by schema path, never every 64-hex value or every key called contentHash.
+  Source text, including hash-like values, is scrubbed twice. Rendering inserts
+  verified hash metadata after scrubbing source output, preserving it in JSON,
+  display and diff. Saved input requires the same hash verification; schema
+  validation alone proves neither redaction nor hash correctness.
 - `constants.ts` includes all D93 limits and exit codes, conservative
   document bounds, formats, kinds and label keys. `SLASH_COMMAND_NAMES`
   reserves `report`; no palette item or command is registered by lane 0.
 
+The review extensions in `sources/types.ts` have strict normalized-fact zod
+contracts: milestone `requiredGates` names, package `qualityScripts` with
+names/commands exactly as declared (never executed), session `activity` with
+actual turns and approved/denied/auto/expired approvals, and GitHub `runs`.
+Turns and approvals have independent available/unavailable states: an unknown
+legacy history needs a reason, not a zero. S obtains actual counts from the
+same history source used by portable export, before turn ids and resolved
+decisions are removed; it cannot infer them from message/tool counts.
+Each CI run names `ref: {kind: head | default-branch | release-tag, name}`,
+SHA, workflow, conclusion and URL. Null conclusion means pending; future
+conclusion words are retained. The source record supplies observation time
+and freshness. A green HEAD cannot mask the default branch's failure.
+
 ## Strings and fixtures
 
-The regional block in `en.ts` supplies 116 labels, 15 kind names, 52 action,
+The regional block in `en.ts` supplies 121 labels, 15 kind names, 52 action,
 status and delivery strings, the command/palette/slash strings, count forms
 and CLI usage. All 14 `l10n/ui.*.json` tables have real translations with
 the same slots and each locale's count forms. Every new key starts `report`,
@@ -80,18 +110,18 @@ synthetic fault fixtures. They are not claimed as captured headers.
 
 ## Named integration handoffs
 
-| Handoff               | Owner           | Binding needed                                                                                                                                                                                                                                                                            |
-| --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M113-P-plan           | P               | Fill `PlanFacts`; validate the complete plan/ledger grammar, report drift, establish actual lane evidence and delivery order.                                                                                                                                                             |
-| M113-S-usage          | S / M102        | Adapt `aggregate.ts` to `UsageFacts`, preserving certainty, optional cache capability and limits.                                                                                                                                                                                         |
-| M113-S-questions      | S / M112        | Adapt the actual registry to `ReportQuestion`; no registry implementation is shipped here.                                                                                                                                                                                                |
-| M113-X-MHP            | X / M104 lane 0 | Bind the three payload schemas and `ReportsHostPort` to the negotiated MHP envelope on every native host.                                                                                                                                                                                 |
-| M113-R-schema         | R               | Implement the owned generator/script registration from `report-v1.entry.json`; hash canonical JSON excluding header `asOf` and the hash itself. Scrub sources and each output.                                                                                                            |
-| M113-N-captures       | N / lead        | Supply approved recorded store responses and actual rate-limit headers. None exists on this base; shared rules prohibit new network calls. Never write a store parser from the synthetic fixtures.                                                                                        |
-| M113-V-command        | V / W           | Register `museSpark.showReport`, the palette item and `/report` intercept using the prepared strings; preserve M93's problem-report command and bare runtime `report`.                                                                                                                    |
-| M113-W-manifest       | W               | Reference the seven prepared `package.nls*.json` keys from `package.json`: showReport title; reports.network description and three enum descriptions; keepHistory description; agentSources description. Defaults: whenSignedIn, true, empty list; machine scope.                         |
-| M113-W-reference-docs | W               | Add catalogue/help rows for Show report, `/report`, CLI kinds/history/problem alias and every report setting; regenerate the reference. Update README, CHANGELOG, ACP, CI, privacy/security and host compatibility. These files belong to W; lane 0 registers no user-facing entry point. |
-| M113-W-bundles        | W / M102        | Keep report logic and UI lazy, move the regional labels to the separate report family once M102 is present, measure each new chunk and apply the brief's existing caps.                                                                                                                   |
+| Handoff               | Owner           | Binding needed                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M113-P-plan           | P               | Fill `PlanFacts`, including required milestone gates; validate the complete plan/ledger grammar, report drift, establish actual lane evidence and delivery order.                                                                                                                                                                                                                                                                                                                                                                        |
+| M113-S-usage          | S / M102        | Adapt `aggregate.ts` to `UsageFacts`, preserving certainty, optional cache capability and limits; read declared package quality scripts and retain actual session activity with availability.                                                                                                                                                                                                                                                                                                                                            |
+| M113-S-questions      | S / M112        | Adapt the actual registry to `ReportQuestion`; no registry implementation is shipped here.                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| M113-X-MHP            | X / M104 lane 0 | Bind the five payload schemas and `ReportsHostPort` to MHP 1.2 host-initiated transport on every native host; get/compare enforce history's workspace/kind authorization.                                                                                                                                                                                                                                                                                                                                                                |
+| M113-R-schema         | R               | Implement the owned generator/script registration from `report-v1.entry.json`; scrub canonical output first, then hash it excluding `/header/asOf` and `/header/contentHash`; exempt only the hash's schema path. Verify saved hashes and preserve metadata in rendered/diff output.                                                                                                                                                                                                                                                     |
+| M113-N-captures       | N / lead        | Supply approved recorded store responses and actual rate-limit headers. None exists on this base; shared rules prohibit new network calls. Never write a store parser from the synthetic fixtures.                                                                                                                                                                                                                                                                                                                                       |
+| M113-V-command        | V / W           | Register `museSpark.showReport`, the palette item and `/report` intercept using the prepared strings; preserve M93's problem-report command and bare runtime `report`.                                                                                                                                                                                                                                                                                                                                                                   |
+| M113-W-manifest       | W               | Reference the seven prepared `package.nls*.json` keys from `package.json`: showReport title; reports.network description and three enum descriptions; keepHistory description; agentSources description. Defaults: whenSignedIn, true, empty list; machine scope.                                                                                                                                                                                                                                                                        |
+| M113-W-reference-docs | W               | Add catalogue/help rows for Show report, `/report`, CLI kinds/history/problem alias and every report setting; regenerate the reference. Update README, CHANGELOG, ACP, CI, privacy/security and host compatibility. Unreleased fixed-entry handoff: report contracts now carry required gates, declared quality scripts, actual session activity, scoped CI and saved retrieval/comparison; hash scrub ordering and all localized token/store labels are explicit. These files belong to W; lane 0 registers no user-facing entry point. |
+| M113-W-bundles        | W / M102        | Keep report logic and UI lazy, move the regional labels to the separate report family once M102 is present, measure each new chunk and apply the brief's existing caps.                                                                                                                                                                                                                                                                                                                                                                  |
 
 Each editor uses the same document and rendering/source ports: VS Code,
 the companion, native MHP hosts, ACP, CLI/headless, then desktop/TUI. No

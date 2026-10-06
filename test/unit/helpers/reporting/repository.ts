@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { PLAN_FORMAT_FIXTURE } from './plans'
+import { PACKAGE_FIXTURE, PLAN_FORMAT_FIXTURE } from './plans'
 
 // A caller-owned root. No configuration writes, hooks overrides, global Git
 // settings, network, signing keys or user credentials are needed by this fixture.
@@ -32,11 +32,12 @@ export async function buildFixtureRepository(
   }
   git(['init', '-b', 'main'])
   await writeFile(path.join(root, 'PLAN.md'), PLAN_FORMAT_FIXTURE)
+  await writeFile(path.join(root, 'package.json'), PACKAGE_FIXTURE)
   await writeFile(
     path.join(root, 'CHANGELOG.md'),
     '# Changelog\n\n## [Unreleased]\n\n- Fixture change.\n\n## [0.14.2] - 2026-10-05\n\n- Fixture release.\n',
   )
-  git(['add', 'PLAN.md', 'CHANGELOG.md'])
+  git(['add', 'PLAN.md', 'CHANGELOG.md', 'package.json'])
   git(['commit', '-m', 'M12: fixture contracts'])
   const first = git(['rev-parse', 'HEAD'])
   git(['tag', 'v0.14.2'])

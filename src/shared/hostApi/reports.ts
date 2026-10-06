@@ -1,5 +1,7 @@
 // M113's method family. M104 binds these payload schemas to its MHP envelope
 // and capability negotiation; this module makes no host or transport calls.
+// MHP 1.2 is host-initiated. get/compare require the same workspace/kind
+// authorization as history; ids select saved documents inside that scope.
 import * as z from 'zod/mini'
 import {
   REPORT_FORMATS,
@@ -10,6 +12,7 @@ import {
 } from '../constants'
 import {
   reportDocumentSchema,
+  reportDiffSchema,
   reportHeaderSchema,
   reportKindSchema,
   reportOptionsSchema,
@@ -51,6 +54,25 @@ export const reportsMethods = {
       failed,
     ]),
   },
+  'reports/get': {
+    params: z.strictObject({ workspaceKey, kind: reportKindSchema, id: workspaceKey }),
+    result: z.discriminatedUnion('status', [
+      z.strictObject({ status: z.literal('retrieved'), document: reportDocumentSchema }),
+      failed,
+    ]),
+  },
+  'reports/compare': {
+    params: z.strictObject({
+      workspaceKey,
+      kind: reportKindSchema,
+      fromId: workspaceKey,
+      toId: workspaceKey,
+    }),
+    result: z.discriminatedUnion('status', [
+      z.strictObject({ status: z.literal('compared'), diff: reportDiffSchema }),
+      failed,
+    ]),
+  },
 }
 export interface ReportsHostPort {
   readonly capability: 'reports'
@@ -63,4 +85,10 @@ export interface ReportsHostPort {
   open(
     params: z.infer<(typeof reportsMethods)['reports/open']['params']>,
   ): Promise<z.infer<(typeof reportsMethods)['reports/open']['result']>>
+  get(
+    params: z.infer<(typeof reportsMethods)['reports/get']['params']>,
+  ): Promise<z.infer<(typeof reportsMethods)['reports/get']['result']>>
+  compare(
+    params: z.infer<(typeof reportsMethods)['reports/compare']['params']>,
+  ): Promise<z.infer<(typeof reportsMethods)['reports/compare']['result']>>
 }

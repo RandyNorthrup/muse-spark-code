@@ -29,6 +29,7 @@ import {
   reportRowSchema,
   reportSectionSchema,
   reportValueSchema,
+  reportDiffSchema,
   type ReportRenderer,
   type ReportTheme,
 } from '../../src/shared/reportSchema'
@@ -39,13 +40,21 @@ import {
 } from '../../src/shared/hostApi/reports'
 import type { ReportCollector, ReportSourcePorts } from '../../src/core/reporting/sources/types'
 import {
+  reportRequiredGatesSchema,
+  reportPackageFactsSchema,
+  reportSessionActivitySchema,
+  reportCiRunSchema,
+} from '../../src/core/reporting/sources/types'
+import {
   reportDocument,
   reportOptions,
   buildSourceSnapshot,
   unavailableSource,
   availableSource,
   fakeSourcePort,
+  reportFactSnapshot,
 } from './helpers/reporting/snapshot'
+import { PACKAGE_FIXTURE } from './helpers/reporting/plans'
 
 const fixtureCollector: ReportCollector = (_snapshot, options) => reportDocument(options.kind)
 const fixtureRenderer: ReportRenderer = (doc, locale, theme) =>
@@ -317,6 +326,12 @@ describe('portable reports method family', () => {
       history: () =>
         Promise.resolve({ status: 'listed', entries: [{ id: 'one', header: doc.header }] }),
       open: () => Promise.resolve({ status: 'opened' }),
+      get: () => Promise.resolve({ status: 'retrieved', document: doc }),
+      compare: () =>
+        Promise.resolve({
+          status: 'compared',
+          diff: { from: doc.header, to: doc.header, sections: [] },
+        }),
     }
     const run = reportsMethods['reports/run']
     const history = reportsMethods['reports/history']
@@ -380,5 +395,230 @@ describe('portable reports method family', () => {
     expect(
       history.params.safeParse({ workspaceKey: String.raw`..\escape`, kind: 'project' }).success,
     ).toBe(false)
+  })
+  it('retrieves saved ids and compares row fields within history authorization scope', async () => {
+    const before = reportDocument()
+    const after = structuredClone(before)
+    after.header.contentHash = 'b'.repeat(64)
+    after.sections[0]!.rows[0]!.cells['state'] = { type: 'label', value: 'merged' }
+    const scope = { workspaceKey: 'fixture-workspace', kind: 'project' }
+    const get = reportsMethods['reports/get']
+    const compare = reportsMethods['reports/compare']
+    // The fake uses only saved bytes, so reconnecting cannot regenerate history.
+    const saved = new Map([
+      ['before', before],
+      ['after', after],
+    ])
+    const host: Pick<ReportsHostPort, 'get' | 'compare'> = {
+      get(params) {
+        const document = saved.get(params.id)
+        return Promise.resolve(
+          document && params.workspaceKey === scope.workspaceKey && params.kind === scope.kind
+            ? { status: 'retrieved', document: structuredClone(document) }
+            : { status: 'failed', reason: 'Saved report unavailable in this scope' },
+        )
+      },
+      async compare(params) {
+        const left = await host.get({
+          workspaceKey: params.workspaceKey,
+          kind: params.kind,
+          id: params.fromId,
+        })
+        const right = await host.get({
+          workspaceKey: params.workspaceKey,
+          kind: params.kind,
+          id: params.toId,
+        })
+        if (left.status === 'failed' || right.status === 'failed')
+          return { status: 'failed', reason: 'Saved report unavailable in this scope' }
+        return {
+          status: 'compared',
+          diff: {
+            from: left.document.header,
+            to: right.document.header,
+            sections: [
+              {
+                id: 'status',
+                label: 'status',
+                added: [],
+                removed: [],
+                unchangedRows: 0,
+                changed: [
+                  {
+                    key: 'M12',
+                    before: left.document.sections[0]!.rows[0]!,
+                    after: right.document.sections[0]!.rows[0]!,
+                  },
+                ],
+              },
+            ],
+          },
+        }
+      },
+    }
+    expect(get.result.parse(await host.get(get.params.parse({ ...scope, id: 'before' })))).toEqual({
+      status: 'retrieved',
+      document: before,
+    })
+    const result = compare.result.parse(
+      await host.compare(compare.params.parse({ ...scope, fromId: 'before', toId: 'after' })),
+    )
+    expect(result.status).toBe('compared')
+    if (result.status !== 'compared') throw new Error('Expected saved comparison')
+    expect(result.diff.sections[0]!.changed[0]).toMatchObject({
+      key: 'M12',
+      before: { cells: { state: { value: 'planned' } } },
+      after: { cells: { state: { value: 'merged' } } },
+    })
+    for (const denied of [{ workspaceKey: 'other' }, { kind: 'usage' }, { id: 'absent' }]) {
+      const deniedResult = await host.get(get.params.parse({ ...scope, id: 'before', ...denied }))
+      expect(deniedResult.status).toBe('failed')
+    }
+    const missingResult = await host.compare({
+      ...scope,
+      kind: 'project',
+      fromId: 'before',
+      toId: 'absent',
+    })
+    expect(missingResult.status).toBe('failed')
+    for (const id of ['../escape', String.raw`..\escape`, 'x'.repeat(257)]) {
+      expect(get.params.safeParse({ ...scope, id }).success).toBe(false)
+      expect(compare.params.safeParse({ ...scope, fromId: id, toId: 'after' }).success).toBe(false)
+      expect(compare.params.safeParse({ ...scope, fromId: 'before', toId: id }).success).toBe(false)
+    }
+    expect(get.params.safeParse(scope).success).toBe(false)
+    expect(compare.params.safeParse({ ...scope, fromId: 'before' }).success).toBe(false)
+    expect(
+      compare.params.safeParse({ ...scope, fromId: 'before', toId: 'after', credentials: 'forged' })
+        .success,
+    ).toBe(false)
+    expect(
+      reportDiffSchema.safeParse({
+        ...result.diff,
+        sections: [
+          {
+            ...result.diff.sections[0],
+            changed: [{ ...result.diff.sections[0]!.changed[0], key: 'wrong' }],
+          },
+        ],
+      }).success,
+    ).toBe(false)
+    expect(compare.result.safeParse({ status: 'compared', diff: before }).success).toBe(false)
+  })
+})
+
+describe('normalized reporting facts', () => {
+  it('retains required milestone gates and declared package scripts even before any run', () => {
+    const { sources } = reportFactSnapshot()
+    const plan = sources.plan.data!
+    expect(reportRequiredGatesSchema.parse(plan.milestones[0]!.requiredGates)).toEqual([
+      'quality',
+      'check:reference',
+    ])
+    expect(reportPackageFactsSchema.parse(sources.package.data)).toEqual({
+      qualityScripts: [
+        { name: 'quality', command: 'npm run quality:gates && npm run test:a11y' },
+        { name: 'quality:gates', command: 'npm run typecheck && npm run check:reference' },
+        { name: 'check:reference', command: 'node scripts/gen-reference.mjs --check' },
+      ],
+    })
+    expect(sources.checkRuns.data).toEqual([])
+    const fixturePackage: unknown = JSON.parse(PACKAGE_FIXTURE)
+    expect(fixturePackage).toMatchObject({
+      scripts: Object.fromEntries(
+        sources.package.data!.qualityScripts.map(({ name, command }) => [name, command]),
+      ),
+    })
+    expect(reportRequiredGatesSchema.safeParse(undefined).success).toBe(false)
+    expect(reportRequiredGatesSchema.safeParse(['']).success).toBe(false)
+    expect(reportPackageFactsSchema.safeParse({}).success).toBe(false)
+    expect(
+      reportPackageFactsSchema.safeParse({ qualityScripts: [{ name: 'quality' }] }).success,
+    ).toBe(false)
+    expect(
+      reportPackageFactsSchema.safeParse({ qualityScripts: [], credentials: 'forged' }).success,
+    ).toBe(false)
+  })
+  it('retains actual turns and approvals independently of a flattened portable transcript', () => {
+    const session = reportFactSnapshot().sources.session.data!
+    expect(session.export.transcript).toHaveLength(2)
+    expect(reportSessionActivitySchema.parse(session.activity)).toEqual({
+      turns: { status: 'available', count: 1 },
+      approvals: { status: 'available', approved: 1, denied: 2, auto: 0, expired: 1 },
+    })
+    const differentlyGrouped = {
+      ...session,
+      activity: {
+        turns: { status: 'available', count: 2 },
+        approvals: { status: 'available', approved: 0, denied: 0, auto: 2, expired: 0 },
+      },
+    }
+    expect(differentlyGrouped.export).toEqual(session.export)
+    expect(reportSessionActivitySchema.parse(differentlyGrouped.activity)).not.toEqual(
+      session.activity,
+    )
+    const missing = { status: 'unavailable', reason: 'Legacy portable history lacks these facts' }
+    expect(reportSessionActivitySchema.parse({ turns: missing, approvals: missing })).toEqual({
+      turns: missing,
+      approvals: missing,
+    })
+    expect(
+      reportSessionActivitySchema.safeParse({
+        turns: { status: 'unavailable', count: 0 },
+        approvals: missing,
+      }).success,
+    ).toBe(false)
+    expect(
+      reportSessionActivitySchema.safeParse({
+        turns: { status: 'unavailable' },
+        approvals: missing,
+      }).success,
+    ).toBe(false)
+    if (session.activity.approvals.status !== 'available')
+      throw new Error('Expected available decisions')
+    for (const field of ['approved', 'denied', 'auto', 'expired']) {
+      const approvals = { ...session.activity.approvals }
+      Reflect.deleteProperty(approvals, field)
+      expect(
+        reportSessionActivitySchema.safeParse({ ...session.activity, approvals }).success,
+      ).toBe(false)
+    }
+    expect(
+      reportSessionActivitySchema.safeParse({
+        turns: session.activity.turns,
+        approvals: { status: 'available', approved: 1 },
+      }).success,
+    ).toBe(false)
+    expect(
+      reportSessionActivitySchema.safeParse({
+        ...session.activity,
+        turns: { status: 'available', count: -1 },
+      }).success,
+    ).toBe(false)
+  })
+  it('keeps green HEAD, failing default-branch and pending release CI separately attributable', () => {
+    const runs = reportFactSnapshot().sources.github.data!.runs.map((run) =>
+      reportCiRunSchema.parse(run),
+    )
+    expect(runs.map((run) => [run.ref.kind, run.ref.name, run.conclusion])).toEqual([
+      ['head', 'm12/0', 'success'],
+      ['default-branch', 'main', 'failure'],
+      ['release-tag', 'v0.14.2', null],
+    ])
+    expect(new Set(runs.map((run) => run.sha)).size).toBe(3)
+    expect(new Set(runs.map((run) => run.url)).size).toBe(3)
+    expect(reportCiRunSchema.parse({ ...runs[0], conclusion: 'future-outcome' }).conclusion).toBe(
+      'future-outcome',
+    )
+    for (const field of ['ref', 'sha', 'workflow', 'conclusion', 'url']) {
+      const incomplete = { ...runs[0] }
+      Reflect.deleteProperty(incomplete, field)
+      expect(reportCiRunSchema.safeParse(incomplete).success).toBe(false)
+    }
+    expect(reportCiRunSchema.safeParse({ ...runs[0], ref: { name: 'main' } }).success).toBe(false)
+    expect(
+      reportCiRunSchema.safeParse({ ...runs[0], ref: { kind: 'unknown', name: 'main' } }).success,
+    ).toBe(false)
+    expect(reportCiRunSchema.safeParse({ ...runs[0], credentials: 'forged' }).success).toBe(false)
   })
 })

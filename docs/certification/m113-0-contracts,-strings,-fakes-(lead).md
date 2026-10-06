@@ -119,3 +119,71 @@ The restored SHA-256 values at the drill boundaries:
    The regional report strings use the existing lazy surfaces fallback until
    M102 supplies the second-table family. R owns the schema CLI; the committed
    schema and entry already have a freshness test.
+
+## RVM113L0 fixes — 2026-10-06, win11
+
+Read the entire rig brief, common rules and RVM113L0 review. Fixed all four
+P2 and both P3 findings; **no review residuals**. No dependency, transport
+handshake, source-service parser, registered command or setting was added.
+The existing P/S/K/R/N/H/X/W implementation handoffs remain; this certifies
+the contracts, fakes and vocabulary, not the unbuilt renderer or native host.
+PLAN D93/M113 and §9 now record the lead's decisions. README, catalogue and
+CHANGELOG wiring remains W-owned; the exact Unreleased fixed-entry handoff
+is recorded in m113-contracts.md.
+
+| Finding                   | Fixed contract                                                                                                                                   | Regression test                                                                                                           | Drill                                          |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| P2-1 missing declarations | PlanMilestone.requiredGates; package.qualityScripts with declared names/commands, never executed                                                 | retains required milestone gates and declared package scripts even before any run                                         | P2-1-required-gates; P2-1-script-command       |
+| P2-2 lost session facts   | Actual activity turns and approved/denied/auto/expired counts from the portable export's history source; unavailable is independent and reasoned | retains actual turns and approvals independently of a flattened portable transcript                                       | P2-2-decisions; P2-2-unavailable-reason        |
+| P2-3 unscoped CI          | Per-run ref kind/name, SHA, workflow, conclusion and URL; pending and future conclusions retained                                                | keeps green HEAD, failing default-branch and pending release CI separately attributable                                   | P2-3-ref-scope                                 |
+| P2-4 inaccessible history | reports/get and reports/compare under history's same workspace/kind authorization; strict structured row diff                                    | retrieves saved ids and compares row fields within history authorization scope                                            | P2-4-saved-id; P2-4-compare-diff; P2-4-row-key |
+| P3-1 hash scrub order     | Scrub canonical output, then hash; only /header/contentHash exempt by schema path; hash input excludes /header/asOf and itself                   | scrubs canonical output before hashing and exempts only the structural hash                                               | P3-1-hash-path; P3-1-hash-input                |
+| P3-2 missing labels       | inputTokens/outputTokens/cachedTokens/current/lagging in the enum, English and all 14 translations                                               | labels input/output/cache totals and current/lagging stores through the closed vocabulary; strict per-locale translations | P3-2-label; P3-2-translation                   |
+
+The normalized-fact schemas are application contracts, not guessed upstream
+wire parsers. Tests retain required-but-never-run gates, both-message/one-turn
+facts, two histories with identical exports but different actual activity,
+unknown history with reasons, green HEAD beside failing main and a pending
+release, saved documents across reconnects, denied workspace/kind/missing-id
+selection, Windows separators and invalid ids. The hash handoff test uses
+M84's actual scrub with a synthetic registered credential shape and a source
+64-hex digest, preserves the structural hash through a second scrub, verifies
+the scrubbed hash and excludes asOf. Canonical ordering and production hash
+verification remain R's acceptance work.
+
+Observed before committing: 57 owned tests passed (40 in the contracts,
+fixtures and schema run; 17 strings), default repository timeouts and at most
+three files/maxWorkers=3. All five typecheck projects and changed-file ESLint
+passed. Host API: zero problems; help reference current. Localization still
+reports exactly seven pre-existing unused manifest keys assigned to W, with
+all 14 UI tables passing; no guard or ignore was widened. The dead-code gate
+caught a new unused ReportDiff type; it was removed rather than ignored.
+Final scoped gate results are recorded below after verification.
+
+### Review red drills
+
+All 13 mutations ran the complete owning test file, with no test filter or
+timeout override. Each named regression failed with exit 1. A finally block
+restored the original file bytes and verified SHA-256 equality. The additional
+facts-strict mutation proves normalized source boundaries reject extra fields.
+Logs and receipts: ignored temp/m113-review-drills on this rig.
+
+| Mutation                | File                                  | Named failing test                                                                        | Exit | Restored SHA-256                                                   |
+| ----------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------ |
+| P2-1-required-gates     | `src/core/reporting/sources/types.ts` | retains required milestone gates and declared package scripts even before any run         |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+| P2-1-script-command     | `src/core/reporting/sources/types.ts` | retains required milestone gates and declared package scripts even before any run         |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+| P2-2-decisions          | `src/core/reporting/sources/types.ts` | retains actual turns and approvals independently of a flattened portable transcript       |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+| P2-2-unavailable-reason | `src/core/reporting/sources/types.ts` | retains actual turns and approvals independently of a flattened portable transcript       |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+| P2-3-ref-scope          | `src/core/reporting/sources/types.ts` | keeps green HEAD, failing default-branch and pending release CI separately attributable   |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+| P2-4-saved-id           | `src/shared/hostApi/reports.ts`       | retrieves saved ids and compares row fields within history authorization scope            |    1 | `6387c94532b20f0851aa11422a50ee9aefb6f1b77f1156a23ce59bd85294057c` |
+| P2-4-compare-diff       | `src/shared/hostApi/reports.ts`       | retrieves saved ids and compares row fields within history authorization scope            |    1 | `6387c94532b20f0851aa11422a50ee9aefb6f1b77f1156a23ce59bd85294057c` |
+| P2-4-row-key            | `src/shared/reportSchema.ts`          | retrieves saved ids and compares row fields within history authorization scope            |    1 | `3ca802f9588c0362a2ec57fe8edd1b9accda0d5c8cc2612c1f9bb93009bba2ef` |
+| P3-1-hash-path          | `docs/schemas/report-v1.entry.json`   | scrubs canonical output before hashing and exempts only the structural hash               |    1 | `e723fc2d56918cbd2586809248cfaa52975d7462c6c4215f2ffd24d759712c66` |
+| P3-1-hash-input         | `docs/schemas/report-v1.entry.json`   | scrubs canonical output before hashing and exempts only the structural hash               |    1 | `e723fc2d56918cbd2586809248cfaa52975d7462c6c4215f2ffd24d759712c66` |
+| P3-2-label              | `src/shared/constants.ts`             | labels input/output/cache totals and current/lagging stores through the closed vocabulary |    1 | `a810f1ff1d33e6639b3221b6b2fb881314eb57e9e3c6966b10e6ad081bdb9c43` |
+| P3-2-translation        | `l10n/ui.de.json`                     | has real de translations, preserved slots and correct count forms                         |    1 | `4c8756e60bdce5fba46915eaf085c2ada1b1ca24b34e8df017f56b1f1e109327` |
+| facts-strict            | `src/core/reporting/sources/types.ts` | retains required milestone gates and declared package scripts even before any run         |    1 | `6e7a8a4512e0e3727e5b6b918162b05a72af1e7e136c9b3c8c982b217a2af57c` |
+
+No full quality run (common.md reserves it to the lead), paid/live calls,
+credential reads, external network requests, merges, rebases or pushes.
+No install was needed. Hooks exist at this worktree's .husky/_/pre-commit.

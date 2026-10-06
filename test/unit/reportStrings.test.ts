@@ -11,6 +11,7 @@ import type {
   ReportValue,
   ReportSection,
 } from '../../src/shared/reportSchema'
+import { reportValueSchema } from '../../src/shared/reportSchema'
 import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { reportDocument } from './helpers/reporting/snapshot'
@@ -39,6 +40,20 @@ describe('M113 regional reporting text', () => {
     expect(EN.reportLabels[key]).toBe('Status')
     expect(value.type).toBe('label')
   })
+  it('labels input/output/cache totals and current/lagging stores through the closed vocabulary', () => {
+    const labels = {
+      inputTokens: 'Input tokens',
+      outputTokens: 'Output tokens',
+      cachedTokens: 'Cached tokens',
+      current: 'Current',
+      lagging: 'Lagging',
+    }
+    for (const [key, text] of Object.entries(labels)) {
+      const value = reportValueSchema.parse({ type: 'label', value: key })
+      if (value.type !== 'label') throw new Error('Expected a schema label')
+      expect(UI_TEXT.reportLabels[value.value]).toBe(text)
+    }
+  })
   it.each(TABLE_LOCALES)(
     'has real %s translations, preserved slots and correct count forms',
     async (locale) => {
@@ -58,6 +73,9 @@ describe('M113 regional reporting text', () => {
     await installGerman(new FakeLogOutputChannel())
     expect(UI_TEXT.reportShowItem).toBe('Bericht anzeigen…')
     expect(UI_TEXT.reportLabels.needsYou).toBe('Benötigt Ihre Entscheidung')
+    expect(UI_TEXT.reportLabels.inputTokens).toBe('Eingabetokens')
+    expect(UI_TEXT.reportLabels.current).toBe('Aktuell')
+    expect(UI_TEXT.reportLabels.lagging).toBe('Im Rückstand')
     expect(fill(UI_TEXT.reportUi.noChange, { asOf: '2026-10-06' })).toBe(
       'Keine Änderung seit 2026-10-06',
     )

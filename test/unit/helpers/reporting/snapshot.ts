@@ -57,6 +57,7 @@ export function buildSourceSnapshot(
     locale: 'en',
     sources: {
       plan: unavailableSource('plan'),
+      package: unavailableSource('package'),
       git: unavailableSource('git'),
       changelog: unavailableSource('changelog'),
       certification: unavailableSource('certification'),
@@ -78,6 +79,105 @@ export function buildSourceSnapshot(
       ...sources,
     },
   }
+}
+// Contract fixtures deliberately distinguish declarations from executions,
+// actual turns from messages, and each CI ref from an aggregate conclusion.
+export function reportFactSnapshot(): SourceSnapshot {
+  const usage: UsageFacts = {
+    period: 'session',
+    inputTokens: 10,
+    outputTokens: 2,
+    cachedTokens: null,
+    costUsd: null,
+    certainty: 'unknown',
+    breakdown: [],
+    limits: [],
+  }
+  return buildSourceSnapshot({
+    plan: availableSource('plan', {
+      format: 'plan-format-v1',
+      milestones: [
+        {
+          id: 'M12',
+          title: 'Fixture contracts',
+          status: 'planned',
+          date: '2026-10-05',
+          goal: 'A stable contract',
+          dependencies: [],
+          lanes: [],
+          checklist: [{ text: 'A certified renderer', done: false }],
+          requiredGates: ['quality', 'check:reference'],
+        },
+      ],
+      questions: [],
+      risks: [],
+      residuals: [],
+      releases: [],
+      deliveryOrder: [],
+      drift: [],
+    }),
+    package: availableSource('package', {
+      qualityScripts: [
+        { name: 'quality', command: 'npm run quality:gates && npm run test:a11y' },
+        { name: 'quality:gates', command: 'npm run typecheck && npm run check:reference' },
+        { name: 'check:reference', command: 'node scripts/gen-reference.mjs --check' },
+      ],
+    }),
+    session: availableSource('session', {
+      export: {
+        format: 'muse-spark-session-export',
+        version: 1,
+        exportedAt: '2026-10-06T12:00:00Z',
+        sourceBackend: 'modelApi',
+        redacted: true,
+        modelId: 'fixture-model',
+        transcript: [
+          { itemId: 'one', kind: 'userMessage', status: 'completed', text: 'Start' },
+          {
+            itemId: 'two',
+            kind: 'userMessage',
+            status: 'completed',
+            text: 'Steering within the same turn',
+          },
+        ],
+      },
+      activity: {
+        turns: { status: 'available', count: 1 },
+        approvals: { status: 'available', approved: 1, denied: 2, auto: 0, expired: 1 },
+      },
+      backend: 'modelApi',
+      usage,
+      checkRuns: [],
+    }),
+    checkRuns: availableSource('checkRuns', []),
+    github: availableSource('github', {
+      pullRequests: [],
+      runs: [
+        {
+          ref: { kind: 'head', name: 'm12/0' },
+          sha: 'a'.repeat(40),
+          workflow: 'Quality',
+          conclusion: 'success',
+          url: 'https://example.invalid/actions/runs/1',
+        },
+        {
+          ref: { kind: 'default-branch', name: 'main' },
+          sha: 'b'.repeat(40),
+          workflow: 'Quality',
+          conclusion: 'failure',
+          url: 'https://example.invalid/actions/runs/2',
+        },
+        {
+          ref: { kind: 'release-tag', name: 'v0.14.2' },
+          sha: 'c'.repeat(40),
+          workflow: 'Release',
+          conclusion: null,
+          url: 'https://example.invalid/actions/runs/3',
+        },
+      ],
+      releases: [],
+    }),
+  })
 }
 export function reportOptions(
   kind: ReportKind = 'project',

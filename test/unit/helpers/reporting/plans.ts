@@ -24,6 +24,7 @@ Needs: M12.
 | 0 Contracts | Schemas | src/shared/contract.ts | constants.ts | day 0 | Win11 VM | 10 |
 - [x] A recorded fixture.
 - [ ] A certified renderer.
+- **Gates.** quality, check:reference.
 ### M110a0 — Runtime (D1)
 **Status 2026-10-05: building.**
 - **Depends on.** M12.
@@ -51,3 +52,16 @@ export const QUALITY_LEDGER_FIXTURE = `# Fixture project
 \`\`\`
 `
 export const NO_PLAN_FIXTURE = '# Fixture project\n\nThis project has no structured plan.\n'
+
+export const PACKAGE_FIXTURE = `${JSON.stringify(
+  {
+    name: 'reporting-fixture',
+    scripts: {
+      quality: 'npm run quality:gates && npm run test:a11y',
+      'quality:gates': 'npm run typecheck && npm run check:reference',
+      'check:reference': 'node scripts/gen-reference.mjs --check',
+    },
+  },
+  undefined,
+  2,
+)}\n`

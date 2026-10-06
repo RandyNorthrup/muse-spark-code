@@ -11404,7 +11404,7 @@ Needs: <items>.`).
     | Surface                                          | How                                                                                                                                                                                                                                                                                                                                                     | Output                                                                                                                                                                                                                  | When                                |
     | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
     | VS Code family                                   | `/report` and `/report <kind> …` in the composer, run by the host and never sent to the model; the palette's **Show report…**; Account & usage's **Usage report**                                                                                                                                                                                       | the report tab (a `WebviewPanel`, `dist/reportingPanel.js`): **Save as…** (md, html, json, txt, through the save dialog), **Copy as Markdown**, **Attach to message**, **History**, **Diff with previous**, **Refresh** | M113a                               |
-    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP's `reports/run`, `reports/history` and `reports/open`                                                                                                                                                                                                                                                               | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
+    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP 1.2's host-initiated `reports/run`, `reports/history`, `reports/open`, `reports/get` and `reports/compare`                                                                                                                                                                                                          | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
     | The companion page                               | `/report`                                                                                                                                                                                                                                                                                                                                               | the page's report view                                                                                                                                                                                                  | M113a                               |
     | ACP clients                                      | `/report <kind> …` in `available_commands_update`                                                                                                                                                                                                                                                                                                       | Markdown in an agent message (text for clients without Markdown); `--save` adds it to the history                                                                                                                       | M113a                               |
     | Any terminal                                     | `muse-spark-code-acp report <kind> [args] [--format md\|html\|json\|text] [--out <file>] [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>] [--diff previous\|<file.json>] [--full] [--strict] [--fail-on <conditions>]`; `report history`. Bare `report` stays M93's problem report, unchanged, and `report problem` becomes its alias | stdout, or `--out`                                                                                                                                                                                                      | M113a                               |
@@ -27628,6 +27628,20 @@ paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
+  - **Review RVM113L0 corrections (2026-10-06).** Fix all four P2 and both
+    P3 findings before freeze, with no review residuals. Milestones carry
+    required gate names; a package source carries declared quality-script
+    names and commands without executing them. Session facts retain actual
+    turns and approval counts (approved/denied/auto/expired) from the portable
+    export's source, with explicit unavailable reasons when history lacks
+    them. CI is a list of runs scoped to HEAD, default branch or release tag,
+    each naming its ref, SHA, workflow, conclusion and URL. MHP 1.2 remains
+    host-initiated; saved-id `reports/get` and two-id `reports/compare` share
+    history's workspace authorization. Scrub canonical output before hashing;
+    only the schema path `/header/contentHash` is exempt from scrubbing, and
+    hashing excludes `/header/asOf` and `/header/contentHash`. Add token and
+    current/lagging labels in all 14 languages. R owns the actual renderer;
+    lane 0 supplies strict contracts, deterministic fakes and red drills.
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
     sections with typed rows and stable row keys, sources, footer) as zod;
     the kind ids; each section's declared sort key.
@@ -27637,8 +27651,9 @@ M110, and fake providers for every adapter.
   - **The collector signature:** `(snapshot, options) => ReportDocument`,
     with `options` holding `asOf`, the scope argument and `full`.
   - **The renderer signature:** `(document, locale, theme) => string`.
-  - **MHP:** `reports/run`, `reports/history`, `reports/open` (with M104 lane
-    0's owner).
+  - **MHP 1.2 (host-initiated):** `reports/run`, `reports/history`,
+    `reports/open`, `reports/get`, `reports/compare` (with M104 lane 0's
+    owner). Saved retrieval/comparison share history's workspace authorization.
   - **Constants:** `REPORT_SECTION_ROWS` (10), `REPORT_GIT_MAX_COMMITS`
     (5,000), `REPORT_SOURCE_TIMEOUT_MS` (5,000), `REPORT_GITHUB_RATE_FLOOR`
     (10), `REPORT_CHECK_RUNS_MAX` (500), `REPORT_HISTORY_MAX_PER_KIND` (50),
@@ -30048,6 +30063,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-L0-review-RVM113L0 (2026-10-06).** All four P2 and both P3
+  contract findings fixed; no review residuals. Scoped gate evidence and
+  byte-exact red drills are in
+  `docs/certification/m113-0-contracts,-strings,-fakes-(lead).md`. Existing
+  implementation handoffs remain with P/S/K/R/N/H/X/W; no runtime feature
+  availability is claimed by these contracts.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its
