@@ -13,7 +13,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp --tab --trust-workspace',
     behavior:
-      'Opt into paid, invoked Tab completions. Uses M94 engine, output and context caps, private-file/ignore checks, cross-process daily ledger and paid-use consent. Model API key stays in the OS store.',
+      'Opt into paid, invoked Tab completions. Uses M94 engine, output and context caps, private-file/ignore checks, cross-process daily ledger and paid-use consent. Deny or closing consent snoozes Tab for that editor connection until reconnect. Model API key stays in the OS store.',
   },
   {
     command: 'lsp --tab-model <model> --tab-daily-budget-usd <amount>',
@@ -23,7 +23,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'supervise <runtime arguments>',
     behavior:
-      'Run the installed runtime behind independent authenticated Stop control. POSIX guardian observes detached descendants and refuses unverified signals after a process-table failure; Windows uses the existing kill-on-close job launcher.',
+      'Run the installed runtime behind independent authenticated Stop control. Stop during guardian startup waits for the child and cleanup. POSIX guardian observes detached descendants and refuses unverified signals after a process-table failure; Windows uses the existing kill-on-close job launcher.',
   },
   {
     command: 'stop',
@@ -32,12 +32,13 @@ export const FEATURE_CATALOG = [
   },
   {
     command: 'muse.stop / muse.usage / muse.help',
-    behavior: 'LSP executeCommand routes for Stop, paid Tab usage and localized help.',
+    behavior:
+      'LSP executeCommand routes for Stop, paid Tab usage and localized help. Stop and shutdown have two reserved request slots independent of ordinary saturation.',
   },
   {
     command: 'muse.openPanel / muse.fix / muse.explain / muse.apply',
     behavior:
-      'Controller integration contract. Production panel/review controller is absent from this base: panel, Fix and Explain return an explicit error; review code actions are not advertised. Injected conformance services prove version/hash checks and approval before workspace/applyEdit.',
+      'Controller integration contract. Production panel/review controller is absent from this base: panel, Fix and Explain return an explicit error; review code actions are not advertised. Injected conformance services prove version/hash checks, approval and cancellation after final policy admission before workspace/applyEdit.',
   },
   {
     command: 'Neovim: MuseLsp / MusePanel / MuseStop',

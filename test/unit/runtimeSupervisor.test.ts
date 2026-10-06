@@ -1,5 +1,7 @@
 import { mkdtemp, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
+import { build } from 'esbuild'
+import * as childProcess from 'node:child_process'
 import { createConnection } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -10,9 +12,23 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { removeFolder } from './helpers/temporaryFolders'
 
+vi.mock('node:child_process', async (importOriginal) => ({
+  ...(await importOriginal<typeof childProcess>()),
+}))
+
 vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOriginal<typeof fs>()) }))
 
 const directory = await mkdtemp(path.join(tmpdir(), 'muse-supervisor-test-'))
+const watchdogFile = path.join(directory, 'watchdog.js')
+await build({
+  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
+  outfile: watchdogFile,
+  bundle: true,
+  platform: 'node',
+  format: 'cjs',
+  target: 'node22',
+  logLevel: 'silent',
+})
 afterAll(() => removeFolder(directory))
 
 function pause(ms: number): Promise<void> {
@@ -32,7 +48,7 @@ async function waitFor(file: string): Promise<string> {
   throw new Error(`no receipt: ${file}`)
 }
 
-function start(cwd: string, source: string, args: readonly string[] = []) {
+function start(cwd: string, source: string, args: readonly string[] = [], guardian?: string) {
   const stdout = new PassThrough()
   stdout.resume()
   const stdin = new PassThrough()
@@ -46,7 +62,8 @@ function start(cwd: string, source: string, args: readonly string[] = []) {
       SystemRoot: process.env['SystemRoot'],
       M104_API_KEY: 'fake-sentinel',
     },
-    packageRoot: process.cwd(),
+    packageRoot: process.platform === 'win32' ? process.cwd() : directory,
+    watchdogFile: guardian ?? watchdogFile,
     stdin,
     stdout,
   })
@@ -88,6 +105,75 @@ describe('M104H2 runtime supervision', () => {
     expect(parseCommandLine(['supervise', 'stop'])).toMatchObject({ command: 'invalid' })
   })
 
+  it.runIf(process.platform !== 'win32')(
+    'queues Stop until delayed guardian startup creates the child',
+    async () => {
+      const guardian = path.join(directory, 'delayed-watchdog.js')
+      const release = path.join(directory, 'release-guardian')
+      const ready = path.join(directory, 'startup-child')
+      await writeFile(
+        guardian,
+        String.raw`const fs = require('node:fs'); const timer = setInterval(() => { if (fs.existsSync(${JSON.stringify(release)})) { clearInterval(timer); process.stdout.write('READY\n') } }, 10); process.stdin.resume(); process.stdin.once('end', () => process.exit(0));`,
+      )
+      const nativeSpawn = childProcess.spawn
+      let owned: childProcess.ChildProcess | undefined
+      const spawning = vi.spyOn(childProcess, 'spawn').mockImplementation((...args) => {
+        const child = nativeSpawn(...args)
+        if (Array.isArray(args[1]) && args[1][0] === '-e') owned = child
+        return child
+      })
+      const run = start(
+        directory,
+        `require('node:fs').writeFileSync(process.argv[1], String(process.pid));setInterval(()=>{},1000)`,
+        [ready],
+        guardian,
+      )
+      let stopping: Promise<void> | undefined
+      let didStop = false
+      try {
+        for (let attempt = 0; attempt < 100; attempt += 1) {
+          let owners: string[]
+          try {
+            owners = await readdir(path.join(directory, 'owners'))
+          } catch {
+            await pause(10)
+            continue
+          }
+          if (owners.some((file) => file.endsWith('.json'))) break
+          await pause(10)
+        }
+        stopping = (async () => {
+          await stopWorkspace(path.join(directory, 'owners'), directory)
+          didStop = true
+        })()
+        void stopping.catch(() => undefined)
+        await pause(100)
+        expect(didStop).toBe(false)
+        await writeFile(release, 'ready')
+        await stopping
+        expect(await run.done).toBe(0)
+        if (owned === undefined) throw new Error('no child spawn')
+        expect(owned.pid).toBeTypeOf('number')
+        expect(owned.exitCode !== null || owned.signalCode !== null).toBe(true)
+      } finally {
+        await writeFile(release, 'ready')
+        // A red drill can launch after prematurely acknowledging Stop.
+        await pause(100)
+        owned?.kill('SIGKILL')
+        spawning.mockRestore()
+        await stopping
+        await run.done
+      }
+    },
+  )
+  it('builds its own guardian without a production dist directory', async () => {
+    const run = start(
+      directory,
+      'process.stdin.resume();process.stdin.on("end",()=>process.exit(0))',
+    )
+    run.stdin.end()
+    expect(await run.done).toBe(0)
+  })
   it('preserves binary stdio and child exit status, stripping credentials', async () => {
     const run = start(
       directory,
@@ -119,6 +205,7 @@ describe('M104H2 runtime supervision', () => {
         args: [],
         env: process.env,
         packageRoot: process.cwd(),
+        watchdogFile,
         stdin: new PassThrough(),
         stdout: new PassThrough(),
       }),

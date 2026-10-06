@@ -495,6 +495,11 @@ before observation can still escape this sampling policy. Windows uses the
 existing kill-on-close job helper and awaits Windows qualification.
 
 The required merge sources do not contain the panel/review controller.
+LSP Stop and shutdown remain available when ordinary requests fill their
+queue. Stop during guardian startup waits for child cleanup. Deny or closing
+Tab's paid-use question snoozes Tab for that editor connection until it
+reconnects; another editor connection asks independently.
+
 The production LSP explicitly refuses open-panel/Fix/Explain and does not
 advertise review code actions; injected conformance services test diagnostics,
 version/hash checks and approved workspace edits. Native GUI qualification,

@@ -195,6 +195,98 @@ describe('M104L LSP client conformance', () => {
       run.close()
     }
   })
+  it('Stop and shutdown bypass saturated ordinary requests even after cancellation', async () => {
+    const held = Promise.withResolvers<string | undefined>()
+    const completing = vi.fn(() => held.promise)
+    const command = vi.fn(baseServices.command)
+    const run = lspHarness(workspace, { ...baseServices, complete: completing, command })
+    try {
+      await initialize(run.client)
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve)
+      })
+      open(run.client)
+      // A native peer has its own request IDs and can saturate the server's cap.
+      for (let index = 0; index < LSP_LIMITS.pendingRequests; index += 1) {
+        const body = Buffer.from(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: `held-${String(index)}`,
+            method: 'textDocument/completion',
+            params: { textDocument: { uri }, position },
+          }),
+        )
+        run.toServer.write(
+          Buffer.concat([Buffer.from(`Content-Length: ${String(body.length)}\r\n\r\n`), body]),
+        )
+      }
+      expect(completing).toHaveBeenCalledTimes(LSP_LIMITS.pendingRequests)
+      await expect(complete(run.client)).rejects.toMatchObject({ cause: -32_600 })
+      run.client.notify('$/cancelRequest', { id: 'held-0' })
+      expect(await run.client.request('workspace/executeCommand', { command: 'muse.stop' })).toBe(
+        'muse.stop',
+      )
+      expect(command).toHaveBeenCalledTimes(1)
+      await expect(
+        run.client.request('workspace/executeCommand', { command: 'muse.help' }),
+      ).rejects.toMatchObject({ cause: -32_600 })
+      expect(await run.client.request('shutdown', {})).toBeNull()
+    } finally {
+      held.resolve(undefined)
+      run.close()
+    }
+  })
+  it('cancellation during final edit admission prevents applyEdit', async () => {
+    const held = Promise.withResolvers<boolean>()
+    const entered = Promise.withResolvers<undefined>()
+    let publish: (items: readonly Suggestion[]) => void = vi.fn()
+    const policy = vi
+      .fn<NonNullable<LspServices['permitsSuggestedEdit']>>()
+      .mockResolvedValueOnce(true)
+      .mockImplementationOnce(() => {
+        entered.resolve(undefined)
+        return held.promise
+      })
+    const run = lspHarness(workspace, {
+      ...baseServices,
+      permitsSuggestedEdit: policy,
+      subscribe: (listener) => {
+        publish = listener
+        return vi.fn()
+      },
+    })
+    const edits = vi.fn()
+    run.answer((message, client) => {
+      if (message.id === undefined || message.id === null) return
+      if (message.method === 'window/showMessageRequest')
+        client.reply(message.id, { title: UI_TEXT.lspApply })
+      else if (message.method === 'workspace/applyEdit') {
+        edits()
+        client.reply(message.id, { applied: true })
+      }
+    })
+    try {
+      await initialize(run.client)
+      open(run.client)
+      publish([reviewSuggestion])
+      const pending = Promise.allSettled([
+        run.client.request('workspace/executeCommand', {
+          command: 'muse.apply',
+          arguments: [reviewSuggestion],
+        }),
+      ])
+      await entered.promise
+      run.client.notify('$/cancelRequest', { id: 'server-2' })
+      held.resolve(true)
+      expect(await pending).toEqual([
+        { status: 'rejected', reason: expect.objectContaining({ cause: -32_800 }) },
+      ])
+      expect(edits).not.toHaveBeenCalled()
+    } finally {
+      held.resolve(false)
+      run.close()
+    }
+  })
   it('version-checks diagnostics, prompts before edits and sends one versioned workspace edit', async () => {
     let publish: (items: readonly Suggestion[]) => void = vi.fn()
     const run = lspHarness(workspace, {

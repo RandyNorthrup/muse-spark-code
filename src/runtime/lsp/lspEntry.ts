@@ -146,6 +146,7 @@ export async function runLsp(options: LspOptions, deps: LspRuntimeDeps): Promise
     }
   }
   const usage = new PaidUsage(deps.log)
+  const snoozed = new WeakSet<LspTransport>()
   const consents = new WeakMap<LspTransport, PaidUseConsent>()
   const client = new ModelApiClient({
     apiKey: async () => await deps.secrets.get(SECRET_KEYS.modelApiKey),
@@ -172,6 +173,7 @@ export async function runLsp(options: LspOptions, deps: LspRuntimeDeps): Promise
     stream: (body, signal, budget) => client.streamResponse(body, signal, undefined, budget),
     runGit: deps.runGit,
     consent: async (transport) => {
+      if (snoozed.has(transport)) return false
       let consent = consents.get(transport)
       if (consent === undefined) {
         consent = new PaidUseConsent({
@@ -197,7 +199,9 @@ export async function runLsp(options: LspOptions, deps: LspRuntimeDeps): Promise
               }),
             )
             if (answer?.title === UI_TEXT.allowOnce) return 'once'
-            return remember && answer?.title === UI_TEXT.paidAllowAlways ? 'always' : 'deny'
+            if (remember && answer?.title === UI_TEXT.paidAllowAlways) return 'always'
+            snoozed.add(transport)
+            return 'deny'
           },
         })
         consents.set(transport, consent)

@@ -92,6 +92,7 @@ export function serveLsp(
 ): LspTransport {
   const documents = new LspDocuments(workspace)
   const calls = new Map<RpcId, AbortController>()
+  const controlCalls = new Set<RpcId>()
   const suggestions = new Map<string, readonly Suggestion[]>()
   let state: 'new' | 'initialized' | 'ready' | 'shutdown' = 'new'
   let isApplyEdit = false
@@ -148,12 +149,25 @@ export function serveLsp(
       return
     }
     const id = message.id
-    if (calls.has(id) || calls.size >= LSP_LIMITS.pendingRequests) {
+    const command =
+      message.method === 'workspace/executeCommand'
+        ? commandSchema.safeParse(message.params)
+        : undefined
+    const isControl =
+      message.method === 'shutdown' ||
+      (command?.success === true && command.data.command === 'muse.stop')
+    if (
+      calls.has(id) ||
+      (isControl
+        ? controlCalls.size >= 2
+        : calls.size - controlCalls.size >= LSP_LIMITS.pendingRequests)
+    ) {
       transport.error(id, MHP_ERROR_CODES.invalidRequest, 'ELSP_BUSY')
       return
     }
     const call = new AbortController()
     calls.set(id, call)
+    if (isControl) controlCalls.add(id)
     void request(message, call.signal)
       .then((result) => {
         if (call.signal.aborted) transport.error(id, MHP_ERROR_CODES.cancelled, 'ELSP_CANCELLED')
@@ -191,6 +205,7 @@ export function serveLsp(
       })
       .finally(() => {
         calls.delete(id)
+        controlCalls.delete(id)
       })
   }
   function clearDiagnostics(uri: string): void {
@@ -371,6 +386,7 @@ export function serveLsp(
       throw new Error('ELSP_VERSION')
     rangeOffsets(document.text, known.edit.range)
     if (!(await services.permitsSuggestedEdit?.(document, known))) return false
+    const isCancelled = () => signal.aborted
     const answer = approvalSchema.parse(
       await transport.request('window/showMessageRequest', {
         type: 2,
@@ -380,9 +396,10 @@ export function serveLsp(
     )
     if (
       answer?.title !== UI_TEXT.lspApply ||
-      signal.aborted ||
+      isCancelled() ||
       !documents.current(document) ||
       !(await services.permitsSuggestedEdit?.(document, known)) ||
+      isCancelled() ||
       !documents.current(document)
     )
       return false

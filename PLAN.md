@@ -18929,6 +18929,18 @@ The independent Stop tolerates an ownership record disappearing between the
 registry listing and open: that owner has already left. Other open failures
 still fail. A deterministic fake proves both sides of this race boundary.
 
+**FIXM104L review repair (2026-10-05):** fix all seven RVM104L findings
+within the LSP lane, without new dependencies or wider guards. Verify birth
+identity before extending guardian ownership and before each signal; validate
+the private registry, directories and records (owner, mode, symlinks and OS
+ACLs) before trusting them. Queue Stop across guardian startup, recheck
+cancellation after final edit admission, let Stop/shutdown bypass ordinary
+request saturation, snooze denied Tab per connection, and build the guardian
+fixture in supervisor tests. Each finding gets a regression and byte-exact
+red drill in `docs/certification/m104-l.md`. Existing controller/native and
+POSIX observation limits remain unqualified. Aggregate quality stays with
+the lead per §7; no merges are authorized by this repair brief.
+
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
 unchanged. The additive `mhp/1.1.0` contract reuses the shared chat, Tasks
@@ -20347,6 +20359,17 @@ before a repaired one loads (2026-09-30).
 | `src/runtime/lsp/supervisor.ts`                                                     | `nosemgrep` on the POSIX spawn                                     | The CLI supervises its own installed Node/ACP argv without a shell and with credential variables removed; only fake-only unit tests inject another executable. Native Windows launch uses the existing suspended-process, kill-on-close MCP job helper.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M104L-QUALIFICATION (2026-10-05, FIXM104L).** Repairing the seven
+  RVM104L findings does not qualify the missing B controller (review,
+  diagnostics/edit admission, panel/Fix/Explain), deferred Tab related-file,
+  exclusions/hooks/settings parity, POSIX unobserved double-fork/reparent
+  or spawn-to-handoff escapes, Windows/native GUI containment, Zed SDK/native
+  prediction, Neovim fresh-inline invocation or Emacs. Safe only as an
+  explicitly unqualified prototype: missing controller operations refuse
+  and no universal no-orphan/parity claim is made. Follow-up: B/C composition
+  and I/J per-editor/OS live receipts before promotion. See
+  `docs/certification/m104-l.md` and the original `m104-h.md` evidence.
 
 - **RVM104H-EDITOR-SERVICES (P2, 2026-10-05):** the five H shims launch
   panels/ACP but do not implement MHP selection, versioned dirty-buffer

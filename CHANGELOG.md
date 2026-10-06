@@ -37,6 +37,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- LSP Stop and shutdown bypass saturated ordinary requests; independent Stop
+  waits across guardian startup. Suggested edits recheck cancellation after
+  final policy admission. Deny or closing Tab consent snoozes that editor
+  connection until reconnect, and supervisor tests build their own guardian
+  rather than depending on production artifacts.
+
 - The POSIX guardian returns failure when it cannot verify current process
   identities, without signalling an unverified group. Independent Stop also
   tolerates an owner record disappearing during cleanup while preserving

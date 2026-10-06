@@ -111,11 +111,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   let watchdog: ChildProcessWithoutNullStreams | undefined
   let watchdogDone: Promise<number> | undefined
   let stopping: Promise<void> | undefined
+  const { promise: startup, resolve: finishStartup } = Promise.withResolvers<undefined>()
   const { promise: closed, resolve: closeOwner } = Promise.withResolvers<undefined>()
   const startedAt = Date.now()
   const treeDeps = { platform: process.platform, systemRoot: env['SystemRoot'], log }
   const stop = () => {
     stopping ??= (async () => {
+      await startup
       if (child === undefined) return
       child.kill('SIGTERM')
       await delay(RUNTIME_STOP.graceMs)
@@ -273,11 +275,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     child.stdin.on('error', stop)
     child.stdout.pipe(deps.stdout, { end: false })
     child.stderr.resume()
+    finishStartup(undefined)
     await closed
     stop()
     await stopping
     return child.pid === undefined ? 1 : (child.exitCode ?? 0)
   } finally {
+    finishStartup(undefined)
     process.off('SIGTERM', stop)
     process.off('SIGINT', stop)
     if (watchdog !== undefined) {
