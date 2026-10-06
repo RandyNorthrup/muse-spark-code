@@ -133,13 +133,13 @@ export function memorySessionStore(): MemorySessionStore {
             }
             return total
           },
-          settle(actualCostUsd, isUnknown = hasUnknownCost) {
-            isSettled = true
+          settle(actualCostUsd, isUnknown = hasUnknownCost, isFinal = true) {
+            isSettled = isFinal
             budget.entries.set(claimId, {
               costUsd: actualCostUsd,
               isUnbounded,
               hasUnknownCost: isUnknown,
-              isSettled: true,
+              isSettled: isFinal,
             })
             return Promise.resolve(totalFor(budget))
           },

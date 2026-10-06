@@ -51,6 +51,7 @@ const claimSchema = z.object({
   accountId: z.string().check(z.regex(ACCOUNT_ID)),
   reservedUsd: z.number().check(z.nonnegative()),
   settledUsd: z.optional(z.number().check(z.nonnegative())),
+  retainedUsd: z.optional(z.number().check(z.nonnegative())),
   hasUnknownCost: z.optional(z.boolean()),
   isUnbounded: z.optional(z.boolean()),
 })
@@ -198,7 +199,7 @@ function totalFor(scope: Scope): SessionBudgetTotal {
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
-      spentUsd += claim.settledUsd ?? claim.reservedUsd
+      spentUsd += claim.settledUsd ?? claim.retainedUsd ?? claim.reservedUsd
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
@@ -354,6 +355,7 @@ export function createSessionBudgetJournal(
     let settling: Promise<SessionBudgetTotal> | undefined
     let settlingCost: number | undefined
     let isSettlingCostUnknown: boolean | undefined
+    let isSettlingFinal: boolean | undefined
     const owned = (): Claim => {
       const currentSeed = readSeed(scope)
       const claim = readClaim(scope, currentSeed, created.claimId)
@@ -369,8 +371,12 @@ export function createSessionBudgetJournal(
     const settleEntry = async (
       actualCostUsd: number,
       hasUnknownCost: boolean,
+      isFinal: boolean,
     ): Promise<SessionBudgetTotal> => {
       const claim = owned()
+      if (!isFinal && actualCostUsd < (claim.retainedUsd ?? claim.reservedUsd)) {
+        throw unavailable()
+      }
       if (claim.settledUsd !== undefined) {
         if (
           claim.settledUsd !== actualCostUsd ||
@@ -383,7 +389,11 @@ export function createSessionBudgetJournal(
       try {
         await writeFileAtomically(
           path.join(scope.directory, CLAIMS_DIRECTORY, created.claimId, CLAIM_FILE),
-          JSON.stringify({ ...claim, settledUsd: actualCostUsd, hasUnknownCost }),
+          JSON.stringify({
+            ...claim,
+            ...(isFinal ? { settledUsd: actualCostUsd } : { retainedUsd: actualCostUsd }),
+            hasUnknownCost,
+          }),
           options,
         )
         return totalFor(scope)
@@ -418,20 +428,23 @@ export function createSessionBudgetJournal(
         }
         return total
       },
-      async settle(actualCostUsd, hasUnknownCost) {
+      async settle(actualCostUsd, hasUnknownCost, isFinal = true) {
         assertCost(actualCostUsd)
         const validated = claimFlagsSchema.parse({ hasUnknownCost })
         const isUnknown =
           validated.hasUnknownCost ?? isSettlingCostUnknown ?? owned().hasUnknownCost === true
         if (
           settlingCost !== undefined &&
-          (settlingCost !== actualCostUsd || isSettlingCostUnknown !== isUnknown)
+          (settlingCost !== actualCostUsd ||
+            isSettlingCostUnknown !== isUnknown ||
+            isSettlingFinal !== isFinal)
         ) {
           throw unavailable()
         }
         settlingCost = actualCostUsd
         isSettlingCostUnknown = isUnknown
-        settling ??= settleEntry(actualCostUsd, isUnknown)
+        isSettlingFinal = isFinal
+        settling ??= settleEntry(actualCostUsd, isUnknown, isFinal)
         const current = settling
         try {
           return await current
@@ -440,6 +453,7 @@ export function createSessionBudgetJournal(
             settling = undefined
             settlingCost = undefined
             isSettlingCostUnknown = undefined
+            isSettlingFinal = undefined
           }
         }
       },

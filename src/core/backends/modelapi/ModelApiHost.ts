@@ -839,8 +839,10 @@ interface StreamedCall {
 
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
-  /** Search fees already recorded separately; an uncertain token claim keeps only the rest. */
+  /** Returned search fees share this request's original durable claim. */
   searchSpentUsd: number
+  readonly searchReservedUsd: number
+  hasTerminalSearchCount: boolean
   /** The model the body names: a base only while the session still uses it. */
   readonly modelId: string
   /** Any intervening model change invalidates its base, including a switch back. */
@@ -2864,6 +2866,9 @@ export class ModelApiSession implements AgentSession {
     this.openReservation = {
       ...reservation,
       searchSpentUsd: 0,
+      searchReservedUsd:
+        (body.max_tool_calls ?? 0) * (this.deps.client.searchPriceUsd(body.model) ?? 0),
+      hasTerminalSearchCount: false,
       modelId: body.model,
       modelRevision: this.modelRevision,
       goalRevision: this.goalCommandRevision,
@@ -2979,6 +2984,7 @@ export class ModelApiSession implements AgentSession {
     costUsd: number,
     claim: SessionBudgetClaim | undefined,
     hasUnknownCost = false,
+    isFinal = true,
   ): void {
     if (costUsd === 0 && claim === undefined && !hasUnknownCost) {
       return
@@ -3001,7 +3007,7 @@ export class ModelApiSession implements AgentSession {
               costUsd,
               hasUnknownCost,
             )
-          : await claim.settle(costUsd, hasUnknownCost)
+          : await claim.settle(costUsd, hasUnknownCost, isFinal)
       this.budgetSpentUsd = total.spentUsd
       owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
       this.touch()
@@ -3031,7 +3037,10 @@ export class ModelApiSession implements AgentSession {
     }
     const costUsd =
       reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
-        ? Math.max(0, reservation.costUsd - reservation.searchSpentUsd)
+        ? reservation.costUsd +
+          (reservation.hasTerminalSearchCount
+            ? reservation.searchSpentUsd - reservation.searchReservedUsd
+            : Math.max(0, reservation.searchSpentUsd - reservation.searchReservedUsd))
         : 0
     if (costUsd > 0) {
       this.budgetSpentUsd += costUsd
@@ -3568,6 +3577,7 @@ export class ModelApiSession implements AgentSession {
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onSearchesReturned: (count: number) => {
+        if (reservation !== undefined) reservation.hasTerminalSearchCount = true
         this.chargeBoundedSearches(count)
       },
       onRequestStarted: () => {
@@ -3809,7 +3819,7 @@ export class ModelApiSession implements AgentSession {
       this.turnCostUsd += costUsd
     }
     this.recordBudgetCost(
-      costUsd,
+      costUsd + (reservation?.searchSpentUsd ?? 0),
       claim,
       !hasKnownPrice || reservation?.hasAmbiguousAttempt === true,
     )
@@ -3984,11 +3994,21 @@ export class ModelApiSession implements AgentSession {
     const costUsd = units * price
     this.deps.notePaidUse('webSearch', units)
     if (this.openReservation !== undefined) {
-      this.openReservation.searchSpentUsd = Math.min(count, this.sendingSearchBound) * price
+      this.openReservation.searchSpentUsd = count * price
     }
     this.budgetSpentUsd += costUsd
     this.turnCostUsd += costUsd
-    this.recordBudgetCost(costUsd, undefined)
+    const reservation = this.openReservation
+    if (reservation === undefined) {
+      this.recordBudgetCost(costUsd, undefined)
+    } else if (reservation.searchSpentUsd > reservation.searchReservedUsd) {
+      this.recordBudgetCost(
+        reservation.costUsd + reservation.searchSpentUsd - reservation.searchReservedUsd,
+        reservation.claim,
+        reservation.hasUnknownCost,
+        false,
+      )
+    }
   }
 
   private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {

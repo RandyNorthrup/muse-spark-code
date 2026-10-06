@@ -197,6 +197,18 @@ function paidChild(paid: 'webSearch' | 'imageGeneration'): StoredChild {
 }
 
 describe('the real-disk session budget journal (M82)', () => {
+  it('retains an over-bound fee on the original row across restart and closes it once', async () => {
+    const t = await setup()
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.1)
+    await claim.settle(0.1025, false, false)
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0.1025 })
+    expect(await readdir(path.join(scope(t.directory), 'claims'))).toEqual([claim.claimId])
+    await expect(claim.settle(0.1, false, false)).rejects.toThrow()
+    await claim.settle(0.0026)
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0.0026 })
+    await expect(claim.settle(0.003)).rejects.toThrow()
+  })
+
   it('publishes both independent liabilities before either final sum, with no winner election', async () => {
     const t = await setup()
     await t.budget.read(SESSION, ACCOUNT)

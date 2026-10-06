@@ -70,7 +70,12 @@ export interface SessionBudgetClaim {
   /** Synchronous final admission after key retrieval; refuses an incomplete or over-cap ledger. */
   check(capUsd: number): SessionBudgetTotal
   /** Only this claim's owner settles it. Entries remain visible, including a zero refund. */
-  settle(actualCostUsd: number, hasUnknownCost?: boolean): Promise<SessionBudgetTotal>
+  settle(
+    actualCostUsd: number,
+    hasUnknownCost?: boolean,
+    /** False atomically retains an updated liability on this row without closing it. */
+    isFinal?: boolean,
+  ): Promise<SessionBudgetTotal>
 }
 
 /** The session store's scoped spend journal; all callers share the same account-owned history. */

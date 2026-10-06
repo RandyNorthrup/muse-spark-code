@@ -1,4 +1,4 @@
-import { mkdtemp } from 'node:fs/promises'
+import { mkdtemp, readdir } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -8,10 +8,12 @@ import { ModelApiClient, type ModelApiClientDeps } from '../../src/core/backends
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { responseSchema, type CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
+import type { SessionStore } from '../../src/core/backends/modelapi/sessionStore'
 import { estimateCostUsd, formatUsd } from '../../src/core/usage/insights'
 import { webSearchPriceUsd } from '../../src/core/paid/paidFeatures'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -95,10 +97,14 @@ async function host(
     readonly maxCalls?: () => number
     readonly consent?: ModelApiHostDeps['allowsPaidUse']
     readonly isOn?: () => boolean
+    readonly journal?: SessionStore['budget']
   } = {},
 ) {
   const t = client(options.daily)
-  const store = memorySessionStore()
+  const store = {
+    ...memorySessionStore(),
+    ...(options.journal !== undefined && { budget: options.journal }),
+  }
   const consent = vi.fn(options.consent ?? (() => Promise.resolve(true)))
   const paidUses = vi.fn<ModelApiHostDeps['notePaidUse']>()
   const engine = new ModelApiHost({
@@ -301,6 +307,77 @@ describe('M106 hosted-search bounds', () => {
       (reserved.mock.calls[0]?.[2] ?? 0) + 2 * PRICE,
       12,
     )
+  })
+
+  it.each([false, true])(
+    'releases unused session search allowance only with a terminal count (interrupted=%s)',
+    async (interrupted) => {
+      const c = claims()
+      const t = await host({ daily: c.reserve, capUsd: 0.1, capabilities: () => CAPABILITIES })
+      if (t.store.budget === undefined) throw new Error('Missing session journal')
+      const reserved = vi.spyOn(t.store.budget, 'reserve')
+      t.api.script({ omitUsage: true, omitTerminal: interrupted })
+      await t.turn()
+      await t.engine.close()
+      const allowance = reserved.mock.calls[0]?.[2] ?? 0
+      const expected = allowance - (interrupted ? 0 : 5 * PRICE)
+      expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBeCloseTo(expected, 12)
+      expect(c.settled[0]).toBeCloseTo((c.amounts[0] ?? 0) - (interrupted ? 0 : 5 * PRICE), 12)
+      expect(t.events).toContainEqual(
+        expect.objectContaining({
+          type: 'backendNotice',
+          text: fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(expected) }),
+        }),
+      )
+    },
+  )
+
+  it('projects only the original reservation after a crash following one completed bounded search', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm106-search-crash-'))
+    cleanup.push(() => removeFolder(directory))
+    const create = () =>
+      createSessionBudgetJournal({
+        directory,
+        sleep: () => Promise.resolve(),
+        initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+      })
+    const journal = create()
+    const reserve = vi.spyOn(journal, 'reserve')
+    const t = await host({
+      capUsd: 0.1,
+      capabilities: () => CAPABILITIES,
+      maxCalls: () => 1,
+      journal,
+    })
+    const release = Promise.withResolvers<boolean>()
+    const held = Promise.withResolvers<boolean>()
+    t.api.script({
+      searches: [{}],
+      omitTerminal: true,
+      holdEof: release.promise,
+      onEofHeld: () => {
+        held.resolve(true)
+      },
+    })
+    const turn = t.turn()
+    try {
+      await held.promise
+      await vi.waitFor(() => {
+        expect(t.paidUses).toHaveBeenCalledOnce()
+      })
+      const account = reserve.mock.calls[0]?.[1]
+      if (account === undefined) throw new Error('Missing account')
+      const projection = await create().read(t.session.sessionId, account)
+      expect(projection.spentUsd).toBe(reserve.mock.calls[0]?.[2])
+      expect(
+        await readdir(
+          path.join(directory, 'budget-journal', account, t.session.sessionId, 'claims'),
+        ),
+      ).toHaveLength(1)
+    } finally {
+      release.resolve(true)
+      await turn
+    }
   })
 
   it('sends nothing when a capped session cannot fit the search allowance', async () => {
