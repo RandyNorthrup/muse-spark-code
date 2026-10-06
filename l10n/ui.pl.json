@@ -2764,6 +2764,38 @@
       "enabled": "Włącz harmonogramy w dostępnych silnikach. Domyślnie włączone; każde uruchomienie działa bez nadzoru w ramach stałego zezwolenia.",
       "defaultDelivery": "Domyślne dostarczenie nowych harmonogramów. Domyślnie rozpocznij nową turę po przejściu w bezczynność.",
       "agentCreation": "Domyślne uprawnienie agentów do tworzenia harmonogramów: pytaj, zawsze w ramach limitów lub nigdy. Domyślnie pytaj."
+    },
+    "editor": {
+      "edit": "Edytuj harmonogram",
+      "audit": "Audyt uprawnień",
+      "invalid": "Przed zapisaniem sprawdź pola harmonogramu, dostępność celu i stałe uprawnienia.",
+      "loadFailed": "Nie udało się wczytać harmonogramów. Spróbuj ponownie.",
+      "empty": "Brak harmonogramów w tym obszarze roboczym.",
+      "dateTimeUtc": "Data i godzina (UTC)",
+      "minutes": "Odstęp w minutach",
+      "everyDays": "Co N dni",
+      "times": "Godziny (HH:MM, oddzielone przecinkami)",
+      "cronExpression": "Wyrażenie cron z pięcioma polami",
+      "source": "Źródło zdarzeń",
+      "conditions": "Warunki (pole=wartość, jeden na wiersz)",
+      "endDate": "Data i godzina zakończenia (UTC)",
+      "afterRuns": "Zakończ po N uruchomieniach",
+      "sent": "Wysłano zgodnie z harmonogramem",
+      "cost": "Koszt",
+      "grantHelp": "Jeden wpis na wiersz. Ścieżki pozostają w tym obszarze roboczym; chronione ścieżki i narzędzia wymagające człowieka są zawsze odrzucane.",
+      "auditKinds": {
+        "created": "Utworzono",
+        "changed": "Zmieniono",
+        "revoked": "Cofnięto",
+        "used": "Użyto"
+      },
+      "user": "Ty",
+      "liability": "Pozostałe zobowiązanie płatnicze",
+      "certainty": {
+        "exact": "Dokładne",
+        "estimated": "Szacunkowe",
+        "unknown": "Nieznane"
+      }
     }
   }
 }

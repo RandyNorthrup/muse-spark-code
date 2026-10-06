@@ -142,6 +142,12 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  'schedules-v2-list',
+  'schedules-v2-list-narrow',
+  'schedules-v2-editor',
+  'schedules-v2-editor-narrow',
+  'schedules-v2-timeline',
+  'schedules-v2-timeline-narrow',
   'git-held',
   'git-commit',
   'git-pr',
@@ -172,6 +178,7 @@ export const SCENARIOS = [
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.css': 'text/css',
   '.map': 'application/json',
   '.json': 'application/json',
@@ -213,6 +220,9 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
+  'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },
+  'schedules-v2-timeline-narrow': { width: 320, ready: '.schedule-v2-timeline li' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

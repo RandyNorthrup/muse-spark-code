@@ -1035,7 +1035,14 @@
         document.body.style.width = '100%'
       }
     </script>
-    <script type="module" src="../../dist/webview/main.js"></script>
+    <script type="module">
+      const scenario = new URLSearchParams(location.search).get('scenario')
+      if (scenario?.startsWith('schedules-v2')) {
+        await import('./schedules.mjs')
+      } else {
+        await import('../../dist/webview/main.js')
+      }
+    </script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.
@@ -2042,6 +2049,12 @@
           steps.todo()
           whenFound('.todo-title', (button) => button.click())
         },
+        'schedules-v2-list': () => {},
+        'schedules-v2-list-narrow': () => {},
+        'schedules-v2-editor': () => {},
+        'schedules-v2-editor-narrow': () => {},
+        'schedules-v2-timeline': () => {},
+        'schedules-v2-timeline-narrow': () => {},
         'tasks-tab': () => {},
         'tasks-tab-ended': () => {},
         'tasks-tab-plain': () => {},
@@ -4454,7 +4467,9 @@
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       if (scenario !== null && scenario in steps) {
         later(100, () =>
-          whenFound('textarea, .gate, .todo-surface, [role="alert"]', () => steps[scenario]()),
+          whenFound('textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]', () =>
+            steps[scenario](),
+          ),
         )
       }
 
@@ -4646,6 +4661,17 @@
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
+        'schedules-v2-list': () =>
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-list-narrow': () =>
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-editor': () =>
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-editor-narrow': () =>
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-timeline': () => document.querySelector('.schedule-v2-timeline li') !== null,
+        'schedules-v2-timeline-narrow': () =>
+          document.querySelector('.schedule-v2-timeline li') !== null,
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,

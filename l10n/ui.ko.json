@@ -2476,6 +2476,38 @@
       "enabled": "사용 가능한 백엔드에서 일정을 활성화합니다. 기본적으로 켜져 있으며 각 실행은 상시 허용 범위 내에서 무인으로 진행됩니다.",
       "defaultDelivery": "새 일정의 기본 전달 방식입니다. 기본적으로 유휴 상태에서 새 턴을 시작합니다.",
       "agentCreation": "에이전트의 일정 생성 기본 권한: 묻기, 한도 내 항상 허용 또는 허용 안 함. 기본적으로 묻습니다."
+    },
+    "editor": {
+      "edit": "일정 편집",
+      "audit": "권한 감사",
+      "invalid": "저장하기 전에 일정 필드, 대상의 사용 가능 여부 및 상시 권한을 확인하세요.",
+      "loadFailed": "일정을 불러올 수 없습니다. 다시 시도하세요.",
+      "empty": "이 작업 공간에는 일정이 없습니다.",
+      "dateTimeUtc": "날짜 및 시간 (UTC)",
+      "minutes": "간격(분)",
+      "everyDays": "N일마다",
+      "times": "시간(HH:MM, 쉼표로 구분)",
+      "cronExpression": "5개 필드 cron 표현식",
+      "source": "이벤트 소스",
+      "conditions": "조건(필드=값, 줄당 하나)",
+      "endDate": "종료 날짜 및 시간 (UTC)",
+      "afterRuns": "N회 실행 후 종료",
+      "sent": "일정에 따라 전송됨",
+      "cost": "비용",
+      "grantHelp": "줄당 하나의 항목을 입력하세요. 경로는 이 작업 공간 내로 제한되며, 보호된 경로 및 사람이 필요한 도구는 항상 거부됩니다.",
+      "auditKinds": {
+        "created": "생성됨",
+        "changed": "변경됨",
+        "revoked": "철회됨",
+        "used": "사용됨"
+      },
+      "user": "사용자",
+      "liability": "남은 지불 의무",
+      "certainty": {
+        "exact": "정확함",
+        "estimated": "추정치",
+        "unknown": "알 수 없음"
+      }
     }
   }
 }

@@ -2668,6 +2668,38 @@
       "enabled": "Ativar agendamentos nos backends disponíveis. Ativos por padrão; cada execução funciona sem supervisão dentro de sua permissão permanente.",
       "defaultDelivery": "Entrega padrão para novos agendamentos. Por padrão, iniciar um novo turno quando ocioso.",
       "agentCreation": "Permissão padrão para agentes criarem agendamentos: perguntar, sempre dentro dos limites ou nunca. Perguntar por padrão."
+    },
+    "editor": {
+      "edit": "Editar agendamento",
+      "audit": "Auditoria de permissões",
+      "invalid": "Antes de salvar, confira os campos, a disponibilidade do destino e a permissão permanente.",
+      "loadFailed": "Não foi possível carregar os agendamentos. Tente novamente.",
+      "empty": "Nenhum agendamento neste espaço de trabalho.",
+      "dateTimeUtc": "Data e hora (UTC)",
+      "minutes": "Intervalo em minutos",
+      "everyDays": "A cada N dias",
+      "times": "Horários (HH:MM, separados por vírgulas)",
+      "cronExpression": "Expressão cron de cinco campos",
+      "source": "Fonte de eventos",
+      "conditions": "Condições (campo=valor, uma por linha)",
+      "endDate": "Data e hora de término (UTC)",
+      "afterRuns": "Encerrar após N execuções",
+      "sent": "Enviado conforme o agendamento",
+      "cost": "Custo",
+      "grantHelp": "Uma entrada por linha. Os caminhos ficam neste espaço de trabalho; caminhos protegidos e ferramentas que exigem uma pessoa são sempre recusados.",
+      "auditKinds": {
+        "created": "Criado",
+        "changed": "Alterado",
+        "revoked": "Revogado",
+        "used": "Usado"
+      },
+      "user": "Você",
+      "liability": "Obrigação de pagamento retida",
+      "certainty": {
+        "exact": "Exato",
+        "estimated": "Estimado",
+        "unknown": "Desconhecido"
+      }
     }
   }
 }

@@ -18,6 +18,35 @@ import { forms } from './forms'
 export const EN = {
   // M115 lane 0: strings for the lazy schedule surfaces and adapters.
   scheduleV2: {
+    editor: {
+      user: 'You',
+      liability: 'Retained liability',
+      certainty: { exact: 'Exact', estimated: 'Estimated', unknown: 'Unknown' },
+      edit: 'Edit schedule',
+      audit: 'Grant audit',
+      invalid: 'Check the schedule fields, target availability and standing grant before saving.',
+      loadFailed: 'Schedules could not be loaded. Try again.',
+      empty: 'No schedules in this workspace.',
+      dateTimeUtc: 'Date and time (UTC)',
+      minutes: 'Interval in minutes',
+      everyDays: 'Every N days',
+      times: 'Times (HH:MM, comma separated)',
+      cronExpression: 'Five-field cron expression',
+      source: 'Event source',
+      conditions: 'Conditions (field=value, one per line)',
+      endDate: 'End date and time (UTC)',
+      afterRuns: 'End after N runs',
+      sent: 'Sent on schedule',
+      cost: 'Cost',
+      grantHelp:
+        'One entry per line. Paths stay inside this workspace; protected paths and tools that require a person are always refused.',
+      auditKinds: {
+        created: 'Created',
+        changed: 'Changed',
+        revoked: 'Revoked',
+        used: 'Used',
+      },
+    },
     settings: {
       enabled:
         'Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.',

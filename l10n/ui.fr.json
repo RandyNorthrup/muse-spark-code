@@ -2668,6 +2668,38 @@
       "enabled": "Activer les planifications sur les moteurs disponibles. Activées par défaut ; chaque exécution est autonome dans son autorisation permanente.",
       "defaultDelivery": "Acheminement par défaut des nouvelles planifications. Démarrer un nouveau tour une fois inactif par défaut.",
       "agentCreation": "Permission par défaut des agents pour créer des planifications : demander, toujours dans les limites ou jamais. Demander par défaut."
+    },
+    "editor": {
+      "edit": "Modifier la programmation",
+      "audit": "Audit des autorisations",
+      "invalid": "Avant de sauvegarder, vérifiez les champs, la disponibilité de la cible et les autorisations permanentes.",
+      "loadFailed": "Impossible de charger les programmations. Réessayez.",
+      "empty": "Aucune programmation dans cet espace de travail.",
+      "dateTimeUtc": "Date et heure (UTC)",
+      "minutes": "Intervalle en minutes",
+      "everyDays": "Tous les N jours",
+      "times": "Heures (HH:MM, séparées par des virgules)",
+      "cronExpression": "Expression cron à cinq champs",
+      "source": "Source des événements",
+      "conditions": "Conditions (champ=valeur, une par ligne)",
+      "endDate": "Date et heure de fin (UTC)",
+      "afterRuns": "Terminer après N exécutions",
+      "sent": "Envoyé selon la programmation",
+      "cost": "Coût",
+      "grantHelp": "Une entrée par ligne. Les chemins restent dans cet espace de travail ; les chemins protégés et les outils nécessitant une personne sont toujours refusés.",
+      "auditKinds": {
+        "created": "Créé",
+        "changed": "Modifié",
+        "revoked": "Révoqué",
+        "used": "Utilisé"
+      },
+      "user": "Vous",
+      "liability": "Engagement de paiement conservé",
+      "certainty": {
+        "exact": "Montant exact",
+        "estimated": "Estimé",
+        "unknown": "Inconnu"
+      }
     }
   }
 }

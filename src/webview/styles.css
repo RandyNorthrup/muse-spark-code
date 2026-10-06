@@ -45,6 +45,110 @@ body {
   background: var(--vscode-sideBar-background);
 }
 
+/* M115: shared schedule surface, including a 320 px editor panel. */
+.schedule-v2-surface {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--ms-gap);
+  overflow-wrap: anywhere;
+}
+
+.schedule-v2-list,
+.schedule-v2-editor {
+  display: grid;
+  gap: var(--ms-gap);
+}
+
+.schedule-v2-card,
+.schedule-v2-editor fieldset,
+.schedule-v2-timeline li {
+  min-width: 0;
+  margin: 0;
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: var(--ms-radius);
+}
+
+.schedule-v2-card dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--ms-gap);
+}
+
+.schedule-v2-card dd {
+  margin: 0;
+}
+
+.schedule-v2-surface label {
+  display: grid;
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-surface input,
+.schedule-v2-surface textarea,
+.schedule-v2-surface select {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  min-height: var(--ms-button-height);
+  padding: 4px;
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+  color: var(--vscode-input-foreground);
+  font: inherit;
+  background: var(--vscode-input-background);
+}
+
+.schedule-v2-surface textarea {
+  min-height: 4em;
+  resize: vertical;
+}
+
+.schedule-v2-surface input[type='checkbox'] {
+  width: var(--ms-button-height);
+  height: var(--ms-button-height);
+}
+
+.schedule-v2-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+  margin-block: var(--ms-gap);
+}
+
+.schedule-v2-actions button,
+.schedule-v2-surface button {
+  min-height: var(--ms-button-height);
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-button-border, transparent);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-foreground);
+  font: inherit;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+}
+
+.schedule-v2-surface summary {
+  min-height: var(--ms-button-height);
+  cursor: pointer;
+}
+
+.schedule-v2-surface :focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.schedule-v2-timeline {
+  display: grid;
+  gap: var(--ms-gap);
+  padding-inline-start: calc(var(--ms-gap) * 3);
+}
+
+.schedule-v2-collision {
+  border-inline-start: 2px solid var(--vscode-foreground);
+  padding-inline-start: var(--ms-gap);
+}
+
 .app {
   position: relative;
   display: flex;

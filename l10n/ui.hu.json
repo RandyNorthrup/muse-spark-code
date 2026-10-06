@@ -2572,6 +2572,38 @@
       "enabled": "Ütemezések engedélyezése az elérhető háttérrendszereken. Alapértelmezetten bekapcsolva; minden futás felügyelet nélkül, az állandó engedélyen belül működik.",
       "defaultDelivery": "Új ütemezések alapértelmezett kézbesítése. Alapértelmezetten új kör indítása üresjáratban.",
       "agentCreation": "Az ügynökök ütemezéslétrehozási alapengedélye: kérdezzen, mindig a korlátokon belül vagy soha. Alapértelmezetten kérdezzen."
+    },
+    "editor": {
+      "edit": "Ütemezés szerkesztése",
+      "audit": "Jogosultsági napló",
+      "invalid": "Mentés előtt ellenőrizze az ütemezés mezőit, a cél elérhetőségét és az állandó engedélyt.",
+      "loadFailed": "Az ütemezéseket nem sikerült betölteni. Próbálja újra.",
+      "empty": "Ebben a munkaterületben nincs ütemezés.",
+      "dateTimeUtc": "Dátum és idő (UTC)",
+      "minutes": "Időköz percben",
+      "everyDays": "N naponta",
+      "times": "Időpontok (HH:MM, vesszővel elválasztva)",
+      "cronExpression": "Ötmezős cron-kifejezés",
+      "source": "Eseményforrás",
+      "conditions": "Feltételek (mező=érték, soronként egy)",
+      "endDate": "Befejezés dátuma és ideje (UTC)",
+      "afterRuns": "Befejezés N futás után",
+      "sent": "Ütemezés szerint elküldve",
+      "cost": "Költség",
+      "grantHelp": "Soronként egy bejegyzés. Az útvonalak ezen a munkaterületen belül maradnak; a védett útvonalak és az embert igénylő eszközök mindig elutasításra kerülnek.",
+      "auditKinds": {
+        "created": "Létrehozva",
+        "changed": "Módosítva",
+        "revoked": "Visszavonva",
+        "used": "Felhasználva"
+      },
+      "user": "Ön",
+      "liability": "Fennmaradó fizetési kötelezettség",
+      "certainty": {
+        "exact": "Pontos",
+        "estimated": "Becsült",
+        "unknown": "Ismeretlen"
+      }
     }
   }
 }

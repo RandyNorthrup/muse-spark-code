@@ -2764,6 +2764,38 @@
       "enabled": "Povolit plány na dostupných backendech. Ve výchozím stavu zapnuto; každé spuštění běží bez dozoru v rámci trvalého povolení.",
       "defaultDelivery": "Výchozí doručení nových plánů. Ve výchozím stavu spustit nový tah při nečinnosti.",
       "agentCreation": "Výchozí oprávnění agentů vytvářet plány: zeptat se, vždy v rámci limitů nebo nikdy. Ve výchozím stavu se zeptat."
+    },
+    "editor": {
+      "edit": "Upravit plán",
+      "audit": "Audit oprávnění",
+      "invalid": "Před uložením zkontrolujte pole plánu, dostupnost cíle a trvalé oprávnění.",
+      "loadFailed": "Plány se nepodařilo načíst. Zkuste to znovu.",
+      "empty": "V tomto pracovním prostoru nejsou žádné plány.",
+      "dateTimeUtc": "Datum a čas (UTC)",
+      "minutes": "Interval v minutách",
+      "everyDays": "Každých N dní",
+      "times": "Časy (HH:MM, oddělené čárkou)",
+      "cronExpression": "Výraz cron s pěti poli",
+      "source": "Zdroj událostí",
+      "conditions": "Podmínky (pole=hodnota, jedna na řádek)",
+      "endDate": "Datum a čas ukončení (UTC)",
+      "afterRuns": "Ukončit po N spuštěních",
+      "sent": "Odesláno podle plánu",
+      "cost": "Cena",
+      "grantHelp": "Jedna položka na řádek. Cesty zůstávají v tomto pracovním prostoru; chráněné cesty a nástroje vyžadující člověka jsou vždy odmítnuty.",
+      "auditKinds": {
+        "created": "Vytvořeno",
+        "changed": "Změněno",
+        "revoked": "Odvoláno",
+        "used": "Použito"
+      },
+      "user": "Vy",
+      "liability": "Zachovaný závazek",
+      "certainty": {
+        "exact": "Přesné",
+        "estimated": "Odhadované",
+        "unknown": "Neznámé"
+      }
     }
   }
 }

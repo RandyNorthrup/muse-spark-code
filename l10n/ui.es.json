@@ -2668,6 +2668,38 @@
       "enabled": "Activar las programaciones en los motores disponibles. Activadas por defecto; cada ejecución funciona sin supervisión dentro de sus permisos permanentes.",
       "defaultDelivery": "Entrega predeterminada de nuevas programaciones. Por defecto, iniciar un nuevo turno al quedar inactivo.",
       "agentCreation": "Permiso predeterminado para que los agentes creen programaciones: preguntar, siempre dentro de los límites o nunca. Preguntar por defecto."
+    },
+    "editor": {
+      "edit": "Editar programación",
+      "audit": "Auditoría de permisos",
+      "invalid": "Antes de guardar, comprueba los campos, la disponibilidad del destino y el permiso permanente.",
+      "loadFailed": "No se pudieron cargar las programaciones. Inténtalo de nuevo.",
+      "empty": "No hay programaciones en este espacio de trabajo.",
+      "dateTimeUtc": "Fecha y hora (UTC)",
+      "minutes": "Intervalo en minutos",
+      "everyDays": "Cada N días",
+      "times": "Horas (HH:MM, separadas por comas)",
+      "cronExpression": "Expresión cron de cinco campos",
+      "source": "Fuente de eventos",
+      "conditions": "Condiciones (campo=valor, una por línea)",
+      "endDate": "Fecha y hora de fin (UTC)",
+      "afterRuns": "Finalizar tras N ejecuciones",
+      "sent": "Enviado según la programación",
+      "cost": "Coste",
+      "grantHelp": "Una entrada por línea. Las rutas permanecen en este espacio de trabajo; siempre se rechazan las rutas protegidas y las herramientas que requieren una persona.",
+      "auditKinds": {
+        "created": "Creado",
+        "changed": "Modificado",
+        "revoked": "Revocado",
+        "used": "Usado"
+      },
+      "user": "Tú",
+      "liability": "Obligación de pago retenida",
+      "certainty": {
+        "exact": "Exacto",
+        "estimated": "Estimado",
+        "unknown": "Desconocido"
+      }
     }
   }
 }

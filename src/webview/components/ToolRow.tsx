@@ -9,11 +9,13 @@
 import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
+  MODEL_API_SCHEDULED_TOOL,
   PATCH_DOCUMENT_MAX_PAGES,
   TOOL_STATUS_IN_PROGRESS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
 } from '../../shared/constants'
+import { ScheduleRunBody } from '../schedules/ScheduleRunBody'
 import { PaidBadge } from './PaidBadge'
 import type { LineRange } from '../../shared/protocol'
 import { type DiffRow, type FileDiff, parsePatchDocument, parseUnifiedText } from '../diff'
@@ -507,7 +509,12 @@ function ToolRowView({
       break
     }
     case 'schedule': {
-      body = <ScheduleBody entry={entry} />
+      body =
+        entry.tool === MODEL_API_SCHEDULED_TOOL ? (
+          <ScheduleRunBody entry={entry} />
+        ) : (
+          <ScheduleBody entry={entry} />
+        )
       break
     }
     case 'web': {
