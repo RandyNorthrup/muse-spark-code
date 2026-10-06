@@ -95,7 +95,7 @@ Final restored verification on macmini:
 | `node scripts/check-l10n.mjs`                                                                                              | Passed: 14 tables, 164 manifest strings, 606 source files; zero problems                                                          |
 | `npm run check:host-api`                                                                                                   | 1 expected generated-record mismatch: `node:crypto` imports 46 → 47; W-owned record left unchanged, exact update handed off below |
 | `npm run build`                                                                                                            | Passed: production build, all size/split/host-global checks and notices                                                           |
-| Final normal commit hooks (lint-staged ESLint/Prettier and staged gitleaks)                                                | Initial checkpoint passed; final core commit uses the same normal hooks, with its result added below                              |
+| Final normal commit hooks (lint-staged ESLint/Prettier and staged gitleaks)                                                | Passed for `96c951ad` and `8423bd5e`: normal lint-staged ESLint/Prettier and staged gitleaks; zero leaks                          |
 
 All final tests use the repository default timeout, at most three complete
 files and three workers. The fake-only composition suite connects the real
@@ -316,3 +316,16 @@ production success.
   built-ins, 61 theme variables). W owns this file; P did not edit it. W must
   run `npm run check:host-api -- --write`, review that count row, then rerun
   the gate during integration. No generated record or gate was weakened.
+
+## Final local commit receipts
+
+- `96c951ad`: policy gate and machine-local confirmation checkpoint.
+- `8423bd5e`: pool, replay/cold-cache helpers, account paid consent and all
+  final regression/composition tests. Normal pre-commit ESLint/Prettier
+  passed; staged gitleaks scanned 91.44 KB and found no leaks. The hook left
+  all 72 drill source hashes unchanged. No hooks were bypassed.
+
+The final receipt-only commit contains this certification update. All changes
+remain local on `m108/p`; no push, merge, rebase or machine configuration
+change occurred. Temporary runners and logs were removed after the tables
+and checks above were recorded. No dependency was installed.
