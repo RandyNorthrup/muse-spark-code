@@ -2365,5 +2365,22 @@
   "resourceRelocateDescription": "컴퓨터 사용량이 높을 때 대기 중인 팀 작업과 검사를 이동할 위치입니다. 기존 장치 동의와 제공 조건은 계속 적용됩니다.",
   "resourceRelocatePairedDescription": "리소스 사용량이 정상인, 이미 승인된 페어링 장치를 사용합니다.",
   "resourceRelocateAskDescription": "대기 중인 작업을 이동하기 전에 묻습니다.",
-  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다."
+  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다.",
+  "resourceHistoryEmpty": "아직 기록된 리소스 내역이 없습니다.",
+  "resourceHistoryInvalid": "리소스 내역을 읽을 수 없습니다.",
+  "resourceHistoryObserved": "분당 평균과 관측된 에이전트 작업입니다. 누락된 측정값은 알 수 없음으로 유지되며, 관측되지 않은 작업은 추정하지 않습니다.",
+  "resourceHistoryThreshold": "한도",
+  "resourceHistoryLevel": "수준",
+  "resourceHistoryEvents": "리소스 이벤트",
+  "resourceHistoryTime": "시간",
+  "resourceHistoryKind": "작업 종류",
+  "resourceHistoryCount": "이벤트 합계",
+  "resourceHistoryLevelChanged": "수준 변경",
+  "resourceHistoryDeferred": "지연됨",
+  "resourceHistoryRelocated": "이동됨",
+  "resourceHistoryPaused": "일시 중지된 작업",
+  "resourceHistoryOverrides": "강제 재개",
+  "resourceMemoryBelowFloor": "최소 가용 메모리 미만",
+  "resourceMemoryLow": "여유가 적음",
+  "resourceMemoryAmple": "여유가 충분함"
 }

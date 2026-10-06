@@ -2365,5 +2365,22 @@
   "resourceRelocateDescription": "此電腦忙碌時，排隊中的團隊任務與檢查可移轉到的位置。現有的裝置授權與提供條件仍然適用。",
   "resourceRelocatePairedDescription": "使用已核准配對且資源負載正常的裝置。",
   "resourceRelocateAskDescription": "移轉排隊中的工作前先詢問。",
-  "resourceRelocateOffDescription": "將工作保留在此電腦上。"
+  "resourceRelocateOffDescription": "將工作保留在此電腦上。",
+  "resourceHistoryEmpty": "尚未記錄資源歷史。",
+  "resourceHistoryInvalid": "無法讀取資源歷史。",
+  "resourceHistoryObserved": "每分鐘平均值及觀測到的代理工作。缺失的讀數保持未知；未觀測到的工作不作估算。",
+  "resourceHistoryThreshold": "上限",
+  "resourceHistoryLevel": "等級",
+  "resourceHistoryEvents": "資源事件",
+  "resourceHistoryTime": "時間",
+  "resourceHistoryKind": "工作類型",
+  "resourceHistoryCount": "事件總計",
+  "resourceHistoryLevelChanged": "等級變更",
+  "resourceHistoryDeferred": "已延後",
+  "resourceHistoryRelocated": "已移轉",
+  "resourceHistoryPaused": "已暫停的工作",
+  "resourceHistoryOverrides": "強制恢復",
+  "resourceMemoryBelowFloor": "低於記憶體下限",
+  "resourceMemoryLow": "餘裕較低",
+  "resourceMemoryAmple": "餘裕充足"
 }

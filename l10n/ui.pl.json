@@ -2647,5 +2647,22 @@
   "resourceRelocateDescription": "Miejsce przenoszenia zadań zespołu i sprawdzeń z kolejki, gdy komputer jest zajęty. Nadal obowiązują dotychczasowe zgody i oferty urządzeń.",
   "resourceRelocatePairedDescription": "Używa już zatwierdzonego sparowanego urządzenia z normalnym obciążeniem zasobów.",
   "resourceRelocateAskDescription": "Pyta przed przeniesieniem pracy z kolejki.",
-  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze."
+  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze.",
+  "resourceHistoryEmpty": "Nie zapisano jeszcze historii zasobów.",
+  "resourceHistoryInvalid": "Nie udało się odczytać historii zasobów.",
+  "resourceHistoryObserved": "Średnie minutowe i zaobserwowana praca agenta. Brakujące odczyty pozostają nieznane; nieobserwowana praca nie jest szacowana.",
+  "resourceHistoryThreshold": "Próg",
+  "resourceHistoryLevel": "Poziom",
+  "resourceHistoryEvents": "Zdarzenia zasobów",
+  "resourceHistoryTime": "Czas",
+  "resourceHistoryKind": "Rodzaj pracy",
+  "resourceHistoryCount": "Sumy zdarzeń",
+  "resourceHistoryLevelChanged": "Zmiana poziomu",
+  "resourceHistoryDeferred": "Odroczono",
+  "resourceHistoryRelocated": "Przeniesiono",
+  "resourceHistoryPaused": "Wstrzymana praca",
+  "resourceHistoryOverrides": "Wymuszone wznowienie",
+  "resourceMemoryBelowFloor": "Poniżej minimum pamięci",
+  "resourceMemoryLow": "Mały zapas",
+  "resourceMemoryAmple": "Duży zapas"
 }

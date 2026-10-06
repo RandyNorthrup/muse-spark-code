@@ -2553,5 +2553,22 @@
   "resourceRelocateDescription": "Destino das tarefas da equipe e verificações na fila quando esta máquina está ocupada. Os consentimentos e as ofertas dos dispositivos continuam válidos.",
   "resourceRelocatePairedDescription": "Usa um dispositivo pareado já autorizado com carga de recursos normal.",
   "resourceRelocateAskDescription": "Pergunta antes de mover o trabalho na fila.",
-  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina."
+  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina.",
+  "resourceHistoryEmpty": "Nenhum histórico de recursos registrado ainda.",
+  "resourceHistoryInvalid": "Não foi possível ler o histórico de recursos.",
+  "resourceHistoryObserved": "Médias por minuto e trabalho observado do agente. Leituras ausentes permanecem desconhecidas; o trabalho não observado não é estimado.",
+  "resourceHistoryThreshold": "Limite",
+  "resourceHistoryLevel": "Nível",
+  "resourceHistoryEvents": "Eventos de recursos",
+  "resourceHistoryTime": "Hora",
+  "resourceHistoryKind": "Tipo de trabalho",
+  "resourceHistoryCount": "Totais de eventos",
+  "resourceHistoryLevelChanged": "Nível alterado",
+  "resourceHistoryDeferred": "Adiado",
+  "resourceHistoryRelocated": "Transferido",
+  "resourceHistoryPaused": "Trabalho pausado",
+  "resourceHistoryOverrides": "Retomada forçada",
+  "resourceMemoryBelowFloor": "Abaixo do mínimo de memória",
+  "resourceMemoryLow": "Pouca folga",
+  "resourceMemoryAmple": "Folga suficiente"
 }

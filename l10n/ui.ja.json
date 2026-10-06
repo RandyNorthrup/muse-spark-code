@@ -2365,5 +2365,22 @@
   "resourceRelocateDescription": "このマシンが高負荷のときに、待機中のチームタスクやチェックを移動できる場所です。既存のデバイスの同意と提供条件は引き続き適用されます。",
   "resourceRelocatePairedDescription": "負荷が通常で、すでに承認済みのペアリングされたデバイスを使用します。",
   "resourceRelocateAskDescription": "待機中の処理を移動する前に確認します。",
-  "resourceRelocateOffDescription": "処理をこのマシンで続けます。"
+  "resourceRelocateOffDescription": "処理をこのマシンで続けます。",
+  "resourceHistoryEmpty": "リソース履歴はまだ記録されていません。",
+  "resourceHistoryInvalid": "リソース履歴を読み取れませんでした。",
+  "resourceHistoryObserved": "1分ごとの平均と観測されたエージェントの処理です。欠測値は不明のままとし、観測されなかった処理は推定しません。",
+  "resourceHistoryThreshold": "上限",
+  "resourceHistoryLevel": "レベル",
+  "resourceHistoryEvents": "リソースイベント",
+  "resourceHistoryTime": "時刻",
+  "resourceHistoryKind": "処理の種類",
+  "resourceHistoryCount": "イベント集計",
+  "resourceHistoryLevelChanged": "レベル変更",
+  "resourceHistoryDeferred": "延期",
+  "resourceHistoryRelocated": "移動",
+  "resourceHistoryPaused": "一時停止した処理",
+  "resourceHistoryOverrides": "再開の一時的な優先設定",
+  "resourceMemoryBelowFloor": "最小空きメモリ未満",
+  "resourceMemoryLow": "余裕が少ない",
+  "resourceMemoryAmple": "十分な余裕"
 }

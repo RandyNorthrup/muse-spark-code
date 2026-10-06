@@ -2553,5 +2553,22 @@
   "resourceRelocateDescription": "Destino del trabajo del equipo y las comprobaciones en cola cuando este equipo está ocupado. Se mantienen los permisos y las ofertas de los dispositivos.",
   "resourceRelocatePairedDescription": "Usa un dispositivo vinculado ya autorizado con una carga de recursos normal.",
   "resourceRelocateAskDescription": "Pregunta antes de mover el trabajo en cola.",
-  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo."
+  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo.",
+  "resourceHistoryEmpty": "Aún no se ha registrado un historial de recursos.",
+  "resourceHistoryInvalid": "No se pudo leer el historial de recursos.",
+  "resourceHistoryObserved": "Promedios por minuto y trabajo observado del agente. Las lecturas ausentes siguen siendo desconocidas; el trabajo no observado no se estima.",
+  "resourceHistoryThreshold": "Límite",
+  "resourceHistoryLevel": "Nivel",
+  "resourceHistoryEvents": "Eventos de recursos",
+  "resourceHistoryTime": "Hora",
+  "resourceHistoryKind": "Tipo de trabajo",
+  "resourceHistoryCount": "Totales de eventos",
+  "resourceHistoryLevelChanged": "Cambio de nivel",
+  "resourceHistoryDeferred": "Aplazado",
+  "resourceHistoryRelocated": "Trasladado",
+  "resourceHistoryPaused": "Trabajo en pausa",
+  "resourceHistoryOverrides": "Reanudación forzada",
+  "resourceMemoryBelowFloor": "Por debajo del mínimo de memoria",
+  "resourceMemoryLow": "Poco margen",
+  "resourceMemoryAmple": "Margen amplio"
 }

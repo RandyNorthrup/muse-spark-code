@@ -2647,5 +2647,22 @@
   "resourceRelocateDescription": "Куда переносить задачи команды и проверки из очереди, когда этот компьютер занят. Существующие согласия и предложения устройств остаются в силе.",
   "resourceRelocatePairedDescription": "Использует уже одобренное связанное устройство с обычной загрузкой ресурсов.",
   "resourceRelocateAskDescription": "Спрашивает перед переносом работы из очереди.",
-  "resourceRelocateOffDescription": "Оставляет работу на этом компьютере."
+  "resourceRelocateOffDescription": "Оставляет работу на этом компьютере.",
+  "resourceHistoryEmpty": "История ресурсов пока не записана.",
+  "resourceHistoryInvalid": "Не удалось прочитать историю ресурсов.",
+  "resourceHistoryObserved": "Средние значения за минуту и наблюдаемая работа агента. Пропущенные измерения остаются неизвестными; ненаблюдаемая работа не оценивается.",
+  "resourceHistoryThreshold": "Предел",
+  "resourceHistoryLevel": "Уровень",
+  "resourceHistoryEvents": "События ресурсов",
+  "resourceHistoryTime": "Время",
+  "resourceHistoryKind": "Вид работы",
+  "resourceHistoryCount": "Итоги событий",
+  "resourceHistoryLevelChanged": "Смена уровня",
+  "resourceHistoryDeferred": "Отложено",
+  "resourceHistoryRelocated": "Перенесено",
+  "resourceHistoryPaused": "Приостановленная работа",
+  "resourceHistoryOverrides": "Принудительное возобновление",
+  "resourceMemoryBelowFloor": "Ниже минимума памяти",
+  "resourceMemoryLow": "Малый запас",
+  "resourceMemoryAmple": "Достаточный запас"
 }

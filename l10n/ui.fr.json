@@ -2553,5 +2553,22 @@
   "resourceRelocateDescription": "Destination des tâches d’équipe et vérifications en attente lorsque cette machine est occupée. Les autorisations et offres des appareils restent applicables.",
   "resourceRelocatePairedDescription": "Utilise un appareil associé déjà autorisé dont la charge est normale.",
   "resourceRelocateAskDescription": "Demande avant de déplacer le travail en attente.",
-  "resourceRelocateOffDescription": "Garde le travail sur cette machine."
+  "resourceRelocateOffDescription": "Garde le travail sur cette machine.",
+  "resourceHistoryEmpty": "Aucun historique des ressources enregistré pour le moment.",
+  "resourceHistoryInvalid": "Impossible de lire l’historique des ressources.",
+  "resourceHistoryObserved": "Moyennes par minute et travail observé de l’agent. Les mesures manquantes restent inconnues ; le travail non observé n’est pas estimé.",
+  "resourceHistoryThreshold": "Limite",
+  "resourceHistoryLevel": "Niveau",
+  "resourceHistoryEvents": "Événements des ressources",
+  "resourceHistoryTime": "Heure",
+  "resourceHistoryKind": "Type de travail",
+  "resourceHistoryCount": "Totaux des événements",
+  "resourceHistoryLevelChanged": "Niveau modifié",
+  "resourceHistoryDeferred": "Différé",
+  "resourceHistoryRelocated": "Déplacé",
+  "resourceHistoryPaused": "Travail en pause",
+  "resourceHistoryOverrides": "Reprise forcée",
+  "resourceMemoryBelowFloor": "Sous le minimum de mémoire",
+  "resourceMemoryLow": "Faible marge",
+  "resourceMemoryAmple": "Marge suffisante"
 }

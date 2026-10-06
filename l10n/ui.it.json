@@ -2553,5 +2553,22 @@
   "resourceRelocateDescription": "Destinazione delle attività di squadra e dei controlli in coda quando questa macchina è occupata. Restano validi i consensi e le offerte dei dispositivi.",
   "resourceRelocatePairedDescription": "Usa un dispositivo associato già autorizzato con un carico di risorse normale.",
   "resourceRelocateAskDescription": "Chiede prima di spostare il lavoro in coda.",
-  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina."
+  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina.",
+  "resourceHistoryEmpty": "Nessuna cronologia delle risorse ancora registrata.",
+  "resourceHistoryInvalid": "Impossibile leggere la cronologia delle risorse.",
+  "resourceHistoryObserved": "Medie al minuto e lavoro osservato dell’agente. Le letture mancanti restano sconosciute; il lavoro non osservato non viene stimato.",
+  "resourceHistoryThreshold": "Limite",
+  "resourceHistoryLevel": "Livello",
+  "resourceHistoryEvents": "Eventi delle risorse",
+  "resourceHistoryTime": "Ora",
+  "resourceHistoryKind": "Tipo di lavoro",
+  "resourceHistoryCount": "Totali degli eventi",
+  "resourceHistoryLevelChanged": "Livello cambiato",
+  "resourceHistoryDeferred": "Rinviato",
+  "resourceHistoryRelocated": "Trasferito",
+  "resourceHistoryPaused": "Lavoro in pausa",
+  "resourceHistoryOverrides": "Ripresa forzata",
+  "resourceMemoryBelowFloor": "Sotto il minimo di memoria",
+  "resourceMemoryLow": "Margine ridotto",
+  "resourceMemoryAmple": "Margine ampio"
 }

@@ -2365,5 +2365,22 @@
   "resourceRelocateDescription": "此计算机繁忙时，排队的团队任务和检查可迁移到的位置。现有的设备授权和提供条件仍然适用。",
   "resourceRelocatePairedDescription": "使用已批准配对且资源负载正常的设备。",
   "resourceRelocateAskDescription": "迁移排队的工作前先询问。",
-  "resourceRelocateOffDescription": "将工作保留在此计算机上。"
+  "resourceRelocateOffDescription": "将工作保留在此计算机上。",
+  "resourceHistoryEmpty": "尚未记录资源历史。",
+  "resourceHistoryInvalid": "无法读取资源历史。",
+  "resourceHistoryObserved": "每分钟平均值及观测到的代理工作。缺失的读数保持未知；未观测到的工作不作估算。",
+  "resourceHistoryThreshold": "上限",
+  "resourceHistoryLevel": "级别",
+  "resourceHistoryEvents": "资源事件",
+  "resourceHistoryTime": "时间",
+  "resourceHistoryKind": "工作类型",
+  "resourceHistoryCount": "事件总计",
+  "resourceHistoryLevelChanged": "级别变更",
+  "resourceHistoryDeferred": "已延迟",
+  "resourceHistoryRelocated": "已迁移",
+  "resourceHistoryPaused": "已暂停的工作",
+  "resourceHistoryOverrides": "强制恢复",
+  "resourceMemoryBelowFloor": "低于内存下限",
+  "resourceMemoryLow": "余量较低",
+  "resourceMemoryAmple": "余量充足"
 }

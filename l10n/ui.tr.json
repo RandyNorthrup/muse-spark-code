@@ -2459,5 +2459,22 @@
   "resourceRelocateDescription": "Makine meşgulken kuyruktaki ekip görevlerinin ve kontrollerin taşınabileceği yer. Mevcut cihaz izinleri ve teklifleri geçerliliğini korur.",
   "resourceRelocatePairedDescription": "Kaynak yükü normal olan, önceden onaylanmış eşleştirilmiş bir cihazı kullanır.",
   "resourceRelocateAskDescription": "Kuyruktaki işi taşımadan önce sorar.",
-  "resourceRelocateOffDescription": "İşi bu makinede tutar."
+  "resourceRelocateOffDescription": "İşi bu makinede tutar.",
+  "resourceHistoryEmpty": "Henüz kaynak geçmişi kaydedilmedi.",
+  "resourceHistoryInvalid": "Kaynak geçmişi okunamadı.",
+  "resourceHistoryObserved": "Dakikalık ortalamalar ve gözlemlenen aracı çalışması. Eksik ölçümler bilinmiyor olarak kalır; gözlemlenmeyen çalışma tahmin edilmez.",
+  "resourceHistoryThreshold": "Sınır",
+  "resourceHistoryLevel": "Düzey",
+  "resourceHistoryEvents": "Kaynak olayları",
+  "resourceHistoryTime": "Zaman",
+  "resourceHistoryKind": "İş türü",
+  "resourceHistoryCount": "Olay toplamları",
+  "resourceHistoryLevelChanged": "Düzey değişti",
+  "resourceHistoryDeferred": "Ertelendi",
+  "resourceHistoryRelocated": "Taşındı",
+  "resourceHistoryPaused": "Duraklatılan iş",
+  "resourceHistoryOverrides": "Zorla sürdürme",
+  "resourceMemoryBelowFloor": "Bellek alt sınırının altında",
+  "resourceMemoryLow": "Az boş kapasite",
+  "resourceMemoryAmple": "Yeterli boş kapasite"
 }
