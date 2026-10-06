@@ -4388,7 +4388,11 @@ Items 13–16 of the owner's requests of 2026-10-03 (D66). The choices:
   - **The gap** is a library the user fills from the panel (named text put
     into the composer to edit and send), and a way to send several prompts
     one after another. For item 13, M88 builds only that.
-- **Saved prompts belong to the panel, not to skills.**
+- **Saved prompts belong to the panel, not to skills.** **Storage
+  superseded 2026-10-06 by D98 (M118):** the library is built there, with a
+  user scope in the agent data folder and a workspace scope in
+  `.muse/prompts/`; this section's caps, damage rule and sync opt-in carry
+  over; sequences and bookmarks stay M88's.
   - **Why not skills.** Writing them as skills would put files into Muse
     Code's personal folder, which the extension never does (D13), or into
     the project, where git would share them. And a skill does not behave
@@ -12125,6 +12129,136 @@ answers "how long" or "with what".
    P50–P90 band), and the limiting resource. With too little history it says
    "uncalibrated prior". A price is a dated catalog figure, never a promise.
 
+---
+
+### D98 — Prompt and chat sharing (M118, 2026-10-06)
+
+The owner, 2026-10-06, as soon as possible: "what i would like to setup asap
+is prompt sharing to share either saved prompts or from a chat and chat
+sharing which shares the entire chat transcript the user chooses either long
+form or without the commands and non human type stuff". And: "make sure that
+part of the right click menu for prompts is save and that we can load saved
+prompts into a chat in any workspace".
+
+**What exists** (read on main):
+
+- **Export:** `museSpark.exportConversation`
+  (`src/host/conversation/exportConversation.ts:156–196`) in Markdown
+  (`renderTranscriptMarkdown`), JSON (M84's portable document,
+  `sessionTransfer.ts:84–100`, whose `buildSessionExport` scrubs credential
+  shapes, the key digest, account ids and paths, lines 493–518) and Muse
+  Code's session log. The palette's rows are `src/shared/palette.ts:293–328`,
+  with M84's read-only share view (`ShareView`, opened by `openShareFile`).
+- **No saved-prompts library is built.** D67 planned one (M88's lane A, in
+  VS Code's `globalState` and `workspaceState`); D98 supersedes D67's storage
+  for it (below), and M88's sequences and bookmarks stand.
+- `museSpark.confidentialWorkspace` already keeps a workspace's content from
+  leaving the machine (D77's rule).
+
+1. **Saved prompts (new).**
+   - **Save** from the composer (**Save prompt**), from any of the user's own
+     messages in the transcript (the message menu's **Save as prompt**), or
+     from the prompt library.
+   - **Fields:** a title, the body, optional tags, optional variables
+     (`{{selection}}`, `{{file}}`, `{{clipboard}}`, and named inputs asked for
+     at use), and a scope:
+     - **user:** in the agent data folder
+       (`<agentDataFolder>/prompts/v1/`), portable across editors;
+     - **workspace:** `.muse/prompts/<slug>.md`, Markdown with front matter,
+       shareable through git.
+   - **The library** has a picker with search and tags, **Edit**, **Delete**,
+     **Duplicate**, **Insert** into the composer, and **Run**. Run asks for
+     the variables; Insert never runs anything.
+   - **Caps** as D67 set them: 200 prompts per scope, 80 characters per
+     title, 10,000 per body. The editor says not to save secrets.
+   - **Settings Sync** (D67's opt-in, the owner's 2026-10-03 answer):
+     with `museSpark.syncPromptsAndBookmarks` on, VS Code also mirrors the
+     user-scope library into a synced `globalState` key and merges it at
+     start (the newest edit of each prompt wins).
+   - **In right-click menus** (the owner's addition):
+     - **Save prompt** in the context menu of the user's own transcript
+       messages, of the composer (with its current text), and of an editor's
+       text selection (VS Code's `editor/context`, and the native hosts'
+       menus through MHP);
+     - **Use saved prompt…** in the composer's context menu.
+   - **Loaded anywhere** (the owner's addition):
+     - user-scope prompts are available in every workspace, editor and
+       surface (ACP, the CLI, the TUI, the companion page);
+     - the picker shows the user-scope prompts and the current workspace's
+       `.muse/prompts/`, each labelled by its scope; **Copy to my prompts**
+       copies a workspace prompt into the user scope;
+     - loading inserts into the active chat's composer, or starts a chat in
+       that workspace; it never sends by itself.
+2. **Prompt sharing.**
+   - **Copy** as text or Markdown.
+   - **Export** to a `.muse-prompt.md` file (front matter: the title, tags,
+     variables and schema version).
+   - **Phase 2:** a secret GitHub Gist through the user's own GitHub sign-in
+     (M71), never public by default.
+   - **Import** from a file, a pasted link or a gist, always with a preview
+     first. An imported prompt is untrusted content: it is shown in full,
+     never runs by itself, and its variables are listed. A link or gist is
+     fetched only on the user's click, through the window's web fetch
+     transport or M71's GitHub client, under a size cap.
+3. **Chat sharing:** the whole chat, or a range (from message A to message
+   B), in one of two modes the user picks:
+   - **Full transcript:** every item: messages, tool calls and their outputs,
+     commands, approvals and decisions, diffs, checkpoints, notices, and the
+     reasoning summaries if they were shown.
+   - **Conversation only:** the user's and the assistant's messages only. No
+     tool calls, commands, outputs, approvals, system or internal notices, or
+     reasoning. Assistant text that refers to a tool result keeps its text.
+     Optional toggles: keep code blocks (on), keep attachments as names only
+     (on), keep diffs (off).
+   - **The filter is an allow-list:** conversation-only keeps the item kinds
+     it names (`userMessage`, `agentMessage`) and drops every other kind,
+     including one added later.
+4. **Formats and destinations.**
+   - **Formats:** Markdown; a self-contained, themed HTML page (M114's tokens
+     once they land, the current theme's colours until then; light and dark;
+     readable on a phone); JSON in a versioned schema (`chat-share` v1, its
+     JSON Schema committed under `docs/schemas/`). Same transcript, options
+     and `exportedAt` give the same bytes.
+   - **Phase 1 destinations:** copy, save to a file, open in the browser.
+   - **Phase 2:** a secret gist link.
+   - **Phase 3:** a private link hosted on the user's node (M110: gated by a
+     token or a passkey, expiring), the team library (M96), and email (M113's
+     and M115's destinations).
+5. **Privacy, always.**
+   - **A preview pane** shows exactly what will be shared, with the
+     redactions highlighted.
+   - **The scrub:** M84's scrub (which M113's renderers also use) covers
+     credential shapes and registered values (M108's and M109's as they
+     land); absolute paths become workspace-relative; the user name and home
+     path are replaced; attachments' contents are left out unless chosen.
+   - **A confidential workspace refuses to share,** as M98's rule does.
+   - **Nothing leaves the machine** without a click on the final **Share**,
+     **Copy** or **Save**.
+6. **Surfaces.**
+   - **VS Code:** **Share** in the panel's header; the message menu; the
+     palette's **Muse Spark: Share chat…**, **Share prompt…** and **Prompt
+     library**; the right-click menus of decision 1.
+   - **The companion page and the native hosts** through MHP (the handoff to
+     M104).
+   - **ACP:** `/share chat [--mode full|conversation] [--format md|html|json]`
+     and `/prompt save|list|use|share`.
+   - **The CLI:** `muse-spark-code-acp share …` and `prompts …`.
+   - **The TUI.**
+   - All editors equal; the 14 tables; the `/help` reference; accessibility.
+7. **Tests.**
+   - A mode-filter golden per item kind: conversation-only drops every
+     non-human kind. The red drill adds a new item kind and shows it is left
+     out by default, so the filter is an allow-list, not a deny-list.
+   - The scrub; range selection; a prompt's round trip (save, export, import:
+     nothing lost); an untrusted import never runs by itself; determinism of
+     exports; the HTML's accessibility.
+   - The right-click menus on each surface; user-scope prompts in every
+     workspace; scope labels and duplicates.
+8. **Phases.** Phase 1 (saved prompts, the menus, loading anywhere, copy,
+   file export and import, chat sharing to copy, file and browser) targets
+   the next patch release after 0.14.3; phase 2 (gists) the one after;
+   phase 3 with M110, M96, M113 and M115.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
@@ -12735,7 +12869,12 @@ train, and those waiting on outside events, keep their own status lines.
    lane-hours), in 0.14.3, or folded into 0.14.2 when both are ready
    together. Needs: main only; its native-host, TUI and desktop rows wait for
    M104, M110a0 and M111b and block nothing.
-4. **M115: scheduled prompts v2** (D95) — right after M112: it shares the
+4. **M118: prompt and chat sharing** (D98) — as soon as possible, at the
+   front beside M112 and in parallel with it (about 34 lane-hours).
+   Phase 1 ships in the next patch after 0.14.3, phase 2 (gists) in the
+   one after. Needs: main; the native hosts' menus with M104, the TUI
+   with M110a0's T, phase 3 with M110, M96, M113 and M115.
+5. **M115: scheduled prompts v2** (D95) — right after M112: it shares the
    deferral and the unattended machinery, and it replaces M52's per-run
    modal and M88's lane C (timed sends). About 134 lane-hours; ships in the
    first train after M112 that it is ready for. Needs: M112; event sources,
@@ -12743,70 +12882,70 @@ train, and those waiting on outside events, keep their own status lines.
    and M113 merge, and none blocks the rest. Its phase M115w (the issue
    watchdog, about 100 lane-hours) follows M96, M113's network sources and
    M109's taint lane.
-5. **M116: the orchestrator playbook** (D96) — small (about 60
+6. **M116: the orchestrator playbook** (D96) — small (about 60
    lane-hours) and foundational: every orchestrating milestone after it
    (M96's team, M110's hosts, M115w's watchdog) is held to it. Its policy
    module, skill and the panel's own orchestration need only main; the
    team, node and watchdog hooks join as M96, M110a and M115w merge.
    Needs: main.
-6. **M114: design language and polish** (D94) — next after M116: its lane 0
+7. **M114: design language and polish** (D94) — next after M116: its lane 0
    (the token source and the raw-colour rule) is the prerequisite of every
    UI-building lane that follows, M111's and M110's web UI and TUI design
    among them. The panel's part ships in a 0.16.x patch, after 0.16.0's M104
    so that the companion page and the native webviews are polished in the
    same pass; the desktop's and the node's parts ship with M111 and M110a0.
    Needs: main for lanes 0, A, P1, P2, F and S; M104 for C.
-7. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
+8. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
    and the team, the usage journal and the rest of the batch; most later
    milestones build on M95 and M102. Needs: main.
-8. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
+9. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
    companion server and the native bridges, which every later editor row
    uses. Needs: 0.15.0.
-9. **M100: paired devices, first slice** (D80) — missing from the order as
-   given; added here. Its lanes S and E gate M107's relocation, M108's
-   devices (now the main multi-account path, D88's placement amendment),
-   M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
-10. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
+10. **M100: paired devices, first slice** (D80) — missing from the order as
+    given; added here. Its lanes S and E gate M107's relocation, M108's
+    devices (now the main multi-account path, D88's placement amendment),
+    M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
+11. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
     (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
     M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
     needs FIXM101P2.
-11. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
+12. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
     only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
     M102 for J.
-12. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
+13. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
     nothing unmerged, so it can run beside M107. Needs: M81's A1 for L; M96
     for R, and M100 and M107's R for R's device part; lane M moves each store
     as its owner merges (M95 K, M108 K, M100 P, M103, M85).
-13. **M108: several accounts per provider** (D88) — corrected: it does not
+14. **M108: several accounts per provider** (D88) — corrected: it does not
     need M109; M109's lane M moves M108's account secrets into the vault
     whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
     M106's lane R for T; K and P for X (developer options); M100 and M107's R
     for D.
-14. **M105: multimodal input** (D85) — after the governor, vault and accounts
+15. **M105: multimodal input** (D85) — after the governor, vault and accounts
     by size only; nothing in it waits for M107–M109, and delivery a (the
     Files API and the media core) can move up if a slot frees. Needs: M95's
     lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
-15. **M113: deterministic reports** (D93) — runs beside everything from
+16. **M113: deterministic reports** (D93) — runs beside everything from
     M112's lane 0 on. Needs: nothing new for the engine and the project,
     milestone, release, changes, session and editor keybindings kinds; M102
     for usage; M108 for accounts; M109 for security; M96 and, for nodes,
     M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
     and M111b for the desktop.
-16. **M117: the capacity estimator** (D97) — after M113 and M116, whose
+17. **M117: the capacity estimator** (D97) — after M113 and M116, whose
     plan reader and review-round record it needs (about 107
     lane-hours). Needs: M113 and M116; M107, M100, M108, M96 and M110
     join as they land; provisioning rented servers waits for M109,
     M110d and M110f.
-17. **M110a0: the home node, then M110os's first image** (D90) — placed by
+18. **M110a0: the home node, then M110os's first image** (D90) — placed by
     size (about 360 lane-hours), not by dependency: it needs none of M100,
     M107, M108 or M109, and can start right after 0.16.0 when the owner wants
     it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
     M80 and M89; M114's lane 0 for U1, U2 and TD.
-18. **M110's later phases** — each phase's row in M110's roadmap names its
+19. **M110's later phases** — each phase's row in M110's roadmap names its
     own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
     M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
     after M110a and M110b; M110d to M110h after them. Needs: M110a0.
-19. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+20. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
     M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
     built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
     M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
@@ -28044,6 +28183,108 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
   - [ ] The fake provider's flow, the cap, and the never-pays and
         never-creates-accounts drills
   - [ ] P's parts with M96, M109, M110d and M110f, or each named as waiting
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+---
+
+### M118 — Prompt and chat sharing (D98)
+
+**Status 2026-10-06: planned, as soon as possible.** At the front of the
+queue, beside M112. Small: about 34 lane-hours. No model call is needed.
+Phase 1 targets the next patch release after 0.14.3, phase 2 the one after;
+phase 3 waits for M110, M96, M113 and M115.
+
+- **Goal.** A user saves a prompt from anywhere they type or read one, finds
+  it in any workspace and editor, and shares it as text, a file or (phase 2)
+  a secret gist. They share a chat, whole or a range, as the full transcript
+  or as the conversation only, in Markdown, HTML or JSON, after seeing
+  exactly what will leave, scrubbed.
+- **Depends on.** Main: `exportConversation`, `renderTranscriptMarkdown`,
+  M84's portable document, scrub and share view; the palette; the row menus
+  (`useRowMenu`); M71's GitHub sign-in (phase 2); the window's web fetch (the
+  link import). M104's MHP for the native hosts; M110a0's lane T for the TUI;
+  M114's tokens for the HTML once they land.
+- **Scope.** D98 entire; strings in all 14 tables; README ("Saved prompts"
+  and "Sharing a chat"), PRIVACY (what a share holds, the scrub), CHANGELOG,
+  `docs/acp.md` (`/share`, `/prompt`), `docs/schemas/chat-share-v1.schema.json`,
+  the prompt file's format in CONTRIBUTING, the `/help` rows,
+  `docs/ide-compatibility/**` rows, certification.
+- **Settings.** `museSpark.syncPromptsAndBookmarks` (D67's, unchanged); the
+  share dialog remembers the last mode and format per workspace.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m118-sharing`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, the lead integrates. **Order:** lane 0, then
+  P, C and X in parallel, then W.
+
+| Lane                               | Items                                                                                                                                                                                                                                                                                                                                                                                              | Files it owns                                                                                            | Its regions in shared files                                                                                                                                                                             | Starts  | Rig      | Hours |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts and strings (lead)     | The saved prompt's schema and the `.muse-prompt.md` front matter; the share options (mode, range, toggles, format) and `chat-share` v1; the item-kind allow-list; the MHP messages; the commands and menus; every string; the fakes (a transcript of every item kind, a clipboard, a browser opener, a fetch)                                                                                      | new `src/shared/prompts.ts`, `src/shared/chatShare.ts`, `test/unit/helpers/sharing/**`                   | `constants.ts` (`PROMPT_*`, `SHARE_*`); `src/shared/protocol.ts` (the messages); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (with M104 lane 0's owner)                        | day 0   | Kubuntu  |     4 |
+| P Saved prompts and prompt sharing | D98.1 and 2: the user and workspace stores, the sync mirror, the library picker (search, tags, edit, delete, duplicate, insert, run with variables), **Save prompt** in the composer's, the messages' and the editor selection's menus, **Use saved prompt…**, loading in any workspace, **Copy to my prompts**; copy, `.muse-prompt.md` export, import from a file, link or gist with its preview | new `src/core/prompts/**`, `src/host/prompts/**`, `src/webview/prompts/**` (a lazy chunk)                | `Composer.tsx` (the menu and the insert); `useRowMenu` (the message menu); `palette.ts`; `package.json` (`editor/context`, `webview/context` and the commands); `extension.ts` (commands, loaders only) | after 0 | Mac mini |    12 |
+| C Chat sharing                     | D98.3–5: the modes with the allow-list, the range, the toggles; Markdown, HTML and JSON on `exportConversation` and `renderTranscriptMarkdown`; the preview pane with highlighted redactions; the scrub (M84's, registered values, paths, user name); the confidential refusal; copy, save and open in the browser; the header's **Share**                                                         | new `src/core/sharing/chatShare.ts`, `src/core/sharing/html.ts`, `src/webview/sharing/**` (a lazy chunk) | `exportConversation.ts` (the share entry); `transcriptMarkdown.ts` (the mode filter, with M84's owner); `sessionTransfer.ts` (the scrub, reused); the panel header; `docs/schemas/`                     | after 0 | Kubuntu  |    10 |
+| X ACP, CLI, TUI and MHP            | D98.6: ACP's `/share chat` and `/prompt save\|list\|use\|share`; the CLI's `share` and `prompts`; the TUI's views on lane 0's messages; the MHP handoff for the native hosts' menus and the companion page                                                                                                                                                                                         | new `src/acp/sharing.ts`, `src/runtime/sharing/**`                                                       | `src/acp/agent.ts` (commands); `src/runtime/cliArgs.ts`; M110a0's lane T views (once merged, with T's owner)                                                                                            | after 0 | Win11 VM |     6 |
+| W Wiring and docs (lead)           | The lazy chunks, budgets, the docs, the `/help` rows, certification, the full gate                                                                                                                                                                                                                                                                                                                 | `docs/certification/m118*.md`                                                                            | `scripts/build.mjs`; the split and size gates; README; PRIVACY; CHANGELOG; CONTRIBUTING; `docs/acp.md`; `src/shared/featureCatalog.ts`; PLAN                                                            | last    | Kubuntu  |     2 |
+
+Total: about 34 lane-hours (P is 12: the right-click menus and loading
+anywhere joined it).
+
+- **Acceptance** (fakes; no model calls):
+  1. **The mode filter.** A golden per item kind: the full transcript keeps
+     every kind; conversation-only keeps only the user's and the assistant's
+     messages, with the assistant's text intact, code blocks by default,
+     attachments as names, diffs only when toggled. The red drill adds a new
+     item kind, and conversation-only leaves it out without a code change.
+  2. **The scrub.** Planted keys, registered values, absolute paths, the
+     user name and the home path are absent or replaced in every format and
+     in the preview, which highlights each redaction; attachment contents are
+     absent unless chosen.
+  3. **The range.** From message A to message B, inclusive, in both modes.
+  4. **Determinism.** The same transcript, options and `exportedAt` give the
+     same bytes in each format; JSON validates against the committed schema.
+  5. **Confidential.** A confidential workspace refuses every share, and says
+     why.
+  6. **Nothing leaves without the click:** no clipboard write, file or
+     browser open before the final button (a spy).
+  7. **Prompts.** Save from the composer, a message and an editor selection;
+     the library's actions; Run asks for the variables and Insert never runs;
+     the caps hold; a damaged store is kept and reported (D67's rule).
+  8. **The round trip.** Save, export to `.muse-prompt.md`, import: nothing is
+     lost. An imported prompt is previewed in full, its variables listed, and
+     it never runs by itself (a red drill runs it on import, and the test
+     fails).
+  9. **Anywhere.** A user-scope prompt appears in another workspace, in ACP,
+     the CLI and the companion page; the picker labels each prompt's scope;
+     **Copy to my prompts** works; a duplicate title is shown as such; loading
+     never sends.
+  10. **Menus.** **Save prompt** and **Use saved prompt…** appear where D98.1
+      puts them on each surface (VS Code's message, composer and editor
+      menus; the native hosts' through the fake bridges).
+  11. **The HTML** passes axe in light and dark and at 320 px.
+  12. **Editors.** ACP's `/share chat` and `/prompt`; the CLI's `share` and
+      `prompts`; the TUI on lane 0's fakes, or named as waiting.
+- **Tests.** `promptStore.test.ts`, `promptLibrary.test.tsx`,
+  `promptImport.test.ts`, `promptMenus.test.ts`, `chatShareFilter.test.ts`
+  (the allow-list goldens), `chatShareScrub.test.ts`, `chatShareRange.test.ts`,
+  `chatShareFormats.test.ts`, `acpSharing.test.ts`, `shareCommand.test.ts`;
+  each with a red drill recorded in `docs/certification/m118-<lane>.md`.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard, `test:a11y`, `check:reference`, gitleaks
+  over the fixtures.
+- **Security.** Imported prompts are untrusted text, never run on import;
+  every share is previewed and scrubbed and leaves only on the user's click;
+  a confidential workspace shares nothing; a link or gist is fetched only on
+  the user's click under a size cap. PLAN §9 records the residual: a secret
+  in a shape the scrub does not know can reach a share; the preview is the
+  user's last check.
+- **Performance and bundles.** The library and the share dialog are lazy
+  chunks (each well inside the 50 KiB optional total); `dist/extension.js`
+  gains at most 1 KiB for the commands; no cap rises.
+- **Size.** S: about 34 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] The allow-list goldens and the new-kind drill
+  - [ ] The scrub, range, round-trip and untrusted-import drills
+  - [ ] The menus on each surface; prompts in every workspace
+  - [ ] Phase 2's gists and phase 3's destinations named as planned
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
