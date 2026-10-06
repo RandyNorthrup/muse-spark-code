@@ -549,7 +549,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### /goal
 
-Set a goal Muse keeps working toward: /goal <objective>.
+Set a goal Muse keeps working toward: /goal &lt;objective&gt;.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -2482,7 +2482,7 @@ These are defaults; editor customizations take precedence.
 - `row.menu`: `ContextMenu / Shift+F10`; when `row.menu`; ContextMenu / Shift+F10: More actions
 - `radial.menu`: `ArrowDown / ArrowRight / ArrowUp / ArrowLeft / Home / End / Enter / Space / Escape`; when `radial.menu`; Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.
 - `header.rename`: `Enter / Escape`; when `header.rename`; Confirm or cancel renaming this conversation.
-- `modal.focus`: `Tab / Escape`; when `modal.focus`; Close the dialog or move focus within it.
+- `modal.focus`: `Tab / Shift+Tab / Escape`; when `modal.focus`; Close the dialog or move focus within it.
 - `agent.message`: `Enter`; when `agent.message`; Send message
 - `output.open`: `Enter / Space`; when `output.open`; Open output
 - `goal.edit`: `Escape`; when `goal.edit`; Cancel

@@ -4191,7 +4191,7 @@
     },
     {
       "command": "modal.focus",
-      "key": "Tab / Escape",
+      "key": "Tab / Shift+Tab / Escape",
       "when": "modal.focus",
       "text": { "ui": "referenceModalKeys" }
     },

@@ -114,7 +114,8 @@ export const WEBVIEW_KEYBINDINGS = {
     close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceRenameKeys' } },
   },
   'modal.focus': {
-    focus: { keys: [{ key: 'Tab' }], text: { ui: 'referenceModalKeys' } },
+    focusNext: { keys: [{ key: 'Tab', shift: false }], text: { ui: 'referenceModalKeys' } },
+    focusPrevious: { keys: [{ key: 'Tab', shift: true }], text: { ui: 'referenceModalKeys' } },
     close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } },
   },
   'agent.message': { send: { keys: [{ key: 'Enter' }], text: { ui: 'referenceAgentKeys' } } },

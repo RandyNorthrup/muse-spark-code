@@ -88,6 +88,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         </Modal>
       )
     const nls = values?.nls ?? {}
+    const jsonText = (value: unknown) => JSON.stringify(referenceSchema(value, nls), null, 2)
     const translated = (key: string | null | undefined, fallback: string) =>
       key === undefined || key === null ? fallback : (nls[key] ?? fallback)
     const isMatch = (...text: readonly string[]) =>
@@ -99,7 +100,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         referenceText(f.summary, model, nls, UI_TEXT),
         referenceText(f.description, model, nls, UI_TEXT),
         ...f.details.map((text) => referenceText(text, model, nls, UI_TEXT)),
-        JSON.stringify(referenceSchema(f.facts, nls)),
+        jsonText(f.facts),
         ...f.surfaces,
         ...(f.paid ? [UI_TEXT.referencePaid] : []),
         f.docs,
@@ -125,7 +126,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         s.id,
         translated(s.nameKey, s.name),
         translated(s.descriptionKey, s.description),
-        JSON.stringify(referenceSchema(s.schema, nls)),
+        jsonText(s.schema),
         valueText(s.default),
         values?.values[s.id] ?? '—',
         Array.isArray(s.type) ? s.type.join(' | ') : String(s.type),
@@ -179,7 +180,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
             { command: model.executable },
           )
     const cliRows = model.cli.filter((entry) =>
-      isMatch(entry.name, cliDescription(entry), JSON.stringify(entry.contract ?? {})),
+      isMatch(entry.name, cliDescription(entry), jsonText(entry.contract ?? {})),
     )
     const hasResults = [features, commands, settingsRows, slashRows, shortcuts, cliRows].some(
       (rows) => rows.length > 0,
@@ -233,9 +234,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                 {f.details.map((text, index) => (
                   <p key={index}>{referenceText(text, model, nls, UI_TEXT)}</p>
                 ))}
-                {Object.keys(f.facts).length === 0 ? null : (
-                  <pre>{JSON.stringify(referenceSchema(f.facts, nls), null, 2)}</pre>
-                )}
+                {Object.keys(f.facts).length === 0 ? null : <pre>{jsonText(f.facts)}</pre>}
                 <div className="reference-links">
                   {f.settings.map((id) => (
                     <button
@@ -346,7 +345,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                     {Array.isArray(s.type) ? s.type.join(' | ') : s.type} · {s.scope}
                   </code>
                 </p>
-                <pre>{JSON.stringify(referenceSchema(s.schema, nls), null, 2)}</pre>
+                <pre>{jsonText(s.schema)}</pre>
                 {s.refinements.map((rule) => (
                   <p key={rule}>
                     <code>{rule}</code>
@@ -412,9 +411,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                   <code>{entry.name}</code>
                 </h4>
                 <p>{cliDescription(entry)}</p>
-                {entry.contract === undefined ? null : (
-                  <pre>{JSON.stringify(entry.contract, null, 2)}</pre>
-                )}
+                {entry.contract === undefined ? null : <pre>{jsonText(entry.contract)}</pre>}
               </article>
             ))}
           </section>

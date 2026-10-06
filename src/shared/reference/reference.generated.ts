@@ -3737,7 +3737,7 @@ export function referenceModel(): ReferenceModel {
           when: 'header.rename',
           text: { ui: 'referenceRenameKeys' },
         },
-        { '~6b': 'modal.focus', key: 'Tab / Escape', when: 'modal.focus', text: '~22' },
+        { '~6b': 'modal.focus', key: 'Tab / Shift+Tab / Escape', when: 'modal.focus', text: '~22' },
         {
           '~6b': 'agent.message',
           key: 'Enter',

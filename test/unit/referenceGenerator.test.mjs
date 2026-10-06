@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   buildReference,
   generateReference,
@@ -496,6 +497,48 @@ describe('RVHELPREF truth regressions', () => {
 })
 
 describe('RVHELPREF2 runtime truth regressions', () => {
+  it('C04 preserves every argument slot when Markdown prose is parsed', () => {
+    const model = build()
+    const prose = { ui: 'referenceCodeOutput' }
+    const entry = model.features[0]
+    entry.name = entry.summary = entry.description = prose
+    entry.details = [prose]
+    model.commands[0].name =
+      model.commands[0].category =
+      model.commands[0].description =
+        '<command-slot>'
+    model.settings[0].description = '<setting-slot>'
+    model.settings[0].enumDescriptions = ['<enum-slot>']
+    model.shortcuts[0].text = prose
+    model.cli[0].description = '<cli-slot>'
+    const markdown = referenceMarkdown(
+      model,
+      { ...source, EN: { ...source.EN, referenceCodeOutput: '<feature-slot>' } },
+      nls,
+      manifest,
+    )
+    const nodes = []
+    const visit = (node) => {
+      nodes.push(node)
+      const children = node.children ?? []
+      for (const child of children) visit(child)
+    }
+    visit(fromMarkdown(markdown))
+    expect(nodes.filter((node) => node.type === 'html' && /<[^!]/.test(node.value))).toEqual([])
+    const rendered = nodes
+      .filter((node) => ['text', 'inlineCode'].includes(node.type))
+      .map((node) => node.value)
+      .join(' ')
+    const slots = [
+      '<objective>',
+      '<feature-slot>',
+      '<command-slot>',
+      '<setting-slot>',
+      '<enum-slot>',
+      '<cli-slot>',
+    ]
+    for (const slot of slots) expect(rendered).toContain(slot)
+  })
   it('command visibility retains each contributed condition and combines alternate menu paths', () => {
     const model = build()
     for (const menu of manifest.contributes.menus.commandPalette) {

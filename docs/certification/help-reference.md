@@ -414,3 +414,20 @@ model-text, host-global and third-party notice checks passed. Localization:
 No live/paid call, credential read, device operation, native/phone integration,
 full aggregate suite, push or merge is certified. The pre-existing integration
 boundary stays explicit; none of the 39 audited repairs is deferred.
+
+## FIXHELPREF3 — Third truth audit repairs (2026-10-06)
+
+Rig: Kubuntu; base `c98f6b67c`. All six RVHELPREF3 findings are in scope.
+The first completed piece repairs C03–C05:
+
+| Finding              | Fix                                                                             | Regression                                                             | Deliberate failure                      |
+| -------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | --------------------------------------- |
+| C03 — JSON search    | One formatter supplies both display and search for schemas, facts and contracts | ReferencePage C03 copies visible JSON fragments into search            | Remove JSON indentation; C03 fails      |
+| C04 — Markdown slots | Escape angle brackets in every prose field while retaining code spans           | Generator C04 parses Markdown and checks literal slots across sections | Remove prose escaping; C04 fails        |
+| C05 — Shift+Tab      | Modal forward/backward actions and the reference use the same gesture table     | Modal C05 compares inventory and actual focus movement                 | Replace backward Tab with F9; C05 fails |
+
+[Mutation receipts](help-reference/fixhelpref3-drills.json) record the complete
+owning-file runs, nonzero exits, named failures and matching before/restored
+SHA-256 hashes. Baseline: three new regressions failed before their fixes;
+afterwards all **68 tests in three files passed**. Five-project typecheck passed.
+No test filter, skip, snapshot acceptance, relaxed guard or new dependency.

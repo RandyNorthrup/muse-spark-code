@@ -18204,6 +18204,25 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### FIXHELPREF3 — Third truth audit repairs (2026-10-06)
+
+Scope: resolve all six RVHELPREF3 findings at their source. Describe both Auto
+reviewers and ordinary model questions separately from MCP elicitation; prove
+the prose against runtime paths. Use one JSON formatter for displayed/searchable
+facts, schemas and CLI contracts. Escape argument slots throughout Markdown.
+Represent forward and backward modal focus in the shared handler table. Replace
+the historical-sentence blacklist with a structural conditional-description
+rule and typed conditions rendered on every reference surface. Audit every
+human-written catalogue description against its code path and record corrections.
+
+- [ ] Six regressions and six deliberate red drills, with SHA-256 restoration.
+- [ ] Whole-catalogue truth pass, translated tables and generated reference.
+- [ ] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+
+Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
+aggregate quality; integrated quality remains the lead's gate. No new dependency,
+live/paid request, relaxed guard or budget change is authorized.
+
 ### REDHELPREF — Runtime-owned reference facts (2026-10-05)
 
 Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with

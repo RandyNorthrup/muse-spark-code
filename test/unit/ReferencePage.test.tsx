@@ -235,6 +235,26 @@ describe('RVHELPREF page parity and errors', () => {
 })
 
 describe('RVHELPREF2 presentation truth', () => {
+  it('C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts', () => {
+    page()
+    const cases = [
+      { section: EN.referenceSettings, heading: 'museSpark.checkCommands', query: '"maxItems": 8' },
+      {
+        section: EN.referenceFeatures,
+        heading: EN.attachmentsLabel,
+        query: '"textBytes": 1048576',
+      },
+      { section: 'ACP / CLI', heading: 'exec: --max-requests <value>', query: '"default": 30' },
+    ]
+    for (const { section, heading, query } of cases) {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+      const region = screen.getByRole('region', { name: section })
+      const row = within(region).getByRole('heading', { name: heading }).closest('article')
+      expect(row?.querySelector('pre')?.textContent).toContain(query)
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+      expect(within(region).getByRole('heading', { name: heading })).toBeInTheDocument()
+    }
+  })
   it('B03 every webview shortcut uses its own description, with Tab prose only on inline suggestions', () => {
     page()
     const section = screen.getByRole('region', { name: EN.referenceShortcuts })

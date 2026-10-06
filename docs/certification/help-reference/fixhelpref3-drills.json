@@ -1,0 +1,65 @@
+[
+  {
+    "finding": "C03",
+    "source": "src/webview/components/ReferencePage.tsx",
+    "mutation": {
+      "before": "JSON.stringify(referenceSchema(value, nls), null, 2)",
+      "after": "JSON.stringify(referenceSchema(value, nls))"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts 236ms",
+    "sha256Before": "65999075cf39af1c325fef41993a65914266ab38314daaf17079e04ae982aba6",
+    "sha256Restored": "65999075cf39af1c325fef41993a65914266ab38314daaf17079e04ae982aba6",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C04",
+    "source": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "token === '<' ? '&lt;' : token === '>' ? '&gt;' : token",
+      "after": "token"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C04 preserves every argument slot when Markdown prose is parsed 522ms",
+    "sha256Before": "c71daaa012d4ed2fcb59a4b0639fc516079734cee6adf57af615047100aaa841",
+    "sha256Restored": "c71daaa012d4ed2fcb59a4b0639fc516079734cee6adf57af615047100aaa841",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C05",
+    "source": "src/shared/keybindings.ts",
+    "mutation": {
+      "before": "keys: [{ key: 'Tab', shift: true }], text: { ui: 'referenceModalKeys' }",
+      "after": "keys: [{ key: 'F9', shift: true }], text: { ui: 'referenceModalKeys' }"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/Modal.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C05 documents both focus directions from the table used by the modal handler 12ms",
+    "sha256Before": "cecdd18226d12c439b3d1a8a74a898e9fe5fb7a4b5f36c71eddbab3f712f0d40",
+    "sha256Restored": "cecdd18226d12c439b3d1a8a74a898e9fe5fb7a4b5f36c71eddbab3f712f0d40",
+    "restoredByteExact": true
+  }
+]
