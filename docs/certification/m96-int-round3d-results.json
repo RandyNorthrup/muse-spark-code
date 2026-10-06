@@ -358,5 +358,129 @@
     ],
     "nextAggregateOwner": "lead; no second full run in this lane",
     "coverageCertified": false
-  }
+  },
+  "artifactSourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+  "packages": {
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "capBytes": 2252800,
+    "artifacts": [
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/helperless-muse-spark-code-0.14.0.vsix",
+        "bytes": 2123125,
+        "sha256": "9115ec512242ffb3661ed271ffc7831ca49fdb8b8544eb591e770e095b9cbce5",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": false
+        },
+        "teamUi": true
+      },
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/universal-muse-spark-code-0.14.0.vsix",
+        "bytes": 2206058,
+        "sha256": "51bc62e8fed4461af351d6b0676b201f1f11f15280b0b383c832a51d8c654508",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": true
+        },
+        "teamUi": true
+      },
+      {
+        "path": "/Users/randy/lanes/M96INT3D/temp/m96-int3d/packages-51abb217/muse-spark-code-acp-0.14.0.tgz",
+        "bytes": 1089030,
+        "sha256": "373458e7635cd5b958e4342f1ae29a6bd7a0781146847fc384d3204b407c07e1",
+        "inventory": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true,
+          "native/darwin/muse-dictate": false
+        },
+        "teamUi": false
+      }
+    ]
+  },
+  "bytes": {
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "extension": 448415,
+    "modelApi": 465328,
+    "browserStartup": 875978,
+    "teamUi": 16088,
+    "ordinaryDeferred": 51098,
+    "caps": {
+      "extension": 614400,
+      "modelApi": 486400,
+      "browserStartup": 921600,
+      "teamUi": 25600,
+      "ordinaryDeferred": 51200
+    }
+  },
+  "standaloneChecks": {
+    "productionBuild": {
+      "command": "npm run build",
+      "exit": 0,
+      "unchangedCaps": true,
+      "splitGuard": true,
+      "hostGlobals": true,
+      "noticesPackages": 83
+    },
+    "postRepairUnitTypecheck": {
+      "command": "npm run typecheck:unit",
+      "exit": 0
+    },
+    "postRepairEslint": {
+      "command": "npx eslint --max-warnings=0 test/unit/paidDailyBudget.test.ts",
+      "exit": 0
+    },
+    "postRepairFormatting": {
+      "exit": 0
+    },
+    "packageL10n": {
+      "tables": 14,
+      "problems": 0,
+      "variants": ["helperless VSIX", "universal VSIX", "ACP"]
+    },
+    "packageModuleExports": {
+      "helperlessVsixPassed": 37,
+      "universalVsixPassed": 37,
+      "acpPassed": 18,
+      "failed": 0,
+      "skipped": 0
+    }
+  },
+  "nativeHelper": {
+    "command": "bash native/darwin/build.sh",
+    "bytes": 290368,
+    "sha256": "df649bc293dbcc105ed9dd4c415d27dc8501c22b920350e9e7ce3d343e674395",
+    "embeddedVersion": "0.14.0",
+    "architectures": ["x86_64", "arm64"],
+    "architectureCheck": "lipo -archs native/darwin/muse-dictate",
+    "signatureCheck": "codesign --verify --strict native/darwin/muse-dictate",
+    "signatureExit": 0,
+    "newRuntimePermissionDrill": false
+  },
+  "finalHistorySecrets": {
+    "command": "gitleaks git --redact --no-banner .",
+    "sourceCommit": "51abb217fb9a464754fbfc6cdd7577efd4afeb9d",
+    "exit": 0,
+    "commits": 1387,
+    "bytes": 67127752,
+    "findings": 0,
+    "sharedRefOrConfigChanges": false
+  },
+  "remaining": [
+    "Lead decides and runs the second full-quality/coverage-profile gate; this lane ran the aggregate exactly once.",
+    "WINPUB on win11; lead merges the Windows proof in the release batch."
+  ]
 }

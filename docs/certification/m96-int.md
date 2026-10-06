@@ -987,3 +987,51 @@ The lead decides a second aggregate invocation against this repaired tree;
 the 306 passing prescribed assertions do not certify the default coverage
 profile. Windows remains WINPUB on win11. No full suite rerun, push, rebase,
 other merge, shared tooling/configuration change, paid or live call occurs.
+
+### Round 3d final standalone build and private packages
+
+Source **`51abb217fb9a464754fbfc6cdd7577efd4afeb9d`** includes the scoped
+duplication repair and its receipt. A fresh `npm run build` exits zero:
+all unchanged size/split/host-global gates and notices for 83 bundled
+packages pass. Post-repair unit typecheck, ESLint and formatting also pass.
+Final receipt-only changes below are excluded from these artifacts.
+
+| Output                         | Bytes     | Unchanged cap |
+| ------------------------------ | --------- | ------------- |
+| Activation                     | 448,415   | 614,400       |
+| Model API                      | 465,328   | 486,400       |
+| Browser startup/static imports | 875,978   | 921,600       |
+| Team UI                        | 16,088    | 25,600        |
+| Ordinary deferred browser JS   | 51,098    | 51,200        |
+| Helperless VSIX                | 2,123,125 | 2,252,800     |
+| Universal-helper VSIX          | 2,206,058 | 2,252,800     |
+| ACP production tarball         | 1,089,030 | —             |
+
+Build the macOS helper from source with `bash native/darwin/build.sh`:
+290,368 bytes, embedded version **0.14.0**, x86_64 and arm64 slices.
+`lipo -archs` confirms both, and `codesign --verify --strict` exits zero.
+This is build/signature evidence; no new runtime permission/disclaimer
+drill is claimed. The earlier same-source runtime record remains separate.
+
+Run `node scripts/package-vsix.mjs` for each variant and
+`node scripts/package-acp.mjs` for the private tarball. Exact staged localization
+passes with 14 tables and zero problems; native import/require probes pass
+**37/37 for each VSIX and 18/18 for ACP**, without skips. ZIP/tar inventories
+contain all three team Node bundles, the exact lazy code archive and both
+runner helpers. Both VSIX variants include the lazy TeamUi chunk; only the
+universal variant carries the macOS binary. Universal headroom is **46,742
+bytes**. SHA-256s, inventories and private artifact paths are in the results
+JSON. No package is published.
+
+Repeat the unmodified default `gitleaks git --redact --no-banner .` after the
+source commits: **exit 0, 1,387 commits, 67,127,752 bytes, zero findings**.
+Shared archived refs stay outside this repository, with no ignore/config/ref
+change by this lane. All three source commits use active lint-staged and
+staged-secret hooks; the final receipt commit uses them too.
+
+The remaining action is concrete: the lead reviews these commits, decides
+the second full-quality/coverage-profile run, and merges WINPUB's Windows
+proof in the release batch. Round 3c's 69 aggregate failures and this lane's
+duplication stop remain historical red receipts. Scoped fixes, six deliberate
+red/restored drills, golden/startup/source-hash proofs and private packaging
+are green; aggregate coverage and Windows are still open.
