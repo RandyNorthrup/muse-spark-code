@@ -1067,14 +1067,14 @@ body {
 .tool-dot {
   display: inline-block;
   flex-shrink: 0;
-  width: 8px;
-  height: 8px;
+  width: var(--ms-space-8);
+  height: var(--ms-space-8);
   border-radius: var(--ms-radius-circle);
   background: var(--ms-muted);
 }
 
 .message-assistant > .tool-dot {
-  margin-top: 0.55em;
+  margin-top: calc(var(--ms-font-size) * 0.55);
 }
 
 .message-body {
@@ -1263,12 +1263,16 @@ body {
   margin: 4px 0 4px calc(8px + var(--ms-gap));
 }
 
-.tool-pre {
+.tool-pre,
+.code-block-body {
   margin: 0;
   padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
   overflow-x: auto;
   font-family: var(--ms-font-code);
   font-size: var(--ms-code-size);
+}
+
+.tool-pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
@@ -2287,8 +2291,8 @@ body {
    buttons sit closer, and spacing alone no longer made up for their height
    (seen in the pseudo-locale, M40). */
 .code-block-button {
-  min-width: 24px;
-  min-height: 24px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   padding: 1px calc(var(--ms-space-12) / 2);
   border: 0;
   border-radius: var(--ms-radius-xs);
@@ -2300,11 +2304,6 @@ body {
 }
 
 .code-block-body {
-  margin: 0;
-  padding: calc(var(--ms-space-12) / 2) var(--ms-space-8);
-  overflow-x: auto;
-  font-family: var(--ms-font-code);
-  font-size: var(--ms-code-size);
   line-height: var(--ms-line-code);
 }
 
@@ -3345,8 +3344,8 @@ li:focus-within > .row-actions .row-actions-button,
 /* The composer's badge while a paid feature is on: the warning colour marks
    the border, the text keeps the panel's own contrast. */
 .paid-badge {
-  min-height: 24px;
-  max-width: 220px;
+  min-height: var(--ms-space-24);
+  max-width: calc(var(--ms-space-20) * 11);
   overflow: hidden;
   padding: 1px var(--ms-space-8);
   border: 1px solid var(--ms-warning);
@@ -3466,17 +3465,17 @@ li:focus-within > .row-actions .row-actions-button,
 .tool-image img {
   display: block;
   max-width: 100%;
-  max-height: 240px;
+  max-height: calc(var(--ms-space-24) * 10);
 }
 
 /* A list of links, not links in a sentence: each is a 24 px target (WCAG 2.5.8). */
 .web-results a,
 .citations-list a {
   display: inline-block;
-  min-width: 24px;
-  min-height: 24px;
+  min-width: var(--ms-space-24);
+  min-height: var(--ms-space-24);
   color: var(--ms-info);
-  line-height: 24px;
+  line-height: var(--ms-space-24);
   overflow-wrap: anywhere;
 }
 
@@ -3491,7 +3490,7 @@ li:focus-within > .row-actions .row-actions-button,
    target (WCAG 2.5.8). */
 .tool-task-action {
   flex-shrink: 0;
-  min-height: 24px;
+  min-height: var(--ms-space-24);
   white-space: nowrap;
 }
 

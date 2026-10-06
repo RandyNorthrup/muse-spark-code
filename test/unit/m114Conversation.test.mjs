@@ -1,12 +1,20 @@
+import { readFileSync, readdirSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
+import process from 'node:process'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { contrastRatio } from '../../scripts/check-tokens.mjs'
+import { auditRoot, digest, readAudit } from './helpers/m114AuditCapture.mjs'
+import { conversationManifestPath } from './helpers/m114ConversationCapture.mjs'
 
 const themes = ['light', 'dark', 'hc-dark', 'hc-light', 'one-dark-pro', 'dracula']
+const compareNames = (a, b) => {
+  if (a === b) return 0
+  return a < b ? -1 : 1
+}
 const controls = [
   'jump-latest',
   'chip-remove',
@@ -71,6 +79,104 @@ beforeAll(async () => {
     throw new Error('Chrome is required for conversation state verification')
   runtime.browser = await chromium.launch({
     ...(path.isAbsolute(chrome) ? { executablePath: chrome } : { channel: 'chrome' }),
+  })
+})
+
+describe('M114 P1 after evidence', () => {
+  it('covers every owned render in six themes and two widths with current source hashes and no axe violations', async () => {
+    const audit = await readAudit()
+    const rows = audit.components.filter((row) => row.owner === 'P1')
+    const scenes = [...new Set(rows.map((row) => row.scene))]
+    const manifest = JSON.parse(readFileSync(conversationManifestPath, 'utf8'))
+    expect(manifest).toMatchObject({
+      kind: 'after-observation-not-golden',
+      base: '58ed2fc1d',
+      locale: 'en',
+      timezone: 'UTC',
+      deviceScaleFactor: 1,
+      reducedMotion: true,
+      animations: 'disabled',
+      network: 'loopback-only',
+      imageDirectory: 'temp/m114-p1-after',
+    })
+    expect(manifest.browser).toMatch(/^\d+\.\d+\.\d+\.\d+$/)
+    const expected = scenes.flatMap((scene) =>
+      themes.flatMap((theme) => [320, 690].map((width) => `${scene}/${theme}/${width}.png`)),
+    )
+    expect(
+      manifest.captures.map((row) => row.file.replaceAll('\\', '/')).toSorted(compareNames),
+    ).toEqual(expected.toSorted(compareNames))
+    expect(manifest.sources.map((row) => row.file)).toEqual([
+      'src/webview/styles.css',
+      ...rows.map((row) => row.file),
+    ])
+    for (const source of manifest.sources)
+      expect(digest(readFileSync(path.join(auditRoot, source.file)))).toBe(source.sha256)
+    for (const capture of manifest.captures) {
+      expect(capture.file.replaceAll('\\', '/')).toBe(
+        `${capture.scene}/${capture.theme}/${capture.width}.png`,
+      )
+      expect(capture.height).toBe(760)
+      expect(capture.sha256).toMatch(/^[\da-f]{64}$/)
+      expect(Number.isSafeInteger(capture.bytes)).toBe(true)
+      expect(capture.bytes).toBeGreaterThan(0)
+      expect(capture.rendered.map((row) => [row.file, row.selector])).toEqual(
+        rows
+          .filter((row) => row.scene === capture.scene)
+          .map((row) => [row.file, row.captureSelector]),
+      )
+      for (const render of capture.rendered)
+        expect(Object.keys(render.computed)).toEqual([
+          'color',
+          'background',
+          'radius',
+          'shadow',
+          'font',
+          'animation',
+          'transition',
+          'filter',
+          'backdropFilter',
+        ])
+      expect(capture.violations).toEqual([])
+      // Unmeasurable contrast is retained as evidence rather than called a pass.
+      for (const incomplete of capture.incomplete) {
+        expect(incomplete.id).toBe('color-contrast')
+        expect(incomplete.nodes.length).toBeGreaterThan(0)
+        for (const node of incomplete.nodes) {
+          expect(node.target.length).toBeGreaterThan(0)
+          expect(node.reasons.length).toBeGreaterThan(0)
+          for (const reason of node.reasons)
+            expect([
+              'elmPartiallyObscured',
+              'elmPartiallyObscuring',
+              'bgOverlap',
+              'nonBmp',
+            ]).toContain(reason)
+        }
+      }
+    }
+  })
+
+  it('keeps PNGs outside git and verifies their bytes, dimensions and hash when MUSE_M114_P1_CAPTURES_DIR is set', () => {
+    expect(
+      readdirSync(path.dirname(conversationManifestPath), { recursive: true }).filter((file) =>
+        file.endsWith('.png'),
+      ),
+    ).toEqual([])
+    const directory = process.env.MUSE_M114_P1_CAPTURES_DIR
+    if (directory === undefined) return
+    expect(directory.length).toBeGreaterThan(0)
+    const manifest = JSON.parse(readFileSync(conversationManifestPath, 'utf8'))
+    for (const capture of manifest.captures) {
+      const bytes = readFileSync(
+        path.join(directory, ...capture.file.replaceAll('\\', '/').split('/')),
+      )
+      expect(bytes.subarray(0, 8).toString('hex')).toBe('89504e470d0a1a0a')
+      expect(bytes.readUInt32BE(16)).toBe(capture.width)
+      expect(bytes.readUInt32BE(20)).toBe(capture.height)
+      expect(bytes.length).toBe(capture.bytes)
+      expect(digest(bytes)).toBe(capture.sha256)
+    }
   })
 })
 afterAll(async () => {
