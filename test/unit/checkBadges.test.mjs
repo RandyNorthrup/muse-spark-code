@@ -18,6 +18,10 @@ const document = (url = badge) => ({
 const offline = { skipReason: 'fake-only unit test' }
 const svg = (text = `Marketplace: v${version}`) =>
   `<svg xmlns="http://www.w3.org/2000/svg"><title>${text}</title><text>${text}</text></svg>`
+// shields.io's own layout (captured 2026-10-06): a title, then shadow and
+// face <text> nodes for the label and the value, nothing between them.
+const shields = (value) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Marketplace: v${value}"><title>Marketplace: v${value}</title><g><text>Marketplace</text><text>Marketplace</text><text>v${value}</text><text>v${value}</text></g></svg>`
 const response = (body = svg(), contentType = 'image/svg+xml', status = 200) =>
   new globalThis.Response(body, { status, headers: { 'content-type': contentType } })
 
@@ -148,6 +152,14 @@ describe('public image responses', () => {
       expect(options.signal).toBeDefined()
       expect(options.headers).toBeUndefined()
     }
+  })
+  it('reads a shields.io badge whose label and value nodes adjoin', async () => {
+    await expect(
+      checkReadmeBadges([document()], version, { fetch: vi.fn(() => response(shields(version))) }),
+    ).resolves.toContain('1 HTTPS images')
+    await expect(
+      checkReadmeBadges([document()], version, { fetch: vi.fn(() => response(shields('0.13.0'))) }),
+    ).rejects.toThrow('label/version mismatch')
   })
   it.each([
     ['404', () => response(svg(), 'image/svg+xml', 404)],

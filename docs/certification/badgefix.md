@@ -83,3 +83,35 @@ The shared lane brief prohibits aggregate quality; full integrated quality,
 coverage and actual hosted SVG/cache responses remain the lead's release proof.
 No existing threshold, timeout, retry or gate was lowered. The compiled universal
 macOS helper is not available in this Kubuntu worktree.
+
+## Release-train repair (0.14.1 PR #123, 2026-10-06)
+
+The first hosted run of the 0.14.1 train was the first time the check read
+real shields.io SVGs (the lane ran with the named network skip). Two defects
+surfaced; both are fixed in this commit.
+
+- **Rendered version never matched.** shields.io writes the label and the
+  value as adjacent `<text>` nodes with no separator, so the SVG's joined
+  `textContent` read `Marketplacev0.14.1v0.14.1` and the `\bv?\d+\.\d+\.\d+\b`
+  scan found no version standing alone. `check:badges`, both packagers and every
+  test shard that packs failed with "Badge rendered label/version mismatch".
+  The check now reads each text node apart (a DOM tree walker) and joins them
+  with spaces. The unit fake had a space-bearing `<title>` and `<text>`, which
+  hid the defect; a new test uses shields.io's own layout (captured
+  2026-10-06) and must also reject the same layout at the wrong version.
+- **Semgrep blocked the hand-escaped trust-guard markup.** The `<img>` lines
+  fed to vsce's `ReadmeProcessor` were escaped with `replaceAll`
+  (`detect-replaceall-sanitization`, 2 blocking findings). They are now built
+  with `createElement('img')`/`setAttribute('src', …)` and `outerHTML`, so the
+  DOM serialiser escapes the attribute. A Markdown image with an angle-bracket
+  destination was tried first and rejected: vsce read `<…>` as a relative path.
+
+Evidence (Kubuntu, `~/lanes/TRAIN14A`):
+
+- `npx vitest run test/unit/checkBadges.test.mjs`: 32/32 passed.
+- **Break-on-purpose:** with the walker reverted to `svg.textContent`, the new
+  test failed (1 failed, 31 passed); restored, 32/32.
+- `node scripts/check-badges.mjs` against the live services:
+  "Badges: 34 HTTPS images; SVG badges and content images verified".
+- `semgrep scan --config auto --error` (1.177.0) on both files: no findings.
+- Scoped eslint `--max-warnings=0` and Prettier: clean.

@@ -76,6 +76,7 @@ export async function checkReadmeBadges(documents, version, options = {}) {
   for (const { name, markdown, labels = [] } of documents) {
     const found = new Set()
     const trusted = []
+    const markup = new JSDOM('')
     for (const source of readmeImageUrls(markdown)) {
       const url = z.url().parse(source)
       const parsed = new URL(url)
@@ -87,9 +88,10 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       // Force extensionless service URLs through vsce's SVG trust guard too.
       const trustTarget = new URL(url)
       if (!trustTarget.pathname.endsWith('.svg')) trustTarget.pathname += '.svg'
-      trusted.push(
-        `<img src="${trustTarget.href.replaceAll('&', '&amp;').replaceAll('"', '&quot;')}">`,
-      )
+      // Serialised by a DOM, which escapes the attribute itself.
+      const image = markup.window.document.createElement('img')
+      image.setAttribute('src', trustTarget.href)
+      trusted.push(image.outerHTML)
       if (labels.length === 0) continue
       if (DYNAMIC_VERSION.test(parsed.pathname)) {
         throw new Error(`${name}: dynamic version badge is forbidden: ${source}`)
@@ -103,6 +105,7 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       versionLabels.set(url, label)
     }
     // No copied host allowlist: use the same processor that packages the VSIX.
+    markup.window.close()
     await new ReadmeProcessor({}).onFile({
       path: 'extension/readme.md',
       contents: Buffer.from(trusted.join('\n')),
@@ -142,7 +145,15 @@ export async function checkReadmeBadges(documents, version, options = {}) {
       if (svg.localName !== 'svg' || svg.namespaceURI !== 'http://www.w3.org/2000/svg') {
         throw new Error(`Invalid SVG badge: ${url}`)
       }
-      const text = svg.textContent
+      // Each text node apart: shields.io writes the label and the value as
+      // adjacent <text> nodes, so the joined textContent runs them together
+      // ("Marketplacev0.14.1v0.14.1") and no version stands alone in it.
+      const walker = dom.window.document.createTreeWalker(svg, dom.window.NodeFilter.SHOW_TEXT)
+      const pieces = []
+      for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+        pieces.push(node.nodeValue ?? '')
+      }
+      const text = pieces.join(' ')
       if (/\b(?:error|not found|retired|unavailable|invalid)\b/i.test(text)) {
         throw new Error(`Badge renders an error: ${url}`)
       }
