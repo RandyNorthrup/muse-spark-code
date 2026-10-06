@@ -96,6 +96,15 @@ Linux were not run here; the three-platform path cases are injected on macmini.
 No review finding is deferred. W retains the existing count-record and
 CHANGELOG/help/capture/binding handoffs described above; no gate is weakened.
 
+Changed-file Prettier (all eight files) and `git diff --check` exited **0**.
+All **37** production metafiles were inspected: none includes
+`accountHomes.ts`. Implementation commit **`889c8d11c`** ran the existing
+pre-commit hook unchanged: lint-staged ESLint/Prettier passed for six TS and
+two Markdown files, and staged gitleaks reported **no leaks**. All three
+recorded restoration hashes matched again after the hook; the commit did not
+change the certified source bytes. `.husky/_/pre-commit` was present and
+executable before the commit. No manual stash, push, merge or rebase ran.
+
 ### Composition boundary and named residual
 
 **FIXM108M-DISPATCHED-WORK (M-U-H-LIFETIME / W):** a request already written
