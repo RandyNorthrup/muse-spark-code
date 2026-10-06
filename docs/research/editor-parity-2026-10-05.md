@@ -1156,12 +1156,14 @@ See §2.4 for the APIs.
 
 1. **Binding.** It binds only `127.0.0.1` (or `::1` when asked) on a random
    port. Any other bind is refused (`EPANEL_BIND`, as at `serve.ts:70-71`).
-2. **Launch code.** Each start mints a 256-bit secret and a **one-time launch
-   code**.
+2. **Launch code.** Each window receives a fresh 256-bit **one-time launch
+   code**. Each exchange mints an independent per-window bearer.
    - The editor opens `http://127.0.0.1:<port>/#k=<code>`. A fragment never
      reaches server logs or `Referer`.
    - The page POSTs the code to `/session` with `X-Muse-Panel: 1`, and gets
-     back `Set-Cookie: muse_panel=<id>; HttpOnly; SameSite=Strict; Path=/`.
+     back a per-window `Authorization: Bearer <id>` response header and the
+     trusted packaged HTML. No cookie is set. The bearer stays only in a
+     page-local fetch closure; no browser storage or URL carries it.
    - The code is burnt on first use. A second window asks the editor for a
      fresh code (`/panel`).
    - The URL travels over the shim's pipe, or an OS launcher's arguments,
@@ -1173,7 +1175,9 @@ See §2.4 for the APIs.
      rebinding, as at `serve.ts:89-96`);
    - `Origin` equal to the panel's own origin on every POST and on `/events`;
    - `Sec-Fetch-Site: same-origin` whenever the browser sends it;
-   - the session cookie;
+   - exactly one `Authorization: Bearer <id>` on every authenticated
+     request, including packaged assets and fetch-based streaming `/events`;
+     EventSource is not used because it cannot carry that header;
    - the custom header on POSTs, which forces a CORS preflight that we never
      answer;
    - **no `Access-Control-Allow-*` header, ever.**
@@ -1191,13 +1195,16 @@ same-origin`.
 6. **Rule 8: the key never enters the browser.** Key entry stays `auth set`
    in a terminal. **Rule 12:** the popup is rendered by our UI, but the
    decision is `PaidUseConsent` in the runtime, bound to the price
-   generation, so a forged POST can grant nothing that the session cookie
+   generation, so a forged POST can grant nothing that the window bearer
    and the pending request id do not already name.
 7. **Threat model, recorded in PLAN §9:**
-   - **Other local users:** stopped by the loopback bind, the token and the
-     cookie.
+   - **Other local users and other loopback services are in scope:** they
+     cannot read owner-only token files or obtain a browser bearer through
+     ambient cookies. Ports do not scope cookies, so none are used. Visiting
+     a second loopback service sends neither bearer nor launch code to it;
+     forging Host/Origin without the bearer cannot authorize a command.
    - **Hostile web pages in the user's browser:** stopped by the Host,
-     Origin and Fetch-Metadata checks, SameSite=Strict, no CORS, and the
+     Origin and Fetch-Metadata checks, explicit bearer authorization, no CORS, and the
      custom header.
    - **The same user's own processes are outside the boundary,** as for the
      `ide` MCP server: they can read the data folder anyway. The one-time

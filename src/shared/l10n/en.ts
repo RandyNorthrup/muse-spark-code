@@ -16,6 +16,8 @@
 import { forms } from './forms'
 
 export const EN = {
+  companionLaunchFailed:
+    'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
