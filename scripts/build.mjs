@@ -152,6 +152,9 @@ const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+// M110-N: isolated runtime mode, loaded only for explicit node commands.
+const NODE_ENTRY = 'src/runtime/node/main.ts'
+const NODE_OUTFILE = 'dist/node.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
@@ -446,6 +449,13 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+const nodeOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_ENTRY],
+  outfile: NODE_OUTFILE,
+  banner: {},
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -588,6 +598,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(nodeOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -634,7 +645,8 @@ if (isWatch) {
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const node = esbuild.build(nodeOptions)
+  const builds = [...Object.values(shipped), acp, node]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -648,6 +660,8 @@ if (isWatch) {
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
+    const { metafile: nodeMetafile } = await node
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'node.json'), JSON.stringify(nodeMetafile))
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
@@ -686,4 +700,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize(NODE_OUTFILE)
 }

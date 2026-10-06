@@ -1,0 +1,37 @@
+[
+  {
+    "drill": "node-bundle-budget",
+    "source": "src/runtime/node/main.ts",
+    "gate": "scripts/check-bundle-size.mjs",
+    "exitCode": 1,
+    "failedChecks": ["OVER dist/node.js: 228.3 KiB (budget 75 KiB)"],
+    "sha256Before": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d",
+    "sha256After": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d"
+  },
+  {
+    "drill": "node-engine-lazy-isolation",
+    "source": "src/runtime/node/bundle.ts",
+    "gate": "scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "failedChecks": [
+      "  dist/acp.js carries the isolated node service: src/runtime/node/transactions.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/attendance.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/keyStore.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/privateFiles.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/killSwitch.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/supervisor.ts",
+      "  dist/acp.js carries the isolated node service: src/runtime/node/service.ts"
+    ],
+    "sha256Before": "3a435179ba651bfc16be25d136ca5906953afbc441bdee936410f36fcdae36e3",
+    "sha256After": "3a435179ba651bfc16be25d136ca5906953afbc441bdee936410f36fcdae36e3"
+  },
+  {
+    "drill": "node-parser-export-gate",
+    "source": "src/shared/validationEntry.ts",
+    "gate": "scripts/check-bundle-split.mjs",
+    "exitCode": 1,
+    "failedChecks": ["  src/shared/node.ts reads zod/mini.ipv4, absent from validation.js"],
+    "sha256Before": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e",
+    "sha256After": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e"
+  }
+]

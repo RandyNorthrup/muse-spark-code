@@ -30,6 +30,7 @@ import process from 'node:process'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'node.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',

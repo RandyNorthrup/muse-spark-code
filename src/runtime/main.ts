@@ -27,6 +27,7 @@ import {
   SECRET_KEYS,
   SETTING_DEFAULTS,
   UI_TEXT,
+  NODE_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill } from '../shared/l10n/text'
@@ -36,7 +37,8 @@ import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
-import { agentDataFolder } from './dataFolder'
+import { agentDataFolder, nodeDataFolder } from './dataFolder'
+import { nodeModule } from './node/bundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
@@ -487,6 +489,38 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'node': {
+      const controller = new AbortController()
+      const stop = () => {
+        controller.abort()
+      }
+      process.on('SIGTERM', stop)
+      process.on('SIGINT', stop)
+      try {
+        return await nodeModule(path.join(distDir, NODE_BUNDLE_FILE)).runNodeArgs(
+          command.argv,
+          {
+            root: nodeDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            signal: controller.signal,
+            now: Date.now,
+            print: (line) => {
+              writeLine(process.stdout, line)
+            },
+            readSecret: () =>
+              readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+      } finally {
+        process.off('SIGTERM', stop)
+        process.off('SIGINT', stop)
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }

@@ -10,6 +10,7 @@ import {
   ACP_SESSIONS_SUBFOLDER,
   ACP_WORKSPACE_HASH_CHARS,
   MODEL_API_SESSIONS_DIR,
+  NODE_DATA_SUBFOLDER,
 } from '../shared/constants'
 
 export interface DataFolderInput {
@@ -34,6 +35,11 @@ export function agentDataFolder(input: DataFolderInput): string {
   }
   const dataHome = env['XDG_DATA_HOME'] ?? path.posix.join(homeDir, '.local', 'share')
   return path.posix.join(dataHome, ACP_DATA_FOLDER.other)
+}
+
+/** D90.1's separate node root; the image supplies its fixed volume path explicitly. */
+export function nodeDataFolder(input: DataFolderInput): string {
+  return pathModuleFor(input).join(agentDataFolder(input), NODE_DATA_SUBFOLDER)
 }
 
 /** A workspace's name in the data folder: the start of its path's SHA-256. */

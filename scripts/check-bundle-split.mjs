@@ -675,6 +675,21 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+// M110-N: ordinary ACP and every editor keep only a checked lazy loader.
+const NODE_SERVICE = { output: 'dist/node.js', metafile: 'dist/meta-acp/node.json' }
+const nodeService = inputsOf(NODE_SERVICE)
+const nodeRequired = ['main', 'state', 'service', 'supervisor', 'keyStore', 'toolHost', 'gitRunner']
+for (const name of nodeRequired) {
+  const input = `src/runtime/node/${name}.ts`
+  if (!nodeService.has(input)) problems.push(`${NODE_SERVICE.output} no longer carries ${input}`)
+}
+for (const bundle of SHIPPED) {
+  if (bundle.output === NODE_SERVICE.output) continue
+  for (const input of inputsOf(bundle).keys()) {
+    if (input !== 'src/runtime/node/bundle.ts' && input.startsWith('src/runtime/node/'))
+      problems.push(`${bundle.output} carries the isolated node service: ${input}`)
+  }
+}
 // ESM splitting moves shared constants to one common browser chunk. Identify
 // that chunk by its source, so hashes may change without loosening the text gate.
 const webviewConstants = SHIPPED.filter(
@@ -924,7 +939,7 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
   .map((name) => `dist/meta/${name}`)
-nodeMetafiles.push('dist/meta-acp/acp.json')
+nodeMetafiles.push('dist/meta-acp/acp.json', 'dist/meta-acp/node.json')
 const validationReaders = new Set()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))

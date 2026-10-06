@@ -141,6 +141,8 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // M110-N: explicit node commands only; 52.4 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/node.js', budgetKiB: 75 },
 ]
 
 let hasFailure = false

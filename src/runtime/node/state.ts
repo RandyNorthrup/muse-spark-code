@@ -1,3 +1,4 @@
+import { NodeTransactions } from './transactions'
 // One atomic transaction holds state and the bounded, hash-chained audit.
 // Sessions, bearer tokens and unsealed keys never enter this file (H06/H15).
 import { createHash } from 'node:crypto'
@@ -59,28 +60,12 @@ function verify(snapshot: Snapshot): void {
 }
 
 export class NodeStateStore {
-  private queue: Promise<unknown> = Promise.resolve()
+  private readonly transactions = new NodeTransactions()
   private snapshot: Snapshot | undefined
   readonly files: NodePrivateFiles
 
   constructor(root: string) {
     this.files = new NodePrivateFiles(root)
-  }
-
-  private serialized<T>(work: () => Promise<T>): Promise<T> {
-    const previous = this.queue
-    const result = (async () => {
-      await previous
-      return await work()
-    })()
-    this.queue = (async () => {
-      try {
-        await result
-      } catch {
-        /* A failed write does not poison later transactions. */
-      }
-    })()
-    return result
   }
 
   private required(): Snapshot {
@@ -97,7 +82,7 @@ export class NodeStateStore {
   }
 
   async initialize(state: NodeState): Promise<void> {
-    await this.serialized(async () => {
+    await this.transactions.enqueue(async () => {
       await this.files.prepare()
       try {
         await this.files.read(NODE_STATE_FILE, NODE_STATE_MAX_BYTES)
@@ -119,7 +104,7 @@ export class NodeStateStore {
   }
 
   async load(migrations: readonly NodeMigration[] = []): Promise<NodeState> {
-    return await this.serialized(async () => {
+    return await this.transactions.enqueue(async () => {
       const bytes = await this.files.read(NODE_STATE_FILE, NODE_STATE_MAX_BYTES)
       const input: unknown = JSON.parse(bytes)
       const envelope = z
@@ -155,7 +140,7 @@ export class NodeStateStore {
     expectedGeneration: number,
     change: (state: NodeState) => NodeState,
   ): Promise<NodeState> {
-    return await this.serialized(async () => {
+    return await this.transactions.enqueue(async () => {
       const old = this.required()
       if (old.state.generation !== expectedGeneration) throw new Error(UI_TEXT.nodeErrors.conflict)
       const state = nodeStateSchema.parse(change(structuredClone(old.state)))
@@ -173,7 +158,7 @@ export class NodeStateStore {
   }
 
   async append(details: AuditDetails): Promise<NodeAudit> {
-    return await this.serialized(async () => {
+    return await this.transactions.enqueue(async () => {
       const old = this.required()
       const entry = nodeAuditSchema.parse({
         ...details,

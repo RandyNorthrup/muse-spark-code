@@ -57,7 +57,10 @@ export class NodePrivateFiles {
       throw new Error(UI_TEXT.nodeErrors.forbidden)
     }
     this.checkOwner(before.uid, before.mode)
-    const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW)
+    const handle = await open(
+      file,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    )
     try {
       const held = await handleIdentity(handle)
       if (!sameFile(before, held) || held.size > BigInt(maxBytes)) {

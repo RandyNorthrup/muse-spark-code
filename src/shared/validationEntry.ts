@@ -14,6 +14,9 @@ export {
   gte,
   instanceof,
   int,
+  // M110-N's authored address/config schemas, loaded only in node.js.
+  ipv4,
+  ipv6,
   iso,
   lazy,
   literal,
@@ -30,6 +33,7 @@ export {
   number,
   object,
   optional,
+  partialRecord,
   pipe,
   positive,
   prettifyError,

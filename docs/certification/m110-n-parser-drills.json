@@ -1,0 +1,41 @@
+[
+  {
+    "drill": "shared-parser-ipv4-export",
+    "source": "src/shared/validationEntry.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 loads every node schema through the shared parser and installs caller language before help 32ms",
+      "\u00d7 the packaged init validates an explicit private address and creates real state 10ms",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > loads every node schema through the shared parser and installs caller language before help",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > the packaged init validates an explicit private address and creates real state"
+    ],
+    "sha256Before": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e",
+    "sha256After": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e"
+  },
+  {
+    "drill": "shared-parser-ipv6-export",
+    "source": "src/shared/validationEntry.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 loads every node schema through the shared parser and installs caller language before help 32ms",
+      "\u00d7 the packaged init validates an explicit private address and creates real state 10ms",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > loads every node schema through the shared parser and installs caller language before help",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > the packaged init validates an explicit private address and creates real state"
+    ],
+    "sha256Before": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e",
+    "sha256After": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e"
+  },
+  {
+    "drill": "shared-parser-partial-record-export",
+    "source": "src/shared/validationEntry.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 loads every node schema through the shared parser and installs caller language before help 34ms",
+      "\u00d7 the packaged init validates an explicit private address and creates real state 11ms",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > loads every node schema through the shared parser and installs caller language before help",
+      "FAIL  test/unit/nodeBundle.test.ts > M110-N shipped shared-parser boundary > the packaged init validates an explicit private address and creates real state"
+    ],
+    "sha256Before": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e",
+    "sha256After": "cc1d2013e845966a785d18a690c4f508b47a663f6b07f6d56d786351246f8a6e"
+  }
+]
