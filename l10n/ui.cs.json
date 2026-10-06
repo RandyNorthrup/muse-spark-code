@@ -2662,6 +2662,10 @@
   "resourceHistoryRelocated": "Přesunuto",
   "resourceHistoryPaused": "Pozastavená práce",
   "resourceHistoryOverrides": "Vynucené obnovení",
+  "resourceHistoryOlder": "Starší",
+  "resourceHistoryNewer": "Novější",
+  "resourceHistoryPage": "Strana {page} z {pages}",
+  "resourceHistoryDetailNotice": "Podrobnosti jsou omezeny na nedávnou historii. Součty zahrnují všechny uchované záznamy deníku.",
   "resourceMemoryBelowFloor": "Pod minimem paměti",
   "resourceMemoryLow": "Malá rezerva",
   "resourceMemoryAmple": "Dostatečná rezerva"

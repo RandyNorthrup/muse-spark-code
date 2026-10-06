@@ -20194,6 +20194,17 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**FIXM107J scoped qualification (2026-10-06).** The rig brief forbids full
+quality/full-suite runs here and assigns them to W/lead. Run complete J suites
+at repository-default deadlines, all five typechecks, changed-file lint/format,
+plain Knip, duplication, localization, host API and production build. The
+existing host-API stylesheet-source inventory lacks J's stylesheet; W owns
+that generated delivery record and its regeneration at the M102 join. Record
+this exact non-green check without editing another lane's generated file or
+weakening a gate. The absent feature catalog/reference generator remains
+M107-J-M102-history-binding in §9. See J's certification for scoped results
+and red/restored guards; neither shared check is represented as green.
+
 **M107INT round-3 certification (2026-10-06).** The rig brief authorizes
 only the listed T2/U/H merges, scoped complete-file runs (at most three,
 three workers), all-project typecheck, lint/format, localization, generated
@@ -21486,6 +21497,17 @@ before a repaired one loads (2026-09-30).
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
+
+- **M107-J-browser-rig-qualification (FIXM107J, 2026-10-06).** The
+  installed Chrome exits with SIGTRAP before page creation, both under the
+  unchanged history harness and a minimal headless about:blank probe. Fresh
+  browser scenes cannot be certified here; prior J scenes remain historical
+  receipts. Safe for this unmounted component: full-week paging, date/bridge
+  validation, unit axe and the independent page budget/split all pass, with
+  red/restored guards. Follow-up: W/lead reruns four themes at 320/690 px,
+  including large-history paging and keyboard/axe checks, on a working rig
+  before the M102 page join ships. No harness gate or production policy is
+  weakened to work around the browser installation.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

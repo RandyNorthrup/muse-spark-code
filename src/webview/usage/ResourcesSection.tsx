@@ -1,13 +1,13 @@
-import { UI_TEXT, RESOURCE_HISTORY_MINUTE_MS } from '../../shared/constants'
+import { useMemo, useState } from 'react'
 import {
-  formatBytes,
-  formatDateTime,
-  formatNumber,
-  formatPercent,
-  formatUnit,
-} from '../../shared/l10n/text'
+  UI_TEXT,
+  RESOURCE_HISTORY_MINUTE_MS,
+  RESOURCE_HISTORY_PAGE_SIZE,
+} from '../../shared/constants'
+import { fill, formatBytes, formatNumber, formatPercent, formatUnit } from '../../shared/l10n/text'
 import {
   resourceHistoryBucket,
+  resourceHistoryDateTime,
   resourceHistoryEventDetail,
   resourceHistoryEventName,
   resourceHistoryLevel,
@@ -24,24 +24,78 @@ export interface ResourcesSectionProps {
 const percent = (value: number | null) =>
   value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
 
-function intervals(history: ResourceHistory) {
+function intervals(history: ResourceHistory, nextAtMs: number) {
   return history.minutes.map((record, index) => ({
     record,
     endMs: Math.min(
-      history.minutes[index + 1]?.atMs ?? Infinity,
+      history.minutes[index + 1]?.atMs ?? nextAtMs,
       (Math.floor(record.atMs / RESOURCE_HISTORY_MINUTE_MS) + 1) * RESOURCE_HISTORY_MINUTE_MS,
     ),
   }))
 }
 
+function historyPage<T>(entries: readonly T[], requestedPage: number) {
+  const page = Math.min(
+    requestedPage,
+    Math.max(0, Math.ceil(entries.length / RESOURCE_HISTORY_PAGE_SIZE) - 1),
+  )
+  const end = entries.length - page * RESOURCE_HISTORY_PAGE_SIZE
+  return { page, end, entries: entries.slice(Math.max(0, end - RESOURCE_HISTORY_PAGE_SIZE), end) }
+}
+
+function HistoryPager({
+  length,
+  page,
+  onPage,
+  label,
+}: {
+  readonly length: number
+  readonly page: number
+  readonly onPage: (page: number) => void
+  readonly label: string
+}) {
+  const pages = Math.ceil(length / RESOURCE_HISTORY_PAGE_SIZE)
+  if (pages <= 1) return null
+  return (
+    <nav className="usage-resource-pages" aria-label={label}>
+      <button
+        type="button"
+        disabled={page === 0}
+        onClick={() => {
+          onPage(page - 1)
+        }}
+      >
+        {UI_TEXT.resourceHistoryNewer}
+      </button>
+      <span role="status">
+        {fill(UI_TEXT.resourceHistoryPage, {
+          page: formatNumber(page + 1),
+          pages: formatNumber(pages),
+        })}
+      </span>
+      <button
+        type="button"
+        disabled={page + 1 >= pages}
+        onClick={() => {
+          onPage(page + 1)
+        }}
+      >
+        {UI_TEXT.resourceHistoryOlder}
+      </button>
+    </nav>
+  )
+}
+
 function ResourceChart({
   history,
   metric,
+  nextAtMs,
 }: {
   readonly history: ResourceHistory
   readonly metric: 'cpuPercent' | 'memoryUsedPercent'
+  readonly nextAtMs: number
 }) {
-  const spans = intervals(history)
+  const spans = intervals(history, nextAtMs)
   const start = spans[0]?.record.atMs ?? 0
   const end = spans.at(-1)?.endMs ?? start + 1
   const width = Math.max(1, end - start)
@@ -92,7 +146,9 @@ function ResourceChart({
 
 /** Shared usage page section for VS Code, MHP and the companion; no editor API. */
 export default function ResourcesSection({ history: raw }: ResourcesSectionProps) {
-  const parsed = resourceHistorySchema.safeParse(raw)
+  const parsed = useMemo(() => resourceHistorySchema.safeParse(raw), [raw])
+  const [minutePageIndex, setMinutePage] = useState(0)
+  const [eventPageIndex, setEventPage] = useState(0)
   if (!parsed.success)
     return (
       <section className="usage-resources">
@@ -101,21 +157,32 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
       </section>
     )
   const history = parsed.data
-  const spans = intervals(history)
+  const minutePage = historyPage(history.minutes, minutePageIndex)
+  const eventPage = historyPage(history.events, eventPageIndex)
+  const visibleHistory = { ...history, minutes: minutePage.entries }
+  const nextAtMs = history.minutes[minutePage.end]?.atMs ?? Infinity
+  const spans = intervals(visibleHistory, nextAtMs)
   const start = spans[0]?.record.atMs ?? 0
   const width = Math.max(1, (spans.at(-1)?.endMs ?? start) - start)
   return (
     <section className="usage-resources" aria-label={UI_TEXT.resourceTitle}>
       <h2>{UI_TEXT.resourceTitle}</h2>
       <p>{UI_TEXT.resourceHistoryObserved}</p>
+      {history.minutes.length + history.events.length === 0 ? null : (
+        <p>{UI_TEXT.resourceHistoryDetailNotice}</p>
+      )}
       {history.minutes.length === 0 && history.events.length === 0 ? (
         <p>{UI_TEXT.resourceHistoryEmpty}</p>
       ) : null}
       {history.minutes.length === 0 ? null : (
         <>
           <div className="usage-resource-charts">
-            <ResourceChart history={history} metric="cpuPercent" />
-            <ResourceChart history={history} metric="memoryUsedPercent" />
+            <ResourceChart history={visibleHistory} metric="cpuPercent" nextAtMs={nextAtMs} />
+            <ResourceChart
+              history={visibleHistory}
+              metric="memoryUsedPercent"
+              nextAtMs={nextAtMs}
+            />
           </div>
           <div className="usage-resource-band" role="img" aria-label={UI_TEXT.resourceHistoryLevel}>
             {spans.map(({ record, endMs }, index) =>
@@ -123,7 +190,7 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
                 <span
                   key={`${String(record.atMs)}:${String(index)}`}
                   data-level={record.minute.level}
-                  title={`${formatDateTime(record.atMs)}: ${resourceHistoryLevel(record.minute.level)}`}
+                  title={`${resourceHistoryDateTime(record.atMs)}: ${resourceHistoryLevel(record.minute.level)}`}
                   style={{
                     left: `${String(((record.atMs - start) / width) * 100)}%`,
                     width: `${String(((endMs - record.atMs) / width) * 100)}%`,
@@ -156,10 +223,10 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
                 </tr>
               </thead>
               <tbody>
-                {history.minutes.map((record, index) =>
+                {minutePage.entries.map((record, index) =>
                   record.minute === null ? null : (
                     <tr key={`${String(record.atMs)}:${String(index)}`}>
-                      <th scope="row">{formatDateTime(record.atMs)}</th>
+                      <th scope="row">{resourceHistoryDateTime(record.atMs)}</th>
                       <td>{resourceHistoryLevel(record.minute.level)}</td>
                       <td>
                         {percent(record.minute.cpuPercent)} /{' '}
@@ -178,6 +245,12 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
               </tbody>
             </table>
           </div>
+          <HistoryPager
+            length={history.minutes.length}
+            page={minutePage.page}
+            onPage={setMinutePage}
+            label={UI_TEXT.resourceHistory}
+          />
         </>
       )}
       {history.events.length === 0 ? null : (
@@ -196,9 +269,9 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
               </tr>
             </thead>
             <tbody>
-              {history.events.map((event, index) => (
+              {eventPage.entries.map((event, index) => (
                 <tr key={index}>
-                  <th scope="row">{formatDateTime(event.atMs)}</th>
+                  <th scope="row">{resourceHistoryDateTime(event.atMs)}</th>
                   <td>
                     {resourceHistoryEventName(event.type)}: {resourceHistoryEventDetail(event)}
                   </td>
@@ -206,6 +279,12 @@ export default function ResourcesSection({ history: raw }: ResourcesSectionProps
               ))}
             </tbody>
           </table>
+          <HistoryPager
+            length={history.events.length}
+            page={eventPage.page}
+            onPage={setEventPage}
+            label={UI_TEXT.resourceHistoryEvents}
+          />
           <table>
             <caption>{UI_TEXT.resourceHistoryCount}</caption>
             <thead>

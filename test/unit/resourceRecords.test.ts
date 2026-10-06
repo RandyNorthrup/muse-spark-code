@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { aggregateResources } from '../../src/core/usage/aggregate'
-import { resourceRecordSchema } from '../../src/shared/resources'
+import {
+  RESOURCE_HISTORY_MAX_EVENTS,
+  RESOURCE_HISTORY_MAX_MINUTES,
+  RESOURCE_HISTORY_MINUTE_MS,
+  RESOURCE_HISTORY_RETENTION_MS,
+} from '../../src/shared/constants'
+import { resourceRecordSchema, type ResourceRecord } from '../../src/shared/resources'
 import {
   historyRecords,
   historyStatus,
@@ -302,6 +308,62 @@ describe('resource minute collection', () => {
 })
 
 describe('resource aggregation', () => {
+  it('evicts minute detail older than seven recorded days without losing exact work totals', () => {
+    const record = historyRecords().find((row) => row.minute !== null)
+    if (record === undefined) throw new Error('fixture missing')
+    const latest = RESOURCE_HISTORY_RETENTION_MS + RESOURCE_HISTORY_MINUTE_MS
+    const records = [latest, 0, RESOURCE_HISTORY_MINUTE_MS, RESOURCE_HISTORY_MINUTE_MS + 1].map(
+      (atMs): ResourceRecord => ({
+        ...record,
+        atMs,
+        work: [{ kind: 'check', cpuSeconds: 1, peakMemoryBytes: 10 }],
+      }),
+    )
+    const history = aggregateResources(records)
+    expect(history.minutes.map((row) => row.atMs)).toEqual([RESOURCE_HISTORY_MINUTE_MS + 1, latest])
+    expect(history.work).toEqual([{ kind: 'check', cpuSeconds: 4, peakMemoryBytes: 10 }])
+  })
+
+  it('evicts oldest minute segments and events at their caps while retaining exact totals', () => {
+    const minute = historyRecords().find((row) => row.minute !== null)
+    if (minute === undefined) throw new Error('fixture missing')
+    const minutes = Array.from(
+      { length: RESOURCE_HISTORY_MAX_MINUTES + 2 },
+      (_, atMs): ResourceRecord => ({
+        ...minute,
+        atMs,
+        work: [{ kind: 'check', cpuSeconds: 1, peakMemoryBytes: atMs }],
+      }),
+    )
+    const events: ResourceRecord[] = Array.from(
+      { length: RESOURCE_HISTORY_MAX_EVENTS + 2 },
+      (_, atMs) => ({
+        type: 'resource',
+        atMs,
+        minute: null,
+        work: [],
+        event: { type: 'paused', atMs, kind: 'check' },
+      }),
+    )
+    const history = aggregateResources([...events.toReversed(), ...minutes.toReversed()])
+    expect(history.minutes).toHaveLength(RESOURCE_HISTORY_MAX_MINUTES)
+    expect(history.events).toHaveLength(RESOURCE_HISTORY_MAX_EVENTS)
+    expect(history.minutes[0]?.atMs).toBe(2)
+    expect(history.minutes.at(-1)?.atMs).toBe(RESOURCE_HISTORY_MAX_MINUTES + 1)
+    expect(history.events[0]?.atMs).toBe(2)
+    expect(history.events.at(-1)?.atMs).toBe(RESOURCE_HISTORY_MAX_EVENTS + 1)
+    expect(history.counts).toEqual([
+      { type: 'paused', kind: 'check', count: RESOURCE_HISTORY_MAX_EVENTS + 2 },
+    ])
+    expect(history.work).toEqual([
+      {
+        kind: 'check',
+        cpuSeconds: RESOURCE_HISTORY_MAX_MINUTES + 2,
+        peakMemoryBytes: RESOURCE_HISTORY_MAX_MINUTES + 1,
+      },
+    ])
+  })
+
   it('sorts records and sums deltas/events by kind, keeping peak rather than summing memory', () => {
     for (let seed = 1; seed <= 40; seed++) {
       const records = historyRecords(seed)

@@ -2568,6 +2568,10 @@
   "resourceHistoryRelocated": "Déplacé",
   "resourceHistoryPaused": "Travail en pause",
   "resourceHistoryOverrides": "Reprise forcée",
+  "resourceHistoryOlder": "Plus anciens",
+  "resourceHistoryNewer": "Plus récents",
+  "resourceHistoryPage": "Page {page} sur {pages}",
+  "resourceHistoryDetailNotice": "Les détails sont limités à l’historique récent. Les totaux incluent tous les enregistrements conservés du journal.",
   "resourceMemoryBelowFloor": "Sous le minimum de mémoire",
   "resourceMemoryLow": "Faible marge",
   "resourceMemoryAmple": "Marge suffisante"

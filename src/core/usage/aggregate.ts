@@ -1,9 +1,14 @@
+import type { ResourceKind, ResourceRecord } from '../../shared/resources'
 import {
-  resourceRecordSchema,
-  type ResourceKind,
-  type ResourceRecord,
-} from '../../shared/resources'
-import { resourceHistorySchema, type ResourceHistory } from '../../shared/resourceHistory'
+  RESOURCE_HISTORY_MAX_EVENTS,
+  RESOURCE_HISTORY_MAX_MINUTES,
+  RESOURCE_HISTORY_RETENTION_MS,
+} from '../../shared/constants'
+import {
+  resourceHistoryRecordSchema,
+  resourceHistorySchema,
+  type ResourceHistory,
+} from '../../shared/resourceHistory'
 
 /** Resource region for M102's aggregate: validate retained input before any projection. */
 export function aggregateResources(records: readonly ResourceRecord[]): ResourceHistory {
@@ -14,7 +19,7 @@ export function aggregateResources(records: readonly ResourceRecord[]): Resource
   const snapshots = new Map<number, ResourceRecord>()
   const parsed: ResourceRecord[] = []
   for (const input of records) {
-    const record = resourceRecordSchema.parse(input)
+    const record = resourceHistoryRecordSchema.parse(input)
     // A read-time flush and final accounting replace one cumulative minute segment.
     if (record.minute === null) parsed.push(record)
     else snapshots.set(record.atMs, record)
@@ -39,9 +44,12 @@ export function aggregateResources(records: readonly ResourceRecord[]): Resource
       work.set(row.kind, total)
     }
   }
+  const newestMinute = minutes.at(-1)?.atMs ?? 0
   return resourceHistorySchema.parse({
-    minutes,
-    events,
+    minutes: minutes
+      .filter((record) => record.atMs > newestMinute - RESOURCE_HISTORY_RETENTION_MS)
+      .slice(-RESOURCE_HISTORY_MAX_MINUTES),
+    events: events.toSorted((a, b) => a.atMs - b.atMs).slice(-RESOURCE_HISTORY_MAX_EVENTS),
     counts: Array.from(counts, ([, row]) => row),
     work: Array.from(work, ([, row]) => row),
   })

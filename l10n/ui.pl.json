@@ -2662,6 +2662,10 @@
   "resourceHistoryRelocated": "Przeniesiono",
   "resourceHistoryPaused": "Wstrzymana praca",
   "resourceHistoryOverrides": "Wymuszone wznowienie",
+  "resourceHistoryOlder": "Starsze",
+  "resourceHistoryNewer": "Nowsze",
+  "resourceHistoryPage": "Strona {page} z {pages}",
+  "resourceHistoryDetailNotice": "Szczegóły ograniczono do ostatniej historii. Sumy obejmują wszystkie zachowane wpisy dziennika.",
   "resourceMemoryBelowFloor": "Poniżej minimum pamięci",
   "resourceMemoryLow": "Mały zapas",
   "resourceMemoryAmple": "Duży zapas"

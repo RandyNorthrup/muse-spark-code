@@ -1,5 +1,12 @@
 import * as z from 'zod/mini'
-import { UI_TEXT } from './constants'
+import {
+  UI_TEXT,
+  RESOURCE_HISTORY_MAX_TIMESTAMP_MS,
+  RESOURCE_HISTORY_MAX_MINUTES,
+  RESOURCE_HISTORY_MAX_EVENTS,
+  RESOURCE_HISTORY_MAX_EVENT_TOTALS,
+  RESOURCE_HISTORY_MAX_WORK_KINDS,
+} from './constants'
 import { fill, formatDateTime } from './l10n/text'
 import {
   resourceEventSchema,
@@ -11,24 +18,55 @@ import {
 } from './resources'
 
 const count = z.number().check(z.int(), z.gte(0))
+
+function isHistoryTime(atMs: number): boolean {
+  return Number.isFinite(atMs) && atMs >= 0 && atMs <= RESOURCE_HISTORY_MAX_TIMESTAMP_MS
+}
+
+function hasHistoryEventTimes(event: ResourceEvent): boolean {
+  return isHistoryTime(event.atMs) && (event.type !== 'override' || isHistoryTime(event.untilMs))
+}
+
+/** Validate every retained record, including events whose detail may be evicted. */
+export const resourceHistoryRecordSchema = resourceRecordSchema.check(
+  z.refine(
+    (record) =>
+      isHistoryTime(record.atMs) && (record.event === null || hasHistoryEventTimes(record.event)),
+  ),
+)
+
+/** The view and portable summary share the same range guard and installed-language formatter. */
+export function resourceHistoryDateTime(atMs: number): string {
+  if (!isHistoryTime(atMs)) throw new RangeError(UI_TEXT.resourceHistoryInvalid)
+  return formatDateTime(atMs)
+}
+
 /** M102 sends this view through its validated usage bridge to every editor. */
 export const resourceHistorySchema = z.strictObject({
-  minutes: z.array(resourceRecordSchema.check(z.refine((record) => record.minute !== null))),
-  events: z.array(resourceEventSchema),
-  counts: z.array(
-    z.strictObject({
-      type: z.enum(['levelChanged', 'deferred', 'relocated', 'paused', 'override']),
-      kind: z.nullable(resourceKindSchema),
-      count,
-    }),
-  ),
-  work: z.array(
-    z.strictObject({
-      kind: resourceKindSchema,
-      cpuSeconds: z.number().check(z.gte(0)),
-      peakMemoryBytes: count,
-    }),
-  ),
+  minutes: z
+    .array(resourceHistoryRecordSchema.check(z.refine((record) => record.minute !== null)))
+    .check(z.maxLength(RESOURCE_HISTORY_MAX_MINUTES)),
+  events: z
+    .array(resourceEventSchema.check(z.refine(hasHistoryEventTimes)))
+    .check(z.maxLength(RESOURCE_HISTORY_MAX_EVENTS)),
+  counts: z
+    .array(
+      z.strictObject({
+        type: z.enum(['levelChanged', 'deferred', 'relocated', 'paused', 'override']),
+        kind: z.nullable(resourceKindSchema),
+        count,
+      }),
+    )
+    .check(z.maxLength(RESOURCE_HISTORY_MAX_EVENT_TOTALS)),
+  work: z
+    .array(
+      z.strictObject({
+        kind: resourceKindSchema,
+        cpuSeconds: z.number().check(z.gte(0)),
+        peakMemoryBytes: count,
+      }),
+    )
+    .check(z.maxLength(RESOURCE_HISTORY_MAX_WORK_KINDS)),
 })
 export type ResourceHistory = z.infer<typeof resourceHistorySchema>
 
@@ -68,7 +106,7 @@ export function resourceHistoryEventDetail(event: ResourceEvent): string {
       return `${resourceHistoryLevel(event.from)} → ${resourceHistoryLevel(event.to)} (${event.reason})`
     }
     case 'override': {
-      return fill(UI_TEXT.resourceOverrideNotice, { time: formatDateTime(event.untilMs) })
+      return fill(UI_TEXT.resourceOverrideNotice, { time: resourceHistoryDateTime(event.untilMs) })
     }
     case 'deferred': {
       return `${event.kind} (${event.class})`

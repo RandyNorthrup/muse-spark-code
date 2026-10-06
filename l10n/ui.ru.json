@@ -2662,6 +2662,10 @@
   "resourceHistoryRelocated": "Перенесено",
   "resourceHistoryPaused": "Приостановленная работа",
   "resourceHistoryOverrides": "Принудительное возобновление",
+  "resourceHistoryOlder": "Более ранние",
+  "resourceHistoryNewer": "Более новые",
+  "resourceHistoryPage": "Страница {page} из {pages}",
+  "resourceHistoryDetailNotice": "Подробности ограничены недавней историей. Итоги включают все сохранённые записи журнала.",
   "resourceMemoryBelowFloor": "Ниже минимума памяти",
   "resourceMemoryLow": "Малый запас",
   "resourceMemoryAmple": "Достаточный запас"

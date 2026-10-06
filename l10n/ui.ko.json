@@ -2380,6 +2380,10 @@
   "resourceHistoryRelocated": "이동됨",
   "resourceHistoryPaused": "일시 중지된 작업",
   "resourceHistoryOverrides": "강제 재개",
+  "resourceHistoryOlder": "이전 기록",
+  "resourceHistoryNewer": "최근 기록",
+  "resourceHistoryPage": "{pages}페이지 중 {page}페이지",
+  "resourceHistoryDetailNotice": "세부 정보는 최근 기록으로 제한됩니다. 합계에는 보관된 모든 저널 기록이 포함됩니다.",
   "resourceMemoryBelowFloor": "최소 가용 메모리 미만",
   "resourceMemoryLow": "여유가 적음",
   "resourceMemoryAmple": "여유가 충분함"

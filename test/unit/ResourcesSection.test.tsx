@@ -1,19 +1,33 @@
 /** @vitest-environment jsdom */
-import { act, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, expect, it } from 'vitest'
 import axe from 'axe-core'
 import { aggregateResources } from '../../src/core/usage/aggregate'
 import { usageResourcesText } from '../../src/core/usage/usageText'
-import { UI_TEXT } from '../../src/shared/constants'
+import {
+  UI_TEXT,
+  RESOURCE_HISTORY_MAX_EVENTS,
+  RESOURCE_HISTORY_MAX_EVENT_TOTALS,
+  RESOURCE_HISTORY_MAX_MINUTES,
+  RESOURCE_HISTORY_MAX_WORK_KINDS,
+  RESOURCE_HISTORY_MINUTE_MS,
+  RESOURCE_HISTORY_PAGE_SIZE,
+} from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import {
   formatBytes,
+  formatDateTime,
   formatNumber,
   formatPercent,
   formatUnit,
   setUiText,
 } from '../../src/shared/l10n/text'
-import { resourceHistoryEventName, resourceHistoryLevel } from '../../src/shared/resourceHistory'
+import {
+  resourceHistoryDateTime,
+  resourceHistoryEventName,
+  resourceHistoryLevel,
+  resourceHistorySchema,
+} from '../../src/shared/resourceHistory'
 import type { ResourceRecord } from '../../src/shared/resources'
 import ResourcesSection from '../../src/webview/usage/ResourcesSection'
 import { LazyResourcesSection } from '../../src/webview/usage/LazyResourcesSection'
@@ -217,6 +231,183 @@ it('rejects private and invalid bridge payloads and reports empty history explic
   expect(screen.getByText(UI_TEXT.resourceHistoryEmpty)).toBeInTheDocument()
   expect(screen.queryByRole('table')).toBeNull()
   expect(usageResourcesText([])).toContain(UI_TEXT.resourceHistoryEmpty)
+})
+
+it('refuses unrepresentable and non-finite minute timestamps, event times and override deadlines', () => {
+  const view = render(<ResourcesSection history={aggregateResources([])} />)
+  for (const value of [Number.MAX_SAFE_INTEGER, 8_640_000_000_000_001, Infinity, -Infinity, NaN]) {
+    expect(() => resourceHistoryDateTime(value)).toThrow()
+    const minute = historyRecords().find((record) => record.minute !== null)
+    if (minute === undefined) throw new Error('fixture missing')
+    const event: ResourceRecord = {
+      type: 'resource',
+      atMs: 0,
+      minute: null,
+      event: { type: 'override', atMs: 0, untilMs: 900_000 },
+      work: [],
+    }
+    if (event.event?.type !== 'override') throw new Error('fixture missing')
+    for (const records of [
+      [{ ...minute, atMs: value }],
+      [{ ...event, atMs: value }],
+      [{ ...event, event: { ...event.event, atMs: value } }],
+      [{ ...event, event: { ...event.event, untilMs: value } }],
+    ]) {
+      expect(() => aggregateResources(records)).toThrow()
+      expect(() => usageResourcesText(records)).toThrow()
+    }
+    const valid = aggregateResources([minute, event])
+    for (const history of [
+      { ...valid, minutes: [{ ...minute, atMs: value }] },
+      { ...valid, events: [{ ...event.event, atMs: value }] },
+      { ...valid, events: [{ ...event.event, untilMs: value }] },
+    ]) {
+      expect(resourceHistorySchema.safeParse(history).success).toBe(false)
+      view.rerender(<ResourcesSection history={history} />)
+      expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.resourceHistoryInvalid)
+      expect(screen.queryByRole('table')).toBeNull()
+    }
+  }
+})
+
+it('formats the maximum supported history date consistently in the view and text summary', () => {
+  const minute = historyRecords().find((record) => record.minute !== null)
+  if (minute === undefined) throw new Error('fixture missing')
+  const atMs = 8_640_000_000_000_000
+  const records: ResourceRecord[] = [
+    { ...minute, atMs },
+    {
+      type: 'resource',
+      atMs,
+      minute: null,
+      event: { type: 'override', atMs, untilMs: atMs },
+      work: [],
+    },
+  ]
+  render(<ResourcesSection history={aggregateResources(records)} />)
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHistory })).toHaveTextContent(
+    formatDateTime(atMs),
+  )
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHistoryEvents })).toHaveTextContent(
+    formatDateTime(atMs),
+  )
+  expect(usageResourcesText(records)).toContain(formatDateTime(atMs))
+})
+
+it('rejects bridge lists exceeding the named minute, event, count and work bounds', () => {
+  const history = aggregateResources(historyRecords())
+  const minute = history.minutes[0]
+  const event = history.events[0]
+  const count = history.counts[0]
+  const work = history.work[0]
+  if (!minute || !event || !count || !work) throw new Error('fixture missing')
+  const view = render(<ResourcesSection history={history} />)
+  for (const raw of [
+    { ...history, minutes: Array.from({ length: RESOURCE_HISTORY_MAX_MINUTES + 1 }, () => minute) },
+    { ...history, events: Array.from({ length: RESOURCE_HISTORY_MAX_EVENTS + 1 }, () => event) },
+    {
+      ...history,
+      counts: Array.from({ length: RESOURCE_HISTORY_MAX_EVENT_TOTALS + 1 }, () => count),
+    },
+    { ...history, work: Array.from({ length: RESOURCE_HISTORY_MAX_WORK_KINDS + 1 }, () => work) },
+  ]) {
+    expect(resourceHistorySchema.safeParse(raw).success).toBe(false)
+    view.rerender(<ResourcesSection history={raw} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.resourceHistoryInvalid)
+    expect(screen.queryByRole('table')).toBeNull()
+  }
+})
+
+it('pages a full week of minutes and large event detail without rendering unbounded rows or chart paths', () => {
+  const minute = historyRecords().find((record) => record.minute !== null)
+  if (minute === undefined) throw new Error('fixture missing')
+  const minutes = Array.from({ length: RESOURCE_HISTORY_MAX_MINUTES }, (_, index) => ({
+    ...minute,
+    atMs: index * RESOURCE_HISTORY_MINUTE_MS,
+  }))
+  const events: ResourceRecord[] = Array.from(
+    { length: RESOURCE_HISTORY_PAGE_SIZE + 2 },
+    (_, atMs) => ({
+      type: 'resource',
+      atMs,
+      minute: null,
+      work: [],
+      event: { type: 'paused', atMs, kind: 'check' },
+    }),
+  )
+  const history = aggregateResources([...minutes, ...events])
+  const view = render(<ResourcesSection history={history} />)
+  expect(view.container.querySelectorAll('[data-level]').length).toBe(RESOURCE_HISTORY_PAGE_SIZE)
+  expect(view.container.querySelector(':scope tbody')?.children.length).toBe(
+    RESOURCE_HISTORY_PAGE_SIZE,
+  )
+  const readings = () => screen.getByRole('table', { name: UI_TEXT.resourceHistory })
+  const eventTable = () => screen.getByRole('table', { name: UI_TEXT.resourceHistoryEvents })
+  const rows = (table: HTMLElement) => within(table).getAllByRole('row')
+  const minuteNav = screen.getByRole('navigation', { name: UI_TEXT.resourceHistory })
+  const eventNav = screen.getByRole('navigation', { name: UI_TEXT.resourceHistoryEvents })
+  expect(rows(readings())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(rows(eventTable())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(rows(readings())[1]).toHaveTextContent(
+    formatDateTime(
+      (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE) * RESOURCE_HISTORY_MINUTE_MS,
+    ),
+  )
+  expect(view.container.querySelectorAll(':scope svg path')).toHaveLength(
+    RESOURCE_HISTORY_PAGE_SIZE * 4,
+  )
+  expect(view.container.querySelectorAll('[data-level]')).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE)
+  expect(
+    within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryNewer }),
+  ).toBeDisabled()
+  fireEvent.click(within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
+  expect(rows(readings())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  expect(rows(readings())[1]).toHaveTextContent(
+    formatDateTime(
+      (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE * 2) * RESOURCE_HISTORY_MINUTE_MS,
+    ),
+  )
+  expect(rows(eventTable())).toHaveLength(RESOURCE_HISTORY_PAGE_SIZE + 1)
+  fireEvent.click(within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
+  expect(rows(eventTable())).toHaveLength(3)
+  expect(
+    within(eventNav).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }),
+  ).toBeDisabled()
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHistoryCount })).toHaveTextContent(
+    formatNumber(events.length),
+  )
+  expect(screen.getByRole('table', { name: UI_TEXT.resourceHarness })).toHaveTextContent(
+    formatUnit(history.work[0]?.cpuSeconds ?? 0, 'second'),
+  )
+  fireEvent.click(within(minuteNav).getByRole('button', { name: UI_TEXT.resourceHistoryNewer }))
+  expect(rows(readings())[1]).toHaveTextContent(
+    formatDateTime(
+      (RESOURCE_HISTORY_MAX_MINUTES - RESOURCE_HISTORY_PAGE_SIZE) * RESOURCE_HISTORY_MINUTE_MS,
+    ),
+  )
+  view.rerender(<ResourcesSection history={aggregateResources(historyRecords())} />)
+  expect(screen.queryByRole('navigation')).toBeNull()
+  expect(rows(readings())).toHaveLength(5)
+  expect(rows(eventTable())).toHaveLength(5)
+})
+
+it('clips an older chart page at the next hidden threshold segment within the same minute', () => {
+  const record = historyRecords().find((row) => row.minute !== null)
+  if (record?.minute == null) throw new Error('fixture missing')
+  const minute = record.minute
+  const records = Array.from({ length: RESOURCE_HISTORY_PAGE_SIZE + 2 }, (_, index) => ({
+    ...record,
+    atMs: index * 100,
+    minute: { ...minute, cpuPercent: index },
+  }))
+  const { container } = render(<ResourcesSection history={aggregateResources(records)} />)
+  const navigation = screen.getByRole('navigation', { name: UI_TEXT.resourceHistory })
+  fireEvent.click(within(navigation).getByRole('button', { name: UI_TEXT.resourceHistoryOlder }))
+  const chart = screen.getByRole('img', { name: UI_TEXT.resourceCpu })
+  expect(chart.querySelector('[data-reading]')).toHaveAttribute('d', 'M 0 100 H 50 V 99')
+  expect(
+    Array.from(container.querySelectorAll<HTMLElement>('[data-level]'), (node) => node.style.width),
+  ).toEqual(['50%', '50%'])
 })
 
 it('loads the real section through its lazy boundary', async () => {

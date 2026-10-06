@@ -58,6 +58,11 @@ export const EN = {
   resourceHistoryRelocated: 'Relocated',
   resourceHistoryPaused: 'Paused work',
   resourceHistoryOverrides: 'Resume override',
+  resourceHistoryOlder: 'Older',
+  resourceHistoryNewer: 'Newer',
+  resourceHistoryPage: 'Page {page} of {pages}',
+  resourceHistoryDetailNotice:
+    'Detail is limited to recent history. Totals include all retained journal records.',
   resourceMemoryBelowFloor: 'Below the memory floor',
   resourceMemoryLow: 'Low headroom',
   resourceMemoryAmple: 'Ample headroom',

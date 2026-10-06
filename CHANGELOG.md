@@ -11,6 +11,11 @@ happened, not what was planned; superseded entries are kept.
 
 - Resource history keeps known minute readings and merges final tree accounting
   idempotently after a read-time flush, including the same cached sample timestamp.
+- Resource history rejects dates outside the supported formatter range, including
+  override deadlines. Its shared page and text summary use one date formatter.
+- Resource-history detail retains at most seven recorded days/10,080 minute
+  segments and 1,000 events, with charts and tables paged in groups of 60.
+  Work and event totals still include every retained journal record.
 
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain

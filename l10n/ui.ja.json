@@ -2380,6 +2380,10 @@
   "resourceHistoryRelocated": "移動",
   "resourceHistoryPaused": "一時停止した処理",
   "resourceHistoryOverrides": "再開の一時的な優先設定",
+  "resourceHistoryOlder": "古い履歴",
+  "resourceHistoryNewer": "新しい履歴",
+  "resourceHistoryPage": "{pages} ページ中 {page} ページ",
+  "resourceHistoryDetailNotice": "詳細は最近の履歴に限られます。合計には保存されているすべてのジャーナル記録が含まれます。",
   "resourceMemoryBelowFloor": "最小空きメモリ未満",
   "resourceMemoryLow": "余裕が少ない",
   "resourceMemoryAmple": "十分な余裕"

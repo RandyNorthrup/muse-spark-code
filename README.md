@@ -3885,6 +3885,15 @@ the machine's bounded fifteen-minute marker, which loaded runtime hosts read
 on their next refresh; an explicitly disabled governor stays off. Resource
 history currently reports unavailable until its retained journal is bound.
 
+J's staged history components merge cumulative minute snapshots after read-time
+flushes and final tree accounting. They reject unrenderable dates and keep detail
+for the latest seven recorded days (at most 10,080 minute segments) and the latest
+1,000 events, evicting oldest entries first. The shared usage section pages its
+charts and tables in groups of 60; work and event totals include all retained
+journal records. The same validated aggregate feeds the portable text summary.
+The durable journal, usage-page mount and text-command bindings remain the M102
+integration handoff; see [J's certification](docs/certification/m107-j-journal-and-the-usage-page.md).
+
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn

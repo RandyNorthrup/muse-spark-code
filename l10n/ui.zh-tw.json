@@ -2380,6 +2380,10 @@
   "resourceHistoryRelocated": "已移轉",
   "resourceHistoryPaused": "已暫停的工作",
   "resourceHistoryOverrides": "強制恢復",
+  "resourceHistoryOlder": "較早記錄",
+  "resourceHistoryNewer": "較新記錄",
+  "resourceHistoryPage": "第 {page} 頁，共 {pages} 頁",
+  "resourceHistoryDetailNotice": "詳細資訊僅包含近期歷史。總計包含所有保留的日誌記錄。",
   "resourceMemoryBelowFloor": "低於記憶體下限",
   "resourceMemoryLow": "餘裕較低",
   "resourceMemoryAmple": "餘裕充足"

@@ -1,13 +1,8 @@
 import { UI_TEXT } from '../../shared/constants'
-import {
-  formatBytes,
-  formatDateTime,
-  formatNumber,
-  formatPercent,
-  formatUnit,
-} from '../../shared/l10n/text'
+import { formatBytes, formatNumber, formatPercent, formatUnit } from '../../shared/l10n/text'
 import {
   resourceHistoryBucket,
+  resourceHistoryDateTime,
   resourceHistoryEventDetail,
   resourceHistoryEventName,
   resourceHistoryLevel,
@@ -21,6 +16,7 @@ export function usageResourcesText(records: readonly ResourceRecord[]): string {
   const lines = [UI_TEXT.resourceTitle, UI_TEXT.resourceHistoryObserved]
   if (history.minutes.length === 0 && history.events.length === 0)
     return [...lines, UI_TEXT.resourceHistoryEmpty].join('\n')
+  lines.push(UI_TEXT.resourceHistoryDetailNotice)
   const percent = (value: number | null) =>
     value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
   for (const record of history.minutes) {
@@ -28,7 +24,7 @@ export function usageResourcesText(records: readonly ResourceRecord[]): string {
     if (minute === null) continue
     lines.push(
       [
-        formatDateTime(record.atMs),
+        resourceHistoryDateTime(record.atMs),
         resourceHistoryLevel(minute.level),
         `${UI_TEXT.resourceCpu}: ${percent(minute.cpuPercent)} / ${formatPercent(minute.thresholds.cpuMaxPercent)}`,
         `${UI_TEXT.resourceMemory}: ${percent(minute.memoryUsedPercent)} / ${formatPercent(minute.thresholds.memoryMaxPercent)}`,
@@ -41,7 +37,7 @@ export function usageResourcesText(records: readonly ResourceRecord[]): string {
   lines.push(UI_TEXT.resourceHistoryEvents)
   for (const event of history.events)
     lines.push(
-      `${formatDateTime(event.atMs)}: ${resourceHistoryEventName(event.type)}: ${resourceHistoryEventDetail(event)}`,
+      `${resourceHistoryDateTime(event.atMs)}: ${resourceHistoryEventName(event.type)}: ${resourceHistoryEventDetail(event)}`,
     )
   for (const row of history.counts)
     lines.push(

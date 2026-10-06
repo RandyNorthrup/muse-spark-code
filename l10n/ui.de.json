@@ -2474,6 +2474,10 @@
   "resourceHistoryRelocated": "Verlagert",
   "resourceHistoryPaused": "Pausierte Arbeit",
   "resourceHistoryOverrides": "Erzwungene Fortsetzung",
+  "resourceHistoryOlder": "Älter",
+  "resourceHistoryNewer": "Neuer",
+  "resourceHistoryPage": "Seite {page} von {pages}",
+  "resourceHistoryDetailNotice": "Details sind auf den jüngsten Verlauf begrenzt. Die Summen umfassen alle aufbewahrten Journaleinträge.",
   "resourceMemoryBelowFloor": "Unter der Speicheruntergrenze",
   "resourceMemoryLow": "Wenig Spielraum",
   "resourceMemoryAmple": "Viel Spielraum"

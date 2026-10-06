@@ -2474,6 +2474,10 @@
   "resourceHistoryRelocated": "Taşındı",
   "resourceHistoryPaused": "Duraklatılan iş",
   "resourceHistoryOverrides": "Zorla sürdürme",
+  "resourceHistoryOlder": "Daha eski",
+  "resourceHistoryNewer": "Daha yeni",
+  "resourceHistoryPage": "{pages} sayfadan {page}. sayfa",
+  "resourceHistoryDetailNotice": "Ayrıntılar yakın geçmişle sınırlıdır. Toplamlar, saklanan tüm günlük kayıtlarını içerir.",
   "resourceMemoryBelowFloor": "Bellek alt sınırının altında",
   "resourceMemoryLow": "Az boş kapasite",
   "resourceMemoryAmple": "Yeterli boş kapasite"

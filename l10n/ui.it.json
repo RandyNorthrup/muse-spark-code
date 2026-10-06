@@ -2568,6 +2568,10 @@
   "resourceHistoryRelocated": "Trasferito",
   "resourceHistoryPaused": "Lavoro in pausa",
   "resourceHistoryOverrides": "Ripresa forzata",
+  "resourceHistoryOlder": "Precedenti",
+  "resourceHistoryNewer": "Più recenti",
+  "resourceHistoryPage": "Pagina {page} di {pages}",
+  "resourceHistoryDetailNotice": "I dettagli sono limitati alla cronologia recente. I totali includono tutte le voci conservate del registro.",
   "resourceMemoryBelowFloor": "Sotto il minimo di memoria",
   "resourceMemoryLow": "Margine ridotto",
   "resourceMemoryAmple": "Margine ampio"

@@ -2568,6 +2568,10 @@
   "resourceHistoryRelocated": "Transferido",
   "resourceHistoryPaused": "Trabalho pausado",
   "resourceHistoryOverrides": "Retomada forçada",
+  "resourceHistoryOlder": "Anteriores",
+  "resourceHistoryNewer": "Mais recentes",
+  "resourceHistoryPage": "Página {page} de {pages}",
+  "resourceHistoryDetailNotice": "Os detalhes se limitam ao histórico recente. Os totais incluem todos os registros mantidos no diário.",
   "resourceMemoryBelowFloor": "Abaixo do mínimo de memória",
   "resourceMemoryLow": "Pouca folga",
   "resourceMemoryAmple": "Folga suficiente"

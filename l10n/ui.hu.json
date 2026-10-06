@@ -2474,6 +2474,10 @@
   "resourceHistoryRelocated": "Áthelyezve",
   "resourceHistoryPaused": "Szüneteltetett munka",
   "resourceHistoryOverrides": "Kényszerített folytatás",
+  "resourceHistoryOlder": "Régebbi",
+  "resourceHistoryNewer": "Újabb",
+  "resourceHistoryPage": "{page}. oldal / {pages}",
+  "resourceHistoryDetailNotice": "A részletek a közelmúlt előzményeire korlátozódnak. Az összesítések minden megőrzött naplóbejegyzést tartalmaznak.",
   "resourceMemoryBelowFloor": "A memória alsó határa alatt",
   "resourceMemoryLow": "Kis tartalék",
   "resourceMemoryAmple": "Bőséges tartalék"
