@@ -34,3 +34,15 @@ msgstr "系统浏览器无法打开配套页面。"
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "停止命令失败。如有需要，请使用机器的实体紧急停止装置。"
+
+msgid "Hand the port to Muse Spark"
+msgstr "将端口交给 Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "将端口交还给 Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "无法移交端口"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "未确认端口所有权。请选择明确的串口，打开 Muse Spark，然后重试。移交结果不确定时，Thonny 会保持断开连接。"

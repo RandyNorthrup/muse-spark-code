@@ -19,6 +19,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Thonny port hand-over redesign (REDM103T / RVM103T2).** Removed every
+  device command and write path through Thonny. The bridge serves bounded
+  displayed shell context only. Explicit Hand the port to Muse Spark / Give
+  the port back to Thonny clicks disconnect before runtime acquisition and
+  require release before reconnection; the runtime owns device I/O. Stop
+  workers and their process trees are owned through shutdown, the Windows
+  launcher preserves child failure exit codes, provider logs discard peer
+  values, and encoded responses have a hard size cap. The incompatible v2
+  interface awaits R/P integration. PyPI upload uses Trusted Publishing in
+  a separate OIDC job, without a stored publishing token. Both new controls
+  and transfer failures ship in all fourteen translated languages.
+
 - **Thonny provider admission and connection (RVM103T).** Settled or timed-out
   queued writes are cancelled; each write rechecks its approved bytes, target
   connection and expiry. Provider endpoints are confined to `127.0.0.1`,

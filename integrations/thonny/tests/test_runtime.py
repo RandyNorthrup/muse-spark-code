@@ -35,6 +35,7 @@ class FakeProcess:
         self.terminated = False
         self.killed = False
         self._returncode = None
+        self.returncode_on_wait = None
 
     def poll(self):
         return self._returncode
@@ -48,7 +49,7 @@ class FakeProcess:
         self._returncode = -9
 
     def wait(self, timeout=None):
-        return self._returncode
+        return self._returncode if self.returncode_on_wait is None else self.returncode_on_wait
 
 
 class Harness:
@@ -65,20 +66,12 @@ class Harness:
     def popen(self, argv, **kwargs):
         self.spawned.append(argv)
         self.process.argv = argv
+        if argv[-1] == 'stop-machine':
+            self.process.returncode_on_wait = 0
         return self.process
 
-    def run(self, argv, **kwargs):
-        self.runs.append(argv)
-
-        class Done:
-            returncode = 0
-            stdout = ""
-            stderr = ""
-
-        return Done()
-
     def controller(self, **overrides):
-        kwargs = {"which": self.which, "popen": self.popen, "run": self.run}
+        kwargs = {"which": self.which, "popen": self.popen}
         kwargs.update(overrides)
         return RuntimeController(**kwargs)
 
@@ -153,8 +146,8 @@ def test_stop_machine_calls_cli_directly_and_needs_nothing_running():
     ctl = harness.controller()
     assert not ctl.is_running
     ctl.stop_machine()
-    assert harness.runs == [["/bin/muse-spark-code-acp", "stop-machine"]]
-    assert harness.spawned == []
+    assert harness.spawned == [["/bin/muse-spark-code-acp", "stop-machine"]]
+    assert harness.process.terminated and harness.process.killed
 
 
 def test_stop_machine_without_binary_raises():
@@ -166,19 +159,15 @@ def test_stop_machine_without_binary_raises():
 def test_stop_machine_failure_raises():
     harness = Harness()
 
-    def failing_run(argv, **kwargs):
-        harness.runs.append(argv)
+    def failing_spawn(argv, **kwargs):
+        proc = harness.popen(argv, **kwargs)
+        proc.returncode_on_wait = 1
+        return proc
 
-        class Done:
-            returncode = 1
-            stdout = ""
-            stderr = "machine unreachable"
-
-        return Done()
-
-    with pytest.raises(runtime.RuntimeError, match="machine unreachable"):
-        harness.controller(run=failing_run).stop_machine()
-    assert harness.runs == [["/bin/muse-spark-code-acp", "stop-machine"]]
+    with pytest.raises(runtime.RuntimeError, match="stop-machine failed"):
+        harness.controller(popen=failing_spawn).stop_machine()
+    assert harness.spawned == [["/bin/muse-spark-code-acp", "stop-machine"]]
+    assert harness.process.terminated and harness.process.killed
 
 
 @pytest.mark.parametrize("order", list(itertools.permutations(ANNOUNCE[1:])))
@@ -289,7 +278,11 @@ def _real_fake_controller(tmp_path, extra):
     from thonnycontrib.muse_spark.process_tree import spawn_runtime
 
     script = tmp_path / "fake_runtime.py"
-    script.write_text("import os, sys, time, subprocess\nfrom pathlib import Path\n" + extra)
+    script.write_text("import os, sys, time, subprocess\nfrom pathlib import Path\n"
+                      "def write_marker(path, value):\n"
+                      "    temporary = Path(str(path) + '.tmp')\n"
+                      "    temporary.write_text(value)\n"
+                      "    temporary.replace(path)\n" + extra)
     return RuntimeController(
         which=lambda _: sys.executable,
         popen=lambda argv, **kwargs: spawn_runtime([sys.executable, str(script)], **kwargs),
@@ -312,21 +305,36 @@ def test_stdout_is_drained_after_announcements(tmp_path):
 
 
 @pytest.mark.parametrize("parent_exits", [False, True])
-def test_stop_kills_real_fake_runtime_descendant(tmp_path, parent_exits):
+@pytest.mark.parametrize("launch", ["panel", "stop_timeout", "stop_shutdown"])
+def test_stop_kills_real_fake_runtime_descendant(tmp_path, parent_exits, launch):
     marker = tmp_path / "child-pid"
     parent_marker = tmp_path / "parent-pid"
     extra = "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(90)'])\n"
-    extra += "Path(" + repr(str(marker)) + ").write_text(str(child.pid))\n"
-    extra += "Path(" + repr(str(parent_marker)) + ").write_text(str(os.getpid()))\n"
+    extra += "write_marker(" + repr(str(marker)) + ", str(child.pid))\n"
+    extra += "write_marker(" + repr(str(parent_marker)) + ", str(os.getpid()))\n"
     extra += "\n".join("print(" + repr(line.strip()) + ", flush=True)" for line in ANNOUNCE[1:])
     extra += "\n" + ("sys.exit(0)" if parent_exits else "time.sleep(90)") + "\n"
     ctl = _real_fake_controller(tmp_path, extra)
     handle = None
     parent_handle = None
     pid = None
+    worker = None
+    failures = []
+    def stop_machine():
+        try:
+            ctl.stop_machine()
+        except runtime.RuntimeError:
+            failures.append('stop failed')
     try:
-        ctl.start()
+        if launch == 'panel':
+            ctl.start()
+        else:
+            if launch == 'stop_timeout':
+                ctl.stop_timeout = 0.5
+            worker = threading.Thread(target=stop_machine)
+            worker.start()
         _wait_for_file(marker)
+        _wait_for_file(parent_marker)
         pid = int(marker.read_text())
         if os.name == "nt":
             import ctypes
@@ -344,9 +352,17 @@ def test_stop_kills_real_fake_runtime_descendant(tmp_path, parent_exits):
                 assert parent_exits and ctypes.get_last_error() == 87
             elif not parent_exits:
                 assert api.WaitForSingleObject(handle, 0) == 258
-        if parent_exits:
+        if parent_exits and launch == 'panel':
             ctl._process.wait(3)
+        if launch == 'stop_timeout':
+            worker.join(3)
+            assert not worker.is_alive()
+            assert bool(failures) == (not parent_exits)
         ctl.stop()
+        if worker is not None:
+            worker.join(3)
+            assert not worker.is_alive()
+        assert not ctl._stop_processes
         if os.name == "nt" and handle:
             assert api.WaitForSingleObject(handle, 2000) == 0, "runtime descendant survived shutdown"
         elif os.name != "nt":
@@ -364,6 +380,8 @@ def test_stop_kills_real_fake_runtime_descendant(tmp_path, parent_exits):
                 time.sleep(0.01)
     finally:
         ctl.stop()
+        if worker is not None:
+            worker.join(3)
         if handle:
             if api.WaitForSingleObject(handle, 0) != 0:
                 api.TerminateProcess(handle, 1)
@@ -419,3 +437,57 @@ def test_command_shim_announces_through_owned_tree(tmp_path):
         assert ctl.start().provider_host == "127.0.0.1"
     finally:
         ctl.stop()
+
+
+def test_round2_windows_launcher_preserves_stop_failure_exit_code(tmp_path):
+    from thonnycontrib.muse_spark.process_tree import spawn_runtime
+    proc = spawn_runtime([sys.executable, '-c', 'import sys; sys.exit(7)'],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        assert proc.wait(5) == 7
+    finally:
+        proc.kill()
+        proc.wait(5)
+        proc.close()
+
+
+def test_round2_shutdown_during_stop_spawn_cancels_and_reaps():
+    harness = Harness()
+    entered, release = threading.Event(), threading.Event()
+    def spawn(*args, **kwargs):
+        entered.set()
+        assert release.wait(2)
+        return harness.popen(*args, **kwargs)
+    ctl = harness.controller(popen=spawn)
+    failures = []
+    def stop_machine():
+        try:
+            ctl.stop_machine()
+        except runtime.RuntimeError:
+            failures.append('cancelled')
+    worker = threading.Thread(target=stop_machine)
+    worker.start()
+    assert entered.wait(2)
+    ctl.stop()
+    release.set()
+    worker.join(2)
+    assert not worker.is_alive() and failures
+    assert harness.process.killed and not ctl._stop_processes
+    with pytest.raises(runtime.RuntimeError):
+        ctl.stop_machine()
+    assert len(harness.spawned) == 1
+
+
+def test_round2_windows_cleanup_retries_after_process_exit(monkeypatch):
+    from types import SimpleNamespace
+    from thonnycontrib.muse_spark import process_tree
+    attempts = []
+    def cleanup():
+        attempts.append('cleanup')
+        if len(attempts) == 1:
+            raise PermissionError('image mapping is being released')
+    monkeypatch.setattr(process_tree.time, 'sleep', lambda _: None)
+    owned = process_tree._OwnedProcess(SimpleNamespace(stdout=None), SimpleNamespace(cleanup=cleanup))
+    owned.close()
+    owned.close()
+    assert attempts == ['cleanup', 'cleanup'] and owned._directory is None

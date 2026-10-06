@@ -34,3 +34,15 @@ msgstr "Le navigateur du système n’a pas pu ouvrir la page compagnon."
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "La commande d’arrêt a échoué. Si nécessaire, utilisez l’arrêt d’urgence physique de la machine."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Confier le port à Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "Rendre le port à Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "Impossible de transférer le port"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "Le contrôle du port n’a pas été confirmé. Sélectionnez un port série précis, ouvrez Muse Spark et réessayez. Thonny reste déconnecté après un transfert incertain."

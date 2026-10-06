@@ -74,7 +74,6 @@ class RuntimeController:
 
     which: Callable[[str], Optional[str]] = shutil.which
     popen: Callable[..., object] = spawn_runtime
-    run: Callable[..., object] = subprocess.run
     monotonic: Callable[[], float] = time.monotonic
     announce_timeout: float = ANNOUNCE_TIMEOUT_S
     stop_timeout: float = STOP_TIMEOUT_S
@@ -85,6 +84,8 @@ class RuntimeController:
     _generation: int = field(default=0, init=False, repr=False)
     _reader: object = field(default=None, init=False, repr=False)
     _draining: object = field(default=None, init=False, repr=False)
+    _stop_processes: list = field(default_factory=list, init=False, repr=False)
+    _closed: bool = field(default=False, init=False, repr=False)
 
     @property
     def is_running(self) -> bool:
@@ -105,7 +106,7 @@ class RuntimeController:
             generation = self._generation
         with self._start_lock:
             with self._lock:
-                if generation != self._generation:
+                if self._closed or generation != self._generation:
                     raise RuntimeError("runtime start was cancelled")
                 if self._info is not None and self.is_running:
                     return self._info
@@ -191,9 +192,12 @@ class RuntimeController:
         """Terminate the runtime this controller started. Idempotent; never
         raises for an already-dead or never-started child."""
         with self._lock:
+            self._closed = True
             self._generation += 1
             self._stop_child_quietly()
             self._info = None
+            for proc in list(self._stop_processes):
+                _stop_process(proc)
 
     def _stop_child_quietly(self) -> None:
         proc, self._process = self._process, None
@@ -217,24 +221,28 @@ class RuntimeController:
         binary = self.which(RUNTIME_BINARY)
         if not binary:
             raise RuntimeMissing("%s is not installed" % RUNTIME_BINARY)
+        proc = None
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("runtime is closed")
+            generation = self._generation
         try:
-            completed = self.run(
-                [binary, STOP_ARGV[0]],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                timeout=self.stop_timeout,
-            )
+            proc = self.popen([binary, STOP_ARGV[0]], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
+            with self._lock:
+                if generation != self._generation:
+                    raise RuntimeError("stop-machine was cancelled")
+                self._stop_processes.append(proc)
+            if proc.wait(timeout=self.stop_timeout) != 0:
+                raise RuntimeError("stop-machine failed")
         except Exception as exc:
-            raise RuntimeError("stop-machine call failed: %s" % exc)
-        if completed.returncode != 0:  # type: ignore[union-attr]
-            raise RuntimeError(
-                "stop-machine exited %s: %s"
-                % (
-                    completed.returncode,  # type: ignore[union-attr]
-                    (completed.stderr or "").strip(),  # type: ignore[union-attr]
-                )
-            )
+            raise RuntimeError("stop-machine failed") from exc
+        finally:
+            if proc is not None:
+                with self._lock:
+                    if proc in self._stop_processes:
+                        self._stop_processes.remove(proc)
+                    _stop_process(proc)
 
 
 def _drain_output(stream, box, draining):

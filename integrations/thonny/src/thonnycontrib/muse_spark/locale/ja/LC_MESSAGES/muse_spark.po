@@ -34,3 +34,15 @@ msgstr "システムのブラウザーでコンパニオンページを開けま
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "停止コマンドが失敗しました。必要に応じて、機械の物理的な非常停止装置を使用してください。"
+
+msgid "Hand the port to Muse Spark"
+msgstr "ポートを Muse Spark に渡す"
+
+msgid "Give the port back to Thonny"
+msgstr "ポートを Thonny に戻す"
+
+msgid "Cannot transfer the port"
+msgstr "ポートを移管できません"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "ポートの所有権を確認できませんでした。明示的なシリアルポートを選択し、Muse Spark を開いて再試行してください。移管結果が不明な場合、Thonny は切断されたままになります。"

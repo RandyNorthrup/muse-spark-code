@@ -315,6 +315,15 @@ session ends before the next message starts a fresh CLI session.
 
 ## Other editors
 
+The experimental [Thonny plugin](integrations/thonny/README.md) offers
+**Open Muse Spark**, **Stop machine**, **Hand the port to Muse Spark**, and
+**Give the port back to Thonny** in Tools. It reads bounded text already
+shown in Thonny's shell. Hand-over disconnects Thonny before the runtime
+acquires the serial lease; give-back requires confirmed release before
+reconnecting. Both require user clicks. Device bytes go through the runtime's
+serial session only. Runtime wire integration and hosted certification are
+still pending; the plugin has not been published.
+
 The same two backends run outside VS Code as `muse-spark-code-acp`, an
 agent for editors that speak the Agent Client Protocol (Zed, JetBrains IDEs,
 Neovim, Emacs and others), attached to each GitHub Release since 0.10.0 and

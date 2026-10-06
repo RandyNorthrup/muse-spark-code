@@ -34,3 +34,15 @@ msgstr "Systémový prohlížeč nemohl otevřít doprovodnou stránku."
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "Příkaz k zastavení selhal. V případě potřeby použijte fyzické nouzové zastavení stroje."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Předat port aplikaci Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "Vrátit port aplikaci Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "Port nelze předat"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "Vlastnictví portu nebylo potvrzeno. Vyberte konkrétní sériový port, otevřete Muse Spark a zkuste to znovu. Po nejistém předání zůstane Thonny odpojeno."

@@ -63,6 +63,10 @@ internal static class MuseSparkThonnyJob
     private static extern uint WaitForSingleObject(IntPtr handle, uint timeout);
     [DllImport("kernel32.dll")]
     private static extern bool TerminateProcess(IntPtr process, uint code);
+    [DllImport("kernel32.dll")]
+    private static extern bool GetExitCodeProcess(IntPtr process, out uint code);
+    [DllImport("kernel32.dll")]
+    private static extern void ExitProcess(uint code);
 
     private static string Quote(string value)
     {
@@ -86,6 +90,7 @@ internal static class MuseSparkThonnyJob
         if (job == IntPtr.Zero) return 1;
         ProcessInfo process = new ProcessInfo();
         bool owned = false;
+        uint exitCode = 1;
         try
         {
             ExtendedLimits limits = new ExtendedLimits();
@@ -121,14 +126,22 @@ internal static class MuseSparkThonnyJob
             // The child inherited the launcher's job atomically at creation.
             owned = true;
             if (ResumeThread(process.Thread) == 0xffffffff) return 1;
-            return WaitForSingleObject(process.Process, 0xffffffff) == 0 ? 0 : 1;
+            uint code;
+            if (WaitForSingleObject(process.Process, 0xffffffff) != 0 ||
+                !GetExitCodeProcess(process.Process, out code)) return 1;
+            exitCode = code;
+            return unchecked((int)code);
         }
         finally
         {
             if (process.Process != IntPtr.Zero && !owned) TerminateProcess(process.Process, 1);
-            CloseHandle(job); // releases all descendants, even after the runtime exited
             if (process.Thread != IntPtr.Zero) CloseHandle(process.Thread);
             if (process.Process != IntPtr.Zero) CloseHandle(process.Process);
+            // This launcher belongs to its own job. Explicitly closing the job
+            // would kill us before Main can return the child's failure status.
+            // ExitProcess preserves that status; OS handle cleanup closes the
+            // job and releases every descendant, including after parent exit.
+            ExitProcess(exitCode);
         }
     }
 }

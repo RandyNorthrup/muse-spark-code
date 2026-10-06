@@ -1,143 +1,78 @@
-"""Fakes of Thonny's workbench and runner.
-
-They replicate only the surface the plugin uses (verified against the
-Thonny 5.0.0 wheel): ``add_command``, ``bind``/``unbind``/``event_generate``
-for ``InlineResponse``, ``after``, ``get_runner().send_command`` and the
-backend ``read_file`` contract (``path`` in, ``content_bytes`` out). The
-fake runner never opens anything: it answers from scripted bytes.
-"""
-
-from __future__ import annotations
-
-from typing import Any, Dict, List, Optional
+"""Fake Thonny lifecycle and displayed context; no real port is opened."""
+from types import SimpleNamespace
 
 
 class FakeWorkbench:
-    """Records menu registration; dispatches workbench events synchronously."""
-
-    def __init__(self) -> None:
-        self.commands: List[dict] = []
-        self.handlers: Dict[str, set] = {}
-        self.after_calls: List[tuple] = []
+    def __init__(self):
+        self.commands = []
+        self.handlers = {}
+        self.after_calls = []
         self.run_after_inline = True
-        self.language = "en_US"
+        self.language = 'en_US'
+        self.options = {'run.backend_name': 'MicroPython', 'MicroPython.port': 'COM7'}
+        self.console = "print('hi')\nready\n"
 
     def get_option(self, name):
-        assert name == "general.language"
-        return self.language
+        return self.language if name == 'general.language' else self.options.get(name)
 
     def add_command(self, command_id, menu_name, command_label, handler=None, **kwargs):
-        self.commands.append(
-            {
-                "command_id": command_id,
-                "menu_name": menu_name,
-                "command_label": command_label,
-                "handler": handler,
-                "kwargs": kwargs,
-            }
-        )
-
-    def bind(self, sequence, func, add=None):
-        self.handlers.setdefault(sequence, set()).add(func)
-
-    def unbind(self, sequence, func=None):
-        try:
-            self.handlers[sequence].remove(func)
-        except (KeyError, LookupError):
-            pass
-
-    def event_generate(self, sequence, event=None, **kwargs):
-        for handler in sorted(list(self.handlers.get(sequence, ())), key=str):
-            handler(event)
+        self.commands.append(dict(command_id=command_id, menu_name=menu_name,
+                                  command_label=command_label, handler=handler, kwargs=kwargs))
 
     def after(self, ms, func, *args):
         self.after_calls.append((ms, func))
-        if self.run_after_inline:
+        if self.run_after_inline and ms == 0:
             func(*args)
 
 
 class FakeRunner:
-    """Answers inline commands from ``files`` without touching any port."""
-
-    def __init__(self, workbench: FakeWorkbench, files: Optional[Dict[str, bytes]] = None) -> None:
+    def __init__(self, workbench, files=None):
         self.workbench = workbench
         self.files = dict(files or {})
-        self.sent: List[dict] = []
-        self.respond = True
-        self.available = True
+        self.sent = []
         self.proxy = object()
+        self.available = True
+        self.disconnected = 0
+        self.reconnected = 0
+        self.postponed = []
 
     def get_backend_proxy(self):
         return self.proxy if self.available else None
 
-    def get_node_label(self):
-        return "MicroPython device"
+    def send_command(self, command):
+        self.sent.append(command)
+        raise AssertionError('plugin attempted device I/O')
 
-    def send_command(self, cmd):
-        if isinstance(cmd, dict):
-            name, cmd_id = cmd["name"], cmd["id"]
-            fields = {k: v for k, v in cmd.items() if k not in ("name", "id")}
-        else:  # pragma: no cover - the real InlineCommand path
-            name, cmd_id = cmd.name, cmd["id"]
-            fields = dict(cmd.__dict__)
-            fields.pop("name", None)
-            fields.pop("id", None)
-        self.sent.append({"name": name, "id": cmd_id, "fields": fields})
-        if self.respond:
-            self.workbench.event_generate(
-                "InlineResponse", event=self._answer(name, cmd_id, fields)
-            )
+    def destroy_backend(self):
+        self.disconnected += 1
+        self.available = False
+        self.proxy = None
+        self.postponed.clear()
 
-    def _answer(self, name, cmd_id, fields):
-        if name == "read_file":
-            path = fields.get("path")
-            if path in self.files:
-                return {
-                    "command_id": cmd_id,
-                    "path": path,
-                    "content_bytes": self.files[path],
-                }
-            return {"command_id": cmd_id, "error": "file not found: %s" % path}
-        if name == "write_file":
-            self.files[fields.get("path")] = bytes(fields.get("content_bytes", b""))
-            return {"command_id": cmd_id, "path": fields.get("path")}
-        return {"command_id": cmd_id, "error": "unknown command: %s" % name}
+    def restart_backend(self, clean):
+        assert clean
+        self.reconnected += 1
+        self.available = True
+        self.proxy = object()
 
 
 class FakeBackend:
-    """A DeviceBackend over the fake runner, wired like the real one."""
-
-    def __init__(self, workbench: FakeWorkbench, runner: FakeRunner) -> None:
-        self.workbench = workbench
-        self.runner = runner
+    def __init__(self, workbench, runner):
+        from thonnycontrib.muse_spark.runner import ThonnyDeviceBackend
+        self.workbench, self.runner = workbench, runner
+        self.reads = 0
+        self._host = ThonnyDeviceBackend(get_workbench=lambda: workbench,
+                                        get_runner=lambda: runner)
 
     def is_available(self):
         return self.runner.get_backend_proxy() is not None
 
-    def node_label(self):
-        return self.runner.get_node_label()
+    def console_text(self):
+        self.reads += 1
+        return self.workbench.console
 
-    def target_identity(self):
-        return "fake-target-" + str(id(self.runner.proxy))
+    def disconnect_port(self):
+        return self._host.disconnect_port()
 
-    def send_inline(self, name, fields, command_id, target=None, validate=None):
-        from thonnycontrib.muse_spark.runner import BackendUnavailable
-
-        if self.runner.get_backend_proxy() is None:
-            raise BackendUnavailable("no backend connected")
-        if target is not None and target != self.target_identity():
-            raise BackendUnavailable("approved device changed")
-        if validate is not None:
-            validate()
-        self.runner.send_command({"name": name, "id": command_id, **fields})
-
-    def bind_response(self, handler):
-        self.workbench.bind("InlineResponse", handler, True)
-
-    def unbind_response(self, handler):
-        self.workbench.unbind("InlineResponse", handler)
-
-
-def dict_command(name: str, fields: Dict[str, Any], command_id: str) -> dict:
-    """The test command factory: plain dicts instead of InlineCommand."""
-    return {"name": name, "id": command_id, **fields}
+    def reconnect_port(self, saved):
+        return self._host.reconnect_port(saved)

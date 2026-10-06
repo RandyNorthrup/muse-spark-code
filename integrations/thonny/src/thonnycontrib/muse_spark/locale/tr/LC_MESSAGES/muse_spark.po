@@ -34,3 +34,15 @@ msgstr "Sistem tarayıcısı yardımcı sayfayı açamadı."
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "Durdurma komutu başarısız oldu. Gerekirse makinenin fiziksel acil durdurma düğmesini kullanın."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Portu Muse Spark’a devret"
+
+msgid "Give the port back to Thonny"
+msgstr "Portu Thonny’ye geri ver"
+
+msgid "Cannot transfer the port"
+msgstr "Port devredilemiyor"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "Port sahipliği doğrulanamadı. Belirli bir seri port seçin, Muse Spark’ı açın ve yeniden deneyin. Sonucu belirsiz bir devirden sonra Thonny bağlantısı kesilmiş olarak kalır."

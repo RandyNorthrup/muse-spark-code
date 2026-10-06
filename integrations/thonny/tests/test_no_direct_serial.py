@@ -1,12 +1,4 @@
-"""Structural guard: the plugin never opens a serial port itself.
-
-Thonny owns the port while connected (D83.17); every device byte travels
-through Thonny's runner via the bridge engine. So no module of this
-package may import a serial/USB/Bluetooth stack (or ``ctypes`` for
-reaching one): device access that bypasses the runner would also bypass
-the engine's per-action approval. This test fails the suite the moment
-such an import appears.
-"""
+"""Structural guards: no device stack, command sender, or write operation."""
 
 import ast
 from pathlib import Path
@@ -48,3 +40,23 @@ def test_no_module_imports_a_device_stack():
 
 def test_forbidden_list_covers_pyserial():
     assert {"serial", "pyserial", "ctypes"} <= FORBIDDEN_TOP_LEVELS
+
+
+def test_round1_round2_no_thonny_device_command_or_write_path_exists():
+    forbidden = {"send_command", "send_command_and_wait", "send_inline",
+                 "_send_msg", "send_program_input", "submit_command", "execute_source",
+                 "write_file", "read_file", "InlineCommand", "ImmediateCommand"}
+    offenders = []
+    for path in PACKAGE_ROOT.rglob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            value = None
+            if isinstance(node, ast.Attribute):
+                value = node.attr
+            elif isinstance(node, ast.Name):
+                value = node.id
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                value = node.value
+            if value in forbidden:
+                offenders.append((path.name, node.lineno, value))
+    assert not offenders, "Thonny device command path exists: %r" % offenders

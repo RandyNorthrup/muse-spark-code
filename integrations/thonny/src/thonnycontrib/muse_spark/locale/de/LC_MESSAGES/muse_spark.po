@@ -34,3 +34,15 @@ msgstr "Der Systembrowser konnte die Begleitseite nicht öffnen."
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "Der Stoppbefehl ist fehlgeschlagen. Betätigen Sie bei Bedarf den physischen Not-Aus der Maschine."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Port an Muse Spark übergeben"
+
+msgid "Give the port back to Thonny"
+msgstr "Port an Thonny zurückgeben"
+
+msgid "Cannot transfer the port"
+msgstr "Port kann nicht übergeben werden"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "Die Portübernahme wurde nicht bestätigt. Wählen Sie einen konkreten seriellen Port, öffnen Sie Muse Spark und versuchen Sie es erneut. Nach einer ungewissen Übergabe bleibt Thonny getrennt."

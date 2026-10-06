@@ -34,3 +34,15 @@ msgstr "Системный браузер не смог открыть стра�
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "Команда остановки завершилась ошибкой. При необходимости используйте физическую аварийную остановку станка."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Передать порт Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "Вернуть порт Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "Не удалось передать порт"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "Владение портом не подтверждено. Выберите конкретный последовательный порт, откройте Muse Spark и повторите попытку. После передачи с неопределённым результатом Thonny остаётся отключённым."

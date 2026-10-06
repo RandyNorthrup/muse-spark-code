@@ -1,17 +1,8 @@
-"""The provider side of the runtime's owner-only socket.
+"""Loopback-only authenticated host-context and port-control connection.
 
-After the plugin starts the runtime, the runtime announces a provider
-endpoint (host, port, token). :class:`ProviderClient` connects there over
-loopback, proves itself with the token in a ``hello`` frame, and then serves
-``device_request`` frames by handing them to the :class:`BridgeEngine`,
-which fulfils them through Thonny's already-open connection. The plugin
-never opens a serial port itself: there is no ``serial`` import anywhere in
-this package (a test fails the suite if one ever appears).
-
-The transport (TCP loopback + token, standard library only) is injected:
-lane R/P may swap it for the lease socket without touching the protocol or
-the guards. Frames are newline-delimited JSON capped at
-``FRAME_MAX_BYTES``; an oversize line closes the connection untouched.
+Device bytes never travel through Thonny. Only user clicks originate port
+acquire/release requests; the runtime's lane-P session owns device I/O.
+Frames are size-bounded in both directions. Blocking socket work never calls Tk.
 """
 
 from __future__ import annotations
@@ -19,6 +10,7 @@ from __future__ import annotations
 import logging
 import socket
 import threading
+import uuid
 from typing import Callable, Optional
 
 from . import protocol
@@ -31,6 +23,7 @@ log = logging.getLogger("thonnycontrib.muse_spark")
 CONNECT_TIMEOUT_S = 10.0
 #: Extra margin over the engine's own response timeout for one request.
 WAIT_MARGIN_S = 5.0
+PORT_TIMEOUT_S = 30.0
 
 
 class ConnectionFailed(Exception):
@@ -61,6 +54,8 @@ class ProviderClient:
         self._closed = threading.Event()
         self._leftover = b""
         self._lock = threading.RLock()
+        self._send_lock = threading.Lock()
+        self._port_pending = {}
 
     @property
     def is_connected(self) -> bool:
@@ -135,6 +130,8 @@ class ProviderClient:
         """Hang up. Idempotent; safe from any thread."""
         with self._lock:
             self._closed.set()
+            for _, done, _ in self._port_pending.values():
+                done.set()
             sock, self._sock = self._sock, None
             if sock is not None:
                 self._engine.detach()
@@ -157,20 +154,31 @@ class ProviderClient:
     def _run_logged(self) -> None:
         try:
             self.run()
-        except ConnectionFailed as exc:
-            log.info("provider connection ended: %s", exc)
+        except ConnectionFailed:
+            log.info("provider connection ended")
         except Exception:  # pragma: no cover - defensive
-            log.debug("provider connection failed", exc_info=True)
+            log.debug("provider connection failed")
 
     def _serve(self, message: dict) -> None:
+        if message.get("type") == "port_response":
+            request_id = protocol.check_request_id(message.get("id"))
+            with self._lock:
+                pending = self._port_pending.get(request_id)
+                if pending is not None:
+                    request, done, replies = pending
+                    protocol.check_port_response(message, request)
+                    replies.append(message)
+                    done.set()
+            return
         if message.get("type") != "device_request":
-            log.debug("ignoring non-request frame: %r", message.get("type"))
+            log.debug("ignoring non-request frame")
             return
         try:
             pending = self._engine.submit(message)
         except ProtocolError as exc:
             request_id = message.get("id")
-            if isinstance(request_id, str) and request_id:
+            if (isinstance(request_id, str) and request_id
+                    and len(request_id) <= protocol.REQUEST_ID_MAX_CHARS):
                 self._send(protocol.error_response(request_id, exc.code, str(exc)))
             return
         reply = self._engine.wait(
@@ -179,8 +187,39 @@ class ProviderClient:
         self._send(reply)
 
     def _send(self, message: dict) -> None:
-        assert self._sock is not None
-        self._sock.sendall(protocol.encode_frame(message))
+        raw = protocol.encode_frame(message)
+        with self._send_lock:
+            sock = self._sock
+            if sock is None:
+                raise ConnectionFailed("provider connection is closed")
+            sock.sendall(raw)
+
+    def change_port(self, op, port, timeout=PORT_TIMEOUT_S):
+        """User-click control only. No device bytes travel through this socket.
+
+        A timed-out action has an unknown outcome: close the connection and
+        leave Thonny disconnected until a later explicit release succeeds.
+        """
+        if op not in ("acquire", "release"):
+            raise ConnectionFailed("invalid port operation")
+        request = {"v": protocol.PROTOCOL_VERSION, "type": "port_request",
+                   "id": uuid.uuid4().hex, "op": op, "port": port}
+        done, replies = threading.Event(), []
+        with self._lock:
+            if not self.is_connected:
+                raise ConnectionFailed("provider connection is closed")
+            self._port_pending[request["id"]] = request, done, replies
+        try:
+            self._send(request)
+            if not done.wait(timeout) or not replies or not replies[0]["ok"]:
+                self.close()
+                raise ConnectionFailed("port ownership was not confirmed")
+        except OSError:
+            self.close()
+            raise ConnectionFailed("port ownership was not confirmed")
+        finally:
+            with self._lock:
+                self._port_pending.pop(request["id"], None)
 
     def _read_frame(self) -> dict:
         """Read one ``\\n``-terminated frame. Raises ``_CleanHangup`` on a

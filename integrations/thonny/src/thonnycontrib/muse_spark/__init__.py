@@ -1,24 +1,14 @@
-"""The ``thonnycontrib.muse_spark`` plugin entry point.
+"""Thonny menus for the companion, explicit port transfer, and ungated Stop.
 
-Thonny discovers this module by scanning ``thonnycontrib`` and calls
-:func:`load_plugin`, which registers two ``Tools`` menu items:
-
-* **Open Muse Spark** starts the installed ``muse-spark-code-acp`` runtime
-  (or reuses the live one), connects the serial-provider bridge to it, and
-  opens the companion page in the system browser.
-* **Stop machine** (also a toolbar button) sends the machine's own stop
-  sequence through the runtime's out-of-band ``stop-machine`` call. It is
-  never gated: it needs no approval, no running runtime and no bridge.
-
-``thonny`` is imported lazily inside :func:`load_plugin`, so the rest of
-the package (and the test suite) runs without Thonny installed. Everything
-Thonny-specific behind this module is faked in the tests.
+The plugin never sends device commands. Context comes only from text Thonny
+already displays. Runtime lane P owns the serial session after a user click.
 """
 
 from __future__ import annotations
 
 import atexit
 import logging
+import queue
 import threading
 from typing import Any, Callable, Optional
 
@@ -26,22 +16,29 @@ from .bridge import ConnectionFailed, ProviderClient
 from .companion import CompanionError, open_companion
 from .l10n import text
 from .notices import Notices
+from .process_tree import CLEANUP_TIMEOUT_S, COMPILE_TIMEOUT_S
 from .runner import BridgeEngine, ThonnyDeviceBackend
-from .runtime import RuntimeController, RuntimeError
+from .runtime import CHILD_WAIT_S, RuntimeController, RuntimeError
 
 log = logging.getLogger("thonnycontrib.muse_spark")
 
 MENU = "tools"
 COMMAND_OPEN_ID = "muse_spark_open"
 COMMAND_STOP_ID = "muse_spark_stop"
+COMMAND_HAND_ID = "muse_spark_hand_port"
+COMMAND_BACK_ID = "muse_spark_give_port"
 LABEL_OPEN = "Open Muse Spark"
 LABEL_STOP = "Stop machine"
+LABEL_HAND = "Hand the port to Muse Spark"
+LABEL_BACK = "Give the port back to Thonny"
 CAPTION_STOP = "Stop"
 TITLE = "Muse Spark"
 
 #: How often the Tk thread pumps the bridge engine, in milliseconds.
 PUMP_INTERVAL_MS = 100
-WORKER_JOIN_S = 5.0
+# A worker still compiling its launcher must finish cancellation and reaping
+# before shutdown's join expires. This bounds the existing lifecycle stages.
+WORKER_JOIN_S = COMPILE_TIMEOUT_S + 2 * CHILD_WAIT_S + CLEANUP_TIMEOUT_S + 1
 
 
 class Plugin:
@@ -73,6 +70,11 @@ class Plugin:
         self._closed = False
         self._open_thread = None
         self._provider_thread = None
+        self._stop_threads = set()
+        self._port_thread = None
+        self._port_saved = None
+        self._port_busy = False
+        self._completions = queue.Queue()
         register_exit(self.shutdown)
 
     def register(self) -> None:
@@ -88,6 +90,10 @@ class Plugin:
             caption=text(self._workbench, CAPTION_STOP),
             include_in_toolbar=True,
         )
+        self._workbench.add_command(COMMAND_HAND_ID, MENU, text(self._workbench, LABEL_HAND),
+                                    handler=self.on_hand_port)
+        self._workbench.add_command(COMMAND_BACK_ID, MENU, text(self._workbench, LABEL_BACK),
+                                    handler=self.on_give_port)
         self._schedule_pump()
 
     def on_open(self, event: Any = None) -> None:
@@ -100,8 +106,65 @@ class Plugin:
 
     def on_stop(self, event: Any = None) -> None:
         """Menu/toolbar handler: the out-of-band stop, never gated."""
-        worker = threading.Thread(target=self._stop_worker, daemon=True)
-        worker.start()
+        with self._lock:
+            if self._closed:
+                return
+            worker = threading.Thread(target=self._stop_worker, daemon=True)
+            self._stop_threads.add(worker)
+            worker.start()
+
+    def on_hand_port(self, event=None):
+        """Tk user click: disconnect first, then ask the runtime to own the port."""
+        if self._closed or self._port_busy or self._port_saved is not None:
+            return
+        try:
+            if self._client is None or not self._client.is_connected:
+                raise ConnectionFailed()
+            self._port_saved = self._engine.backend.disconnect_port()
+        except Exception:
+            self._port_failure()
+            return
+        self._start_port_worker("acquire")
+
+    def on_give_port(self, event=None):
+        """Tk user click: require runtime release before reconnecting Thonny."""
+        if self._closed or self._port_busy or self._port_saved is None:
+            return
+        self._start_port_worker("release")
+
+    def _start_port_worker(self, op):
+        self._port_busy = True
+        client, saved = self._client, self._port_saved
+
+        def run():
+            success = False
+            try:
+                if client is None:
+                    raise ConnectionFailed()
+                client.change_port(op, saved[2])
+                success = True
+            except Exception:
+                pass
+            self._completions.put(lambda: self._finish_port(op, saved, success))
+
+        self._port_thread = threading.Thread(target=run, daemon=True)
+        self._port_thread.start()
+
+    def _finish_port(self, op, saved, success):
+        self._port_busy = False
+        if self._closed:
+            return
+        if success and op == "release":
+            try:
+                self._engine.backend.reconnect_port(saved)
+                self._port_saved = None
+            except Exception:
+                success = False
+        if not success:
+            self._port_failure()
+
+    def _port_failure(self):
+        self._fail("Cannot transfer the port", "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer.")
 
     def shutdown(self) -> None:
         """Stop the provider connection and the runtime we started."""
@@ -116,7 +179,9 @@ class Plugin:
         except Exception:
             log.debug("runtime stop at exit failed", exc_info=True)
         self._engine.detach()
-        for worker in (self._open_thread, self._provider_thread):
+        with self._lock:
+            workers = [self._open_thread, self._provider_thread, self._port_thread, *self._stop_threads]
+        for worker in workers:
             if worker is not None and worker.ident is not None and worker is not threading.current_thread():
                 worker.join(WORKER_JOIN_S)
 
@@ -130,6 +195,8 @@ class Plugin:
 
     def _pump(self) -> None:
         try:
+            while not self._completions.empty():
+                self._completions.get_nowait()()
             if self._client is not None and self._client.is_connected:
                 self._engine.progress()
         except Exception:
@@ -194,6 +261,9 @@ class Plugin:
             self._controller.stop_machine()
         except RuntimeError:
             self._fail("Stop machine failed", "The stop command failed. Use the machine's physical emergency stop if needed.")
+        finally:
+            with self._lock:
+                self._stop_threads.discard(threading.current_thread())
 
     def _fail(self, title: str, message: str) -> None:
         with self._lock:

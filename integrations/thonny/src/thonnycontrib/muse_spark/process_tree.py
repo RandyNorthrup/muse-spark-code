@@ -11,8 +11,12 @@ from pathlib import Path
 import signal
 import subprocess
 import tempfile
+import threading
+import time
 
 COMPILE_TIMEOUT_S = 20.0
+CLEANUP_TIMEOUT_S = 2.0
+CLEANUP_RETRY_S = 0.05
 
 
 class _OwnedProcess:
@@ -20,6 +24,7 @@ class _OwnedProcess:
         self._process = process
         self._directory = directory
         self.stdout = process.stdout
+        self._close_lock = threading.Lock()
 
     def poll(self):
         return self._process.poll()
@@ -44,10 +49,20 @@ class _OwnedProcess:
         self._signal(getattr(signal, "SIGKILL", signal.SIGTERM))
 
     def close(self):
-        if self.stdout is not None:
-            self.stdout.close()
-        if self._directory is not None:
-            self._directory.cleanup()
+        with self._close_lock:
+            if self.stdout is not None:
+                self.stdout.close()
+            deadline = time.monotonic() + CLEANUP_TIMEOUT_S
+            while self._directory is not None:
+                try:
+                    self._directory.cleanup()
+                    self._directory = None
+                except PermissionError:
+                    # Windows can signal process exit just before releasing
+                    # the executable's image mapping. Keep ownership and retry.
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(CLEANUP_RETRY_S)
 
 
 def spawn_runtime(argv, **kwargs):

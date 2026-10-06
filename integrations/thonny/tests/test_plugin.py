@@ -1,7 +1,6 @@
-"""Tests for the plugin entry point: menus, Open/Stop flows, and the M103
-acceptance walk (start runtime, open companion, device read through a fake
-runner without opening the port)."""
+"""Plugin menus/lifecycle, displayed context, and explicit fake-port transfer."""
 
+import pytest
 import sys
 import threading
 import time
@@ -10,11 +9,13 @@ from thonnycontrib.muse_spark import (
     CAPTION_STOP,
     COMMAND_OPEN_ID,
     COMMAND_STOP_ID,
+    COMMAND_HAND_ID, COMMAND_BACK_ID,
     LABEL_OPEN,
     LABEL_STOP,
     MENU,
     Plugin,
 )
+from thonnycontrib.muse_spark import protocol
 from thonnycontrib.muse_spark.bridge import ProviderClient
 from thonnycontrib.muse_spark.runner import BridgeEngine
 from thonnycontrib.muse_spark.runtime import RuntimeInfo, RuntimeMissing
@@ -131,7 +132,7 @@ def test_register_adds_open_and_stop():
     plugin, _, _, _ = _plugin(workbench=workbench)
     plugin.register()
     by_id = {c["command_id"]: c for c in workbench.commands}
-    assert set(by_id) == {COMMAND_OPEN_ID, COMMAND_STOP_ID}
+    assert set(by_id) == {COMMAND_OPEN_ID, COMMAND_STOP_ID, COMMAND_HAND_ID, COMMAND_BACK_ID}
     assert (by_id[COMMAND_OPEN_ID]["menu_name"], by_id[COMMAND_OPEN_ID]["command_label"]) == (
         MENU,
         LABEL_OPEN,
@@ -208,10 +209,8 @@ def test_shutdown_closes_client_and_stops_runtime():
     assert controller.stops == 2
 
 
-def test_acceptance_open_to_device_read_without_opening_port():
-    """M103 acceptance 27 (Thonny row): start the runtime, open the
-    companion page, and route a device read through a fake Thonny runner
-    without opening the port."""
+def test_acceptance_open_to_displayed_context_without_device_command():
+    """Start, open companion, and read already displayed context only."""
     peer = Peer()
     lines = [
         "MUSE_SPARK_COMPANION_URL http://127.0.0.1:4311/\n",
@@ -240,7 +239,7 @@ def test_acceptance_open_to_device_read_without_opening_port():
     plugin.register()
     with pumping(engine):
         handshake = threading.Thread(
-            target=lambda: (peer.read_frame(), peer.send({"v": 1, "type": "welcome"})),
+            target=lambda: (peer.read_frame(), peer.send({"v": protocol.PROTOCOL_VERSION, "type": "welcome"})),
             daemon=True,
         )
         handshake.start()
@@ -250,8 +249,8 @@ def test_acceptance_open_to_device_read_without_opening_port():
         peer.send(_read_frame())
         reply = peer.read_frame()
     assert reply["ok"] is True
-    assert reply["result"]["path"] == "main.py"
-    assert runner.sent and runner.sent[0]["name"] == "read_file"
+    assert reply["result"]["text"] == workbench.console
+    assert runner.sent == []
     assert "serial" not in sys.modules
     plugin.shutdown()
     peer.close()
@@ -334,7 +333,7 @@ def test_open_reports_malformed_handshake():
     peer = Peer()
     workbench = FakeWorkbench()
     engine = BridgeEngine(FakeBackend(workbench, FakeRunner(workbench)))
-    peer.send({"v": 1, "type": "error", "error": "malformed peer"})
+    peer.send({"v": protocol.PROTOCOL_VERSION, "type": "error", "error": "malformed peer"})
     plugin, notices, opened, _ = _plugin(
         workbench=workbench, engine=engine,
         client_factory=lambda *args: ProviderClient(*args, connect=lambda *a, **k: peer.plugin_side),
@@ -358,3 +357,153 @@ def test_open_reports_browser_refusal():
     assert notices.errors and "Cannot open" in notices.errors[0][0]
     assert plugin._state == "stopped"
     plugin.shutdown()
+
+class FakeSerialSession:
+    """Runtime-side fake: lease before open, close before lease release."""
+    def __init__(self, runner):
+        self.runner = runner
+        self.leased = False
+        self.opened = False
+        self.events = []
+
+    def handle(self, request):
+        assert not self.runner.get_backend_proxy(), 'Thonny still owns port'
+        if request['op'] == 'acquire':
+            assert not self.leased and not self.opened
+            self.leased = True
+            self.events.append('lease acquired')
+            self.opened = True
+            self.events.append('serial opened')
+            owner = 'runtime'
+        else:
+            self.opened = False
+            self.events.append('serial closed')
+            self.leased = False
+            self.events.append('lease released')
+            owner = 'released'
+        return dict(request, type='port_response', ok=True, owner=owner)
+
+
+def test_hand_over_give_back_disconnect_lease_open_close_release_reconnect():
+    peer = Peer()
+    workbench, runner = FakeWorkbench(), None
+    runner = FakeRunner(workbench)
+    backend = FakeBackend(workbench, runner)
+    session = FakeSerialSession(runner)
+    engine = BridgeEngine(backend)
+    plugin, notices, _, _ = _plugin(workbench=workbench, engine=engine,
+        client_factory=lambda *a: ProviderClient(*a, connect=lambda *c, **k: peer.plugin_side))
+    peer.send({'v': protocol.PROTOCOL_VERSION, 'type': 'welcome'})
+    plugin.register()
+    try:
+        plugin._open_worker()
+        assert peer.read_frame()['type'] == 'hello'
+        assert runner.disconnected == runner.reconnected == 0 and not session.leased
+        by_id = {c['command_id']: c for c in workbench.commands}
+        by_id[COMMAND_HAND_ID]['handler']()
+        assert runner.disconnected == 1 and not runner.get_backend_proxy()
+        request = peer.read_frame()
+        assert (request['type'], request['op'], request['port']) == ('port_request', 'acquire', 'COM7')
+        peer.send(session.handle(request))
+        _wait_for(lambda: not plugin._completions.empty())
+        plugin._pump()
+        assert session.leased and session.opened and runner.reconnected == 0
+        # Ordinary context/device requests can never trigger a transfer.
+        peer.send(_read_frame(op='write', approval={'request_id': 'approved'}, content_b64='eA=='))
+        assert peer.read_frame()['ok'] is False and not runner.sent
+        by_id[COMMAND_BACK_ID]['handler']()
+        request = peer.read_frame()
+        assert request['op'] == 'release' and runner.reconnected == 0
+        peer.send(session.handle(request))
+        _wait_for(lambda: not plugin._completions.empty())
+        plugin._pump()
+        assert not session.leased and not session.opened
+        assert runner.reconnected == 1 and runner.get_backend_proxy()
+        assert plugin._port_saved is None and notices.errors == []
+        assert session.events == ['lease acquired', 'serial opened', 'serial closed', 'lease released']
+    finally:
+        plugin.shutdown()
+        peer.close()
+
+
+def test_port_transfer_failure_never_reconnects_automatically():
+    workbench = FakeWorkbench()
+    runner = FakeRunner(workbench)
+    engine = BridgeEngine(FakeBackend(workbench, runner))
+    client = FakeClient()
+    def refuse(*args):
+        from thonnycontrib.muse_spark.bridge import ConnectionFailed
+        raise ConnectionFailed('refused')
+    client.change_port = refuse
+    plugin, notices, _, _ = _plugin(workbench=workbench, engine=engine)
+    plugin._client = client
+    plugin.on_hand_port()
+    _wait_for(lambda: not plugin._completions.empty())
+    plugin._pump()
+    assert runner.disconnected == 1 and runner.reconnected == 0 and plugin._port_saved is not None
+    assert notices.errors
+    plugin.shutdown()
+    assert runner.reconnected == 0
+
+
+@pytest.mark.parametrize('switch', ['runner', 'port', 'backend', 'connected'])
+def test_round1_changed_target_give_back_is_refused(switch):
+    from thonnycontrib.muse_spark.runner import ThonnyDeviceBackend, BackendUnavailable
+    workbench = FakeWorkbench()
+    runner = FakeRunner(workbench)
+    current = [runner]
+    backend = ThonnyDeviceBackend(get_workbench=lambda: workbench, get_runner=lambda: current[0])
+    saved = backend.disconnect_port()
+    if switch == 'runner':
+        current[0] = FakeRunner(workbench)
+    elif switch == 'port':
+        workbench.options['MicroPython.port'] = 'COM8'
+    elif switch == 'backend':
+        workbench.options['run.backend_name'] = 'Other'
+    else:
+        runner.available, runner.proxy = True, object()
+    with pytest.raises(BackendUnavailable):
+        backend.reconnect_port(saved)
+    assert not runner.reconnected
+
+
+def test_port_release_refusal_or_bad_reply_never_reconnects():
+    peer = Peer()
+    workbench = FakeWorkbench()
+    runner = FakeRunner(workbench)
+    engine = BridgeEngine(FakeBackend(workbench, runner))
+    plugin, notices, _, _ = _plugin(workbench=workbench, engine=engine,
+        client_factory=lambda *a: ProviderClient(*a, connect=lambda *c, **k: peer.plugin_side))
+    peer.send({'v': protocol.PROTOCOL_VERSION, 'type': 'welcome'})
+    try:
+        plugin._open_worker()
+        peer.read_frame()
+        plugin._port_saved = engine.backend.disconnect_port()
+        plugin.on_give_port()
+        request = peer.read_frame()
+        peer.send(dict(request, type='port_response', ok=True, owner='runtime'))
+        _wait_for(lambda: not plugin._completions.empty())
+        plugin._pump()
+        assert not runner.reconnected and notices.errors
+    finally:
+        plugin.shutdown()
+        peer.close()
+
+
+def test_round2_shutdown_joins_stop_workers_and_closed_plugin_starts_nothing():
+    entered, release = threading.Event(), threading.Event()
+    controller = FakeController()
+    def stopping():
+        entered.set()
+        assert release.wait(2)
+        time.sleep(0.05)
+    controller.stop_machine = stopping
+    original_stop = controller.stop
+    controller.stop = lambda: (original_stop(), release.set())
+    plugin, _, _, _ = _plugin(controller=controller)
+    plugin.on_stop()
+    assert entered.wait(2)
+    workers = list(plugin._stop_threads)
+    plugin.shutdown()
+    plugin.on_stop()
+    assert all(not worker.is_alive() for worker in workers) and not plugin._stop_threads

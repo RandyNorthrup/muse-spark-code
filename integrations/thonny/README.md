@@ -1,112 +1,114 @@
-# thonny-muse-spark — Muse Spark companion plugin for Thonny (unofficial)
+# thonny-muse-spark — Muse Spark companion plugin for Thonny (Unofficial)
 
-A Thonny plugin (`thonnycontrib.muse_spark`) that connects Thonny to the
-Muse Spark runtime: it starts the runtime, opens the companion page in the
-system browser, and offers Thonny's already-open device connection to the
-runtime as its serial provider — so the engine goes through Thonny instead
-of fighting it for the port.
+An experimental Thonny plugin (`thonnycontrib.muse_spark`) for the Muse
+Spark runtime and companion page. The plugin never sends device commands
+through Thonny's runner, queues, shell, or backend. While Thonny owns the
+port, the runtime can request only bounded text already shown in its shell.
 
-Part of M103 lane T. License: MIT (see `LICENSE`).
+M103 lane T, MIT. Not yet published. The v2 interface below is a proposal
+awaiting R/P integration and installed-runtime certification.
 
-## What you get
+## Controls
 
 - **Tools → Open Muse Spark.** Starts the installed `muse-spark-code-acp`
-  runtime (or reuses the live one), connects the serial-provider bridge,
-  and opens the companion page.
-- **Tools → Stop machine** (also a toolbar button). Sends the machine's
-  own stop sequence through the runtime's out-of-band `stop-machine`
-  call. It is never gated: no approval, no running runtime required.
+  runtime, connects the local control bridge, and opens the companion page.
+- **Tools → Hand the port to Muse Spark.** Requires Open first and a concrete
+  serial port selected in Thonny's interpreter configuration (`auto` and
+  WebREPL are refused). Uses Thonny's public `destroy_backend()` API to
+  disconnect and clear its pending queue before asking the runtime to acquire
+  the port through lane P's cross-process lease and serial session.
+- **Tools → Give the port back to Thonny.** Requests serial close and lease
+  release. Only a matching acknowledgement permits `restart_backend(clean=True)`.
+  If the selected interpreter, port or runner changed, reconnection is refused.
+- **Tools → Stop machine**, also a toolbar button. Calls the runtime's
+  independent `stop-machine` command without approval, a provider connection,
+  a running companion, or a transfer prerequisite. When the runtime owns the
+  port, this is lane P's out-of-band Stop.
+
+Hand-over and return require user clicks. Opening, receiving a model request,
+errors, disconnecting the provider and closing Thonny never transfer or
+reconnect a port automatically. A refused, timed-out or malformed transfer
+leaves Thonny disconnected. Reopen Muse Spark and explicitly give the port
+back after the runtime can confirm release. The runtime must clean up its
+leased session on provider closure; the plugin never asserts release on its
+own. A software Stop does not replace a physical emergency stop.
+
+The runtime retains exact-byte, target-bound per-action approval, bounded
+serial reads and ungated Stop. No device payload or approval is accepted by
+this plugin. A device held by another process remains busy.
 
 ## Requirements
 
-- Thonny 4.x or 5.x.
-- The installed `muse-spark-code-acp` runtime on `PATH`. The plugin never
-  bundles or downloads it; without it, Open Muse Spark says so and stops.
-- Python 3.10 or newer (Thonny's own interpreter is fine).
-- On Windows, the bundled .NET Framework C# compiler. The plugin compiles
-  its process-job launcher in a private temporary directory; it downloads
-  nothing and reports a startup error if the compiler is unavailable.
+Thonny 4.x or 5.x, Python 3.10+, and the installed `muse-spark-code-acp` runtime
+on PATH. The plugin downloads nothing. On Windows it uses the bundled .NET
+Framework compiler to build a process-job launcher in a private temporary
+directory. The plugin fails explicitly if the runtime/compiler/browser is
+unavailable. Its Python runtime uses only the standard library.
 
-## Install
+## Local control interface (v2 proposal)
 
-Inside Thonny: **Tools → Manage plug-ins**, search for
-`thonny-muse-spark`, install, and restart Thonny. Or, with Thonny's
-Python:
+Panel startup still announces `MUSE_SPARK_COMPANION_URL`,
+`MUSE_SPARK_COMPANION_LAUNCH`, and `MUSE_SPARK_PROVIDER <host> <port> <token>`
+on stdout, in any order. The host must be literal `127.0.0.1`. The browser
+gets the launch code only in a URL fragment. The socket starts with the
+plugin's `hello` (`provider: thonny`, token); the runtime answers `welcome`.
+Only strict integer `v: 2` is accepted. V1 peers are refused.
 
-```sh
-thonny_python -m pip install thonny-muse-spark
-```
+Frames are newline-delimited JSON, at most 65,536 bytes plus the newline,
+in both directions. The runtime may send `device_request` with exactly
+`v`, `type`, bounded nonempty `id` (128 characters), and `op: context|info`.
+The plugin answers `device_response` with that id and `ok`/`result` or
+`error`. Context is the last 4,096 characters already displayed in Thonny's
+shell, read on the Tk thread, only while its backend exists. Info reports
+`connected` and `read_only: true`. Legacy `read`, every `write` (including
+empty files), approvals, paths and payload fields are refused. An unsendable
+result becomes a bounded error, never an oversized success.
 
-## Safety
+Only a user click sends `port_request` with `v`, `type`, unique `id`,
+`op: acquire|release`, and the concrete `port`. The runtime returns
+`port_response` echoing id, op and port, with boolean `ok`. Success requires
+`owner: runtime` after lease acquisition and serial open, or `owner: released`
+after serial close and lease release. Release is idempotent for that
+provider's port, so an uncertain acquire can be recovered explicitly.
+The runtime must reject ports not admitted by lane P's enumeration and
+approval policy, release on provider closure, and cancel outstanding
+acquisitions before reconnecting the same provider. The plugin does not
+open the port or implement a second lease.
 
-- Device actions (connect, program, actuate) always ask first, in the
-  runtime's UI, showing exactly what will be sent. The plugin never sends
-  anything to the device on its own: it only fulfils requests the engine
-  approved, each carrying the engine's approval echo.
-- **A software stop is not an emergency stop.** A machine needs its own
-  physical E-stop (ISO 13850, IEC 60204-1).
-- Thonny owns the port while connected. The plugin never opens a serial
-  port itself; a second program holding the port is reported busy, never
-  taken.
+Handshake deadlines end at welcome, preserving idle connections. Closing
+wakes socket and control waiters; expired/cancelled context cannot reach Tk.
+Peer values never enter logs or notices. Open starts are serialized;
+shutdown owns and joins Open, provider, transfer and Stop workers. Every
+runtime/Stop process belongs to a Windows kill-on-close job or POSIX process
+group, including command shims and exited parents. Startup stdout is drained
+for the child's whole lifetime; Stop stdout/stderr go to the null device.
 
-## How it works
+## Languages and publishing
 
-```
-Thonny (menus, runner) ⇄ this plugin ⇄ runtime (companion + engine)
-                              │                │
-                              │  hello/token   │ device_request (approved)
-                              └────────────────┘ device_response
-```
+Menus and notices follow Thonny's current display language through gettext:
+Czech, German, Spanish, French, Hungarian, Italian, Japanese, Korean, Polish,
+Brazilian Portuguese, Russian, Turkish, Simplified Chinese and Traditional
+Chinese. Unsupported languages use English. The shipped PO and MO files are
+checked against the actual UI messages.
 
-The runtime announces its companion URL, launch code and provider
-endpoint on its stdout when started in `panel` mode; the plugin opens
-`<url>#launch=<code>` (fragment only, loopback only) and connects to the
-provider endpoint. The v1 frame schema lives in
-`src/thonnycontrib/muse_spark/protocol.py` and is currently this lane's
-proposal for the runtime lanes (M103 R/P) to freeze; a peer speaking any
-other version is refused before a byte reaches the device.
-
-The provider address must be the literal IPv4 loopback address `127.0.0.1`.
-The token authenticates the handshake; its timeout ends after `welcome`,
-so an idle companion page keeps its provider connection. Stop and shutdown
-cancel queued requests before any later Tk pump can dispatch them.
-
-A provider `info` reply includes `target`, an opaque identity for the
-current Thonny runner/backend connection. A write approval echo must carry
-that `target`, `expires_at` (finite UTC Unix seconds), and `digest` (`sha256:`
-followed by the lowercase SHA-256 of the exact decoded bytes). The runtime
-must capture the identity and expiry when the user approves. A new runner
-or backend proxy needs another approval even if its label is the same.
-Immediately before each write the plugin checks the identity, digest,
-expiry and request deadline under its dispatch lock. Empty files are valid.
-These strengthened fields remain a proposal awaiting the R/P protocol
-freeze; fake tests do not certify interoperability with an installed runtime.
-If the system browser refuses to open the companion page, Open reports an
-error instead of claiming success.
-
-Open clicks are serialized. Closing Thonny cancels startup and pending
-handshakes, joins the workers, and terminates the runtime tree. On Windows
-the launcher owns a kill-on-close job before creating the runtime; on
-macOS/Linux the runtime owns a new process group. Startup accepts the three
-announcement kinds in any order. One reader drains stdout for the runtime's
-whole lifetime and discards its diagnostics without logging bearer values.
-
-Menu labels, toolbar captions and failure notices use Thonny's display
-language. The package ships gettext catalogues for Czech, German, Spanish,
-French, Hungarian, Italian, Japanese, Korean, Polish, Brazilian Portuguese,
-Russian, Turkish, Simplified Chinese and Traditional Chinese; unsupported
-languages use English. Notices use fixed translated messages rather than
-displaying a peer's unchecked technical text.
+The PyPI workflow builds/tests/checks artifacts in a separate job without the
+publish environment. Upload uses Twine 6.2.0's Trusted Publishing with OIDC,
+`id-token: write` only on that job, and the `pypi` environment. The owner must
+register this repository and `.github/workflows/publish-thonny.yml` as a
+trusted publisher in PyPI. No stored token or fallback is used. No upload or
+hosted workflow was run by this lane.
 
 ## Developing
 
-No third-party Python dependencies — only the standard library. Thonny
-itself is not needed: the suite runs against fakes.
+The tests need pytest; they use fake backends/ports and local sockets, never
+a real board or model. From the repository root:
 
 ```sh
-cd integrations/thonny
-python -m pytest
-python scripts/compile_catalogs.py  # rebuild the shipped gettext .mo files
-python -m build   # needs the `build` package
-twine check dist/*
+python -B -m pytest -p no:cacheprovider integrations/thonny
+python integrations/thonny/scripts/compile_catalogs.py
 ```
+
+CI runs the Python 3.10/3.14 suite and package checks on its hosted matrix.
+Windows fake-process and isolated Thonny smoke receipts are recorded in
+`docs/certification/m103-t.md`; real POSIX and installed R/P receipts remain
+integration prerequisites.

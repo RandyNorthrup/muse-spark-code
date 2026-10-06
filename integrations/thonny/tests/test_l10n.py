@@ -28,7 +28,7 @@ def _messages():
     messages = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id in
-                                               ("LABEL_OPEN", "LABEL_STOP", "CAPTION_STOP")
+                                               ("LABEL_OPEN", "LABEL_STOP", "CAPTION_STOP", "LABEL_HAND", "LABEL_BACK")
                                                for target in node.targets):
             messages.add(ast.literal_eval(node.value))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "_fail":
@@ -40,7 +40,7 @@ def _messages():
 def test_catalogue_covers_every_user_message_and_matches_stop_terminology(language, code):
     translation = gettext.translation("muse_spark", LOCALE, languages=[code])
     messages = _messages()
-    assert len(messages) == 11
+    assert len(messages) == 15
     assert set(translation._catalog) - {""} == messages
     for message in messages:
         assert translation.gettext(message) and translation.gettext(message) != message

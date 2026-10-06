@@ -34,3 +34,15 @@ msgstr "O navegador do sistema não conseguiu abrir a página complementar."
 
 msgid "The stop command failed. Use the machine's physical emergency stop if needed."
 msgstr "O comando de parada falhou. Se necessário, use a parada de emergência física da máquina."
+
+msgid "Hand the port to Muse Spark"
+msgstr "Entregar a porta ao Muse Spark"
+
+msgid "Give the port back to Thonny"
+msgstr "Devolver a porta ao Thonny"
+
+msgid "Cannot transfer the port"
+msgstr "Não foi possível transferir a porta"
+
+msgid "Port ownership was not confirmed. Select an explicit serial port, open Muse Spark, and try again. Thonny stays disconnected after an uncertain transfer."
+msgstr "O controle da porta não foi confirmado. Selecione uma porta serial específica, abra o Muse Spark e tente novamente. O Thonny permanece desconectado após uma transferência incerta."
