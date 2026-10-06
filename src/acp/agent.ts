@@ -13,6 +13,7 @@ import { unlessAborted } from '../core/timeouts'
 
 import { randomUUID } from 'node:crypto'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
+import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -63,6 +64,7 @@ import {
   MSP_REQUESTED_CAPABILITIES,
   type PermissionMode,
   UI_TEXT,
+  SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill, uiLocale } from '../shared/l10n/text'
@@ -334,11 +336,11 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      if (this.deps.usage === undefined) return
     }
     this.send({
       sessionUpdate: 'available_commands_update',
       availableCommands: [
+        { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
         ...(this.deps.legalScan === undefined
           ? []
@@ -355,6 +357,7 @@ class AcpSession {
         ...this.skills
           .filter(
             (skill) =>
+              skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
@@ -966,6 +969,38 @@ class AcpSession {
       parsed.parts.every((part) => part.type === 'text')
     )
       return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+    if (
+      parsed.parts.length === 1 &&
+      parsed.parts[0]?.type === 'text' &&
+      parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
+    ) {
+      const preparing: PreparingPrompt = { isCancelled: false }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+      } finally {
+        this.preparing = undefined
+      }
+      if ('error' in preparing) throw preparing.error
+      if (preparing.isCancelled) {
+        await this.outbox
+        return 'cancelled'
+      }
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: {
+          type: 'text',
+          text: compactReference([
+            ACP_COMPACT_COMMAND,
+            ...(this.deps.legalScan === undefined ? [] : ['legal']),
+            ...(this.deps.usage === undefined ? [] : ['usage']),
+            ...this.skills.map((skill) => skill.selector),
+          ]),
+        },
+      })
+      await this.outbox
+      return 'end_turn'
+    }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
     let isUsage: boolean

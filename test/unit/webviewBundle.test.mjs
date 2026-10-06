@@ -223,6 +223,7 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/usageWebview.json', 'utf8')).outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
       ]
         .filter((file, index, files) => files.indexOf(file) === index)
         .filter((file) => file.endsWith('.js'))

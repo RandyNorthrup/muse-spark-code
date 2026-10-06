@@ -1,3 +1,4 @@
+import { webviewKey } from '../../../shared/keybindings'
 import { useId, useState, type ReactNode } from 'react'
 import { USAGE_TEXT } from '../../../shared/l10n/usageTable'
 import { fill, formatList } from '../../../shared/l10n/text'
@@ -90,22 +91,20 @@ export function ChartFrame({
         aria-describedby={`${id}-keyboard ${id}-bucket`}
         onKeyDown={(event) => {
           let next: number
-          switch (event.key) {
-            case 'ArrowLeft':
-            case 'ArrowUp': {
+          switch (webviewKey('usage.chart', event)) {
+            case 'previous': {
               next = Math.max(0, active - 1)
               break
             }
-            case 'ArrowRight':
-            case 'ArrowDown': {
+            case 'next': {
               next = Math.min(points.length - 1, active + 1)
               break
             }
-            case 'Home': {
+            case 'first': {
               next = 0
               break
             }
-            case 'End': {
+            case 'last': {
               next = Math.max(0, points.length - 1)
               break
             }

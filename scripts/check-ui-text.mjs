@@ -4,10 +4,13 @@
 // Loads the actual Node bundles; no editor, credential read or model call.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { brotliDecompressSync } from 'node:zlib'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
+import { z } from 'zod'
+import { loadL10n } from './lib/l10nSource.mjs'
 
 const packageRoot = process.argv[2]
 assert.ok(packageRoot, 'pass the ACP package installed from its tarball')
@@ -58,13 +61,43 @@ loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
+const {
+  ACP_AGENT_NAME,
+  formatAcpUsage,
+  TABLE_LOCALES,
+  readArchivedUiTable,
+  L10N_TABLE_MAX_BYTES,
+  L10N_TABLE_ARCHIVE_FILE,
+} = await loadL10n(process.cwd())
+const usageTable = z.object({
+  acpUsage: z.string(),
+  acpChatGpt: z.object({ usage: z.string() }),
+  helpReferenceTitle: z.string(),
+})
 // --help takes no backend or credential-store action. An English locale
 // variable, because with none the agent takes the runtime's own locale.
-const help = execFileSync(process.execPath, [agent, '--help'], {
-  encoding: 'utf8',
-  env: { LC_ALL: 'en_US.UTF-8' },
-})
-assert.equal(help.trim(), table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp').trim())
+function checkUsage(table, locale) {
+  const help = execFileSync(process.execPath, [agent, '--help'], {
+    encoding: 'utf8',
+    env: { LC_ALL: locale },
+  })
+  assert.equal(help.trim(), formatAcpUsage(usageTable.parse(table), ACP_AGENT_NAME).trim(), locale)
+}
+checkUsage(table, 'en_US.UTF-8')
+const archiveFile = path.join(packageRoot, 'l10n', L10N_TABLE_ARCHIVE_FILE)
+const archive = existsSync(archiveFile)
+  ? brotliDecompressSync(readFileSync(archiveFile), {
+      maxOutputLength: L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length,
+    }).toString('utf8')
+  : undefined
+for (const locale of TABLE_LOCALES) {
+  const text =
+    archive === undefined
+      ? readFileSync(path.join(packageRoot, 'l10n', `ui.${locale}.json`), 'utf8')
+      : readArchivedUiTable(archive, locale)
+  assert.ok(text, `the installed ACP package lacks ${locale}`)
+  checkUsage(JSON.parse(text), locale)
+}
 console.log(
-  'ok   extension, Model API, review and installed ACP tarball load the shared English fallback',
+  `ok   extension, Model API, review and installed ACP tarball load the shared English fallback; complete ACP help matches English and ${TABLE_LOCALES.length} installed languages`,
 )

@@ -26,6 +26,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
 import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
 import type { ExecResult } from '../../src/runtime/exec/execProtocol'
+import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
@@ -38,9 +39,8 @@ const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
-// TRAIN15E: five cold exec starts improve on 0.14.1; this first package also
-// compresses its archive and checks 33 native APIs. Only its cold fixture gets
-// 60 seconds on the Windows rig; cached packaging and exec retain 30 seconds.
+// The real cold archive and native API checks run once in beforeAll.
+// Each package guard gets an independent copy; ordinary operations keep 30 seconds.
 const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
 // The production build and pack before the built rows: about a minute on the
@@ -101,8 +101,8 @@ function command(
     cwd,
     env: {
       ...process.env,
-      LANG: 'C',
-      LC_ALL: 'C',
+      LANG: 'en_US.UTF-8',
+      LC_ALL: 'en_US.UTF-8',
       BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E e2e packaging',
       ...env,
     },
@@ -262,6 +262,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'hookRuntime',
     'extensionHooks',
     'recorder',
+    'reference',
     'uiText',
     'uiTextRuntime',
     'uiTextHooks',
@@ -282,6 +283,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
     recursive: true,
   })
@@ -316,19 +319,37 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 }
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
-  it(
-    'ships exact committed schemas, keeps production bin, and never packs the test launcher',
-    { timeout: COLD_PACKAGE_TIMEOUT_MS },
-    () => {
-      const dir = packagingFixture()
-      const run = command(
+  let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
+
+  function productionFixture(): string {
+    if (preparedPackage === undefined) throw new Error('Missing prepared production package')
+    if (preparedPackage.run.status !== 0)
+      throw new Error(preparedPackage.run.stdout + preparedPackage.run.stderr)
+    const dir = mkdtempSync(path.join(WORK, 'package space-'))
+    cpSync(preparedPackage.dir, dir, { recursive: true })
+    return dir
+  }
+
+  beforeAll(() => {
+    const dir = packagingFixture()
+    preparedPackage = {
+      dir,
+      run: command(
         path.join(dir, 'scripts', 'package-acp.mjs'),
         dir,
         [],
         {},
         COLD_PACKAGE_TIMEOUT_MS,
-      )
-      expect(run.status, run.stderr).toBe(0)
+      ),
+    }
+  }, COLD_PACKAGE_TIMEOUT_MS)
+  it(
+    'ships exact committed schemas, keeps production bin, and never packs the test launcher',
+    { timeout: COLD_PACKAGE_TIMEOUT_MS },
+    () => {
+      if (preparedPackage === undefined) throw new Error('Missing prepared production package')
+      const { dir, run } = preparedPackage
+      expect(run.status, run.stdout + run.stderr).toBe(0)
       const stage = path.join(dir, 'dist', 'acp-package')
       const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
       for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
@@ -352,12 +373,16 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
             ),
           ),
         )
-      expect(tables.locales).toEqual(['de'])
-      const expected: Readonly<Record<string, unknown>> = {
-        fixture: 'Beispiel',
-        count: { one: '{count} Eintrag', other: '{count} Einträge' },
-      }
-      expect(tables.values[0]).toEqual(tables.keys.map((key: string) => expected[key]))
+      // The package ships every table, independently of the process locale.
+      // Inspect German explicitly; the old assertion belonged to a tiny fixture
+      // that TRAIN15E replaced with the production tables.
+      expect(tables.locales).toEqual(TABLE_LOCALES.toSorted((a, b) => a.localeCompare(b, 'en')))
+      const expected = z
+        .record(z.string(), z.unknown())
+        .parse(JSON.parse(readFileSync(path.join(dir, 'l10n/ui.de.json'), 'utf8')))
+      expect(tables.values[tables.locales.indexOf('de')]).toEqual(
+        tables.keys.map((key) => expected[key]),
+      )
       const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
       expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
       expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
@@ -407,8 +432,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   )
 
   it('packs distinct private fake-only tarball without changing production stage or digest', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const product = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
     const digest = () => createHash('sha256').update(readFileSync(product)).digest('hex')
     const before = digest()
@@ -431,8 +455,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   })
 
   it('refuses missing test launcher rather than emitting a product-like test success', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     rmSync(path.join(dir, 'test', 'action', 'exec-test-launcher.ts'))
     expect(command(path.join(dir, 'scripts', 'package-acp-test.mjs'), dir).status).not.toBe(0)
     expect(existsSync(path.join(dir, 'dist', 'acp-test-package'))).toBe(false)
@@ -449,8 +472,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'dist/configuredProviders.js',
     'dist/providerCatalog.js',
   ])('build tarball guard rejects missing %s', (missing) => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
     const step = workflow.split(
       "- name: the agent's package carries its bundles, tables, notices and manifest",
@@ -495,8 +517,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   it.each(['name', 'bin', 'version'])(
     'refuses wrong production %s before test staging',
     (fault) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+      const dir = productionFixture()
       const source = path.join(dir, 'dist', 'acp-package', 'package.json')
       const manifest: Record<string, unknown> = JSON.parse(readFileSync(source, 'utf8'))
       if (fault === 'name') manifest['name'] = 'wrong-package'
@@ -509,8 +530,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   )
 
   it('refuses a directory in place of a required test-package schema', () => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const schema = path.join(dir, 'dist', 'acp-package', 'schemas', 'exec-result-v1.schema.json')
     rmSync(schema)
     mkdirSync(schema)
@@ -521,8 +541,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   it.each(['empty', 'path'])(
     'refuses %s npm pack output instead of renaming a directory',
     (fault) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+      const dir = productionFixture()
       const bin = path.join(dir, 'bin')
       mkdirSync(bin)
       const shim = path.join(bin, process.platform === 'win32' ? 'npm.cmd' : 'npm')
@@ -555,8 +574,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'schema-required',
     'schema-empty',
   ])('host store guard/cleanup: %s', (state) => {
-    const dir = packagingFixture()
-    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const dir = productionFixture()
     const stage = path.join(dir, 'dist', 'acp-package')
     const calls = path.join(dir, 'auth-calls')
     writeFileSync(path.join(stage, 'dist', 'uiText.js'), 'exports.EN={acpKeyAbsent:"absent"};')

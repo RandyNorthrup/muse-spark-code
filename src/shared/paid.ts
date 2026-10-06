@@ -5,6 +5,7 @@
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import type { ModelPricing } from '../core/providers/priceCard'
+import { isJudgeEngineOn } from '../core/judge/engine'
 import {
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
@@ -16,6 +17,9 @@ import {
   MODEL_API_PRICE_DECIMALS,
   PROVIDER_PRICE_MAX_DECIMALS,
   PAID_FEATURES,
+  PAID_FEATURE_SETTINGS,
+  type JudgeEngine,
+  type SETTING_DEFAULTS,
   PAID_PRICES_USD,
   type PaidFeature,
   SUBAGENT_TASK_MAX_REQUESTS,
@@ -52,6 +56,75 @@ export interface TeamWorkerConfirmation {
   readonly modelId: string
   /** The task's token ceiling, from the entry's `task` caps or the level. */
   readonly taskCeilingTokens: number
+}
+
+/** Runtime paid-use identity: popup grants, tally fields and reference claims. */
+export const PAID_USE_REGISTRY = {
+  webSearch: { featureId: 'search', tally: 'webSearches', once: 'use' },
+  imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
+  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
+  subagents: {
+    featureId: 'subagents',
+    tally: 'subagentRequests',
+    unknown: 'subagentUnknownRequests',
+    once: 'use',
+  },
+  scheduledPrompts: { featureId: 'schedules', tally: 'scheduledRuns', once: 'use' },
+  autoReviewer: {
+    featureId: 'auto',
+    tally: 'autoReviews',
+    unknown: 'autoReviewUnknownRequests',
+    once: 'use',
+  },
+  bestOfN: { featureId: 'best-of-n', tally: 'bestOfNAttempts', once: 'use' },
+  tab: { featureId: 'tab', tally: 'tabRequests', once: 'window' },
+  hookModels: {
+    featureId: 'hook-models',
+    tally: 'hookModelRuns',
+    unknown: 'hookModelUnknownRequests',
+    once: 'use',
+  },
+  legalExplanation: {
+    featureId: 'legal-explanation',
+    tally: 'legalExplanations',
+    unknown: 'legalExplanationUnknownRequests',
+    once: 'use',
+  },
+  teamWorkers: {
+    featureId: 'team-workers',
+    tally: 'teamWorkerRequests',
+    unknown: 'teamWorkerUnknownRequests',
+    once: 'use',
+  },
+  judge: { featureId: 'judge', tally: 'judgeCalls', unknown: 'judgeUnknownRequests', once: 'use' },
+} as const satisfies Readonly<
+  Record<
+    PaidFeature,
+    {
+      readonly featureId: string
+      readonly tally: keyof PaidTally
+      readonly unknown?: keyof PaidTally
+      readonly once: 'use' | 'window'
+    }
+  >
+>
+
+/** A boolean switch and the judge enum use their actual runtime predicates. */
+export function isPaidSettingOn(
+  feature: PaidFeature,
+  settings: {
+    readonly [
+      K in (typeof PAID_FEATURE_SETTINGS)[PaidFeature]
+    ]: (typeof SETTING_DEFAULTS)[K] extends boolean ? boolean : JudgeEngine
+  },
+): boolean {
+  return feature === 'judge'
+    ? isJudgeEngineOn(settings['judge.engine'])
+    : settings[PAID_FEATURE_SETTINGS[feature]]
+}
+
+export function paidWindowOnceFeatures(): ReadonlySet<PaidFeature> {
+  return new Set(PAID_FEATURES.filter((feature) => PAID_USE_REGISTRY[feature].once === 'window'))
 }
 
 /** Exact published rates and the task's HTTP attempt cap, in the installed locale. */

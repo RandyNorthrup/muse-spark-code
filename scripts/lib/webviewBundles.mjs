@@ -44,6 +44,7 @@ export function webviewEntryMetafile(meta, entry) {
 // Additional lazy closures have measured caps. The original optional surfaces
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
+  { name: 'help reference', entries: ['src/webview/components/ReferencePage.tsx'], budgetKiB: 50 },
   {
     // TRAIN15C: 4,018 bytes +15%, rounded up to 25 KiB (D6).
     name: 'paid usage',

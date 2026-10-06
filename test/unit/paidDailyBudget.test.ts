@@ -2,6 +2,7 @@ import { mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import type { CreateImageBody, CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
@@ -194,9 +195,18 @@ describe('D78 interactive paid daily budget', () => {
     expect(settled[0]?.budget.spentUsd).toBe(0)
   })
 
-  it('keeps the unused packing default flip byte-exact, including tools and cache key', async () => {
+  it('declares recall when packing is enabled and keeps paid admission byte-exact in each mode', async () => {
     const plain = await ordinaryRequest(false, false, false)
-    expect(await ordinaryRequest(true, false, false)).toBe(plain)
+    const packing = await ordinaryRequest(true, false, false)
+    expect(plain).not.toContain('"name":"recall_output"')
+    expect(packing).toContain('"name":"recall_output"')
+    const request = z.object({ prompt_cache_key: z.string() })
+    expect(request.parse(JSON.parse(packing)).prompt_cache_key).not.toBe(
+      request.parse(JSON.parse(plain)).prompt_cache_key,
+    )
+    expect(packing).not.toBe(plain)
+    expect(await ordinaryRequest(false, true, false)).toBe(plain)
+    expect(await ordinaryRequest(true, true, false)).toBe(packing)
   })
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {

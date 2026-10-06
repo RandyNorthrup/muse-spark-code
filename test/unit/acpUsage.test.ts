@@ -99,6 +99,11 @@ describe('ACP local usage command', () => {
     expect(h.updates).toContainEqual({
       sessionUpdate: 'available_commands_update',
       availableCommands: [
+        {
+          name: 'help',
+          description: 'Commands, settings and features, with descriptions and documentation.',
+          input: null,
+        },
         { name: 'compact', description: 'Summarise older context to free the window', input: null },
         {
           name: 'usage',
@@ -176,7 +181,11 @@ describe('ACP local usage command', () => {
     })
     for (const update of h.updates)
       if (update.sessionUpdate === 'available_commands_update')
-        expect(update.availableCommands.map((item) => item.name)).toEqual(['compact', 'usage'])
+        expect(update.availableCommands.map((item) => item.name)).toEqual([
+          'help',
+          'compact',
+          'usage',
+        ])
   })
 
   it('honors cancellation during a journal read and refuses a second prompt while it is running', async () => {

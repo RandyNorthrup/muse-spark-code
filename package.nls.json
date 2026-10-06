@@ -45,10 +45,10 @@
   "config.preferredLocation.enumDescriptions.sidebar": "Open new conversations in the Muse Spark sidebar view.",
   "config.preferredLocation.enumDescriptions.panel": "Open new conversations as editor tabs.",
   "config.initialPermissionMode.description": "Permission mode for new conversations.",
-  "config.initialPermissionMode.enumDescriptions.manual": "Manual: ask before most actions.",
-  "config.initialPermissionMode.enumDescriptions.acceptEdits": "Edit automatically: auto-approve file edits except protected files; commands still ask. On Muse Code the same as Manual.",
-  "config.initialPermissionMode.enumDescriptions.plan": "Plan: research only until the plan is approved.",
-  "config.initialPermissionMode.enumDescriptions.auto": "Auto: file edits run without asking (protected files ask); a command asks unless a rule, Muse Code’s judgement of it as simple, or an Auto reviewer allows it.",
+  "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse will ask before running commands; Muse Code edits workspace files without asking\nmodelApi: Muse will ask for approval before each edit and each command",
+  "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmodelApi: Muse will edit files without asking and ask before running commands",
+  "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmodelApi: Muse will explore the code and present a plan before editing",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "Bypass permissions: edits and commands run without asking, but paid uses still ask and forbid rules still refuse (use only in sandboxes).",
   "config.archiveInactiveSessions.description": "Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them).",
   "config.archiveInactiveSessions.enumDescriptions.1": "Hide sessions idle for a day.",
@@ -138,7 +138,7 @@
   "config.showWhatsNewOnUpdate.description": "On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.",
   "config.paidDailyBudgetUsd.description": "Shared daily budget in USD for interactive paid Model API extras, across windows and keys. Default 5.00; range 0.50–500. Reserves before sending and refuses unreadable storage. Tab’s separate budget is not included. ACP and headless flags and budgets are unchanged.",
   "config.dictationEngine.description": "Dictation engine on Model API. Free OS recognizer is the default; choosing Muse Voice requires paid-use consent and verified budget admission. Muse Code’s explicit voice opt-in is unchanged.",
-  "config.modelApiTab.description": "Paid, on by default; asks once before the first request in each window. On the Model API backend, suggests ghost-text completions as you type, billed to your Model API key: about $0.80 per hour of typical typing on Standard, about $0.05 on the contributor model. The hard daily budget defaults to $1.00 across all windows on this machine. The existing paid modal names the price and budget: Allow once covers this window, Allow always in this workspace remembers consent, and Deny snoozes Tab here. Nothing is sent before an allowing answer. Copilot, if on, is yielded to for its languages unless you run both.",
+  "config.modelApiTab.description": "Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.\nHard daily budget in US dollars for Tab completion requests across every window on this machine; a request whose worst case would pass it is not sent. From $0.05 to $50.\nAllow once / Allow always in this workspace.",
   "config.tabModel.description": "The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent.",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standard rates, no training on your code.",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: contributor rates, Meta trains on the code it is sent.",
@@ -184,5 +184,6 @@
   "setting.usageHistory.description": "Record model usage locally on this machine. Turning this off stops new records; live limits and budgets remain visible.",
   "setting.usageHistoryDays.description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
   "command.connectChatGpt": "Continue with ChatGPT",
-  "command.connectCopilot": "Use my Copilot models"
+  "command.connectCopilot": "Use my Copilot models",
+  "command.openHelp.title": "Open Help & Reference"
 }

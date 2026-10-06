@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The Agent map (PLAN.md D17), as Claude Code's: this conversation on the
 // left, the subagents it spawned on the right (objective, role, status,
 // duration, tokens), the workflow runs and their agents (M47), the
@@ -173,7 +174,7 @@ function AgentControls({
               setBody(event.target.value)
             }}
             onKeyDown={(event) => {
-              if (event.key !== 'Enter') {
+              if (webviewKey('agent.message', event) !== 'send') {
                 return
               }
               event.preventDefault()

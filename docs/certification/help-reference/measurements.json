@@ -1,0 +1,40 @@
+{
+  "rig": "macmini",
+  "base": "2d4d72bd",
+  "baselineStartupBytes": 914658,
+  "startupBytes": 899489,
+  "startupDeltaBytes": -15169,
+  "startupCapBytes": 921600,
+  "counts": {
+    "features": 41,
+    "commands": 44,
+    "settings": 58,
+    "slash": 26,
+    "cliEntries": 12,
+    "safeRunCommands": 8
+  },
+  "bundleBytes": {
+    "dist/extension.js": 448206,
+    "dist/modelApi.js": 457348,
+    "dist/acp.js": 838806,
+    "dist/reference.js": 82279,
+    "dist/webview/referencePage.js": 29357,
+    "dist/webview/referencePage.css": 1462
+  },
+  "a11y": {
+    "pages": 16,
+    "languages": ["en", "fr"],
+    "themes": ["light", "dark", "hc-dark", "hc-light"],
+    "violations": 0
+  },
+  "screenshots": {
+    "wide": {
+      "width": 1000,
+      "height": 760
+    },
+    "narrow": {
+      "width": 320,
+      "height": 760
+    }
+  }
+}

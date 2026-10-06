@@ -266,6 +266,12 @@ const modelApiOptions = {
   target: HOST_NODE_TARGET,
 }
 
+const referenceOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/shared/reference/referenceEntry.ts'],
+  outfile: 'dist/reference.js',
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const modelApiBoundariesOptions = {
   ...modelApiOptions,
@@ -690,14 +696,31 @@ const browserReviewComment = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction
-    ? [sharedHighlightGrammar, inlineBrowserEnglish('browser'), browserReviewComment]
-    : [sharedHighlightGrammar, browserReviewComment],
+  plugins: [
+    sharedHighlightGrammar,
+    ...(isProduction ? [inlineBrowserEnglish('browser')] : []),
+    browserReviewComment,
+    {
+      name: 'reference-caller-react',
+      setup(build) {
+        build.onLoad({ filter: /[/\\]ReferencePage\.tsx$/ }, async (args) => {
+          const result = await esbuild.transform(readFileSync(args.path, 'utf8'), {
+            loader: 'tsx',
+            jsx: 'transform',
+            jsxFactory: 'React.createElement',
+            jsxFragment: 'React.Fragment',
+          })
+          return { contents: result.code, loader: 'js', resolveDir: path.dirname(args.path) }
+        })
+      },
+    },
+  ],
   charset: 'utf8',
   entryPoints: {
     main: WEBVIEW_ENTRY,
     models: MODELS_WEBVIEW_ENTRY,
     usage: USAGE_WEBVIEW_ENTRY,
+    referencePage: 'src/webview/components/ReferencePage.tsx',
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
   },
   outdir: WEBVIEW_OUTDIR,
@@ -755,6 +778,7 @@ if (isWatch) {
     esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
+    esbuild.context(referenceOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -832,6 +856,7 @@ if (isWatch) {
     configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
@@ -917,6 +942,7 @@ if (isWatch) {
           modelsWebview: 'dist/webview/models.js',
           whatsNewPage: 'dist/webview/whatsNew.js',
           usageWebview: 'dist/webview/usage.js',
+          referencePage: 'dist/webview/referencePage.js',
         }
         for (const [page, entry] of Object.entries(pages)) {
           writeFileSync(
@@ -942,6 +968,7 @@ if (isWatch) {
   reportSize(CONFIGURED_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
+  reportSize('dist/reference.js')
   reportSize(REVIEWER_OUTFILE)
   reportSize(TEAM_OUTFILE)
   reportSize(TEAM_RUNNERS_OUTFILE)

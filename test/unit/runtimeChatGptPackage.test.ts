@@ -12,11 +12,13 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import * as z from 'zod/mini'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const roots: string[] = []
+// Cold solid-archive compression and native export checks exceed five seconds.
+const ARCHIVE_SETUP_TIMEOUT_MS = 60_000
 // Drive-letter archive names require native bsdtar; Git's GNU tar treats
 // their colon as a remote host when Git Bash is on the hook PATH.
 const TAR =
@@ -50,6 +52,8 @@ function fixture() {
     )
   writeFileSync(path.join(dir, 'scripts/package-acp.mjs'), script)
   cpSync('src/shared', path.join(dir, 'src/shared'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  cpSync('src/runtime/cliOptions.ts', path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync('src/core/whatsNew', path.join(dir, 'src/core/whatsNew'), { recursive: true })
   for (const name of readdirSync('.')) {
     if (/^package\.nls.*\.json$/.test(name)) cpSync(name, path.join(dir, name))
@@ -89,6 +93,7 @@ function fixture() {
     'foreignHooks',
     'hookRuntime',
     'recorder',
+    'reference',
     'extensionHooks',
     'uiTextRuntime',
     'uiTextHooks',
@@ -129,9 +134,14 @@ function pack(dir: string) {
 }
 
 describe('ChatGPT ACP package', () => {
-  it('ships the lazy ChatGPT runtime in the actual npm tarball', () => {
+  let prepared: { dir: string; run: ReturnType<typeof pack> } | undefined
+  beforeAll(() => {
     const dir = fixture()
-    const run = pack(dir)
+    prepared = { dir, run: pack(dir) }
+  }, ARCHIVE_SETUP_TIMEOUT_MS)
+  it('ships the lazy ChatGPT runtime in the actual npm tarball', () => {
+    if (prepared === undefined) throw new Error('Missing prepared package fixture')
+    const { dir, run } = prepared
     expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
     const archive = path.join(dir, 'dist/muse-spark-code-acp-0.0.0.tgz')
     const extracted = spawnSync(TAR, ['-xOzf', archive, 'package/dist/runtime.bundles.json.br'])

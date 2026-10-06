@@ -1203,6 +1203,25 @@ for (const source of ['TeamUi', 'TeamTree', 'TeamCards']) {
     problems.push(`${source} must occur in the separately budgeted team UI chunk`)
 }
 
+// HELPREF: the page/data stay lazy and share the caller's React and language.
+const referencePage = JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8'))
+if (!referencePage.inputs['src/webview/components/ReferencePage.tsx'])
+  problems.push('Reference page is missing from its own entry')
+for (const source of Object.keys(referencePage.inputs)) {
+  if (source === 'src/shared/l10n/en.ts' || source.includes('node_modules/react/'))
+    problems.push(`Reference page duplicates runtime: ${source}`)
+}
+for (const file of webviewStartupOutputs(webviewMeta)) {
+  if (
+    Object.keys(webviewMeta.outputs[file].inputs).some(
+      (source) =>
+        source === 'src/webview/components/ReferencePage.tsx' ||
+        source === 'src/shared/reference/reference.generated.ts',
+    )
+  )
+    problems.push('Reference page or data entered chat startup')
+}
+
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
 const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
 const validationExports = new Set(
@@ -1217,6 +1236,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'modelsWebview.json',
         'whatsNewPage.json',
         'usageWebview.json',
+        'referencePage.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

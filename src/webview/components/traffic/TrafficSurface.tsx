@@ -1,3 +1,4 @@
+import { webviewKey } from '../../../shared/keybindings'
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react'
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { type TrafficSurfaceProps } from './TrafficView'
@@ -49,22 +50,20 @@ export default function TrafficSurface(props: TrafficSurfaceProps) {
     const target = event.currentTarget
     const index = tabs.findIndex((tab) => tabButtons.current.get(tab) === target)
     let next: number
-    switch (event.key) {
-      case 'ArrowRight':
-      case 'ArrowDown': {
+    switch (webviewKey('traffic.tabs', event)) {
+      case 'next': {
         next = (index + 1) % tabs.length
         break
       }
-      case 'ArrowLeft':
-      case 'ArrowUp': {
+      case 'previous': {
         next = (index - 1 + tabs.length) % tabs.length
         break
       }
-      case 'Home': {
+      case 'first': {
         next = 0
         break
       }
-      case 'End': {
+      case 'last': {
         next = tabs.length - 1
         break
       }

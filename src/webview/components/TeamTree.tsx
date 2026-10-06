@@ -1,3 +1,4 @@
+import { webviewKey, webviewCharacter } from '../../shared/keybindings'
 // The team's tree (M96 lane U2, PLAN.md D75): the orchestrator at the root,
 // roles with their charter summary, mode and tools, pool entries with
 // provider, model, caps and headroom, and each entry's workers with brief,
@@ -474,16 +475,19 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
     if (target instanceof HTMLButtonElement) {
       const buttons = [...(elements.current.get(node.id)?.querySelectorAll('button') ?? [])]
       const index = buttons.indexOf(target)
-      if (event.key === 'Escape') {
+      if (webviewKey('team.tree', event) === 'close') {
         event.preventDefault()
         focus(node.id)
-      } else if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
+      } else if (
+        webviewKey('team.tree', event) === 'increase' ||
+        webviewKey('team.tree', event) === 'decrease'
+      ) {
         event.preventDefault()
-        buttons[index + (event.key === 'ArrowRight' ? 1 : -1)]?.focus()
+        buttons[index + (webviewKey('team.tree', event) === 'increase' ? 1 : -1)]?.focus()
       }
       return
     }
-    if (event.key === 'F2') {
+    if (webviewKey('team.tree', event) === 'actions') {
       const button = elements.current.get(node.id)?.querySelector('button')
       if (button !== null && button !== undefined) {
         event.preventDefault()
@@ -492,8 +496,8 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
       return
     }
     const index = visible.findIndex((candidate) => candidate.id === node.id)
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('team.tree', event)) {
+      case 'next': {
         const below = visible[index + 1]
         if (below !== undefined) {
           event.preventDefault()
@@ -501,7 +505,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         }
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         const above = visible[index - 1]
         if (above !== undefined) {
           event.preventDefault()
@@ -509,7 +513,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         }
         break
       }
-      case 'Home': {
+      case 'first': {
         const first = visible[0]
         if (first !== undefined) {
           event.preventDefault()
@@ -517,7 +521,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         }
         break
       }
-      case 'End': {
+      case 'last': {
         const last = visible.at(-1)
         if (last !== undefined) {
           event.preventDefault()
@@ -525,7 +529,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         }
         break
       }
-      case 'ArrowRight': {
+      case 'increase': {
         event.preventDefault()
         if (node.expandable && !expanded.has(node.id)) {
           setExpanded(new Set(expanded).add(node.id))
@@ -537,7 +541,7 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         }
         break
       }
-      case 'ArrowLeft': {
+      case 'decrease': {
         event.preventDefault()
         if (node.expandable && expanded.has(node.id)) {
           const next = new Set(expanded)
@@ -549,13 +553,14 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
         break
       }
       default: {
-        if (event.key.length === 1) {
+        const character = webviewCharacter(event)
+        if (character !== undefined) {
           // The event's own timestamp keeps the component pure (no Date.now in render).
           const at = event.timeStamp
           const text =
             at - typeahead.current.at > TEAM_TREE_TYPEAHEAD_MS
-              ? event.key
-              : typeahead.current.text + event.key
+              ? character
+              : typeahead.current.text + character
           typeahead.current = { text, at }
           const match = [...visible.slice(index + 1), ...visible.slice(0, index + 1)].find(
             (candidate) => candidate.label.toLowerCase().startsWith(text.toLowerCase()),

@@ -15,6 +15,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Generate Help & Reference for the train's providers, usage, legal scan,
+  teams and compaction, including their current CLI routes and paid-budget
+  conditions. Keep the reference lazy and losslessly encoded within its
+  existing bundle cap.
+
+- Keep release package fixtures current with the canonical CLI help source
+  and required Help bundle. Run package rejection cases independently under
+  the default test deadline, and check installed ACP help in all archived
+  languages without changing request goldens.
+
 - Record production headless BYO usage at the shared transport boundary, enforce a shared ACP/headless daily budget before dispatch, and defer optional hooks and MCP connections to preserve Model API headroom. New train bundles have measured budgets; existing startup and universal package caps stay fixed.
 
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
@@ -321,6 +331,9 @@ with Your Own Model` wizard (in-memory draft; Save writes
   requirements. The command is planned; this change adds no product code.
 
 ### Fixed
+
+- Preserve the macOS helper's executable ZIP mode when packaging on Windows.
+  Exclude optional fonts, source maps and unused model-catalog build provenance.
 
 - Archived Node bundles retain their named exports under native `import()` and
   `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
@@ -1100,6 +1113,90 @@ with Your Own Model` wizard (in-memory draft; Save writes
 
 - Pin the fixed development-only source-map-js 1.2.2 patch for
   GHSA-68fv-2mgg-jv7q; preserve the existing dependency audit policy.
+
+### Security
+
+- Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
+  within npm-run-all2's existing dependency range.
+
+### Fixed
+
+- The release-artifact check validates complete ACP help, including its reference
+  hint, in English and every installed language using the CLI's shared formatter.
+
+- The report CLI help test follows the documented complete-reference contract
+  for subcommand `--help` and `-h`.
+
+- The Help reference gate accepts Windows file paths and continues checking
+  keyboard dispatch against the runtime registry.
+
+- Activation paid-setting checks are directly importable in tests, and ACP
+  stdio checks include the localized Help reference hint.
+
+### Performance
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
+
+## [0.14.2] - 2026-10-06
+
+### Fixed
+
+- Hungarian Help translations now package correctly alongside the other languages.
+
+- Help includes the shell credential pass-through setting and its restrictions
+  on interactive Model API commands.
+
+- Best-of-N help states the implemented shared parent-budget prerequisite in
+  all fourteen languages. The reference guard rejects state predicates across
+  every emitted description, including shortcuts, enum meanings and facts;
+  conditional text retains typed selectors on every help surface.
+
+- Help keeps conditional state in typed descriptions with a rejecting guard
+  for new plain-text claims. Hooks describes both backends, and secret-scanner
+  help explains scanning and in-memory key matching without storage.
+
+- Auto help names both command reviewers, their rule precedence and paid
+  admission, and separates ordinary model questions from private MCP form replies.
+
+- Help search matches the JSON text displayed for schemas, facts and CLI
+  contracts. Markdown preserves argument placeholders in every prose field,
+  and the modal keyboard row includes both Tab and Shift+Tab from its handler table.
+
+- Help derives keyboard actions, CLI options and paid identities from the tables
+  used at runtime, preserves enum defaults and meanings, and describes conditional
+  availability explicitly. All descriptions have catalogue translations. Search
+  includes displayed shortcut text and keeps related command targets visible.
+  Headless image help states its flag, mode and budget admission without promising
+  an interactive price question. Deferred and headless package reference-bundle
+  fixtures are complete.
+
+- Help now distinguishes host/backend combinations, subscription and key billing,
+  paid defaults and actual voice/Tab availability. It retains setting schemas,
+  command prerequisites and CLI/slash syntax, refreshes skills on first ACP help,
+  uses installed manifest translations in CLI help, and offers retry after a
+  help-loading failure. The reference gate checks these source inventories.
+
+### Added
+
+- **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
+  a lazy, searchable shared-webview page for features, commands, settings,
+  slash syntax, CLI options and keyboard actions. Current/default values, direct setting links,
+  safe command actions and documentation use all 14 translated tables. ACP
+  `/help` answers locally; CLI `help --all` prints the generated reference.
+  `check:reference` guards catalogue coverage and generated-file freshness.
+
+### Performance
+
+- Frequent Help reference values use shorter lossless dictionary tokens, keeping
+  the complete reference within its existing bundle limit.
+
+- Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
 
 ## [0.14.1] - 2026-10-05
 

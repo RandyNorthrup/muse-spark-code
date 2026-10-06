@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliCompressSync } from 'node:zlib'
+import { brotliCompressSync, constants } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { isPluralForms } from '../../src/shared/l10n/forms'
@@ -10,6 +10,8 @@ import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 const root = process.cwd()
 const script = path.join(root, 'scripts/check-l10n.mjs')
 const fixture = { root: '' }
+// Compression speed is irrelevant to the gate's decoded-value validation.
+const TEST_BROTLI_OPTIONS = { params: { [constants.BROTLI_PARAM_QUALITY]: 1 } }
 function writeJson(file, value) {
   writeFileSync(path.join(fixture.root, file), JSON.stringify(value))
 }
@@ -61,20 +63,13 @@ beforeEach(async () => {
   cpSync(path.join(root, 'src/core/whatsNew'), path.join(fixture.root, 'src/core/whatsNew'), {
     recursive: true,
   })
+  mkdirSync(path.join(fixture.root, 'src/runtime'), { recursive: true })
+  cpSync(
+    path.join(root, 'src/runtime/cliOptions.ts'),
+    path.join(fixture.root, 'src/runtime/cliOptions.ts'),
+  )
   const { TABLE_LOCALES } = await loadL10n(root)
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
-  // Lane W owns these actual references. The fixture completes its future
-  // manifest solely to isolate tests of the gate; no production fake exists.
-  manifest.contributes.commands.push({
-    command: 'museSpark.openUsagePage',
-    title: '%command.openUsagePage.title%',
-  })
-  manifest.contributes.configuration.properties['museSpark.usageHistory'] = {
-    description: '%setting.usageHistory.description%',
-  }
-  manifest.contributes.configuration.properties['museSpark.usageHistoryDays'] = {
-    description: '%setting.usageHistoryDays.description%',
-  }
   writeJson('package.json', manifest)
   for (const locale of ['', ...TABLE_LOCALES]) {
     const file = `package.nls${locale === '' ? '' : `.${locale}`}.json`
@@ -114,22 +109,25 @@ describe('both localization families', () => {
     expect(result.output).toContain('recordCount: ru uses the forms few, many, one, other')
   })
 
-  it('keeps usage untranslated exceptions separate and validates their key names', () => {
-    const file = 'l10n/usage.de.json'
-    const german = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
-    german.refresh = USAGE_EN.refresh
-    writeJson(file, german)
-    expect(runGate().code).toBe(1)
-    const exceptions = JSON.parse(
-      readFileSync(path.join(fixture.root, 'l10n/untranslated.json'), 'utf8'),
-    )
-    exceptions.usage = { de: ['refresh'] }
-    writeJson('l10n/untranslated.json', exceptions)
-    expect(runGate().code).toBe(0)
-    exceptions.usage.de.push('missing.key')
-    writeJson('l10n/untranslated.json', exceptions)
-    expect(runGate().output).toContain('usage.de: missing.key: not a string of the usage table')
-  })
+  it.each(['absent', 'allowed', 'unknown'])(
+    'keeps usage untranslated exceptions separate: %s',
+    (kind) => {
+      const file = 'l10n/usage.de.json'
+      const german = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
+      german.refresh = USAGE_EN.refresh
+      writeJson(file, german)
+      const exceptions = JSON.parse(
+        readFileSync(path.join(fixture.root, 'l10n/untranslated.json'), 'utf8'),
+      )
+      if (kind !== 'absent') exceptions.usage = { de: ['refresh'] }
+      if (kind === 'unknown') exceptions.usage.de.push('missing.key')
+      writeJson('l10n/untranslated.json', exceptions)
+      const result = runGate()
+      expect(result.code).toBe(kind === 'allowed' ? 0 : 1)
+      if (kind === 'unknown')
+        expect(result.output).toContain('usage.de: missing.key: not a string of the usage table')
+    },
+  )
 
   it('guards module-load reads of usage text, including import aliases', () => {
     writeFileSync(
@@ -142,64 +140,70 @@ describe('both localization families', () => {
     expect(result.output).toContain('T read at module load')
   })
 
-  it('checks all packaged usage tables byte-for-byte and strictly against their schema', async () => {
-    const stage = path.join(fixture.root, 'stage')
-    mkdirSync(stage)
-    cpSync(path.join(fixture.root, 'l10n'), path.join(stage, 'l10n'), { recursive: true })
-    for (const name of [
-      'package.json',
-      ...[
-        '',
-        'zh-cn',
-        'zh-tw',
-        'ja',
-        'ko',
-        'de',
-        'fr',
-        'es',
-        'pt-br',
-        'ru',
-        'it',
-        'tr',
-        'pl',
-        'cs',
-        'hu',
-      ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
-    ])
-      cpSync(path.join(fixture.root, name), path.join(stage, name))
-    const { TABLE_LOCALES } = await loadL10n(root)
-    const ui = TABLE_LOCALES.map((locale) =>
-      JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
-    )
-    const keys = Object.keys(ui[0])
-    writeFileSync(
-      path.join(stage, 'l10n/ui.tables.json.br'),
-      brotliCompressSync(
-        JSON.stringify({
-          version: 1,
-          keys,
-          locales: TABLE_LOCALES,
-          values: ui.map((table) => keys.map((key) => table[key])),
-        }),
-      ),
-    )
-    const usage = Object.fromEntries(
-      TABLE_LOCALES.map((locale) => [
-        locale,
-        JSON.parse(readFileSync(path.join(stage, 'l10n', `usage.${locale}.json`), 'utf8')),
-      ]),
-    )
-    const file = path.join(stage, 'l10n/usage.tables.json.br')
-    writeFileSync(file, brotliCompressSync(JSON.stringify(usage)))
-    expect(runGate(['--packaged', stage])).toEqual({
-      code: 0,
-      output: expect.stringContaining('0 problems'),
-    })
-    delete usage.de.title
-    writeFileSync(file, brotliCompressSync(JSON.stringify(usage)))
-    const result = runGate(['--packaged', stage])
-    expect(result.code).toBe(1)
-    expect(result.output).toContain('packaged l10n/usage.de.json: differs from source')
-    expect(result.output).toContain('packaged l10n/usage.de.json: title: missing')
-  })
+  it.each(['complete', 'missing'])(
+    'checks packaged usage tables byte-for-byte: %s',
+    async (kind) => {
+      const stage = path.join(fixture.root, 'stage')
+      mkdirSync(stage)
+      cpSync(path.join(fixture.root, 'l10n'), path.join(stage, 'l10n'), { recursive: true })
+      for (const name of [
+        'package.json',
+        ...[
+          '',
+          'zh-cn',
+          'zh-tw',
+          'ja',
+          'ko',
+          'de',
+          'fr',
+          'es',
+          'pt-br',
+          'ru',
+          'it',
+          'tr',
+          'pl',
+          'cs',
+          'hu',
+        ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
+      ])
+        cpSync(path.join(fixture.root, name), path.join(stage, name))
+      const { TABLE_LOCALES } = await loadL10n(root)
+      const ui = TABLE_LOCALES.map((locale) =>
+        JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
+      )
+      const keys = Object.keys(ui[0])
+      writeFileSync(
+        path.join(stage, 'l10n/ui.tables.json.br'),
+        brotliCompressSync(
+          JSON.stringify({
+            version: 1,
+            keys,
+            locales: TABLE_LOCALES,
+            values: ui.map((table) => keys.map((key) => table[key])),
+          }),
+          TEST_BROTLI_OPTIONS,
+        ),
+      )
+      const usage = Object.fromEntries(
+        TABLE_LOCALES.map((locale) => [
+          locale,
+          JSON.parse(readFileSync(path.join(stage, 'l10n', `usage.${locale}.json`), 'utf8')),
+        ]),
+      )
+      const file = path.join(stage, 'l10n/usage.tables.json.br')
+      if (kind === 'missing') delete usage.de.title
+      writeFileSync(file, brotliCompressSync(JSON.stringify(usage), TEST_BROTLI_OPTIONS))
+      const result = runGate(['--packaged', stage])
+      if (kind === 'complete')
+        expect(result).toEqual({
+          code: 0,
+          output: expect.stringContaining('0 problems'),
+        })
+      else {
+        expect(result.code).toBe(1)
+        expect(result.output).toContain('packaged l10n/usage.de.json: differs from source')
+        expect(result.output).toContain('packaged l10n/usage.de.json: title: missing')
+      }
+    },
+  )
 })

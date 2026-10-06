@@ -1,3 +1,4 @@
+import { webviewKey } from '../../../shared/keybindings'
 // The searchable provider dropdown (M95 step 8.1): type-ahead over each
 // row's name and one-line description, with filter chips (Cloud, On this
 // computer, Subscription sign-in, Aggregator). Follows the combobox
@@ -82,30 +83,30 @@ export function SearchableSelect({
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
     if (
-      event.key !== 'ArrowDown' &&
-      event.key !== 'ArrowUp' &&
-      event.key !== 'Enter' &&
-      event.key !== 'Escape'
+      webviewKey('models.select', event) !== 'next' &&
+      webviewKey('models.select', event) !== 'previous' &&
+      webviewKey('models.select', event) !== 'accept' &&
+      webviewKey('models.select', event) !== 'close'
     ) {
       return
     }
     event.preventDefault()
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('models.select', event)) {
+      case 'next': {
         step(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         step(-1)
         break
       }
-      case 'Enter': {
+      case 'accept': {
         if (isOpen && active !== undefined) {
           onSelect(active.value)
         }
         break
       }
-      case 'Escape': {
+      case 'close': {
         if (isOpen) {
           close()
         }

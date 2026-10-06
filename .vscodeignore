@@ -50,7 +50,10 @@
 !dist/imageResizeWorker.js
 !dist/report.js
 !dist/recorder.js
+!dist/reference.js
 !dist/webview/main.js
+!dist/webview/referencePage.js
+!dist/webview/referencePage.css
 !dist/webview/chunks/*.js
 !dist/webview/main.css
 !dist/webview/models.js
@@ -82,9 +85,9 @@
 !THIRD_PARTY_NOTICES.txt
 !docs/PRIVACY.md
 !docs/judge.md
-!vendor/high-quality-projects-skill/**
+# VSCE's allowlist overrides positive ignores; filter optional font/map types here.
+!vendor/high-quality-projects-skill/**/!(*.woff*|*.ttf|*.otf|*.eot|*.map)
 !vendor/models-dev/LICENSE
-!vendor/models-dev/VENDOR.json
 !first-party-skills/**
 !skills/**
 

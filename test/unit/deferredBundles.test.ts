@@ -77,6 +77,7 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',

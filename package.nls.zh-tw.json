@@ -41,10 +41,10 @@
   "config.preferredLocation.enumDescriptions.sidebar": "在 Muse Spark 側邊欄檢視中開啟新對話。",
   "config.preferredLocation.enumDescriptions.panel": "以編輯器索引標籤開啟新對話。",
   "config.initialPermissionMode.description": "新對話的權限模式。",
-  "config.initialPermissionMode.enumDescriptions.manual": "手動：在大部分動作之前詢問。",
-  "config.initialPermissionMode.enumDescriptions.acceptEdits": "自動編輯：自動核准檔案編輯（受保護的檔案除外）；命令仍會詢問。在 Muse Code 上與「手動」相同。",
-  "config.initialPermissionMode.enumDescriptions.plan": "規劃：在計畫獲得核准之前只做研究。",
-  "config.initialPermissionMode.enumDescriptions.auto": "自動：檔案編輯不詢問直接執行（受保護的檔案會詢問）；命令會詢問，除非有規則允許、Muse Code 判斷其為簡單命令，或自動審查器允許。",
+  "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問\nmodelApi: Muse 會在每次編輯和每個命令前要求核准",
+  "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: 在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問\nmodelApi: Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問",
+  "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案\nmodelApi: Muse 會先探索程式碼並提出計畫，再進行編輯",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 會直接執行它判斷為簡單的命令，不會詢問；審查器可能會允許其他部分命令執行一次，其餘命令會詢問您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您\n這些 Auto 說明適用於尚未由規則決定的請求。Model API 審核器還需要付費使用同意及預算准入。審核被拒絕或失敗時，由你決定。一般 ACP 不提供這兩種審核器。",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "略過權限：編輯和命令不詢問直接執行，但付費使用仍會詢問，禁止規則仍會拒絕（僅限在沙箱中使用）。",
   "config.archiveInactiveSessions.description": "在「歷程記錄」對話方塊中隱藏閒置達此天數的工作階段（它們仍保留在磁碟上；「顯示已封存」會列出它們）。",
   "config.archiveInactiveSessions.enumDescriptions.1": "隱藏閒置一天的工作階段。",
@@ -138,7 +138,7 @@
   "config.modelApiShellKeepsDirectory.description": "在呼叫之間保留 Model API 後端 shell 的工作目錄。預設開啟：一次 shell 命令中的 cd 會延續到同一交談的下一次呼叫，工作區之外的目錄會重設回工作區根目錄。檢查命令和 then_run 仍在根目錄執行。",
   "config.modelApiHookModels.description": "付費，預設開啟。在 Model API 後端，prompt 和 agent 鉤子在回答前各自詢問模型。除非您允許在此工作區一律允許模型鉤子，否則每次執行都會連同價格詢問一次，適用於包括 Bypass 在內的每種許可模式。鉤子的回答只能拒絕、收窄或新增內容。絕不會計入訂閱帳單。",
   "config.hookHttpAllowedHosts.description": "http 鉤子可以呼叫的主機：精確名稱，或僅用於子網域的 *.example.com。預設為空，因此不會執行任何 http 鉤子。僅 HTTPS，無重新導向，且僅在視窗網路設定允許網路時執行。存放庫無法設定此項。",
-  "config.modelApiTab.description": "付費，預設開啟；每個視窗的首次請求前詢問一次。在 Model API 後端輸入時建議幽靈文字補全，費用計入您的 Model API 金鑰：以一般輸入速度計算，Standard 約每小時 $0.80，貢獻者模型約每小時 $0.05。本機所有視窗共用的嚴格每日預算預設為 $1.00。現有付費使用對話方塊會顯示價格和預算：允許一次適用於目前視窗，在此工作區一律允許會儲存同意，不允許會暫停此視窗中的 Tab。在取得允許的答覆前不會傳送任何內容。若 Copilot 已開啟，除非同時執行兩者，否則其語言優先使用 Copilot。",
+  "config.modelApiTab.description": "Tab 在兩種聊天後端上都使用已儲存的 Model API 金鑰。預設觸發方式是 Invoke；輸入時自動建議需要 Automatic。\n本機所有視窗中 Tab 補全請求的每日固定預算（美元）；最壞情況會超出預算的請求不會傳送。$0.05 到 $50。\n允許一次 / 在此工作區中一律允許.",
   "config.tabModel.description": "Tab 補全請求使用的模型。Standard 按權杖收費較高；Meta 不會使用傳送的內容訓練。貢獻者模型按權杖收費較低，Meta 會使用傳送的程式碼訓練。",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 費率，不使用您的程式碼訓練。",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：貢獻者費率，Meta 會使用傳送的程式碼訓練。",
@@ -184,5 +184,6 @@
   "setting.usageHistory.description": "在此電腦上本機記錄模型用量。關閉後將停止新增記錄；即時限額和預算仍然可見。",
   "setting.usageHistoryDays.description": "每日用量摘要的保留天數（30–1825）。每次呼叫的詳細記錄保留 30 天。",
   "command.connectChatGpt": "使用 ChatGPT 繼續",
-  "command.connectCopilot": "使用我的 Copilot 模型"
+  "command.connectCopilot": "使用我的 Copilot 模型",
+  "command.openHelp.title": "說明與參考"
 }

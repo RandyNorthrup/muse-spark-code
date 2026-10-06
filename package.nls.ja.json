@@ -45,10 +45,10 @@
   "config.preferredLocation.enumDescriptions.sidebar": "新しい会話を Muse Spark のサイド バー ビューで開きます。",
   "config.preferredLocation.enumDescriptions.panel": "新しい会話をエディター タブとして開きます。",
   "config.initialPermissionMode.description": "新しい会話の権限モード。",
-  "config.initialPermissionMode.enumDescriptions.manual": "手動: ほとんどの操作の前に確認します。",
-  "config.initialPermissionMode.enumDescriptions.acceptEdits": "自動編集: 保護されたファイルを除き、ファイルの編集を自動承認します。コマンドは引き続き確認します。Muse Code では手動と同じです。",
-  "config.initialPermissionMode.enumDescriptions.plan": "プラン: プランが承認されるまで調査のみを行います。",
-  "config.initialPermissionMode.enumDescriptions.auto": "自動: ファイルの編集は確認なしで実行します (保護されたファイルは確認します)。コマンドは、ルール、Muse Code による単純なコマンドという判断、または自動レビュー担当によって許可されない限り確認します。",
+  "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse はコマンドを実行する前に確認します。Muse Code はワークスペースのファイルを確認なしで編集します\nmodelApi: Muse は編集とコマンドのたびに承認を求めます",
+  "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: Muse Code では手動と同じです。Muse Code はワークスペースのファイルを確認なしで編集し、コマンドを実行する前に確認します\nmodelApi: Muse は確認なしでファイルを編集し、コマンドを実行する前に確認します",
+  "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse はまずプランを立てます。Muse Code はコマンドを拒否しますが、ファイル ツールは確認なしでファイルを編集できます\nmodelApi: Muse はコードを調査し、編集の前にプランを提示します",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code は単純と判断したコマンドを確認なしで実行します。ほかの一部はレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse は保護されたファイルを除いて確認なしでファイルを編集し、コマンドの前に確認します\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse は保護されたファイルを除いて確認なしでファイルを編集します。一部のコマンドは有料のレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nこれらの Auto の説明は、ルールで判断が確定していないリクエストに適用されます。Model API のレビュアーには、有料利用への同意と予算枠の承認も必要です。レビューが却下または失敗した場合は、あなたが判断します。通常の ACP にはどちらのレビュアーもありません。",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "権限バイパス: 編集とコマンドは確認なしで実行しますが、有料の使用は引き続き確認し、禁止ルールは引き続き拒否します (サンドボックス内でのみ使用してください)。",
   "config.archiveInactiveSessions.description": "この日数以上アイドル状態のセッションを履歴ダイアログで非表示にします (ディスク上には残り、「アーカイブ済みを表示」で一覧表示されます)。",
   "config.archiveInactiveSessions.enumDescriptions.1": "1 日アイドル状態のセッションを非表示にします。",
@@ -138,7 +138,7 @@
   "config.showWhatsNewOnUpdate.description": "既定で有効: 拡張機能の更新後、リリースにハイライトがある場合は新機能がエディター タブで開きます。修正のみのパッチの後は、代わりに控えめな通知で表示を提案します。無効にすると更新時に何も表示しません。Muse Spark: 新機能 ではいつでも開けます。",
   "config.paidDailyBudgetUsd.description": "Model APIの対話型有料機能で共有する1日の米ドル予算です。ウィンドウとキーをまたいで適用します。既定は5.00、範囲は0.50～500です。送信前に予約し、保存領域が読めない場合は拒否します。Tab独自の予算は含みません。ACPとヘッドレスのフラグと予算は変更しません。",
   "config.dictationEngine.description": "Model APIの音声入力エンジンです。無料のOS音声認識が既定です。Muse Voiceには有料利用の同意と検証済みの予算承認が必要です。Muse Codeでの明示的な音声有効化は変更しません。",
-  "config.modelApiTab.description": "有料、既定ではオン。各ウィンドウの最初のリクエストの前に一度確認します。Model API バックエンドで入力中にゴーストテキスト補完を提案し、Model API キーに請求します。通常の入力ペースでは Standard は約 $0.80/時間、コントリビューターモデルは約 $0.05/時間です。このコンピューターの全ウィンドウで共有する厳格な日次予算は既定で $1.00 です。既存の有料利用ダイアログに料金と予算を表示します。「今回のみ許可」はこのウィンドウが対象、「このワークスペースでは常に許可」は同意を保存し、「許可しない」はこのウィンドウの Tab をスヌーズします。許可する回答の前には何も送信しません。Copilot がオンの場合、両方を実行しない限り、その言語では Copilot が優先されます。",
+  "config.modelApiTab.description": "Tab は両方のチャットバックエンドで保存済み Model API キーを使います。既定は Invoke です。入力中の自動提案には Automatic が必要です。\nこのマシンの全ウィンドウにわたる Tab 補完リクエストの 1 日の上限 (米ドル)。上限を超えるおそれのあるリクエストは送信されません。$0.05 から $50 まで。\n今回のみ許可 / このワークスペースでは常に許可.",
   "config.tabModel.description": "Tab 補完リクエストが使用するモデル。Standard はトークン単価が高く、送信内容を Meta の学習に使用しません。コントリビューターモデルはトークン単価が安く、送信したコードが Meta の学習に使用されます。",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3: Standard 料金。コードを学習に使用しません。",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor: コントリビューター料金。送信したコードが Meta の学習に使用されます。",
@@ -184,5 +184,6 @@
   "setting.usageHistory.description": "このコンピューターにモデルの使用量をローカル保存します。オフにすると新しい記録を停止します。現在の上限と予算は引き続き表示されます。",
   "setting.usageHistoryDays.description": "日別の使用量集計を保持する日数（30–1825）。呼び出しごとの詳細は 30 日間保持されます。",
   "command.connectChatGpt": "ChatGPT で続行",
-  "command.connectCopilot": "自分のCopilotモデルを使う"
+  "command.connectCopilot": "自分のCopilotモデルを使う",
+  "command.openHelp.title": "ヘルプとリファレンス"
 }

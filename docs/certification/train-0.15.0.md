@@ -15,13 +15,11 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15E): the M95/M102 no-ff integration and bounded
-runtime accounting are implemented. The helperless package passes, but the
-universal helper is absent and its prior compressed contribution projects an
-over-cap archive. One D78 assertion conflicts with the immutable train request
-goldens and remains enabled/red for an owner decision. Exec stdio retains one
-stale locale-fixture expectation under the required two-fix stop. Full release
-certification is held; the continuation receipt is appended below.**
+**Current disposition (TRAIN15F): current main is merged additively, the
+D78 assertion follows immutable request goldens, and exec's locale/inventory
+fixture is deterministic. Final owning checks and ACP packaging pass. Both
+actual VSIX variants still exceed the unchanged cap after the authorized diet;
+exact before/after sizes and the lead's remaining size decision follow below.**
 
 **First-run disposition:** budget stop after M101. The original receipt follows;
 the resumed measurements and bounded stop are appended below.
@@ -890,3 +888,153 @@ are rerun as whole files: ACP agent/ndjson/paid host pass 142 assertions;
 handoff/host bridge/fake-only exec launcher pass 24; usage packaging/webview
 budgets pass their complete files. The three existing certification holds
 remain. The follow-up changes only these two certification files.
+
+## TRAIN15F — Close the four train holds (win11, 2026-10-06)
+
+Continue HEAD e123ff6dd in C:/lanes/TRAIN15E. The lead explicitly authorizes
+the no-ff merge of current main 2aa9cbff724a3c9e5f64ff60b479d0273807a5a9,
+chooses immutable request goldens over the stale D78 assertion, lifts the exec
+fixture's two-fix stop, and requires a measured package diet without a cap rise.
+Version and README What's New are retained from main's 0.14.2 release prep.
+
+### Main and Help reference
+
+Resolve conflicts additively, retaining every train feature and main's complete
+reference. The generated reference covers 59 features, 51 commands, 67 settings,
+28 slash commands and 213 CLI entries. Providers, usage, teams, legal scan and
+compaction have current routes and typed facts, including refused or unused CLI
+flags, actual preset syntax, ACP daily budgets, and pending dispatch/evaluation
+limits. New labels are translated in all fourteen tables. Local ACP /help lists
+/compact and available /legal and /usage handlers alongside skills, once each.
+
+The combined reference initially exceeds its unchanged 100-KiB bundle cap at
+115.3 KiB. Encode generated data losslessly using the already pinned lz-string,
+validate its envelope and expanded model, and retain complete JSON/Markdown.
+Help uses the existing shared browser graph and stays lazy. Keyboard handlers
+in the models, usage and traffic pages and team tree use the shared registry,
+so the reference describes the keys the code actually handles. The complete
+reference owning batch passes 72 assertions and check:reference passes.
+
+### D78 and deterministic exec fixtures
+
+The stale D78 test compares packing-off and packing-on requests before packed
+output. The train intentionally declares recall_output from the first request
+while packing is enabled; disabling packing leaves it absent. Correct that
+assertion to require the proper declaration/cache key in each mode and require
+the admitted body to remain byte-identical within that mode. Production model
+behavior and every immutable request fixture stay unchanged. All 89 golden
+assertions pass; the receipt verifies all fourteen fixture hashes unchanged.
+
+The old exec assertion belonged to a tiny single-German-table fixture. TRAIN15E
+now copies all fourteen production tables. Packaging processes already set LANG
+and LC_ALL to en_US.UTF-8; sort with explicit English collation and inspect de's
+archive row against the copied German source table. This is an inventory
+expectation error, not ambient rig locale. Main also adds runtime/cliOptions.ts
+to loadL10n's source imports. Isolated exec, ChatGPT and usage localization
+fixtures now copy that exact file, preserving the real localization gate.
+
+Default deadlines reveal further fixture defects: include main's required Help
+bundle in both ACP package fixtures; use separate parameterized tests for all
+eleven existing usage-package rejection cases; prepare cold real archives in
+named beforeAll setup. Keep ordinary assertions at five seconds. Only the real
+two-process, 10,000-record journal filesystem stress test receives a named
+30-second per-test deadline with its reason. Judge-price isolation explicitly
+disables the unrelated default-on legal feature. The Unicode fallback test
+compiles generated ESM with its real codec before evaluating CommonJS.
+The final exec pass shares its real production archive in cold setup and clones
+an immutable complete fixture for each guard, removing repeated archive work.
+Usage localization cases each launch one gate process; their fixture-only
+Brotli encoding uses fast quality while retaining identical decoded-value checks.
+
+### Actual VSIX diet and remaining decision
+
+The before measurements are actual post-main packages, not TRAIN15E's earlier
+projection. The universal archive includes the certified 289,568-byte helper at
+SHA-256 f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36.
+The ZIP repacker preserves those bytes and records Unix mode 100755 on Windows.
+
+| Variant                    | Before bytes | After bytes | Reduction | Remaining excess over 2,534,400 |
+| -------------------------- | -----------: | ----------: | --------: | ------------------------------: |
+| Helperless                 |    2,601,457 |   2,600,909 |       548 |                          66,509 |
+| Universal, verified helper |    2,681,005 |   2,680,457 |       548 |                         146,057 |
+
+Exclude models-dev/VENDOR.json (build provenance without a runtime reader or
+README link), retaining LICENSE and the runtime catalog. VSCE unions negated
+allowlists, so a positive font ignore does not override a whole-vendor allow.
+Filter font/map extensions in the workflow allowlist itself. Actual final
+archives contain no source maps, tests or font files. Keep walkthrough images
+referenced by the manifest, local docs linked by README, and every pinned
+workflow document/template required by its VENDOR manifest validation.
+
+The unchanged cap still fails for both variants. The lead owns the next size
+decision. Largest candidates are the solid runtime and fourteen-language UI
+archives, shared browser chunks, the native helper and referenced walkthrough
+images. Removing them breaks runtime behavior, localization, universal
+dictation or referenced onboarding. Further lossless archive work or a designed
+lazy native/optional-asset installer is separate scope; no cap is raised here.
+The final DEFLATE step also adds 450 bytes to the two already-compressed solid
+archives; avoiding that recompression is a small further candidate, not enough
+to settle either cap hold.
+
+Largest twenty universal entries, sorted by actual compressed size (ZIP entry
+headers are additional; complete inventories and artifact hashes are in JSON):
+
+| Entry                                       | Before compressed bytes | After compressed bytes |
+| ------------------------------------------- | ----------------------: | ---------------------: |
+| extension/dist/runtime.bundles.json.br      |                 780,888 |                780,888 |
+| extension/l10n/ui.tables.json.br            |                 689,061 |                689,061 |
+| extension/dist/webview/chunks/EVK5PVL2.js   |                  82,272 |                 82,272 |
+| extension/native/darwin/muse-dictate        |                  79,400 |                 79,400 |
+| extension/dist/webview/chunks/DKVRUWJP.js   |                  67,907 |                 67,907 |
+| extension/dist/uiText.js                    |                  57,420 |                 57,420 |
+| extension/dist/webview/chunks/ODEWQ6RR.js   |                  50,305 |                 50,305 |
+| extension/dist/webview/main.js              |                  49,527 |                 49,525 |
+| extension/resources/walkthrough/open.png    |                  41,198 |                 41,198 |
+| extension/resources/walkthrough/chat.png    |                  35,503 |                 35,503 |
+| extension/l10n/usage.tables.json.br         |                  32,837 |                 32,837 |
+| extension/dist/webview/chunks/IKQKJ2OV.js   |                  30,424 |                 30,424 |
+| extension/dist/webview/chunks/DZTUFFY2.js   |                       0 |                 24,983 |
+| extension/docs/PRIVACY.md                   |                  23,480 |                 23,480 |
+| extension/resources/walkthrough/sign-in.png |                  19,393 |                 19,393 |
+| extension/resources/walkthrough/welcome.png |                  17,652 |                 17,652 |
+| extension/dist/webview/usage.js             |                  16,293 |                 16,294 |
+| extension/dist/webview/models.js            |                  14,909 |                 14,910 |
+| extension/package.nls.ru.json               |                  14,116 |                 14,116 |
+| extension/dist/wire.js                      |                  13,396 |                 13,396 |
+
+### Final checks and guard-fire records
+
+Run 143 complete owning files, including all original 132,
+in batches of at most three files/workers under repository default timeouts,
+with no --testTimeout. Final results: 4,549
+passed assertions and 3 existing Windows POSIX-signal exclusions;
+143/143 files have positive whole-file results.
+Failed initial attempts remain in the receipt alongside final reruns.
+
+Scoped Prettier/ESLint/CSS, all five type projects, plain knip, dpdm, duplication,
+localization, host API inventory, reference, schemas, static/exact-stage badges
+and all production raw/split/global bundle checks pass. Actual ACP packaging
+passes. The installed bundle checker reads the same fourteen tables from their
+bounded solid archive and compares complete CLI help exactly in English and
+every installed language. VSIX membership/native checks pass; npm run package
+exits 1 solely at the final compressed cap in both measured variants.
+The actual ACP tarball is 1,707,542 bytes; its hash is recorded.
+Full accessibility passes 864 pages (216 scenarios across four themes), with
+zero violated/undecided rules, no exemptions and no pages without a result.
+Legal browser checks cover 96 native accessibility-tree, keyboard and
+100%/200% zoom cases; English and pseudo WCAG checks also pass.
+
+Four deliberate mutations fail their intended assertion/gate and restore
+byte-exact by SHA-256: remove required train reference settings; invert the
+packing declaration; restore the whole-vendor font allowlist; strip the macOS
+helper execute bit. Original inherited drills retain their earlier provenance.
+Full quality, hosted matrices and macOS native/live paid receipts remain the
+lead's release checks under common.md. No public network, live/paid calls,
+installs, credential reads, push, rebase, manual stash or Git config writes.
+Badge checks use only their supported named network skip. The existing install
+is untouched; the merged lock records dev-only shell-quote 1.11.0, while this
+rig's pre-existing dev tool installation remains 1.10.0.
+
+Exact owning files, initial failures, final gate/test logs, package inventories,
+helper provenance, golden/released-changelog hashes and drill restorations are
+in [train-0.15.0-train15f.json](train-0.15.0-train15f.json).

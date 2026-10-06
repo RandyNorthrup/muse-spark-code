@@ -150,6 +150,15 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/reference.js',
+    metafile: 'dist/meta/reference.json',
+    files: [
+      'src/shared/reference/referenceEntry.ts',
+      'src/shared/reference/reference.generated.ts',
+      'src/shared/reference/text.ts',
+    ],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [

@@ -3,9 +3,11 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 const folders = []
+// Cold archive preparation and npm pack run once outside five-second assertions.
+const ARCHIVE_SETUP_TIMEOUT_MS = 60_000
 const TAR =
   process.platform === 'win32'
     ? path.join(process.env.SystemRoot ?? String.raw`C:\Windows`, 'System32', 'tar.exe')
@@ -57,6 +59,7 @@ function fixture() {
     'foreignHooks',
     'hookRuntime',
     'recorder',
+    'reference',
     'uiText',
     'uiTextRuntime',
     'uiTextHooks',
@@ -139,10 +142,14 @@ function fixture() {
 }
 
 describe('usage assets in the ACP package', () => {
-  it('ships the service, companion, transitive page chunks and every usage table in the actual tarball', () => {
+  let prepared
+  beforeAll(() => {
     const f = fixture()
-    const result = f.run()
-    expect(result.status, result.stderr).toBe(0)
+    prepared = { f, result: f.run() }
+  }, ARCHIVE_SETUP_TIMEOUT_MS)
+  it('ships the service, companion, transitive page chunks and every usage table in the actual tarball', () => {
+    const { f, result } = prepared
+    expect(result.status, result.stdout + result.stderr).toBe(0)
     const tarball = path.join(f.root, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
     const files = execFileSync(TAR, ['-tzf', tarball], { encoding: 'utf8' }).split(/\r?\n/u)
     for (const file of [
@@ -167,39 +174,36 @@ describe('usage assets in the ACP package', () => {
     expect(files).not.toContain('package/l10n/untranslated.json')
   })
 
-  it('refuses missing usage bundles, page dependencies and language tables before packaging', () => {
-    for (const file of [
-      'dist/usageService.js',
-      'dist/usageCompanion.js',
-      'dist/webview/chunks/detail.js',
-      'l10n/usage.de.json',
-    ]) {
-      const f = fixture()
-      rmSync(path.join(f.root, file))
-      expect(f.run().status, file).not.toBe(0)
-    }
+  it.each([
+    'dist/usageService.js',
+    'dist/usageCompanion.js',
+    'dist/webview/chunks/detail.js',
+    'l10n/usage.de.json',
+  ])('refuses missing usage asset before packaging: %s', (file) => {
+    const f = fixture()
+    rmSync(path.join(f.root, file))
+    expect(f.run().status, file).not.toBe(0)
   })
 
-  it('refuses a browser asset outside the page directory or any external import', () => {
-    for (const imported of [
-      { path: 'dist/outside.js' },
-      { path: 'dist/webview/private.txt' },
-      { path: 'https://foreign.example/script.js', external: true },
-      { path: 'dist/webview/chunks/react.js', external: true },
-    ]) {
-      const f = fixture()
-      if (!imported.external) {
-        f.outputs[imported.path] = {}
-        f.put(imported.path, 'private fixture')
-      }
-      f.outputs['dist/webview/usage.js'].imports = [imported]
-      f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
-      expect(f.run().status).not.toBe(0)
+  it.each([
+    { path: 'dist/outside.js' },
+    { path: 'dist/webview/private.txt' },
+    { path: 'https://foreign.example/script.js', external: true },
+    { path: 'dist/webview/chunks/react.js', external: true },
+  ])('refuses a foreign or external browser import: $path', (imported) => {
+    const f = fixture()
+    if (!imported.external) {
+      f.outputs[imported.path] = {}
+      f.put(imported.path, 'private fixture')
     }
+    f.outputs['dist/webview/usage.js'].imports = [imported]
+    f.put('dist/meta/usageWebview.json', JSON.stringify({ outputs: f.outputs }))
+    expect(f.run().status).not.toBe(0)
   })
 
-  it('keeps the prior package stage intact when metadata, asset files or usage JSON are invalid', () => {
-    for (const problem of ['metadata', 'directory', 'json']) {
+  it.each(['metadata', 'directory', 'json'])(
+    'keeps the prior package stage intact with invalid %s',
+    (problem) => {
       const f = fixture()
       f.put('dist/acp-package/prior.txt', 'prior package')
       if (problem === 'metadata') {
@@ -213,6 +217,6 @@ describe('usage assets in the ACP package', () => {
       expect(readFileSync(path.join(f.root, 'dist/acp-package/prior.txt'), 'utf8')).toBe(
         'prior package',
       )
-    }
-  })
+    },
+  )
 })

@@ -22,7 +22,22 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-## What's new in 0.14.1
+**Contents:** [What's new](#whats-new-in-0142) · [Get started](#get-started) ·
+[Work in the panel](#work-in-the-panel)
+
+## What's new in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -35,7 +50,7 @@ Code” are Meta trademarks. You bring your own credentials.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-## What's new in 0.14.0
+### Earlier in 0.14.0
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate

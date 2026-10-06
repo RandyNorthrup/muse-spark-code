@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0140) ·
+**Contents:** [What's new](#whats-new-in-0142) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -46,7 +46,19 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.14.1
+## What's new in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed
@@ -59,7 +71,7 @@ key to the CLI.
 - **Fix:** stopped or timed-out commands on macOS and Linux now wait until
   their processes have exited.
 
-## What's new in 0.14.0
+### Earlier in 0.14.0
 
 - **Tab completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate
@@ -3572,6 +3584,47 @@ The ACP package also provides the reserved offline command
 `muse-spark-code-acp exec legal-scan --json`, with the older top-level `legal`
 command retained as an alias; see [its guide](docs/acp.md#deterministic-legal-scan-m97).
 The reserved command never becomes a model prompt and never performs automatic fixes.
+
+## Help and reference
+
+Type `/help` in the panel, or run **Muse Spark: Open Help & Reference**, for a
+searchable reference of features, slash commands, commands, settings, keyboard
+actions and ACP/CLI flags. It shows exact host/backend pairs, paid admission
+rules, current/default values, nested setting schemas, command prerequisites
+and CLI limits. Environment-variable values stay hidden. Load failures show a
+retry action. Auto help names both backend reviewers and their admission rules;
+ordinary model questions and MCP server form replies have separate privacy
+entries. Search matches the displayed JSON text, Markdown retains argument
+placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
+the editor’s theme and display language.
+
+ACP editors can send `/help` for the current installed-skill list and the
+[generated reference](docs/reference.md). ACP locally handles `/help`, `/compact`, `/legal`, `/usage` and
+installed skills; the linked panel slash commands and settings are extension
+workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
+reference in the installed language without a model call. `exec --help`,
+`report --help` and `scan-secrets --help` also print it; `--help` prints concise
+ACP usage. Terminal help states that VS Code current values are unavailable.
+
+Maintainers run `npm run reference:generate` after changes. The reference reads
+the complete contributed setting schema and palette conditions. The CLI parser,
+webview keyboard handlers, slash registry, paid tally and paid-use popup share
+typed tables with the generator. Enum defaults retain their value and meaning.
+`npm run check:reference` checks source coverage, reviewed host capabilities and
+admission wiring, option contracts, catalogue descriptions and generated-file
+freshness. Conditional descriptions use typed `conditions` with technical
+selectors; generic state wording in plain descriptions fails the gate. The
+generator renders these conditions on the page, in Markdown and in terminal
+help, including enum meanings and paid-default facts. The guard walks the
+complete emitted model and rejects the closed state-predicate vocabulary on
+every description surface, including shortcuts. A Best-of-N truth regression
+exercises the production manager: a finite session cap requires an owned
+parent budget scope shared by candidates. Independent tests exercise parser
+acceptance and keyboard actions.
+Search includes displayed descriptions and keeps related command links reachable.
+Installed skills are dynamic and are refreshed
+when ACP answers help. Native shared-webview and phone companion integrations
+remain planned; this reference does not claim those hosts implement the page.
 
 ## Commands and keybindings
 

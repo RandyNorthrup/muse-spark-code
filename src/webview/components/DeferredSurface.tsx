@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The controls stay unavailable until their chunk loads. Closing while it
 // loads unmounts the boundary, so a late import cannot reopen the surface.
 import { type ReactNode, Suspense, useEffect, useRef } from 'react'
@@ -47,7 +48,7 @@ function LoadingSurface({
     <div
       className="palette history"
       onKeyDown={(event) => {
-        if (event.key !== 'Escape') return
+        if (webviewKey('deferred.close', event) !== 'close') return
         event.preventDefault()
         event.stopPropagation()
         onClose()

@@ -27,6 +27,9 @@
     "src/webview/usage/usage.tsx",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
+    // Help data: separate lazy runtime and generator build entries.
+    "src/shared/reference/referenceEntry.ts",
+    "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
     "src/shared/modelApiBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.

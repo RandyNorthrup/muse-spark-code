@@ -10,7 +10,9 @@ const MAX_VSIX_BYTES = 2475 * 1024
 export function checkVsixSize(file) {
   const size = statSync(file).size
   if (size > MAX_VSIX_BYTES) {
-    throw new Error(`VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (2475 KiB)`)
+    throw new Error(
+      `VSIX is ${size} bytes; budget is ${MAX_VSIX_BYTES} bytes (${MAX_VSIX_BYTES / 1024} KiB)`,
+    )
   }
   return size
 }

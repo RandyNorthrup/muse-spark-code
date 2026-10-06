@@ -23,6 +23,8 @@ import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
 
 const roots: string[] = []
+// Two real processes append 10,000 records on disk; Windows exceeds five seconds.
+const JOURNAL_PROCESS_APPEND_TIMEOUT_MS = 30_000
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof NodeFs>()
   return {
@@ -489,54 +491,58 @@ describe('usage journal store and Node filesystem', () => {
     await store.flush()
     expect(append).toHaveBeenCalledTimes(2)
   })
-  it('two child processes append 5,000 records each without losing or interleaving lines', async () => {
-    const { root } = await rig()
-    const worker = path.join(root, 'worker.cjs')
-    await build({
-      stdin: {
-        contents: `import { UsageJournalStore } from './src/core/usage/journalStore'; import { createUsageRecord } from './src/core/usage/journalRecord'; import { NodeUsageFs } from './src/runtime/usage/nodeUsageFs'; async function run() { const id = process.argv[3]; const at = new Date(2026,9,5,12).getTime(); const store = new UsageJournalStore(new NodeUsageFs(process.argv[2]), { writerId: id, now: () => at, isEnabled: () => true, onWriteError: () => { throw new Error('write failure') } }); for (let i=0;i<5000;i++) store.append(createUsageRecord({ input_tokens: i, output_tokens: 1 }, { id: id+'-'+i, at, startedAt: at, client: id, backend: 'modelApi', provider: 'test', model: 'unpriced', kind: 'turn', outcome: 'completed' })); await store.flush(); } run().catch(() => { process.exitCode = 1 });`,
-        resolveDir: process.cwd(),
-        sourcefile: 'journal-worker.ts',
-      },
-      outfile: worker,
-      bundle: true,
-      platform: 'node',
-      format: 'cjs',
-      logLevel: 'silent',
-    })
-    await Promise.all(
-      ['child-a', 'child-b'].map(
-        (id) =>
-          new Promise<void>((resolve, reject) => {
-            const child = fork(worker, [root, id], { stdio: 'ignore', env: {} })
-            child.on('error', reject)
-            child.on('exit', (code) => {
-              if (code === 0) resolve()
-              else reject(new Error(`writer exit ${String(code)}`))
-            })
-          }),
-      ),
-    )
-    const store = new UsageJournalStore(new NodeUsageFs(root), {
-      writerId: 'reader',
-      now: Date.now,
-      isEnabled: () => true,
-      onWriteError: vi.fn(),
-    })
-    const result = await store.read()
-    expect(result.records).toHaveLength(10_000)
-    expect(result.invalidLines + result.tornLines).toBe(0)
-    expect(new Set(result.records.map((record) => record.id)).size).toBe(10_000)
-    for (const id of ['child-a', 'child-b']) {
-      const records = result.records.filter((record) => record.client === id)
-      expect(records.map((record) => record.tokens.input)).toEqual(
-        Array.from({ length: 5000 }, (_, index) => index),
+  it(
+    'two child processes append 5,000 records each without losing or interleaving lines',
+    async () => {
+      const { root } = await rig()
+      const worker = path.join(root, 'worker.cjs')
+      await build({
+        stdin: {
+          contents: `import { UsageJournalStore } from './src/core/usage/journalStore'; import { createUsageRecord } from './src/core/usage/journalRecord'; import { NodeUsageFs } from './src/runtime/usage/nodeUsageFs'; async function run() { const id = process.argv[3]; const at = new Date(2026,9,5,12).getTime(); const store = new UsageJournalStore(new NodeUsageFs(process.argv[2]), { writerId: id, now: () => at, isEnabled: () => true, onWriteError: () => { throw new Error('write failure') } }); for (let i=0;i<5000;i++) store.append(createUsageRecord({ input_tokens: i, output_tokens: 1 }, { id: id+'-'+i, at, startedAt: at, client: id, backend: 'modelApi', provider: 'test', model: 'unpriced', kind: 'turn', outcome: 'completed' })); await store.flush(); } run().catch(() => { process.exitCode = 1 });`,
+          resolveDir: process.cwd(),
+          sourcefile: 'journal-worker.ts',
+        },
+        outfile: worker,
+        bundle: true,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      await Promise.all(
+        ['child-a', 'child-b'].map(
+          (id) =>
+            new Promise<void>((resolve, reject) => {
+              const child = fork(worker, [root, id], { stdio: 'ignore', env: {} })
+              child.on('error', reject)
+              child.on('exit', (code) => {
+                if (code === 0) resolve()
+                else reject(new Error(`writer exit ${String(code)}`))
+              })
+            }),
+        ),
       )
-      const text = await readFile(
-        path.join(root, USAGE_JOURNAL_ROOT, 'days', '2026-10-05', `${id}.jsonl`),
-        'utf8',
-      )
-      expect(text.trim().split('\n')).toHaveLength(5000)
-    }
-  })
+      const store = new UsageJournalStore(new NodeUsageFs(root), {
+        writerId: 'reader',
+        now: Date.now,
+        isEnabled: () => true,
+        onWriteError: vi.fn(),
+      })
+      const result = await store.read()
+      expect(result.records).toHaveLength(10_000)
+      expect(result.invalidLines + result.tornLines).toBe(0)
+      expect(new Set(result.records.map((record) => record.id)).size).toBe(10_000)
+      for (const id of ['child-a', 'child-b']) {
+        const records = result.records.filter((record) => record.client === id)
+        expect(records.map((record) => record.tokens.input)).toEqual(
+          Array.from({ length: 5000 }, (_, index) => index),
+        )
+        const text = await readFile(
+          path.join(root, USAGE_JOURNAL_ROOT, 'days', '2026-10-05', `${id}.jsonl`),
+          'utf8',
+        )
+        expect(text.trim().split('\n')).toHaveLength(5000)
+      }
+    },
+    JOURNAL_PROCESS_APPEND_TIMEOUT_MS,
+  )
 })

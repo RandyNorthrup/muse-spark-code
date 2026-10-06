@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -320,21 +320,6 @@
         "category": "%command.category%"
       },
       {
-        "command": "museSpark.startWithOwnModel",
-        "title": "%command.startWithOwnModel.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.modelsAndAgents",
-        "title": "%command.modelsAndAgents.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.addModelProvider",
-        "title": "%command.addModelProvider.title%",
-        "category": "%command.category%"
-      },
-      {
         "command": "museSpark.legalScan",
         "title": "%command.legalScan.title%",
         "category": "%command.category%"
@@ -347,6 +332,11 @@
       {
         "command": "museSpark.connectCopilot",
         "title": "%command.connectCopilot%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openHelp",
+        "title": "%command.openHelp.title%",
         "category": "%command.category%"
       }
     ],
@@ -1342,7 +1332,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y test:legal-a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1352,7 +1342,9 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
-    "test:legal-a11y": "node scripts/legal-a11y.mjs"
+    "test:legal-a11y": "node scripts/legal-a11y.mjs",
+    "reference:generate": "node scripts/gen-reference.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

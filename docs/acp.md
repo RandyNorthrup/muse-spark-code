@@ -608,3 +608,7 @@ store the process cannot read reads as no stored key. Anything typed into
 `--description` is capped at 2,000 characters and scrubbed with the rest of
 the draft, but like shell history it still passes through the terminal, so
 keep secrets out of it.
+
+## Help and reference
+
+Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { brotliCompressSync, brotliDecompressSync } from 'node:zlib'
+import { brotliCompressSync, brotliDecompressSync, constants as zlibConstants } from 'node:zlib'
 import { createRequire } from 'node:module'
 import { runInNewContext } from 'node:vm'
 import { build } from 'esbuild'
@@ -24,9 +24,17 @@ import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { loadUiTable, readUiTableFile } from '../../src/host/l10n'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 
+// The staged-bytes check starts three Node children, each loading vsce and
+// jsdom; hosted runners take about five seconds for the three.
+const CHILD_PROCESS_TIMEOUT_MS = 60_000
+// Real maximum-compression archives are prepared once, outside 5-second assertions.
+const ARCHIVE_SETUP_TIMEOUT_MS = 60_000
+// Fault fixtures test decoded content/digests, not production compression effort.
+const FAULT_COMPRESSION = { params: { [zlibConstants.BROTLI_PARAM_QUALITY]: 1 } }
+
 const ROOT = process.cwd()
 const hash = (text) => createHash('sha256').update(text).digest('hex')
-const fixture = { root: '', stage: '', files: [] }
+const fixture = { root: '', stage: '', files: [], before: undefined, after: undefined }
 const excluded = [
   'PLAN.md',
   'AGENTS.md',
@@ -39,7 +47,10 @@ const excluded = [
   'dist/webview/chunks/dialog.js.map',
   'media/readme/banner.png',
   'docs/marketplace-readme.md',
+  'docs/reference.md',
   'l10n/untranslated.json',
+  'vendor/models-dev/VENDOR.json',
+  'vendor/high-quality-projects-skill/fonts/development.woff2',
 ]
 
 beforeAll(async () => {
@@ -80,6 +91,8 @@ beforeAll(async () => {
     'dist/webview/whatsNew.css',
     'dist/webview/usage.js',
     'dist/webview/usage.css',
+    'dist/webview/referencePage.js',
+    'dist/webview/referencePage.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
     'l10n/ui.de.json.br',
@@ -151,6 +164,7 @@ beforeAll(async () => {
     ['modelsWebview', 'dist/webview/models.js'],
     ['whatsNewPage', 'dist/webview/whatsNew.js'],
     ['usageWebview', 'dist/webview/usage.js'],
+    ['referencePage', 'dist/webview/referencePage.js'],
   ]) {
     writeFileSync(
       path.join(fixture.root, `dist/meta/${page}.json`),
@@ -162,16 +176,42 @@ beforeAll(async () => {
 beforeAll(async () => {
   fixture.files = await stageVsix(fixture.root, fixture.stage)
 })
+
+beforeAll(async () => {
+  const archive = path.join(fixture.root, 'compact.vsix')
+  writeFileSync(path.join(fixture.stage, 'dist/webview/chunks/crc.js'), '123456789')
+  const result = await pack({ cwd: fixture.stage, dependencies: false, packagePath: archive })
+  fixture.before = await readZip(archive, () => true)
+  await compactVsix(archive, result.files)
+  fixture.after = await readZip(archive, () => true)
+  const stage = path.join(fixture.root, 'reordered')
+  cpSync(fixture.stage, stage, { recursive: true })
+  cpSync(path.join(fixture.root, 'dist/uiText.js'), path.join(stage, 'dist/uiText.js'))
+  const tables = TABLE_LOCALES.map((locale) => [
+    locale,
+    JSON.parse(readFileSync(path.join(fixture.root, `l10n/ui.${locale}.json`))),
+  ])
+  await packRuntimeArchive(fixture.root, stage, fixture.files.toReversed(), tables.toReversed())
+}, ARCHIVE_SETUP_TIMEOUT_MS)
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('VSIX packaging', () => {
   it('recompresses real VSCE output with unchanged members and the standard CRC', async () => {
     const archive = path.join(fixture.root, 'compact.vsix')
-    writeFileSync(path.join(fixture.stage, 'dist/webview/chunks/crc.js'), '123456789')
-    const result = await pack({ cwd: fixture.stage, dependencies: false, packagePath: archive })
-    const before = await readZip(archive, () => true)
-    await compactVsix(archive, result.files)
-    expect(await readZip(archive, () => true)).toEqual(before)
+    expect(
+      fixture.after
+        .keys()
+        .toArray()
+        .toSorted((a, b) => a.localeCompare(b, 'en')),
+    ).toEqual(
+      fixture.before
+        .keys()
+        .toArray()
+        .toSorted((a, b) => a.localeCompare(b, 'en')),
+    )
+    for (const [name, content] of fixture.before) {
+      expect(content.equals(fixture.after.get(name)), name).toBe(true)
+    }
     const bytes = readFileSync(archive)
     let offset = 0
     let crc
@@ -183,9 +223,20 @@ describe('VSIX packaging', () => {
       offset += 30 + nameBytes + extraBytes + bytes.readUInt32LE(offset + 18)
     }
     expect(crc).toBe(0xcb_f4_39_26)
+    let helperMode
+    while (bytes.readUInt32LE(offset) === 0x02_01_4b_50) {
+      const nameBytes = bytes.readUInt16LE(offset + 28)
+      const extraBytes = bytes.readUInt16LE(offset + 30)
+      const commentBytes = bytes.readUInt16LE(offset + 32)
+      const name = bytes.subarray(offset + 46, offset + 46 + nameBytes).toString('utf8')
+      if (name === 'extension/native/darwin/muse-dictate')
+        helperMode = bytes.readUInt32LE(offset + 38) >>> 16
+      offset += 46 + nameBytes + extraBytes + commentBytes
+    }
+    expect(helperMode).toBe(0o10_0755)
     const original = readFileSync(archive)
     await expect(compactVsix(archive, [])).rejects.toThrow('Invalid VSIX member set')
-    expect(readFileSync(archive)).toEqual(original)
+    expect(readFileSync(archive).equals(original)).toBe(true)
   })
   it.each(['invalid', 'missing', 'oversized'])(
     'refuses a damaged usage archive member: %s',
@@ -197,7 +248,7 @@ describe('VSIX packaging', () => {
       if (kind === 'missing') delete archive.de
       else if (kind === 'invalid') archive.de = {}
       else archive.de.title = 'x'.repeat(2 * 1024 * 1024)
-      writeFileSync(file, brotliCompressSync(JSON.stringify(archive)))
+      writeFileSync(file, brotliCompressSync(JSON.stringify(archive), FAULT_COMPRESSION))
       await expect(readUsageTableFile(stage, ['l10n', 'usage.de.json'])).rejects.toThrow()
     },
   )
@@ -357,15 +408,8 @@ describe('VSIX packaging', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
-  it('produces identical archive bytes with reversed input order', async () => {
+  it('produces identical archive bytes with reversed input order', () => {
     const stage = path.join(fixture.root, 'reordered')
-    cpSync(fixture.stage, stage, { recursive: true })
-    cpSync(path.join(fixture.root, 'dist/uiText.js'), path.join(stage, 'dist/uiText.js'))
-    const tables = TABLE_LOCALES.map((locale) => [
-      locale,
-      JSON.parse(readFileSync(path.join(fixture.root, `l10n/ui.${locale}.json`))),
-    ])
-    await packRuntimeArchive(fixture.root, stage, fixture.files.toReversed(), tables.toReversed())
     expect(
       readFileSync(path.join(stage, 'l10n/ui.tables.json.br')).equals(
         readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br')),
@@ -390,7 +434,7 @@ describe('VSIX packaging', () => {
     const repaired = 'exports.later=true;'
     expect(() => readPackedRuntime('bundles', 'later.js', hash(repaired))).toThrow()
     archive.bundles['later.js'] = repaired
-    writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive)))
+    writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive), FAULT_COMPRESSION))
     expect(readPackedRuntime('bundles', 'later.js', hash(repaired))).toBe(repaired)
   })
   it.each([
@@ -443,7 +487,7 @@ describe('VSIX packaging', () => {
           throw new Error('Unknown archive fault')
         }
       }
-      writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive)))
+      writeFileSync(archiveFile, brotliCompressSync(JSON.stringify(archive), FAULT_COMPRESSION))
     }
     const coreFile = path.join(stage, 'dist/uiText.js')
     const require = createRequire(coreFile)
@@ -504,38 +548,42 @@ describe('VSIX packaging', () => {
     expect(shipped).not.toContain('{version}')
     expect(shipped).not.toContain('badgen.net/vs-marketplace/v/')
   })
-  it('checks exact staged bytes and rejects a staged README or manifest version mismatch', () => {
-    const readme = path.join(fixture.stage, 'README.md')
-    const manifest = path.join(fixture.stage, 'package.json')
-    const originalReadme = readFileSync(readme)
-    const originalManifest = readFileSync(manifest)
-    const version = JSON.parse(originalManifest).version
-    const check = () =>
-      execFileSync(
-        process.execPath,
-        ['scripts/check-badges.mjs', '--packaged-vsix', fixture.stage],
-        {
-          cwd: ROOT,
-          env: { ...process.env, CI: '', BADGE_CHECK_SKIP_NETWORK: 'fake-only staged fixture' },
-          encoding: 'utf8',
-          stdio: 'pipe',
-        },
-      )
-    expect(check()).toContain('network skipped: fake-only staged fixture')
-    try {
-      writeFileSync(
-        readme,
-        originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
-      )
-      expect(check).toThrow('version mismatch')
-      writeFileSync(readme, originalReadme)
-      writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
-      expect(check).toThrow('Staged manifest version mismatch')
-    } finally {
-      writeFileSync(readme, originalReadme)
-      writeFileSync(manifest, originalManifest)
-    }
-  })
+  it(
+    'checks exact staged bytes and rejects a staged README or manifest version mismatch',
+    () => {
+      const readme = path.join(fixture.stage, 'README.md')
+      const manifest = path.join(fixture.stage, 'package.json')
+      const originalReadme = readFileSync(readme)
+      const originalManifest = readFileSync(manifest)
+      const version = JSON.parse(originalManifest).version
+      const check = () =>
+        execFileSync(
+          process.execPath,
+          ['scripts/check-badges.mjs', '--packaged-vsix', fixture.stage],
+          {
+            cwd: ROOT,
+            env: { ...process.env, CI: '', BADGE_CHECK_SKIP_NETWORK: 'fake-only staged fixture' },
+            encoding: 'utf8',
+            stdio: 'pipe',
+          },
+        )
+      expect(check()).toContain('network skipped: fake-only staged fixture')
+      try {
+        writeFileSync(
+          readme,
+          originalReadme.toString().replace(`Marketplace-v${version}`, 'Marketplace-v0.0.0'),
+        )
+        expect(check).toThrow('version mismatch')
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, JSON.stringify({ version: '0.0.0' }))
+        expect(check).toThrow('Staged manifest version mismatch')
+      } finally {
+        writeFileSync(readme, originalReadme)
+        writeFileSync(manifest, originalManifest)
+      }
+    },
+    CHILD_PROCESS_TIMEOUT_MS,
+  )
   it('keeps the quiet GitHub star link in the README Marketplace and Open VSX render', () => {
     expect(readFileSync(path.join(fixture.stage, 'README.md'), 'utf8')).toContain(
       '[Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)',

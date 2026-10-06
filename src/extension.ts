@@ -12,6 +12,8 @@ import { storeErrorCode } from './host/backend/storeErrors'
 import { LEGAL_EXPLANATION_BUNDLE_FILE } from './shared/constants'
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
+import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+import { REFERENCE_BUNDLE_FILE } from './shared/constants'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -223,6 +225,7 @@ import {
 } from './host/models/modelsPanelBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
 import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,
@@ -1075,8 +1078,7 @@ async function activateWindow(
     usageRecording,
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) =>
-      feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
@@ -2642,6 +2644,11 @@ async function activateWindow(
   // `Report a Problem` with no conversation open (M93): the dialog opens
   // once the surface it opened is ready to show it.
   let isReportPending = false
+  let isHelpPending = false
+  const referenceBundle = referenceLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REFERENCE_BUNDLE_FILE).fsPath,
+    log,
+  })
   // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
   // local reads only. The CLI's sign-in comes from its credential file's
   // structure (no `account/read`), the key's presence from the secret store.
@@ -3438,6 +3445,10 @@ async function activateWindow(
     onSurfaceReady: (surface, attachmentEpoch) => {
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      if (isHelpPending) {
+        isHelpPending = false
+        surface.post({ type: 'openHelp' })
+      }
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
         isReportPending = false
@@ -3464,6 +3475,34 @@ async function activateWindow(
       void sandbox.offerIfNeeded('startup').catch(logRejection(log, 'sandbox offer'))
     },
     onConversationMessage: (surface, message) => {
+      if (isReferenceRequest(message)) {
+        void (async () => {
+          const reference = referenceBundle().createReference(l10n.table, l10n.locale)
+          await reference.handle(message, {
+            readNls: async () => {
+              const file =
+                l10n.locale === 'en' ? 'package.nls.json' : `package.nls.${l10n.locale}.json`
+              const text = await readUiTableFile(context.extensionUri.fsPath, [file])
+              const parsed: unknown = JSON.parse(text)
+              return parsed
+            },
+            currentValue: (key) => vscode.workspace.getConfiguration().get(key),
+            openSetting: async (key) => {
+              await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, `@id:${key}`)
+            },
+            runCommand: async (command) => {
+              await vscode.commands.executeCommand(command)
+            },
+            post: (reply) => {
+              surface.post(reply)
+            },
+          })
+        })().catch((error: unknown) => {
+          logRejection(log, 'help reference')(error)
+          surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
+        })
+        return
+      }
       void controllerFor(surface).handle(message)
     },
   }
@@ -3961,6 +4000,16 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.openInSidebar, openSidebar),
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
+    }),
+    registerLoggedCommand(log, COMMAND_IDS.openHelp, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isHelpPending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      surface.post({ type: 'openHelp' })
     }),
     // Report a problem (M93, PLAN.md D72): the dialog over the journal and
     // local facts, in the conversation in view or one opened for it.

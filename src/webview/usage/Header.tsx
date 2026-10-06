@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 import { useId, useState } from 'react'
 import { USAGE_DETAIL_DAYS } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
@@ -174,7 +175,7 @@ export function Header({
               id={`${id}-exports`}
               className="usage-export-options"
               onKeyDown={(event) => {
-                if (event.key === 'Escape') setExportOpen(false)
+                if (webviewKey('header.rename', event) === 'close') setExportOpen(false)
               }}
             >
               {(['callsCsv', 'summaryCsv', 'json'] as const).map((format) => (
