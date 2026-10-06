@@ -360,6 +360,16 @@ happened, not what was planned; superseded entries are kept.
   identity uses the registry's PortName, falling back only to a final COM
   suffix in the friendly name.
 
+
+
+- Local Linux maker rig for Pi 3B/4B/arm64 virt, ESP32/S3/C3, Uno/Mega,
+  Pico, STM32 and nRF52: bounded launchers, private UARTs and an opt-in suite
+  using real emulators, serial sessions, approvals, flashing tools and leases.
+  Pi 3B/4B now provide getty consoles using the image's matching kernel and
+  device trees; S3's download fixture selects UART rather than unemulated USB.
+  S3 qualification uploads and verifies a real app, boots it, and stops a
+  live flash.
+  Physical boards and the integrated maker guard/editor flows remain required.
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". The train now
   describes 0.14.0, the Marketplace README carries the same section, and a

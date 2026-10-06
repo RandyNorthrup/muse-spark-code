@@ -19059,7 +19059,35 @@ import, and it goes on M60's portable list. The only VS Code code is lane V.
 | T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
 | E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
+**Lane X emulator qualification (owner, 2026-10-05).** Add local, bounded,
+idempotent launch/stop scripts under `scripts/emulators/` for QEMU Pi 3B,
+Pi 4B and aarch64 virt with Raspberry Pi OS Lite; Espressif QEMU ESP32,
+S3 and C3; simavr Uno/Mega; rp2040js Pico; Renode STM32/nRF52. UARTs
+use private socat PTYs with stable device-style aliases. Synthetic USB
+metadata stays in `test/` and uses P's discovery seam without changing
+the production OS discovery. An opt-in `MUSE_MAKER_EMULATORS=1` e2e suite
+exercises available P flows, host-only per-action approvals, cancellation
+and real cross-process leases. Real tool flashing is qualified separately
+until G/W's guarded dispatcher exists on this base; no test classifier
+is presented as G's physical-safety guard. GPIO uses guest gpio-sim or
+gpio-mockup where supported. No model or paid calls. Emulator receipts,
+versions, every blocked/unavailable flow and remaining electrical/RF/timing
+hardware checks go in `docs/certification/m103-x.md`. Installation is
+authorized on the Kubuntu rig; no emulator dependency ships in the product.
+The lane brief reserves full quality for the lead and forbids merges/pushes;
+X runs focused suites and the individual static/build gates with hooks on.
+
+**Lane X2 continuation (2026-10-05, 90-minute rig brief).** Finish Pi 3B/4B
+console qualification with explicit UART routing and matching device-tree
+aliases; document a Pi 4 model workaround only if needed. Qualify the S3 ROM
+download strap, esptool v5 reset flags and flash size through write/verify,
+reboot into the UART application and Stop during programming. Re-run the
+whole emulator matrix, retain unavailable transports and integrated-guard
+limits, and update the certification receipts. Product code changes only
+for a demonstrated product bug, with a regression test and red drill.
+
 **Lane G's table (initial; each row and each near-miss is a fixture).**
+
 esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
 (`write_flash`) with a warning; both spellings are rows.
 
@@ -19471,6 +19499,18 @@ proves five distinct byte-exact red drills. All required static/build checks
 pass except that same generated inventory drift. Surface outcome mapping
 and P3 offline GRBL decimal precision are named in §9; full shipping/editor,
 coverage and physical-device acceptance stay with integration.
+
+**M103 X emulator lane (2026-10-05, Kubuntu).** The rig brief prohibits full
+quality and assigns it to the lead. X adds only development rig scripts and
+tests. This P-only base lacks G/D/M/W integration; injected test classification
+is not G's physical-safety guard. The original Pi 3B/4B console and S3 ROM
+UART flash failures are resolved by X2's matching image kernel/DTBs, explicit
+PL011/getty setup and disposable S3 UART-download fixture. The restored
+matrix passes 22 tests with no skips, including app upload, reboot output and
+Stop during real programming. Physical boards, GPIO electrical behavior,
+RF, power, timing, installed-editor paths and full quality remain required.
+The unchanged W-owned host API inventory is stale from P. Individual gates,
+versions, attempted fixes and receipts are in `docs/certification/m103-x.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
