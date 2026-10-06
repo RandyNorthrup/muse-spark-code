@@ -13002,6 +13002,22 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM118INT — RVM118INT corrections (2026-10-06)
+
+Repair all five reviewed P2s within the existing M118 ownership and budgets:
+use confinement's canonical `checkedAbsolute` for every atomic sharing writer;
+make prompt cancellation invalidate an in-flight release after the Save picker
+and at each write admission; reuse `usePrompt` in the terminal for whitespace
+placeholders and literal single-pass substitutions; observe Settings Sync changes
+at activation before the lazy sharing bundle is used; show prompt-action failures
+through the shared response reducer on composer, message/history and palette
+routes. No new dependency, wire shape, guard relaxation or paid/live call.
+Each correction gets a failing regression and a byte-exact restored red drill
+in `docs/certification/m118.md`. Rig runs use repository-default test timeouts.
+The sprint rig brief forbids aggregate quality and unlisted merges; the lead
+owns hosted full quality. The common M72 merge target is absent on this rig and
+is superseded by the already-integrated M118 base; this repair adds no merge.
+
 ### FIXM118C — RVM118C corrections (2026-10-06)
 
 The lane brief authorizes all four P2 fixes in C's existing regions: one

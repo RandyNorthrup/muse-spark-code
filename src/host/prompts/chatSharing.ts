@@ -65,9 +65,9 @@ export function createChatSharing(deps: ChatSharingDeps) {
         })
         if (!checked.ok) throw new Error(UI_TEXT.sharePreviewExpired)
         admit()
-        await writeFileAtomically(checked.absolute, content, {
+        await writeFileAtomically(checked.checkedAbsolute, content, {
           mode: PROMPT_FILE_MODE,
-          expectedCanonicalPath: checked.absolute,
+          expectedCanonicalPath: checked.checkedAbsolute,
           beforeCommit: admit,
           assertCanWrite: admit,
           sleep: (ms) =>

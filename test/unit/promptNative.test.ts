@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -48,9 +48,14 @@ afterEach(async () => {
   vi.resetAllMocks()
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
-async function rig(hasWorkspace = false) {
-  const home = await mkdtemp(path.join(os.tmpdir(), 'prompt-native-'))
-  roots.push(home)
+async function rig(hasWorkspace = false, isAliased = false) {
+  const realHome = await mkdtemp(path.join(os.tmpdir(), 'prompt-native-'))
+  roots.push(realHome)
+  const home = isAliased ? `${realHome}-alias` : realHome
+  if (isAliased) {
+    roots.push(home)
+    await symlink(realHome, home, 'junction')
+  }
   let isConfidential = false
   let secrets: readonly string[] = []
   const open = vi.fn(() => Promise.resolve('opened'))
@@ -96,6 +101,13 @@ const source = {
   'museSpark.promptText': 'Review planted-value',
 }
 describe('native prompt review and release', () => {
+  it('exports reviewed prompt bytes through a symlinked workspace', async () => {
+    const rigged = await rig(true, true)
+    rigged.chooseFile(() => undefined)
+    await rigged.run('sharePrompt', source)
+    const exported = await readFile(path.join(rigged.home, 'export.muse-prompt.md'), 'utf8')
+    expect(exported).toContain(source['museSpark.promptText'])
+  })
   it('keeps workspace prompts usable when the synced user scope is damaged', async () => {
     const rigged = await rig(true)
     const store = new PromptStore(rigged.home, rigged.home)

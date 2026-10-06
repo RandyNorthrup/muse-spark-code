@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile, stat, readFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, stat, readFile, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as z from 'zod/mini'
@@ -54,102 +54,114 @@ describe('M118 production runtime bindings', () => {
     expect(await port.execute('/help', fresh)).toContain('/share chat')
     expect(read).not.toHaveBeenCalled()
   })
-  it('refreshes registered values for previews and refuses a newly sensitive JSON document at release', async () => {
-    const root = await mkdtemp(path.join(os.tmpdir(), 'm118-registered-'))
-    roots.push(root)
-    const known = vi.fn<NonNullable<RuntimeSharingPorts['registeredSecrets']>>(() =>
-      Promise.resolve([]),
-    )
-    const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
-    const ports: RuntimeSharingPorts = {
-      folders: {
-        platform: process.platform,
-        homeDir: root,
-        env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
-      },
-      registeredSecrets: known,
-      read,
-    }
-    const acp = runtimeAcpSharing(ports, EN, 'en')
-    const signal = new AbortController().signal
-    const value = 'registered test value "quoted"'
-    const saved = await acp.execute(`/prompt save --title Registered -- ${value}`, {
-      cwd: root,
-      sessionId: 's1',
-      isActive: () => true,
-      signal,
-    })
-    expect(known).not.toHaveBeenCalled()
-    const id = /\(([^()]*)\)$/.exec(saved)?.[1]
-    if (id === undefined) throw new Error('Missing saved fixture')
-    const args = [
-      'prompts',
-      'share',
-      id,
-      '--cwd',
-      root,
-      '--format',
-      'json',
-      '--destination',
-      'file',
-      '--out',
-      'private.json',
-      '--exported-at',
-      '2026-10-06T12:00:00Z',
-    ]
-    const chunks: string[] = []
-    const output = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
-      chunks.push(String(chunk))
-      return true
-    })
-    const errors: string[] = []
-    const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
-      errors.push(String(chunk))
-      return true
-    })
-    try {
-      known.mockResolvedValue([value])
-      expect(await runRuntimeSharing(parseSharingArgs(args), ports, EN, 'en')).toBe(7)
-      const scrubbed: unknown = JSON.parse(chunks.at(-1) ?? '')
-      const scrubbedResult = z
-        .object({ preview: z.object({ document: shareJsonSchema }) })
-        .parse(scrubbed)
-      expect(JSON.stringify(scrubbedResult.preview.document)).not.toContain('registered test value')
-      chunks.length = 0
-      known.mockResolvedValue([])
-      expect(await runRuntimeSharing(parseSharingArgs(args), ports, EN, 'en')).toBe(7)
-      const preview = z
-        .object({ preview: z.object({ previewId: z.string() }) })
-        .parse(JSON.parse(chunks.at(-1) ?? ''))
-      known.mockResolvedValueOnce([]).mockResolvedValueOnce([value])
-      expect(
-        await runRuntimeSharing(
-          parseSharingArgs([...args, '--confirm', preview.preview.previewId]),
-          ports,
-          EN,
-          'en',
-        ),
-      ).toBe(7)
-      expect(errors.join('')).toContain(EN.sharePreviewExpired)
-      await expect(stat(path.join(root, 'private.json'))).rejects.toMatchObject({ code: 'ENOENT' })
-      known.mockResolvedValue([])
-      expect(
-        await runRuntimeSharing(
-          parseSharingArgs([...args, '--confirm', preview.preview.previewId]),
-          ports,
-          EN,
-          'en',
-        ),
-      ).toBe(0)
-      expect(await readFile(path.join(root, 'private.json'), 'utf8')).toContain(
-        'registered test value',
+  it.each([false, true])(
+    'refreshes registered values and releases through an isAliased workspace: %s',
+    async (isAliased) => {
+      const realRoot = await mkdtemp(path.join(os.tmpdir(), 'm118-registered-'))
+      roots.push(realRoot)
+      const root = isAliased ? `${realRoot}-alias` : realRoot
+      if (isAliased) {
+        roots.push(root)
+        await symlink(realRoot, root, 'junction')
+      }
+      const known = vi.fn<NonNullable<RuntimeSharingPorts['registeredSecrets']>>(() =>
+        Promise.resolve([]),
       )
-      expect(read).not.toHaveBeenCalled()
-    } finally {
-      output.mockRestore()
-      errorOutput.mockRestore()
-    }
-  })
+      const read = vi.fn(() => Promise.reject(new Error('backend must not start')))
+      const ports: RuntimeSharingPorts = {
+        folders: {
+          platform: process.platform,
+          homeDir: root,
+          env: { XDG_DATA_HOME: root, LOCALAPPDATA: root },
+        },
+        registeredSecrets: known,
+        read,
+      }
+      const acp = runtimeAcpSharing(ports, EN, 'en')
+      const signal = new AbortController().signal
+      const value = 'registered test value "quoted"'
+      const saved = await acp.execute(`/prompt save --title Registered -- ${value}`, {
+        cwd: root,
+        sessionId: 's1',
+        isActive: () => true,
+        signal,
+      })
+      expect(known).not.toHaveBeenCalled()
+      const id = /\(([^()]*)\)$/.exec(saved)?.[1]
+      if (id === undefined) throw new Error('Missing saved fixture')
+      const args = [
+        'prompts',
+        'share',
+        id,
+        '--cwd',
+        root,
+        '--format',
+        'json',
+        '--destination',
+        'file',
+        '--out',
+        'private.json',
+        '--exported-at',
+        '2026-10-06T12:00:00Z',
+      ]
+      const chunks: string[] = []
+      const output = vi.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+        chunks.push(String(chunk))
+        return true
+      })
+      const errors: string[] = []
+      const errorOutput = vi.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+        errors.push(String(chunk))
+        return true
+      })
+      try {
+        known.mockResolvedValue([value])
+        expect(await runRuntimeSharing(parseSharingArgs(args), ports, EN, 'en')).toBe(7)
+        const scrubbed: unknown = JSON.parse(chunks.at(-1) ?? '')
+        const scrubbedResult = z
+          .object({ preview: z.object({ document: shareJsonSchema }) })
+          .parse(scrubbed)
+        expect(JSON.stringify(scrubbedResult.preview.document)).not.toContain(
+          'registered test value',
+        )
+        chunks.length = 0
+        known.mockResolvedValue([])
+        expect(await runRuntimeSharing(parseSharingArgs(args), ports, EN, 'en')).toBe(7)
+        const preview = z
+          .object({ preview: z.object({ previewId: z.string() }) })
+          .parse(JSON.parse(chunks.at(-1) ?? ''))
+        known.mockResolvedValueOnce([]).mockResolvedValueOnce([value])
+        expect(
+          await runRuntimeSharing(
+            parseSharingArgs([...args, '--confirm', preview.preview.previewId]),
+            ports,
+            EN,
+            'en',
+          ),
+        ).toBe(7)
+        expect(errors.join('')).toContain(EN.sharePreviewExpired)
+        await expect(stat(path.join(root, 'private.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+        known.mockResolvedValue([])
+        expect(
+          await runRuntimeSharing(
+            parseSharingArgs([...args, '--confirm', preview.preview.previewId]),
+            ports,
+            EN,
+            'en',
+          ),
+        ).toBe(0)
+        expect(await readFile(path.join(root, 'private.json'), 'utf8')).toContain(
+          'registered test value',
+        )
+        expect(read).not.toHaveBeenCalled()
+      } finally {
+        output.mockRestore()
+        errorOutput.mockRestore()
+      }
+    },
+  )
 
   it('uses the same deterministic scrubbed saved-prompt document for Markdown, HTML and JSON', () => {
     const prompt = {

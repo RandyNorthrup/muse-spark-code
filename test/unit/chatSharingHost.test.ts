@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -12,9 +12,14 @@ const roots: string[] = []
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
 })
-async function rig() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'm118-share-host-'))
-  roots.push(root)
+async function rig(isAliased = false) {
+  const realRoot = await mkdtemp(path.join(os.tmpdir(), 'm118-share-host-'))
+  roots.push(realRoot)
+  const root = isAliased ? `${realRoot}-alias` : realRoot
+  if (isAliased) {
+    roots.push(root)
+    await symlink(realRoot, root, 'junction')
+  }
   let session = 's1'
   let confidential: boolean | undefined = false
   const service = createChatSharing({
@@ -60,23 +65,26 @@ async function rig() {
   }
 }
 describe('M118 real chat destinations', () => {
-  it('writes exact reviewed bytes privately only after confirmation, with no preview sink', async () => {
-    const t = await rig()
-    const file = path.join(t.root, 'shared.md')
-    vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file(file))
-    const preview = parseChatSharePreview(await t.service.handle('chatPreview', t.request))
-    await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
-    expect(
-      await t.service.handle('chatConfirm', {
-        step: 'confirmed',
-        previewId: preview.previewId,
-        request: preview.request,
-      }),
-    ).toBe('shared')
-    expect(await readFile(file, 'utf8')).toBe(preview.content)
-    const written = await stat(file)
-    if (process.platform !== 'win32') expect(written.mode & 0o777).toBe(0o600)
-  })
+  it.each([false, true])(
+    'writes exact reviewed bytes privately through an isAliased workspace: %s',
+    async (isAliased) => {
+      const t = await rig(isAliased)
+      const file = path.join(t.root, 'shared.md')
+      vi.mocked(window.showSaveDialog).mockResolvedValue(Uri.file(file))
+      const preview = parseChatSharePreview(await t.service.handle('chatPreview', t.request))
+      await expect(stat(file)).rejects.toMatchObject({ code: 'ENOENT' })
+      expect(
+        await t.service.handle('chatConfirm', {
+          step: 'confirmed',
+          previewId: preview.previewId,
+          request: preview.request,
+        }),
+      ).toBe('shared')
+      expect(await readFile(file, 'utf8')).toBe(preview.content)
+      const written = await stat(file)
+      if (process.platform !== 'win32') expect(written.mode & 0o777).toBe(0o600)
+    },
+  )
   it('refuses outside output, changed policy and a replacement session before any sink', async () => {
     for (const changed of ['path', 'policy', 'session']) {
       const t = await rig()

@@ -238,9 +238,9 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
         if (privacy.redactRegisteredSecrets(text) !== text)
           throw new Error(UI_TEXT.promptFileInvalid)
       }
-      await writeFileAtomically(checked.absolute, text, {
+      await writeFileAtomically(checked.checkedAbsolute, text, {
         mode: PROMPT_FILE_MODE,
-        expectedCanonicalPath: checked.absolute,
+        expectedCanonicalPath: checked.checkedAbsolute,
         beforeCommit: admit,
         assertCanWrite: admit,
         sleep: (ms) =>

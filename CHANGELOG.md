@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fix prompt and chat exports from symlinked workspace paths by binding atomic writes to their checked canonical targets.
+
 - Integrate M118's saved prompt library and message/history/composer/editor
   Save menus, portable personal prompts in every workspace, reviewed raw
   HTTPS imports and insert-only loading. Wire local chat previews and

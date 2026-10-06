@@ -152,9 +152,9 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
       })
       if (!checked.ok) throw new Error(UI_TEXT.shareCancelled)
       admit()
-      await writeFileAtomically(checked.absolute, preview.content, {
+      await writeFileAtomically(checked.checkedAbsolute, preview.content, {
         mode: PROMPT_FILE_MODE,
-        expectedCanonicalPath: checked.absolute,
+        expectedCanonicalPath: checked.checkedAbsolute,
         beforeCommit: admit,
         assertCanWrite: admit,
         sleep: (ms) =>
@@ -170,7 +170,7 @@ function commandsFor(ports: RuntimeSharingPorts): SharingCommands {
       let program = 'xdg-open'
       if (process.platform === 'darwin') program = 'open'
       else if (process.platform === 'win32') program = 'explorer.exe'
-      await localProgram(program, [checked.absolute], signal)
+      await localProgram(program, [checked.checkedAbsolute], signal)
     },
   })
 }
