@@ -248,6 +248,18 @@ the model queue. POSIX process groups and an independent guardian reap
 observed detached descendants even after supervisor death. Fast double-fork
 escapes before observation remain a platform containment gap. Windows uses
 the existing kill-on-close job helper and still needs a native receipt.
+Intentional Stop exits 0; ordinary workload exit codes are preserved, and
+unexpected POSIX signal death exits 128 + the signal number with the signal
+named on stderr. A dead supervisor is not completion: independent Stop needs
+the guardian's completed receipt for all observed descendants. Otherwise it
+exits 1, reports that processes may still be running with observed PIDs, and
+retains ownership records for a later verified Stop.
+
+Private IPC lives under the per-user runtime/cache root (Linux XDG runtime
+or cache, macOS Library/Caches, Windows LocalAppData), with owner/write/ACL
+checks through every ancestor. Records are exclusive and no-follow, and
+held-file permissions/ACLs and directory identity are verified before the
+first content write.
 
 The production LSP supplies `muse.stop`, `muse.usage` and `muse.help`.
 Open-panel/Fix/Explain and review/verify diagnostic publication require the

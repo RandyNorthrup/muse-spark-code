@@ -1,6 +1,18 @@
 import './helpers/lspPrivateDirectoryMock'
-import { chmod, link, lstat, mkdir, mkdtemp, writeFile, readFile, rename } from 'node:fs/promises'
+import {
+  chmod,
+  link,
+  lstat,
+  mkdir,
+  mkdtemp,
+  writeFile,
+  readFile,
+  rename,
+  symlink,
+} from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
+import type { BigIntStats } from 'node:fs'
+import type { FileHandle } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it, vi } from 'vitest'
@@ -19,6 +31,23 @@ vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOrigina
 
 const folder = await mkdtemp(path.join(tmpdir(), 'muse-registry-'))
 afterAll(() => removeFolder(folder))
+
+// Inject the interleaving after the real no-follow open has acquired its fd.
+function afterOpen(file: string, inspect: (handle: FileHandle) => Promise<void>) {
+  const actualOpen = fs.open
+  return vi.spyOn(fs, 'open').mockImplementation(async (name, flags, mode) => {
+    const handle = await actualOpen(name, flags, mode)
+    if (name === file) await inspect(handle)
+    return handle
+  })
+}
+function changedMetadata(file: string, change: (metadata: BigIntStats) => void) {
+  return afterOpen(file, async (handle) => {
+    const metadata = await handle.stat({ bigint: true })
+    change(metadata)
+    vi.spyOn(handle, 'stat').mockResolvedValue(metadata)
+  })
+}
 
 describe('M104L private registry authority', () => {
   it.runIf(process.platform !== 'win32')(
@@ -47,6 +76,157 @@ describe('M104L private registry authority', () => {
       await expect(openPrivateRecord(record)).rejects.toThrow('ELSP_PRIVATE')
     },
   )
+  it.runIf(process.platform !== 'win32')(
+    'refuses the review symlink-substitution setup at an unsafe parent before creation',
+    async () => {
+      const parent = path.join(folder, 'unsafe-parent')
+      const directory = path.join(parent, 'private')
+      await mkdir(parent, { mode: 0o777 })
+      await chmod(parent, 0o777)
+      const creating = vi.spyOn(fs, 'mkdir')
+      try {
+        await expect(privateDirectory(directory, true)).rejects.toThrow('ELSP_PRIVATE')
+        expect(creating).not.toHaveBeenCalled()
+        await expect(readFile(path.join(directory, 'owner.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } finally {
+        creating.mockRestore()
+      }
+    },
+  )
+  it.runIf(process.platform !== 'win32')(
+    'refuses an untrusted root, a foreign ancestor, and a symlink ancestor',
+    async () => {
+      const parent = path.join(folder, 'ancestor')
+      await mkdir(parent, { mode: 0o700 })
+      await expect(
+        privateDirectory(
+          path.join(parent, 'outside'),
+          true,
+          undefined,
+          path.join(folder, 'different-root'),
+        ),
+      ).rejects.toThrow('ELSP_PRIVATE')
+      const opening = changedMetadata(parent, (metadata) => {
+        metadata.uid += 1n
+      })
+      try {
+        await expect(privateDirectory(path.join(parent, 'foreign'), true)).rejects.toThrow(
+          'ELSP_PRIVATE',
+        )
+      } finally {
+        opening.mockRestore()
+      }
+      const alias = path.join(folder, 'ancestor-alias')
+      await symlink(parent, alias)
+      await expect(privateDirectory(path.join(alias, 'private'), true)).rejects.toThrow()
+    },
+  )
+  it.runIf(process.platform !== 'win32')(
+    'refuses a safe held directory whose pathname becomes a substituted symlink',
+    async () => {
+      const directory = path.join(folder, 'safe-held-race')
+      const target = path.join(folder, 'safe-held-target')
+      await mkdir(directory, { mode: 0o700 })
+      await mkdir(target, { mode: 0o755 })
+      const opening = afterOpen(directory, async () => {
+        await rename(directory, `${directory}-held`)
+        await symlink(target, directory)
+      })
+      try {
+        await expect(privateDirectory(directory)).rejects.toThrow('ELSP_PRIVATE')
+      } finally {
+        opening.mockRestore()
+      }
+    },
+  )
+
+  it.runIf(process.platform !== 'win32')(
+    'does not publish record contents when its verified parent is replaced before the write',
+    async () => {
+      const directory = path.join(folder, 'record-parent-race')
+      const target = path.join(folder, 'redirected')
+      await mkdir(directory, { mode: 0o700 })
+      await mkdir(target, { mode: 0o777 })
+      const file = path.join(directory, 'owner.json')
+      const opening = afterOpen(file, async () => {
+        await rename(directory, `${directory}-held`)
+        await symlink(target, directory)
+      })
+      try {
+        await expect(writePrivateRecord(file, 'private-control-sentinel')).rejects.toThrow(
+          'ELSP_PRIVATE',
+        )
+        expect(await readFile(path.join(`${directory}-held`, 'owner.json'), 'utf8')).toBe('')
+        await expect(readFile(path.join(target, 'owner.json'))).rejects.toMatchObject({
+          code: 'ENOENT',
+        })
+      } finally {
+        opening.mockRestore()
+      }
+    },
+  )
+  it.runIf(process.platform !== 'win32').each(['foreignOwner', 'broadMode', 'extraLink'])(
+    'rejects empty record fstat %s before its first write',
+    async (fault) => {
+      const directory = path.join(folder, `record-${fault}`)
+      await mkdir(directory, { mode: 0o700 })
+      const file = path.join(directory, 'owner.json')
+      const opening = changedMetadata(file, (metadata) => {
+        if (fault === 'foreignOwner') metadata.uid += 1n
+        else if (fault === 'broadMode') metadata.mode |= 0o044n
+        else metadata.nlink += 1n
+      })
+      try {
+        await expect(writePrivateRecord(file, 'private-control-sentinel')).rejects.toThrow(
+          'ELSP_PRIVATE',
+        )
+        expect(await readFile(file, 'utf8')).toBe('')
+      } finally {
+        opening.mockRestore()
+      }
+    },
+  )
+  it.runIf(process.platform !== 'win32')(
+    'never overwrites a record or follows an occupied leaf symlink',
+    async () => {
+      const directory = path.join(folder, 'exclusive-records')
+      await mkdir(directory, { mode: 0o700 })
+      const file = path.join(directory, 'owner.json')
+      await writePrivateRecord(file, 'original')
+      await expect(writePrivateRecord(file, 'replacement')).rejects.toMatchObject({
+        code: 'EEXIST',
+      })
+      expect(await readFile(file, 'utf8')).toBe('original')
+      const alias = path.join(directory, 'alias.json')
+      await symlink(file, alias)
+      await expect(writePrivateRecord(alias, 'replacement')).rejects.toThrow()
+      expect(await readFile(file, 'utf8')).toBe('original')
+    },
+  )
+
+  it.runIf(process.platform === 'darwin')(
+    'verifies the empty held record ACL before writing any content',
+    async () => {
+      const directory = path.join(folder, 'record-acl')
+      await mkdir(directory, { mode: 0o700 })
+      const file = path.join(directory, 'owner.json')
+      const opening = afterOpen(file, async () => {
+        await processTree.runProgram('/bin/chmod', ['+a', 'user:nobody allow read', file], {})
+      })
+      try {
+        await expect(writePrivateRecord(file, 'private-control-sentinel')).rejects.toThrow(
+          'ELSP_PRIVATE',
+        )
+        expect(await readFile(file, 'utf8')).toBe('')
+        expect(opening).toHaveBeenCalledWith(file, expect.any(Number), 0o600)
+      } finally {
+        opening.mockRestore()
+      }
+    },
+  )
+
   it.runIf(process.platform === 'darwin')(
     'refuses a macOS extended ACL on the held directory fd',
     async () => {
@@ -57,22 +237,19 @@ describe('M104L private registry authority', () => {
     },
   )
   it.runIf(process.platform !== 'win32')(
-    'uses no-follow fstat and refuses a foreign directory owner without a path restat',
+    'uses no-follow fstat and refuses a foreign directory owner before trusting its path',
     async () => {
       const directory = path.join(folder, 'foreign-directory')
       await mkdir(directory, { mode: 0o700 })
-      const handle = await fs.open(directory, 0)
-      const metadata = await handle.stat({ bigint: true })
-      metadata.uid += 1n
-      const inspecting = vi.spyOn(handle, 'stat').mockResolvedValue(metadata)
-      const opening = vi.spyOn(fs, 'open').mockResolvedValueOnce(handle)
+      const opening = changedMetadata(directory, (metadata) => {
+        metadata.uid += 1n
+      })
       const restating = vi.spyOn(fs, 'lstat')
       try {
         await expect(privateDirectory(directory)).rejects.toThrow('ELSP_PRIVATE')
         expect(opening).toHaveBeenCalledWith(directory, expect.any(Number))
-        expect(restating).not.toHaveBeenCalled()
+        expect(restating).not.toHaveBeenCalledWith(directory, { bigint: true })
       } finally {
-        inspecting.mockRestore()
         opening.mockRestore()
         restating.mockRestore()
       }
@@ -83,15 +260,12 @@ describe('M104L private registry authority', () => {
     async () => {
       const directory = path.join(folder, 'descriptor-receipt')
       await mkdir(directory, { mode: 0o700 })
-      const handle = await fs.open(directory, 0)
-      const metadata = await handle.stat({ bigint: true })
-      metadata.ino += 1n
-      const inspecting = vi.spyOn(handle, 'stat').mockResolvedValue(metadata)
-      const opening = vi.spyOn(fs, 'open').mockResolvedValueOnce(handle)
+      const opening = changedMetadata(directory, (metadata) => {
+        metadata.ino += 1n
+      })
       try {
         await expect(privateDirectory(directory)).rejects.toThrow('ELSP_PRIVATE')
       } finally {
-        inspecting.mockRestore()
         opening.mockRestore()
       }
     },
@@ -157,6 +331,20 @@ describe('M104L private registry authority', () => {
     )
     expect(helper).toContain('SHARE_READ_WRITE = 3')
     expect(helper).not.toContain('Set-Acl')
+    expect(helper).toContain('public static void VerifyParents')
+    expect(helper).toContain('throw new InvalidOperationException("writable parent")')
+    expect(helper).toContain(
+      'CreateRecordW(path, READ_CONTROL | GENERIC_WRITE, SHARE_READ_WRITE, ref attributes, CREATE_NEW, OPEN_REPARSE_BACKUP',
+    )
+    const writing = helper.slice(helper.indexOf('public static void WriteRecord'))
+    expect(writing).toContain('Inspect(handle, false, false)')
+    expect(writing).toContain('actual.Volume != parentInfo.Volume')
+    expect(writing.indexOf('Inspect(handle, false, false)')).toBeLessThan(
+      writing.indexOf('stream.Write(bytes'),
+    )
+    expect(writing.indexOf('stream.Write(bytes')).toBeLessThan(
+      writing.indexOf('CloseHandle(parent)'),
+    )
   })
   it.each(['created', 'foreignReplacement', 'junctionReplacement', 'inheritedAcl'])(
     'Windows native creation %s cannot use a create-then-harden path',

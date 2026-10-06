@@ -11,7 +11,11 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { afterAll, describe, expect, it, vi } from 'vitest'
-import { superviseRuntime, stopWorkspace } from '../../src/runtime/lsp/supervisor'
+import {
+  superviseRuntime,
+  stopWorkspace,
+  UnverifiedStopError,
+} from '../../src/runtime/lsp/supervisor'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -101,6 +105,36 @@ describe('M104H2 runtime supervision', () => {
       await removeFolder(registry)
     }
   })
+  it('refuses dead ownership without a completion receipt and retains the record', async () => {
+    const registry = path.join(directory, 'missing-receipt')
+    await fs.mkdir(registry, { mode: 0o700 })
+    const gone = childProcess.spawn(process.execPath, ['-e', 'process.exit(0)'], {
+      stdio: 'ignore',
+    })
+    await new Promise<void>((resolve) => {
+      gone.once('close', () => {
+        resolve()
+      })
+    })
+    if (gone.pid === undefined) throw new Error('no fixture PID')
+    const record = path.join(registry, `${workspaceKey(directory)}-gone.json`)
+    await writeFile(
+      record,
+      JSON.stringify({ pid: gone.pid, pipe: 'unused', token: 'a'.repeat(64) }),
+      { mode: 0o600 },
+    )
+    try {
+      await stopWorkspace(registry, directory)
+      throw new Error('Stop falsely succeeded')
+    } catch (error: unknown) {
+      expect(error).toBeInstanceOf(UnverifiedStopError)
+      if (!(error instanceof UnverifiedStopError)) throw error
+      expect(error.pids).toEqual([gone.pid])
+    }
+    expect(await readdir(registry)).toHaveLength(1)
+    await removeFolder(registry)
+  })
+
   it('parses Stop separately and refuses recursive supervisors', () => {
     expect(parseCommandLine(['stop'])).toEqual({ command: 'stop' })
     expect(parseCommandLine(['stop', 'extra'])).toMatchObject({ command: 'invalid' })
@@ -287,6 +321,47 @@ describe('M104H2 runtime supervision', () => {
     expect(await readdir(path.join(directory, 'owners'))).toEqual([])
   })
 
+  it.runIf(process.platform !== 'win32').each(['SIGKILL', 'SIGTERM'] as const)(
+    'reports unexpected workload %s as a nonzero signal exit',
+    async (signal) => {
+      const onSignalExit = vi.fn()
+      const code = await superviseRuntime({
+        registry: path.join(directory, 'owners'),
+        cwd: directory,
+        file: process.execPath,
+        args: ['-e', `process.kill(process.pid, ${JSON.stringify(signal)})`],
+        env: process.env,
+        packageRoot: directory,
+        watchdogFile,
+        stdin: new PassThrough(),
+        stdout: new PassThrough(),
+        onSignalExit,
+      })
+      expect(code).toBe(signal === 'SIGKILL' ? 137 : 143)
+      expect(onSignalExit).toHaveBeenCalledExactlyOnceWith(signal)
+    },
+  )
+
+  it.runIf(process.platform !== 'win32').each([143, 137])(
+    'maps intentional Stop with workload exit %s to documented exit zero',
+    async (code) => {
+      const ready = path.join(directory, `intentional-${String(code)}`)
+      const run = start(
+        directory,
+        `process.on('SIGTERM',()=>process.exit(${String(code)}));require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)`,
+        [ready],
+      )
+      await waitFor(ready)
+      try {
+        await stopWorkspace(path.join(directory, 'owners'), directory)
+        expect(await run.done).toBe(0)
+      } finally {
+        await stopWorkspace(path.join(directory, 'owners'), directory)
+        await run.done
+      }
+    },
+  )
+
   it('fails explicitly when the configured child cannot start', async () => {
     await expect(
       superviseRuntime({
@@ -340,7 +415,8 @@ describe('M104H2 runtime supervision', () => {
           expect(() => process.kill(pid, 0)).toThrow()
         }
       }
-      expect(await readdir(path.join(directory, 'owners'))).toHaveLength(1)
+      const remaining = await readdir(path.join(directory, 'owners'))
+      expect(remaining.filter((file) => file.endsWith('.json'))).toHaveLength(1)
     } finally {
       if (Array.isArray(pids) && typeof pids[0] === 'number' && process.platform !== 'win32') {
         try {
@@ -358,6 +434,71 @@ describe('M104H2 runtime supervision', () => {
       await other.done
     }
   })
+
+  it.runIf(process.platform !== 'win32')(
+    'preserves admitted ownership when the supervisor cannot verify tree cleanup',
+    async () => {
+      const ready = path.join(directory, 'refused-stop.ready')
+      let workload: childProcess.ChildProcess | undefined
+      const spawning = captureWorkload((child) => {
+        workload = child
+      })
+      const run = start(
+        directory,
+        `require('node:fs').writeFileSync(process.argv[1],'ready');setInterval(()=>{},1000)`,
+        [ready],
+      )
+      await waitFor(ready)
+      const ownerFiles = await readdir(path.join(directory, 'owners'))
+      const ownerFile = ownerFiles.find((file) => file.endsWith('.json'))
+      if (ownerFile === undefined) throw new Error('missing owner')
+      const owner: unknown = JSON.parse(
+        await readFile(path.join(directory, 'owners', ownerFile), 'utf8'),
+      )
+      if (
+        typeof owner !== 'object' ||
+        owner === null ||
+        !('pipe' in owner) ||
+        typeof owner.pipe !== 'string'
+      )
+        throw new Error('invalid owner')
+      const controlFolder = path.dirname(owner.pipe)
+      const actualKill = ResourceTreeRegistry.prototype.kill
+      class RefusedCleanupRegistry extends ResourceTreeRegistry {
+        override async kill(ticket: ResourceTicket, signal?: ResourceSignal) {
+          if (ticket.root.pid === workload?.pid)
+            return {
+              status: 'refused' as const,
+              members: [{ identity: ticket.root, result: 'refused' as const }],
+            }
+          return await actualKill.call(this, ticket, signal)
+        }
+      }
+      const refusing = vi
+        .spyOn(ResourceTreeRegistry.prototype, 'kill')
+        .mockImplementation(RefusedCleanupRegistry.prototype.kill)
+      try {
+        await expect(stopWorkspace(path.join(directory, 'owners'), directory)).rejects.toThrow(
+          'ESTOP_TREE',
+        )
+        await expect(run.done).rejects.toThrow('ESTOP_TREE')
+        expect(await readdir(path.join(directory, 'owners'))).toContain(ownerFile)
+        if (workload === undefined) throw new Error('missing workload')
+        expect(workload.signalCode).not.toBeNull()
+      } finally {
+        refusing.mockRestore()
+        spawning.mockRestore()
+        try {
+          await run.done
+        } catch {
+          /* The refusal is the asserted outcome. */
+        }
+        await removeFolder(path.join(directory, 'owners', ownerFile))
+        await removeFolder(path.join(directory, 'owners', `${ownerFile}.tree`))
+        await removeFolder(controlFolder)
+      }
+    },
+  )
 
   it.runIf(process.platform !== 'win32')(
     'does not acknowledge Stop until registry actions attest that every identity has exited',
@@ -415,7 +556,8 @@ describe('M104H2 runtime supervision', () => {
     )
     const pid = Number(await waitFor(ready))
     const owners = await readdir(path.join(directory, 'owners'))
-    const file = owners[0]!
+    const file = owners.find((owner) => owner.endsWith('.json'))
+    if (file === undefined) throw new Error('missing owner record')
     const recordText = await readFile(path.join(directory, 'owners', file), 'utf8')
     const record: unknown = JSON.parse(recordText)
     if (
@@ -458,7 +600,8 @@ describe('M104H2 runtime supervision', () => {
           if (!failed) resolve()
         })
       })
-      expect(await readdir(path.join(directory, 'owners'))).toHaveLength(1)
+      const remaining = await readdir(path.join(directory, 'owners'))
+      expect(remaining.filter((file) => file.endsWith('.json'))).toHaveLength(1)
       if (process.platform !== 'win32') {
         const info = await stat(path.join(directory, 'owners', file))
         expect(info.mode & 0o777).toBe(0o600)

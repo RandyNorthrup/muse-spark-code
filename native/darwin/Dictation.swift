@@ -82,13 +82,23 @@ func runProcIdentityIfRequested() {
     exit(0)
 }
 
-// M104L: inspect an inherited no-follow directory fd; never reopen its path.
+// M104L: inspect an inherited no-follow fd; never reopen its path.
 func runPrivateDirectoryIfRequested() {
-    guard CommandLine.arguments.dropFirst().first == "private-directory" else { return }
+    guard let command = CommandLine.arguments.dropFirst().first,
+          ["private-directory", "private-record", "private-ancestor"].contains(command) else { return }
     guard CommandLine.arguments.count == 3, let fd = Int32(CommandLine.arguments[2]), fd >= 3 else { exit(2) }
     var info = stat()
-    guard fstat(fd, &info) == 0, (info.st_mode & S_IFMT) == S_IFDIR,
-          info.st_uid == getuid(), (info.st_mode & 0o777) == 0o700 else { exit(2) }
+    guard fstat(fd, &info) == 0 else { exit(2) }
+    if command == "private-ancestor" {
+        guard (info.st_mode & S_IFMT) == S_IFDIR,
+              info.st_uid == getuid() || info.st_uid == 0,
+              (info.st_mode & 0o022) == 0 || (info.st_mode & 0o1000) != 0 else { exit(2) }
+    } else {
+        let isDirectory = command == "private-directory"
+        guard (info.st_mode & S_IFMT) == (isDirectory ? S_IFDIR : S_IFREG),
+              info.st_uid == getuid(), (info.st_mode & 0o777) == (isDirectory ? 0o700 : 0o600),
+              isDirectory || info.st_nlink == 1 else { exit(2) }
+    }
     errno = 0
     if let acl = acl_get_fd(fd) {
         acl_free(UnsafeMutableRawPointer(acl))

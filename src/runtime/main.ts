@@ -42,7 +42,8 @@ import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
 import { workspaceKey, paidGrantsFile } from './dataFolder'
-import { stopWorkspace, superviseRuntime } from './lsp/supervisor'
+import { stopWorkspace, superviseRuntime, UnverifiedStopError } from './lsp/supervisor'
+import { trustedPrivateRoot } from './privateDirectory'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
 import type { Logger } from '../host/logger'
@@ -364,8 +365,18 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 
 async function main(): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
+  const log = stderrLogger((line) => {
+    writeLine(process.stderr, line)
+  }, logLevel(command))
+  const installLanguage = () =>
+    loadUiTable({
+      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+      log,
+    })
   if (command.command === 'supervise' || command.command === 'stop') {
-    const registry = path.join(tmpdir(), `muse-runtime-${workspaceKey(homedir())}`)
+    await installLanguage()
+    const registry = path.join(trustedPrivateRoot(), `muse-runtime-${workspaceKey(homedir())}`)
     try {
       if (command.command === 'stop') {
         await stopWorkspace(registry, process.cwd())
@@ -380,10 +391,17 @@ async function main(): Promise<number> {
         packageRoot,
         stdin: process.stdin,
         stdout: process.stdout,
+        onSignalExit: (signal) => {
+          writeLine(process.stderr, fill(UI_TEXT.acpSupervisorSignal, { signal }))
+        },
       })
       if (code !== 0) writeLine(process.stderr, 'ESUPERVISE_EXIT')
       return code
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof UnverifiedStopError) {
+        writeLine(process.stderr, fill(UI_TEXT.acpStopUnverified, { pids: error.pids.join(', ') }))
+        return EXIT_FAILED
+      }
       // Never expose a private control token, profile path or raw child error.
       writeLine(process.stderr, 'ESUPERVISE_STOP')
       return EXIT_FAILED
@@ -504,15 +522,8 @@ async function main(): Promise<number> {
       )
     }
   }
-  const log = stderrLogger((line) => {
-    writeLine(process.stderr, line)
-  }, logLevel(command))
   // The language's table goes in before anything reads the text (D33).
-  await loadUiTable({
-    language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
-    readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
-    log,
-  })
+  await installLanguage()
   switch (command.command) {
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
@@ -525,7 +536,7 @@ async function main(): Promise<number> {
         stdout: process.stdout,
         executable: process.execPath,
         entry: __filename,
-        registry: path.join(tmpdir(), `muse-runtime-${workspaceKey(homedir())}`),
+        registry: path.join(trustedPrivateRoot(), `muse-runtime-${workspaceKey(homedir())}`),
         dataFolder: agentDataFolder(dataInput),
         grantsFile: paidGrantsFile(dataInput),
         secrets,

@@ -1,12 +1,12 @@
 import './helpers/lspPrivateDirectoryMock'
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { LSP_LIMITS } from '../../src/shared/constants'
-import { stopWorkspace } from '../../src/runtime/lsp/supervisor'
+import { stopWorkspace, UnverifiedStopError } from '../../src/runtime/lsp/supervisor'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -46,6 +46,73 @@ async function waitExited(pid: number) {
 
 // Windows uses the kill-on-close job instead, exercised by runtimeSupervisor.test.ts.
 describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian', () => {
+  it('retains ownership and names observed PIDs when the owner dies before guardian completion', async () => {
+    const registry = path.join(folder, 'suspended-guardian')
+    const file = path.join(folder, 'suspended.json')
+    const parent = spawn(process.execPath, [parentFile, registry, folder, watchdogFile, file], {
+      stdio: 'ignore',
+    })
+    let guardian: number | undefined
+    let owned: z.infer<typeof receiptSchema> | undefined
+    try {
+      owned = await receipt(file)
+      const owners = await readdir(registry)
+      const ownerFile = owners.find((name) => name.endsWith('.json'))
+      if (ownerFile === undefined) throw new Error('missing ownership record')
+      const treeFile = path.join(registry, `${ownerFile}.tree`)
+      const schema = z.strictObject({
+        isComplete: z.boolean(),
+        guardian: z.int(),
+        pids: z.array(z.int()),
+      })
+      const deadline = Date.now() + LSP_LIMITS.startupMs
+      while (Date.now() < deadline) {
+        const tree = schema.parse(JSON.parse(await readFile(treeFile, 'utf8')))
+        if (tree.pids.includes(owned.detached)) {
+          guardian = tree.guardian
+          break
+        }
+        await pause(25)
+      }
+      if (guardian === undefined) throw new Error('guardian did not observe detached child')
+      process.kill(guardian, 'SIGSTOP')
+      const closed = new Promise<void>((resolve) => {
+        parent.once('close', () => {
+          resolve()
+        })
+      })
+      parent.kill('SIGKILL')
+      await closed
+      try {
+        await stopWorkspace(registry, folder)
+        throw new Error('Stop falsely succeeded')
+      } catch (error: unknown) {
+        expect(error).toBeInstanceOf(UnverifiedStopError)
+        if (!(error instanceof UnverifiedStopError)) throw error
+        expect(error.pids).toEqual(expect.arrayContaining([owned.root, owned.detached]))
+      }
+      expect(await readdir(registry)).toContain(ownerFile)
+      expect(isProcessAlive(owned.root)).toBe(true)
+      expect(isProcessAlive(owned.detached)).toBe(true)
+      process.kill(guardian, 'SIGCONT')
+      guardian = undefined
+      await waitExited(owned.root)
+      await waitExited(owned.detached)
+      while (!schema.parse(JSON.parse(await readFile(treeFile, 'utf8'))).isComplete) {
+        if (Date.now() >= deadline + LSP_LIMITS.startupMs) throw new Error('no guardian completion')
+        await pause(25)
+      }
+      await expect(stopWorkspace(registry, folder)).resolves.toBeUndefined()
+    } finally {
+      if (guardian !== undefined) process.kill(guardian, 'SIGCONT')
+      parent.kill('SIGKILL')
+      if (owned !== undefined) {
+        await waitExited(owned.root)
+        await waitExited(owned.detached)
+      }
+    }
+  })
+
   it.each(['stop', 'ownerKilled'])(
     'reaps a busy root and detached descendant after %s',
     async (ending) => {
@@ -65,7 +132,23 @@ describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian'
         await waitExited(owned.detached)
         expect(isProcessAlive(owned.root)).toBe(false)
         expect(isProcessAlive(owned.detached)).toBe(false)
-        // A dead supervisor's stale record must not block the next independent Stop.
+        // Only the guardian's completed receipt permits stale ownership retirement.
+        if (ending === 'ownerKilled') {
+          const deadline = Date.now() + LSP_LIMITS.startupMs
+          for (;;) {
+            const entries = await readdir(registry)
+            const tree = entries.find((name) => name.endsWith('.tree'))
+            if (
+              tree !== undefined &&
+              z
+                .object({ isComplete: z.boolean() })
+                .parse(JSON.parse(await readFile(path.join(registry, tree), 'utf8'))).isComplete
+            )
+              break
+            if (Date.now() >= deadline) throw new Error('no completed tree receipt')
+            await pause(25)
+          }
+        }
         await expect(stopWorkspace(registry, folder)).resolves.toBeUndefined()
       } finally {
         parent.kill('SIGKILL')

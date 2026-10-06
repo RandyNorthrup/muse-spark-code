@@ -4,7 +4,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp',
     behavior:
-      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records with exact identity checks; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
+      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL and directory identity verified before contents are written; every ancestor through the per-user runtime/cache root must be trusted; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
   },
   {
     command: 'lsp --workspace <directory>',
@@ -23,12 +23,12 @@ export const FEATURE_CATALOG = [
   {
     command: 'supervise <runtime arguments>',
     behavior:
-      'Run the installed runtime behind independent authenticated Stop control. Stop during guardian startup waits for the child and cleanup. Workload launches wait for exact M107 process registration. All Stop actions use verified per-member signals and exit receipts; POSIX EOF guardian uses the same authority, zombies count as exited, and observed detached descendants remain enrolled. Windows uses a named native job. POSIX retains the final exact-read-to-signal interval without a pidfd; native Windows/Linux qualification remains pending.',
+      'Run the installed runtime behind independent authenticated Stop control. Stop during guardian startup waits for the child and cleanup. Workload launches wait for exact M107 process registration. All Stop actions use verified per-member signals and exit receipts; POSIX EOF guardian uses the same authority, zombies count as exited, and observed detached descendants remain enrolled. Windows uses a named native job. Intentional Stop exits 0, including job 143/137; ordinary exit codes are preserved; unexpected POSIX signal death exits 128 + signal and names it on stderr. POSIX retains the final exact-read-to-signal interval without a pidfd; native Windows/Linux qualification remains pending.',
   },
   {
     command: 'stop',
     behavior:
-      'Stop supervised owners in the current canonical workspace without entering the request queue.',
+      'Stop supervised owners in the current canonical workspace without entering the request queue. Owner death requires a completed guardian receipt for every observed descendant; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
   },
   {
     command: 'muse.stop / muse.usage / muse.help',

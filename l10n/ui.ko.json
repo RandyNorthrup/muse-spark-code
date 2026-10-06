@@ -2370,5 +2370,7 @@
   "resourceRelocateDescription": "컴퓨터 사용량이 높을 때 대기 중인 팀 작업과 검사를 이동할 위치입니다. 기존 장치 동의와 제공 조건은 계속 적용됩니다.",
   "resourceRelocatePairedDescription": "리소스 사용량이 정상인, 이미 승인된 페어링 장치를 사용합니다.",
   "resourceRelocateAskDescription": "대기 중인 작업을 이동하기 전에 묻습니다.",
-  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다."
+  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다.",
+  "acpStopUnverified": "중지를 확인할 수 없습니다 — 프로세스가 아직 실행 중일 수 있습니다. 관찰된 PID: {pids}",
+  "acpSupervisorSignal": "감독 대상 프로세스가 {signal} 신호로 종료되었습니다."
 }

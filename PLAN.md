@@ -19787,6 +19787,21 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L3 (2026-10-06).** Repair RVM104L3 findings 1, 3 and 4 within
+L's files, without new dependencies or weaker guards. Private namespaces
+must be below the per-user runtime/cache root; verify every ancestor through
+that root before creation. Create records exclusively/no-follow, verify the
+empty held file's owner/mode/native ACL and its held directory's pathname
+identity before writing any control token. Independent Stop cannot infer
+completion from owner death: require a guardian completion receipt for all
+observed descendants or retain ownership and report inability to verify,
+including observed PIDs. Preserve ordinary exit codes, map intentional Stop
+to documented exit 0 (including Windows job 143/137), and return 128 + signal
+with a named diagnostic for unexpected POSIX workload signal death. Each
+finding receives a failing regression and byte-exact red drill in m104-l.md.
+Finding 2 (Linux same-tick PID aliasing) is owned by M107T3 and is not changed
+here; native Windows execution stays with integration. No merge is authorized.
+
 **REDM104L continuation (2026-10-06).** The listed `m107/t2` merge
 supplies exact native identities, verified per-member actions and departed/
 zombie enrollment. Replace LSP's local ps/birth table, direct child/group
@@ -21386,6 +21401,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**FIXM104L3 scoped gates (2026-10-06).** The rig brief forbids aggregate
+quality and merges; the lead retains full integrated coverage/native editor
+gates. Scoped tests, red drills and unchanged static/build guards apply.
+The W-owned host-API snapshot still fails without VS Code/theme changes:
+child_process 16→17, crypto 54→55, fs 36→38, fs/promises 53→56,
+os 10→11, path 91→98, process 3→4. The added imports support the trusted
+cache root and private completion receipts. W/lead regenerates/reviews this
+record at integration; this lane does not edit its generated file or claim
+that check passed.
+
 **REDM104L merge-only dependency stop (2026-10-05).** The listed T merge
 passes all five typechecks, scoped ESLint/Prettier, localization, reference,
 deadcode, duplication and production build gates; 168 distinct tests pass
@@ -22233,10 +22258,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| M104L location                        | Escape hatch                         | Reason                                                                                                                                                            | Date       |
-| ------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/lsp/processAuthority.ts` | `nosemgrep` on registered Node spawn | Installed Node/argv waits on a private launch fd until exact M107 registration; credential variables and keyring routes are removed. No shell or bare PID signal. | 2026-10-06 |
-| `src/runtime/privateDirectory.ts`     | `nosemgrep` on native fd ACL probe   | Shipped signed Darwin helper reads only the inherited no-follow directory fd, with a credential-free environment.                                                 | 2026-10-06 |
+| M104L location                        | Escape hatch                               | Reason                                                                                                                                                                                                            | Date       |
+| ------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/lsp/processAuthority.ts` | `nosemgrep` on registered Node spawn       | Installed Node/argv waits on a private launch fd until exact M107 registration; credential variables and keyring routes are removed. No shell or bare PID signal.                                                 | 2026-10-06 |
+| `src/runtime/privateDirectory.ts`     | `nosemgrep` on native fd ACL probe         | Shipped signed Darwin helper reads only inherited no-follow directory, ancestor or empty-record fds, with a credential-free environment.                                                                          | 2026-10-06 |
+| `src/runtime/privateDirectory.ts`     | `nosemgrep` on Windows record helper spawn | Trusted installed C# helper receives the private record only on stdin, uses protected CREATE_NEW/no-reparse handles, and verifies parent/file before writing; credential variables and keyring routes are absent. | 2026-10-06 |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22360,6 +22386,14 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM104L3-F2 — owned by M107T3 (2026-10-06).** Linux PID/start-tick
+  identity can alias an unrelated incarnation within one exposed clock tick.
+  The seam reproduction is confirmed; native numerical same-tick reuse is
+  unqualified. This is a release blocker, not a safety guarantee. Safe only
+  for this unmerged prototype with no Linux containment claim. Follow-up:
+  M107T3 supplies cgroup-v2 kill/containment and its native receipts; the lead
+  merges that authority and reruns LSP lifecycle qualification.
 
 - **REDM104L POSIX action residual (2026-10-06).** Linux and Darwin
   recheck the exact kernel birth immediately before synchronous positive-PID

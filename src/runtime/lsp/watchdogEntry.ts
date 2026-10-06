@@ -10,6 +10,8 @@ async function watch(): Promise<void> {
   const storageDir = process.argv[4] ?? path.join(packageRoot, 'temp')
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(packageRoot, storageDir)
+  const receiptFile = process.argv[5]
+  const observed = new Set<number>()
   let ticket: ResourceTicket | undefined
   let input = ''
   let pending = Promise.resolve()
@@ -23,7 +25,10 @@ async function watch(): Promise<void> {
       try {
         await pending
         // Empty/unknown accounting is not an exit receipt; Stop asks the action API.
-        await authority.registry.members(registered)
+        const members = await authority.registry.members(registered)
+        for (const member of members) observed.add(member.pid)
+        if (receiptFile !== undefined)
+          await authority.writeReceipt(receiptFile, [...observed], false)
       } catch {
         isFailed = true
         void stop()
@@ -38,7 +43,12 @@ async function watch(): Promise<void> {
       await pending
       await scanning
       try {
-        if (ticket !== undefined) await authority.stop(ticket)
+        if (ticket !== undefined) {
+          const stopped = await authority.stop(ticket)
+          for (const pid of stopped) observed.add(pid)
+          if (!isFailed && receiptFile !== undefined)
+            await authority.writeReceipt(receiptFile, [...observed], true)
+        }
       } catch {
         isFailed = true
       }
@@ -64,6 +74,9 @@ async function watch(): Promise<void> {
         if (ticket !== undefined) throw new Error('EWATCH_ROOT')
         const parsed = z.strictObject({ ticket: resourceTicketSchema }).parse(JSON.parse(message))
         ticket = await authority.registry.register(parsed.ticket)
+        observed.add(ticket.root.pid)
+        if (receiptFile !== undefined)
+          await authority.writeReceipt(receiptFile, [...observed], false)
         process.stdout.write('OWNED\n')
       } catch {
         isFailed = true

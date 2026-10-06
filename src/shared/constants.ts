@@ -5301,6 +5301,8 @@ export const MHP_PANEL = {
 
 /** M104H2: independent runtime owners and their private Stop control channel. */
 export const RUNTIME_STOP = {
+  stoppedExit: 0,
+  signalExitBase: 128,
   launchFd: 3,
   graceMs: 500,
   exitMs: 10_000,
@@ -5374,6 +5376,7 @@ export const CONVERSATION_MODEL_TEXT = {
 /** M104L: limits shared by stdio LSP and its private workspace broker. */
 export const LSP_SERVER_NOT_INITIALIZED = -32_002
 export const LSP_LIMITS = {
+  stickyMode: 0o1000,
   headerBytes: 8192,
   headerDelimiterBytes: 4,
   frameBytes: 4_194_304,

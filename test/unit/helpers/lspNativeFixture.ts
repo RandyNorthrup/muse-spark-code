@@ -1,5 +1,6 @@
-import { copyFile, mkdir } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, realpath } from 'node:fs/promises'
 import path from 'node:path'
+import { tmpdir } from 'node:os'
 import type * as privateDirectories from '../../../src/runtime/privateDirectory'
 import { build } from 'esbuild'
 import { afterAll } from 'vitest'
@@ -31,14 +32,33 @@ export async function installLspNativeFixture(packageRoot: string) {
 
 export async function privateDirectoryFixture(actual: typeof privateDirectories) {
   const native = await lspNativeFixture()
+  const canonicalRoot = await realpath(tmpdir())
   afterAll(native.remove)
   return {
-    privateDirectory: (directory: string, shouldCreate = false) =>
-      actual.privateDirectory(directory, shouldCreate, native.packageRoot),
+    ...actual,
+    trustedPrivateRoot: () => tmpdir(),
+    privateDirectory: (
+      directory: string,
+      shouldCreate = false,
+      packageRoot = native.packageRoot,
+      trustedRoot = directory.startsWith(`${canonicalRoot}${path.sep}`) ? canonicalRoot : tmpdir(),
+    ) => actual.privateDirectory(directory, shouldCreate, packageRoot, trustedRoot),
+    writeWindowsPrivateRecord: (file: string, text: string) =>
+      actual.writeWindowsPrivateRecord(
+        file,
+        text,
+        native.packageRoot,
+        file.startsWith(`${canonicalRoot}${path.sep}`) ? canonicalRoot : tmpdir(),
+      ),
+    verifyPrivateHandle: (
+      handle: Parameters<typeof actual.verifyPrivateHandle>[0],
+      isDirectory: boolean,
+    ) => actual.verifyPrivateHandle(handle, isDirectory, native.packageRoot),
   }
 }
 
 export async function buildLspProcess(entry: string, outfile: string) {
+  const canonicalRoot = await realpath(tmpdir())
   await build({
     entryPoints: [entry],
     outfile,
@@ -47,6 +67,30 @@ export async function buildLspProcess(entry: string, outfile: string) {
     format: 'cjs',
     target: 'node22',
     logLevel: 'silent',
+    plugins: [
+      {
+        name: 'fixture-private-root',
+        setup(builder) {
+          builder.onLoad({ filter: /[/\\]runtime[/\\]privateDirectory\.ts$/ }, async (args) => {
+            const source = await readFile(args.path, 'utf8')
+            return {
+              contents: source
+                .replace(
+                  /export function trustedPrivateRoot\(\): string \{[\s\S]*?\n\}/u,
+                  () =>
+                    `export function trustedPrivateRoot(): string { return ${JSON.stringify(tmpdir())} }`,
+                )
+                .replace(
+                  'trustedRoot = trustedPrivateRoot(),',
+                  () =>
+                    `trustedRoot = directory.startsWith(${JSON.stringify(canonicalRoot + path.sep)}) ? ${JSON.stringify(canonicalRoot)} : trustedPrivateRoot(),`,
+                ),
+              loader: 'ts',
+            }
+          })
+        },
+      },
+    ],
     define: { __dirname: JSON.stringify(path.join(path.dirname(outfile), 'dist')) },
   })
 }

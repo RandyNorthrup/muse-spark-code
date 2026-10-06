@@ -2652,5 +2652,7 @@
   "resourceRelocateDescription": "Miejsce przenoszenia zadań zespołu i sprawdzeń z kolejki, gdy komputer jest zajęty. Nadal obowiązują dotychczasowe zgody i oferty urządzeń.",
   "resourceRelocatePairedDescription": "Używa już zatwierdzonego sparowanego urządzenia z normalnym obciążeniem zasobów.",
   "resourceRelocateAskDescription": "Pyta przed przeniesieniem pracy z kolejki.",
-  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze."
+  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze.",
+  "acpStopUnverified": "Nie można potwierdzić zatrzymania — procesy mogą nadal działać. Zaobserwowane PID: {pids}",
+  "acpSupervisorSignal": "Nadzorowany proces został zakończony sygnałem {signal}."
 }

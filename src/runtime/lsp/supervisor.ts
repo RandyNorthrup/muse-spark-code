@@ -4,7 +4,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { readdir, rm, type FileHandle } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
+import { constants as osConstants } from 'node:os'
 import type { Readable, Writable } from 'node:stream'
 import * as z from 'zod/mini'
 import type { ResourceTicket } from '../../shared/resources'
@@ -13,6 +13,7 @@ import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
+import { trustedPrivateRoot } from '../privateDirectory'
 
 const ownerSchema = z.strictObject({
   pid: z.optional(z.int().check(z.gte(1))),
@@ -26,6 +27,18 @@ const ownerSchema = z.strictObject({
     ),
 })
 
+const treeReceiptSchema = z.strictObject({
+  isComplete: z.boolean(),
+  guardian: z.int().check(z.gte(1)),
+  pids: z.array(z.int().check(z.gte(1))),
+})
+
+export class UnverifiedStopError extends Error {
+  constructor(readonly pids: readonly number[]) {
+    super('ESTOP_UNVERIFIED')
+  }
+}
+
 export interface SupervisorDeps {
   readonly registry: string
   readonly cwd: string
@@ -36,6 +49,7 @@ export interface SupervisorDeps {
   readonly watchdogFile?: string
   readonly stdin: Readable
   readonly stdout: Writable
+  readonly onSignalExit?: (signal: NodeJS.Signals) => void
 }
 
 /** The supervisor owns pipes and a group/job; the child never owns Stop. */
@@ -45,7 +59,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(deps.packageRoot, deps.registry)
   const directory = path.join(
-    tmpdir(),
+    trustedPrivateRoot(),
     `ms-${randomBytes(LSP_LIMITS.socketNameBytes).toString('hex')}`,
   )
   const created = await privateDirectory(directory, true)
@@ -61,6 +75,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   let watchdogDone: Promise<number> | undefined
   let childTicket: ResourceTicket | undefined
   let watchdogTicket: ResourceTicket | undefined
+  const lifecycle = { wasAdmitted: false, didStopTree: false, isIntentionalStop: false }
   let stopping: Promise<void> | undefined
   const { promise: startup, resolve: finishStartup } = Promise.withResolvers<undefined>()
   const { promise: closed, resolve: closeOwner } = Promise.withResolvers<undefined>()
@@ -76,6 +91,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
         if (result !== 0) throw new Error('ESTOP_WATCHDOG')
         if (watchdogTicket !== undefined) await authority.stop(watchdogTicket)
       }
+      lifecycle.didStopTree = true
       child.stdin.destroy()
       child.stdout.destroy()
       child.stderr.destroy()
@@ -85,6 +101,11 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     void stopping.catch(() => {
       closeOwner(undefined)
     })
+  }
+  const requestStop = () => {
+    if (child === undefined || (child.exitCode === null && child.signalCode === null))
+      lifecycle.isIntentionalStop = true
+    stop()
   }
   const sockets = new Set<ReturnType<typeof createConnection>>()
   const control = createServer((socket) => {
@@ -110,7 +131,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
         socket.destroy()
         return
       }
-      stop()
+      requestStop()
       void stopping?.then(
         () => {
           socket.end('STOPPED\n')
@@ -128,8 +149,8 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       control.listen(pipe, resolve)
     })
     await writePrivateRecord(record, JSON.stringify({ pid: process.pid, pipe, token }))
-    process.on('SIGTERM', stop)
-    process.on('SIGINT', stop)
+    process.on('SIGTERM', requestStop)
+    process.on('SIGINT', requestStop)
     if (process.platform !== 'win32') {
       const launched = await authority.launch(
         process.execPath,
@@ -138,6 +159,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
           String(process.pid),
           deps.packageRoot,
           deps.registry,
+          `${record}.tree`,
         ],
         deps.cwd,
         env,
@@ -206,6 +228,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       })
     }
     launched.admit()
+    lifecycle.wasAdmitted = true
     // Piping preserves byte boundaries/backpressure; provider stderr is private.
     deps.stdin.pipe(child.stdin)
     child.stdin.on('error', stop)
@@ -215,7 +238,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     await closed
     stop()
     await stopping
-    return child.pid === undefined ? 1 : (child.exitCode ?? 0)
+    if (child.pid === undefined) return 1
+    if (lifecycle.isIntentionalStop) return RUNTIME_STOP.stoppedExit
+    if (child.signalCode !== null) {
+      deps.onSignalExit?.(child.signalCode)
+      return RUNTIME_STOP.signalExitBase + osConstants.signals[child.signalCode]
+    }
+    return child.exitCode ?? 1
   } catch (error: unknown) {
     if (child === undefined && error instanceof Error && 'code' in error && error.code === 'ENOENT')
       return 1
@@ -226,8 +255,8 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     try {
       await stopping
     } finally {
-      process.off('SIGTERM', stop)
-      process.off('SIGINT', stop)
+      process.off('SIGTERM', requestStop)
+      process.off('SIGINT', requestStop)
       if (watchdog !== undefined) {
         watchdog.stdin.end()
         await watchdogDone
@@ -250,8 +279,11 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
           resolve()
         })
       })
-      await rm(record, { force: true })
-      await rm(directory, { recursive: true, force: true })
+      if (lifecycle.didStopTree || !lifecycle.wasAdmitted) {
+        await rm(`${record}.tree`, { force: true })
+        await rm(record, { force: true })
+        await rm(directory, { recursive: true, force: true })
+      }
     }
   }
 }
@@ -289,7 +321,25 @@ export async function stopWorkspace(registry: string, cwd: string): Promise<void
           await handle.close()
         }
         if (owner.pid !== undefined && !isProcessAlive(owner.pid)) {
+          const receiptFile = `${path.join(registry, file)}.tree`
+          let receipt: z.infer<typeof treeReceiptSchema> | undefined
+          try {
+            const receiptHandle = await openPrivateRecord(receiptFile)
+            try {
+              const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
+              const { bytesRead } = await receiptHandle.read(bytes)
+              if (bytesRead <= RUNTIME_STOP.recordBytes)
+                receipt = treeReceiptSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
+            } finally {
+              await receiptHandle.close()
+            }
+          } catch {
+            // Missing, invalid or unsafe receipt never certifies descendant exit.
+          }
+          if (receipt?.isComplete !== true || receipt.pids.length === 0)
+            throw new UnverifiedStopError(receipt?.pids ?? [owner.pid])
           await rm(path.join(registry, file), { force: true })
+          await rm(receiptFile, { force: true })
           return
         }
         await new Promise<void>((resolve, reject) => {

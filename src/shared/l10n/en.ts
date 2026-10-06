@@ -2627,6 +2627,8 @@ export const EN = {
   paidTabName: 'Tab completions',
   lspUsage:
     'muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nLanguage server: explicit paid Tab opt-in; trusted workspace and consent required.',
+  acpStopUnverified: 'Cannot verify Stop — processes may still be running. Observed PIDs: {pids}',
+  acpSupervisorSignal: 'Supervised workload terminated by {signal}.',
   lspFix: 'Ask Muse to fix',
   lspExplain: 'Explain',
   lspApply: 'Apply suggested edit',

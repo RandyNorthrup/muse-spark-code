@@ -1,8 +1,14 @@
 // Broker and Stop records are authority only inside a verified owner-only namespace.
 import { constants, type BigIntStats } from 'node:fs'
-import { open, writeFile } from 'node:fs/promises'
+import { open } from 'node:fs/promises'
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
+import path from 'node:path'
+import {
+  privateDirectory,
+  verifyPrivateHandle,
+  writeWindowsPrivateRecord,
+} from '../privateDirectory'
 import * as z from 'zod/mini'
 import { runProgram, windowsPowerShell } from '../../host/processTree'
 import { LSP_LIMITS } from '../../shared/constants'
@@ -19,11 +25,7 @@ const aclSchema = z.strictObject({
 })
 const MODE_MASK = constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO
 
-async function privatePath(
-  file: string,
-  isDirectory: boolean,
-  isNew = false,
-): Promise<BigIntStats> {
+async function privatePath(file: string, isDirectory: boolean): Promise<BigIntStats> {
   const info = await lstatIdentity(file)
   if (
     isDirectory ? !info.isDirectory() : !info.isFile() || info.nlink !== LSP_LIMITS.recordLinkCount
@@ -37,18 +39,6 @@ async function privatePath(
 $inputPath = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${payload}')) | ConvertFrom-Json
 $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
 $acl = Get-Acl -LiteralPath $inputPath.path
-${
-  isNew
-    ? `$acl.SetAccessRuleProtection($true, $false)
-foreach ($rule in $acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier])) { [void]$acl.RemoveAccessRuleSpecific($rule) }
-$acl.SetOwner($sid)
-$inheritance = [System.Security.AccessControl.InheritanceFlags]::None
-if ($inputPath.directory) { $inheritance = [System.Security.AccessControl.InheritanceFlags]'ContainerInherit, ObjectInherit' }
-$acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid, [System.Security.AccessControl.FileSystemRights]::FullControl, $inheritance, [System.Security.AccessControl.PropagationFlags]::None, [System.Security.AccessControl.AccessControlType]::Allow))
-Set-Acl -LiteralPath $inputPath.path -AclObject $acl
-$acl = Get-Acl -LiteralPath $inputPath.path`
-    : ''
-}
 $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object { @{ sid = $_.IdentityReference.Value; allow = $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow; full = $_.FileSystemRights -eq [System.Security.AccessControl.FileSystemRights]::FullControl } })
 @{ owner = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value; current = $sid.Value; protected = $acl.AreAccessRulesProtected; rules = $rules } | ConvertTo-Json -Compress -Depth 4`
     const executable = windowsPowerShell(
@@ -111,8 +101,33 @@ $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.Security
 
 export { privateDirectory } from '../privateDirectory'
 export async function writePrivateRecord(file: string, text: string): Promise<void> {
-  await writeFile(file, text, { flag: 'wx', mode: LSP_LIMITS.fileMode })
-  await privatePath(file, false, true)
+  if (process.platform === 'win32') {
+    await writeWindowsPrivateRecord(file, text)
+    return
+  }
+  const directory = path.dirname(file)
+  await privateDirectory(directory)
+  const parent = await open(
+    directory,
+    constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+  )
+  try {
+    const parentInfo = await verifyPrivateHandle(parent, true)
+    const handle = await open(
+      file,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW,
+      LSP_LIMITS.fileMode,
+    )
+    try {
+      await verifyPrivateHandle(handle, false)
+      if (!sameFile(await lstatIdentity(directory), parentInfo)) throw new Error('ELSP_PRIVATE')
+      await handle.writeFile(text)
+    } finally {
+      await handle.close()
+    }
+  } finally {
+    await parent.close()
+  }
 }
 export async function openPrivateRecord(file: string) {
   const before = await privatePath(file, false)

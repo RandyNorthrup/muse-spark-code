@@ -2370,5 +2370,7 @@
   "resourceRelocateDescription": "此電腦忙碌時，排隊中的團隊任務與檢查可移轉到的位置。現有的裝置授權與提供條件仍然適用。",
   "resourceRelocatePairedDescription": "使用已核准配對且資源負載正常的裝置。",
   "resourceRelocateAskDescription": "移轉排隊中的工作前先詢問。",
-  "resourceRelocateOffDescription": "將工作保留在此電腦上。"
+  "resourceRelocateOffDescription": "將工作保留在此電腦上。",
+  "acpStopUnverified": "無法驗證停止 — 程序可能仍在執行。已觀察到的 PID：{pids}",
+  "acpSupervisorSignal": "受監督程序已被 {signal} 訊號終止。"
 }

@@ -266,7 +266,102 @@ public static class MuseSparkPrivateDirectory {
   const uint READ_CONTROL = 0x00020000, SHARE_READ_WRITE = 3, OPEN_EXISTING = 3;
   const uint OPEN_REPARSE_BACKUP = 0x02200000, DIRECTORY = 0x10, REPARSE = 0x400;
   const int ALREADY_EXISTS = 183, FULL_CONTROL = 0x1f01ff;
-  const uint OWNER_DACL = 5;
+  const uint OWNER_DACL = 5, CREATE_NEW = 1, GENERIC_WRITE = 0x40000000;
+  [DllImport("kernel32.dll", EntryPoint = "CreateFileW", SetLastError = true, CharSet = CharSet.Unicode)]
+  static extern IntPtr CreateRecordW(string path, uint access, uint share, ref SECURITY_ATTRIBUTES attributes, uint disposition, uint flags, IntPtr template);
+
+  public static void VerifyParents(string path, string root) {
+    root = System.IO.Path.GetFullPath(root).TrimEnd(System.IO.Path.DirectorySeparatorChar);
+    string parent = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
+    if (!parent.Equals(root, StringComparison.OrdinalIgnoreCase) && !parent.StartsWith(root + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("untrusted root");
+    for (;;) {
+      IntPtr handle = Open(parent);
+      try { Inspect(handle, true, true); } finally { CloseHandle(handle); }
+      if (parent.Equals(root, StringComparison.OrdinalIgnoreCase)) return;
+      parent = System.IO.Path.GetDirectoryName(parent);
+    }
+  }
+
+  static IntPtr Open(string path) {
+    IntPtr handle = CreateFileW(path, READ_CONTROL, SHARE_READ_WRITE, IntPtr.Zero, OPEN_EXISTING, OPEN_REPARSE_BACKUP, IntPtr.Zero);
+    if (handle == new IntPtr(-1)) throw new Win32Exception();
+    return handle;
+  }
+
+  static FILE_INFO Inspect(IntPtr handle, bool directory, bool ancestor) {
+    var current = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+    var system = new System.Security.Principal.SecurityIdentifier("S-1-5-18");
+    var administrators = new System.Security.Principal.SecurityIdentifier("S-1-5-32-544");
+    FILE_INFO info;
+    if (!GetFileInformationByHandle(handle, out info)) throw new Win32Exception();
+    if (((info.Attributes & DIRECTORY) != 0) != directory || (info.Attributes & REPARSE) != 0 || (!directory && info.Links != 1)) throw new InvalidOperationException("unsafe inode");
+    IntPtr owner, group, dacl, sacl, descriptor;
+    uint error = GetSecurityInfo(handle, 1, OWNER_DACL, out owner, out group, out dacl, out sacl, out descriptor);
+    if (error != 0) throw new Win32Exception((int)error);
+    try {
+      byte[] binary = new byte[GetSecurityDescriptorLength(descriptor)];
+      Marshal.Copy(descriptor, binary, 0, binary.Length);
+      var security = new System.Security.AccessControl.RawSecurityDescriptor(binary, 0);
+      if (security.DiscretionaryAcl == null) throw new InvalidOperationException("missing ACL");
+      if (ancestor) {
+        if (!current.Equals(security.Owner) && !system.Equals(security.Owner) && !administrators.Equals(security.Owner)) throw new InvalidOperationException("foreign parent owner");
+        var write = System.Security.AccessControl.FileSystemRights.Write | System.Security.AccessControl.FileSystemRights.Delete | System.Security.AccessControl.FileSystemRights.DeleteSubdirectoriesAndFiles | System.Security.AccessControl.FileSystemRights.ChangePermissions | System.Security.AccessControl.FileSystemRights.TakeOwnership;
+        foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
+          var ace = entry as System.Security.AccessControl.CommonAce;
+          if (ace == null || ace.IsCallback) throw new InvalidOperationException("unknown parent grant");
+          if (ace.AceQualifier == System.Security.AccessControl.AceQualifier.AccessAllowed && (ace.AceFlags & System.Security.AccessControl.AceFlags.InheritOnly) == 0 &&
+              !current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier) && !administrators.Equals(ace.SecurityIdentifier) && (ace.AccessMask & ((int)write | 0x50000000)) != 0) throw new InvalidOperationException("writable parent");
+        }
+      } else {
+        if (!current.Equals(security.Owner) || (security.ControlFlags & System.Security.AccessControl.ControlFlags.DiscretionaryAclProtected) == 0) throw new InvalidOperationException("unsafe owner or ACL");
+        bool hasOwner = false;
+        foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
+          var ace = entry as System.Security.AccessControl.CommonAce;
+          if (ace == null || ace.IsCallback || ace.AceQualifier != System.Security.AccessControl.AceQualifier.AccessAllowed ||
+              (ace.AceFlags & (System.Security.AccessControl.AceFlags.Inherited | System.Security.AccessControl.AceFlags.InheritOnly)) != 0 ||
+              ace.AccessMask != FULL_CONTROL || (!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier))) throw new InvalidOperationException("unsafe grant");
+          hasOwner |= current.Equals(ace.SecurityIdentifier);
+        }
+        if (!hasOwner) throw new InvalidOperationException("missing owner grant");
+      }
+      return info;
+    } finally { LocalFree(descriptor); }
+  }
+
+  public static void WriteRecord(string path, string text, string root) {
+    VerifyParents(path, root);
+    IntPtr parent = Open(System.IO.Path.GetDirectoryName(path));
+    try {
+      FILE_INFO parentInfo = Inspect(parent, true, false);
+      var security = new System.Security.AccessControl.FileSecurity();
+      var current = System.Security.Principal.WindowsIdentity.GetCurrent().User;
+      security.SetOwner(current);
+      security.SetAccessRuleProtection(true, false);
+      security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(current, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.AccessControlType.Allow));
+      byte[] binary = security.GetSecurityDescriptorBinaryForm();
+      var pinned = System.Runtime.InteropServices.GCHandle.Alloc(binary, System.Runtime.InteropServices.GCHandleType.Pinned);
+      IntPtr handle = new IntPtr(-1);
+      try {
+        var attributes = new SECURITY_ATTRIBUTES();
+        attributes.Length = Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES));
+        attributes.Descriptor = pinned.AddrOfPinnedObject();
+        handle = CreateRecordW(path, READ_CONTROL | GENERIC_WRITE, SHARE_READ_WRITE, ref attributes, CREATE_NEW, OPEN_REPARSE_BACKUP, IntPtr.Zero);
+        if (handle == new IntPtr(-1)) throw new Win32Exception();
+        Inspect(handle, false, false);
+        IntPtr currentParent = Open(System.IO.Path.GetDirectoryName(path));
+        try {
+          FILE_INFO actual = Inspect(currentParent, true, false);
+          if (actual.Volume != parentInfo.Volume || actual.IndexHigh != parentInfo.IndexHigh || actual.IndexLow != parentInfo.IndexLow) throw new InvalidOperationException("parent replaced");
+        } finally { CloseHandle(currentParent); }
+        // Parent's no-delete share and the held record handle remain live through write.
+        using (var safe = new Microsoft.Win32.SafeHandles.SafeFileHandle(handle, false))
+        using (var stream = new System.IO.FileStream(safe, System.IO.FileAccess.Write)) {
+          byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
+          stream.Write(bytes, 0, bytes.Length);
+        }
+      } finally { if (handle != new IntPtr(-1)) CloseHandle(handle); pinned.Free(); }
+    } finally { CloseHandle(parent); }
+  }
 
   public static string Verify(string path, bool create) {
     var current = System.Security.Principal.WindowsIdentity.GetCurrent().User;
@@ -292,32 +387,9 @@ public static class MuseSparkPrivateDirectory {
       } finally { pinned.Free(); }
     }
     // Omitting FILE_SHARE_DELETE prevents rename/replacement throughout the receipt.
-    IntPtr handle = CreateFileW(path, READ_CONTROL, SHARE_READ_WRITE, IntPtr.Zero, OPEN_EXISTING, OPEN_REPARSE_BACKUP, IntPtr.Zero);
-    if (handle == new IntPtr(-1)) throw new Win32Exception();
+    IntPtr handle = Open(path);
     try {
-      FILE_INFO info;
-      if (!GetFileInformationByHandle(handle, out info)) throw new Win32Exception();
-      if ((info.Attributes & DIRECTORY) == 0 || (info.Attributes & REPARSE) != 0) throw new InvalidOperationException("unsafe directory");
-      IntPtr owner, group, dacl, sacl, descriptor;
-      uint error = GetSecurityInfo(handle, 1, OWNER_DACL, out owner, out group, out dacl, out sacl, out descriptor);
-      if (error != 0) throw new Win32Exception((int)error);
-      try {
-        byte[] binary = new byte[GetSecurityDescriptorLength(descriptor)];
-        Marshal.Copy(descriptor, binary, 0, binary.Length);
-        var security = new System.Security.AccessControl.RawSecurityDescriptor(binary, 0);
-        if (!current.Equals(security.Owner) || (security.ControlFlags & System.Security.AccessControl.ControlFlags.DiscretionaryAclProtected) == 0 || security.DiscretionaryAcl == null)
-          throw new InvalidOperationException("unsafe owner or ACL");
-        bool hasOwner = false;
-        foreach (System.Security.AccessControl.GenericAce entry in security.DiscretionaryAcl) {
-          var ace = entry as System.Security.AccessControl.CommonAce;
-          if (ace == null || ace.IsCallback || ace.AceQualifier != System.Security.AccessControl.AceQualifier.AccessAllowed ||
-              (ace.AceFlags & (System.Security.AccessControl.AceFlags.Inherited | System.Security.AccessControl.AceFlags.InheritOnly)) != 0 ||
-              ace.AccessMask != FULL_CONTROL || (!current.Equals(ace.SecurityIdentifier) && !system.Equals(ace.SecurityIdentifier)))
-            throw new InvalidOperationException("unsafe grant");
-          hasOwner |= current.Equals(ace.SecurityIdentifier);
-        }
-        if (!hasOwner) throw new InvalidOperationException("missing owner grant");
-      } finally { LocalFree(descriptor); }
+      FILE_INFO info = Inspect(handle, true, false);
       return "{\"isNew\":" + (isNew ? "true" : "false") + ",\"volume\":\"" + info.Volume.ToString() + "\",\"index\":\"" + (((ulong)info.IndexHigh << 32) | info.IndexLow).ToString() + "\"}";
     } finally { CloseHandle(handle); }
   }

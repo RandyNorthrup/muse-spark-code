@@ -2558,5 +2558,7 @@
   "resourceRelocateDescription": "Destino das tarefas da equipe e verificações na fila quando esta máquina está ocupada. Os consentimentos e as ofertas dos dispositivos continuam válidos.",
   "resourceRelocatePairedDescription": "Usa um dispositivo pareado já autorizado com carga de recursos normal.",
   "resourceRelocateAskDescription": "Pergunta antes de mover o trabalho na fila.",
-  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina."
+  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina.",
+  "acpStopUnverified": "Não é possível verificar a parada — os processos podem continuar em execução. PIDs observados: {pids}",
+  "acpSupervisorSignal": "O processo supervisionado foi encerrado por {signal}."
 }

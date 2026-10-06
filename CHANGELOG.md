@@ -37,6 +37,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Private LSP records now verify their empty open file and held directory before
+  writing control tokens. All namespaces require a trusted per-user runtime/cache
+  parent chain; unsafe parents and replacement races refuse before publication.
+- Independent Stop after supervisor death requires a guardian completion receipt
+  for observed descendants. Pending/missing receipts return failure, name observed
+  PIDs and retain ownership records.
+- Unexpected POSIX workload signal death preserves 128 + signal and names the
+  signal. Intentional Stop returns 0, including Windows job termination statuses;
+  native Windows rerun remains integration work.
+
 - LSP supervision now registers workload launches with M107's exact process
   authority before admission and uses its verified per-member actions for
   every Stop signal. Local `ps lstart` tracking and exited-group sweeps are

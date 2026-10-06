@@ -1,5 +1,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
+import { rename } from 'node:fs/promises'
+import { writePrivateRecord } from './registry'
 import path from 'node:path'
 import { LinuxResourceTreeReader } from '../../core/resources/trees/linux'
 import { MacResourceTreeReader } from '../../core/resources/trees/mac'
@@ -144,11 +146,16 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
     }
   }
 
-  async function stop(ticket: ResourceTicket, shouldGracefullyStop = false): Promise<void> {
+  async function stop(
+    ticket: ResourceTicket,
+    shouldGracefullyStop = false,
+  ): Promise<readonly number[]> {
+    const observed = new Set<number>([ticket.root.pid])
     const deadline = Date.now() + RUNTIME_STOP.exitMs
     let result = await registry.kill(ticket, shouldGracefullyStop ? 'SIGTERM' : 'SIGKILL')
     if (shouldGracefullyStop) await pause(RUNTIME_STOP.graceMs)
     for (;;) {
+      for (const member of result.members) observed.add(member.identity.pid)
       if (result.members.some((member) => member.result === 'refused'))
         throw new Error('ESTOP_TREE')
       // Preserve the registry's detailed snapshot. A later reused group cannot erase
@@ -161,7 +168,7 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
         )
       ) {
         registry.unregister(ticket)
-        return
+        return [...observed]
       }
       if (Date.now() >= deadline) throw new Error('ESTOP_TREE')
       await pause(RUNTIME_STOP.pollMs)
@@ -186,5 +193,12 @@ export async function processAuthority(packageRoot: string, storageDir: string) 
       if (members.some((member) => member.result === 'done')) result = await registry.kill(ticket)
     }
   }
-  return { registry, register, launch, stop }
+  async function writeReceipt(file: string, pids: readonly number[], isComplete: boolean) {
+    const text = JSON.stringify({ pids, isComplete, guardian: process.pid })
+    if (Buffer.byteLength(text) > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
+    const next = `${file}.${randomUUID()}`
+    await writePrivateRecord(next, text)
+    await rename(next, file)
+  }
+  return { registry, register, launch, stop, writeReceipt }
 }
