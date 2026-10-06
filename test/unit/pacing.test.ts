@@ -1,6 +1,7 @@
-import { readFileSync } from 'node:fs'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import * as z from 'zod/mini'
+import { readRateCaptures } from './helpers/modelApiRateCapture'
+import { fakeModelApiClientSettings } from './helpers/fakeModelApi'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import {
   ModelApiPacing,
   metaPacingLimits,
@@ -9,13 +10,7 @@ import {
 import { PACING_WINDOW_MS, PACING_START_REQUESTS_PER_MINUTE } from '../../src/shared/constants'
 import { fanOutPacingClass } from '../../src/core/backends/modelapi/subagentTools'
 
-const captures = z
-  .array(z.object({ headers: z.record(z.string(), z.string()) }))
-  .parse(
-    JSON.parse(
-      readFileSync(new URL('../fixtures/m106/u12-rate-headers.json', import.meta.url), 'utf8'),
-    ),
-  )
+const captures = readRateCaptures()
 const firstHeaders = new Headers(captures[0]?.headers)
 
 function clockedPacer() {
@@ -37,6 +32,47 @@ function clockedPacer() {
 afterEach(() => vi.useRealTimers())
 
 describe('M106 request and token pacing', () => {
+  it("uses a provider capability interpreter's captured window instead of imposing Meta's minute", async () => {
+    const { pacer, waits, signal } = clockedPacer()
+    const limits = {
+      requests: 4,
+      remainingRequests: 1,
+      tokens: 100,
+      remainingTokens: 0,
+      windowMs: 120_000,
+    }
+    pacer.observe('captured-provider:key', limits)
+    await pacer.acquire('captured-provider:key', 'team', 25, signal)
+    expect(waits).toEqual([30_000])
+    expect(pacer.headroom('captured-provider:key').windowMs).toBe(120_000)
+    expect(pacer.headroom('meta:key').windowMs).toBe(PACING_WINDOW_MS)
+    expect(() => {
+      pacer.observe('captured-provider:key', { ...limits, windowMs: 0 })
+    }).toThrow()
+  })
+
+  it('shares a progressing fake client clock with pacing instead of sleeping in real time', async () => {
+    const client = fakeModelApiClientSettings(new FakeLogOutputChannel())
+    let waits = 0
+    const pacer = new ModelApiPacing({
+      now: client.now,
+      wait: (ms) => {
+        waits += 1
+        if (waits > 20) throw new Error('Fake client clock did not progress')
+        return client.sleep(ms)
+      },
+    })
+    pacer.observe('key', {
+      requests: 150,
+      remainingRequests: 0,
+      tokens: 3_000_000,
+      remainingTokens: 3_000_000,
+    })
+    await pacer.acquire('key', 'team', 1, new AbortController().signal)
+    expect(client.now()).toBe(800)
+    expect(waits).toBe(1)
+  })
+
   it('clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key', async () => {
     const headers = new Headers(firstHeaders)
     headers.set('x-ratelimit-remaining-requests', '151')

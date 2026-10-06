@@ -68,6 +68,7 @@ import {
   FAKE_MODEL_API_ACCOUNT_ID,
   fakeModelApi,
   fakeModelApiClient,
+  fakeModelApiClientSettings,
   type ScriptedCall,
   type ScriptedReply,
   TINY_PNG_BASE64,
@@ -493,13 +494,9 @@ function setup(
     options.apiKey === undefined
       ? fakeModelApiClient(api, log)
       : new ModelApiClient({
+          ...fakeModelApiClientSettings(log),
           fetch: api.fetch,
-          baseUrl: 'https://api.example.test/v1',
           apiKey: options.apiKey,
-          sleep: () => Promise.resolve(undefined),
-          now: () => 0,
-          random: () => 0,
-          log,
         })
   const host = new ModelApiHost({
     client,

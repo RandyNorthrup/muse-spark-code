@@ -9,6 +9,7 @@
 // chat dimmed behind it.
 
 import { useEffect, useState } from 'react'
+import * as z from 'zod/mini'
 import {
   META_DASHBOARD_URL,
   MODEL_API_BASE_URL,
@@ -48,7 +49,10 @@ import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
-import { modelApiStatusSchema } from '../../core/backends/modelapi/schemas'
+
+// The host validates the full captured envelope; revalidate only the two
+// captured fields this row consumes without carrying the transport schemas.
+const serviceStatusRowSchema = z.object({ service_status: z.string(), service_message: z.string() })
 
 type ServiceStatusReader = (signal: AbortSignal) => Promise<unknown>
 
@@ -62,14 +66,14 @@ function ServiceStatusRow({
 }) {
   const [answer, setAnswer] = useState<{
     readonly reader: ServiceStatusReader
-    readonly status: ReturnType<typeof modelApiStatusSchema.parse> | undefined
+    readonly status: z.infer<typeof serviceStatusRowSchema> | undefined
   }>()
   useEffect(() => {
     const stop = new AbortController()
     async function readStatus(): Promise<void> {
       try {
         const value = await read(stop.signal)
-        const parsed = modelApiStatusSchema.safeParse(value)
+        const parsed = serviceStatusRowSchema.safeParse(value)
         if (!stop.signal.aborted)
           setAnswer({ reader: read, status: parsed.success ? parsed.data : undefined })
       } catch {

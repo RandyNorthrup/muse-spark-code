@@ -11,6 +11,7 @@ const limitsSchema = z.strictObject({
   remainingRequests: z.int().check(z.gte(0)),
   tokens: z.int().check(z.gt(0)),
   remainingTokens: z.int().check(z.gte(0)),
+  windowMs: z.optional(z.int().check(z.gt(0))),
 })
 export type PacingLimits = z.infer<typeof limitsSchema>
 
@@ -51,6 +52,7 @@ export interface PacingDeps {
 }
 
 interface Bucket {
+  windowMs: number
   requests: number
   remainingRequests: number
   tokens: number | undefined
@@ -74,6 +76,7 @@ export class ModelApiPacing implements RequestPacer {
     let bucket = this.buckets.get(account)
     if (bucket === undefined) {
       bucket = {
+        windowMs: PACING_WINDOW_MS,
         requests: PACING_START_REQUESTS_PER_MINUTE,
         remainingRequests: PACING_START_REQUESTS_PER_MINUTE,
         tokens: undefined,
@@ -87,12 +90,12 @@ export class ModelApiPacing implements RequestPacer {
     const elapsed = Math.max(0, now - bucket.updatedAt)
     bucket.remainingRequests = Math.min(
       bucket.requests,
-      bucket.remainingRequests + (elapsed * bucket.requests) / PACING_WINDOW_MS,
+      bucket.remainingRequests + (elapsed * bucket.requests) / bucket.windowMs,
     )
     if (bucket.tokens !== undefined && bucket.remainingTokens !== undefined) {
       bucket.remainingTokens = Math.min(
         bucket.tokens,
-        bucket.remainingTokens + (elapsed * bucket.tokens) / PACING_WINDOW_MS,
+        bucket.remainingTokens + (elapsed * bucket.tokens) / bucket.windowMs,
       )
     }
     bucket.updatedAt = now
@@ -111,6 +114,7 @@ export class ModelApiPacing implements RequestPacer {
     const bucket = this.bucket(account)
     if (limits !== undefined) {
       const checked = limitsSchema.parse(limits)
+      bucket.windowMs = checked.windowMs ?? PACING_WINDOW_MS
       bucket.requests = checked.requests
       bucket.remainingRequests = Math.min(checked.remainingRequests, checked.requests)
       bucket.tokens = checked.tokens
@@ -152,12 +156,12 @@ export class ModelApiPacing implements RequestPacer {
       // background work once full; foreground always bypasses this check.
       const requiredRequests = Math.min(2, bucket.requests)
       const requestWait =
-        (Math.max(0, requiredRequests - bucket.remainingRequests) * PACING_WINDOW_MS) /
+        (Math.max(0, requiredRequests - bucket.remainingRequests) * bucket.windowMs) /
         bucket.requests
       const tokenWait =
         bucket.tokens === undefined || bucket.remainingTokens === undefined
           ? 0
-          : (Math.max(0, tokens - bucket.remainingTokens) * PACING_WINDOW_MS) / bucket.tokens
+          : (Math.max(0, tokens - bucket.remainingTokens) * bucket.windowMs) / bucket.tokens
       const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))
       if (delay === 0) {
         this.charge(bucket, tokens)

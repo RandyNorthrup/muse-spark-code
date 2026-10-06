@@ -1,6 +1,6 @@
-// A thin, schema-validated client for the four Model API endpoints the
-// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
-// the streamed `POST /responses` and `POST /images/generations` (M34).
+// A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
+// models, token counts, streamed responses, generated/edited images and
+// public service health.
 // Errors follow the documented envelope and retry policy
 // (PLAN.md D86.6): 429 / 500 / 502 / 503 / 504 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
@@ -538,6 +538,7 @@ export class ModelApiClient {
         {
           method: 'POST',
           body,
+          modelId: body.model,
           accept: JSON_MEDIA_TYPE,
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
@@ -612,7 +613,7 @@ export class ModelApiClient {
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
     const response = await this.request(
       '/responses/input_tokens',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
+      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
     return inputTokensSchema.parse(await response.json()).input_tokens

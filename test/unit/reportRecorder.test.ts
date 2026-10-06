@@ -274,6 +274,19 @@ describe('ReportRecorder', () => {
   })
 })
 
+function draftWithFacts(facts: unknown) {
+  return buildProblemReportDraft({
+    description: '',
+    includeFacts: true,
+    includeEvents: false,
+    facts,
+    events: [],
+    recordingUnavailable: false,
+    nowMs: NOW,
+    scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
+  })
+}
+
 describe('the dialog facts', () => {
   const VERDICT_FACTS = {
     extensionVersion: '0.12.1',
@@ -300,16 +313,7 @@ describe('the dialog facts', () => {
         model_statuses: [{ private: 'PRIVATE account' }],
       },
     })
-    const draft = buildProblemReportDraft({
-      description: '',
-      includeFacts: true,
-      includeEvents: false,
-      facts,
-      events: [],
-      recordingUnavailable: false,
-      nowMs: NOW,
-      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
-    })
+    const draft = draftWithFacts(facts)
     expect(draft.text).toContain('model api service: operational; alive: yes')
     expect(draft.text).not.toContain('PRIVATE')
     expect(facts).toHaveProperty('modelApiStatus', { isAlive: true, status: 'operational' })
@@ -365,16 +369,7 @@ describe('the dialog facts', () => {
       credentialFileVerdict: 'absent',
     })
     expect(facts).not.toHaveProperty('cliVersion')
-    const draft = buildProblemReportDraft({
-      description: '',
-      includeFacts: true,
-      includeEvents: false,
-      facts,
-      events: [],
-      recordingUnavailable: false,
-      nowMs: NOW,
-      scrub: { workspaceRoots: [], homeDir: '', extraLiterals: [] },
-    })
+    const draft = draftWithFacts(facts)
     expect(draft.text).toContain('cli: not found; signed in: no')
     expect(draft.text).toContain('settings (names only): museSpark.backend')
   })

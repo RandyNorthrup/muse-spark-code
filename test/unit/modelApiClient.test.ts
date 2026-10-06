@@ -20,6 +20,7 @@ import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/mo
 import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { readRateCaptures } from './helpers/modelApiRateCapture'
 
 const body: CreateResponseBody = {
   model: 'muse-spark-1.3',
@@ -66,6 +67,16 @@ function setup(
     ...overrides,
   })
   return { api, client, sleeps, log }
+}
+
+function observedPacer(): RequestPacer {
+  return { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+}
+
+async function expectResponseFailure(client: ModelApiClient, status: number): Promise<void> {
+  await expect(
+    collect(client.streamResponse(body, new AbortController().signal)),
+  ).rejects.toMatchObject({ status })
 }
 
 describe('M106 client pacing and retry boundaries', () => {
@@ -133,27 +144,25 @@ describe('M106 client pacing and retry boundaries', () => {
   })
 
   it('taps captured headers before reading streamed and token-count bodies', async () => {
-    const captures = z
-      .array(z.object({ headers: z.record(z.string(), z.string()) }))
-      .parse(
-        JSON.parse(
-          readFileSync(new URL('../fixtures/m106/u12-rate-headers.json', import.meta.url), 'utf8'),
-        ),
-      )
+    const captures = readRateCaptures()
     const api = fakeModelApi()
     let index = 0
     const pacing = new ModelApiPacing({ now: () => NOW, wait: () => Promise.resolve() })
     const seen: Headers[] = []
     const wire: unknown[] = []
+    const selectedModels: (string | undefined)[] = []
     const t = setup(undefined, undefined, undefined, {
       pacing,
-      pacingProvider: () => ({
-        identity: { provider: 'meta' },
-        readLimits: (headers) => {
-          seen.push(headers)
-          return metaPacingLimits(headers)
-        },
-      }),
+      pacingProvider: (modelId) => {
+        selectedModels.push(modelId)
+        return {
+          identity: { provider: 'meta' },
+          readLimits: (headers) => {
+            seen.push(headers)
+            return metaPacingLimits(headers)
+          },
+        }
+      },
       fetch: async (input, init) => {
         wire.push(init?.body)
         const response = await api.fetch(input, init)
@@ -168,6 +177,7 @@ describe('M106 client pacing and retry boundaries', () => {
     await collect(t.client.streamResponse(body, new AbortController().signal))
     await t.client.countInputTokens(body)
     expect(seen).toHaveLength(2)
+    expect(selectedModels).toEqual([body.model, body.model])
     expect(
       pacing.headroom(`meta:https://api.example.test/v1:${await t.client.currentKeyDigest()}`),
     ).toMatchObject({
@@ -181,16 +191,14 @@ describe('M106 client pacing and retry boundaries', () => {
   })
 
   it('leaves uncaptured vendors uninterpreted and lets their retry capability refuse 504', async () => {
-    const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+    const pacing = observedPacer()
     const t = setup(undefined, undefined, undefined, {
       pacing,
       pacingProvider: () => ({ identity: { provider: 'custom' } }),
       isRetryableFailure: () => false,
     })
     t.api.script({ httpError: { status: 504 } })
-    await expect(
-      collect(t.client.streamResponse(body, new AbortController().signal)),
-    ).rejects.toMatchObject({ status: 504 })
+    await expectResponseFailure(t.client, 504)
     expect(pacing.observe).toHaveBeenCalledWith(
       expect.stringContaining('custom:'),
       undefined,
@@ -207,7 +215,7 @@ describe('M106 client pacing and retry boundaries', () => {
   ] as const)(
     'paces every %s request using its existing admission tag',
     async (paidFeature, kind) => {
-      const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+      const pacing = observedPacer()
       const t = setup(undefined, undefined, undefined, { pacing })
       const guard = Object.assign(vi.fn(), { paidFeature, paidEstimatedInputTokens: 25 })
       await collect(
@@ -305,7 +313,7 @@ describe('M106 client pacing and retry boundaries', () => {
   })
 
   it('pauses the shared fan-out bucket on 429 even when no retry remains', async () => {
-    const pacing: RequestPacer = { acquire: vi.fn(() => Promise.resolve()), observe: vi.fn() }
+    const pacing = observedPacer()
     const t = setup(undefined, undefined, undefined, { pacing })
     t.api.script({ httpError: { status: 429, retryAfter: '8' } })
     await expect(
@@ -350,9 +358,7 @@ describe('M106 client pacing and retry boundaries', () => {
     const onServiceFailure = vi.fn()
     const t = setup(undefined, undefined, undefined, { onServiceFailure })
     t.api.script({ httpError: { status: 504 } })
-    await expect(
-      collect(t.client.streamResponse(body, new AbortController().signal)),
-    ).rejects.toMatchObject({ status: 504 })
+    await expectResponseFailure(t.client, 504)
     expect(t.api.responseBodies()).toHaveLength(MODEL_API_MAX_RETRIES + 1)
     expect(onServiceFailure).toHaveBeenCalledWith(504, 'https://api.meta.ai/v1/status')
     expect(t.sleeps).toHaveLength(MODEL_API_MAX_RETRIES)

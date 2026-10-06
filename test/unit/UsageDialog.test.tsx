@@ -113,6 +113,15 @@ describe('UsageDialog', () => {
     },
   )
 
+  it.each([
+    { service_status: true, service_message: '' },
+    { service_status: 'operational', service_message: { text: 'unsafe' } },
+  ])('rejects non-text captured service fields: %j', async (value) => {
+    renderDialog({ readServiceStatus: () => Promise.resolve(value) })
+    expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+    expect(screen.queryByText('operational')).toBeNull()
+  })
+
   it('keeps the service row absent without a selected-provider status port', () => {
     renderDialog()
     expect(screen.queryByText(EN.modelApiStatusLabel)).toBeNull()

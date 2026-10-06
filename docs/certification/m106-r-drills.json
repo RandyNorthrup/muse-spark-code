@@ -414,5 +414,71 @@
     ],
     "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
     "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "count-model-selection",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > taps captured headers before reading streamed and token-count bodies"
+    ],
+    "sha256Before": "a77c2f13ab4a05b3de7d045190121f1e3a02284bd28f8202e5232620efc1efa0",
+    "sha256After": "a77c2f13ab4a05b3de7d045190121f1e3a02284bd28f8202e5232620efc1efa0"
+  },
+  {
+    "drill": "fake-client-clock",
+    "file": "test/unit/helpers/fakeModelApi.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > shares a progressing fake client clock with pacing instead of sleeping in real time"
+    ],
+    "sha256Before": "8630dd394c4bf2548a73f98b0786b166b416c29f8b0a0f8c60d4e5dcb653e327",
+    "sha256After": "8630dd394c4bf2548a73f98b0786b166b416c29f8b0a0f8c60d4e5dcb653e327"
+  },
+  {
+    "drill": "provider-window",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > uses a provider capability interpreter's captured window instead of imposing Meta's minute"
+    ],
+    "sha256Before": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089",
+    "sha256After": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089"
+  },
+  {
+    "drill": "provider-window-validation",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > uses a provider capability interpreter's captured window instead of imposing Meta's minute"
+    ],
+    "sha256Before": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089",
+    "sha256After": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089"
+  },
+  {
+    "drill": "usage-status-type",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > rejects non-text captured service fields: {\"service_status\":true,\"service_message\":\"\"}"
+    ],
+    "sha256Before": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6",
+    "sha256After": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6"
+  },
+  {
+    "drill": "usage-message-type",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > rejects non-text captured service fields: {\"service_status\":\"operational\",\"service_message\":{\"text\":\"unsafe\"}}"
+    ],
+    "sha256Before": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6",
+    "sha256After": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6"
   }
 ]

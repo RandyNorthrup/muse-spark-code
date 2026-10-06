@@ -19440,6 +19440,15 @@ outside R's owned regions, are named integration handoffs in
 `docs/certification/m106-r.md`. No substitute provider resolver or team
 implementation is introduced. The retry-table patch targets the upstream
 `FormatQuirks.retry` data; the current client exposes its classifier port.
+R's client test factories advance their injected clock when a fake sleep
+completes, so admission tests make progress without real delays or raised
+timeouts. This includes the shared fake client settings and the client
+factory region of `modelApiHost.test.ts`; no engine loop region changes.
+The normalized pacing port can carry a captured provider's own window
+duration; only Meta's U12 interpretation defaults to the documented minute.
+The usage row revalidates its two consumed status fields without importing
+the full transport schemas. R's build remains blocked by the deferred UI
+budget and the new module's bundle-map entry; see §7 and R-BUNDLE below.
 
 - **Goal.** Every guarantee Meta's wire offers the loop is used wherever the
   selected model has it: valid tool arguments, machine-readable side
@@ -20062,6 +20071,18 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M106 R bundle integration deferral (Kubuntu, 2026-10-06).** The production
+build exits 1: deferred webview JavaScript is 50.7 KiB against the unchanged
+50 KiB budget. Removing the usage row's broad transport-schema import
+reduced it from 52.8 KiB. The independently run split gate also exits 1:
+`src/core/backends/modelapi/pacing.ts` needs its lazy-list entry. Scripts,
+bundle wiring and budgets belong to M106 lane W; R leaves those files
+untouched and records **R-BUNDLE** in `docs/certification/m106-r.md` for W
+to fit the UI and add the real module to the lazy map. Other scoped checks
+and 857 owning tests pass. This is a blocking integration deferral, not a
+passing build, gate waiver or merge recommendation. Full quality remains
+with W/lead as the lane brief requires; no gate or timeout is weakened.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
