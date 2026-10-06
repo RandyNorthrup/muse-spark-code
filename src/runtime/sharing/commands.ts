@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { confineWorkspacePath, type RealPathIo } from '../../core/workspacePath'
 import {
   UI_TEXT,
   EXEC_EXIT,
@@ -73,8 +74,16 @@ export interface SharingDeps {
     exportedAt: string,
   ) => Promise<unknown>
   readonly isConfidentialWorkspace: (cwd: string) => boolean | undefined
+  /** Canonical paths through existing parents, including symlinks/junctions. */
+  readonly io: RealPathIo
+  /** Trusted configured share folder; absent confines output to the workspace. */
+  readonly shareFolder?: (cwd: string) => string
   /** Starts the destination operation synchronously after admission; no deferred policy gap. */
-  readonly release: (preview: SharePreview, out: string | undefined) => Promise<void>
+  readonly release: (
+    preview: SharePreview,
+    out: string | undefined,
+    allowedRoot: string,
+  ) => Promise<void>
 }
 
 export interface SharingContext {
@@ -90,7 +99,7 @@ export type SharingResult =
   | { readonly kind: 'listed'; readonly prompts: readonly SavedPrompt[] }
   | { readonly kind: 'inserted' | 'prepared'; readonly prompt: SavedPrompt; readonly text: string }
   | { readonly kind: 'shared'; readonly preview: SharePreview }
-  | { readonly kind: 'cancelled'; readonly preview?: SharePreview }
+  | { readonly kind: 'cancelled'; readonly preview?: SharePreview; readonly message?: string }
 
 /** All outbound actions are parameters; a command never starts an agent or resolves a key. */
 export class SharingCommands {
@@ -129,12 +138,22 @@ export class SharingCommands {
   ): Promise<SharingResult> {
     const cwd = context.cwd
     const out = command.out
+    const paths = this.deps.folders.platform === 'win32' ? path.win32 : path.posix
+    const allowedRoot = paths.resolve(cwd, this.deps.shareFolder?.(cwd) ?? cwd)
     const confirmationId = command.confirmation
     const policy = () => this.deps.isConfidentialWorkspace(cwd)
     if (policy() !== false) throw new Error(UI_TEXT.shareConfidential)
     if (confirmationId !== undefined && command.exportedAt === undefined)
       throw localArgumentError('--exported-at')
     const request = shareRequestSchema.parse(command.request)
+    if (confirmationId !== undefined) {
+      let missing = command.destinationExplicit ? undefined : '--destination'
+      if (out === undefined && command.destinationExplicit && request.destination === 'file')
+        missing = '--out'
+      if (missing !== undefined) {
+        return { kind: 'cancelled', message: localArgumentError(missing).message }
+      }
+    }
     const exportedAt = z.iso.datetime({ offset: true }).parse(command.exportedAt ?? this.deps.now())
     const rendered = previewSchema.parse(
       await this.deps.renderPreview(cwd, structuredClone(request), exportedAt),
@@ -160,6 +179,7 @@ export class SharingCommands {
         .update(
           JSON.stringify({
             cwd,
+            allowedRoot,
             out,
             request,
             exportedAt,
@@ -185,8 +205,26 @@ export class SharingCommands {
     ) {
       return { kind: 'cancelled', preview: trusted }
     }
+    let resolvedOut = out
+    if (out !== undefined) {
+      const confined = await confineWorkspacePath(
+        allowedRoot,
+        out,
+        this.deps.folders.platform,
+        this.deps.io,
+      )
+      if (!confined.ok) {
+        return {
+          kind: 'cancelled',
+          preview: trusted,
+          message: `${UI_TEXT.shareCancelled}: --out (${confined.reason})`,
+        }
+      }
+      resolvedOut = confined.absolute
+    }
+    if (!context.isActive()) return { kind: 'cancelled', preview: trusted }
     admitShareRelease(confirmation.data, policy)
-    await this.deps.release(trusted, out)
+    await this.deps.release(trusted, resolvedOut, allowedRoot)
     return { kind: 'shared', preview: trusted }
   }
 

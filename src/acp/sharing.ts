@@ -49,7 +49,7 @@ function resultText(result: SharingResult): string {
       return UI_TEXT.shareConfirm
     }
     case 'cancelled': {
-      return UI_TEXT.shareCancelled
+      return result.message ?? UI_TEXT.shareCancelled
     }
   }
 }

@@ -1,9 +1,12 @@
 import path from 'node:path'
+import { mkdtemp, mkdir, rm, symlink } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseSharingArgs, parseSharingSlash } from '../../src/runtime/sharing/args'
 import { runSharingCommand, SharingCommands } from '../../src/runtime/sharing/commands'
 import { UI_TEXT } from '../../src/shared/constants'
+import { canonicalPath } from '../../src/host/canonicalPath'
 import { savedPromptFixture, shareChatFixture } from './helpers/sharingFixtures'
 import { SHARING_CWD, SHARING_TIME, sharingHarness } from './helpers/sharingCommands'
 
@@ -26,7 +29,35 @@ function usePrompt(h: ReturnType<typeof sharingHarness>) {
   return h.commands.execute(parseSharingArgs(['prompts', 'use', savedPromptFixture.id]), h.context)
 }
 
+async function confirmHeadless(h: ReturnType<typeof sharingHarness>, argv: string[]) {
+  const context = { ...h.context, ui: { showPreview: h.ui.showPreview } }
+  const preview = await runSharingCommand(parseSharingArgs(argv), h.commands, context)
+  if (preview.kind !== 'cancelled' || preview.preview === undefined)
+    throw new Error('preview absent')
+  return {
+    preview: preview.preview,
+    result: await runSharingCommand(
+      parseSharingArgs([...argv, '--confirm', preview.preview.previewId]),
+      h.commands,
+      context,
+    ),
+  }
+}
+
 describe('M118 CLI/slash syntax', () => {
+  it.each([
+    ['copy', 'copy'],
+    ['save', 'file'],
+    ['open', 'browser'],
+    ['file', 'file'],
+    ['browser', 'browser'],
+  ])('records an explicitly selected %s destination as %s', (flag, destination) => {
+    expect(parseSharingArgs(['share', 'chat', 's1', '--destination', flag])).toMatchObject({
+      destinationExplicit: true,
+      request: { destination },
+    })
+    expect(parseSharingArgs(['share', 'chat', 's1'])).toMatchObject({ destinationExplicit: false })
+  })
   it('routes only explicitly bound local commands and preserves existing serve behaviour', () => {
     expect(parseCommandLine(['share', 'chat', 's1'])).toMatchObject({ command: 'invalid' })
     expect(parseCommandLine(['prompts', 'list'])).toMatchObject({ command: 'invalid' })
@@ -148,6 +179,126 @@ describe('M118 CLI/slash syntax', () => {
 })
 
 describe('M118 local share admission', () => {
+  it.each(['copy', 'save', 'open'])(
+    'releases only the explicitly confirmed headless %s destination',
+    async (destination) => {
+      const h = sharingHarness()
+      const argv = [
+        'share',
+        'chat',
+        's1',
+        '--destination',
+        destination,
+        '--exported-at',
+        SHARING_TIME,
+        ...(destination === 'save' ? ['--out', 'chat.md'] : []),
+      ]
+      const { result, preview } = await confirmHeadless(h, argv)
+      expect(result).toMatchObject({ kind: 'shared', exitCode: 0 })
+      expect(h.release).toHaveBeenCalledWith(
+        preview,
+        destination === 'save' ? path.join(SHARING_CWD, 'chat.md') : undefined,
+        SHARING_CWD,
+      )
+    },
+  )
+  it('confines output to the configured share folder and passes its resolved path/root', async () => {
+    const h = sharingHarness()
+    const allowedRoot = path.resolve('/configured-shares')
+    const commands = new SharingCommands({ ...h.deps, shareFolder: () => allowedRoot })
+    expect(
+      await commands.execute(
+        parseSharingArgs(['share', 'chat', 's1', '--out', 'chat.md']),
+        h.context,
+      ),
+    ).toMatchObject({ kind: 'shared' })
+    expect(h.release.mock.calls[0]?.slice(1)).toEqual([
+      path.join(allowedRoot, 'chat.md'),
+      allowedRoot,
+    ])
+    h.release.mockClear()
+    expect(
+      await commands.execute(
+        parseSharingArgs(['share', 'chat', 's1', '--out', path.join(SHARING_CWD, 'chat.md')]),
+        h.context,
+      ),
+    ).toMatchObject({ kind: 'cancelled' })
+    expect(h.release).not.toHaveBeenCalled()
+  })
+  it.each(['../outside.md', path.resolve('/outside/confirmed-share.md')])(
+    'refuses a confirmed output outside the allowed root: %s',
+    async (out) => {
+      const h = sharingHarness()
+      const argv = [
+        'share',
+        'chat',
+        's1',
+        '--destination',
+        'file',
+        '--out',
+        out,
+        '--exported-at',
+        SHARING_TIME,
+      ]
+      const { result } = await confirmHeadless(h, argv)
+      expect(result).toMatchObject({ kind: 'cancelled', exitCode: 7 })
+      expect(result).toHaveProperty('message', expect.stringContaining('--out'))
+      expect(result).toHaveProperty('message', expect.stringContaining('outside'))
+      expect(h.release).not.toHaveBeenCalled()
+    },
+  )
+  it('refuses a symlinked output parent escaping the allowed root', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'm118x-share-'))
+    try {
+      const cwd = path.join(folder, 'workspace')
+      const outside = path.join(folder, 'outside')
+      await mkdir(cwd)
+      await mkdir(outside)
+      await symlink(
+        outside,
+        path.join(cwd, 'linked'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      )
+      const h = sharingHarness()
+      const commands = new SharingCommands({
+        ...h.deps,
+        io: { realPath: (absolute) => canonicalPath(absolute, { followsBrokenLinks: true }) },
+      })
+      const result = await runSharingCommand(
+        parseSharingArgs([
+          'share',
+          'chat',
+          's1',
+          '--destination',
+          'file',
+          '--out',
+          'linked/chat.md',
+        ]),
+        commands,
+        { ...h.context, cwd },
+      )
+      expect(result).toMatchObject({ kind: 'cancelled', exitCode: 7 })
+      expect(result).toHaveProperty('message', expect.stringContaining('link'))
+      expect(h.release).not.toHaveBeenCalled()
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
+  })
+  it.each([
+    { flags: [], missing: '--destination' },
+    { flags: ['--out', 'chat.md'], missing: '--destination' },
+    { flags: ['--destination', 'file'], missing: '--out' },
+  ])(
+    'requires the explicit headless release flag $missing with $flags',
+    async ({ flags, missing }) => {
+      const h = sharingHarness()
+      const argv = ['share', 'chat', 's1', '--exported-at', SHARING_TIME, ...flags]
+      const { result } = await confirmHeadless(h, argv)
+      expect(result).toMatchObject({ kind: 'cancelled', exitCode: 7 })
+      expect(result).toHaveProperty('message', expect.stringContaining(missing))
+      expect(h.release).not.toHaveBeenCalled()
+    },
+  )
   it('refuses an inactive operation before any read or UI action', async () => {
     const h = sharingHarness()
     h.setActive(false)
@@ -270,7 +421,8 @@ describe('M118 local share admission', () => {
       return Promise.resolve()
     })
     expect(await h.commands.execute(command, h.context)).toMatchObject({ kind: 'shared' })
-    expect(h.release.mock.calls[0]?.[1]).toBe('chosen.md')
+    expect(h.release.mock.calls[0]?.[1]).toBe(path.join(SHARING_CWD, 'chosen.md'))
+    expect(h.release.mock.calls[0]?.[2]).toBe(SHARING_CWD)
   })
   it('does not turn a mutated CLI command into final sharing confirmation', async () => {
     const h = sharingHarness()
@@ -319,6 +471,8 @@ describe('M118 local share admission', () => {
       'share',
       'chat',
       's1',
+      '--destination',
+      'file',
       '--exported-at',
       SHARING_TIME,
       '--out',
@@ -335,6 +489,8 @@ describe('M118 local share admission', () => {
           'share',
           'chat',
           's1',
+          '--destination',
+          'file',
           '--exported-at',
           SHARING_TIME,
           '--out',
@@ -349,7 +505,15 @@ describe('M118 local share admission', () => {
     expect(h.release).toHaveBeenCalledTimes(1)
     await expect(
       runSharingCommand(
-        parseSharingArgs(['share', 'chat', 's1', '--confirm', preview.preview.previewId]),
+        parseSharingArgs([
+          'share',
+          'chat',
+          's1',
+          '--destination',
+          'copy',
+          '--confirm',
+          preview.preview.previewId,
+        ]),
         h.commands,
         { ...h.context, ui },
       ),

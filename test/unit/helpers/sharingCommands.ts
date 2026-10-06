@@ -70,6 +70,7 @@ export function sharingHarness() {
     storageFor,
     renderPreview,
     isConfidentialWorkspace: () => confidential,
+    io: { realPath: (absolute) => Promise.resolve(absolute) },
     release,
   }
   const commands = new SharingCommands(deps)

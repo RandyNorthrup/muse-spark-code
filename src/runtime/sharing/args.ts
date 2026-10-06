@@ -16,6 +16,7 @@ export type SharingCommand =
       readonly exportedAt: string | undefined
       readonly confirmation: string | undefined
       readonly out: string | undefined
+      readonly destinationExplicit: boolean
     })
   | (LocalOptions & {
       readonly command: 'prompts'
@@ -128,7 +129,11 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
   const to = flag('to')
   if ((from === undefined) !== (to === undefined)) throw localArgumentError('--from/--to')
   if (target === 'prompt' && from !== undefined) throw localArgumentError('--from/--to')
-  const destination = oneOf(flag('destination') ?? (flag('out') === undefined ? 'copy' : 'file'), [
+  const destinationFlag = flag('destination')
+  let selectedDestination = destinationFlag
+  if (selectedDestination === 'save') selectedDestination = 'file'
+  if (selectedDestination === 'open') selectedDestination = 'browser'
+  const destination = oneOf(selectedDestination ?? (flag('out') === undefined ? 'copy' : 'file'), [
     'copy',
     'file',
     'browser',
@@ -161,6 +166,7 @@ export function parseSharingArgs(argv: readonly string[], sessionId?: string): S
     exportedAt: flag('exported-at'),
     confirmation: flag('confirm'),
     out: flag('out'),
+    destinationExplicit: destinationFlag !== undefined,
   }
 }
 

@@ -31,12 +31,24 @@ Construct `SharingCommands` from `src/runtime/sharing/commands.ts` with:
 - `isConfidentialWorkspace(cwd)`: the same live confidential setting as the
   host, with `undefined` when unavailable. Admission requires exactly false
   before rendering, before displaying and immediately before the sink.
-- `release(preview, out)`: dispatch only `preview.content`, to its already
+- `io.realPath`: the existing canonical-path implementation through the nearest
+  existing parent, including symlinks/junctions. Follow broken links for an
+  output sink that follows them; resolution errors must reject. The adapter
+  reuses `confineWorkspacePath` before release; identity functions are test fakes.
+- `shareFolder(cwd)` (optional): the trusted configured sharing root; absent
+  uses the workspace. Relative paths resolve within this root. This root is
+  snapshotted before awaiting UI and bound into the preview digest.
+- `release(preview, resolvedOut, allowedRoot)`: dispatch only `preview.content`, to its already
   chosen local destination. No writes, clipboard access or browser open during
   preview. Begin the real sink immediately after admission; a sink that needs
   asynchronous preparation/selection must recheck confidentiality at its actual
   write/open too. Never serialize preview metadata/private output paths into
-  the shared document. Do not reinterpret `out` after confirmation.
+  the shared document. `resolvedOut` is absolute and has passed textual and
+  canonical confinement, including the existing parent of a new file; `..`,
+  outside absolute paths and escaping linked parents refuse (exit 7 and an
+  `--out` message from the runner). Do not reinterpret this path or replace
+  its root after confirmation. Recheck confinement at the actual sink if a
+  path/parent can change during asynchronous sink preparation.
 
 `SharingUi` is an injected real UI, never a default success implementation.
 `showPreview` displays exact content/redaction offsets/options.
@@ -91,10 +103,11 @@ Syntax verified against the injected runner and SDK tests:
 | CLI     | `prompts use ID [--scope user\|workspace] [--chat active\|new] [--cwd FOLDER]`         |
 | CLI     | `prompts share ID [--scope user\|workspace] [sharing flags] [--cwd FOLDER]`            |
 
-Sharing flags: `--mode`, `--format`, `--destination copy|file|browser`, `--out`,
+Sharing flags: `--mode`, `--format`, `--destination copy|save|open`, `--out`,
 `--from A --to B` (chat only), `--no-code-blocks`, `--no-attachment-names`,
 `--diffs`, repeated `--attachment-content ID`, `--exported-at` and CLI-only
-`--confirm`. Defaults: conversation/md/copy (file with `--out`), code blocks
+`--confirm`. `save`/`open` map to the existing `file`/`browser` contract values;
+the old flag spellings remain accepted. Defaults: conversation/md/copy (file with `--out`), code blocks
 and attachment names on, diffs off, no contents. A CLI chat needs a session id;
 ACP uses its current session and refuses another session's id or `--cwd`.
 Single/double quoted header arguments work; save text after the unquoted `--`
@@ -103,9 +116,13 @@ block and cannot use `--confirm` to bypass the host's final action.
 
 Noninteractive sharing first returns a cancelled preview (nonzero), its
 `previewId` and `document.createdAt`. After reviewing it, explicitly invoke the
-same command with the same `--exported-at`, `--out` and `--confirm PREVIEW_ID`.
+same command with an explicit `--destination`, the same `--exported-at`,
+`--out` and `--confirm PREVIEW_ID`. Confirmed headless release refuses absent
+`--destination`, including an implicit file from `--out`; save/file also
+requires `--out`. Both return exit 7 and `message` naming the missing flag.
+Surface the runner's refusal message. Interactive defaults are unchanged.
 The SHA-256 digest binds cwd, destination/path, the entire request, time and
-exact rendered bytes. Changed content/options/path require a new confirmation.
+exact rendered bytes and allowed root. Changed content/options/path/root require a new confirmation.
 There is no broad `--yes`, remembered grant or implicit noninteractive success.
 The CLI renderer must not change its output merely to display the digest.
 

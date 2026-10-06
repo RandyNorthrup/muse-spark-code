@@ -6917,8 +6917,8 @@ No new dependency, model call or production P/C/native binding is in scope.
 Record regression failures, byte-exact red drills and bounded checks in
 `docs/certification/m118-x.md`, and update W's integration contracts there.
 
-- [ ] P2-1 output confinement and resolved path/root release contract.
-- [ ] P2-2 explicit headless destination and file output admission.
+- [x] P2-1 output confinement and resolved path/root release contract.
+- [x] P2-2 explicit headless destination and file output admission.
 - [ ] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
 - [x] P2-4 shared leading-whitespace local-command interception.
 
@@ -18455,6 +18455,11 @@ files per invocation, all typechecks, scoped lint/format, localization,
 deadcode, duplication, host API and production build directly on win11. Keep
 unbound P/C/TUI/MHP and main/help wiring explicit in the handoff; no fake
 production implementation, gate weakening or quality claim.
+
+FIXM118X's review repair checks run directly on Kubuntu under the same bounds.
+README/changelog/ACP guide and feature-reference changes remain W's handoff
+because the fix brief restricts edits to X-owned files; no installed command
+or native-binding claim is made. Full integrated quality remains W/lead's.
 
 **M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
 aggregate quality, merges and pushes. Run the owning contracts, typecheck,
