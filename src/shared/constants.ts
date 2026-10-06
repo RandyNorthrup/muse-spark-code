@@ -1338,6 +1338,36 @@ export type ReviewSeverity = (typeof REVIEW_SEVERITIES)[number]
 export const REVIEW_FINDINGS_MAX = 200
 export const REVIEW_FINDING_TEXT_MAX_CHARS = 4000
 export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
+
+// M116 / D96: lane-0 contracts. Two fix rounds after the original build;
+// a team may lower this ceiling, never raise it. Rule 9 has no setting.
+export const PLAYBOOK_PATCH_ROUNDS_MAX = 2
+export const PLAYBOOK_LAUNDER_WINDOW_MS = 3_600_000
+export const PLAYBOOK_RECORD_MAX = 5000
+export const PLAYBOOK_RECORD_FOLDER = 'playbook/v1'
+export const PLAYBOOK_ID_MAX_CHARS = 128
+export const PLAYBOOK_FINDING_CLASSES = [
+  'validation',
+  'security',
+  'failure',
+  'honesty',
+  'concurrency',
+  'lifecycle',
+  'tests',
+  'docs',
+] as const
+export const PLAYBOOK_CONFIGURABLE_RULES = [
+  'threeStrikes',
+  'onePassReview',
+  'contractsFirst',
+  'smallFirst',
+  'offload',
+  'continuousIntegration',
+  'breakOnPurpose',
+  'loudFailures',
+] as const
+export const PLAYBOOK_SAFETY_RULE = 'neverAround'
+export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
 // The block as the review prompt shows it to the model (English, as all
 // model text is), and what it holds when the review found nothing.
 export const REVIEW_FINDINGS_EXAMPLE = JSON.stringify({

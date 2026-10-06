@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Define the orchestrator playbook's shared contracts and acceptance fakes,
+  including per-team rule settings, review rounds, design decisions and
+  structured why-notes. Review blocks accept optional finding classes,
+  coverage and redesign resolutions while existing blocks remain valid.
+  Policy enforcement and editor surfaces follow in the remaining M116 lanes.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security
