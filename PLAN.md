@@ -19621,6 +19621,21 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
+and its P3 inside J's collector, aggregate, history boundary and shared view.
+Read-time flushes retain the active minute and its per-tree CPU baselines;
+cumulative minute snapshots merge idempotently by their segment timestamp,
+including final tree accounting against the same cached machine sample.
+Reject non-finite or unrepresentable history timestamps and override deadlines
+before formatting, using one shared history date helper for page and text.
+Keep at most seven days/10,080 minute segments and 1,000 recent events, evicting
+oldest first while preserving exact retained-input work/event totals. Page
+charts, bands and detail tables in batches of 60 entries. Add before-fix
+regressions and byte-exact red drills for every guard in J's certification.
+No dependency, guard widening, merge, full quality or paid/live call. M102
+journal/route binding and W's reference/delivery/full gates remain integration
+handoffs; the absent feature catalog is not replaced in this lane.
+
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
 C1's native launch/retirement and Linux path repairs, and adopt T2's exact
@@ -21458,6 +21473,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-J-M102-history-binding (FIXM107J, 2026-10-06).** RVM107J's
+  review findings are repaired, with scoped receipts in J's certification.
+  M102 still must bind consent, retention/rollups, atomic/idempotent append
+  and collector-scoped reads: a minute segment's latest cumulative snapshot
+  replaces its earlier snapshots before totals, while different collectors
+  retain M102's source scope. Bind final tree samples, the shared usage page
+  and ACP/CLI text routes; W owns the absent help reference, generated
+  stylesheet inventory and full integrated/platform gates. Safe for now:
+  J has no durable journal or shipped usage mount on this base, never exports
+  tree identities, and failed appends remain explicit/retryable. Follow-up:
+  W/M102 performs and certifies that complete join; no reviewed P2/P3 is
+  silently left as an accepted residual.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

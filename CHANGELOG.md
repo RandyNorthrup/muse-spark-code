@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resource history keeps known minute readings and merges final tree accounting
+  idempotently after a read-time flush, including the same cached sample timestamp.
+
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain
   unknown occupancy and never fall back to a bare process or job kill.

@@ -172,6 +172,38 @@ describe('resource minute collection', () => {
     expect(h.records[0]?.minute?.cpuPercent).toBe(30)
   })
 
+  it('merges a read-time flush and same-timestamp final tree accounting into one known minute', async () => {
+    const h = recordHarness()
+    const ticket = historyTree()
+    const status = historyStatus(5000, { cpuPercent: 80 })
+    h.trees([{ ticket, usage: { cpuSeconds: 1, residentBytes: 10 } }])
+    await h.writer.sample(status)
+    await h.writer.flush()
+    expect(aggregateResources(h.records).minutes).toHaveLength(1)
+    h.trees([{ ticket, usage: { cpuSeconds: 2, residentBytes: 20 } }])
+    await h.writer.sample(status)
+    await h.writer.flush()
+    const history = aggregateResources(h.records)
+    expect(h.records[0]?.work[0]?.cpuSeconds).toBe(1)
+    expect(history.minutes).toHaveLength(1)
+    expect(history.minutes[0]).toMatchObject({
+      atMs: 5000,
+      minute: { cpuPercent: 80, memoryUsedPercent: 30 },
+      work: [{ kind: 'check', cpuSeconds: 2, peakMemoryBytes: 20 }],
+    })
+    expect(history.work).toEqual([{ kind: 'check', cpuSeconds: 2, peakMemoryBytes: 20 }])
+    expect(aggregateResources([...h.records, ...h.records])).toEqual(history)
+    const appends = h.append.mock.calls.length
+    await h.writer.flush()
+    expect(h.append).toHaveBeenCalledTimes(appends)
+    await h.writer.sample(historyStatus(10_000, { cpuPercent: 40 }))
+    await h.writer.flush()
+    expect(aggregateResources(h.records).minutes[0]?.minute?.cpuPercent).toBe(60)
+    await h.writer.sample(historyStatus(60_000, { cpuPercent: 20 }))
+    await h.writer.flush()
+    expect(aggregateResources(h.records).minutes.map((row) => row.atMs)).toEqual([5000, 60_000])
+  })
+
   it('rejects stale samples, invalid batches and duplicate trees without advancing accounting', async () => {
     const h = recordHarness()
     const ticket = historyTree()

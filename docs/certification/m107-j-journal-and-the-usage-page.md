@@ -1,5 +1,53 @@
 # M107 J — Journal and the usage page
 
+## FIXM107J review repairs (2026-10-06, Kubuntu)
+
+The repair brief supersedes the original shared-document handoff below: PLAN
+and CHANGELOG now record the review fixes directly. No review finding is
+accepted as residual. Verification remains scoped under the rig's explicit
+full-quality prohibition; no timeout override, merge, push, dependency or
+paid/live call.
+
+**P2-1 fixed.** A read-time flush now appends a copied cumulative minute
+snapshot without closing its bucket or clearing its readings. Final accounting
+uses the same bucket and birth-bound local tree identity's CPU high-water
+baseline. Segment timestamp plus local tree identity identifies the accounting
+bucket; neither tree identity nor paths leave the collector. The aggregate
+merges cumulative snapshots by stable segment timestamp before summing work,
+so duplicate snapshots are idempotent and a final sample cannot replace a
+known chart interval with an unknown reading. Threshold changes and minute
+rollover still close the previous segment.
+
+Regression `merges a read-time flush and same-timestamp final tree accounting
+into one known minute` failed on the review base (two rows instead of one),
+then passed. It reproduces the review's 5000 ms / 80% CPU / 30% memory / 1→2
+CPU-seconds case, repeated read flushes, duplicate snapshots, immutable earlier
+appends, subsequent averaging and minute rollover. The complete collector
+suite passes **16/16** at repository-default deadlines. All five typecheck
+projects and scoped ESLint pass.
+
+| Guard drill             | Named regression                                                                        | Red / restoration         |
+| ----------------------- | --------------------------------------------------------------------------------------- | ------------------------- |
+| `flush-keeps-minute`    | merges a read-time flush and same-timestamp final tree accounting into one known minute | exit 1; SHA-256 identical |
+| `minute-snapshot-merge` | merges a read-time flush and same-timestamp final tree accounting into one known minute | exit 1; SHA-256 identical |
+
+Source digests at these drills: collector
+`800e5d94d3de1d314b4a9373935509c97bfe594b2fa2514898c77b9e7a233513`;
+aggregate `6ae159fddfe2d886b941cc841fc8529d7dc379b71a3c3e695128fe9b8eef4db0`.
+Logs and machine-readable receipts: ignored `temp/fixm107j/`.
+
+**M107-J-M102-history-binding (existing integration residual).** Bind M102's
+consent/retention/rollups and collector-scoped retained reads to this cumulative
+snapshot contract, with atomic/idempotent append. The same segment timestamp
+means the latest complete snapshot of that collector, not another CPU delta;
+distinct collectors need M102's source scope before aggregation. Safe for now:
+these components have no durable-journal or page/command mount on this base,
+no private tree id is added to egress, and append failures remain retryable.
+Follow-up: W/M102 joins the real store, tree retirement samples, shared usage
+page, ACP/CLI text routes and absent help reference, then certifies the joined
+full gates on all platforms. The W-owned stylesheet inventory update remains
+the previously recorded shared-check handoff.
+
 Implemented on the Kubuntu rig, 2026-10-06, branch `m107/j`. The lane brief
 and shared rules authorize bounded implementation against lane 0 before M102
 joins; they prohibit full quality, branch merges, push/rebase and paid/live

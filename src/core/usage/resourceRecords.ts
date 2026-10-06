@@ -23,7 +23,8 @@ import {
 export interface ResourceRecordWorkSource {
   read(): Promise<readonly { ticket: ResourceTicket; usage: ResourceTreeUsage | null }[]>
 }
-/** M102 supplies durable append and owns retention, local-day rollups and journal consent. */
+/** M102 supplies durable append, retention, rollups and consent. Minute appends are
+ * cumulative snapshots keyed by segment atMs; reads merge them idempotently. */
 export interface ResourceRecordSink {
   append(record: ResourceRecord): Promise<void>
 }
@@ -60,6 +61,7 @@ export class ResourceRecords {
   private lastSampleAt = -1
   private settingsSignature: string | undefined
   private pending: ResourceRecord | undefined
+  private dirty = false
   private tail = Promise.resolve()
 
   constructor(
@@ -89,12 +91,18 @@ export class ResourceRecords {
     this.pending = undefined
   }
 
-  private async flushMinute(): Promise<void> {
+  private async flushMinute(shouldClose = false): Promise<void> {
     await this.drain()
     if (this.minute === undefined) return
-    this.pending = this.minute
-    this.minute = undefined
-    this.readings.clear()
+    if (this.dirty) {
+      // Parse copies the snapshot: later final-tree accounting cannot mutate an append.
+      this.pending = resourceRecordSchema.parse(this.minute)
+      this.dirty = false
+    }
+    if (shouldClose) {
+      this.minute = undefined
+      this.readings.clear()
+    }
     await this.drain()
   }
 
@@ -105,7 +113,7 @@ export class ResourceRecords {
       await this.drain()
       const sample = status.sample
       if (sample === null || !status.settings.enabled) {
-        await this.flushMinute()
+        await this.flushMinute(true)
         return
       }
       if (sample.atMs < this.lastSampleAt) throw new Error('Resource history sample out of order')
@@ -118,7 +126,7 @@ export class ResourceRecords {
           atMs ||
         this.settingsSignature !== signature
       )
-        await this.flushMinute()
+        await this.flushMinute(true)
       // Validate the complete work batch before changing counters or the minute.
       const snapshots = await this.work.read()
       const batch = snapshots.map((row) => ({
@@ -195,6 +203,7 @@ export class ResourceRecords {
       this.counters = nextCounters
       this.lastSampleAt = sample.atMs
       this.settingsSignature = signature
+      this.dirty = true
     })
   }
 

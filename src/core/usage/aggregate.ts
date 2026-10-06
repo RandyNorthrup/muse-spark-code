@@ -11,7 +11,15 @@ export function aggregateResources(records: readonly ResourceRecord[]): Resource
   const events: ResourceHistory['events'] = []
   const counts = new Map<string, ResourceHistory['counts'][number]>()
   const work = new Map<ResourceKind, ResourceHistory['work'][number]>()
-  const parsed = records.map((record) => resourceRecordSchema.parse(record))
+  const snapshots = new Map<number, ResourceRecord>()
+  const parsed: ResourceRecord[] = []
+  for (const input of records) {
+    const record = resourceRecordSchema.parse(input)
+    // A read-time flush and final accounting replace one cumulative minute segment.
+    if (record.minute === null) parsed.push(record)
+    else snapshots.set(record.atMs, record)
+  }
+  parsed.push(...snapshots.values())
   const ordered = parsed.toSorted((a, b) => a.atMs - b.atMs)
   for (const record of ordered) {
     if (record.minute !== null) minutes.push(record)
