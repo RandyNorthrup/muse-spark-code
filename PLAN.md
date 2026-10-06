@@ -19637,6 +19637,23 @@ go in `docs/certification/m107-t2.md`; native Linux/Windows reruns and integrate
 full quality remain the lead's qualification. The rig brief forbids branch
 merges and aggregate quality and authorizes the larger tree/native change.
 
+Windows' existing T-owned `MuseSparkJob.cs` gains only the live-state query
+and verified signal region required by that port; A's priority/rate region
+is untouched. SIGTERM and SIGKILL both terminate on Windows, as Node's
+Windows signals do; POSIX sends the named signal. A successful send is not
+an exit receipt. POSIX ancestry records cover observed edges, not a fork and
+reparent wholly between samples; launch sites must enroll before losing that
+edge. Linux has no existing pidfd binding, so the authorized final `/proc`
+birth read is followed directly by synchronous kill with no new dependency.
+Root launch authority is a targeted native scope/birth proof; a missing global
+accounting table does not deny that proof or the verified root signal. An
+optional initial scan enrolls descendants when available. Tree kill still
+requires a fresh descendant snapshot and refuses unknown enumeration. A recycled
+PID is admitted only by current kernel containment or a freshly proved parent
+birth/child edge; it never inherits its earlier birth authority. Recorded
+descendants can witness the tree after the original root PID is reused.
+Inaccessible native rows that could belong to the tree make enumeration unknown.
+
 **Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
 RVM107T within the tree readers and their owning suites: freshly revalidate
 the root or an existing orphan witness before committing POSIX witnesses;
@@ -20072,6 +20089,19 @@ Hook-on commits use complete owning files, deliberate guard-break drills,
 typecheck, scoped lint/format and the required static/build checks. The lead
 retains full integrated quality, coverage, native platform and editor receipts.
 No threshold, timeout, rule, skip policy or guard is weakened.
+
+**M107 T2 scoped certification (2026-10-06).** The rig brief prohibits
+aggregate quality and merges; the lead retains integrated quality/coverage
+and native Linux/Windows qualification. T2 runs complete owning test files,
+serial typecheck/lint/build checks and 31 action/enrollment guard mutations
+plus the native microsecond precision drill. Its production Mac binding adds
+one `node:path` import, so the existing W-owned host-API snapshot handoff now
+requires 84→87 for that row; the other original rows remain 13→14, 47→48
+and 1→2. No VS Code API changes. The shared rules mention `check:reference`,
+but this base has neither that script nor `featureCatalog.ts`/the generator;
+T2 introduces only an internal native mode/API, no public feature. The attempted
+command reports missing script, not a passing gate. See
+`docs/certification/m107-t2.md` for exact receipts and reruns.
 
 **M107-T-host-api-record (W handoff).** `npm run check:host-api` still exits 1
 for the original lane's Node import counts: `node:child_process` 13→14,
@@ -21256,7 +21286,7 @@ before a repaired one loads (2026-09-30).
 
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,
-  macOS's production `inspect` binding, the combined lazy governor bundle,
+  the combined lazy governor bundle,
   all-spawn/editor wiring and full integrated quality remain the original
   integration handoffs. Safe for this unmerged lane: exact identity/scope
   proofs stay mandatory, unavailable reads refuse authority, and there is
@@ -21264,7 +21294,12 @@ before a repaired one loads (2026-09-30).
   the readers, Win11 runs the existing native test, and the lead certifies
   the integrated governor, including the host-API record above. Detailed
   receipts and the six original named handoffs are in
-  `docs/certification/m107-t.md`.
+  `docs/certification/m107-t.md`. T2 supplies the production macOS
+  `proc-identity` binding and native lifecycle receipts; installed-helper path
+  selection and all-editor launch integration remain W/M96 K work. POSIX
+  final birth read and signal are adjacent user-space operations, not an atomic
+  handle-bound action. Unobserved fork/reparent edges cannot be reconstructed;
+  no real PID reuse was forced on macOS. See `docs/certification/m107-t2.md`.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

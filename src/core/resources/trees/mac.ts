@@ -8,8 +8,10 @@ import {
 import { PosixResourceTreeReader, type PosixTreeSnapshot, type PosixTreeSource } from './posix'
 import { parseMacProcessTable, processSampleSchema, type ProcessSample } from './posixTable'
 import { coalescedTreeRead, runTreeProgram, type ResourceTreeRun } from './run'
+import { signalVerifiedPosix, type ResourceActionResult, type ResourceSignal } from './actions'
 
 const macIdentitySchema = z.extend(resourceProcessIdentitySchema, {
+  startTime: resourceProcessIdentitySchema.shape.startTime.check(z.regex(/^\d+$/)),
   pgid: processSampleSchema.shape.pgid,
   parent: z.optional(processSampleSchema.shape.parent),
   exited: z.optional(processSampleSchema.shape.exited),
@@ -32,6 +34,7 @@ export interface MacTreeDeps {
     | null
   >
   readonly run?: ResourceTreeRun
+  readonly sendSignal?: (pid: number, signal: ResourceSignal) => void
 }
 
 export class MacResourceTreeReader extends PosixResourceTreeReader {
@@ -84,6 +87,7 @@ class MacTreeSource implements PosixTreeSource {
     ])
     const raw: unknown = JSON.parse(text)
     const native = z.extend(resourceProcessIdentitySchema, {
+      startTime: macIdentitySchema.shape.startTime,
       pgid: processSampleSchema.shape.pgid,
       parent: processSampleSchema.shape.parent,
       exited: processSampleSchema.shape.exited,
@@ -110,9 +114,34 @@ class MacTreeSource implements PosixTreeSource {
     }
   }
 
-  async containsNow(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
+  async containsNow(
+    ticket: ResourceTicket,
+    identity: ResourceProcessIdentity,
+    isEnrolled = false,
+    parent?: ResourceProcessIdentity,
+  ): Promise<boolean> {
     if (ticket.scope.type !== 'group') return false
     try {
+      if (parent !== undefined) {
+        const ancestors = await this.inspect([identity.pid, parent.pid, identity.pid])
+        const ancestor = ancestors[1]
+        const latest = ancestors[2]
+        return (
+          ancestor !== undefined &&
+          ancestor !== null &&
+          !('unavailable' in ancestor) &&
+          ancestor.exited !== true &&
+          ancestor.pid === parent.pid &&
+          ancestor.startTime === parent.startTime &&
+          latest !== undefined &&
+          latest !== null &&
+          !('unavailable' in latest) &&
+          latest.exited !== true &&
+          latest.pid === identity.pid &&
+          latest.startTime === identity.startTime &&
+          latest.parent === parent.pid
+        )
+      }
       const rows = await this.inspect([identity.pid])
       const current = rows[0]
       return (
@@ -122,10 +151,26 @@ class MacTreeSource implements PosixTreeSource {
         current.exited !== true &&
         current.pid === identity.pid &&
         current.startTime === identity.startTime &&
-        current.pgid === ticket.scope.pgid
+        (isEnrolled || current.pgid === ticket.scope.pgid)
       )
     } catch {
       return false
+    }
+  }
+
+  async signalNow(
+    identity: ResourceProcessIdentity,
+    signal: ResourceSignal,
+    isRegistered: () => boolean,
+  ): Promise<ResourceActionResult> {
+    try {
+      const rows = await this.inspect([identity.pid])
+      const current = rows[0]
+      return current === undefined || (current !== null && 'unavailable' in current)
+        ? 'refused'
+        : signalVerifiedPosix(identity, current, signal, isRegistered, this.deps.sendSignal)
+    } catch {
+      return 'refused'
     }
   }
 
@@ -134,11 +179,16 @@ class MacTreeSource implements PosixTreeSource {
     try {
       const table = await this.table()
       if (table === null) return null
+      if (table.length === 0) return { rows: [], cpuSeconds: null }
       const rows: ProcessSample[] = []
-      if (table.length === 0) return { rows, cpuSeconds: null }
+      const unavailable: { pid: number; parent: number; pgid: number }[] = []
       const infos = await this.inspect(table.map((row) => row.pid))
       for (const [index, row] of table.entries()) {
         const info = infos[index]
+        if (info !== undefined && info !== null && 'unavailable' in info) {
+          unavailable.push({ pid: row.pid, parent: row.parent, pgid: row.pgid })
+          continue
+        }
         if (
           info?.pid === row.pid &&
           !('unavailable' in info) &&
@@ -152,7 +202,7 @@ class MacTreeSource implements PosixTreeSource {
             exited: info.exited ?? row.exited,
           })
       }
-      return { rows, cpuSeconds: null }
+      return { rows, cpuSeconds: null, unavailable }
     } catch {
       return null
     }

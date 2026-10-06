@@ -15,6 +15,11 @@ import {
   type ResourceTreeUsage,
 } from '../../../shared/resources'
 import { runTreeProgram, type ResourceTreeRun } from './run'
+import {
+  resourceActionResultSchema,
+  type ResourceActionResult,
+  type ResourceSignal,
+} from './actions'
 
 const querySchema = z.strictObject({
   members: z.array(resourceProcessIdentitySchema),
@@ -63,20 +68,25 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
     )
     if (answer === null || this.known.get(ticket.id) !== state) return null
     const parsed = querySchema.parse(answer)
-    const root = parsed.members.find((member) => member.pid === ticket.root.pid)
-    const hasAnchor =
-      root === undefined
-        ? parsed.members.some((member) =>
-            state.members.some(
-              (known) => known.pid === member.pid && known.startTime === member.startTime,
-            ),
-          )
-        : root.startTime === ticket.root.startTime
-    if (!hasAnchor) {
+    const hasAnchor = parsed.members.some(
+      (member) =>
+        (member.pid === ticket.root.pid && member.startTime === ticket.root.startTime) ||
+        state.members.some(
+          (known) => known.pid === member.pid && known.startTime === member.startTime,
+        ),
+    )
+    if (!hasAnchor && !(parsed.members.length === 0 && state.members.length > 0)) {
       this.known.delete(ticket.id)
       return null
     }
-    state.members = structuredClone(parsed.members)
+    for (const member of parsed.members) {
+      if (
+        state.members.every(
+          (known) => !(known.pid === member.pid && known.startTime === member.startTime),
+        )
+      )
+        state.members = [...state.members, structuredClone(member)]
+    }
     return parsed
   }
 
@@ -140,6 +150,53 @@ export class WindowsResourceTreeReader implements ResourceTreeReader {
       return query?.usage ?? null
     } catch {
       return null
+    }
+  }
+
+  async actionMembers(ticket: ResourceTicket): Promise<readonly ResourceProcessIdentity[] | null> {
+    try {
+      const state = this.known.get(ticket.id)
+      const query = await this.query(ticket)
+      // A missing job is a gone result for already observed identities, not new authority.
+      return state !== undefined && this.known.get(ticket.id) === state
+        ? structuredClone(state.members)
+        : (query?.members ?? null)
+    } catch {
+      return null
+    }
+  }
+
+  async signal(
+    ticket: ResourceTicket,
+    identity: ResourceProcessIdentity,
+    signal: ResourceSignal,
+    isRegistered: () => boolean,
+  ): Promise<ResourceActionResult> {
+    if (ticket.scope.type !== 'job' || identity.pid === process.pid) return 'refused'
+    const state = this.known.get(ticket.id)
+    if (state === undefined) return 'refused'
+    try {
+      if (
+        state.members.every(
+          (member) => !(member.pid === identity.pid && member.startTime === identity.startTime),
+        )
+      ) {
+        const query = await this.query(ticket)
+        if (
+          !query?.members.some(
+            (member) => member.pid === identity.pid && member.startTime === identity.startTime,
+          )
+        )
+          return 'refused'
+      }
+      if (this.known.get(ticket.id) !== state || !isRegistered()) return 'refused'
+      const answer = await this.call(
+        `ConvertTo-Json -Compress -InputObject ([${SHELL_JOB_TYPE_NAME}]::Signal(${powerShellQuoted(ticket.scope.name)}, ${String(identity.pid)}, ${powerShellQuoted(identity.startTime)}, ${signal === 'SIGKILL' ? '$true' : '$false'}))`,
+      )
+      // Once dispatched, the native handle-bound action cannot be revoked; report its real result.
+      return resourceActionResultSchema.parse(answer)
+    } catch {
+      return 'refused'
     }
   }
 }

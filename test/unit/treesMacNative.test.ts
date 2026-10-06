@@ -4,17 +4,79 @@ import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout } from 'node:timers/promises'
-import { describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { MacResourceTreeReader } from '../../src/core/resources/trees/mac'
 import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import { parseMacProcessTable } from '../../src/core/resources/trees/posixTable'
 import { runTreeProgram } from '../../src/core/resources/trees/run'
 import type { ResourceTicket } from '../../src/shared/resources'
 import { removeFolder } from './helpers/temporaryFolders'
-
-const helperPath = path.resolve('native/darwin/muse-dictate')
+import { darwinProcessHelper } from './helpers/darwinProcessHelper'
 
 describe('Darwin native binding boundary', () => {
+  const helperPath = path.resolve('native/darwin/muse-dictate')
+  it('refuses a mismatched native PID at the signal boundary instead of interpreting it as a changed birth', async () => {
+    let hasShifted = false
+    const info = { pid: 710, pgid: 710, parent: 1, startTime: '1000', exited: false }
+    const run = (_file: string, args: readonly string[]) =>
+      Promise.resolve(
+        args[0] === '-axo'
+          ? '710 1 710 S 0:02.00 4\n'
+          : JSON.stringify([{ ...info, pid: hasShifted ? 711 : 710 }]),
+      )
+    const reader = new MacResourceTreeReader({ helperPath, run, sendSignal: vi.fn() })
+    const registry = new ResourceTreeRegistry(reader)
+    const ticket: ResourceTicket = {
+      id: 'shifted',
+      root: { pid: 710, startTime: '1000' },
+      scope: { type: 'group', pgid: 710 },
+      kind: 'check',
+      class: 'foreground',
+      sessionId: null,
+    }
+    await registry.register(ticket)
+    hasShifted = true
+    expect(await registry.signal(ticket, ticket.root, 'SIGKILL')).toBe('refused')
+  })
+  it.each(['new', 'recorded'] as const)(
+    'refuses a tree snapshot with an inaccessible %s descendant',
+    async (kind) => {
+      let isUnavailable = kind === 'new'
+      const info = new Map([
+        [710, { pid: 710, pgid: 710, parent: 1, startTime: '1000', exited: false }],
+        [711, { pid: 711, pgid: 711, parent: 710, startTime: '1001', exited: false }],
+      ])
+      const run = (_file: string, args: readonly string[]) =>
+        Promise.resolve(
+          args[0] === '-axo'
+            ? `710 1 710 S 0:02.00 4\n711 ${kind === 'recorded' && isUnavailable ? '1' : '710'} 711 S 0:02.00 4\n`
+            : JSON.stringify(
+                args
+                  .slice(1)
+                  .map((pid) =>
+                    isUnavailable && pid === '711'
+                      ? { pid: 711, unavailable: true }
+                      : (info.get(Number(pid)) ?? null),
+                  ),
+              ),
+        )
+      const sendSignal = vi.fn()
+      const reader = new MacResourceTreeReader({ helperPath, run, sendSignal })
+      const ticket: ResourceTicket = {
+        id: 'unavailable',
+        root: { pid: 710, startTime: '1000' },
+        scope: { type: 'group', pgid: 710 },
+        kind: 'check',
+        class: 'foreground',
+        sessionId: null,
+      }
+      const registry = new ResourceTreeRegistry(reader)
+      await registry.register(ticket)
+      isUnavailable = true
+      expect(await registry.kill(ticket)).toEqual({ status: 'refused', members: [] })
+      expect(sendSignal).not.toHaveBeenCalled()
+    },
+  )
   it('validates exact identities, unavailable results and positional correspondence', async () => {
     const info = { pid: 710, pgid: 710, parent: 1, startTime: '1000001', exited: false }
     const run = vi.fn(() => Promise.resolve(JSON.stringify([info])))
@@ -25,6 +87,7 @@ describe('Darwin native binding boundary', () => {
       [{ ...info, pid: 711 }],
       [info, info],
       [{ ...info, startTime: '' }],
+      [{ ...info, startTime: 'whole-second ps lstart' }],
       [{ ...info, parent: -1 }],
       [{ ...info, exited: true }],
       [{ pid: 710, unavailable: true }],
@@ -38,6 +101,15 @@ describe('Darwin native binding boundary', () => {
 })
 
 describe.runIf(process.platform === 'darwin')('native Darwin process identity', () => {
+  let helperPath = ''
+  let fixture: Awaited<ReturnType<typeof darwinProcessHelper>> | undefined
+  beforeAll(async () => {
+    fixture = await darwinProcessHelper()
+    helperPath = fixture.helperPath
+  }, 120_000)
+  afterAll(async () => {
+    await fixture?.remove()
+  })
   it('reads exact numerical kernel identity without audio setup and refuses invalid input', async () => {
     const reader = new MacResourceTreeReader({ helperPath })
     const identity = await reader.identity(process.pid)
