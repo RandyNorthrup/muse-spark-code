@@ -46,6 +46,18 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
+## Orchestrator playbook policy (M116)
+
+The shared policy verifies commit outcomes before harness-managed push or
+completion. Its command guard is an advisory early warning. Each newly
+reachable commit needs a passing receipt for the repository's own hooks;
+failed or unavailable hooks add a strike and block completion and push.
+Lane and generation leases fence stale reviews, and edited moves and merges
+inherit review history. Editor/planner integration remains M116 I/U/W work.
+See the [shared policy help reference](docs/reference.md) for its lifecycle.
+Regenerate it with `node scripts/gen-reference.mjs`; verify it with
+`npm run check:reference`.
+
 ## What's new in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your

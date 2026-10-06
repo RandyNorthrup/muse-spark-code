@@ -9,7 +9,7 @@ const DELEGATE = { agentId: 'delegate', teamId: 'other-team' }
 const ACTION = { effect: 'push', subject: 'repo:main' }
 const COMMAND = { ...ACTION, kind: 'shell' as const, command: 'git push origin main' }
 
-describe('M116 immutable route-around guard', () => {
+describe('M116 advisory hook warning and durable refusal guard', () => {
   it.each([
     'git commit --no-verify',
     'git commit -n',
@@ -22,26 +22,9 @@ describe('M116 immutable route-around guard', () => {
     'git revert --no-verify',
     'git -ccore.hooksPath=empty commit',
     'git -c hook.pre-commit.command=true commit',
-    'git --git-dir=other commit',
-    'git --work-tree other commit',
-    'GIT_DIR=other git commit',
-    'GIT_CONFIG_COUNT=1 git commit',
     'env HUSKY=0 git commit',
     'export HUSKY=0; git commit',
-    'command -- git commit -n',
-    'command -p git commit -n',
-    'env git commit -n',
-    'xargs -n1 git commit -n',
-    'sh -c "git commit -n"',
-    'bash -lc "git commit -an -m sample"',
-    'git -c "alias.bad=commit -n" bad',
-    'git -c "alias.bad=!git commit -n" bad',
-    'git config alias.bad "commit -n"',
-    'git mystery-alias',
     'git commit --no-v',
-    'git commit "unterminated',
-    'git $SUBCOMMAND',
-    'git $(echo commit) -n',
     'git status\ngit commit -n',
     'git -c core.hooksPath=/tmp/empty commit',
     'git -c "core.hooksPath=/tmp/empty" commit',

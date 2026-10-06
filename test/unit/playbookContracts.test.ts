@@ -100,6 +100,12 @@ const DESIGN: PlaybookDesignDecision = {
 /** Forwarding spies only; they deliberately do not implement lane P's policy. */
 function policySpies(): PlaybookPolicy {
   return {
+    beginWork: vi.fn(() => 'work'),
+    verifyWork: vi.fn(() => ({ decision: ALLOW, output: '' })),
+    beforePush: vi.fn(() => ALLOW),
+    finishWork: vi.fn(() => ALLOW),
+    renewPatch: vi.fn(() => ALLOW),
+    releasePatch: vi.fn(() => ALLOW),
     beforeDispatch: vi.fn(() => ALLOW),
     beforeReview: vi.fn(() => ALLOW),
     afterReview: vi.fn(() => ALLOW),
@@ -529,6 +535,7 @@ describe('M116 acceptance fakes', () => {
       FAKE_PLAYBOOK_MODULE,
       admitted.review,
       REVIEW_AGENTS,
+      undefined,
     )
     expect(admitted.decision).toEqual(ALLOW)
   })

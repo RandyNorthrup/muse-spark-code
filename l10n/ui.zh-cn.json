@@ -2405,13 +2405,15 @@
     "integrationRequired": "工作准则：工作分支 {lane} 必须在合并前包含持续集成主干。",
     "drillMissing": "工作准则：工作分支 {lane} 的每个新测试或门禁都需要失败演练和逐字节一致的恢复记录。",
     "ownerFirst": "工作准则：优先显示用户待办和失败。",
-    "hookTampering": "安全检查：拒绝绕过或更改钩子。",
+    "hookTampering": "提前警告：此命令似乎绕过或更改钩子。提交验证控制推送和完成。",
     "gateSkipped": "安全检查：拒绝跳过质量门禁。",
     "permissionLaundering": "需要你处理：此操作已被拒绝；其他代理也不能在 {duration} 内再次请求。",
     "classifierBlocked": "需要你处理：安全分类器已阻止此操作；不能重试或改走其他路径。",
     "ruleDisabled": "工作准则：{actor} 关闭了 {rule}：{reason}",
     "lineageRequired": "工作准则：{module} 需要已记录的模块沿革，或负责人或所有者批准的例外。",
-    "reviewerConflict": "工作准则：{module} 需要代理 ID 和会话均不同的审查者。"
+    "reviewerConflict": "工作准则：{module} 需要代理 ID 和会话均不同的审查者。",
+    "hookVerificationFailed": "需要你处理：仓库钩子验证失败。推送和完成已被阻止。",
+    "unverifiedCommit": "安全检查：每个新提交都需要通过钩子验证的凭据，才能推送或完成。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 轮审查"

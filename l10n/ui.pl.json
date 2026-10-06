@@ -2687,13 +2687,15 @@
     "integrationRequired": "Podręcznik: gałąź {lane} musi zawierać ciągłą gałąź integracyjną przed scaleniem.",
     "drillMissing": "Podręcznik: gałąź {lane} wymaga próby zakończonej błędem i przywrócenia identycznych bajtów dla każdego nowego testu lub kontroli.",
     "ownerFirst": "Podręcznik: sprawy użytkownika i błędy są pokazywane jako pierwsze.",
-    "hookTampering": "Kontrola bezpieczeństwa: obejście lub zmiana hooków jest odrzucana.",
+    "hookTampering": "Wczesne ostrzeżenie: to polecenie wygląda na obejście lub zmianę hooków. Weryfikacja commitów kontroluje wysyłanie i zakończenie.",
     "gateSkipped": "Kontrola bezpieczeństwa: pominięcie kontroli jest odrzucane.",
     "permissionLaundering": "Wymaga Ciebie: ta akcja została już odrzucona; inny agent nie może ponownie o nią poprosić przez {duration}.",
     "classifierBlocked": "Wymaga Ciebie: klasyfikator bezpieczeństwa zablokował tę akcję; nie można jej ponawiać ani przekierowywać.",
     "ruleDisabled": "Podręcznik: {actor} wyłączył(a) {rule}: {reason}",
     "lineageRequired": "Podręcznik: {module} wymaga zapisanego pochodzenia modułu lub wyjątku zatwierdzonego przez lidera bądź właściciela.",
-    "reviewerConflict": "Podręcznik: {module} wymaga recenzenta z innym identyfikatorem agenta i inną sesją."
+    "reviewerConflict": "Podręcznik: {module} wymaga recenzenta z innym identyfikatorem agenta i inną sesją.",
+    "hookVerificationFailed": "Potrzebna Twoja interwencja: weryfikacja hooków repozytorium nie powiodła się. Wysyłanie i zakończenie są zablokowane.",
+    "unverifiedCommit": "Kontrola bezpieczeństwa: każdy nowy commit wymaga potwierdzenia poprawnej weryfikacji hooków przed wysłaniem lub zakończeniem."
   },
   "playbookStrikeBadge": {
     "one": "{count} runda przeglądu",

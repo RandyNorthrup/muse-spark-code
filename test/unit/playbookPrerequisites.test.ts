@@ -17,7 +17,10 @@ describe('M116 planning admission', () => {
       note: { code: 'prerequisiteMissing', missing: ['P'] },
     })
     board.merge('P', true)
-    expect(policy.beforeDispatch(lane, board.readBoard()).kind).toBe('allow')
+    const dispatch = policy.beforeDispatch(lane, board.readBoard())
+    expect(dispatch.kind).toBe('allow')
+    if (dispatch.kind !== 'allow' || !dispatch.lease) throw new Error('Expected dispatch lease')
+    expect(policy.releasePatch(lane.module, dispatch.lease).kind).toBe('allow')
     expect(
       policy.beforeDispatch(
         board.readBoard().lanes.find((entry) => entry.id === '0')!,

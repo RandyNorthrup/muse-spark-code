@@ -2593,13 +2593,15 @@
     "integrationRequired": "Manual: a ramificação {lane} deve incluir a ramificação contínua de integração antes da mesclagem.",
     "drillMissing": "Manual: a ramificação {lane} precisa de uma prova de falha e restauração exata dos bytes para cada novo teste ou verificação.",
     "ownerFirst": "Manual: os itens do usuário e as falhas são mostrados primeiro.",
-    "hookTampering": "Verificação de segurança: contornar ou alterar hooks é recusado.",
+    "hookTampering": "Aviso antecipado: este comando parece ignorar ou alterar hooks. A verificação dos commits controla o envio e a conclusão.",
     "gateSkipped": "Verificação de segurança: ignorar uma verificação é recusado.",
     "permissionLaundering": "Precisa de você: esta ação já foi recusada; outro agente não pode solicitá-la novamente durante {duration}.",
     "classifierBlocked": "Precisa de você: um classificador de segurança bloqueou esta ação; ela não pode ser repetida nem redirecionada.",
     "ruleDisabled": "Manual: {actor} desativou {rule}: {reason}",
     "lineageRequired": "Manual: {module} precisa de uma linhagem de módulo registrada ou de uma exceção do responsável ou proprietário.",
-    "reviewerConflict": "Manual: {module} precisa de um revisor com um identificador de agente e uma sessão diferentes."
+    "reviewerConflict": "Manual: {module} precisa de um revisor com um identificador de agente e uma sessão diferentes.",
+    "hookVerificationFailed": "Sua intervenção é necessária: a verificação dos hooks do repositório falhou. O envio e a conclusão estão bloqueados.",
+    "unverifiedCommit": "Verificação de segurança: cada novo commit precisa de um comprovante de aprovação dos hooks antes do envio ou da conclusão."
   },
   "playbookStrikeBadge": {
     "one": "{count} rodada de revisão",

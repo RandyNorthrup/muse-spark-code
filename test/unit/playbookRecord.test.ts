@@ -1,3 +1,4 @@
+import { completeReview } from './playbookPolicyFixture'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -101,7 +102,7 @@ describe('M116 durable record', () => {
 
   it('preserves the exact evidence inherited at a split when the parent answers later', () => {
     const fixture = policyFixture()
-    fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     const child = {
       ...MODULE,
       id: 'child',
@@ -131,7 +132,7 @@ describe('M116 durable record', () => {
     symlinkSync(target, journal.file)
     expect(() => journal.read()).toThrow()
     const fixture = policyFixture()
-    fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     const records = fixture.policy.getRecord()
     for (const patch of [
       { reviewerId: REVIEW_AGENTS.implementerId },
@@ -172,7 +173,7 @@ describe('M116 durable record', () => {
       ).toThrow()
     }
     const fixture = policyFixture()
-    fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     fixture.tamper([{ kind: 'round', value: latestRound(fixture.policy) }])
     expect(() => new OrchestratorPlaybook(fixture.options)).toThrow()
   })
@@ -271,7 +272,7 @@ describe('M116 durable record', () => {
 
   it('second-scrubs every free-text field on publication and recovery, and returns detached records', () => {
     const fixture = policyFixture()
-    fixture.policy.afterReview(MODULE, reviewBlock('docs', 'P3'), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock('docs', 'P3'), REVIEW_AGENTS)
     const findingId = latestRound(fixture.policy).findings[0]!.id
     const secret = 'LLM_' + 'A'.repeat(32)
     fixture.policy.answerFindings(MODULE, [

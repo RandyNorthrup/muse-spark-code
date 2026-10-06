@@ -2593,13 +2593,15 @@
     "integrationRequired": "Guida: il ramo {lane} deve includere il ramo di integrazione continuo prima del merge.",
     "drillMissing": "Guida: il ramo {lane} necessita di una prova che fallisca e di un ripristino esatto dei byte per ogni nuovo test o controllo.",
     "ownerFirst": "Guida: le richieste all’utente e gli errori sono mostrati per primi.",
-    "hookTampering": "Controllo di sicurezza: aggirare o modificare gli hook è vietato.",
+    "hookTampering": "Avviso anticipato: questo comando sembra aggirare o modificare gli hook. La verifica dei commit controlla invio e completamento.",
     "gateSkipped": "Controllo di sicurezza: saltare un controllo è vietato.",
     "permissionLaundering": "Serve il tuo intervento: questa azione è già stata rifiutata; un altro agente non può richiederla nuovamente entro {duration}.",
     "classifierBlocked": "Serve il tuo intervento: un classificatore di sicurezza ha bloccato questa azione; non può essere ritentata né reindirizzata.",
     "ruleDisabled": "Guida: {rule} è stata disattivata da {actor}: {reason}",
     "lineageRequired": "Guida: {module} richiede una provenienza del modulo registrata o una deroga del responsabile o proprietario.",
-    "reviewerConflict": "Guida: {module} richiede un revisore con un identificativo agente e una sessione diversi."
+    "reviewerConflict": "Guida: {module} richiede un revisore con un identificativo agente e una sessione diversi.",
+    "hookVerificationFailed": "Serve il tuo intervento: la verifica degli hook del repository è fallita. Invio e completamento sono bloccati.",
+    "unverifiedCommit": "Controllo di sicurezza: ogni nuovo commit richiede una ricevuta di verifica degli hook riuscita prima di invio o completamento."
   },
   "playbookStrikeBadge": {
     "one": "{count} ciclo di revisione",

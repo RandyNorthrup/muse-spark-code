@@ -1,3 +1,4 @@
+import { completeReview } from './playbookPolicyFixture'
 import { describe, expect, it } from 'vitest'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { FAKE_PLAYBOOK_MODULE as MODULE } from './helpers/playbook/fakes'
@@ -14,7 +15,12 @@ describe('M116 one-pass review', () => {
   it('does not count missing coverage and asks again for exactly the missing classes', () => {
     const { policy } = policyFixture()
     expect(
-      policy.afterReview(MODULE, { ...reviewBlock(), coverage: ['concurrency'] }, REVIEW_AGENTS),
+      completeReview(
+        policy,
+        MODULE,
+        { ...reviewBlock(), coverage: ['concurrency'] },
+        REVIEW_AGENTS,
+      ),
     ).toMatchObject({
       kind: 'refuse',
       note: {
@@ -23,13 +29,14 @@ describe('M116 one-pass review', () => {
       },
     })
     expect(policy.getRecord().some((record) => record.kind === 'round')).toBe(false)
-    expect(policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('allow')
+    expect(completeReview(policy, MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('allow')
     expect(latestRound(policy).round).toBe(1)
   })
 
   it('waits for every prior finding, rejects partial/duplicate/unknown answers, and persists all answers together', () => {
     const fixture = policyFixture()
-    fixture.policy.afterReview(
+    completeReview(
+      fixture.policy,
       MODULE,
       {
         ...reviewBlock(),
@@ -48,7 +55,7 @@ describe('M116 one-pass review', () => {
       [answers[0]!, { ...answers[1]!, findingId: 'unknown' }],
     ])
       expect(fixture.policy.answerFindings(MODULE, invalid).kind).toBe('refuse')
-    expect(fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
+    expect(completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
     expect(latestRound(fixture.policy).round).toBe(1)
     expect(fixture.policy.answerFindings(MODULE, answers).kind).toBe('allow')
     expect(new OrchestratorPlaybook(fixture.options).beforeReview(MODULE, REVIEW_AGENTS).kind).toBe(
@@ -73,7 +80,7 @@ describe('M116 one-pass review', () => {
           ? { ...REVIEW_AGENTS, reviewerId: REVIEW_AGENTS.implementerId }
           : { ...REVIEW_AGENTS, reviewerSessionId: REVIEW_AGENTS.implementerSessionId }
       expect(policy.beforeReview(MODULE, agents).note.code).toBe('reviewerConflict')
-      expect(policy.afterReview(MODULE, reviewBlock(), agents).kind).toBe('refuse')
+      expect(completeReview(policy, MODULE, reviewBlock(), agents).kind).toBe('refuse')
       expect(policy.getRecord().some((record) => record.kind === 'round')).toBe(false)
     },
   )
@@ -82,7 +89,7 @@ describe('M116 one-pass review', () => {
     'treats %s as P1 and allows only a fix or trusted override',
     (severity) => {
       const fixture = policyFixture()
-      fixture.policy.afterReview(MODULE, reviewBlock('security', severity), REVIEW_AGENTS)
+      completeReview(fixture.policy, MODULE, reviewBlock('security', severity), REVIEW_AGENTS)
       const finding = latestRound(fixture.policy).findings[0]!
       expect(finding.severity).toBe('P1')
       const disputed = {
@@ -107,7 +114,7 @@ describe('M116 one-pass review', () => {
 
   it('allows a P2 named residual only with a redesign, and a P3 explained dispute', () => {
     const { policy } = policyFixture()
-    policy.afterReview(MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
     const findingId = latestRound(policy).findings[0]!.id
     const residual = {
       findingId,
@@ -125,7 +132,8 @@ describe('M116 one-pass review', () => {
     expect(policy.answerFindings(MODULE, [residual]).kind).toBe('allow')
     expect(latestRound(policy).answers).toEqual([residual])
     const other = { ...MODULE, id: 'docs', key: 'docs', files: ['docs/guide.md'] }
-    policy.afterReview(
+    completeReview(
+      policy,
       other,
       {
         findings: [{ file: 'docs/guide.md', title: 'Typo', severity: 'low' }],
@@ -146,7 +154,8 @@ describe('M116 one-pass review', () => {
 
   it('persists trusted identities and strips raw review titles and detail', () => {
     const { policy } = policyFixture()
-    policy.afterReview(
+    completeReview(
+      policy,
       MODULE,
       {
         ...reviewBlock(),
@@ -177,7 +186,7 @@ describe('M116 one-pass review', () => {
     policy.updateSettings(settings)
     const agents = { ...REVIEW_AGENTS, reviewerId: ` ${REVIEW_AGENTS.implementerId} ` }
     expect(policy.beforeReview(MODULE, agents).kind).toBe('refuse')
-    policy.afterReview(MODULE, reviewBlock('security', 'P1'), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock('security', 'P1'), REVIEW_AGENTS)
     expect(policy.beforeReview(MODULE, REVIEW_AGENTS).note.code).toBe('answersPending')
   })
 })

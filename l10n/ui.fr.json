@@ -2593,13 +2593,15 @@
     "integrationRequired": "Guide : la branche {lane} doit inclure la branche d’intégration continue avant la fusion.",
     "drillMissing": "Guide : la branche {lane} exige un essai en échec et une restauration à l’octet près pour chaque nouveau test ou contrôle.",
     "ownerFirst": "Guide : les demandes de l’utilisateur et les échecs sont affichés en premier.",
-    "hookTampering": "Contrôle de sécurité : le contournement ou la modification des hooks est refusé.",
+    "hookTampering": "Avertissement précoce : cette commande semble contourner ou modifier les hooks. La vérification des commits conditionne l’envoi et la clôture.",
     "gateSkipped": "Contrôle de sécurité : ignorer un contrôle est refusé.",
     "permissionLaundering": "Votre intervention est requise : cette action a déjà été refusée ; un autre agent ne peut pas la redemander pendant {duration}.",
     "classifierBlocked": "Votre intervention est requise : un classificateur de sécurité a bloqué cette action ; elle ne peut être ni retentée ni réacheminée.",
     "ruleDisabled": "Guide : {rule} a été désactivée par {actor} : {reason}",
     "lineageRequired": "Guide : {module} nécessite une filiation de module enregistrée ou une dérogation du responsable ou propriétaire.",
-    "reviewerConflict": "Guide : {module} nécessite un réviseur avec un identifiant d’agent et une session différents."
+    "reviewerConflict": "Guide : {module} nécessite un réviseur avec un identifiant d’agent et une session différents.",
+    "hookVerificationFailed": "Votre intervention est nécessaire : la vérification des hooks du dépôt a échoué. L’envoi et la clôture sont bloqués.",
+    "unverifiedCommit": "Contrôle de sécurité : chaque nouveau commit doit avoir un justificatif de réussite des hooks avant l’envoi ou la clôture."
   },
   "playbookStrikeBadge": {
     "one": "{count} cycle de revue",

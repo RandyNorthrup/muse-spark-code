@@ -2499,13 +2499,15 @@
     "integrationRequired": "Leitfaden: Zweig {lane} muss vor dem Zusammenführen den fortlaufenden Integrationszweig einbeziehen.",
     "drillMissing": "Leitfaden: Zweig {lane} braucht für jeden neuen Test oder jedes Gate einen nachgewiesenen Fehlschlag und eine bytegenaue Wiederherstellung.",
     "ownerFirst": "Leitfaden: Benutzeraufgaben und Fehler werden zuerst angezeigt.",
-    "hookTampering": "Sicherheitsprüfung: Das Umgehen oder Ändern von Hooks wird abgelehnt.",
+    "hookTampering": "Frühwarnung: Dieser Befehl scheint Hooks zu umgehen oder zu ändern. Die Commit-Prüfung steuert Push und Abschluss.",
     "gateSkipped": "Sicherheitsprüfung: Das Überspringen eines Gates wird abgelehnt.",
     "permissionLaundering": "Ihre Entscheidung ist nötig: Diese Aktion wurde bereits abgelehnt; ein anderer Agent darf sie innerhalb von {duration} nicht erneut anfragen.",
     "classifierBlocked": "Ihre Entscheidung ist nötig: Ein Sicherheitsklassifikator hat diese Aktion blockiert; sie darf weder erneut versucht noch umgeleitet werden.",
     "ruleDisabled": "Leitfaden: {rule} wurde von {actor} ausgeschaltet: {reason}",
     "lineageRequired": "Leitfaden: {module} benötigt eine dokumentierte Modulherkunft oder eine Ausnahme durch die Leitung oder den Eigentümer.",
-    "reviewerConflict": "Leitfaden: {module} benötigt einen Prüfer mit einer anderen Agenten-ID und Sitzung."
+    "reviewerConflict": "Leitfaden: {module} benötigt einen Prüfer mit einer anderen Agenten-ID und Sitzung.",
+    "hookVerificationFailed": "Ihre Hilfe wird benötigt: Die Hook-Prüfung des Repositorys ist fehlgeschlagen. Push und Abschluss sind gesperrt.",
+    "unverifiedCommit": "Sicherheitsprüfung: Jeder neue Commit benötigt vor Push oder Abschluss einen Nachweis bestandener Hook-Prüfungen."
   },
   "playbookStrikeBadge": {
     "one": "{count} Prüfrunde",

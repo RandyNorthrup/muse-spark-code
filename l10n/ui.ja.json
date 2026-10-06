@@ -2405,13 +2405,15 @@
     "integrationRequired": "手引き: レーン {lane} はマージ前に継続的な統合ブランチを取り込む必要があります。",
     "drillMissing": "手引き: レーン {lane} では、新しいテストまたはゲートごとに失敗の実証とバイト単位で同一の復元が必要です。",
     "ownerFirst": "手引き: ユーザーの判断が必要な項目と失敗を先に表示します。",
-    "hookTampering": "安全チェック: フックの迂回や変更は拒否されます。",
+    "hookTampering": "早期警告：このコマンドはフックを回避または変更する可能性があります。コミット検証でプッシュと完了を制御します。",
     "gateSkipped": "安全チェック: ゲートの省略は拒否されます。",
     "permissionLaundering": "判断が必要です: この操作はすでに拒否されました。{duration} 以内に別のエージェントから再要求することはできません。",
     "classifierBlocked": "判断が必要です: 安全分類器がこの操作をブロックしました。再試行や別経路への転送はできません。",
     "ruleDisabled": "手引き: {actor} が {rule} を無効にしました: {reason}",
     "lineageRequired": "手引き: {module} には、記録されたモジュールの系譜、または責任者か所有者による例外承認が必要です。",
-    "reviewerConflict": "手引き: {module} には、エージェント ID とセッションが異なるレビュアーが必要です。"
+    "reviewerConflict": "手引き: {module} には、エージェント ID とセッションが異なるレビュアーが必要です。",
+    "hookVerificationFailed": "対応が必要です：リポジトリのフック検証に失敗しました。プッシュと完了はブロックされています。",
+    "unverifiedCommit": "安全確認：新しい各コミットは、プッシュまたは完了の前にフック検証の合格記録が必要です。"
   },
   "playbookStrikeBadge": {
     "other": "レビュー {count} ラウンド"

@@ -11961,9 +11961,20 @@ repository's own working rule (AGENTS.md rule 14).
    orchestrator writes starts with what needs the user and whatever is
    failing (M113's **Needs you**), never buried below progress.
 9. **Never route around a safety check.**
-   - **No hook tampering:** `--no-verify`, `-c core.hooksPath=…`, `git config
-core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
-     and reported.
+   - **Hook bypass is detected by outcome; the command guard is advisory.**
+     At work start the harness snapshots reachable commits. Before any
+     harness-managed push or completion, every commit newly reachable from
+     the work's refs runs the repository's own pre-commit and commit-msg on
+     its tree/message in an isolated temporary worktree under ordinary tool
+     admission. Pre-push runs once for the exact range with a clean index.
+     Push admission also checks commits introduced since the workspace's first
+     recorded work, so opening later work cannot hide an unverified ancestor. Hooks are never
+     rewritten. A passing commit has a durable commit id / hook-set digest /
+     result receipt. Failure or inability to run is a strike, blocks push
+     and completion, and shows scrubbed hook output. No receipt means no push.
+     Obvious bypass commands still receive an early warning and refusal;
+     shell wrappers, aliases and generated arguments are not parsed as a
+     security boundary.
    - **No permission laundering:** an action refused to one agent is not
      asked again through another (a delegate, a role, a tool with the same
      effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
@@ -12022,6 +12033,17 @@ core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
     - Acceptance fakes take the prior finding id as a fixture parameter,
       detach every lane's module data, and test board dependencies and
       estimates independently of the plan's delivery-order literal.
+
+14. **Lane-P redesign (REDM116P, 2026-10-06).** One synchronous journal
+    reducer owns publication and emits tagged tool effects. Leases exclude
+    all members of a module family and name the lane and generation; every
+    review must present its admitted generation. Expired member leases do
+    not block another member's current work. File identities retain bounded
+    content fingerprints; edited moves inherit through Git history/rename
+    evidence and content similarity at `PLAYBOOK_CONTENT_SIMILARITY_PERCENT`.
+    Claimed lineage is published before admission. Merges reconcile maximum
+    strikes and lifetime counts throughout the family; only a complete
+    independent redesign can close an existing strike epoch.
 
 ---
 
@@ -28348,12 +28370,23 @@ anywhere joined it).
 **RVM116P lane certification (2026-10-06).** The rig brief prohibits full
 quality and all merges/pushes/rebases in P; the lead runs integrated quality.
 P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
-duplication, localization, host API and production budgets. The W-owned host
-API inventory remains an integration handoff. The required shell-quote parser
-is already locked/installed at 1.10.0, transitively through npm-run-all2;
-its direct declaration is absent in this base. Any package-manifest ownership
-change is explicitly coordinated with the owner; no gate ignore or dependency
-installation substitutes for that declaration. Results are in `m116-p.md`.
+duplication, localization, host API and production budgets. The generated host API
+inventory was refreshed for the new Node imports; editor bindings remain an
+integration handoff. REDM116P removes the
+shell-quote imports and the dependency-declaration handoff: the small advisory
+warning needs no shell interpreter. The help catalog and generated reference
+are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+
+**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
+aggregate quality, pushes and unlisted merges. The lane runs all owning tests
+at default timeout, scoped lint/format, all five typecheck projects, deadcode,
+duplication, localization, host API, the new help-reference check and production
+budgets directly on macmini. It removes the shell-quote dependency handoff,
+refreshes the generated Node import inventory, and records deliberate
+receipt/generation/merge and round-2 mutation failures with byte-exact restores
+in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
+editor/planner bindings remain the lead/I/U/W integration work; no gate is
+weakened and no round-2 finding is accepted as a residual.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -29569,9 +29602,9 @@ before a repaired one loads (2026-09-30).
 - **RVM116P (2026-10-06).** The P1 and all eight P2 findings are repaired;
   none is accepted as residual. Every repair has a named regression and a
   observed red drill with byte-exact restoration in `m116-p.md`. The shared
-  contracts stay frozen: internal technical journal notes retain file hashes,
-  patch lease holder/start (expiry is start plus the existing one-hour window),
-  releases and real user decisions. I must supply the canonical workspace,
+  contracts have additive REDM116P lifecycle records: bounded content
+  fingerprints, lane/member/generation leases, work baselines and hook
+  receipts/violations. Internal notes still retain real user decisions. I must supply the canonical workspace,
   renew reservations while work runs, release canceled work, surface lost
   history's `needsUser` error, and bind override authority to the user's actual
   decision. These planned integrations remain outside P's certification.

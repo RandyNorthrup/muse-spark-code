@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { PLAYBOOK_FINDING_CLASSES } from '../../src/shared/constants'
 import type {
   PlaybookDesignDecision,
+  PlaybookLease,
   PlaybookModule,
   PlaybookRecord,
   PlaybookReviewAgents,
@@ -12,6 +13,7 @@ import type {
 } from '../../src/shared/playbook'
 import type { ReviewBlock } from '../../src/shared/reviewFindings'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
+import type { PlaybookHookEffect } from '../../src/core/orchestration/playbook/outcomes'
 import type { PlaybookJournal } from '../../src/core/orchestration/playbook/journal'
 import { FAKE_PLAYBOOK_MODULE } from './helpers/playbook/fakes'
 
@@ -42,6 +44,8 @@ export function policyFixture(inputWorkspace?: string) {
     journal,
     workspaceFolder,
     teamId: 'panel',
+    laneId: 'panel',
+    hookAdmission: { admit: vi.fn((_effect: PlaybookHookEffect) => true) },
     now: () => now,
     authorizeOverride: authority,
     drillRequirements: { guards: vi.fn(() => ['rounds']) },
@@ -113,7 +117,7 @@ export function strike(
   module: PlaybookModule = FAKE_PLAYBOOK_MODULE,
 ): void {
   for (let round = 0; round < 3; round += 1) {
-    policy.afterReview(module, reviewBlock(), REVIEW_AGENTS)
+    completeReview(policy, module, reviewBlock(), REVIEW_AGENTS)
     answerAll(policy, module)
   }
 }
@@ -130,4 +134,18 @@ export function design(module: PlaybookModule = FAKE_PLAYBOOK_MODULE): PlaybookD
     outcome: 'pending',
     at: 100,
   }
+}
+
+/** Exercise the real admission/completion protocol rather than forge tokens. */
+export function completeReview(
+  policy: OrchestratorPlaybook,
+  module: PlaybookModule,
+  input: ReviewBlock,
+  agents: PlaybookReviewAgents,
+  token?: PlaybookLease,
+) {
+  const admission = policy.beforeReview(module, agents, token)
+  return admission.kind === 'refuse'
+    ? admission
+    : policy.afterReview(module, input, agents, admission.lease)
 }

@@ -1344,6 +1344,12 @@ export const REVIEW_FINDING_PATH_MAX_CHARS = 1024
 export const PLAYBOOK_PATCH_ROUNDS_MAX = 2
 export const PLAYBOOK_LAUNDER_WINDOW_MS = 3_600_000
 export const PLAYBOOK_RECORD_MAX = 5000
+/** Edited file moves inherit at this percentage of retained line fingerprints. */
+export const PLAYBOOK_CONTENT_SIMILARITY_PERCENT = 50
+export const PLAYBOOK_FILE_FINGERPRINT_MAX = 256
+export const PLAYBOOK_LINE_HASH_CHARS = 8
+export const PLAYBOOK_HOOK_EXECUTABLE_MASK = 0o111
+export const PLAYBOOK_HOOK_NAMES = ['pre-commit', 'commit-msg', 'pre-push'] as const
 export const PLAYBOOK_RECORD_FOLDER = 'playbook/v1'
 export const PLAYBOOK_ID_MAX_CHARS = 128
 export const PLAYBOOK_FINDING_CLASSES = [

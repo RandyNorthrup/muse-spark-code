@@ -16,7 +16,11 @@ import {
   GIT_TIMEOUT_MS,
   TOOL_FILE_MAX_BYTES,
   REVIEW_FINDINGS_MAX,
+  PLAYBOOK_CONTENT_SIMILARITY_PERCENT,
+  PLAYBOOK_FILE_FINGERPRINT_MAX,
+  PLAYBOOK_LINE_HASH_CHARS,
 } from '../../../shared/constants'
+import type { PlaybookLease } from '../../../shared/playbook'
 import { withoutCredentials } from '../../credentialEnvironment'
 
 export interface ModuleState {
@@ -26,6 +30,7 @@ export interface ModuleState {
   historicalFiles: string[]
   linked: Set<string>
   escalated: boolean
+  leases: Map<string, PlaybookLease & { at: number; status: 'held' | 'released' }>
   current?: PlaybookRound
   design?: PlaybookDesignDecision
 }
@@ -102,9 +107,8 @@ export function hasOverlappingFiles(left: PlaybookModule, right: PlaybookModule)
   )
 }
 
-/** Internal technical journal tags, not user-supplied evidence. Existing note
- * fields carry bounded fingerprints and lifecycle facts without changing the
- * frozen shared wire contract. Retention treats these notes as mandatory. */
+/** Internal technical journal tags, not user-supplied evidence. Fingerprints,
+ * user decisions and legacy lease notes remain mandatory retention evidence. */
 export const PLAYBOOK_IDENTITY_NOTE = 'playbook-file-identity'
 export const PLAYBOOK_LEASE_NOTE = 'playbook-patch-lease'
 export const PLAYBOOK_RELEASE_NOTE = 'playbook-patch-release'
@@ -138,10 +142,38 @@ export function fileIdentities(
   }
   return [...files].map((file) => ({
     file,
-    hash: createHash('sha256')
-      .update(readFileSync(nodePath.join(root, file)))
-      .digest('hex'),
+    hash: contentIdentity(readFileSync(nodePath.join(root, file), 'utf8')),
   }))
+}
+
+/** Bounded line fingerprints retain no file text. Similarity catches edited
+ * untracked moves too; Git history supplies path evidence after commit. */
+function contentIdentity(content: string): string {
+  const lines = [
+    ...new Set(
+      content
+        .split(/\r?\n/u)
+        .map((line) => line.trim())
+        .filter(Boolean),
+    ),
+  ]
+  const fingerprints = lines
+    .map((line) =>
+      createHash('sha256').update(line).digest('hex').slice(0, PLAYBOOK_LINE_HASH_CHARS),
+    )
+    .toSorted((a, b) => a.localeCompare(b))
+    .slice(0, PLAYBOOK_FILE_FINGERPRINT_MAX)
+  return `${createHash('sha256').update(content).digest('hex')}:${fingerprints.join(',')}`
+}
+
+export function hasSimilarContent(left: string, right: string): boolean {
+  if (left.split(':', 1)[0] === right.split(':', 1)[0]) return true
+  const a = left.split(':', 2)[1]?.split(',').filter(Boolean) ?? []
+  const b = new Set(right.split(':', 2)[1]?.split(',').filter(Boolean))
+  const common = a.filter((line) => b.has(line)).length
+  return (
+    common > 0 && common * 100 >= Math.max(a.length, b.size) * PLAYBOOK_CONTENT_SIMILARITY_PERCENT
+  )
 }
 
 /** Git supplies similarity-based rename evidence even when moved code changed
@@ -150,17 +182,16 @@ export function fileIdentities(
 export function renamedFiles(workspace: string): { from: string; to: string }[] {
   if (!existsSync(nodePath.join(workspace, '.git'))) return []
   const renames: { from: string; to: string }[] = []
-  for (const cached of [['--cached'], []]) {
+  for (const args of [['diff', '--cached'], ['diff'], ['log', '--all', '--format=']]) {
     const result = spawnSync(
       'git',
       [
-        'diff',
-        ...cached,
+        ...args,
         '--no-ext-diff',
         '--no-textconv',
         '--name-status',
         '-z',
-        '--find-renames',
+        `--find-renames=${String(PLAYBOOK_CONTENT_SIMILARITY_PERCENT)}%`,
         '--',
       ],
       {
@@ -175,7 +206,8 @@ export function renamedFiles(workspace: string): { from: string; to: string }[] 
     if (result.status !== 0 || result.error) throw new Error(UI_TEXT.playbookUnavailable)
     const fields = result.stdout.split('\0')
     for (let index = 0; index < fields.length - 1; index += 1) {
-      const status = fields[index] ?? ''
+      const status = (fields[index] ?? '').trim()
+      if (!status) continue
       const from = fields[++index]
       if (!from) throw new Error(UI_TEXT.playbookUnavailable)
       if (/^[RC]\d+$/u.test(status)) {
@@ -249,19 +281,18 @@ function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): 
     case 'module': {
       const module = normalizedModule(record.value.module)
       const existing = states.get(module.id)
-      if (existing) {
-        existing.historicalFiles.push(...module.files)
-        existing.module = module
-        return
-      }
-      const state: ModuleState = {
+      const state: ModuleState = existing ?? {
         module,
         counts: new Map(),
         strikes: 0,
         historicalFiles: [...module.files],
         linked: new Set(predecessorIds(module)),
         escalated: false,
+        leases: new Map(),
       }
+      state.module = module
+      state.historicalFiles = [...new Set([...state.historicalFiles, ...module.files])]
+      for (const id of predecessorIds(module)) state.linked.add(id)
       for (const id of predecessorIds(module)) {
         const prior = states.get(id)
         if (!prior) throw new Error(UI_TEXT.playbookUnavailable)
@@ -288,8 +319,18 @@ function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): 
       }
       states.set(module.id, state)
       const family = linkedStates(state, states)
-      for (const linked of family)
+      const counts = new Map<string | undefined, number>()
+      const strikes = Math.max(...family.map((member) => member.strikes))
+      for (const member of family)
+        for (const [key, count] of member.counts)
+          counts.set(key, Math.max(count, counts.get(key) ?? 0))
+      for (const linked of family) {
+        linked.strikes = strikes
+        linked.counts = new Map(counts)
+        linked.escalated ||= family.some((member) => member.escalated)
+        if (state.current) linked.current = { ...state.current, module: linked.module }
         for (const member of family) if (member !== linked) linked.linked.add(member.module.id)
+      }
       return
     }
     case 'round': {
@@ -300,8 +341,9 @@ function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): 
       const previous = state.counts.get(round.class) ?? 0
       state.counts.set(round.class, round.round)
       if (round.class === undefined) {
-        if (round.round > previous) state.strikes = round.phase === 'build' ? 1 : state.strikes + 1
-        if (round.findings.length === 0) state.strikes = 0
+        if (round.round > previous && round.findings.length > 0)
+          state.strikes = round.phase === 'build' ? Math.max(1, state.strikes) : state.strikes + 1
+        if (round.findings.length === 0 && round.phase === 'redesign') state.strikes = 0
         state.current = round
       }
       // File lineage is one live identity, including identities declared before
@@ -316,6 +358,20 @@ function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): 
         if (linked === state || round.round > previous)
           linked.current = { ...round, module: linked.module }
       }
+      return
+    }
+    case 'lease': {
+      const state = states.get(record.value.moduleId)
+      if (!state) throw new Error(UI_TEXT.playbookUnavailable)
+      state.leases.set(record.value.moduleId, record.value)
+      return
+    }
+    case 'verification': {
+      if (record.value.result !== 'fail') return
+      const state = states.get(record.value.moduleId)
+      if (!state) throw new Error(UI_TEXT.playbookUnavailable)
+      // One violation per commit/digest is published by the owner.
+      for (const linked of linkedStates(state, states)) linked.strikes += 1
       return
     }
     case 'design': {

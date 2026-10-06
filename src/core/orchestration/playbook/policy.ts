@@ -16,6 +16,8 @@ import {
   type PlaybookDecision,
   type PlaybookDesignDecision,
   type PlaybookLane,
+  type PlaybookLease,
+  type PlaybookPushRange,
   type PlaybookModule,
   type PlaybookOrderDecision,
   type PlaybookPolicy,
@@ -39,9 +41,8 @@ import {
   hasOverlappingFiles,
   fileIdentities,
   renamedFiles,
+  hasSimilarContent,
   PLAYBOOK_IDENTITY_NOTE,
-  PLAYBOOK_LEASE_NOTE,
-  PLAYBOOK_RELEASE_NOTE,
   PLAYBOOK_USER_NOTE,
   moduleStates,
   normalizedModule,
@@ -66,9 +67,17 @@ import {
   type OverrideAuthority,
 } from './review'
 
+import {
+  PlaybookOutcomes,
+  hasOutcomeReceipts,
+  hookVerificationDigest,
+  type PlaybookHookAdmission,
+} from './outcomes'
+
 export interface PlaybookPolicyOptions {
   readonly journal: PlaybookJournal
   readonly teamId: string
+  readonly laneId: string
   /** Trusted canonical workspace; the model never supplies file fingerprints. */
   readonly workspaceFolder: string
   readonly now: () => number
@@ -76,6 +85,7 @@ export interface PlaybookPolicyOptions {
   readonly authorizeOverride: OverrideAuthority
   readonly drillRequirements: PlaybookDrillRequirements
   readonly checkAdmission: PlaybookCheckAdmission
+  readonly hookAdmission: PlaybookHookAdmission
 }
 
 /** I binds this to M107/the runner's actual resource admission. Policy selects
@@ -173,55 +183,67 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : undefined
   }
 
-  /** The existing one-hour safety window also bounds patch leases. Hosts
-   * renew before it elapses; a recovered process gets a new holder identity. */
-  private reservations(state: ModuleState): PlaybookWhyNote[] {
-    const latest = new Map<string, PlaybookWhyNote>()
-    for (const record of this.records) {
-      if (
-        record.kind !== 'note' ||
-        ![PLAYBOOK_LEASE_NOTE, PLAYBOOK_RELEASE_NOTE].includes(record.value.laneId ?? '')
-      )
-        continue
-      if (record.value.module === state.module.id || state.linked.has(record.value.module ?? ''))
-        latest.set(record.value.module ?? '', record.value)
-    }
-    const leases: PlaybookWhyNote[] = []
-    for (const note of latest.values()) if (note.laneId === PLAYBOOK_LEASE_NOTE) leases.push(note)
-    return leases
+  /** Synchronous reducer state is shared by every lane through journal CAS.
+   * Family exclusion is lane-specific; expiry is checked only for the review's
+   * own member/generation, never for an unrelated expired ancestor. */
+  private reservations(state: ModuleState) {
+    return [state, ...[...state.linked].map((id) => this.states.get(id))]
+      .flatMap((member) => [...(member?.leases.values() ?? [])])
+      .filter((lease) => lease.status === 'held')
   }
 
-  private reservationRefusal(
-    state: ModuleState,
-    isForReview = false,
-  ): PlaybookDecision | undefined {
-    const isBlocked = this.reservations(state).some((lease) => {
-      const isActive = lease.at + PLAYBOOK_LAUNDER_WINDOW_MS > this.options.now()
-      return isActive ? lease.workerId !== this.holder : isForReview
+  private owns(state: ModuleState, token: PlaybookLease | undefined): boolean {
+    const current = state.leases.get(state.module.id)
+    return (
+      token !== undefined &&
+      current?.status === 'held' &&
+      current.at + PLAYBOOK_LAUNDER_WINDOW_MS > this.options.now() &&
+      current.ownerId === this.holder &&
+      token.moduleId === current.moduleId &&
+      token.laneId === current.laneId &&
+      token.ownerId === current.ownerId &&
+      token.generation === current.generation
+    )
+  }
+
+  private leaseRefusal(state: ModuleState): PlaybookDecision {
+    return this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
+      module: state.module.key,
+      missing: ['patchReservation'],
+      needsUser: true,
     })
-    return isBlocked
-      ? this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
-          module: state.module.key,
-          missing: ['patchReservation'],
-          needsUser: isForReview,
-        })
-      : undefined
   }
 
-  private reserve(state: ModuleState): PlaybookDecision | undefined {
-    const blocked = this.reservationRefusal(state)
-    if (blocked) return blocked
-    this.publish([
-      {
-        kind: 'note',
-        value: this.note('threeStrikes', 'checksPassed', {
-          laneId: PLAYBOOK_LEASE_NOTE,
-          module: state.module.id,
-          workerId: this.holder,
-        }),
-      },
-    ])
-    return undefined
+  private reserve(state: ModuleState, laneId: string): PlaybookDecision {
+    const active = this.reservations(state).filter(
+      (lease) => lease.at + PLAYBOOK_LAUNDER_WINDOW_MS > this.options.now(),
+    )
+    if (
+      active.some(
+        (lease) =>
+          lease.ownerId !== this.holder ||
+          lease.laneId !== laneId ||
+          lease.moduleId !== state.module.id,
+      )
+    )
+      return this.leaseRefusal(state)
+    const current = active[0]
+    const lease: PlaybookLease = current
+      ? {
+          moduleId: current.moduleId,
+          laneId: current.laneId,
+          ownerId: current.ownerId,
+          generation: current.generation,
+        }
+      : {
+          moduleId: state.module.id,
+          laneId,
+          ownerId: this.holder,
+          generation: randomUUID(),
+        }
+    this.publish([{ kind: 'lease', value: { ...lease, status: 'held', at: this.options.now() } }])
+    const decision = this.passed('threeStrikes', { module: state.module.key })
+    return decision.kind === 'allow' ? { ...decision, lease } : decision
   }
 
   private passed(
@@ -247,6 +269,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     const isUnchanged =
       existing?.module.key === module.key &&
       JSON.stringify(existing.module.files) === JSON.stringify(module.files)
+    const isSameLineage =
+      JSON.stringify(existing?.module.lineage) === JSON.stringify(module.lineage)
     const identities = fileIdentities(this.options.workspaceFolder, module)
     const renames = renamedFiles(this.options.workspaceFolder)
     const predecessors = predecessorIds(module)
@@ -254,15 +278,14 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       predecessors.flatMap((id) => [id, ...(this.states.get(id)?.linked ?? [])]),
     )
     const isInvalidLineage =
-      !isUnchanged &&
-      (new Set(predecessors).size !== predecessors.length ||
-        predecessors.some((id) => !this.states.has(id)) ||
-        (module.lineage !== undefined &&
-          'renamedFrom' in module.lineage &&
-          module.lineage.renamedFrom !== module.id) ||
-        (module.lineage !== undefined &&
-          !('renamedFrom' in module.lineage) &&
-          (predecessors.includes(module.id) || existing !== undefined)))
+      new Set(predecessors).size !== predecessors.length ||
+      predecessors.some((id) => !this.states.has(id)) ||
+      (module.lineage !== undefined &&
+        'renamedFrom' in module.lineage &&
+        module.lineage.renamedFrom !== module.id) ||
+      (module.lineage !== undefined &&
+        !('renamedFrom' in module.lineage) &&
+        predecessors.includes(module.id))
     const overlap = [...this.states]
       .map(([, state]) => state)
       .filter(
@@ -272,14 +295,20 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
             module.key === state.module.key ||
             renames.some(
               (rename) =>
-                module.files.includes(rename.to) && state.historicalFiles.includes(rename.from),
+                hasOverlappingFiles(module, { ...module, files: [rename.to] }) &&
+                hasOverlappingFiles(
+                  { ...state.module, files: state.historicalFiles },
+                  { ...module, files: [rename.from] },
+                ),
             ) ||
             this.records.some(
               (record) =>
                 record.kind === 'note' &&
                 record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
                 record.value.workerId === state.module.id &&
-                identities.some((identity) => identity.hash === record.value.reason),
+                identities.some((identity) =>
+                  hasSimilarContent(identity.hash, record.value.reason ?? ''),
+                ),
             )),
       )
     const isUnlinked =
@@ -289,6 +318,19 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           !namedLineage.has(state.module.id) &&
           !(isUnchanged && existing.linked.has(state.module.id)),
       )
+    const familyIds = new Set([module.id, ...(existing?.linked ?? []), ...namedLineage])
+    const active = [...familyIds]
+      .flatMap((id) => [...(this.states.get(id)?.leases.values() ?? [])])
+      .filter(
+        (lease) =>
+          lease.status === 'held' && lease.at + PLAYBOOK_LAUNDER_WINDOW_MS > this.options.now(),
+      )
+    if (active.length > 1)
+      return this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
+        module: module.key,
+        missing: ['patchReservation'],
+        needsUser: true,
+      })
     const isAuthorized =
       override !== undefined && this.options.authorizeOverride(override, module.id)
     if (isInvalidLineage || isUnlinked)
@@ -318,7 +360,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           reason: identity.hash,
         }),
       }))
-    if (isUnchanged) {
+    if (isUnchanged && isSameLineage) {
       if (identityNotes.length > 0) this.publish(identityNotes)
       return undefined
     }
@@ -354,8 +396,6 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         module: state.module.key,
         needsUser: true,
       })
-    const reserved = this.reservationRefusal(state, true)
-    if (reserved) return reserved
     if (!areFindingsAnswered(state, this.options.authorizeOverride, this.on('onePassReview')))
       return this.decide('refuse', 'onePassReview', 'answersPending', { module: module.key })
     return this.on('threeStrikes') &&
@@ -365,40 +405,93 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : undefined
   }
 
-  /** Integrations renew while work/review runs and release on explicit cancel.
-   * Complete review publication releases atomically with the round records. */
-  renewPatch(module: PlaybookModule): PlaybookDecision {
-    this.refresh()
-    const state = this.state(module)
-    if ('kind' in state) return state
-    const lease = this.reservations(state).find((note) => note.workerId === this.holder)
-    if (!lease || lease.at + PLAYBOOK_LAUNDER_WINDOW_MS <= this.options.now())
-      return this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
-        module: state.module.key,
-        missing: ['patchReservation'],
-        needsUser: true,
-      })
-    return this.reserve(state) ?? this.passed('threeStrikes', { module: state.module.key })
+  private verificationContext(
+    work: Extract<PlaybookRecord, { kind: 'work' }>['value'],
+    range?: PlaybookPushRange,
+  ) {
+    const outcomes = new PlaybookOutcomes(this.options.workspaceFolder, this.options.hookAdmission)
+    const base = outcomes.digest()
+    if (base !== work.hookDigest) throw new Error(UI_TEXT.playbookUnavailable)
+    const firstWork = this.records.find((record) => record.kind === 'work')
+    return {
+      outcomes,
+      digest: base,
+      pushDigest: hookVerificationDigest(base, range),
+      initialBaseline: firstWork?.kind === 'work' ? firstWork.value.baseline : work.baseline,
+    }
   }
 
-  releasePatch(module: PlaybookModule): PlaybookDecision {
+  private publishVerification(
+    value: Extract<PlaybookRecord, { kind: 'verification' }>['value'],
+  ): void {
+    if (
+      this.records.every(
+        (record) =>
+          !(
+            record.kind === 'verification' &&
+            record.value.workId === value.workId &&
+            record.value.commit === value.commit &&
+            record.value.hookDigest === value.hookDigest &&
+            record.value.scope === value.scope &&
+            record.value.result === value.result
+          ),
+      )
+    )
+      this.publish([{ kind: 'verification', value }])
+  }
+
+  private outcomeAdmission(workId: string, range?: PlaybookPushRange): PlaybookDecision {
+    this.refresh()
+    const work = this.records.find((record) => record.kind === 'work' && record.value.id === workId)
+    if (work?.kind !== 'work') throw new Error(UI_TEXT.playbookUnavailable)
+    const hasFailed = this.records.some(
+      (record) =>
+        record.kind === 'verification' &&
+        record.value.workId === workId &&
+        record.value.result === 'fail',
+    )
+    if (hasFailed)
+      return this.decide('refuse', 'neverAround', 'hookVerificationFailed', { needsUser: true })
+    try {
+      const { outcomes, digest, pushDigest, initialBaseline } = this.verificationContext(
+        work.value,
+        range,
+      )
+      const commits = outcomes.commits(work.value, range, initialBaseline)
+      const hasPushReceipt =
+        !range ||
+        (range.updates.length > 0 &&
+          hasOutcomeReceipts([range.updates[0]?.localOid ?? ''], pushDigest, this.records, 'push'))
+      const isAllowed = hasPushReceipt && hasOutcomeReceipts(commits, digest, this.records)
+      const code = isAllowed ? 'checksPassed' : 'unverifiedCommit'
+      return this.decide(isAllowed ? 'allow' : 'refuse', 'neverAround', code, {
+        needsUser: !isAllowed,
+      })
+    } catch {
+      return this.decide('refuse', 'neverAround', 'unverifiedCommit', { needsUser: true })
+    }
+  }
+
+  /** Renewal retains the generation; cancellation does not validate old reviews. */
+  renewPatch(module: PlaybookModule, token?: PlaybookLease): PlaybookDecision {
     this.refresh()
     const state = this.state(module)
     if ('kind' in state) return state
-    const blocked = this.reservationRefusal(state)
-    if (blocked) return blocked
-    this.publish(
-      this.reservations(state)
-        .filter((lease) => lease.workerId === this.holder)
-        .map((lease) => ({
-          kind: 'note',
-          value: this.note('threeStrikes', 'checksPassed', {
-            laneId: PLAYBOOK_RELEASE_NOTE,
-            module: lease.module,
-            workerId: this.holder,
-          }),
-        })),
-    )
+    const lease = token ?? state.leases.get(module.id)
+    return this.owns(state, lease)
+      ? this.reserve(state, lease?.laneId ?? this.options.laneId)
+      : this.leaseRefusal(state)
+  }
+
+  releasePatch(module: PlaybookModule, token?: PlaybookLease): PlaybookDecision {
+    this.refresh()
+    const state = this.state(module)
+    if ('kind' in state) return state
+    const lease = token ?? state.leases.get(module.id)
+    if (!lease || !this.owns(state, lease)) return this.leaseRefusal(state)
+    this.publish([
+      { kind: 'lease', value: { ...lease, status: 'released', at: this.options.now() } },
+    ])
     return this.passed('threeStrikes', { module: state.module.key })
   }
 
@@ -448,20 +541,34 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     )
   }
 
-  beforeFixRound(module: PlaybookModule): PlaybookDecision {
+  beforeFixRound(module: PlaybookModule, laneId = this.options.laneId): PlaybookDecision {
     this.refresh()
     const state = this.state(module)
-    return 'kind' in state
-      ? state
-      : (this.strikeRefusal(state) ??
-          this.reserve(state) ??
-          this.passed('threeStrikes', { module: state.module.key }))
+    return 'kind' in state ? state : (this.strikeRefusal(state) ?? this.reserve(state, laneId))
   }
 
-  beforeReview(module: PlaybookModule, agents: PlaybookReviewAgents): PlaybookDecision {
+  beforeReview(
+    module: PlaybookModule,
+    agents: PlaybookReviewAgents,
+    token?: PlaybookLease,
+  ): PlaybookDecision {
     this.refresh()
-    return (
-      this.reviewAdmission(module, agents) ?? this.passed('onePassReview', { module: module.key })
+    const refusal = this.reviewAdmission(module, agents)
+    if (refusal) return refusal
+    const state = this.states.get(module.id)
+    if (!state) throw new Error(UI_TEXT.playbookUnavailable)
+    if (token && !this.owns(state, token)) return this.leaseRefusal(state)
+    const current = state.leases.get(module.id)
+    if (
+      !token &&
+      current?.status === 'held' &&
+      ![this.options.laneId, agents.implementerSessionId].includes(current.laneId)
+    )
+      return this.leaseRefusal(state)
+    return this.reserve(
+      state,
+      token?.laneId ??
+        (current?.ownerId === this.holder ? current.laneId : agents.implementerSessionId),
     )
   }
 
@@ -469,10 +576,14 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     module: PlaybookModule,
     input: ReviewBlock,
     agents: PlaybookReviewAgents,
+    token?: PlaybookLease,
   ): PlaybookDecision {
     this.refresh()
     const refusal = this.reviewAdmission(module, agents)
     if (refusal) return refusal
+    const owned = this.states.get(module.id)
+    if (!owned) throw new Error(UI_TEXT.playbookUnavailable)
+    if (!this.owns(owned, token)) return this.leaseRefusal(owned)
     const review = parseReviewBlock(JSON.stringify(input))
     if (!review) throw new Error(UI_TEXT.playbookUnavailable)
     const coverage = reviewCoverage(review)
@@ -500,7 +611,10 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     )
       return this.decide('refuse', 'threeStrikes', 'redesignOpen', { module: module.key })
     const rounds = reviewRounds(state.module, state, review, agents, this.options.now())
-    const records: PlaybookRecord[] = rounds.map((value) => ({ kind: 'round', value }))
+    const records: PlaybookRecord[] = rounds.map((value) => ({
+      kind: 'round',
+      value: { ...value, lease: token },
+    }))
     if (redesign && state.design)
       records.push({
         kind: 'design',
@@ -513,17 +627,8 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
             : resolutionOutcome(review.resolution ?? []),
         },
       })
-    for (const lease of this.reservations(state)) {
-      if (lease.workerId !== this.holder) continue
-      records.push({
-        kind: 'note',
-        value: this.note('threeStrikes', 'checksPassed', {
-          laneId: PLAYBOOK_RELEASE_NOTE,
-          module: lease.module,
-          workerId: this.holder,
-        }),
-      })
-    }
+    if (!token) return this.leaseRefusal(state)
+    records.push({ kind: 'lease', value: { ...token, status: 'released', at: this.options.now() } })
     this.publish(records)
     const next = this.states.get(module.id)
     const code =
@@ -653,9 +758,10 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           module: lane.module.key,
           laneId: lane.id,
         })
-      if (lane.kind !== 'redesign') return this.beforeFixRound(lane.module)
+      if (lane.kind !== 'redesign')
+        return this.beforeFixRound(lane.module, `${lane.milestoneId}/${lane.id}`)
     }
-    return this.reserve(state) ?? this.passed('contractsFirst', { laneId: lane.id })
+    return this.reserve(state, `${lane.milestoneId}/${lane.id}`)
   }
 
   beforeMerge(lane: PlaybookLane): PlaybookDecision {
@@ -678,6 +784,110 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     return areFindingsAnswered(state, this.options.authorizeOverride)
       ? (this.strikeRefusal(state) ?? this.passed('continuousIntegration', { laneId: lane.id }))
       : this.decide('refuse', 'onePassReview', 'answersPending', { module: lane.module.key })
+  }
+
+  /** Trusted adapters call this before work begins and retain the returned id. */
+  beginWork(module: PlaybookModule, refs: readonly string[]): string {
+    this.refresh()
+    const state = this.state(module)
+    if ('kind' in state) throw new Error(UI_TEXT.playbookUnavailable)
+    const outcomes = new PlaybookOutcomes(this.options.workspaceFolder, this.options.hookAdmission)
+    outcomes.reachable(refs)
+    const id = randomUUID()
+    this.publish([
+      {
+        kind: 'work',
+        value: {
+          id,
+          moduleId: module.id,
+          refs: [...refs],
+          baseline: outcomes.snapshot(),
+          hookDigest: outcomes.digest(),
+          at: this.options.now(),
+        },
+      },
+    ])
+    return id
+  }
+
+  /** All newly reachable commits are checked, irrespective of command text.
+   * Raw output is returned to the person, second-scrubbed, never journalled. */
+  verifyWork(
+    workId: string,
+    range?: PlaybookPushRange,
+  ): { readonly decision: PlaybookDecision; readonly output: string } {
+    this.refresh()
+    const work = this.records.find((record) => record.kind === 'work' && record.value.id === workId)
+    if (work?.kind !== 'work') throw new Error(UI_TEXT.playbookUnavailable)
+    let output = ''
+    try {
+      const { outcomes, digest, pushDigest, initialBaseline } = this.verificationContext(
+        work.value,
+        range,
+      )
+      const commits = outcomes.commits(work.value, range, initialBaseline)
+      if (
+        range?.updates.some(
+          (update) => !outcomes.reachable(work.value.refs).includes(update.localOid),
+        )
+      )
+        throw new Error(UI_TEXT.playbookUnavailable)
+      for (const commit of commits) {
+        if (hasOutcomeReceipts([commit], digest, this.records)) continue
+        const checked = outcomes.verify(work.value, commit, digest, this.options.now())
+        output += checked.output
+        this.publishVerification(checked.receipt)
+      }
+      const anchor = range?.updates[0]?.localOid
+      if (
+        range &&
+        anchor &&
+        hasOutcomeReceipts(commits, digest, this.records) &&
+        !hasOutcomeReceipts([anchor], pushDigest, this.records, 'push')
+      ) {
+        const checked = outcomes.verify(work.value, anchor, pushDigest, this.options.now(), range)
+        output += checked.output
+        this.publishVerification(checked.receipt)
+      }
+      const decision = this.outcomeAdmission(workId, range)
+      return { decision, output }
+    } catch (error) {
+      output += error instanceof Error ? error.message : UI_TEXT.playbookUnavailable
+      const digest = actionIdentity({ effect: 'verification-unavailable', subject: workId })
+      if (
+        this.records.every(
+          (record) => !(record.kind === 'verification' && record.value.hookDigest === digest),
+        )
+      )
+        this.publish([
+          {
+            kind: 'verification',
+            value: {
+              workId,
+              moduleId: work.value.moduleId,
+              commit: workId,
+              hookDigest: digest,
+              scope: range ? 'push' : 'commit',
+              result: 'fail',
+              at: this.options.now(),
+            },
+          },
+        ])
+      return {
+        decision: this.decide('refuse', 'neverAround', 'hookVerificationFailed', {
+          needsUser: true,
+        }),
+        output,
+      }
+    }
+  }
+
+  beforePush(workId: string, range: PlaybookPushRange): PlaybookDecision {
+    return this.outcomeAdmission(workId, range)
+  }
+
+  finishWork(workId: string): PlaybookDecision {
+    return this.outcomeAdmission(workId)
   }
 
   beforeCommand(command: PlaybookCommand, requester: PlaybookRequester): PlaybookDecision {

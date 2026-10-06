@@ -1,3 +1,4 @@
+import { completeReview } from './playbookPolicyFixture'
 import { describe, expect, it } from 'vitest'
 import { PLAYBOOK_CONFIGURABLE_RULES } from '../../src/shared/constants'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
@@ -82,7 +83,7 @@ describe('M116 settings policy', () => {
     const settings = fixture.policy.getSettings()
     settings.patchRoundsMax = 1
     fixture.policy.updateSettings(settings)
-    fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     const round = fixture.policy
       .getRecord()
       .findLast((record) => record.kind === 'round' && record.value.class === undefined)!
@@ -91,7 +92,7 @@ describe('M116 settings policy', () => {
       MODULE,
       round.value.findings.map((finding) => ({ findingId: finding.id, status: 'fixed' })),
     )
-    fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('refuse')
     const disabled = fixture.policy.getSettings()
     disabled.rules.threeStrikes = {
@@ -127,8 +128,12 @@ describe('M116 settings policy', () => {
     policy.updateSettings(settings)
     const lanes = fakePlaybookLanes()
     const board = new FakePlaybookBoard().readBoard()
-    expect(policy.beforeDispatch(lanes[0]!, board).kind).toBe('allow')
-    expect(policy.afterReview(MODULE, { findings: [] }, REVIEW_AGENTS).kind).toBe('allow')
+    const dispatch = policy.beforeDispatch(lanes[0]!, board)
+    expect(dispatch.kind).toBe('allow')
+    if (dispatch.kind !== 'allow') throw new Error('Expected dispatch admission')
+    expect(
+      completeReview(policy, MODULE, { findings: [] }, REVIEW_AGENTS, dispatch.lease).kind,
+    ).toBe('allow')
     expect(policy.beforeMerge(lanes[0]!).kind).toBe('allow')
     expect(policy.order(lanes)).toMatchObject({ queue: lanes, notes: [{ code: 'ruleDisabled' }] })
     expect(policy.beforeCheck({ id: 'heavy', heavy: true, fullGate: true }, board)).toMatchObject({

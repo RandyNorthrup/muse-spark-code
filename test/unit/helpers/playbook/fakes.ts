@@ -62,7 +62,11 @@ export class FakePlaybookReviewLoop {
     const admission = this.policy.beforeReview(module, agents)
     if (admission.kind === 'refuse') return { kind: 'refused', decision: admission }
     const review = this.reviewer.next(module)
-    return { kind: 'reviewed', review, decision: this.policy.afterReview(module, review, agents) }
+    return {
+      kind: 'reviewed',
+      review,
+      decision: this.policy.afterReview(module, review, agents, admission.lease),
+    }
   }
 }
 

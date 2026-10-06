@@ -2499,13 +2499,15 @@
     "integrationRequired": "Kézikönyv: a(z) {lane} ágnak egyesítés előtt tartalmaznia kell a folyamatos integrációs ágat.",
     "drillMissing": "Kézikönyv: a(z) {lane} ágnak minden új teszthez vagy ellenőrzéshez hibajelző próbát és bájtpontos visszaállítást kell igazolnia.",
     "ownerFirst": "Kézikönyv: a felhasználói teendők és hibák jelennek meg először.",
-    "hookTampering": "Biztonsági ellenőrzés: a hookok megkerülése vagy módosítása elutasítva.",
+    "hookTampering": "Korai figyelmeztetés: ez a parancs látszólag megkerüli vagy módosítja a hookokat. A commitok ellenőrzése szabályozza a feltöltést és a befejezést.",
     "gateSkipped": "Biztonsági ellenőrzés: egy ellenőrzés kihagyása elutasítva.",
     "permissionLaundering": "Önre vár: ezt a műveletet már elutasították; másik ügynök {duration} időn belül nem kérheti újra.",
     "classifierBlocked": "Önre vár: egy biztonsági osztályozó letiltotta ezt a műveletet; nem próbálható újra és nem irányítható másfelé.",
     "ruleDisabled": "Kézikönyv: {actor} kikapcsolta a(z) {rule} szabályt: {reason}",
     "lineageRequired": "Kézikönyv: a(z) {module} modulhoz rögzített moduleredet vagy vezetői vagy tulajdonosi kivétel szükséges.",
-    "reviewerConflict": "Kézikönyv: a(z) {module} modulhoz eltérő ügynökazonosítóval és munkamenettel rendelkező ellenőr szükséges."
+    "reviewerConflict": "Kézikönyv: a(z) {module} modulhoz eltérő ügynökazonosítóval és munkamenettel rendelkező ellenőr szükséges.",
+    "hookVerificationFailed": "Beavatkozás szükséges: a tároló hookjainak ellenőrzése sikertelen. A feltöltés és a befejezés blokkolva van.",
+    "unverifiedCommit": "Biztonsági ellenőrzés: minden új commithoz sikeres hookellenőrzési igazolás kell a feltöltés vagy befejezés előtt."
   },
   "playbookStrikeBadge": {
     "one": "{count} felülvizsgálati kör",

@@ -1,3 +1,4 @@
+import { completeReview } from './playbookPolicyFixture'
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -97,7 +98,7 @@ describe('M116 three strikes and durable identity', () => {
       const priorId = latestRound(fixture.policy).findings[0]!.id
       fixture.policy.recordDesignDecision(design())
       const review = threeStrikesScript(outcome, priorId).at(-1)!.review
-      const result = fixture.policy.afterReview(MODULE, review, REVIEW_AGENTS)
+      const result = completeReview(fixture.policy, MODULE, review, REVIEW_AGENTS)
       const policy = new OrchestratorPlaybook(fixture.options)
       expect(result.kind).toBe(outcome === 'impossible' ? 'allow' : 'refuse')
       expect(result.note.needsUser).toBe(outcome !== 'impossible')
@@ -127,7 +128,8 @@ describe('M116 three strikes and durable identity', () => {
     expect(policy.resolveRedesign(MODULE, [valid]).kind).toBe('refuse')
     for (const resolution of [[], [valid, valid], [{ ...valid, findingId: 'unknown' }]]) {
       expect(
-        policy.afterReview(
+        completeReview(
+          policy,
           MODULE,
           { findings: [], coverage: reviewBlock().coverage, resolution },
           REVIEW_AGENTS,
@@ -143,7 +145,8 @@ describe('M116 three strikes and durable identity', () => {
     policy.recordDesignDecision(design())
     const findingId = latestRound(policy).findings[0]!.id
     expect(
-      policy.afterReview(
+      completeReview(
+        policy,
         MODULE,
         {
           findings: [],
@@ -164,11 +167,11 @@ describe('M116 three strikes and durable identity', () => {
 
   it('keeps counts per module and class; unknown classes count only in the aggregate', () => {
     const { policy } = policyFixture()
-    policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     answerAll(policy)
-    policy.afterReview(MODULE, reviewBlock('security'), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock('security'), REVIEW_AGENTS)
     answerAll(policy)
-    policy.afterReview(MODULE, reviewBlock('future-class'), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock('future-class'), REVIEW_AGENTS)
     const counts = policy
       .getRecord()
       .filter((entry) => entry.kind === 'round')
@@ -178,7 +181,8 @@ describe('M116 three strikes and durable identity', () => {
     expect(counts).toContainEqual([undefined, 3])
     expect(counts).not.toContainEqual(['future-class', 1])
     const other = newPlaybookModule(['src/host/jobs/a.ts'])
-    policy.afterReview(
+    completeReview(
+      policy,
       other,
       { ...reviewBlock(undefined), findings: [{ file: other.files[0]!, title: 'Unclassified' }] },
       REVIEW_AGENTS,
@@ -223,7 +227,8 @@ describe('M116 three strikes and durable identity', () => {
     expect(policy.declareModule(split).kind).toBe('allow')
     expect(policy.beforeFixRound(split).kind).toBe('refuse')
     const other = newPlaybookModule(['src/host/other/a.ts'])
-    policy.afterReview(
+    completeReview(
+      policy,
       other,
       {
         ...reviewBlock('security'),
@@ -242,7 +247,7 @@ describe('M116 three strikes and durable identity', () => {
     expect(policy.declareModule(merged).kind).toBe('allow')
     expect(policy.beforeFixRound(merged).kind).toBe('refuse')
     policy.recordDesignDecision(design(merged))
-    const result = policy.afterReview(merged, reviewBlock('security'), REVIEW_AGENTS)
+    const result = completeReview(policy, merged, reviewBlock('security'), REVIEW_AGENTS)
     expect(result.kind).toBe('refuse') // every inherited id needs a resolution
     expect(
       policy
@@ -257,13 +262,15 @@ describe('M116 three strikes and durable identity', () => {
       })),
     )
     expect(
-      policy.afterReview(
+      completeReview(
+        policy,
         merged,
         { findings: [], coverage: reviewBlock().coverage, resolution },
         REVIEW_AGENTS,
       ).kind,
     ).toBe('allow')
-    policy.afterReview(
+    completeReview(
+      policy,
       merged,
       {
         ...reviewBlock('concurrency'),
@@ -283,7 +290,8 @@ describe('M116 three strikes and durable identity', () => {
         ),
     ).toMatchObject({ value: { round: 4 } })
     answerAll(policy, merged)
-    policy.afterReview(
+    completeReview(
+      policy,
       merged,
       {
         ...reviewBlock('security'),
@@ -353,12 +361,13 @@ describe('M116 three strikes and durable identity', () => {
         reason: 'Atomic claim.',
       },
     ]
-    policy.afterReview(
+    completeReview(
+      policy,
       MODULE,
       { findings: [], coverage: reviewBlock().coverage, resolution },
       REVIEW_AGENTS,
     )
-    policy.afterReview(MODULE, reviewBlock('docs', 'P3'), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock('docs', 'P3'), REVIEW_AGENTS)
     expect(latestRound(policy)).toMatchObject({ round: 5, phase: 'build' })
     expect(policy.beforeFixRound(MODULE).kind).toBe('allow')
   })
@@ -469,7 +478,7 @@ describe('M116 three strikes and durable identity', () => {
     const review = threeStrikesScript('remains', latestRound(fixture.policy).findings[0]!.id).at(
       -1,
     )!.review
-    expect(fixture.policy.afterReview(MODULE, review, REVIEW_AGENTS).note.needsUser).toBe(true)
+    expect(completeReview(fixture.policy, MODULE, review, REVIEW_AGENTS).note.needsUser).toBe(true)
     answerAll(fixture.policy)
     const replacement = { ...design(), id: 'renamed-design', redesignLane: 'R2' }
     const restarted = new OrchestratorPlaybook(fixture.options)
@@ -505,7 +514,7 @@ describe('M116 three strikes and durable identity', () => {
   it('reserves a patch durably across orchestrators through complete review publication', () => {
     const fixture = policyFixture()
     for (let round = 0; round < 2; round += 1) {
-      fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+      completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS)
       answerAll(fixture.policy)
     }
     const other = new OrchestratorPlaybook({ ...fixture.options, teamId: 'other' })
@@ -514,7 +523,7 @@ describe('M116 three strikes and durable identity', () => {
       kind: 'refuse',
       note: { missing: ['patchReservation'] },
     })
-    expect(other.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
+    expect(completeReview(other, MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
     expect(other.releasePatch(MODULE).kind).toBe('refuse')
     const board = new FakePlaybookBoard()
     board.merge('0', true)
@@ -524,7 +533,7 @@ describe('M116 three strikes and durable identity', () => {
     expect(fixture.policy.renewPatch(MODULE).kind).toBe('allow')
     fixture.advance(1)
     expect(new OrchestratorPlaybook(fixture.options).beforeFixRound(MODULE).kind).toBe('refuse')
-    expect(fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).note.code).toBe(
+    expect(completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS).note.code).toBe(
       'redesignRequired',
     )
     answerAll(fixture.policy)
@@ -537,13 +546,21 @@ describe('M116 three strikes and durable identity', () => {
     const other = new OrchestratorPlaybook(fixture.options)
     expect(other.beforeFixRound(MODULE).kind).toBe('refuse')
     expect(fixture.policy.releasePatch(MODULE).kind).toBe('allow')
-    expect(other.beforeFixRound(MODULE).kind).toBe('allow')
+    const expiredAdmission = other.beforeFixRound(MODULE)
+    expect(expiredAdmission.kind).toBe('allow')
     fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS)
     expect(other.renewPatch(MODULE).kind).toBe('refuse')
-    expect(other.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
+    expect(
+      other.afterReview(
+        MODULE,
+        reviewBlock(),
+        REVIEW_AGENTS,
+        expiredAdmission.kind === 'allow' ? expiredAdmission.lease : undefined,
+      ).kind,
+    ).toBe('refuse')
     expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('allow')
     expect(other.beforeFixRound(MODULE).kind).toBe('refuse')
-    expect(fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('allow')
+    expect(completeReview(fixture.policy, MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('allow')
     answerAll(fixture.policy)
     expect(other.beforeFixRound(MODULE).kind).toBe('allow')
   })
@@ -556,7 +573,7 @@ describe('M116 three strikes and durable identity', () => {
     expect(
       newPlaybookModule([String.raw`src\core\jobs\a.ts`], { source: 'team', key: 'src/core/jobs' }),
     ).toMatchObject({ source: 'team', files: ['src/core/jobs/a.ts'] })
-    policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+    completeReview(policy, MODULE, reviewBlock(), REVIEW_AGENTS)
     for (const field of [
       'failureClass',
       'whyPatchesFailed',
