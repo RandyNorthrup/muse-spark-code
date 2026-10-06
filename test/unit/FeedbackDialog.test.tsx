@@ -83,6 +83,63 @@ describe('FeedbackDialog: disclosure consent', () => {
     expect(submit).not.toHaveBeenCalled()
     expect(await sentRequest(submit)).toMatchObject({ note: 'Changed' })
   })
+
+  it('shows a refreshed preview after the host refuses a literal registered during submission', async () => {
+    const literals: string[] = []
+    const literal = 'async-gap-dialog-literal'
+    const receipt = Promise.withResolvers<string>()
+    const submit = vi.fn().mockReturnValueOnce(receipt.promise).mockResolvedValue('uploaded')
+    setup({
+      port: { submit, scrubNote: (note) => Promise.resolve(redactSecrets(note, literals)) },
+    })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: literal } })
+    await preview()
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveValue(literal)
+    await send()
+    await waitFor(() => {
+      expect(submit).toHaveBeenCalledTimes(1)
+    })
+    literals.push(literal)
+    receipt.reject(new Error(UI_TEXT.feedbackFailed))
+    await screen.findByText(UI_TEXT.feedbackFailed)
+    await waitFor(() => {
+      expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveValue(REDACTED_MARK)
+    })
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).toHaveAttribute('readonly')
+    expect(files()).not.toBeChecked()
+    expect(record()).not.toBeChecked()
+    expect(submit).toHaveBeenCalledTimes(1)
+    await send()
+    await screen.findByText(fill(UI_TEXT.feedbackResult, { result: 'uploaded' }))
+    expect(submit).toHaveBeenCalledTimes(2)
+    expect(submit).toHaveBeenLastCalledWith({
+      sessionId: 's',
+      classification: 'badResult',
+      note: REDACTED_MARK,
+      withFiles: false,
+      attachSessionRecord: false,
+    })
+  })
+
+  it('invalidates the preview when refreshing the host scrub fails', async () => {
+    const submit = vi.fn().mockRejectedValue(new Error(UI_TEXT.feedbackFailed))
+    const scrubNote = vi
+      .fn()
+      .mockResolvedValueOnce('A note')
+      .mockResolvedValueOnce('A note')
+      .mockRejectedValue(new Error('scrubber unavailable'))
+    setup({ port: { submit, scrubNote } })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.feedbackNote), { target: { value: 'A note' } })
+    await preview()
+    await send()
+    await screen.findByText(UI_TEXT.feedbackFailed)
+    await screen.findByRole('button', { name: UI_TEXT.reportPreviewLabel })
+    expect(screen.getByLabelText(UI_TEXT.feedbackNote)).not.toHaveAttribute('readonly')
+    expect(screen.queryByRole('button', { name: UI_TEXT.feedbackSend })).not.toBeInTheDocument()
+    expect(screen.queryByText('scrubber unavailable')).not.toBeInTheDocument()
+    expect(submit).toHaveBeenCalledTimes(1)
+  })
+
   it('starts with both disclosures off, sends once, and displays the exact returned outcome', async () => {
     const { submit } = setup()
     expect(submit).not.toHaveBeenCalled()

@@ -74,7 +74,11 @@ registered secret store; only scrubbed text crosses back to the webview.
 Preview scrubs the note before Send becomes available. The displayed note
 is read-only until Edit starts a new preview; dispatch refuses a changed
 preview, including a newly registered literal secret. The host independently
-refuses notes that have not already passed its scrubber.
+refuses notes that have not already passed its scrubber. At SDK dispatch it
+scrubs against the current literal registry synchronously, compares the
+approved bytes, and calls the SDK request in the same tick without an await.
+After a refusal the dialog refreshes the scrubbed preview for fresh approval;
+if that refresh fails, it returns to editing and requires another preview.
 
 The dialog requires localized labels for `bug`, `badResult`, `goodResult`
 and `other`. Those four labels need new English keys and real translations

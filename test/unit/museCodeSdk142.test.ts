@@ -204,6 +204,62 @@ describe('Muse Code 1.4.2 feature ports', () => {
     expect(server.requestsFor('feedback/submit')).toHaveLength(0)
   })
 
+  it('refuses a literal registered during the async submission gap and accepts only its refreshed preview', async () => {
+    const literals: string[] = []
+    const parseOutcome = vi.fn(() => 'uploaded')
+    const { host, server } = setup({ feedback: { parseOutcome, secretLiterals: () => literals } }, [
+      'feedback',
+    ])
+    server.handle('feedback/submit', () => ({ opaque: 'receipt' }))
+    const note = host.previewFeedbackNote('async-gap-feedback-literal')
+    const submission = host.submitFeedback({ ...report, note })
+    expect(server.requestsFor('feedback/submit')).toHaveLength(0)
+    literals.push(note)
+    await expect(submission).rejects.toThrow(UI_TEXT.feedbackFailed)
+    expect(server.requestsFor('feedback/submit')).toHaveLength(0)
+    expect(parseOutcome).not.toHaveBeenCalled()
+
+    const refreshed = host.previewFeedbackNote(note)
+    expect(refreshed).toBe(REDACTED_MARK)
+    await expect(host.submitFeedback({ ...report, note: refreshed })).resolves.toBe('uploaded')
+    expect(server.requestsFor('feedback/submit')).toHaveLength(1)
+    expect(server.requestsFor('feedback/submit')[0]?.params).toEqual({
+      ...report,
+      note: refreshed,
+    })
+  })
+
+  it('dispatches the SDK feedback request in the same tick as the current literal scrub', async () => {
+    let isScrubbedInThisTick = false
+    let wasScrubbedAtDispatch = false
+    const { host, server, processHost } = setup(
+      {
+        feedback: {
+          parseOutcome: () => 'uploaded',
+          secretLiterals: () => {
+            isScrubbedInThisTick = true
+            queueMicrotask(() => {
+              isScrubbedInThisTick = false
+            })
+            return []
+          },
+        },
+      },
+      ['feedback'],
+    )
+    // Connection serializes the request synchronously, then queues transport
+    // writes. Observe SDK dispatch while still using the real connection.
+    const request = processHost.connection.request.bind(processHost.connection)
+    vi.spyOn(processHost.connection, 'request').mockImplementation((method, params) => {
+      if (method === 'feedback/submit') wasScrubbedAtDispatch = isScrubbedInThisTick
+      return request(method, params)
+    })
+    server.handle('feedback/submit', () => ({ opaque: 'receipt' }))
+    await expect(host.submitFeedback(report)).resolves.toBe('uploaded')
+    expect(wasScrubbedAtDispatch).toBe(true)
+    expect(server.requestsFor('feedback/submit')[0]?.params).toEqual(report)
+  })
+
   it('propagates a rejected receipt without retrying or logging its content', async () => {
     const parseOutcome = vi.fn((): string => {
       throw new Error('reader refusal')

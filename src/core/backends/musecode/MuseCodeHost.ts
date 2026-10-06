@@ -1918,9 +1918,13 @@ export class MuseCodeHost implements AgentHost {
         scrubNote: (note) => Promise.resolve(this.previewFeedbackNote(note)),
         submit: async (request) =>
           reader.parseOutcome(
-            await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () =>
-              answered(this.channel, 'feedback/submit', { ...request }),
-            ),
+            await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () => {
+              // The registry may change during the async scrub. Recheck it in
+              // the dispatch tick and send only the preview the person approved.
+              const note = this.previewFeedbackNote(request.note)
+              if (note !== request.note) throw new Error(UI_TEXT.feedbackFailed)
+              return answered(this.channel, 'feedback/submit', { ...request, note })
+            }),
           ),
       },
       input.note,

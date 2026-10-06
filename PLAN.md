@@ -19407,6 +19407,16 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**Lane S third review repair (RVM106S3, 2026-10-06).** The one P2 finding
+is fixed by a synchronous scrub with the current host literal registry inside
+the actual feedback dispatch callback, followed by preview equality and
+send in the same tick with no intervening await. A changed preview refuses
+dispatch; the shared dialog refreshes the scrubbed preview for fresh approval.
+Regressions register a literal during the asynchronous submission gap,
+prove no MSP request leaves, and prove a refreshed preview can be approved.
+Four byte-exact red drills and scoped rig gates certify this narrow repair;
+the existing S1–S5 integration handoffs remain with lane W/the lead.
+
 **Lane S second review repair (RVM106S2, 2026-10-06).**
 Both P2 findings are fixed: a matched, validated deletion terminal is
 final across connection/process/host shutdown, with pending →
@@ -20067,6 +20077,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM106S3 scoped review certification (2026-10-06).** The rig brief
+requires the repository's default test timeout, at most three files and
+three workers per run, hook-on commits, and no aggregate quality or merge.
+Four regressions fail under deliberate mutations restored byte-exact, and
+268 final tests pass without skips. Typechecks, scoped lint/format, deadcode,
+duplication, localization, host API and production build pass. Receipts are
+in `docs/certification/m106-s.md`; integrated quality remains the
+lead's gate, with no gate, hook, timeout or size cap changed.
 
 **FIXM106S2 scoped review certification (2026-10-06).** Both RVM106S2
 P2 findings are fixed by construction; the three-file repair batch passes
@@ -21257,6 +21276,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M106 S third review (RVM106S3, 2026-10-06).** The one P2
+  literal-registry race at dispatch is fixed; no review residual is accepted. Host literals
+  stay in the host, and preview changes require fresh approval. The existing
+  S1–S5 capture/bridge integration handoffs still belong to lane W/the lead;
+  this shared core/React repair serves every editor without certifying those
+  unbound features. No new parser, dependency, credential read or paid call.
 
 - **M106 S second review (RVM106S2, 2026-10-06).** Both P2s are repaired;
   no review residual is accepted. The existing S1–S5 capture, bridge and

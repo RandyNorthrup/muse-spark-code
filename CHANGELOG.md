@@ -19,6 +19,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Muse Code feedback now previews the scrubbed note before sending and
   refuses to dispatch a note that differs from the approved preview.
+- Muse Code feedback rechecks newly registered literal secrets synchronously
+  at dispatch. A changed note is refused and shown as a refreshed preview
+  for approval; an unavailable scrubber returns the form to editing.
 - Muse Code deletion completion and handle cleanup survive throwing surface
   observers. Unconfirmed deletion now rejects on connection close, process
   exit, host close or its terminal deadline without reporting success.

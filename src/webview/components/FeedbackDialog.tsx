@@ -64,6 +64,13 @@ function FeedbackForm({ sessionId, classifications, port, onClose }: FeedbackDia
       )
     } catch {
       setFailed(true)
+      if (previewed) {
+        try {
+          setNote(await scrubMuseFeedbackNote(note, port))
+        } catch {
+          setPreviewed(false)
+        }
+      }
     } finally {
       sending.current = false
       setIsSending(false)
