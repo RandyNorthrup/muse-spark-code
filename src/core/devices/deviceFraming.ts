@@ -3,7 +3,10 @@ import * as z from 'zod/mini'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import { deviceFrameSchema, type DeviceFrame } from '../../shared/devices'
 
-const versionSchema = z.object({ version: z.int() })
+const headerSchema = z.object({
+  version: z.int(),
+  body: z.object({ kind: z.string() }),
+})
 
 // Scan keys before JSON.parse can discard duplicates. Escaped spellings have
 // the same decoded identity. JSON.parse still validates the complete grammar.
@@ -57,8 +60,13 @@ export class DeviceFrameDecoder {
     return this.pendingBytes > 0
   }
 
-  push(chunk: Buffer, available: number): DeviceFrame[] {
+  push(
+    chunk: Buffer,
+    data: { available: number; refuse(frame: DeviceFrame): void },
+    control?: { available: number; receive(frame: DeviceFrame): void },
+  ): DeviceFrame[] {
     const frames: DeviceFrame[] = []
+    let controls = 0
     let offset = 0
     while (offset < chunk.length) {
       const newline = chunk.indexOf('\n', offset)
@@ -66,7 +74,6 @@ export class DeviceFrameDecoder {
       const length = this.pendingBytes + end - offset
       if (
         length > DEVICE_LIMITS.frameBytes ||
-        frames.length >= available ||
         (end > offset && this.pending.length >= DEVICE_LIMITS.frameFragments)
       ) {
         throw new Error('invalid-frame')
@@ -80,12 +87,20 @@ export class DeviceFrameDecoder {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(line)
       rejectDuplicateKeys(text)
       const input: unknown = JSON.parse(text)
-      const version = versionSchema.safeParse(input)
-      if (version.success && version.data.version !== DEVICE_LIMITS.protocolVersion)
+      const header = headerSchema.safeParse(input)
+      if (header.success && header.data.version !== DEVICE_LIMITS.protocolVersion)
         throw new Error('incompatible')
+      const isControl =
+        control !== undefined && header.success && header.data.body.kind === 'cancel'
       const result = deviceFrameSchema.safeParse(input)
       if (!result.success) throw new Error('invalid-frame')
-      frames.push(result.data)
+      if (isControl) {
+        if (controls >= control.available) throw new Error('invalid-frame')
+        controls += 1
+        // Deliver validated Stop independently of data admission anywhere in this chunk.
+        control.receive(result.data)
+      } else if (frames.length >= data.available) data.refuse(result.data)
+      else frames.push(result.data)
       offset = end + 1
     }
     return frames

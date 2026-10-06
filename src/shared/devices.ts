@@ -216,9 +216,13 @@ const attempt = z.strictObject({
   taskId: id,
   attemptId: id,
 })
+export { attempt as deviceAttemptIdentitySchema }
 export type DeviceAttemptIdentity = z.infer<typeof attempt>
 
-function isSameAttempt(first: DeviceAttemptIdentity, second: DeviceAttemptIdentity): boolean {
+export function isSameAttempt(
+  first: DeviceAttemptIdentity,
+  second: DeviceAttemptIdentity,
+): boolean {
   return (
     first.pairId === second.pairId &&
     first.receiverIncarnationId === second.receiverIncarnationId &&

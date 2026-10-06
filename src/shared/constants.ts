@@ -33,6 +33,7 @@ export const DEVICE_LIMITS = {
   connectionsPerPair: 2,
   connectionsTotal: 16,
   queuedFrames: 32,
+  controlFrames: 32,
   pairedDevices: 16,
   repositories: 32,
   entries: 32,

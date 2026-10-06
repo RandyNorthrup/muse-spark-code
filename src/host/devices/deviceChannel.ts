@@ -16,8 +16,9 @@ export interface DeviceChannelPort {
   // authenticated offers before connected fires or it can send any request.
   connected(channel: DeviceChannel): void
   receive(frame: DeviceFrame, channel: DeviceChannel): Promise<void>
-  // Observation only: E retains unresolved ownership/occupancy/liability.
-  disconnected(reason: (typeof DEVICE_FAILURES)[number]): void
+  // E must Stop this pair on invalid/incompatible framing before reporting;
+  // all disconnects retain unresolved ownership/occupancy/liability.
+  disconnected(reason: (typeof DEVICE_FAILURES)[number], channel: DeviceChannel): void
 }
 
 export function openDeviceChannel(
@@ -33,6 +34,7 @@ export function openDeviceChannel(
   const decoder = new DeviceFrameDecoder()
   const queue: DeviceFrame[] = []
   let isRunning = false
+  let controls = 0
   let frameTimer: ReturnType<typeof setTimeout> | undefined
   let frameStartedAt: { monotonic: number; wall: number; observedWall: number } | undefined
   let failure: (typeof DEVICE_FAILURES)[number] = 'blocked-or-unreachable'
@@ -90,15 +92,46 @@ export function openDeviceChannel(
       isRunning = false
     }
   }
+  async function control(frame: DeviceFrame): Promise<void> {
+    controls += 1
+    try {
+      if (socket.destroyed || !isActive() || !isMatching(frame)) throw new Error('revoked')
+      // Cancellation must not wait for dispatch approval or launch confirmation.
+      await port.receive(frame, channel)
+    } catch {
+      socket.destroy()
+    } finally {
+      controls -= 1
+    }
+  }
   socket.setTimeout(DEVICE_LIMITS.idleConnectionMs, () => socket.destroy())
   socket.on('error', () => socket.destroy())
   socket.on('data', (chunk: Buffer) => {
     try {
       if (!isActive()) throw new Error('revoked')
       checkFrameDeadline()
+      let completedControls = 0
+      let completedRefusals = 0
       const frames = decoder.push(
         chunk,
-        DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning),
+        {
+          available: DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning),
+          refuse(frame) {
+            checkFrameDeadline()
+            if (!isActive() || !isMatching(frame)) throw new Error('invalid-frame')
+            completedRefusals += 1
+            channel.send({ ...frame, body: { kind: 'failure', reason: 'capacity' } })
+          },
+        },
+        {
+          available: DEVICE_LIMITS.controlFrames - controls,
+          receive(frame) {
+            checkFrameDeadline()
+            if (!isActive() || !isMatching(frame)) throw new Error('invalid-frame')
+            completedControls += 1
+            void control(frame)
+          },
+        },
       )
       checkFrameDeadline()
       const isInitialOffer = currentIncarnation === undefined && frames.length > 0
@@ -109,7 +142,6 @@ export function openDeviceChannel(
         currentIncarnation = first.receiverIncarnationId
       }
       if (frames.some((frame) => !isMatching(frame))) throw new Error('invalid-frame')
-      queue.push(...frames)
       if (isInitialOffer) {
         if (!isActive()) throw new Error('revoked')
         port.connected(channel)
@@ -117,7 +149,12 @@ export function openDeviceChannel(
       }
       // A completed frame followed by an incomplete frame gets a fresh absolute
       // deadline; trickling bytes within one frame never extends its deadline.
-      if (!decoder.incomplete || frames.length > 0) {
+      if (
+        !decoder.incomplete ||
+        frames.length > 0 ||
+        completedControls > 0 ||
+        completedRefusals > 0
+      ) {
         clearTimeout(frameTimer)
         frameTimer = undefined
         frameStartedAt = undefined
@@ -130,7 +167,10 @@ export function openDeviceChannel(
           socket.destroy()
         }, DEVICE_LIMITS.frameDeadlineMs)
       }
-      void drain()
+      for (const frame of frames) {
+        queue.push(frame)
+        void drain()
+      }
     } catch (error) {
       failure =
         error instanceof Error && error.message === 'incompatible'
@@ -142,7 +182,7 @@ export function openDeviceChannel(
   socket.once('close', () => {
     clearTimeout(frameTimer)
     queue.length = 0
-    port.disconnected(failure)
+    port.disconnected(failure, channel)
   })
   if (currentIncarnation !== undefined) {
     try {

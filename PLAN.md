@@ -17776,6 +17776,45 @@ receipt in `docs/certification/m100-t.md`. Loopback only; no new dependency,
 paid/live calls, merge or push. Full quality and the existing I-owned
 host-API/split registration remain joined-tree gates, without any waiver.
 
+**FIXM100E review repair (2026-10-06).** Repair both RVM100E P2 findings:
+bind complete immutable attempt identities to the receiver's in-memory live
+leases, so cancellation reaches the local owner before any journal operation.
+Storage failure still blocks new attempts and reports unavailable cancellation
+evidence without releasing occupancy. Give authenticated cancel controls a
+bounded priority channel path independent of dispatch, local approval and
+start confirmation; cancelled pending dispatches cannot launch later. E owns
+the necessary `deviceChannel.ts` control-path change and its regressions for
+this repair. Each finding gets a regression and byte-exact red/restored drill
+in `docs/certification/m100-e.md`. No new dependency or physical-action
+adapter is introduced; D83's concrete physical-action UI remains unqualified.
+
+**FIXM100E3 fail-safe repair (2026-10-06).** Repair RVM100E3's remaining
+P2 without widening capacity or validation: decode each frame independently,
+refuse each excess data frame with its own capacity response, and continue
+to validated Stop controls anywhere in the chunk. Corrupt/unparseable framing
+resets the channel; its disconnect callback names the authenticated channel
+and invokes the receiver's independent Stop path for every live/pending attempt
+on that pair before reporting. Retain occupancy and liabilities until durable
+retirement. Owning regressions cover data-before-Stop overflow, corrupt framing
+before Stop and Stop after a reset, with byte-exact red/restored drills. No new
+dependency, shipped adapter or physical-device qualification is introduced.
+
+**FIXM100E2 round-two repair (2026-10-06).** Fix all four RVM100E2 P2s
+by construction: decode the validated control header before data capacity and
+route cancel frames immediately through a separate fixed control capacity;
+retain full-identity cancellation tombstones synchronously before effects,
+including controls that overtake queued dispatch, and persist them when the
+journal is available. Cancellation retention is named and survives identical
+retries. One synchronous receiver state owner issues tagged effects for
+admission, cancellation, retirement and confirmations; completed retirement
+invalidates late confirmation generations. E owns the necessary framing,
+channel, journal and constants changes. Owning regressions include 31 filled
+data slots and Stop-first overflow, queued dispatch overtaking, identical
+retry, delayed cancellation confirmation and a small completion-order
+permutation test. Every finding gets byte-exact red/restored evidence in
+`docs/certification/m100-e.md`; no review residual, dependency, guard waiver,
+paid/live call or physical-device qualification is introduced.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18656,6 +18695,14 @@ weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
 registration stay I-owned; §9 names that joined-tree handoff. Full quality,
 coverage, installed-host/firewall/multicast, security and packaging evidence
 remain the lead's exact integrated-tree prerequisites.
+
+**FIXM100E execution/control review repair (2026-10-06).** The rig brief
+requires local scoped checks, hooks-on commits, no merges and no aggregate
+quality run. Both RVM100E P2s, all four RVM100E2 P2s and RVM100E3's P2 are repaired with
+owning regressions, completion-order permutations and byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
+quality, installed physical-device/UI qualification and the inherited
+host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
+no existing gate, timeout or permission boundary is weakened.
 
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
@@ -19648,6 +19695,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
+  RVM100E P2 findings, all four RVM100E2 P2 findings and RVM100E3's P2 are repaired, with
+  no review finding deferred. Cancellation identities use
+  **M100-E-CANCEL-RETENTION**: the full receiver lifetime in memory and
+  permanent journal retention through compaction; finite evidence exhaustion
+  blocks new work while Stop still reaches the local cancellation port. A
+  framing reset invokes independent Stop for the authenticated pair before
+  reporting; overflow refuses each data frame and continues through Stop.
+  E's receiver and journal remain unshipped; scoped software/TLS-channel tests
+  do not qualify a concrete physical-action descriptor/nonce, receiver-local
+  physical approval UI or unattended device operation under D83. Safe for
+  this isolated lane because it registers no production execution adapter,
+  listener or command. Follow-up: I/M96 bind and independently qualify those
+  physical-action authorities, Windows/native storage, the real lazy Devices
+  readers and generated host API inventory, then run unchanged full quality,
+  packaging and installed four-device checks before shipment. The inherited
+  host-API/split checks stay failing until that integration; no waiver.
+  Receipts: `docs/certification/m100-e.md`.
 
 - **M100-T-JOINED-GATES (inherited integration handoff).** T's transport is
   unshipped and ordinary chat does not load it. Its inherited generated host

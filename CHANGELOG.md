@@ -9,6 +9,19 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The unshipped paired-device receiver cancels live attempts before consulting
+  its journal, including after a failed flush, corruption or file loss. Full
+  attempt identity stays bound to the live lease; unavailable cancellation
+  evidence is reported and occupancy remains held until durable retirement.
+- Authenticated device cancellation has a fixed reserved decoder capacity
+  that data cannot consume. Stop reaches its priority path even with 31 queued
+  data frames and data overflow before or after Stop in the same chunk; each
+  excess data frame gets its own capacity refusal. Corrupt framing resets the
+  channel and starts local Stop for every live or pending attempt on that pair
+  before reporting, retaining occupancy and spending liabilities. A pending approval or start
+  confirmation cannot delay Stop. Cancellation identities survive queued
+  dispatch, identical retry, compaction and journal reopen; late cancellation
+  confirmations cannot reblock a durably retired receiver.
 - M100 queues receiver grants with pairing actions and preserves a later Pause
   across pending secret reads and writes; stale grants cannot resume the pair.
 - M100's device store keeps expected pairing/grant policy refusals distinct
