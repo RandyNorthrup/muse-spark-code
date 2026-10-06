@@ -1,15 +1,6 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import {
-  mkdir,
-  open,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  writeFile,
-  type FileHandle,
-} from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, realpath, rename, rmdir, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -28,8 +19,8 @@ const entrySchema = z.strictObject({
   id: z.string().check(z.regex(/^[\da-f-]+$/u)),
   owner: z.string().check(z.minLength(1)),
   path: z.string().check(z.minLength(1)),
-  identity: z.nullable(z.string().check(z.minLength(1))),
-  tokenHash: z.string().check(z.regex(/^[\da-f]{64}$/u)),
+  identity: z.optional(z.nullable(z.string().check(z.minLength(1)))),
+  tokenHash: z.optional(z.nullable(z.string().check(z.regex(/^[\da-f]{64}$/u)))),
   state: z.enum(['pending', 'created']),
   kind: z.enum(['temp', 'osClone', 'worktree', 'dependencies']),
   endedAtMs: z.nullable(z.number().check(z.gte(0))),
@@ -42,6 +33,8 @@ export interface CreatedPathProof {
   createdByTree?: ((file: string, owner: string) => Promise<boolean>) | undefined
   archivedAndClean(file: string): Promise<boolean>
   freeBytes(file: string): Promise<number | null>
+  /** Trusted native helper; args are the create/remove protocol, stdout is strict JSON. */
+  directories?: ((args: readonly string[]) => Promise<string>) | undefined
 }
 export interface CreatedCleanup {
   removed: number
@@ -106,6 +99,7 @@ export class CreatedRegistry {
   private readonly entries = new Map<string, CreatedPath>()
   private readonly refused = new Set<string>()
   private readonly finished = new Set<string>()
+  private readonly made = new Set<string>()
   private pending: Promise<unknown> = Promise.resolve()
   private baseIdentity: string | undefined
 
@@ -172,20 +166,21 @@ export class CreatedRegistry {
   }
 
   private async withBase<T>(action: (base: string) => Promise<T>): Promise<T> {
+    if (process.platform !== 'linux')
+      throw new Error('Native creation directory helper is required')
     await this.verifyBase()
-    let handle: FileHandle | undefined
+    const handle = await open(
+      this.base,
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    )
     try {
-      if (process.platform === 'linux') {
-        handle = await open(
-          this.base,
-          constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-        )
-        if (fileIdentityKey(await handle.stat({ bigint: true })) !== this.baseIdentity)
-          throw new Error('Creation base identity changed')
-      }
-      return await action(handle === undefined ? this.base : `/proc/self/fd/${String(handle.fd)}`)
+      const sample = await handle.stat({ bigint: true })
+      this.checkPrivate(sample, true)
+      if (fileIdentityKey(sample) !== this.baseIdentity)
+        throw new Error('Creation base identity changed')
+      return await action(`/proc/self/fd/${String(handle.fd)}`)
     } finally {
-      await handle?.close()
+      await handle.close()
     }
   }
 
@@ -220,26 +215,88 @@ export class CreatedRegistry {
       await rename(stage, this.file)
     } finally {
       await handle.close()
-      await rm(stage, { force: true })
+      // Retain a failed stage: its name can be exchanged after this handle was opened.
+    }
+  }
+
+  private async directory<T>(
+    file: string,
+    identity: string | undefined,
+    action: (directory: string, identity: string, mountId: string) => Promise<T>,
+  ): Promise<T> {
+    const handle = await open(
+      file,
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    )
+    try {
+      const sample = await handle.stat({ bigint: true })
+      const current = fileIdentityKey(sample)
+      if (current === undefined || (identity !== undefined && current !== identity))
+        throw new Error('Created path identity changed during quarantine')
+      this.checkPrivate(sample, true)
+      const info = await readFile(`/proc/self/fdinfo/${String(handle.fd)}`, 'utf8')
+      const mountId = z
+        .string()
+        .check(z.regex(/^[1-9][\d]*$/u))
+        .parse(/^mnt_id:\s+([\d]+)$/mu.exec(info)?.[1])
+      return await action(`/proc/self/fd/${String(handle.fd)}`, current, mountId)
+    } finally {
+      await handle.close()
     }
   }
 
   private async markerMatches(file: string, entry: CreatedPath): Promise<boolean> {
     try {
-      const marker = path.join(file, RESOURCE_TEMP_MARKER)
-      this.checkPrivate(await lstatIdentity(marker), false)
-      const value = z
-        .strictObject({ id: z.string(), token: z.string().check(z.regex(/^[\da-f]{32}$/u)) })
-        .parse(JSON.parse(await readFile(marker, 'utf8')))
-      return value.id === entry.id && digest(value.token) === entry.tokenHash
+      const handle = await open(
+        path.join(file, RESOURCE_TEMP_MARKER),
+        constants.O_RDONLY | constants.O_NOFOLLOW,
+      )
+      try {
+        this.checkPrivate(await handle.stat({ bigint: true }), false)
+        const readMarker = handle.readFile.bind(handle)
+        const contents = await readMarker('utf8')
+        const value = z
+          .strictObject({ id: z.string(), token: z.string().check(z.regex(/^[\da-f]{32}$/u)) })
+          .parse(JSON.parse(contents))
+        return value.id === entry.id && digest(value.token) === entry.tokenHash
+      } finally {
+        await handle.close()
+      }
     } catch {
       return false
+    }
+  }
+
+  private async emptyDirectory(
+    directory: string,
+    rootIdentity: string,
+    rootMountId: string,
+  ): Promise<void> {
+    const names = await readdir(directory)
+    for (const name of names) {
+      const child = path.join(directory, name)
+      const sample = await lstatIdentity(child)
+      if (sample.isDirectory() && !sample.isSymbolicLink()) {
+        const identity = fileIdentityKey(sample)
+        if (identity === undefined || identity.split(':', 1)[0] !== rootIdentity.split(':', 1)[0])
+          throw new Error('Creation cleanup refuses a filesystem boundary')
+        await this.directory(child, identity, async (pinned, _identity, mountId) => {
+          if (mountId !== rootMountId) throw new Error('Creation cleanup refuses a mount boundary')
+          await this.emptyDirectory(pinned, rootIdentity, rootMountId)
+        })
+        // Empty-only: replacing the name with another populated directory preserves it.
+        await rmdir(child)
+      } else {
+        await unlink(child)
+      }
     }
   }
 
   private async removeEntry(entry: CreatedPath): Promise<boolean> {
     if (this.refused.has(entry.id)) return false
     await this.checkManifest()
+    if (entry.identity == null || entry.tokenHash == null)
+      throw new Error('Created path has no stored identity or marker hash: report only')
     // Loaded timestamps are retention hints, never evidence that a previous tree exited.
     if (!this.finished.has(entry.owner) && !(await this.proof.exited(entry.owner))) return false
     if (entry.endedAtMs === null && entry.state !== 'pending') return false
@@ -256,55 +313,69 @@ export class CreatedRegistry {
     )
       return false
     this.checkPath(entry.path)
-    await this.withBase(async (base) => {
-      const source = path.join(base, path.basename(entry.path))
-      const trash = path.join(base, `.muse-trash-${entry.id}`)
-      let isQuarantined = false
-      try {
-        const current = await lstatIdentity(source)
-        if (
-          !current.isDirectory() ||
-          current.isSymbolicLink() ||
-          fileIdentityKey(current) === undefined ||
-          (entry.identity !== null && fileIdentityKey(current) !== entry.identity) ||
-          !(await this.markerMatches(source, entry))
-        )
-          throw new Error('Created path identity changed')
+    if (this.proof.directories === undefined) {
+      await this.withBase(async (base) => {
+        const source = path.join(base, path.basename(entry.path))
+        const trash = path.join(base, `.muse-trash-${entry.id}`)
+        let isQuarantined = false
         try {
-          await lstatIdentity(trash)
-          throw new Error('Creation quarantine already exists')
-        } catch (error: unknown) {
-          if (!isMissing(error)) throw error
-        }
-        // Rename captures the entry atomically. No earlier checked pathname is recursively removed.
-        await rename(source, trash)
-        isQuarantined = true
-        const moved = await lstatIdentity(trash)
-        if (
-          !moved.isDirectory() ||
-          moved.isSymbolicLink() ||
-          fileIdentityKey(moved) !== fileIdentityKey(current) ||
-          !(await this.markerMatches(trash, entry))
-        )
-          throw new Error('Created path identity changed during quarantine')
-        await this.verifyBase()
-        await rm(trash, { recursive: true, force: false })
-      } catch (error: unknown) {
-        if (isQuarantined) {
-          // Never overwrite a replacement when restoring a refused quarantine.
+          const current = await lstatIdentity(source)
+          if (
+            !current.isDirectory() ||
+            current.isSymbolicLink() ||
+            fileIdentityKey(current) === undefined ||
+            fileIdentityKey(current) !== entry.identity ||
+            !(await this.markerMatches(source, entry))
+          )
+            throw new Error('Created path identity changed')
           try {
-            await lstatIdentity(source)
-          } catch (error_: unknown) {
-            if (isMissing(error_)) await rename(trash, source)
+            await lstatIdentity(trash)
+            throw new Error('Creation quarantine already exists')
+          } catch (error: unknown) {
+            if (!isMissing(error)) throw error
+          }
+          // Rename captures the entry atomically. No earlier checked pathname is recursively removed.
+          await rename(source, trash)
+          isQuarantined = true
+          await this.directory(trash, entry.identity, async (pinned, identity, mountId) => {
+            if (!(await this.markerMatches(pinned, entry)))
+              throw new Error('Created path identity changed during quarantine')
+            await this.verifyBase()
+            await this.emptyDirectory(pinned, identity, mountId)
+            await rmdir(trash)
+          })
+        } catch (error: unknown) {
+          if (isQuarantined) {
+            // Never overwrite a replacement when restoring a refused quarantine.
+            try {
+              await lstatIdentity(source)
+            } catch (error_: unknown) {
+              if (isMissing(error_)) await rename(trash, source)
+            }
+          }
+          if (isQuarantined || !isMissing(error)) {
+            this.refused.add(entry.id)
+            throw error
           }
         }
-        if (isQuarantined || !isMissing(error)) {
-          this.refused.add(entry.id)
-          throw error
-        }
-      }
-    })
+      })
+    } else {
+      z.strictObject({ removed: z.literal(true) }).parse(
+        JSON.parse(
+          await this.proof.directories([
+            'remove',
+            this.base,
+            this.baseIdentity ?? '',
+            path.basename(entry.path),
+            entry.id,
+            entry.tokenHash,
+            entry.identity,
+          ]),
+        ),
+      )
+    }
     this.entries.delete(entry.id)
+    this.made.delete(entry.id)
     await this.save()
     return true
   }
@@ -331,65 +402,73 @@ export class CreatedRegistry {
         this.entries.delete(entry.id)
         throw error
       }
-      await this.withBase(async (base) => {
-        const root = path.join(base, path.basename(entry.path))
-        await mkdir(root, { mode: RESOURCE_PRIVATE_DIR_MODE })
-        await writeFile(
-          path.join(root, RESOURCE_TEMP_MARKER),
-          JSON.stringify({ id: entry.id, token }),
-          { flag: 'wx', mode: RESOURCE_PRIVATE_FILE_MODE },
-        )
-        entry.identity = fileIdentityKey(await lstatIdentity(root)) ?? null
-        if (entry.identity === null) throw new Error('Created path identity unavailable')
+      if (this.proof.directories === undefined) {
+        await this.withBase(async (base) => {
+          const root = path.join(base, path.basename(entry.path))
+          await mkdir(root, { mode: RESOURCE_PRIVATE_DIR_MODE })
+          await this.directory(root, undefined, async (pinned, identity) => {
+            const children = await readdir(pinned)
+            if (children.length > 0) throw new Error('Created directory is not empty at open')
+            const marker = await open(
+              path.join(pinned, RESOURCE_TEMP_MARKER),
+              'wx',
+              RESOURCE_PRIVATE_FILE_MODE,
+            )
+            try {
+              await marker.writeFile(JSON.stringify({ id: entry.id, token }))
+              await marker.sync()
+            } finally {
+              await marker.close()
+            }
+            entry.identity = identity
+            entry.state = 'created'
+            await mkdir(path.join(pinned, 'browser-profile'), { mode: RESOURCE_PRIVATE_DIR_MODE })
+            await mkdir(path.join(pinned, 'browser-cache'), { mode: RESOURCE_PRIVATE_DIR_MODE })
+          })
+        })
+      } else {
+        const answer = z
+          .strictObject({ identity: z.string().check(z.regex(/^[\d]+:[1-9][\d]*$/u)) })
+          .parse(
+            JSON.parse(
+              await this.proof.directories([
+                'create',
+                this.base,
+                this.baseIdentity ?? '',
+                path.basename(entry.path),
+                entry.id,
+                token,
+                '',
+              ]),
+            ),
+          )
+        entry.identity = answer.identity
         entry.state = 'created'
-        await mkdir(path.join(root, 'browser-profile'), { mode: RESOURCE_PRIVATE_DIR_MODE })
-        await mkdir(path.join(root, 'browser-cache'), { mode: RESOURCE_PRIVATE_DIR_MODE })
-      })
+      }
       await this.save()
+      this.made.add(entry.id)
       return { id: entry.id, root: entry.path }
     })
   }
 
-  /** Additional harness-created kinds must use the same confinement and marker. */
+  /** Only this instance's own creation may be reclassified; never adopt an existing path. */
   recordCreated(file: string, owner: string, kind: CreatedPath['kind']): Promise<string> {
     return this.serial(async () => {
       this.checkPath(file)
+      const entry = Array.from(this.entries.values(), (candidate) => candidate).find(
+        (candidate) => candidate.path === file,
+      )
+      if (
+        entry === undefined ||
+        !this.made.has(entry.id) ||
+        entry.owner !== owner ||
+        entry.kind === kind
+      )
+        throw new Error('Created path cannot be registered: not this registry creation')
       if (kind === 'osClone' && (await this.proof.createdByTree?.(file, owner)) !== true)
         throw new Error('OS leftover creator unproved')
-      const sample = await lstatIdentity(file)
-      const identity = fileIdentityKey(sample)
-      if (
-        identity === undefined ||
-        (await realpath(file)) !== file ||
-        !sample.isDirectory() ||
-        sample.isSymbolicLink() ||
-        Array.from(this.entries.values(), (entry) => entry.path).includes(file)
-      )
-        throw new Error('Created path cannot be registered')
-      const token = randomBytes(RESOURCE_TEMP_TOKEN_BYTES).toString('hex')
-      const entry = entrySchema.parse({
-        id: randomUUID(),
-        owner,
-        kind,
-        path: file,
-        identity,
-        tokenHash: digest(token),
-        state: 'created',
-        endedAtMs: null,
-        failed: false,
-      })
-      await writeFile(
-        path.join(file, RESOURCE_TEMP_MARKER),
-        JSON.stringify({ id: entry.id, token }),
-        { flag: 'wx', mode: RESOURCE_PRIVATE_FILE_MODE },
-      )
-      this.entries.set(entry.id, entry)
-      try {
-        await this.save()
-      } catch (error: unknown) {
-        this.entries.delete(entry.id)
-        throw error
-      }
+      entry.kind = kind
+      await this.save()
       return entry.id
     })
   }

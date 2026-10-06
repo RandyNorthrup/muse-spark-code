@@ -148,8 +148,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
     const h = await fixture()
     try {
       for (const kind of ['worktree', 'dependencies'] as const) {
-        const created = path.join(h.registry.base, `muse-tree-${kind === 'worktree' ? '1' : '2'}`)
-        await mkdir(created)
+        const { root: created } = await h.registry.createTemp('owner')
         await h.registry.recordCreated(created, 'owner', kind)
       }
       expect(await h.registry.clean()).toMatchObject({ removed: 0 })
@@ -165,10 +164,9 @@ describe('D87.14 creation registry and tree temp roots', () => {
   it('refuses changed identity and never follows a symlink substituted for a registered root', async () => {
     const h = await fixture()
     try {
-      const created = path.join(h.registry.base, 'muse-tree-c')
+      const { root: created } = await h.registry.createTemp('owner')
       const original = path.join(h.root, 'original')
       const outsider = path.join(h.root, 'outsider')
-      await mkdir(created)
       await mkdir(outsider)
       await writeFile(path.join(outsider, 'keep'), 'personal')
       await h.registry.recordCreated(created, 'owner', 'osClone')
@@ -209,15 +207,14 @@ describe('D87.14 creation registry and tree temp roots', () => {
   it('refuses OS clones whose creating registered tree was not proved', async () => {
     const h = await fixture()
     try {
-      const clone = path.join(h.registry.base, 'muse-tree-a')
-      await mkdir(clone)
+      const { root: clone } = await h.registry.createTemp('tree')
       h.proof.createdByTree.mockResolvedValue(false)
       await expect(h.registry.recordCreated(clone, 'tree', 'osClone')).rejects.toThrow(
         'creator unproved',
       )
       h.exit()
       await h.registry.finish('tree', false)
-      await expect(h.registry.remove(clone)).rejects.toThrow('Unregistered')
+      expect(await h.registry.remove(clone)).toBe(true)
     } finally {
       await h.cleanup()
     }
@@ -227,14 +224,14 @@ describe('D87.14 creation registry and tree temp roots', () => {
     try {
       const parent = h.registry.base
       const renamed = path.join(h.root, 'renamed')
-      const child = path.join(parent, 'muse-tree-f')
-      await mkdir(child, { recursive: true })
+      const { root: child } = await h.registry.createTemp('tree')
       const alias = path.join(h.registry.base, 'muse-tree-e')
       await symlink(parent, alias, 'junction')
       await expect(
         h.registry.recordCreated(path.join(alias, 'muse-tree-f'), 'tree', 'temp'),
       ).rejects.toThrow()
-      await h.registry.recordCreated(child, 'tree', 'temp')
+      await h.registry.recordCreated(child, 'tree', 'worktree')
+      h.archive()
       h.exit()
       await h.registry.finish('tree', false)
       await rename(parent, renamed)
@@ -269,9 +266,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await expect(h.registry.recordCreated(path.dirname(h.file), 'owner', 'temp')).rejects.toThrow(
         'Invalid',
       )
-      const owned = path.join(h.registry.base, 'muse-tree-d')
-      await mkdir(owned)
-      await h.registry.recordCreated(owned, 'owner', 'temp')
+      const { root: owned } = await h.registry.createTemp('owner')
       await expect(h.registry.recordCreated(owned, 'owner', 'temp')).rejects.toThrow()
       const alias = path.join(h.registry.base, 'muse-tree-e')
       await symlink(owned, alias, 'junction')
@@ -483,7 +478,7 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await h.cleanup()
     }
   })
-  it('persists intent before mkdir and recovers a marked pending creation after a failed final save', async () => {
+  it('persists intent before mkdir and reports a pending creation without durable identity after a failed final save', async () => {
     const h = await fixture()
     try {
       await mkdir(h.file, { recursive: true })
@@ -502,8 +497,8 @@ describe('D87.14 creation registry and tree temp roots', () => {
       expect(await readdir(h.registry.base)).toHaveLength(1)
       h.exit()
       const restored = await CreatedRegistry.open(h.file, h.now, h.proof, h.registry.base)
-      expect(await restored.clean()).toMatchObject({ removed: 1 })
-      expect(await readdir(h.registry.base)).toEqual([])
+      expect(await restored.clean()).toMatchObject({ removed: 0, refused: [expect.any(String)] })
+      expect(await readdir(h.registry.base)).toHaveLength(1)
     } finally {
       vi.restoreAllMocks()
       await h.cleanup()
@@ -573,8 +568,11 @@ describe('D87.14 creation registry and tree temp roots', () => {
         }
         return await h.nativeFs.lstat(file, options)
       })
-      await expect(restored.remove(temp.root)).rejects.toThrow('identity changed')
-      invalid.mockRestore()
+      try {
+        await expect(restored.remove(temp.root)).rejects.toThrow('stored identity')
+      } finally {
+        invalid.mockRestore()
+      }
       expect(await readdir(temp.root)).toContain(RESOURCE_TEMP_MARKER)
     } finally {
       vi.restoreAllMocks()
@@ -599,6 +597,277 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await temp.finish(false)
       await expect(readFile(temp.root)).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
+      await h.cleanup()
+    }
+  })
+  it('keeps a personal trash replacement swapped after the marker check during base verification', async () => {
+    const h = await fixture()
+    try {
+      const temp = await h.retiredTemp()
+      const personal = path.join(h.root, 'personal')
+      const saved = path.join(h.root, 'saved')
+      await mkdir(personal)
+      await writeFile(path.join(personal, 'keep'), 'personal')
+      let isSwapped = false
+      const swap = vi.spyOn(fs, 'realpath').mockImplementation(async (file, options) => {
+        if (!isSwapped && String(file) === h.registry.base) {
+          const names = await h.nativeFs.readdir(h.registry.base)
+          const name = names.find((name) => name.startsWith('.muse-trash-'))
+          if (name !== undefined) {
+            isSwapped = true
+            await h.nativeFs.rename(path.join(h.registry.base, name), saved)
+            await h.nativeFs.rename(personal, path.join(h.registry.base, name))
+          }
+        }
+        return await h.nativeFs.realpath(file, options)
+      })
+      await expect(h.registry.remove(temp.root)).rejects.toMatchObject({ code: 'ENOTEMPTY' })
+      swap.mockRestore()
+      expect(isSwapped).toBe(true)
+      // Refusal may restore the replacement name; its content survives either way.
+      const names = await readdir(h.registry.base)
+      const replacement = names[0]!
+      expect(await readFile(path.join(h.registry.base, replacement, 'keep'), 'utf8')).toBe(
+        'personal',
+      )
+      expect(await readdir(saved)).toEqual([])
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('refuses a copied-marker personal root when reloaded identity or marker hash is null or absent', async () => {
+    const h = await fixture()
+    try {
+      const temp = await h.retiredTemp()
+      const marker = await readFile(path.join(temp.root, RESOURCE_TEMP_MARKER))
+      const records = z
+        .array(z.record(z.string(), z.unknown()))
+        .parse(JSON.parse(await readFile(h.file, 'utf8')))
+      await rename(temp.root, path.join(h.root, 'saved'))
+      await mkdir(temp.root, { mode: 0o700 })
+      await writeFile(path.join(temp.root, RESOURCE_TEMP_MARKER), marker, { mode: 0o600 })
+      await writeFile(path.join(temp.root, 'keep'), 'personal')
+      for (const field of ['identity', 'tokenHash'] as const) {
+        for (const isAbsent of [false, true]) {
+          await writeFile(
+            h.file,
+            JSON.stringify(
+              records.map((entry) => {
+                const record = { ...entry, state: 'pending', [field]: null }
+                return Object.fromEntries(
+                  Object.entries(record).filter(([key]) => !isAbsent || key !== field),
+                )
+              }),
+            ),
+          )
+          const restored = await CreatedRegistry.open(h.file, h.now, h.proof, h.registry.base)
+          expect(await restored.clean()).toMatchObject({
+            removed: 0,
+            refused: [expect.any(String)],
+          })
+        }
+      }
+      expect(await readFile(path.join(temp.root, 'keep'), 'utf8')).toBe('personal')
+    } finally {
+      await h.cleanup()
+    }
+  })
+  it('refuses a populated replacement between mkdir and open without stamping or recording its identity', async () => {
+    const h = await fixture()
+    try {
+      const personal = path.join(h.root, 'personal')
+      await mkdir(personal, { mode: 0o700 })
+      await writeFile(path.join(personal, 'keep'), 'personal')
+      let swapped = ''
+      const swap = vi.spyOn(fs, 'mkdir').mockImplementation(async (file, options) => {
+        const result = await h.nativeFs.mkdir(file, options)
+        if (/muse-tree-[\da-f-]+$/u.test(String(file).replaceAll('\\', '/'))) {
+          swapped = path.join(h.registry.base, path.basename(String(file)))
+          await h.nativeFs.rename(file, path.join(h.root, 'saved'))
+          await h.nativeFs.rename(personal, file)
+        }
+        return result
+      })
+      await expect(h.registry.createTemp('tree')).rejects.toThrow('not empty at open')
+      swap.mockRestore()
+      expect(await readdir(swapped)).toEqual(['keep'])
+      const records = z
+        .array(z.record(z.string(), z.unknown()))
+        .parse(JSON.parse(await readFile(h.file, 'utf8')))
+      expect(records[0]?.['identity']).toBeNull()
+      h.exit()
+      expect(await h.registry.clean()).toMatchObject({ removed: 0, refused: [expect.any(String)] })
+      expect(await readFile(path.join(swapped, 'keep'), 'utf8')).toBe('personal')
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('refuses a different-device subdirectory without descending into it', async () => {
+    const h = await fixture()
+    try {
+      const temp = await h.retiredTemp()
+      const mount = path.join(temp.root, 'mounted')
+      await mkdir(mount)
+      await writeFile(path.join(mount, 'keep'), 'mounted personal')
+      const sample = vi.spyOn(fs, 'lstat').mockImplementation(async (file, options) => {
+        if (String(file).replaceAll('\\', '/').endsWith('/mounted')) {
+          const result = await h.nativeFs.lstat(file, { bigint: true })
+          result.dev += 1n
+          return result
+        }
+        return await h.nativeFs.lstat(file, options)
+      })
+      const open = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+        const handle = await h.nativeFs.open(file, flags, mode)
+        if (String(file).replaceAll('\\', '/').endsWith('/mounted')) {
+          const stat = handle.stat.bind(handle)
+          vi.spyOn(handle, 'stat').mockImplementation(async () => {
+            const held = await stat({ bigint: true })
+            held.dev += 1n
+            return held
+          })
+        }
+        return handle
+      })
+      await expect(h.registry.remove(temp.root)).rejects.toThrow('filesystem boundary')
+      sample.mockRestore()
+      open.mockRestore()
+      expect(await readFile(path.join(mount, 'keep'), 'utf8')).toBe('mounted personal')
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('refuses adoption of an existing directory for every kind, even with external creator proof', async () => {
+    const h = await fixture()
+    try {
+      const personal = path.join(h.registry.base, 'muse-tree-a')
+      await mkdir(personal, { mode: 0o700 })
+      await writeFile(path.join(personal, 'keep'), 'personal')
+      for (const kind of ['temp', 'worktree', 'dependencies', 'osClone'] as const)
+        await expect(h.registry.recordCreated(personal, 'tree', kind)).rejects.toThrow(
+          'not this registry creation',
+        )
+      expect(await readdir(personal)).toEqual(['keep'])
+      h.exit()
+      expect(await h.registry.clean()).toMatchObject({ removed: 0 })
+      expect(await readFile(path.join(personal, 'keep'), 'utf8')).toBe('personal')
+      const created = await h.registry.createTemp('tree')
+      const reloaded = await CreatedRegistry.open(h.file, h.now, h.proof, h.registry.base)
+      await expect(reloaded.recordCreated(created.root, 'tree', 'worktree')).rejects.toThrow(
+        'not this registry creation',
+      )
+      await expect(h.registry.recordCreated(created.root, 'other', 'worktree')).rejects.toThrow(
+        'not this registry creation',
+      )
+      await h.registry.recordCreated(created.root, 'tree', 'worktree')
+    } finally {
+      await h.cleanup()
+    }
+  })
+  it('requires current-user ownership of the directory opened immediately after mkdir', async () => {
+    const h = await fixture()
+    try {
+      const intercept = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+        const handle = await h.nativeFs.open(file, flags, mode)
+        if (/muse-tree-[\da-f-]+$/u.test(String(file).replaceAll('\\', '/'))) {
+          const stat = handle.stat.bind(handle)
+          vi.spyOn(handle, 'stat').mockImplementation(async () => {
+            const sample = await stat({ bigint: true })
+            sample.uid += 1n
+            return sample
+          })
+        }
+        return handle
+      })
+      await expect(h.registry.createTemp('foreign')).rejects.toThrow('ownership')
+      intercept.mockRestore()
+      const names = await readdir(h.registry.base)
+      expect(names).toHaveLength(1)
+      expect(await readdir(path.join(h.registry.base, names[0]!))).toEqual([])
+      h.exit()
+      expect(await h.registry.clean()).toMatchObject({ removed: 0, refused: [expect.any(String)] })
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('holds a checked nested directory when its name is replaced before empty-only rmdir', async () => {
+    const h = await fixture()
+    try {
+      const temp = await h.retiredTemp()
+      const nested = path.join(temp.root, 'nested')
+      const personal = path.join(h.root, 'personal')
+      const saved = path.join(h.root, 'saved')
+      await mkdir(nested, { mode: 0o700 })
+      await writeFile(path.join(nested, 'ours'), 'ours')
+      await mkdir(personal, { mode: 0o700 })
+      await writeFile(path.join(personal, 'keep'), 'personal')
+      let isSwapped = false
+      const swap = vi.spyOn(fs, 'readdir').mockImplementation(async (file, options) => {
+        const names = await h.nativeFs.readdir(file, options)
+        const canonical = await h.nativeFs.realpath(file)
+        if (!isSwapped && canonical.replaceAll('\\', '/').endsWith('/nested')) {
+          isSwapped = true
+          await h.nativeFs.rename(canonical, saved)
+          await h.nativeFs.rename(personal, canonical)
+        }
+        return names
+      })
+      await expect(h.registry.remove(temp.root)).rejects.toMatchObject({ code: 'ENOTEMPTY' })
+      swap.mockRestore()
+      expect(isSwapped).toBe(true)
+      expect(await readFile(path.join(nested, 'keep'), 'utf8')).toBe('personal')
+      expect(await readdir(saved)).toEqual([])
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('retains a personal file exchanged onto the manifest stage name after publication', async () => {
+    const h = await fixture()
+    try {
+      let stage = ''
+      const swap = vi.spyOn(fs, 'rename').mockImplementation(async (from, to) => {
+        await h.nativeFs.rename(from, to)
+        if (stage !== '' || String(to) !== h.file) return
+        stage = String(from)
+        await h.nativeFs.writeFile(stage, 'personal stage replacement', { flag: 'wx' })
+      })
+      await h.registry.createTemp('tree')
+      swap.mockRestore()
+      expect(await readFile(stage, 'utf8')).toBe('personal stage replacement')
+    } finally {
+      vi.restoreAllMocks()
+      await h.cleanup()
+    }
+  })
+  it('refuses a same-device bind mount using the held directory mount ID', async () => {
+    const h = await fixture()
+    try {
+      const temp = await h.retiredTemp()
+      const mounted = path.join(temp.root, 'mounted')
+      await mkdir(mounted, { mode: 0o700 })
+      await writeFile(path.join(mounted, 'keep'), 'mounted personal')
+      const seam = vi.spyOn(fs, 'readFile').mockImplementation(async (file, options) => {
+        if (typeof file !== 'string' || !file.startsWith('/proc/self/fdinfo/'))
+          return await h.nativeFs.readFile(file, options)
+        const info = await h.nativeFs.readFile(file, 'utf8')
+        const target = await h.nativeFs.realpath(`/proc/self/fd/${path.basename(file)}`)
+        return target.endsWith('/mounted')
+          ? info.replace(
+              /^mnt_id:\s+([\d]+)$/mu,
+              (_line, id: string) => `mnt_id:\t${String(BigInt(id) + 1n)}`,
+            )
+          : info
+      })
+      await expect(h.registry.remove(temp.root)).rejects.toThrow('mount boundary')
+      seam.mockRestore()
+      expect(await readFile(path.join(mounted, 'keep'), 'utf8')).toBe('mounted personal')
+    } finally {
+      vi.restoreAllMocks()
       await h.cleanup()
     }
   })

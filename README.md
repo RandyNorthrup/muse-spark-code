@@ -3870,8 +3870,15 @@ Windows job within a bounded shutdown. A forced stop or missing exit proof
 is reported explicitly, with session handles still disposed. Holder failure
 retains unknown work. Missing native identity proof remains
 unknown. Per-tree temp roots use private-base confinement, ownership markers
-and quarantine cleanup; Linux pins the base directory by fd. Public manifests
-are refused, and cleanup requires fresh exit proof after reload. Checkpoint
+and quarantine cleanup. Linux walks held directory fds; macOS and Windows
+use their native helpers with relative directory handles. Cleanup refuses
+missing stored identity or marker hash, different-device directories and Linux
+mount boundaries (including same-device bind mounts), never
+follows symlinks, and removes the final trash entry empty-only. Creation must
+open an empty directory owned by the user; registration cannot adopt an existing
+folder. Content moved into an already harness-created root counts as that
+root's content. Public manifests are refused, and cleanup requires fresh exit
+proof after reload. Missing native helpers refuse allocation and cleanup. Checkpoint
 Git checks its storage volume and bypasses temp pressure without allocating a
 temp root. Admission cancellation does not wait for sampling, stalled statfs
 is reported unknown, and failed Muse exits retain roots for 24 hours.

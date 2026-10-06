@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Temp cleanup now walks identity-checked directory handles on Linux and in
+  the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
+  (including same-device bind mounts), and removes
+  trash entries empty-only. Interrupted or legacy records without stored
+  identity/marker hash are report-only. Creation requires an empty owned handle;
+  registration cannot adopt existing folders. Manifest stage replacements are
+  retained instead of being unlinked by name.
+
 - Disk cleanup rejects forged or public manifests, requires private-base
   confinement and an ownership marker, and quarantines roots before removal.
   Linux pins the base directory during cleanup. Creation intent is saved before

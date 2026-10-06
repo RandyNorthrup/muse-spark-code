@@ -30,17 +30,21 @@ VERSION_KEY=CFBundleShortVersionString
 # plutil reads JSON as well as property lists.
 VERSION="$(plutil -extract version raw -o - "$MANIFEST")"
 PLIST="$(mktemp -t muse-dictate-plist)"
-trap 'rm -f "$PLIST" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"' EXIT
+CREATED_OBJECT_DIR="$(mktemp -d -t muse-created-objects)"
+CREATED_OBJECT="${CREATED_OBJECT_DIR}/created.o"
+trap 'rm -f "$CREATED_OBJECT" "$PLIST" "${OUTPUT}-arm64" "${OUTPUT}-x86_64"; rmdir "$CREATED_OBJECT_DIR"' EXIT
 cp Info.plist "$PLIST"
 plutil -replace "$VERSION_KEY" -string "$VERSION" "$PLIST"
 
 for arch in "${ARCHES[@]}"; do
+  cc -Os -Wall -Wextra -Werror -arch "$arch" -mmacosx-version-min="$MIN_MACOS" \
+    -c MuseSparkCreated.c -o "$CREATED_OBJECT"
   swiftc -Osize \
     -target "${arch}-apple-macos${MIN_MACOS}" \
     -Xlinker -dead_strip \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$PLIST" \
     -o "${OUTPUT}-${arch}" \
-    Dictation.swift
+    Dictation.swift "$CREATED_OBJECT"
   strip -x "${OUTPUT}-${arch}"
 done
 

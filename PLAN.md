@@ -19692,6 +19692,24 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107DK2 (2026-10-06, Kubuntu).** Repair every RVM107DK2G finding.
+Replace pathname recursion with an identity-checked directory-handle walk:
+Linux uses pinned `/proc/self/fd` paths, Darwin uses openat/unlinkat/fstatat,
+and Windows uses relative native opens and handle disposition. Every directory
+is opened without following links and checked against the sampled identity;
+refuse a different device and on Linux a different held-descriptor mount ID
+(including a bind mount on the same device). Remove the final quarantine entry
+empty-only.
+Null stored identity is report-only, including an interrupted pending intent.
+Create through the pinned base, immediately open the random child, require
+empty/current-user ownership, write its marker through that handle, and record
+fstat identity. Registration can only reclassify this instance's own creations.
+Native implementations use the helper port; absent helpers refuse instead of
+falling back to pathname operations. Linux runs here; foreign native builds and
+race receipts are owed to the platform lead. Add interleaving regressions,
+positive controls and byte-exact red drills to `docs/certification/m107-dk.md`.
+No dependency, paid/live call, merge or aggregate quality run.
+
 **FIXM107DK (2026-10-06, Kubuntu).** Repair all eight RVM107DK findings.
 Constrain creation records to direct random children of one verified private
 base, require an ownership marker and fresh tree-exit proof after reload,
@@ -19705,8 +19723,8 @@ race sampling against abort/disposal and bound statfs; project Muse child
 environments at the shared spawn boundary and retain failed SDK exits.
 Regression tests and byte-exact red drills go in `docs/certification/m107-dk.md`.
 No dependency, merge, paid/live call or full quality run; lead runs aggregate
-gates and native foreign-platform receipts. Only the explicitly named Windows
-owner and macOS/Windows ancestor-swap qualifications remain in §9.
+gates and native foreign-platform receipts. FIXM107DK2 supersedes this first
+repair's ancestor-swap qualification in §9.
 
 **Lane DK (2026-10-06, Kubuntu).** Implement D87.14 from
 `docs/plan-owner-answers-1006` against the integrated S/T/G/A/C1 trunk.
@@ -21491,27 +21509,49 @@ through the lazy factory port. M100/R consumes validated disk
 headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
 supplies archived/merged-and-clean proof for worktrees/dependency copies.
 Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the
-Mac mini killed-browser receipt from Kubuntu. Cleanup now requires confinement to a verified private base and a matching
-ownership marker, quarantines before removal, and on Linux uses a pinned
-base fd. A loaded ended timestamp is never exit proof. Unknown
-creation/exit/archive proof refuses cleanup. External OS clones, worktrees
-and dependency copies need a separately reviewed confined ownership adapter;
-this registry refuses records outside its base rather than granting an
-external-path deletion exception. Content a same-user process moves into a
-harness-created root counts as that tree's content.
+Mac mini killed-browser receipt from Kubuntu. Cleanup requires a private, canonical base, a stored native directory identity
+and marker hash, the marker read through the held root, and fresh tree-exit
+proof. Null or absent identity/hash is report-only, including interrupted
+creation intents. Creation immediately opens its random directory through the
+pinned base, proves it empty and current-user-owned, writes through that
+handle, and records fstat identity. `recordCreated` only reclassifies creations
+made by this registry instance; an external proof cannot authorize adoption.
+Every descended directory is opened without following links and compared with
+its observed native identity and root device; Linux also compares the kernel
+mount ID read through each held descriptor, so a same-device bind mount is
+refused. Linux uses pinned fd paths;
+Darwin uses openat/fstatat/unlinkat; Windows uses relative NtCreateFile and
+handle disposition in the existing job helper. Final removal is empty-only.
+No pathname recursive deletion or foreign-platform pathname fallback remains.
+A refused walk can have removed some genuine tree content before discovering
+an obstruction; it retains/reports the root or quarantine, never recursively
+removes a replacement. Failed manifest stages are retained: even a stage name
+can be exchanged after its creation handle was opened.
 
-- **M107-DK-Windows-owner (FIXM107DK, 2026-10-06).** Node's Windows stat uid
-  is not an OS ownership/ACL proof. Windows still refuses base junctions/
-  symlinks, checks native directory identity, confines every record, verifies
-  markers and requires tree-exit proof. No ACL is changed. W/T should supply
-  a native owner check before claiming POSIX-equivalent owner validation.
-- **M107-DK-non-Linux-ancestor-window (FIXM107DK, 2026-10-06).** macOS and
-  Windows lack Linux's `/proc/self/fd` directory pin. They check base identity
-  before and after quarantine rename and restore a refused entry when possible.
-  A same-user ancestor swap between those checks and a filesystem operation
-  remains possible; roots are never removed through their original pathname.
-  W/T should provide a native fd/handle-relative adapter and platform race
-  receipts. The owner explicitly accepts this narrow window for this repair.
+**M107-DK-tree-content (FIXM107DK2, owner rule).** Content a same-user process
+moves **into an already harness-created root** is treated as that tree's
+content. This includes moved ordinary directories, files and symlink entries;
+symlink targets are never followed and a different-device directory is refused.
+A replacement of the root, quarantine or ancestor is not content moved into
+that held root. The owner accepts this single content-ownership rule; no
+reviewed P1/P2/P3 finding is left as a residual.
+
+- **M107-DK-Windows-owner (updated FIXM107DK2).** The native helper now
+  checks base/root/marker owner SID through their held handles. Node's
+  manifest stat remains no Windows owner/DACL proof; no ACL is changed and
+  POSIX-equivalent private ACL validation is not claimed. W/T must qualify
+  inherited ACLs and the manifest's owner before making that wider claim.
+- **M107-DK-native-qualification (FIXM107DK2).** The previous
+  `M107-DK-non-Linux-ancestor-window` is closed by the native handle port;
+  missing helpers refuse allocation/cleanup rather than use path recursion.
+  Windows uses the existing source-digested job assembly, Darwin the existing
+  universal helper's `--created-directory` mode before any voice setup.
+  Kubuntu runs the POSIX walk and C# 5 syntax compilation only. macOS universal
+  build/sign/disclaim and native interleaving receipts, Windows PowerShell 5.1
+  compilation plus NT identity/reparse/empty-directory race receipts, and
+  foreign editor/runtime delivery remain the platform lead's qualification.
+  Standalone foreign registry callers must install the same trusted helper
+  port; direct Node-only allocation on those platforms deliberately refuses.
 
 - **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
   are repaired at their launch, queue and ownership boundaries; none is

@@ -13,6 +13,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
 
+using System.Security.Cryptography;
+using System.Security.Principal;
+using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
 public static class MuseSparkJob {
   [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
   static extern IntPtr CreateJobObjectW(IntPtr attributes, string name);
@@ -410,6 +414,135 @@ public static class MuseSparkJob {
       return true;
     } finally {
       CloseHandle(job);
+    }
+  }
+}
+
+// M107 DK: handle-relative created directory protocol, compiled in the existing job assembly.
+public static class MuseSparkCreated {
+  const uint DIRECTORY = 0x10, REPARSE = 0x400, DELETE = 0x10000, READ_CONTROL = 0x20000;
+  const uint ACCESS = 0x100001 | 0x80 | DELETE | READ_CONTROL;
+  const uint FILE_OPEN_REPARSE_POINT = 0x200000, FILE_FLAG_OPEN_REPARSE_POINT = 0x200000;
+  const int BUFFER = 65536, FILE_NAME_OFFSET = 104, FILE_ID_OFFSET = 96;
+  const string MARKER = ".muse-owner.json";
+  [StructLayout(LayoutKind.Sequential)] struct Unicode { public ushort Length, MaximumLength; public IntPtr Buffer; }
+  [StructLayout(LayoutKind.Sequential)] struct Attributes { public int Length; public IntPtr Root, Name; public uint Flags; public IntPtr Security, Quality; }
+  [StructLayout(LayoutKind.Sequential)] struct IoStatus { public IntPtr Status, Information; }
+  [StructLayout(LayoutKind.Sequential)] struct Info { public uint Attributes; public System.Runtime.InteropServices.ComTypes.FILETIME Creation, Access, Write; public uint Volume, SizeHigh, SizeLow, Links, IndexHigh, IndexLow; }
+  [DllImport("ntdll.dll")] static extern int NtCreateFile(out SafeFileHandle file, uint access, ref Attributes attributes, out IoStatus status, IntPtr allocation, uint fileAttributes, uint share, uint disposition, uint options, IntPtr ea, uint eaLength);
+  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern SafeFileHandle CreateFileW(string name, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandle(SafeFileHandle file, out Info info);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandleEx(SafeFileHandle file, int kind, IntPtr buffer, uint length);
+  [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetFileInformationByHandle(SafeFileHandle file, int kind, IntPtr buffer, uint length);
+  [DllImport("advapi32.dll")] static extern uint GetSecurityInfo(SafeFileHandle file, int kind, uint requested, out IntPtr owner, out IntPtr group, out IntPtr dacl, out IntPtr sacl, out IntPtr descriptor);
+  [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr pointer);
+  static void Refuse() { throw new IOException("created directory helper refused"); }
+  static Info Sample(SafeFileHandle h) { Info s; if (!GetFileInformationByHandle(h, out s)) Refuse(); return s; }
+  static ulong Id(Info s) { return ((ulong)s.IndexHigh << 32) | s.IndexLow; }
+  static string Key(Info s) { return s.Volume.ToString() + ":" + Id(s).ToString(); }
+  static void Match(Info s, string expected) { if (Id(s) == 0 || Key(s) != expected) Refuse(); }
+  static void Private(SafeFileHandle h) {
+    Info s = Sample(h); if ((s.Attributes & (DIRECTORY | REPARSE)) != DIRECTORY) Refuse();
+    Owned(h);
+  }
+  static void Owned(SafeFileHandle h) {
+    IntPtr owner, group, dacl, sacl, descriptor;
+    if (GetSecurityInfo(h, 1, 1, out owner, out group, out dacl, out sacl, out descriptor) != 0) Refuse();
+    try { using (WindowsIdentity current = WindowsIdentity.GetCurrent()) {
+      if (current.User == null || new SecurityIdentifier(owner).Value != current.User.Value) Refuse();
+    }} finally { LocalFree(descriptor); }
+  }
+  static SafeFileHandle Open(SafeFileHandle parent, string name, bool directory, bool create) {
+    if (String.IsNullOrEmpty(name) || name.IndexOfAny(new char[] {'/', '\\', ':'}) >= 0 || name == "." || name == "..") Refuse();
+    IntPtr chars = Marshal.StringToHGlobalUni(name), unicode = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(Unicode)));
+    try {
+      Unicode text = new Unicode { Length=checked((ushort)(name.Length*2)), MaximumLength=checked((ushort)(name.Length*2)), Buffer=chars };
+      Marshal.StructureToPtr(text, unicode, false);
+      Attributes attributes = new Attributes { Length=Marshal.SizeOf(typeof(Attributes)), Root=parent.DangerousGetHandle(), Name=unicode, Flags=0x40 };
+      SafeFileHandle result; IoStatus status;
+      int error = NtCreateFile(out result, create && !directory ? ACCESS | 2u : ACCESS, ref attributes, out status, IntPtr.Zero, directory ? DIRECTORY : 0u, 7, create ? 2u : 1u, FILE_OPEN_REPARSE_POINT | 0x20u | (directory ? 1u : 0u), IntPtr.Zero, 0);
+      if (error < 0 || result.IsInvalid) { result.Dispose(); Refuse(); } return result;
+    } finally { Marshal.FreeHGlobal(unicode); Marshal.FreeHGlobal(chars); }
+  }
+  sealed class Entry { public string Name; public ulong Id; public uint Flags; }
+  static List<Entry> Entries(SafeFileHandle directory) {
+    var entries = new List<Entry>(); IntPtr buffer = Marshal.AllocHGlobal(BUFFER);
+    try {
+      int kind = 11;
+      while (GetFileInformationByHandleEx(directory, kind, buffer, BUFFER)) {
+        kind = 10; int offset = 0;
+        do {
+          IntPtr row = IntPtr.Add(buffer, offset); int length = Marshal.ReadInt32(row, 60);
+          if (length < 0 || length % 2 != 0 || offset + FILE_NAME_OFFSET + length > BUFFER) Refuse();
+          string name = Marshal.PtrToStringUni(IntPtr.Add(row, FILE_NAME_OFFSET), length / 2);
+          if (name != "." && name != "..") entries.Add(new Entry { Name=name, Id=unchecked((ulong)Marshal.ReadInt64(row, FILE_ID_OFFSET)), Flags=unchecked((uint)Marshal.ReadInt32(row, 56)) });
+          int next = Marshal.ReadInt32(row); if (next == 0) break;
+          if (next < FILE_NAME_OFFSET || next > BUFFER - offset - FILE_NAME_OFFSET) Refuse(); offset += next;
+        } while (true);
+      }
+      if (Marshal.GetLastWin32Error() != 18) Refuse(); return entries;
+    } finally { Marshal.FreeHGlobal(buffer); }
+  }
+  static void DisposeEntry(SafeFileHandle file) {
+    IntPtr flags = Marshal.AllocHGlobal(4);
+    try { Marshal.WriteInt32(flags, 1 | 2 | 0x10); if (!SetFileInformationByHandle(file, 21, flags, 4)) Refuse(); }
+    finally { Marshal.FreeHGlobal(flags); }
+  }
+  static void Rename(SafeFileHandle source, SafeFileHandle parent, string trash) {
+    int rootOffset = IntPtr.Size, lengthOffset = rootOffset + IntPtr.Size, nameOffset = lengthOffset + 4;
+    byte[] name = Encoding.Unicode.GetBytes(trash); IntPtr buffer = Marshal.AllocHGlobal(nameOffset + name.Length);
+    try {
+      for (int i = 0; i < nameOffset; i++) Marshal.WriteByte(buffer, i, 0);
+      Marshal.WriteIntPtr(buffer, rootOffset, parent.DangerousGetHandle()); Marshal.WriteInt32(buffer, lengthOffset, name.Length);
+      Marshal.Copy(name, 0, IntPtr.Add(buffer, nameOffset), name.Length);
+      if (!SetFileInformationByHandle(source, 3, buffer, (uint)(nameOffset + name.Length))) Refuse();
+    } finally { Marshal.FreeHGlobal(buffer); }
+  }
+  static void Marker(SafeFileHandle root, string id, string expected) {
+    using (SafeFileHandle file = Open(root, MARKER, false, false)) {
+      Owned(file); Info s = Sample(file); if ((s.Attributes & (DIRECTORY | REPARSE)) != 0 || s.SizeHigh != 0 || s.SizeLow > 256) Refuse();
+      using (var stream = new FileStream(file, FileAccess.Read)) using (var reader = new StreamReader(stream, Encoding.UTF8)) {
+        Match match = Regex.Match(reader.ReadToEnd(), "^\\{\"id\":\"([0-9a-f-]+)\",\"token\":\"([0-9a-f]{32})\"\\}$");
+        if (!match.Success || match.Groups[1].Value != id) Refuse();
+        using (SHA256 hash = SHA256.Create()) {
+          string actual = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(match.Groups[2].Value))).Replace("-", "").ToLowerInvariant();
+          if (actual != expected) Refuse();
+        }
+      }
+    }
+  }
+  static void Walk(SafeFileHandle root, uint volume) {
+    foreach (Entry entry in Entries(root)) using (SafeFileHandle child = Open(root, entry.Name, (entry.Flags & (DIRECTORY | REPARSE)) == DIRECTORY, false)) {
+      Info held = Sample(child); if (entry.Id == 0 || Id(held) != entry.Id || held.Volume != volume) Refuse();
+      if ((held.Attributes & (DIRECTORY | REPARSE)) == DIRECTORY) Walk(child, volume);
+      DisposeEntry(child); // Reparse points are disposed themselves; directories must be empty.
+    }
+  }
+  public static string Execute(string[] args) {
+    if (args.Length != 7 || !Regex.IsMatch(args[3], "^muse-tree-[0-9a-f-]+$") || !Regex.IsMatch(args[4], "^[0-9a-f-]+$")) Refuse();
+    using (SafeFileHandle parent = CreateFileW(args[1], ACCESS, 7, IntPtr.Zero, 3, 0x02000000 | FILE_FLAG_OPEN_REPARSE_POINT, IntPtr.Zero)) {
+      if (parent.IsInvalid) Refuse(); Private(parent); Match(Sample(parent), args[2]);
+      if (args[0] == "create") {
+        if (!Regex.IsMatch(args[5], "^[0-9a-f]{32}$")) Refuse();
+        using (SafeFileHandle root = Open(parent, args[3], true, true)) {
+          Private(root); if (Entries(root).Count != 0) Refuse(); Info identity = Sample(root);
+          using (SafeFileHandle file = Open(root, MARKER, false, true)) using (var stream = new FileStream(file, FileAccess.Write)) {
+            byte[] bytes = Encoding.UTF8.GetBytes("{\"id\":\"" + args[4] + "\",\"token\":\"" + args[5] + "\"}"); stream.Write(bytes, 0, bytes.Length); stream.Flush(true);
+          }
+          using (Open(root, "browser-profile", true, true)) {} using (Open(root, "browser-cache", true, true)) {}
+          return "{\"identity\":\"" + Key(identity) + "\"}";
+        }
+      }
+      if (args[0] != "remove" || !Regex.IsMatch(args[5], "^[0-9a-f]{64}$")) Refuse();
+      using (SafeFileHandle source = Open(parent, args[3], true, false)) {
+        Private(source); Match(Sample(source), args[6]); Marker(source, args[4], args[5]);
+        string trash = ".muse-trash-" + args[4]; Rename(source, parent, trash);
+        using (SafeFileHandle root = Open(parent, trash, true, false)) {
+          Private(root); Match(Sample(root), args[6]); Marker(root, args[4], args[5]); Walk(root, Sample(root).Volume);
+          using (SafeFileHandle final = Open(parent, trash, true, false)) { Match(Sample(final), args[6]); DisposeEntry(final); }
+        }
+      }
+      return "{\"removed\":true}";
     }
   }
 }

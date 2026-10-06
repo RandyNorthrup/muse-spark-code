@@ -8,7 +8,7 @@ import { statfs } from 'node:fs/promises'
 import { TreeTempRoots } from '../../host/resources/tempRoots'
 import type { ResourceTempRoots } from './launch'
 import { ResourceDiskSampler, type ResourceDiskTarget } from './disk'
-import { CreatedRegistry, type CreatedCleanup } from './createdRegistry'
+import { CreatedRegistry, type CreatedCleanup, type CreatedPathProof } from './createdRegistry'
 import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
 import {
   readResourceSettings,
@@ -22,6 +22,12 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
+import { runTreeProgram } from './trees/run'
+import { powerShellQuoted } from '../shellQuote'
+import {
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_RELATIVE_PATH,
+} from '../../shared/constants'
 
 export interface ResourceHostSettings {
   /** W/H supply T's remaining native identity ports; absence is explicitly unknown. */
@@ -32,6 +38,8 @@ export interface ResourceHostSettings {
   /** Portable TreeTempRoots adapter, shared by every editor/runtime. */
   readonly tempRoots?: ResourceTempRoots | undefined
   readonly created?: CreatedRegistry | undefined
+  /** Foreign-platform directory helper; absence refuses temp allocation and deletion. */
+  readonly createdDirectories?: CreatedPathProof['directories']
   /** W supplies a per-harness persisted manifest in app data for recovery. */
   readonly registryFile?: string | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
@@ -62,6 +70,29 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
       }
     },
   }
+  const directories =
+    options.createdDirectories ??
+    (process.platform === 'linux'
+      ? undefined
+      : async (args: readonly string[]) => {
+          if (process.platform === 'darwin')
+            return await runTreeProgram(
+              path.join(__dirname, '..', 'native', 'darwin', 'muse-dictate'),
+              ['--created-directory', ...args],
+            )
+          const systemRoot = process.env['SystemRoot']
+          const job = await options.windowsJob?.()
+          if (systemRoot === undefined || job === undefined || process.platform !== 'win32')
+            throw new Error('Native creation directory helper is required')
+          return await runTreeProgram(
+            path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
+            [
+              ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+              `try { [void][Reflection.Assembly]::LoadFrom(${powerShellQuoted(job.assemblyPath)}); [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')})) } catch { exit 1 }`,
+            ],
+            { SystemRoot: systemRoot },
+          )
+        })
   let registryPending: Promise<CreatedRegistry> | undefined
   const registry = (): Promise<CreatedRegistry> => {
     registryPending ??=
@@ -71,6 +102,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
               path.join(tmpdir(), 'muse-spark-code-resources', `${randomUUID()}.json`),
             () => clock.now(),
             {
+              directories,
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),
               archivedAndClean: () =>
                 Promise.reject(new Error('Archive/clean proof is not installed')),
