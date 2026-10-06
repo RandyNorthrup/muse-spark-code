@@ -1,5 +1,68 @@
 # M108 P — Pool and policy (macmini, 2026-10-06)
 
+## FIXM108P2 final stop-recovery repair
+
+Repair base `291fc547a`, branch `m108/p`. Read the full RVM108P2 report,
+rig brief, shared codex/common.md and PLAN D88/M108. The review's one P2 is
+fixed; no P1/P3 was reported and no review finding is left as a residual.
+
+The candidate loop evaluates each model-eligible account's full projected
+triggers, including cold-cache liability, before applying the shared-group
+vendor skip. That account's latest blocking reset now contributes to the
+pool's earliest known recovery. The skip still emits its notice and admits
+no shared-group capacity while blocked. On recovery, the existing configured
+fallback order resolves ties and the successful account becomes sticky.
+
+| Finding                                    | Status | Regression in `test/unit/pool.test.ts`                                  | Red drill                                                                                                                                                                       |
+| ------------------------------------------ | ------ | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM108P2 P2-1: same-group recovery omitted | Fixed  | `recovers a same-group candidate before the current monthly cap`        | `P2-1-early-group-skip`: move the shared-group guard before candidate evaluation; both new cases fail with November 1 instead of October 6 at 12:01Z (**2 failed / 24 passed**) |
+| P2-1 tie acceptance                        | Fixed  | `recovers a same-group candidate in configured fallback order on a tie` | `P2-1-reversed-fallback-tie`: reverse the next-account fallback slice; named tie regression fails by choosing B instead of configured-first C (**12 failed / 14 passed**)       |
+
+Both new cases first failed on the reviewed source, **2 failed / 24 passed**,
+with expected `2026-10-06T12:01:00.000Z` and actual
+`2026-11-01T07:00:00.000Z`. After the fix, they verify no reservation or
+dispatch before the reset, a same-group account dispatching exactly at it,
+atomic swap publication/adoption, and subsequent sticky use. In the first
+case A is monthly-capped, C is daily-capped and B has no user cap; in the tie
+case B and C recover together and C precedes B in configured fallback order.
+
+Both mutation runs used the complete pool file with repository-default
+timeouts, exited 1 with the named regression, and restored `pool.ts`
+byte-exact in a finally block. SHA-256 after each restoration:
+`9b01718a548a45b720d110551f8f1aa9363be0a76a98d98c8d0e3c63c5b26d40`.
+The restored six owning files pass **108 tests**, in two serial runs with at
+most three files/workers. No test filter or timeout override was used.
+
+The repair changes only `pool.ts`, `pool.test.ts`, PLAN and this record.
+Existing profile-owner, event-transaction and generated host-record handoffs
+remain with W/M109; none is silently treated as installed integration.
+`P-W-DOCS-HELP-BUNDLES` retains the release-note handoff: pool stops now name
+the earlier same-group recovery instead of the current account's longer cap.
+No new command, setting, feature, text, wire shape, dependency, escape hatch,
+guard widening, network call, credential access or paid/live call is needed.
+
+Final restored verification ran directly on macmini:
+
+| Command / scope                                                                                                            | Result                                                                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/pool.test.ts test/unit/accountPaidConsent.test.ts test/e2e/accounts.e2e.test.ts --maxWorkers=3`  | **40 passed**: 26 pool/replay, 12 account consent, 2 fake composition                                                                          |
+| `npx vitest run test/unit/confirmations.test.ts test/unit/policyGate.test.ts test/unit/paidConsent.test.ts --maxWorkers=3` | **68 passed**: 15 confirmation, 32 policy, 21 legacy consent                                                                                   |
+| `npm run typecheck`                                                                                                        | All five projects passed                                                                                                                       |
+| `npx eslint --max-warnings=0 src/core/accounts/pool.ts test/unit/pool.test.ts`                                             | Passed                                                                                                                                         |
+| `npx prettier --check` on all four changed files; `git diff --check`                                                       | Passed                                                                                                                                         |
+| `npm run deadcode`                                                                                                         | Passed; only the two existing configuration hints                                                                                              |
+| `npx jscpd`                                                                                                                | Passed; zero clones, unchanged threshold                                                                                                       |
+| `node scripts/check-l10n.mjs`                                                                                              | 14 tables, 164 manifest strings, 606 source files; zero problems                                                                               |
+| `node scripts/check-host-api.mjs`                                                                                          | Exit 1 only for the existing W-owned `node:crypto` count **46 → 47**; 332 VS Code APIs, 31 vscode files, 25 Node built-ins, 61 theme variables |
+| `npm run build`                                                                                                            | Passed production build, unchanged size caps, split checks, host globals and notices (83 packages)                                             |
+
+Build sizes remain activation **440.3 / 600 KiB**, Model API
+**450.1 / 475 KiB**, ACP **818.6 / 850 KiB**, webview startup
+**897.3 / 900 KiB**, and deferred webview JavaScript **49.7 / 50 KiB**.
+The host-record deferral is now explicit in PLAN §7; the lane scope prevents
+editing W's generated document. Aggregate quality/coverage and installed
+editor/live checks remain with the lead under that same bounded-lane rule.
+
 ## FIXM108P review repairs
 
 Repair base `d1054081`; all five RVM108P P2 findings are fixed. There were no

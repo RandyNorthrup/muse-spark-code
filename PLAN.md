@@ -19833,6 +19833,17 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108P2 (2026-10-06):** close RVM108P2's remaining P2 stop-recovery
+finding. Evaluate every model-eligible fallback candidate's complete blocking
+triggers and cold-cache projection before skipping a shared vendor limit;
+retain that skip and its notice for admission. Report the earliest known
+per-account usable time, including same-group candidates, and retain the
+configured fallback order when accounts recover together. Regress the
+monthly-capped current account versus an earlier same-group recovery and
+the tie case, with default-timeout complete-file tests and byte-exact red
+drills in `docs/certification/m108-p-pool-and-policy.md`. No new scope,
+dependency, wire shape, user-visible text, timeout or guard changes.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -20078,12 +20089,16 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ## 7. Gates
 
-**FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
+**FIXM108P / FIXM108P2 bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
 calls. Run complete owning test files with repository timeouts and at most
 three workers/files, scoped static/build checks and hook-on local commits.
 The lead retains integrated quality, coverage and installed editor/live gates;
 no gate is weakened. Receipts: `docs/certification/m108-p-pool-and-policy.md`.
+Existing `P-W-HOST-API-RECORD` deferral: the generated Node crypto import
+count is 46 rather than 47, from P's earlier confirmation digest; W owns
+regenerating that record and rerunning the host API gate during integration.
+FIXM108P2 adds no host API and leaves this generated file with its owner.
 
 **FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit full quality/full unit runs, merges and network calls.
@@ -21279,7 +21294,7 @@ before a repaired one loads (2026-09-30).
   Safe for now: these account modules remain absent from shipped graphs and
   installed multi-account surfaces remain disabled on this base. Follow-up:
   W/M109 certify multi-window revocation and concurrent grants on that same
-  profile owner before enabling those surfaces. No RVM108P finding remains
+  profile owner before enabling those surfaces. No RVM108P or RVM108P2 finding remains
   within the supplied in-process ports.
 
 - **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**

@@ -272,14 +272,6 @@ export class AccountPool {
     for (const account of candidates) {
       if (account.id === current.id && triggers.length > 0) continue
       if (!this.deps.canUseModel(account, request)) continue
-      if (
-        triggers[0]?.kind === 'vendorLimit' &&
-        (this.deps.policy()?.limitScopes.includes('global') === true ||
-          (current.limitGroup !== undefined && account.limitGroup === current.limitGroup))
-      ) {
-        await this.deps.sharedGroupNotice(account.id)
-        continue
-      }
       const coldCacheUsd =
         account.id === current.id ? parseUsd(0) : this.deps.coldCache(current, account, request)
       if (coldCacheUsd < parseUsd(0)) throw new Error(UI_TEXT.accounts.invalidAccount)
@@ -288,6 +280,16 @@ export class AccountPool {
         costUsd: sumUsd([request.estimate.costUsd, coldCacheUsd]),
       }
       const blocked = this.triggers(account, estimate, this.deps.journal, request)
+      allTriggers.push(...blocked)
+      recoveries.push(this.reset(blocked))
+      if (
+        triggers[0]?.kind === 'vendorLimit' &&
+        (this.deps.policy()?.limitScopes.includes('global') === true ||
+          (current.limitGroup !== undefined && account.limitGroup === current.limitGroup))
+      ) {
+        await this.deps.sharedGroupNotice(account.id)
+        continue
+      }
       if (blocked.length === 0)
         return {
           account,
@@ -298,8 +300,6 @@ export class AccountPool {
           decision,
           policyTrigger: triggers[0],
         }
-      allTriggers.push(...blocked)
-      recoveries.push(this.reset(blocked))
     }
     return await this.stop(current, allTriggers, undefined, recoveries)
   }

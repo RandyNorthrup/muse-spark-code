@@ -166,6 +166,39 @@ describe('M108 account pool request boundaries', () => {
     expect(t.dispatch).not.toHaveBeenCalled()
   })
 
+  it.each([
+    { name: 'before the current monthly cap', isTie: false, recovered: 'b' },
+    { name: 'in configured fallback order on a tie', isTie: true, recovered: 'c' },
+  ])('recovers a same-group candidate $name', async ({ isTie, recovered }) => {
+    const t = poolRig()
+    for (const row of t.rows) row.limitGroup = 'same-team'
+    t.rows[0]!.thresholds = { requests: { month: 1 } }
+    t.counts.set('a', 1)
+    if (isTie) {
+      t.rows[1]!.order = 2
+      t.rows[2]!.order = 1
+    } else {
+      t.rows[2]!.thresholds = { requests: { day: 1 } }
+      t.counts.set('c', 1)
+    }
+    t.blocks.set('b', blocked)
+    await expect(t.run()).rejects.toMatchObject({ resetAt: RESET })
+    expect(t.deps.sharedGroupNotice).toHaveBeenCalledWith('b')
+    expect(t.deps.sharedGroupNotice).toHaveBeenCalledWith('c')
+    expect(t.deps.reserve).not.toHaveBeenCalled()
+    expect(t.dispatch).not.toHaveBeenCalled()
+    t.deps.now = () => Date.parse(RESET) - 1
+    await expect(t.run()).rejects.toMatchObject({ resetAt: RESET })
+    expect(t.dispatch).not.toHaveBeenCalled()
+    t.deps.now = () => Date.parse(RESET)
+    expect(await t.run()).toBe(recovered)
+    expect(t.pool.current('conversation', 'main')).toBe(recovered)
+    expect(t.events).toContainEqual(
+      expect.objectContaining({ type: 'swap', account: recovered, previousAccount: 'a' }),
+    )
+    expect(await t.run()).toBe(recovered)
+  })
+
   it('honors per-account Retry-After at each send and keeps sent uncertainty on its account', async () => {
     const t = poolRig()
     await expect(
