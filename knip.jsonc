@@ -64,6 +64,8 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/runtime/main.ts",
+    // M112 A: same-build ACP question factory, loaded by path on first use.
+    "src/acp/questionDeferralEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     "test/e2e/fake-muse/serve.mjs",

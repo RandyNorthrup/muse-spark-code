@@ -18,7 +18,7 @@ import {
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
-import { questionDeferSeconds } from '../acp/questionDeferral'
+import { questionDeferSeconds } from '../shared/questionDeadline'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */

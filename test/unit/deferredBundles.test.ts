@@ -97,7 +97,10 @@ beforeAll(async () => {
       ...common,
       outdir: 'dist',
       target: 'node22',
-      entryPoints: { acp: 'src/runtime/main.ts' },
+      entryPoints: {
+        acp: 'src/runtime/main.ts',
+        acpQuestions: 'src/acp/questionDeferralEntry.ts',
+      },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
     }),
@@ -135,10 +138,13 @@ beforeAll(async () => {
         ),
         outputs: { [`dist/${name}.js`]: details },
       })
-      fixtures.set(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`, {
-        bytes: Buffer.from(JSON.stringify(meta)),
-        meta,
-      })
+      fixtures.set(
+        `dist/${name === 'acp' || name === 'acpQuestions' ? 'meta-acp' : 'meta'}/${name}.json`,
+        {
+          bytes: Buffer.from(JSON.stringify(meta)),
+          meta,
+        },
+      )
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
@@ -213,7 +219,8 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 
 function inputs(name: string): string[] {
   return Object.keys(
-    fixture(`dist/${name === 'acp' ? 'meta-acp' : 'meta'}/${name}.json`).meta.inputs,
+    fixture(`dist/${name === 'acp' || name === 'acpQuestions' ? 'meta-acp' : 'meta'}/${name}.json`)
+      .meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
 
@@ -430,6 +437,12 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['acp', 'src/acp/questionDeferral.ts', 'on the first ACP question or question command'],
+    [
+      'modelApi',
+      'src/acp/questionDeferralEntry.ts',
+      'on the first ACP question or question command',
+    ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],

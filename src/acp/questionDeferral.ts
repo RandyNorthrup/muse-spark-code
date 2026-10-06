@@ -1,15 +1,9 @@
 // M112 lane A: the agent owns the clock; the portable registry owns state,
 // persistence, coalescing and exactly-once delivery. Cancellation is cooperative.
-import type { CreateElicitationResponse } from '@agentclientprotocol/sdk'
-import type { AgentSession, TurnPart } from '../core/agent/agentBackend'
+import type { AgentContext, CreateElicitationResponse } from '@agentclientprotocol/sdk'
+import { isSteerRefusedError, type AgentSession, type TurnPart } from '../core/agent/agentBackend'
 import type { AgentEvent } from '../shared/agentEvents'
-import {
-  MILLISECONDS_PER_SECOND,
-  QUESTION_DEFER_DEFAULT_SECONDS,
-  QUESTION_DEFER_MAX_SECONDS,
-  QUESTION_DEFER_MIN_SECONDS,
-  UI_TEXT,
-} from '../shared/constants'
+import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../shared/constants'
 import { fill, formatNumber } from '../shared/l10n/text'
 import type {
   OpenQuestion,
@@ -19,7 +13,8 @@ import type {
   QuestionDeliveryOutcome,
   QuestionReply,
 } from '../shared/questions'
-import { formAnswers } from './questions'
+import { questionDeferSeconds } from '../shared/questionDeadline'
+import { formAnswers, questionCommand, questionForm, questionsText } from './questions'
 
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
 
@@ -60,23 +55,6 @@ export type AcpQuestionRegistryFactory = (input: {
   readonly deliver: (message: QuestionDelivery) => Promise<QuestionDeliveryOutcome>
 }) => AcpQuestionRegistry
 
-/** Real runtime clock, injectable in the ACP tests. */
-export const acpQuestionClock: QuestionClock = {
-  now: () => Date.now(),
-  setTimer: (delayMs, callback) => {
-    const timer = setTimeout(callback, delayMs)
-    return () => {
-      clearTimeout(timer)
-    }
-  },
-}
-
-export function questionDeferSeconds(seconds = QUESTION_DEFER_DEFAULT_SECONDS): number | undefined {
-  if (!Number.isSafeInteger(seconds) || seconds < 0 || seconds > QUESTION_DEFER_MAX_SECONDS)
-    return undefined
-  return seconds === 0 ? 0 : Math.max(QUESTION_DEFER_MIN_SECONDS, seconds)
-}
-
 interface Form {
   readonly event: QuestionRequest
   readonly registered: Promise<OpenQuestion>
@@ -87,13 +65,19 @@ interface Form {
   deferral?: Promise<boolean>
 }
 
-interface AcpQuestionDeferralDeps {
+export interface AcpQuestionDeferralDeps {
   readonly registry: AcpQuestionRegistry
   readonly clock: QuestionClock
   readonly seconds: number
   readonly session: AgentSession
   readonly notice: (text: string) => void
-  readonly isQueued?: (id: string) => boolean
+  /** Fresh ownership/turn snapshot after each asynchronous admission step. */
+  readonly turn?: () => {
+    readonly isReleased: boolean
+    readonly isCancelled: boolean
+    readonly turnId: string | undefined
+    readonly starting: Promise<unknown> | undefined
+  }
   /** Fixed diagnostic only; never the form, response or question text. */
   readonly failed: () => void
 }
@@ -103,6 +87,7 @@ export class AcpQuestionDeferral {
   private readonly numbers = new Map<string, number>()
   private nextNumber = 0
   private isDisposed = false
+  private readonly queuedAnswers = new Set<string>()
 
   public constructor(private readonly deps: AcpQuestionDeferralDeps) {}
 
@@ -138,7 +123,7 @@ export class AcpQuestionDeferral {
     }
     switch (outcome) {
       case 'taken': {
-        return this.deps.isQueued?.(id) === true
+        return this.queuedAnswers.has(id)
           ? UI_TEXT.acpQuestionAnswerQueued
           : UI_TEXT.announceLateAnswerSent
       }
@@ -252,6 +237,74 @@ export class AcpQuestionDeferral {
     return id === undefined
       ? fill(UI_TEXT.acpQuestionNotFound, { number: formatNumber(number) })
       : await this.answerReply(id, { explanation: text }, formatNumber(number))
+  }
+
+  public async command(text: string): Promise<string> {
+    const command = questionCommand(text)
+    if (command?.kind === 'list') return this.list()
+    return command?.kind === 'answer'
+      ? await this.answer(command.number, command.text)
+      : UI_TEXT.acpQuestionAnswerUsage
+  }
+
+  public async askClient(
+    event: QuestionRequest,
+    client: AgentContext,
+    hasForms: boolean,
+    turnId: string | undefined,
+  ): Promise<void> {
+    if (!hasForms) {
+      this.deps.notice(questionsText(event.questions))
+      await this.ask(event, undefined, turnId)
+      return
+    }
+    await this.ask(
+      event,
+      (cancellationSignal) =>
+        client.request(
+          'elicitation/create',
+          {
+            sessionId: this.deps.session.sessionId,
+            mode: 'form',
+            message: UI_TEXT.acpQuestionFormMessage,
+            requestedSchema: questionForm(event.questions),
+          },
+          { cancellationSignal },
+        ),
+      turnId,
+    )
+  }
+
+  public async deliver(message: QuestionDelivery): Promise<QuestionDeliveryOutcome> {
+    let turn = this.deps.turn?.()
+    if (turn === undefined || turn.isReleased || message.sessionId !== this.deps.session.sessionId)
+      return 'notTaken'
+    if (turn.turnId === undefined) {
+      try {
+        await turn.starting
+      } catch {
+        return 'uncertain'
+      }
+      turn = this.deps.turn?.()
+    }
+    if (turn === undefined || turn.isReleased) return 'notTaken'
+    if (turn.turnId !== undefined && !turn.isCancelled) {
+      try {
+        await this.deps.session.steer(turn.turnId, [{ type: 'text', text: message.text }])
+        return 'taken'
+      } catch (error: unknown) {
+        if (!isSteerRefusedError(error)) return 'uncertain'
+      }
+    }
+    if (this.deps.turn?.().isReleased !== false) return 'notTaken'
+    const outcome = await this.deps.registry.queue(message)
+    if (outcome === 'taken') this.queuedAnswers.add(message.userInputId)
+    return outcome
+  }
+
+  public sentQueued(): void {
+    this.queuedAnswers.clear()
+    this.deps.notice(UI_TEXT.announceLateAnswerSent)
   }
 
   /** No forms (and unattended callers) defer immediately, irrespective of seconds=0. */

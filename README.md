@@ -506,7 +506,9 @@ deadline. A client without forms gets the text and immediate deferral,
 including with a deadline of 0. `/questions` lists open questions;
 `/answer <n> <text>` answers one by its displayed number. A late form answer
 or `/answer` steers a running prompt, or is kept before your next message
-when idle. The agent announces these commands alongside skills. Configure
+when idle. It is announced as queued until the next prompt sends it. Stop
+cancels the backend without waiting for question storage. The agent announces
+these commands alongside skills. Configure
 its deadline with `--questions-defer-after <seconds>`; the default and limits
 match the setting. [The ACP guide](docs/acp.md#questions) explains the details.
 

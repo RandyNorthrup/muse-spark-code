@@ -23,6 +23,9 @@ happened, not what was planned; superseded entries are kept.
   wait for registry opening, failed deferrals explicitly cancel the waiting
   tool, and released sessions cannot queue refused steers. Idle answers are
   announced as queued until the next prompt actually sends them.
+- ACP question forms, local commands and late-answer admission load on first
+  use from the agent package's `acpQuestions.js`; CLI deadline parsing keeps
+  only the small shared normalizer. Startup growth meets M112's 2 KiB target.
 
 - Correct the frozen question contract: scheduled/unattended prompts defer
   immediately, including when interactive deferral is disabled.

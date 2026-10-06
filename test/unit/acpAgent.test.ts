@@ -3,6 +3,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import { createAcpQuestions } from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -99,6 +100,7 @@ function harness(options: HarnessOptions = {}): Harness {
       hostFor: () => Promise.resolve(options.backendHost ?? host),
     },
     version: '0.0.0-test',
+    questionBundle: () => ({ createAcpQuestions }),
     options: {
       canBypass: options.canBypass ?? false,
       allowsContributorModels: options.allowsContributorModels ?? false,

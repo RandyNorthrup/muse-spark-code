@@ -278,7 +278,11 @@ a valid answer is then a late answer. An invalid, declined or cancelled late
 form leaves the open question intact. An early declined/invalid form still
 declines the waiting question. Stop cancels a waiting question; interrupted
 or failed turns retain it as open. Closing or replacing a held session
-withdraws its forms and ignores their late replies.
+withdraws its forms and ignores their late replies. Stop sends backend
+cancellation without waiting for question storage. If deferral fails, the
+waiting question is explicitly cancelled so its tool cannot hang behind a
+withdrawn form. Question handling loads on the first question or local
+question command.
 
 Without forms, the question appears as text and defers immediately. Use
 `/questions` to see open questions and their numbers, then `/answer 1 use blue`
@@ -288,7 +292,9 @@ commands work during a running prompt and make no model request themselves.
 A late answer steers a running prompt. While idle, or when a steer is proven
 not taken, it is stored before the next ordinary prompt. Uncertain delivery
 is marked and never retried. Answering approves no tool, changes no permission
-mode and grants no session rule. The next prompt bills as usual.
+mode and grants no session rule. A stored answer is announced as queued;
+the sent notice follows its admission with the next prompt. The next prompt
+bills as usual.
 
 Add `--questions-defer-after` and its seconds value to the editor's configured
 agent arguments. The default is 60; 0 disables the interactive deadline;

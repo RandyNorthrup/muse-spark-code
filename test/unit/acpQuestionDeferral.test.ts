@@ -3,7 +3,9 @@ import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
-import { AcpQuestionDeferral, questionDeferSeconds } from '../../src/acp/questionDeferral'
+import { AcpQuestionDeferral } from '../../src/acp/questionDeferral'
+import { createAcpQuestions } from '../../src/acp/questionDeferralEntry'
+import { questionDeferSeconds } from '../../src/shared/questionDeadline'
 import { questionCommand, questionForm } from '../../src/acp/questions'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { SteerRefusedError, type TurnSubmission } from '../../src/core/agent/agentBackend'
@@ -304,6 +306,21 @@ describe('M112 ACP form deferral', () => {
     expect(f.failed).toHaveBeenCalledTimes(1)
   })
 
+  it('a failed deferral still cancels its tool when the registry reply write also fails', async () => {
+    const f = fixture(10)
+    f.registry.defer.mockRejectedValueOnce(new Error('PRIVATE-QUESTION-CANARY'))
+    f.registry.replyWaiting.mockRejectedValueOnce(new Error('PRIVATE-QUESTION-CANARY'))
+    const { asking } = await waitingForm(f)
+    f.clock.advance(10 * SECOND)
+    await until(() => f.session.cancelQuestions.mock.calls.length === 1)
+    f.client.answer(1, { action: 'accept', content: { colour: 'Blue' } })
+    await asking
+    expect(f.session.cancelQuestions).toHaveBeenCalledExactlyOnceWith('q-1')
+    expect(f.notice).not.toHaveBeenCalled()
+    expect(f.delivery).not.toHaveBeenCalled()
+    expect(f.clock.pendingTimers).toBe(0)
+  })
+
   it('replay keeps its persisted arrival-time deadline', async () => {
     const f = fixture()
     const original = f.registry.register.getMockImplementation()!
@@ -452,6 +469,7 @@ function agentHarness(
     response: ReturnType<typeof Promise.withResolvers<acp.CreateElicitationResponse>>
   }[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const questionBundle = vi.fn(() => ({ createAcpQuestions }))
   const agent = createAcpAgent({
     backend: {
       kind: 'museCode',
@@ -475,6 +493,7 @@ function agentHarness(
     }),
     log,
     questionClock: clock,
+    questionBundle,
     questions:
       policy === 'decline'
         ? 'decline'
@@ -513,7 +532,19 @@ function agentHarness(
   const finish = (turnId = 'turn-1') => {
     session.emit({ type: 'turnCompleted', turnId, terminal: 'completed' })
   }
-  return { clock, session, host, registries, updates, forms, log, run, prompt, finish }
+  return {
+    clock,
+    session,
+    host,
+    registries,
+    updates,
+    forms,
+    log,
+    run,
+    prompt,
+    finish,
+    questionBundle,
+  }
 }
 
 async function startedPrompt(h: ReturnType<typeof agentHarness>, client: acp.ClientContext) {
@@ -528,6 +559,12 @@ async function requestedQuestion(h: ReturnType<typeof agentHarness>, client: acp
   return started
 }
 
+async function openQuestion(h: ReturnType<typeof agentHarness>, client: acp.ClientContext) {
+  const started = await requestedQuestion(h, client)
+  await until(() => h.registries[0]?.list()[0]?.state === 'open')
+  return started
+}
+
 async function resumeActiveTurn(h: ReturnType<typeof agentHarness>, client: acp.ClientContext) {
   const resume = h.host.resumeSession.getMockImplementation()!
   h.host.resumeSession.mockImplementationOnce(async (...args) => ({
@@ -539,6 +576,28 @@ async function resumeActiveTurn(h: ReturnType<typeof agentHarness>, client: acp.
 }
 
 describe('M112 through the pinned ACP SDK client', () => {
+  it('loads question handling on the first local command or question only', async () => {
+    const h = agentHarness()
+    await h.run(async (client) => {
+      expect(h.questionBundle).not.toHaveBeenCalled()
+      const { response } = await startedPrompt(h, client)
+      h.finish()
+      await response
+      expect(h.questionBundle).not.toHaveBeenCalled()
+      await h.prompt(client, '/questions')
+      expect(h.questionBundle).toHaveBeenCalledTimes(1)
+      await h.prompt(client, '/answer 1 Blue')
+      expect(h.questionBundle).toHaveBeenCalledTimes(1)
+    })
+    const asking = agentHarness()
+    await asking.run(async (client) => {
+      const { response } = await requestedQuestion(asking, client)
+      await until(() => asking.registries[0]?.list()[0]?.state === 'open')
+      expect(asking.questionBundle).toHaveBeenCalledTimes(1)
+      asking.finish()
+      await response
+    })
+  })
   it('no forms defer, /questions and /answer work during a running prompt, and answers steer once', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
@@ -703,21 +762,28 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
-  it('Stop still cancels the backend when writing question state fails', async () => {
-    const h = agentHarness()
-    await h.run(async (client) => {
-      const { response } = await startedPrompt(h, client)
-      h.registries[0]?.turnEnded.mockRejectedValueOnce(new Error('PRIVATE-QUESTION-CANARY'))
-      await client.notify('session/cancel', { sessionId: h.session.sessionId })
-      await until(() => h.session.cancel.mock.calls.length === 1)
-      h.finish()
-      expect(await response).toEqual({ stopReason: 'cancelled' })
-      expect(h.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining('question state was not saved'),
-      )
-      expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('PRIVATE-QUESTION-CANARY')
-    })
-  })
+  it.each(['rejected', 'thrown'] as const)(
+    'Stop still cancels the backend when writing question state fails: %s',
+    async (failure) => {
+      const h = agentHarness()
+      await h.run(async (client) => {
+        const { response } = await startedPrompt(h, client)
+        h.registries[0]?.turnEnded.mockImplementationOnce(() => {
+          const error = new Error('PRIVATE-QUESTION-CANARY')
+          if (failure === 'thrown') throw error
+          return Promise.reject(error)
+        })
+        await client.notify('session/cancel', { sessionId: h.session.sessionId })
+        await until(() => h.session.cancel.mock.calls.length === 1)
+        h.finish()
+        expect(await response).toEqual({ stopReason: 'cancelled' })
+        expect(h.log.warn).toHaveBeenCalledWith(
+          expect.stringContaining('question state was not saved'),
+        )
+        expect(JSON.stringify(h.log.warn.mock.calls)).not.toContain('PRIVATE-QUESTION-CANARY')
+      })
+    },
+  )
 
   it('Stop cancels the backend before a pending question write settles', async () => {
     const h = agentHarness()
@@ -741,8 +807,7 @@ describe('M112 through the pinned ACP SDK client', () => {
   it('a refused steer after session release cannot enqueue on its disposed registry', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
-      const { response } = await requestedQuestion(h, client)
-      await until(() => h.registries[0]?.list()[0]?.state === 'open')
+      const { response } = await openQuestion(h, client)
       const gate = Promise.withResolvers<TurnSubmission>()
       h.session.steer.mockReturnValueOnce(gate.promise)
       const answer = h.prompt(client, '/answer 1 Blue')
@@ -759,8 +824,7 @@ describe('M112 through the pinned ACP SDK client', () => {
   it('an idle answer announces queued until the next prompt sends it', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
-      const { response } = await requestedQuestion(h, client)
-      await until(() => h.registries[0]?.list()[0]?.state === 'open')
+      const { response } = await openQuestion(h, client)
       h.finish()
       await response
       await h.prompt(client, '/answer 1 Blue')

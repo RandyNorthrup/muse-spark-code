@@ -226,7 +226,8 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       and problem report builder and second scrub)
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events, questionDeferral.ts
-                      (M112: the agent's clock, cooperative form withdrawal,
+                      (dist/acpQuestions.js, loaded on the first question or
+                      question command; M112: cooperative form withdrawal,
                       local answer/list commands and the registry binding);
                       must not import
                       `vscode`

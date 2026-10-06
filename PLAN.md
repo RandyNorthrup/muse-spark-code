@@ -19467,6 +19467,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| Location                                       | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
+| ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A) | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
+
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
@@ -19589,6 +19593,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM112A-Q-RUNTIME (inherited integration handoff, 2026-10-06).** All six
+  RVM112A findings are fixed with regressions and byte-restored drills in
+  `docs/certification/m112-a.md`; none is deferred. Lane A meets the ACP
+  additive target (1.81 KiB) by loading `acpQuestions.js` on first use, with
+  a separate 25 KiB ceiling and the existing ACP 850 KiB cap unchanged.
+  This base still lacks Q's backend `deferQuestions`, durable registry/queue
+  and runtime/exec bindings; typecheck and the eight frozen model-text
+  reader checks therefore remain red. Safe for now: this is an unmerged
+  integration lane, with no production no-op binding or shipping-ready claim.
+  Follow-up: Q/lead bind the real registry, run integrated goldens/e2e/full
+  quality, remeasure Q/U/A growth, and collect the installed-editor and
+  authorized live receipts. HELPREF/M104 bindings remain the named handoffs
+  in the same certification record; this repair adds no command or setting.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
