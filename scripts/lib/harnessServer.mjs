@@ -8,12 +8,14 @@ import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
 import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
+import { build } from 'esbuild'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
 // The bundle a scenario plays in: the Models & Agents panel's own
 // (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
 export function bundleFor(scenario) {
+  if (scenario.startsWith('usage-page-')) return 'usage'
   return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
@@ -27,6 +29,20 @@ export const TRAFFIC_SCENARIOS = [
   'runners',
 ]
 export const SCENARIOS = [
+  ...[
+    'empty',
+    'history-off',
+    'one-provider',
+    'nine-providers',
+    'plan-only',
+    'local-only',
+    'stale',
+    'over-limit',
+    'newer-version',
+    'long-german',
+    'long-russian',
+    'narrow',
+  ].map((name) => `usage-page-${name}`),
   'empty',
   'signin',
   'signin-nocli',
@@ -115,6 +131,17 @@ export const SCENARIOS = [
   'usage-api',
   // M95: Account & usage with per-provider rows and key usage.
   'usage-providers',
+  // M95b shared plan surfaces and their 320 px layouts.
+  'plan-chatgpt',
+  'plan-notice',
+  'plan-notice-narrow',
+  'plan-limit',
+  'plan-limit-narrow',
+  'plan-usage',
+  'plan-usage-narrow',
+  'plan-key',
+  'copilot-plan',
+  'copilot-plan-narrow',
   'reply-usage',
   'banner',
   'jump',
@@ -233,8 +260,22 @@ const CONTENT_TYPES = {
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
 export async function serveRepo(repoRoot) {
   await buildTrafficHarness()
+  const fixture = await build({
+    entryPoints: [path.join(repoRoot, 'test/unit/helpers/usageFixtures.ts')],
+    outfile: path.join(repoRoot, 'temp/harness-usage.js'),
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    globalName: 'museUsageHarness',
+    write: false,
+  })
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
+    if (url.pathname === '/usage-harness.js') {
+      response.writeHead(200, { 'content-type': 'text/javascript' })
+      response.end(fixture.outputFiles[0].contents)
+      return
+    }
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
     if (!target.startsWith(repoRoot)) {
       response.writeHead(403).end()
@@ -274,10 +315,15 @@ export const SIZED_SCENARIOS = {
   ),
   'share-narrow': { width: 320, ready: '[role="dialog"]' },
   'team-tree-320': { width: 320, ready: '[role="dialog"]' },
+  'usage-page-narrow': { width: 320, ready: '.usage-page[aria-busy="false"]' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },
   'judge-usage': { width: 690, ready: '[role="dialog"]' },
+  'plan-notice-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-limit-narrow': { width: 320, ready: '#chatgpt-plan-title' },
+  'plan-usage-narrow': { width: 320, ready: '#usage-title' },
+  'copilot-plan-narrow': { width: 320, ready: '.copilot-note' },
   // M91 lane M: the MCP elicitation form at the panel's narrowest width.
   'elicitation-narrow': { width: 320, ready: 'form' },
   'legal-narrow': { width: 320, ready: '[role="dialog"]' },

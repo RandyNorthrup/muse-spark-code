@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { compactVsix } from './lib/compactVsix.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 import { renderPackageReadme } from './check-badges.mjs'
@@ -11,20 +12,30 @@ import { renderPackageReadme } from './check-badges.mjs'
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
 const COMPACT_JSON =
-  /^(?:l10n\/ui\.[^/]+\.json|package(?:\.nls(?:\.[^/]+)?)?\.json|dist\/whatsNew\.json)$/
+  /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/(?:providerCatalog|whatsNew)\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 export function packagedChangelog(text) {
   const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
   if (headings.length === 0) throw new Error('No released changelog section')
   const end = headings[RECENT_RELEASES]?.index ?? text.length
-  return `${text.slice(0, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
+  const firstRelease = headings[0].index
+  const prefix = text.slice(0, firstRelease)
+  const highlights = prefix
+    .split(/^### /m)
+    .filter((part) => part.startsWith('Highlights\n'))
+    .map((part) => part.slice('Highlights\n'.length).trim())
+    .join('\n\n')
+  const unreleased = prefix.includes('## [Unreleased]')
+    ? `# Changelog\n\n## [Unreleased]\n\n${highlights === '' ? '' : `### Highlights\n\n${highlights}\n\n`}[Complete Unreleased notes](${HISTORY}#unreleased).\n\n`
+    : prefix
+  return `${unreleased}${text.slice(firstRelease, end).trimEnd()}\n\n[Complete release history](${HISTORY}).\n`
 }
 
 export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
   const files = await listFiles({ cwd: root, dependencies: false })
-  for (const page of ['webview', 'modelsWebview', 'whatsNewPage']) {
+  for (const page of ['webview', 'modelsWebview', 'whatsNewPage', 'usageWebview']) {
     const webview = JSON.parse(readFileSync(path.join(root, `dist/meta/${page}.json`), 'utf8'))
     for (const file of Object.keys(webview.outputs)) {
       if (!file.endsWith('.js')) continue
@@ -93,7 +104,8 @@ async function main() {
   })
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
   const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
-  await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  await compactVsix(archive, result.files)
   execFileSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
     cwd: root,
     stdio: 'inherit',

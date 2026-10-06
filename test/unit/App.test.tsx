@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
@@ -789,6 +789,47 @@ describe('App conversation', () => {
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowLeft' })
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'medium' })
     expect(screen.getByRole('menu')).toBeInTheDocument()
+  })
+
+  it('uses the selected model record tiers in the Modes menu', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'anthropic/claude-sonnet-5-5',
+          displayLabel: 'Sonnet',
+          isDefault: false,
+          effortLevels: ['low', 'high'],
+        },
+      ],
+    })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'anthropic/claude-sonnet-5-5',
+      contextLimit: 1_000_000,
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByTitle('Max')).toBeNull()
+    expect(screen.queryByTitle('Medium')).toBeNull()
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+  })
+
+  it('keeps empty native effort lists from posting fallback tiers', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        { modelId: 'anthropic/haiku', displayLabel: 'Haiku', isDefault: false, effortLevels: [] },
+      ],
+    })
+    deliver({ type: 'sessionInfo', modelId: 'anthropic/haiku', contextLimit: 200_000 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByText('Effort (High)')).toBeNull()
+    postMessage.mockClear()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
+    expect(postMessage).not.toHaveBeenCalled()
   })
 
   it('opens the Modes menu from the palette row', () => {
@@ -2022,7 +2063,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     expect(
       screen.getByRole('progressbar', { name: 'Current window: 42% used' }),
     ).toBeInTheDocument()
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     fireEvent.keyDown(screen.getByLabelText('Close'), { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(textarea())
@@ -2032,7 +2073,7 @@ describe('App account & usage, onboarding and announcements (M8)', () => {
     renderReady()
     const dialog = await openUsageDialog()
     deliver({ type: 'usageReport', backend: 'museCode', subscription })
-    expect(dialog).toHaveTextContent('muse-pro')
+    await waitFor(() => expect(dialog).toHaveTextContent('muse-pro'))
     deliver({ type: 'conversationCleared', accountBoundary: true })
     expect(screen.queryByText('muse-pro')).toBeNull()
     expect(screen.queryByRole('dialog', { name: 'Account & usage' })).toBeNull()
@@ -3431,14 +3472,14 @@ describe('App BYO picker and setup (M95)', () => {
     })
   })
 
-  it('confirms the finished setup once, then manages and dismisses', () => {
+  it('confirms the finished setup once, then manages and dismisses', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'setupComplete',
       provider: 'OpenRouter',
       model: 'openrouter/deepseek/deepseek-v3',
     })
-    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
+    expect(await screen.findByRole('status')).toHaveTextContent('OpenRouter')
     expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
     fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })

@@ -54,6 +54,7 @@ export async function recoverProviderRemovals(
 
 /** The panel bundle's one export. */
 export interface ModelsPanelBundle {
+  readonly createSubscriptionFeatures: typeof ModelsPanelEntry.createSubscriptionFeatures
   readonly createModelsPanelFeatures: typeof ModelsPanelEntry.createModelsPanelFeatures
   readonly setComposerModelConfirmed?: typeof ModelsPanelEntry.setComposerModelConfirmed
   readonly publishProviderSetup?: typeof ModelsPanelEntry.publishProviderSetup
@@ -64,6 +65,8 @@ export function isModelsPanelBundle(value: unknown): value is ModelsPanelBundle 
   return (
     typeof value === 'object' &&
     value !== null &&
+    'createSubscriptionFeatures' in value &&
+    typeof value.createSubscriptionFeatures === 'function' &&
     'createModelsPanelFeatures' in value &&
     typeof value.createModelsPanelFeatures === 'function'
   )

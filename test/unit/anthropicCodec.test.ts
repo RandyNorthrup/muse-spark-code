@@ -1552,9 +1552,16 @@ describe('error envelope and models list', () => {
       displayName: 'Claude Sonnet 5.5',
       maxInputTokens: 1_000_000,
       maxTokens: 128_000,
+      native: capture.response.bodySummary.sample[0],
     })
     expect(parseAnthropicModelsList({ data: [{ id: 'bare' }] })).toEqual([
-      { id: 'bare', displayName: undefined, maxInputTokens: undefined, maxTokens: undefined },
+      {
+        id: 'bare',
+        displayName: undefined,
+        maxInputTokens: undefined,
+        maxTokens: undefined,
+        native: { id: 'bare' },
+      },
     ])
   })
 

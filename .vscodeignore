@@ -5,8 +5,11 @@
 !dist/modelApi.js
 !dist/modelApiBoundaries.js
 !dist/providers.js
+!dist/providerPolicy.js
 !dist/legalScan.js
 !dist/legal-data/**
+!dist/subscriptions.js
+!dist/configuredProviders.js
 !dist/sessionBoard.js
 !dist/reviewer.js
 !dist/team.js
@@ -29,6 +32,9 @@
 !dist/webFetch.js
 !dist/museCodeReviewer.js
 !dist/modelsPanel.js
+!dist/usageService.js
+!dist/usageCompanion.js
+!dist/usagePanel.js
 !dist/uiText.js
 !dist/validation.js
 !dist/whatsNew.js
@@ -50,6 +56,8 @@
 !dist/webview/models.js
 !dist/webview/models.css
 !dist/providerCatalog.js
+!dist/webview/usage.js
+!dist/webview/usage.css
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css
 !media/icon.svg
@@ -66,6 +74,8 @@
 !package.nls.json
 !package.nls.*.json
 !l10n/ui.*.json
+!l10n/usage.*.json
+!l10n/usage.tables.json.br
 !README.md
 !CHANGELOG.md
 !LICENSE
@@ -77,3 +87,6 @@
 !vendor/models-dev/VENDOR.json
 !first-party-skills/**
 !skills/**
+
+!dist/modelApiHooks.js
+!dist/modelApiMcp.js

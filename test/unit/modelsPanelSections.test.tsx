@@ -51,6 +51,20 @@ function props(
 }
 
 describe('ProvidersSection', () => {
+  it('connects subscription actions from explicit clicks and hides Copilot when the host refuses it', () => {
+    const post = vi.fn()
+    const state = makeState({ subscriptionsAvailable: true, copilotAvailable: true })
+    const { rerender } = render(<ProvidersSection {...props(state, post)} />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.acpChatGpt.actions.add }))
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.planUi.copilotConnect }))
+    expect(post.mock.calls).toEqual([
+      [{ type: 'providers/connectSubscription', providerId: 'chatgpt' }],
+      [{ type: 'providers/connectSubscription', providerId: 'copilot' }],
+    ])
+    rerender(<ProvidersSection {...props({ ...state, copilotAvailable: false }, post)} />)
+    expect(screen.queryByRole('button', { name: UI_TEXT.planUi.copilotConnect })).toBeNull()
+  })
+
   it('requests an edit draft and targets changes and cancellation to that provider', () => {
     const post = vi.fn()
     const state = makeState({ providers: [makeProvider()] })

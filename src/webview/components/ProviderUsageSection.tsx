@@ -9,6 +9,7 @@ import { FactRows } from './FactRows'
  * `plan`, or nothing yet for a priced model the host has not settled (M95).
  */
 function providerCost(row: ProviderUsageRow): string | undefined {
+  if (row.pricing === 'plan') return UI_TEXT.modelPlan
   if (row.costUsd !== undefined) {
     return formatUsd(row.costUsd)
   }
@@ -22,9 +23,6 @@ function providerCost(row: ProviderUsageRow): string | undefined {
     case 'local': {
       // A local model shows cost 0 (M95 acceptance 10).
       return formatUsd(0)
-    }
-    case 'plan': {
-      return UI_TEXT.modelPlan
     }
   }
 }

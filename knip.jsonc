@@ -15,6 +15,16 @@
 
   "entry": [
     "src/extension.ts",
+    "src/runtime/exec/runExec.ts",
+    "src/runtime/runtimeAccountingEntry.ts",
+    "src/runtime/runtimeEngineEntry.ts",
+    "src/host/backend/providerPolicyEntry.ts",
+    "src/core/backends/modelapi/modelApiHooksEntry.ts",
+    "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/runtime/usage/usageServiceEntry.ts",
+    "src/runtime/usage/usageCompanionEntry.ts",
+    "src/host/usage/usagePanelEntry.ts",
+    "src/webview/usage/usage.tsx",
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",
@@ -25,6 +35,8 @@
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
+    "src/host/backend/subscriptionsEntry.ts",
+    "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
@@ -75,6 +87,12 @@
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // Standalone browser checks invoked by path; usageHost is bundled by them.
+    "test/harness/usage-check.mjs",
+    "test/harness/usage-companion.mjs",
+    "test/harness/usage-accounts.mjs",
+    "test/harness/usage-contrast.mjs",
+    "test/harness/usageHost.mjs",
     // Native loader regression child, run by both package scripts after build.
     "test/packaging/moduleExports.test.mjs",
     "test/e2e/**/*.test.ts",

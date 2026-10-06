@@ -67,6 +67,9 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/components/SessionBoardDialog.tsx',
       'src/webview/components/HandoffDialog.tsx',
       'src/webview/components/SecretPromptDialog.tsx',
+      'src/webview/components/PlanUi.tsx',
+      'src/webview/components/UsageProviderSections.tsx',
+      'src/webview/components/SetupBanner.tsx',
     ],
     budgetKiB: 25,
   },
@@ -79,6 +82,20 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
 
 export function webviewDeferredBudgetGroups(meta) {
   const eager = new Set(webviewStartupOutputs(meta))
+  const reachable = new Set()
+  const visit = (file) => {
+    if (reachable.has(file)) return
+    reachable.add(file)
+    const output = meta.outputs[file]
+    if (output === undefined) throw new Error(`Missing webview output: ${file}`)
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
+  }
+  visit('dist/webview/main.js')
+  const separate = new Set()
+  for (const root of ['dist/webview/models.js', 'dist/webview/usage.js']) {
+    if (!Object.hasOwn(meta.outputs, root)) continue
+    for (const file of staticOutputs(meta, [root])) if (!reachable.has(file)) separate.add(file)
+  }
   const entries = (sources) =>
     Object.entries(meta.outputs)
       .filter(([, output]) => sources.includes(output.entryPoint))
@@ -106,7 +123,8 @@ export function webviewDeferredBudgetGroups(meta) {
     name: 'deferred JS',
     budgetKiB: 50,
     outputs: Object.keys(meta.outputs).filter(
-      (file) => file.endsWith('.js') && !eager.has(file) && !assigned.has(file),
+      (file) =>
+        file.endsWith('.js') && !separate.has(file) && !eager.has(file) && !assigned.has(file),
     ),
   })
   return groups

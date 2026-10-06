@@ -16,7 +16,14 @@ import {
   USAGE_WINDOW_DAY_MS,
   USAGE_WINDOW_WEEK_MS,
 } from '../../shared/constants'
-import type { UsageInsightsReport } from '../conversation/conversationController'
+import type { UsageInsights } from '../../shared/usage'
+import type { UsagePageState } from '../../shared/usagePage'
+import { classifyRun } from '../../core/usage/insights'
+
+export interface UsageInsightsReport {
+  readonly day: UsageInsights
+  readonly week: UsageInsights
+}
 
 export interface TraceLogDeps {
   readonly homeDir: string
@@ -99,4 +106,27 @@ export async function readTraceLogs(deps: TraceLogDeps): Promise<readonly TraceL
     .slice(0, TRACE_LOG_MAX_FILES)
   const logs = await Promise.all(newestFirst.map((entry) => readOne(entry.file)))
   return logs.filter((log) => log !== undefined)
+}
+
+/** Attempts by recorded timestamp and origin, across every retained log. */
+export async function readTraceAttempts(deps: TraceLogDeps): Promise<UsagePageState['attempts']> {
+  const groups = new Map<string, UsagePageState['attempts'][number]>()
+  const logs = await readTraceLogs(deps)
+  for (const log of logs) {
+    for (const attempt of log.attempts) {
+      const date = new Date(attempt.atMs)
+      const day =
+        new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+          .toISOString()
+          .split('T', 1)[0] ?? ''
+      const origin = classifyRun(log.runs.get(attempt.runId))
+      const key = `${day}:${origin}`
+      const row = groups.get(key) ?? { day, origin, attempts: 0 }
+      row.attempts += 1
+      groups.set(key, row)
+    }
+  }
+  return Array.from(groups, (entry) => entry[1]).toSorted(
+    (a, b) => a.day.localeCompare(b.day) || a.origin.localeCompare(b.origin),
+  )
 }

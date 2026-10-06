@@ -246,7 +246,7 @@ describe('priceCard', () => {
       splitCacheWrites({
         inputTokens: 1000,
         cacheWriteTokens: 1000,
-        cacheWrite1hTokens: 400,
+        cacheWriteTokens1h: 400,
         outputTokens: 0,
       }),
     ).toEqual({ standard: 600, oneHour: 400 })
@@ -254,7 +254,7 @@ describe('priceCard', () => {
       isValidUsage({
         inputTokens: 1000,
         cacheWriteTokens: 1000,
-        cacheWrite1hTokens: 400,
+        cacheWriteTokens1h: 400,
         outputTokens: 0,
       }),
     ).toBe(true)
@@ -263,11 +263,11 @@ describe('priceCard', () => {
       isValidUsage({
         inputTokens: 1000,
         cacheWriteTokens: 400,
-        cacheWrite1hTokens: 401,
+        cacheWriteTokens1h: 401,
         outputTokens: 0,
       }),
     ).toBe(false)
-    expect(isValidUsage({ inputTokens: 1000, cacheWrite1hTokens: 1, outputTokens: 0 })).toBe(false)
+    expect(isValidUsage({ inputTokens: 1000, cacheWriteTokens1h: 1, outputTokens: 0 })).toBe(false)
   })
 
   it('settles 5-minute and 1-hour writes disjointly at their own rates (F5)', () => {
@@ -277,7 +277,7 @@ describe('priceCard', () => {
       settleUsageUsd(hourly, {
         inputTokens: 1000,
         cacheWriteTokens: 1000,
-        cacheWrite1hTokens: 1000,
+        cacheWriteTokens1h: 1000,
         outputTokens: 0,
       }),
     ).toBeCloseTo(1000 * (hourly.cacheWrite1h ?? 0), 12)
@@ -285,7 +285,7 @@ describe('priceCard', () => {
       settleUsageUsd(hourly, {
         inputTokens: 1000,
         cacheWriteTokens: 1000,
-        cacheWrite1hTokens: 400,
+        cacheWriteTokens1h: 400,
         outputTokens: 0,
       }),
     ).toBeCloseTo(600 * (card.cacheWrite ?? 0) + 400 * (hourly.cacheWrite1h ?? 0), 12)
@@ -294,7 +294,7 @@ describe('priceCard', () => {
       settleUsageUsd(hourly, {
         inputTokens: 1000,
         cacheWriteTokens: 400,
-        cacheWrite1hTokens: 401,
+        cacheWriteTokens1h: 401,
         outputTokens: 0,
       }),
     ).toBeUndefined()
@@ -316,7 +316,7 @@ describe('priceCard', () => {
       inputTokens: 300_000,
       cachedTokens: 100_000,
       cacheWriteTokens: 100_000,
-      cacheWrite1hTokens: 50_000,
+      cacheWriteTokens1h: 50_000,
       outputTokens: 0,
     }
     expect(settleUsageUsd(cacheTiered, usage)).toBeCloseTo(

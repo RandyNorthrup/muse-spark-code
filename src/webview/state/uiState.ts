@@ -69,6 +69,7 @@ import type { SessionRow } from '../../shared/sessions'
 import type {
   AccountFacts,
   ProviderUsageRow,
+  PlanUsageRow,
   SubscriptionUsage,
   UsageInsights,
 } from '../../shared/usage'
@@ -135,6 +136,7 @@ export interface UsageReport {
   readonly providers: readonly ProviderUsageRow[] | undefined
   /** The Team section (M96 lane U2); absent where the team cannot run. */
   readonly team?: TeamUsageSummary | undefined
+  readonly plans?: readonly PlanUsageRow[] | undefined
 }
 
 /**
@@ -332,6 +334,7 @@ export interface UiState {
     readonly hasCli?: boolean | undefined
     readonly hasCliSession?: boolean | undefined
     readonly installState?: 'running' | 'failed' | undefined
+    readonly planAccount?: Extract<HostToWebviewMessage, { type: 'authState' }>['planAccount']
   }
   readonly model:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
@@ -351,6 +354,8 @@ export interface UiState {
   readonly activeTurnId: string | undefined
   /** The last turn the host reported finished (M25): a late `turnAccepted` for it starts nothing. */
   readonly lastCompletedTurnId: string | undefined
+  /** Plan-limit dismissal belongs to the conversation, surviving surface/model changes. */
+  readonly dismissedPlanTurnId: string | undefined
   /** Promoted-steer turn corrections received before their local card is accepted. */
   readonly pendingReplayTurns: Readonly<Record<string, string>>
   /**
@@ -545,6 +550,7 @@ export type UiAction =
   | { readonly type: 'conversationCleared' }
   /** The × on the composer banner (M14). */
   | { readonly type: 'bannerDismissed' }
+  | { readonly type: 'planLimitDismissed'; readonly turnId: string }
   /** The × on the open-file chip. */
   | { readonly type: 'editorContextDismissed' }
   /** The user chose on an approval card; lock that stage until the host moves on. */
@@ -656,6 +662,7 @@ export const initialUiState: UiState = {
   transcript: [],
   activeTurnId: undefined,
   lastCompletedTurnId: undefined,
+  dismissedPlanTurnId: undefined,
   pendingReplayTurns: {},
   admittedMessageIds: [],
   usage: undefined,
@@ -1850,6 +1857,7 @@ function completeTurn(
             id: `error:${event.turnId}`,
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
             ...(reportRef !== undefined && { reportRef }),
+            ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           },
         ]
       : []
@@ -1858,6 +1866,7 @@ function completeTurn(
       ...state,
       activeTurnId: undefined,
       lastCompletedTurnId: event.turnId,
+      dismissedPlanTurnId: event.terminal === 'completed' ? undefined : state.dismissedPlanTurnId,
       strayItems: without(state.strayItems, event.turnId),
       transcript: [
         ...settleAll(
@@ -2392,6 +2401,7 @@ function clearedConversation(state: UiState): UiState {
     reference: undefined,
     activeTurnId: undefined,
     lastCompletedTurnId: undefined,
+    dismissedPlanTurnId: undefined,
     usage: undefined,
     context: undefined,
     todos: [],
@@ -2611,6 +2621,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           hasCli: message.hasCli,
           hasCliSession: message.hasCliSession,
           installState: message.installState,
+          planAccount: message.planAccount,
         },
       }
     }
@@ -2734,6 +2745,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           insights: message.insights,
           team: message.team,
           providers: message.providers === undefined ? undefined : [...message.providers],
+          plans: message.plans,
         },
       }
     }
@@ -2859,6 +2871,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
             schedules: isSameSession ? state.schedules : [],
             activeTurnId: message.activeTurnId,
             lastCompletedTurnId: undefined,
+            dismissedPlanTurnId: isSameSession ? state.dismissedPlanTurnId : undefined,
             pendingReplayTurns: {},
             admittedMessageIds: [],
             usage: isSameSession ? state.usage : undefined,
@@ -3552,6 +3565,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         ...state,
         attachmentsToRelease: state.attachmentsToRelease.filter((id) => !action.ids.includes(id)),
       }
+    }
+    case 'planLimitDismissed': {
+      return action.turnId === state.lastCompletedTurnId
+        ? { ...state, dismissedPlanTurnId: action.turnId }
+        : state
     }
     case 'bannerDismissed': {
       return { ...state, banner: undefined }

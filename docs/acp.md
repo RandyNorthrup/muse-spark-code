@@ -35,6 +35,8 @@ Manual approval is pending. Recall continues the ordinary billed model turn;
 it makes no separate paid-feature request. The VS Code packing setting does
 not apply to this process.
 
+ACP and headless Model API/BYO requests share a hard local-day budget in the agent data folder. Its `settings.json` accepts `{"paidDailyBudgetUsd":5}` (USD; default $5, range $0.50–$500), corresponding to the extension’s `museSpark.paidDailyBudgetUsd`. Reservations use an exclusive cross-process lock before dispatch and settle from verified usage; an interrupted or unpriced request retains its liability. Headless also requires `--max-budget-usd`, and BYO attempts use the same usage journal as interactive turns. Image generation still requires its flag and consent (or the headless flag plus hard run budget). Hosted search is unavailable in this runtime while the hard daily budget is active because its returned fees have no dispatch bound.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);
@@ -142,10 +144,10 @@ asks for it. Elsewhere, run it yourself once:
 - **Muse Code**: `muse-spark-code-acp login` runs Muse Code's own sign-in.
   The agent tells whether Muse Code is signed in as the VS Code panel
   does: from the structure of the CLI's credential file (the emptied file
-  `muse logout` leaves counts as signed out); `META_API_KEY` in the
-  agent's environment counts too, and is handed to Muse Code only: no
-  command, hook or program the agent itself runs sees it or any other
-  `*_API_KEY` variable. Where only the CLI can say (a macOS
+  `muse logout` leaves counts as signed out). The standalone agent strips
+  credential variables, including `META_API_KEY`, and never restores them
+  to a child. Muse Code receives an explicit allowlist of process, profile,
+  configuration-home, proxy and certificate-path variables. Where only the CLI can say (a macOS
   Keychain sign-in), the agent asks it when the editor checks the sign-in
   again after you sign in (ACP's `authenticate`), and otherwise assumes
   the sign-in holds until a turn says it does not.
@@ -154,6 +156,38 @@ asks for it. Elsewhere, run it yourself once:
   Windows Credential Manager, the macOS Keychain, or on Linux the Secret
   Service (GNOME Keyring, KWallet, KeePassXC). `auth status` says whether
   one is stored; `auth clear` removes it.
+
+**ChatGPT subscription sign-in (M95b preview):** the agent advertises
+`providers add chatgpt`, `providers remove chatgpt` and `providers status chatgpt`
+as terminal authentication actions. Editors without terminal authentication
+show the full commands to run manually. These use the same runtime adapter,
+OS credential store and process lock in JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs, Sublime and companion clients. Add prints the
+Plus/Pro eligibility and credit notice before the browser URL and writes
+only eligible account catalogue models to the user-level providers file.
+Status makes no network request; Remove attempts revocation and clears the
+local grant and configuration. ACP authentication verifies the local action
+independently of Meta sign-in. An unavailable store gives a fixed message to
+sign in from an interactive desktop session with the store unlocked; Linux
+also requires Secret Service. For ChatGPT inference, configure the agent with its existing `--backend model-api`
+argument; it uses the account catalogue and the same subscription dispatch as
+the extension. Fake-server inference now passes; installed-editor and live
+success certification remain open. Copilot requires VS Code and is unavailable
+in the standalone agent.
+
+Configured API-key and local providers use the same captured codecs and
+pinned request factory as VS Code, reading the user-level `providers.json`
+and origin-bound records from this agent's OS credential store. Mistral's
+captured plan-key preset is marked **plan**, links its limits, and records
+request/token tallies outside USD caps. No Meta key is needed for its
+inference. General `providers list|add|test|remove` commands and
+`auth set|status|clear --provider <id>` use the same origin-bound records.
+Free probes use the shared request transport. `exec --provider` validates its
+configuration and key, but refuses before dispatch: its production runner
+still needs provider-aware budget admission and settlement. No supported
+headless provider inference is claimed.
+The npm package includes the shared catalogue and lazy provider bundles.
+Installed-editor and live provider certification remain open.
 
 The key is never read from an environment variable, a settings file or an
 argument, and never passed to Muse Code. On Linux without a running,
@@ -401,8 +435,8 @@ the agent starts; checked with Node 22.0.0 to 24.20.0), or
 (accepted from Node 22.15; not exercised here, since that needs a root
 installed in the store).
 
-**Muse Code** (`muse serve`, started by the agent) inherits the same
-environment and reads the proxy variables itself, as it does under VS Code
+**Muse Code** (`muse serve`, started by the agent) receives the allowlisted
+proxy variables and reads them itself, as it does under VS Code
 ([the extension's README](https://github.com/RandyNorthrup/muse-spark-code/blob/main/README.md#proxies-and-certificates)):
 `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` and `NO_PROXY`, with loopback
 added to `NO_PROXY` whenever a proxy is set. It trusts the operating
@@ -499,6 +533,28 @@ the ACP package. These factories need the editor/window runtime to supply
 journalled launch, ownership, permissions and landing; team dispatch and the
 Traffic/Runners panel remain unavailable until those bindings are integrated.
 Packaging them does not enable remote execution or spend.
+
+## Local usage history
+
+Text summaries disclose that they are read-only and link interactive work to
+the companion. The same companion page serves JetBrains, Eclipse, Visual Studio,
+Neovim, Emacs, Sublime, Qt Creator, Zed and Xcode. Its disabled editor settings,
+folder and Models-panel actions are explained on the page; native stdio adapters
+can supply those actions explicitly. Browser downloads have a visible 8-MiB
+encoded bound and return an explicit error above it, leaving refresh available.
+Use a smaller range or the terminal output path for larger exports.
+
+`/usage` prints the shared journal summary; `/usage page` supplies the authenticated
+loopback companion link. Summary rendering and journal aggregation load on the
+first usage action; headless execution loads on the first `exec`.
+The terminal also accepts `usage`, `usage --json`,
+`usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.
+Use `--usage-history=off` when serving ACP to stop new records. The history and
+exports stay on this machine; raw calls roll up after 30 days and daily history
+defaults to 365 days. Deleting it leaves spend ledgers and grants intact. The
+companion uses a one-use fragment code, an in-memory bearer per window and
+fetch-streamed events, with no cookies. See the README Usage and cost section
+for storage folders and the M102 certification for editor/rig receipts.
 
 ## Report a problem (M93)
 

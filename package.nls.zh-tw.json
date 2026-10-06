@@ -179,5 +179,10 @@
   "command.legalScan.title": "法律掃描",
   "config.legalRegistryLookups.description": "首次通知列出登錄庫及傳送的套件名稱與版本後，允許查詢公開登錄庫。關閉後僅使用本機中繼資料。",
   "config.legalExplanation": "選用 Model API 解釋：USD。每次使用皆徵求同意，並共用每日付費預算。",
-  "config.paidDailyBudgetUsd": "付費附加功能的共用每日預算：USD。"
+  "config.paidDailyBudgetUsd": "付費附加功能的共用每日預算：USD。",
+  "command.openUsagePage.title": "開啟用量與費用",
+  "setting.usageHistory.description": "在此電腦上本機記錄模型用量。關閉後將停止新增記錄；即時限額和預算仍然可見。",
+  "setting.usageHistoryDays.description": "每日用量摘要的保留天數（30–1825）。每次呼叫的詳細記錄保留 30 天。",
+  "command.connectChatGpt": "使用 ChatGPT 繼續",
+  "command.connectCopilot": "使用我的 Copilot 模型"
 }

@@ -74,6 +74,9 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
 
 ## Work in the panel
 
+- Open Usage & cost for journal totals, provider limits and budgets; ACP and CLI
+  use the same local records and read-only companion page.
+
 - Stream Markdown, code, reasoning and tool output; attach images or supported
   files, mention workspace context, and use slash commands and saved prompts.
 - Resume, archive, rename, fork and export conversations; rewind conversation

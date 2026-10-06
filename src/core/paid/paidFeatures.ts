@@ -1,3 +1,5 @@
+import type { RecordedCall, UsageRecording } from '../usage/recording'
+import type { UsageRecord } from '../../shared/usageJournal'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -13,7 +15,12 @@
 // No `vscode` here: the host injects the settings, the store, the modal and
 // the window focus.
 
-import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
+import {
+  MODEL_API_IMAGE_MODEL,
+  MUSE_VOICE_MODEL,
+  PAID_FEATURES,
+  type PaidFeature,
+} from '../../shared/constants'
 import {
   EMPTY_PAID_TALLY,
   modelApiPaidTier,
@@ -233,12 +240,44 @@ export class PaidFeatureGate {
   }
 }
 
+/** Shared paid-unit producer for VS Code, ACP and sent calls with lost responses. */
+export function recordPaidUse(
+  recording: UsageRecording | undefined,
+  feature: PaidFeature,
+  units: number,
+  context: Partial<
+    Pick<
+      RecordedCall,
+      'session' | 'startedAt' | 'durationMs' | 'outcome' | 'uncertain' | 'retainedLiabilityUsd'
+    >
+  > = {},
+): void {
+  if (units <= 0 || !['webSearch', 'imageGeneration', 'voice'].includes(feature)) return
+  const otherModel = feature === 'voice' ? MUSE_VOICE_MODEL : 'web_search'
+  const otherKind = feature === 'imageGeneration' ? 'image' : 'voice'
+  const otherUnits = feature === 'imageGeneration' ? { images: units } : { audioSeconds: units }
+  recording?.note(undefined, {
+    backend: 'modelApi',
+    provider: 'meta',
+    model: feature === 'imageGeneration' ? MODEL_API_IMAGE_MODEL : otherModel,
+    kind: feature === 'webSearch' ? 'search' : otherKind,
+    startedAt: Date.now(),
+    outcome: 'completed',
+    units: feature === 'webSearch' ? { searches: units } : otherUnits,
+    ...context,
+  })
+}
+
 /** What this window used of each paid feature since it opened (the usage dialog's tally). */
 export class PaidUsage {
   private tally: PaidTally = EMPTY_PAID_TALLY
+  private hasRestored = false
   private readonly listeners = new Set<() => void>()
 
-  public constructor(private readonly log: CoreLogger) {}
+  public constructor(
+    private readonly log: CoreLogger,
+    private readonly recording?: UsageRecording,
+  ) {}
 
   private addTaskUsage(
     kind: 'teamWorker' | 'bestOfN',
@@ -267,6 +306,80 @@ export class PaidUsage {
     }
     for (const listener of this.listeners) listener()
   }
+  /** Rebuild settled history once; live additions made during the read are retained. */
+  public restore(records: readonly UsageRecord[]): void {
+    if (this.hasRestored) return
+    this.hasRestored = true
+    const restored: PaidTally = { ...EMPTY_PAID_TALLY }
+    const attempts = new Set<string>()
+    for (const record of records) {
+      restored.webSearches += record.units?.searches ?? 0
+      if (record.cost.certainty !== 'uncertain') restored.images += record.units?.images ?? 0
+      restored.voiceSeconds += record.units?.audioSeconds ?? 0
+      if (record.kind === 'schedule') restored.scheduledRuns += 1
+      const tokens = (record.tokens.input ?? 0) + (record.tokens.output ?? 0)
+      const usd = record.cost.usd
+      const isUnknown = usd === undefined || record.cost.certainty === 'uncertain'
+      switch (record.kind) {
+        case 'subagent': {
+          restored.subagentRequests = (restored.subagentRequests ?? 0) + 1
+          restored.subagentUnknownRequests =
+            (restored.subagentUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.subagentTokens = (restored.subagentTokens ?? 0) + tokens
+          restored.subagentCostUsd = (restored.subagentCostUsd ?? 0) + (usd ?? 0)
+
+          continue
+        }
+        case 'reviewer': {
+          restored.autoReviews = (restored.autoReviews ?? 0) + 1
+          restored.autoReviewUnknownRequests =
+            (restored.autoReviewUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.autoReviewTokens = (restored.autoReviewTokens ?? 0) + tokens
+          restored.autoReviewCostUsd = (restored.autoReviewCostUsd ?? 0) + (usd ?? 0)
+
+          continue
+        }
+        case 'bestOfN': {
+          attempts.add(record.session ?? record.id)
+          restored.bestOfNRequests = (restored.bestOfNRequests ?? 0) + 1
+          restored.bestOfNUnknownRequests =
+            (restored.bestOfNUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
+          restored.bestOfNTokens = (restored.bestOfNTokens ?? 0) + tokens
+          restored.bestOfNCostUsd = (restored.bestOfNCostUsd ?? 0) + (usd ?? 0)
+
+          continue
+        }
+        // No default
+      }
+    }
+    restored.bestOfNAttempts = attempts.size
+    const live = this.tally
+    this.tally = {
+      ...restored,
+      webSearches: restored.webSearches + live.webSearches,
+      images: restored.images + live.images,
+      voiceSeconds: restored.voiceSeconds + live.voiceSeconds,
+      scheduledRuns: restored.scheduledRuns + live.scheduledRuns,
+      subagentRequests: (restored.subagentRequests ?? 0) + (live.subagentRequests ?? 0),
+      subagentUnknownRequests:
+        (restored.subagentUnknownRequests ?? 0) + (live.subagentUnknownRequests ?? 0),
+      subagentTokens: (restored.subagentTokens ?? 0) + (live.subagentTokens ?? 0),
+      subagentCostUsd: (restored.subagentCostUsd ?? 0) + (live.subagentCostUsd ?? 0),
+      autoReviews: (restored.autoReviews ?? 0) + (live.autoReviews ?? 0),
+      autoReviewUnknownRequests:
+        (restored.autoReviewUnknownRequests ?? 0) + (live.autoReviewUnknownRequests ?? 0),
+      autoReviewTokens: (restored.autoReviewTokens ?? 0) + (live.autoReviewTokens ?? 0),
+      autoReviewCostUsd: (restored.autoReviewCostUsd ?? 0) + (live.autoReviewCostUsd ?? 0),
+      bestOfNAttempts: (restored.bestOfNAttempts ?? 0) + (live.bestOfNAttempts ?? 0),
+      bestOfNRequests: (restored.bestOfNRequests ?? 0) + (live.bestOfNRequests ?? 0),
+      bestOfNUnknownRequests:
+        (restored.bestOfNUnknownRequests ?? 0) + (live.bestOfNUnknownRequests ?? 0),
+      bestOfNTokens: (restored.bestOfNTokens ?? 0) + (live.bestOfNTokens ?? 0),
+      bestOfNCostUsd: (restored.bestOfNCostUsd ?? 0) + (live.bestOfNCostUsd ?? 0),
+    }
+    for (const listener of this.listeners) listener()
+  }
+
   public get current(): PaidTally {
     return this.tally
   }
@@ -283,6 +396,8 @@ export class PaidUsage {
     if (units <= 0) {
       return
     }
+    recordPaidUse(this.recording, feature, units)
+
     const { tally } = this
     switch (feature) {
       case 'webSearch': {

@@ -9,12 +9,12 @@ import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile } from 'node:fs/promises'
-import { homedir, tmpdir } from 'node:os'
+import { createInterface } from 'node:readline'
+import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
-import { ndJsonStream } from '@agentclientprotocol/sdk'
-import { createAcpAgent, type SignInMethod } from '../acp/agent'
+import type { SignInMethod } from '../acp/agent'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
@@ -23,6 +23,7 @@ import {
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
+  MEMORY_STAGE_FILE_MODE,
   EXTENSION_HOOKS_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -30,13 +31,25 @@ import {
   LEGAL_EXIT,
   LEGAL_SCAN_TIMEOUT_MS,
   LEGAL_SCAN_BUNDLE_FILE,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
   SETTING_DEFAULTS,
+  USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { fill } from '../shared/l10n/text'
-import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
-import { createRuntimeBackend } from './backends'
+import { fill, uiLocale } from '../shared/l10n/text'
+import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
+import {
+  authClear,
+  authClearProvider,
+  type AuthCommandDeps,
+  authSet,
+  authSetProvider,
+  authStatus,
+  authStatusProvider,
+  login,
+} from './authCommands'
 import { isHeadlessCommand, parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
@@ -44,7 +57,9 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore } from './keyStore'
+import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
+import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -54,11 +69,19 @@ import { webReadable } from './webStreams'
 import { createLifecycle } from './exec/execLimits'
 import { createFdWriter } from './exec/fdWriter'
 import { createExecLogger, redactWhole } from './exec/execOutput'
-import { runExec } from './exec/runExec'
 import { runSecretScan } from './exec/scanSecrets'
 import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
 
+import { runProgram } from '../host/processTree'
+import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
+import type { UsageAdapter } from './usage/usageAdapter'
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from '../core/usage/recording'
+import { requireFile } from '../host/lazyBundle'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
@@ -66,10 +89,9 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
-import { uiLocale } from '../shared/l10n/text'
 
 const EXIT_FAILED = 1
-// The Model API key variable Muse Code reads; the report says only whether it was set.
+// Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
 /** The headless deadlines beside exec's own (M97 lane R: the workspace scan). */
 const HEADLESS_FIXED_TIMEOUT_MS = {
@@ -81,9 +103,10 @@ const HEADLESS_WIRING_EXIT = {
   'scan-secrets': EXEC_EXIT.usage,
   legal: LEGAL_EXIT.incomplete,
 } as const
+const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
-// starts a process; only Muse Code's processes get them back (rule 8).
-const museCodeCredentials = takeCredentials(process.env)
+// starts a process; no child gets them back (FIXM95X).
+takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -132,7 +155,11 @@ async function loadSecrets(): Promise<SecretStore> {
         new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
     )
   })()
-  return await nativeStore.value
+  try {
+    return await nativeStore.value
+  } catch {
+    throw new StoreUnavailableError()
+  }
 }
 const secrets: SecretStore = {
   async get(name) {
@@ -213,6 +240,59 @@ function authDeps(): AuthCommandDeps {
   }
 }
 
+async function chatGptDeps() {
+  const bundle = await import('./chatGptProviderCommands')
+  const commands = bundle.runtimeChatGptCommandDeps({
+    uiText: UI_TEXT,
+    locale: uiLocale(),
+    secrets,
+    fetch: globalThis.fetch.bind(globalThis),
+    configFile: path.join(
+      process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      PROVIDERS_CONFIG_DIR_NAME,
+      PROVIDERS_FILE_NAME,
+    ),
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+    openBrowser: (url) => {
+      writeLine(process.stdout, url)
+      return Promise.resolve()
+    },
+    print: (line) => {
+      writeLine(process.stdout, line)
+    },
+    printError: (line) => {
+      writeLine(process.stderr, line)
+    },
+  })
+  return {
+    signIns: bundle.chatGptAuthenticationMethods(() => commands.createHost()),
+    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
+  }
+}
+
+/** The runner's own user file (never a repository file). */
+async function userProvidersFile() {
+  const { userFileIo, providersFilePath } = await import('./providersCommands')
+  return userFileIo(
+    providersFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+  )
+}
+
+/** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
+async function providersDeps(): Promise<ProvidersDeps> {
+  const { resolveEndpointHost } = await import('./providersCommands')
+  return {
+    ...authDeps(),
+    ...(await userProvidersFile()),
+    resolveHost: resolveEndpointHost,
+    fetch: globalThis.fetch.bind(globalThis),
+  }
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -234,8 +314,10 @@ function signInMethod(options: ServeOptions): SignInMethod {
   }
 }
 
-function runtimeFor(options: ServeOptions, log: Logger) {
-  return createRuntimeBackend({
+async function runtimeFor(options: ServeOptions, log: Logger) {
+  const engine = await import('./runtimeEngineEntry')
+  engine.setUiText(UI_TEXT, uiLocale())
+  return engine.createRuntimeBackend({
     options,
     version: packageVersion(),
     distDir,
@@ -244,7 +326,6 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     homeDir: homedir(),
     secrets,
     runGit: processGitRunner(),
-    museCodeCredentials,
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
@@ -323,80 +404,179 @@ async function setupHooks(
   return 0
 }
 
-async function serve(options: ServeOptions, log: Logger): Promise<number> {
-  const runtime = runtimeFor(options, log)
-  // A proxy the Model API backend's requests will not use is said at once (Q66).
-  const proxyWarning = envProxyWarning({
-    backend: options.backend,
-    platform: process.platform,
-    env: process.env,
-    execArgv: process.execArgv,
-    nodeVersion: process.version,
-  })
-  if (proxyWarning !== undefined) {
-    log.warn(proxyWarning)
-  }
-  // "Allow always" lapses for a paid feature started without its flag (M58).
-  await runtime.forgetUnflaggedGrants()
-  // The agent records its own failures for `report` (M93): an activation
-  // marker shields this process's journal from a peer's cleanup while it
-  // runs; there is no crash offer outside the editor, so startup's is unused.
-  const journal = await reportJournal(log)
-  await journal.startup()
-  const legalRegistryNotices = new Map<string, Set<string>>()
-  const agentLegalBundle = legalScanLoader({
-    bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
+function usageFor(
+  log: Logger,
+  recording?: UsageRecording,
+  runtime?: Pick<Awaited<ReturnType<typeof runtimeFor>>, 'readUsageBudgets'>,
+  isHistoryEnabled = true,
+): UsageAdapter {
+  return lazyUsageAdapter({
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    packageRoot,
+    host: hostname(),
+    locale: uiLocale(),
+    uiText: UI_TEXT,
     log,
+    historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
+    ...(recording !== undefined && {
+      beforeRead: () => recording.flush(),
+      live: {
+        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
+        readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
+        providerConsoles: () => [],
+      },
+    }),
   })
-  const agent = createAcpAgent({
-    legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
-      const bundle = agentLegalBundle()
-      const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
-      const render = bundle.renderLegalMarkdown
-      if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
-      signal.throwIfAborted()
-      const enrich = bundle.enrichInteractiveLegalScan
-      if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
-      const noticed = legalRegistryNotices.get(cwd) ?? new Set<string>()
-      legalRegistryNotices.set(cwd, noticed)
-      const result = await enrich(handle, {
-        isOn: () => isRegistryOn,
-        isNoticed: (host) => noticed.has(host),
-        notice: allowsRegistryLookup,
-        markNoticed: (hosts) => {
-          for (const host of hosts) noticed.add(host)
-          return Promise.resolve()
-        },
-        fetch: globalThis.fetch.bind(globalThis),
-        signal,
+}
+
+async function openUsageBrowser(input: string): Promise<void> {
+  const url = usageCompanionUrl(input)
+  let executable = 'xdg-open'
+  if (process.platform === 'darwin') executable = 'open'
+  else if (process.platform === 'win32') executable = 'rundll32.exe'
+  const args = process.platform === 'win32' ? ['url.dll,FileProtocolHandler', url] : [url]
+  // The fixed OS opener receives only a checked loopback URL and no credential
+  // environment; argument arrays never pass through a shell (D82, rule 8).
+  try {
+    if (process.platform === 'linux') {
+      await new Promise<void>((resolve, reject) => {
+        // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed OS opener, validated loopback URL, credential-stripped environment and shell-free arguments (D82, PLAN.md §8).
+        const handler = spawn(executable, args, {
+          env: process.env,
+          detached: true,
+          stdio: 'ignore',
+        })
+        handler.once('error', reject)
+        handler.once('spawn', () => {
+          // A valid xdg-open handler may stay foreground with the browser.
+          // Its lifetime cannot hold the launcher or decide the page's lifetime.
+          handler.unref()
+          resolve()
+        })
       })
-      return render(result)
-    },
-    backend: runtime.backend,
-    version: packageVersion(),
-    options: {
-      canBypass: options.canBypass,
-      allowsContributorModels: options.allowsContributorModels,
-      initialMode: SETTING_DEFAULTS.initialPermissionMode,
-    },
-    signIn: signInMethod(options),
-    defaultCwd: process.cwd(),
-    paid: runtime.paid,
+    } else await runProgram(executable, args, process.env)
+  } catch {
+    // Opener stderr can repeat the private fragment; it never reaches a log.
+    throw new Error(UI_TEXT.actionFailed)
+  }
+}
+
+async function serve(options: ServeOptions, log: Logger): Promise<number> {
+  let clientName = 'ACP'
+  const recording = createUsageRecording({
+    client: () => clientName,
+    now: Date.now,
+    newId: randomUUID,
+    isEnabled: () => options.usageHistory ?? true,
     log,
-    reportError: (fact) => {
-      // Facts only (a fixed kind and code): it never touches ACP stdout, and
-      // the recorder never throws into the session it watches.
-      void journal.record(fact)
+    writer: async (onWriteError) => {
+      const bundle = requireFile(path.join(distDir, 'usageService.js'))
+      if (!isUsageWriterBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
+      return await bundle.createUsageWriter({
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        writerId: randomUUID(),
+        now: Date.now,
+        isEnabled: () => options.usageHistory ?? true,
+        onWriteError,
+      })
     },
   })
-  const connection = agent.connect(
-    ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
-  )
-  log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
-  await connection.closed
-  await runtime.close()
-  await journal.shutdown()
-  return 0
+  const engine = await import('./runtimeEngineEntry')
+  engine.setUiText(UI_TEXT, uiLocale())
+  const restoreRecording = engine.installUsageRecording(recording)
+  try {
+    const runtime = await runtimeFor(options, log)
+    const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
+    const journal = await reportJournal(log)
+    await journal.startup()
+    // A proxy the Model API backend's requests will not use is said at once (Q66).
+    const proxyWarning = envProxyWarning({
+      backend: options.backend,
+      platform: process.platform,
+      env: process.env,
+      execArgv: process.execArgv,
+      nodeVersion: process.version,
+    })
+    if (proxyWarning !== undefined) {
+      log.warn(proxyWarning)
+    }
+    // "Allow always" lapses for a paid feature started without its flag (M58).
+    await runtime.forgetUnflaggedGrants()
+    const providerCommands = await chatGptDeps()
+    const legalRegistryNotices = new Map<string, Set<string>>()
+    const agentLegalBundle = legalScanLoader({
+      bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
+      log,
+    })
+    const agent = engine.createAcpAgent({
+      legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
+        const bundle = agentLegalBundle()
+        const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
+        const render = bundle.renderLegalMarkdown
+        if (render === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+        signal.throwIfAborted()
+        const enrich = bundle.enrichInteractiveLegalScan
+        if (enrich === undefined) throw new Error(UI_TEXT.legalScanUnavailable)
+        const noticed = legalRegistryNotices.get(cwd) ?? new Set<string>()
+        legalRegistryNotices.set(cwd, noticed)
+        const result = await enrich(handle, {
+          isOn: () => isRegistryOn,
+          isNoticed: (host) => noticed.has(host),
+          notice: allowsRegistryLookup,
+          markNoticed: (hosts) => {
+            for (const host of hosts) noticed.add(host)
+            return Promise.resolve()
+          },
+          fetch: globalThis.fetch.bind(globalThis),
+          signal,
+        })
+        return render(result)
+      },
+
+      onClientName: (name) => {
+        clientName = name
+      },
+      backend: runtime.backend,
+      version: packageVersion(),
+      options: {
+        canBypass: options.canBypass,
+        allowsContributorModels: options.allowsContributorModels,
+        initialMode: SETTING_DEFAULTS.initialPermissionMode,
+      },
+      signIn: signInMethod(options),
+      providerSignIns: providerCommands.signIns,
+      defaultCwd: process.cwd(),
+      paid: runtime.paid,
+      log,
+      usage,
+      reportError: (fact) => {
+        void journal.record(fact)
+      },
+    })
+    const connection = agent.connect(
+      engine.ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
+    )
+    log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
+    try {
+      await connection.closed
+    } finally {
+      await usage.dispose()
+      await runtime.close()
+      await journal.shutdown()
+    }
+    return 0
+  } finally {
+    await recording.flush()
+    restoreRecording()
+  }
 }
 
 function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
@@ -469,6 +649,7 @@ async function main(): Promise<number> {
       } catch {
         /* The bundled English table is already installed; stop still owns the deadline. */
       }
+      setProviderPolicyText(UI_TEXT, uiLocale())
       if (command.command === 'scan-secrets') {
         try {
           headlessCode = await lifecycle.race(
@@ -525,7 +706,9 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
-      headlessCode = await runExec(lifecycle, {
+      const headless = await import('./exec/runExec')
+      headless.setUiText(UI_TEXT, uiLocale())
+      headlessCode = await headless.runExec(lifecycle, {
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -538,7 +721,6 @@ async function main(): Promise<number> {
         stderr,
         storeSecrets: secrets,
         runGit: processGitRunner(),
-        museCodeCredentials,
         fetch: globalThis.fetch.bind(globalThis),
         sleep,
         now,
@@ -575,15 +757,52 @@ async function main(): Promise<number> {
     readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
     log,
   })
+  setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'usage': {
+      const usage = usageFor(log)
+      const lines =
+        command.options.action === 'stdio'
+          ? createInterface({ input: process.stdin, crlfDelay: Infinity })
+          : undefined
+      let isPageOpen = false
+      try {
+        const result = await usage.runCommand(command.options, {
+          usage: usage.access(),
+          openPage: () => usage.openPage(),
+          input: lines ?? [],
+          openBrowser: openUsageBrowser,
+          print: (text) =>
+            new Promise<void>((resolve, reject) => {
+              process.stdout.write(text, (error) => {
+                if (error == null) resolve()
+                else reject(error)
+              })
+            }),
+          writeFile: (file, content) =>
+            writeFile(file, content, { encoding: 'utf8', mode: MEMORY_STAGE_FILE_MODE }),
+        })
+        isPageOpen = command.options.action === 'open'
+        return result
+      } finally {
+        lines?.close()
+        // An open page's companion owns its 30-minute idle lifetime. Other
+        // commands leave no server behind; ACP closes its server on disconnect.
+        if (!isPageOpen) await usage.dispose()
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
+    }
+    case 'chatGptProvider': {
+      const providers = await chatGptDeps()
+      return await providers.run(command.action)
     }
     case 'serve': {
       return await serve(command.options, log)
     }
     case 'login': {
-      const { museCode } = runtimeFor(command.options, log)
+      const { museCode } = await runtimeFor(command.options, log)
       return await login({
         resolveLaunch: () => museCode.resolveLaunch(),
         environment: () => museCode.childEnvironment(),
@@ -596,13 +815,37 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
+      if (command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        return await authSetProvider(authDeps(), command.provider, providersFile.readUserFile)
+      }
       return await authSet(authDeps())
     }
     case 'authStatus': {
-      return await authStatus(authDeps())
+      return command.provider === undefined
+        ? await authStatus(authDeps())
+        : await authStatusProvider(authDeps(), command.provider)
     }
     case 'authClear': {
-      return await authClear(authDeps())
+      return command.provider === undefined
+        ? await authClear(authDeps())
+        : await authClearProvider(authDeps(), command.provider)
+    }
+    case 'providersList': {
+      const { providersList } = await import('./providersCommands')
+      return await providersList(await providersDeps())
+    }
+    case 'providersAdd': {
+      const { providersAdd } = await import('./providersCommands')
+      return await providersAdd(await providersDeps(), command.options)
+    }
+    case 'providersTest': {
+      const { providersTest } = await import('./providersCommands')
+      return await providersTest(await providersDeps(), command.provider)
+    }
+    case 'providersRemove': {
+      const { providersRemove } = await import('./providersCommands')
+      return await providersRemove(await providersDeps(), command.provider)
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped
@@ -642,9 +885,7 @@ async function main(): Promise<number> {
         },
         // The agent took its credential variables out of its environment at
         // start (rule 8): presence is read from what it took.
-        hasEnvironmentApiKey: museCodeCredentials.some(
-          (variable) => variable.name === META_API_KEY_VARIABLE,
-        ),
+        hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
         readStoredKeyPresence: async () => {
           try {
             const stored = await secrets.get(SECRET_KEYS.modelApiKey)
@@ -681,11 +922,13 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, UI_TEXT.acpChatGpt.usage)
       return 0
     }
     case 'invalid': {
       writeLine(process.stderr, command.reason)
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stderr, UI_TEXT.acpChatGpt.usage)
       return command.exitCode ?? EXIT_FAILED
     }
   }

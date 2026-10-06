@@ -31,9 +31,12 @@ import {
   webSearchActionSchema,
 } from './schemas'
 
+import type { ReplayProducer } from './modelPolicy'
+
 export interface StoredReplayItem {
   readonly turnId: string
   readonly item: InputItem
+  readonly producer?: ReplayProducer | undefined
   /** The transcript user card that supplied this exact replay message (M53). */
   readonly userMessageId?: string
   /** Identifies a background task's terminal model note across fork cuts. */
@@ -283,6 +286,7 @@ const storedSessionFields = {
     z.object({
       turnId: z.string(),
       item: storedInputItemSchema,
+      producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
       userMessageId: z.optional(z.string()),
       backgroundTaskId: z.optional(z.string()),
     }),

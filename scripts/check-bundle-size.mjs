@@ -27,14 +27,33 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // TRAIN15E new lazy entries: 28.3, 49.0 and 26.0 KiB measured; +15%,
+  // rounded up to 25 KiB. Existing Model API cap stays fixed.
+  { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
+  { path: 'dist/modelApiMcp.js', budgetKiB: 75 },
+  { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
+  // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
+  { path: 'dist/providerPolicy.js', budgetKiB: 25 },
+  // Standalone ACP engine: 754.8 KiB +15%, rounded up to 25 KiB.
+  { path: 'dist/runtimeEngine.js', budgetKiB: 875 },
   // TRAIN15C: shared captured validators and pure team call admission:
   // 16,991 bytes +15%, rounded up to 25 KiB (D6).
   { path: 'dist/modelApiBoundaries.js', budgetKiB: 25 },
-  // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
+  // TRAIN15E joined M95: providers 128.4, subscriptions 29.3, configured
+  // providers 24.9 and Models panel 90.3 KiB measured.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
-  { path: 'dist/providers.js', budgetKiB: 125 },
-  { path: 'dist/modelsPanel.js', budgetKiB: 75 },
-  { path: 'dist/webview/models.js', budgetKiB: 475 },
+  { path: 'dist/providers.js', budgetKiB: 150 },
+  { path: 'dist/subscriptions.js', budgetKiB: 50 },
+  { path: 'dist/configuredProviders.js', budgetKiB: 50 },
+  { path: 'dist/modelsPanel.js', budgetKiB: 125 },
+  // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
+  { path: 'dist/usageService.js', budgetKiB: 100 },
+  { path: 'dist/usageCompanion.js', budgetKiB: 50 },
+  { path: 'dist/usagePanel.js', budgetKiB: 75 },
+  { path: 'dist/webview/usage.js', budgetKiB: 500 },
+  { path: 'dist/webview/usage.css', budgetKiB: 25 },
+  // TRAIN15E: Models page and its shared static imports: 424.9 KiB +15%.
+  { path: 'dist/webview/models.js', budgetKiB: 500 },
   // The review (M70): git's material, the review turn's text, the Plan-mode
   // hold and edit review, loaded the first time one is used: 40.6 KiB when
   // split out, plus room (PLAN.md D6).
@@ -141,6 +160,7 @@ const BUDGETS = [
   // Shared English fallback; existing host budgets stay unchanged. Measured
   // 104.9 KiB (2026-10-04); plus 15%, rounded up to 25 KiB.
   { path: 'dist/uiText.js', budgetKiB: 125 },
+  // Used Node mini-parser API: 39.5 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
@@ -164,6 +184,8 @@ const BUDGETS = [
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
+  { path: 'dist/headless.js', budgetKiB: 100 },
 ]
 
 // Optional surfaces have their own measured + 15%, rounded-up budget.
@@ -187,6 +209,7 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
   const pageMetafile = {
     'dist/webview/main.js': 'dist/meta/webview.json',
     'dist/webview/models.js': 'dist/meta/modelsWebview.json',
+    'dist/webview/usage.js': 'dist/meta/usageWebview.json',
     'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
   }[path]
   const files = pageMetafile

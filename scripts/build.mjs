@@ -61,14 +61,10 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
-import {
-  UI_TEXT_REGIONS,
-  regionalUiText,
-  compressedEnglish,
-  compactBrowserEnglish,
-} from './lib/uiTextRegions.mjs'
+import { UI_TEXT_REGIONS, regionalUiText, compressedEnglish } from './lib/uiTextRegions.mjs'
 import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
+import { compressedEnglish as inlineBrowserEnglish } from './lib/compressedEnglish.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
@@ -113,6 +109,10 @@ const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
+const SUBSCRIPTIONS_ENTRY = 'src/host/backend/subscriptionsEntry.ts'
+const SUBSCRIPTIONS_OUTFILE = 'dist/subscriptions.js'
+const CONFIGURED_ENTRY = 'src/host/backend/configuredProvidersEntry.ts'
+const CONFIGURED_OUTFILE = 'dist/configuredProviders.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
 const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
@@ -166,6 +166,9 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
+const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
+const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
+const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
@@ -185,6 +188,7 @@ const PAGE_WORKER_OUTFILE = 'dist/pageWorker.js'
 const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
+const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
@@ -278,6 +282,18 @@ const providersOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const configuredOptions = {
+  ...modelApiOptions,
+  entryPoints: [CONFIGURED_ENTRY],
+  outfile: CONFIGURED_OUTFILE,
+}
+
+const subscriptionsOptions = {
+  ...modelApiOptions,
+  entryPoints: [SUBSCRIPTIONS_ENTRY],
+  outfile: SUBSCRIPTIONS_OUTFILE,
+}
+
 const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
@@ -434,7 +450,22 @@ const whatsNewOptions = {
   target: HOST_NODE_TARGET,
 }
 
-/** @type {import('esbuild').BuildOptions} */
+const usageServiceOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_SERVICE_ENTRY],
+  outfile: 'dist/usageService.js',
+}
+const usageCompanionOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_COMPANION_ENTRY],
+  outfile: 'dist/usageCompanion.js',
+}
+const usagePanelOptions = {
+  ...hostOptions,
+  entryPoints: [USAGE_PANEL_ENTRY],
+  outfile: 'dist/usagePanel.js',
+}
+
 const extensionHooksOptions = {
   ...modelApiOptions,
   entryPoints: [EXTENSION_HOOKS_ENTRY],
@@ -451,7 +482,7 @@ const judgeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredCohort],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
   platform: 'node',
@@ -574,6 +605,13 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+const headlessOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/exec/runExec.ts'],
+  outfile: 'dist/headless.js',
+  banner: undefined,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -653,12 +691,13 @@ const browserReviewComment = {
 const webviewOptions = {
   ...common,
   plugins: isProduction
-    ? [sharedHighlightGrammar, compactBrowserEnglish, browserReviewComment]
+    ? [sharedHighlightGrammar, inlineBrowserEnglish('browser'), browserReviewComment]
     : [sharedHighlightGrammar, browserReviewComment],
   charset: 'utf8',
   entryPoints: {
     main: WEBVIEW_ENTRY,
     models: MODELS_WEBVIEW_ENTRY,
+    usage: USAGE_WEBVIEW_ENTRY,
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
   },
   outdir: WEBVIEW_OUTDIR,
@@ -700,7 +739,6 @@ writeFileSync(
   `module.exports=JSON.parse(${JSON.stringify(readFileSync(PROVIDER_CATALOG_OUTFILE, 'utf8'))});\n`,
 )
 // Content-hashed chunks from an earlier build must never enter a package.
-rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -713,6 +751,8 @@ if (isWatch) {
     esbuild.context(tabOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(providersOptions),
+    esbuild.context(subscriptionsOptions),
+    esbuild.context(configuredOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
@@ -720,7 +760,32 @@ if (isWatch) {
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamSchedulerOptions),
     esbuild.context(foreignHooksOptions),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
+      outfile: 'dist/modelApiHooks.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
+      outfile: 'dist/modelApiMcp.js',
+    }),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
+      outfile: 'dist/runtimeAccounting.js',
+    }),
     esbuild.context(hookRuntimeOptions),
+    esbuild.context({
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
+      outfile: 'dist/providerPolicy.js',
+    }),
+    esbuild.context({
+      ...acpOptions,
+      entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
+      outfile: 'dist/runtimeEngine.js',
+    }),
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
@@ -732,6 +797,11 @@ if (isWatch) {
     esbuild.context(voiceOptions),
     esbuild.context(webFetchOptions),
     esbuild.context(museCodeReviewerOptions),
+    esbuild.context(modelsPanelOptions),
+    esbuild.context(usageServiceOptions),
+    esbuild.context(headlessOptions),
+    esbuild.context(usageCompanionOptions),
+    esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
     esbuild.context(reportOptions),
     esbuild.context(recorderOptions),
@@ -748,7 +818,6 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
-    esbuild.context(modelsPanelOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -759,6 +828,8 @@ if (isWatch) {
     tab: esbuild.build(tabOptions),
     modelApi: esbuild.build(modelApiOptions),
     providers: esbuild.build(providersOptions),
+    subscriptions: esbuild.build(subscriptionsOptions),
+    configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
@@ -766,6 +837,31 @@ if (isWatch) {
     teamRunners: esbuild.build(teamRunnersOptions),
     teamScheduler: esbuild.build(teamSchedulerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
+    modelApiHooks: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
+      outfile: 'dist/modelApiHooks.js',
+    }),
+    modelApiMcp: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/core/backends/modelapi/modelApiMcpEntry.ts'],
+      outfile: 'dist/modelApiMcp.js',
+    }),
+    runtimeAccounting: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/runtime/runtimeAccountingEntry.ts'],
+      outfile: 'dist/runtimeAccounting.js',
+    }),
+    providerPolicy: esbuild.build({
+      ...modelApiOptions,
+      entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
+      outfile: 'dist/providerPolicy.js',
+    }),
+    runtimeEngine: esbuild.build({
+      ...acpOptions,
+      entryPoints: ['src/runtime/runtimeEngineEntry.ts'],
+      outfile: 'dist/runtimeEngine.js',
+    }),
     hookRuntime: esbuild.build(hookRuntimeOptions),
     pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
@@ -778,6 +874,10 @@ if (isWatch) {
     voice: esbuild.build(voiceOptions),
     webFetch: esbuild.build(webFetchOptions),
     museCodeReviewer: esbuild.build(museCodeReviewerOptions),
+    modelsPanel: esbuild.build(modelsPanelOptions),
+    usageService: esbuild.build(usageServiceOptions),
+    usageCompanion: esbuild.build(usageCompanionOptions),
+    usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
     report: esbuild.build(reportOptions),
     recorder: esbuild.build(recorderOptions),
@@ -799,10 +899,10 @@ if (isWatch) {
     pageWorker: esbuild.build(pageWorkerOptions),
     imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
-    modelsPanel: esbuild.build(modelsPanelOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const headless = esbuild.build(headlessOptions)
+  const builds = [...Object.values(shipped), acp, headless]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -816,6 +916,7 @@ if (isWatch) {
           webview: 'dist/webview/main.js',
           modelsWebview: 'dist/webview/models.js',
           whatsNewPage: 'dist/webview/whatsNew.js',
+          usageWebview: 'dist/webview/usage.js',
         }
         for (const [page, entry] of Object.entries(pages)) {
           writeFileSync(
@@ -827,7 +928,9 @@ if (isWatch) {
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
+    const { metafile: headlessMetafile } = await headless
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
   }
   console.log('bundle sizes:')
   reportSize(HOST_OUTFILE)
@@ -835,6 +938,8 @@ if (isWatch) {
   reportSize(TAB_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
+  reportSize(SUBSCRIPTIONS_OUTFILE)
+  reportSize(CONFIGURED_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
@@ -853,6 +958,10 @@ if (isWatch) {
   reportSize(VOICE_OUTFILE)
   reportSize(WEB_FETCH_OUTFILE)
   reportSize(MUSE_CODE_REVIEWER_OUTFILE)
+  reportSize(MODELS_PANEL_OUTFILE)
+  reportSize('dist/usageService.js')
+  reportSize('dist/usageCompanion.js')
+  reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(RECORDER_OUTFILE)
@@ -862,6 +971,8 @@ if (isWatch) {
   reportSize(UI_TEXT_OUTFILE)
   for (const region of UI_TEXT_REGIONS) reportSize(region.output)
   reportSize(VALIDATION_OUTFILE)
+  reportSize(WHATS_NEW_OUTFILE)
+  reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(BROWSER_CHECK_OUTFILE)
   reportSize(BROWSER_RUNTIME_OUTFILE)
   reportSize(MODELS_PANEL_OUTFILE)
@@ -872,8 +983,11 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.css'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
+  reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
   reportSize(PROVIDER_CATALOG_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize('dist/headless.js')
 }

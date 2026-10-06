@@ -1,6 +1,7 @@
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
+  Suspense,
   lazy,
   useCallback,
   useEffect,
@@ -11,6 +12,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import type { QuestionAnswer } from '../shared/agentEvents'
+import type { PlanNoticePort } from './components/PlanUi'
 import {
   type CheckpointAvailability,
   type DictationAction,
@@ -70,7 +72,6 @@ import { EmptyState } from './components/EmptyState'
 import { GoalPanel } from './components/GoalPanel'
 import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
-import { SetupBanner } from './components/SetupBanner'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { LegalReport } from './components/LegalReport'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
@@ -109,6 +110,10 @@ import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { DeferredSurface } from './components/DeferredSurface'
 
+const HandoffDialog = lazy(async () => {
+  const module = await import('./components/HandoffDialog')
+  return { default: module.HandoffDialog }
+})
 const HistoryDialog = lazy(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
@@ -119,7 +124,15 @@ const AgentMap = lazy(async () => {
 })
 const UsageDialog = lazy(async () => {
   const module = await import('./components/UsageDialog')
-  return { default: module.UsageDialog }
+  return { default: module.UsageSurface }
+})
+const PlanUi = lazy(async () => {
+  const module = await import('./components/PlanUi')
+  return { default: module.PlanUi }
+})
+const SetupBanner = lazy(async () => {
+  const module = await import('./components/SetupBanner')
+  return { default: module.SetupBanner }
 })
 const BestOfNDialog = lazy(async () => {
   const module = await import('./components/BestOfNDialog')
@@ -128,11 +141,6 @@ const BestOfNDialog = lazy(async () => {
 const ReviewPane = lazy(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
-})
-
-const HandoffDialog = lazy(async () => {
-  const { HandoffDialog } = await import('./components/HandoffDialog')
-  return { default: HandoffDialog }
 })
 
 const SecretPromptDialog = lazy(async () => {
@@ -151,6 +159,7 @@ const ShareView = lazy(async () => {
 })
 
 export interface AppProps {
+  readonly planNoticePort?: PlanNoticePort
   readonly postMessage: (message: WebviewToHostMessage) => void
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
@@ -370,6 +379,7 @@ export function App({
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
+  planNoticePort,
 }: AppProps) {
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
@@ -378,6 +388,14 @@ export function App({
   const [isOwnStore] = useState(externalStore === undefined)
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const { dispatch } = store
+  const selectedModel = state.models.find((model) => model.modelId === state.model?.modelId)
+  const selectedProvider = providerOf(state.model?.modelId ?? '') ?? selectedModel?.providerId
+  const hasPlan =
+    state.auth.status === 'signedIn' &&
+    (selectedProvider === 'chatgpt' ||
+      selectedProvider === 'copilot' ||
+      selectedModel?.pricing === 'plan')
+  const [isPlanModalOpen, setPlanModalOpen] = useState<boolean>()
   const [chosenOverlay, setOverlay] = useState<Overlay | undefined>(undefined)
   // The review pane's changes go with their conversation (a clear, another
   // session), and the pane goes with them (M70).
@@ -1814,11 +1832,7 @@ export function App({
         case 'newWorktree':
         case 'removeWorktree':
         case 'addModelProvider':
-        case 'manageModels': {
-          postMessage({ type: 'hostAction', action: action.type })
-          closeOverlay()
-          break
-        }
+        case 'manageModels':
         case 'openPullRequestInConversation': {
           postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
@@ -2012,9 +2026,12 @@ export function App({
   const runningAgentCount =
     agents.filter((agent) => agent.status === 'inProgress').length +
     workflowAgents.filter((child) => isChildRunning(child)).length
-  const effortLevels = effortLevelsFor(state.model?.modelId)
+  const effortLevels =
+    state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
+    effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
+      if (effortLevels.length === 0) return false
       onSelectEffort(effortAt(effortLevels, effortIndex(effortLevels, state.effort) + direction))
       return true
     },
@@ -2229,16 +2246,18 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            <div className="effort-row">
-              <span className="effort-row-label">
-                {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-              </span>
-              <EffortSlider
-                levels={effortLevels}
-                current={state.effort}
-                onSelect={onSelectEffort}
-              />
-            </div>
+            effortLevels.length === 0 ? undefined : (
+              <div className="effort-row">
+                <span className="effort-row-label">
+                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                </span>
+                <EffortSlider
+                  levels={effortLevels}
+                  current={state.effort}
+                  onSelect={onSelectEffort}
+                />
+              </div>
+            )
           }
           onSelect={onSelectMode}
           onStep={onStepEffort}
@@ -2354,24 +2373,9 @@ export function App({
   const usageDialog =
     overlay === 'usage' ? (
       <UsageDialog
-        auth={state.auth}
-        onInstallMuseCode={() => {
-          postMessage({ type: 'installMuseCode' })
-        }}
-        onSetupSignIn={(method) => {
-          closeOverlay()
-          onSignIn(method)
-        }}
-        onForgetPaidUse={() => {
-          postMessage({ type: 'forgetPaidUse' })
-        }}
-        report={state.usageReport}
-        usage={state.usage}
-        context={state.context}
-        team={state.usageReport?.team}
-        modelId={state.model?.modelId}
-        modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
-        paid={state.paid}
+        state={state}
+        postMessage={postMessage}
+        onSetupSignIn={onSignIn}
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -2459,12 +2463,14 @@ export function App({
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
   // the rest of the panel is inert.
+  const isPlanDialogOpen = hasPlan && (isPlanModalOpen ?? true)
   const isModalOpen =
     isOtherModalOpen ||
     legalReport !== null ||
     state.handoff !== undefined ||
     state.secretPrompt !== undefined ||
-    state.report !== undefined
+    state.report !== undefined ||
+    isPlanDialogOpen
 
   return (
     <div className="app">
@@ -2507,6 +2513,26 @@ export function App({
       <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
       {reportDialog}
       {legalReport}
+      <Suspense fallback={null}>
+        {hasPlan ? (
+          <PlanUi
+            surface="dialog"
+            state={state}
+            providerId={selectedProvider}
+            isOtherModalOpen={
+              isOtherModalOpen ||
+              state.report !== undefined ||
+              state.secretPrompt !== undefined ||
+              state.handoff !== undefined
+            }
+            onModalChange={setPlanModalOpen}
+            onChooseModel={onOpenModelPicker}
+            store={store}
+            postMessage={postMessage}
+            port={planNoticePort}
+          />
+        ) : null}
+      </Suspense>
       {state.share === undefined ? null : (
         <DeferredSurface onClose={onCloseShare}>
           <ShareView
@@ -2594,18 +2620,25 @@ export function App({
       <div className="composer-area" inert={isModalOpen}>
         {floating}
         {isBodyGated || state.setupComplete === undefined ? null : (
-          <SetupBanner
-            provider={state.setupComplete.provider}
-            model={state.setupComplete.model}
-            onManageProviders={() => {
-              postMessage({ type: 'hostAction', action: 'manageModels' })
-            }}
-            onDismiss={() => {
-              dispatch({ type: 'setupCompleteDismissed' })
-            }}
-          />
+          <Suspense fallback={null}>
+            <SetupBanner
+              provider={state.setupComplete.provider}
+              model={state.setupComplete.model}
+              onManageProviders={() => {
+                postMessage({ type: 'hostAction', action: 'manageModels' })
+              }}
+              onDismiss={() => {
+                dispatch({ type: 'setupCompleteDismissed' })
+              }}
+            />
+          </Suspense>
         )}
         <JudgeStatusLine status={state.judge} />
+        {hasPlan && selectedProvider === 'copilot' ? (
+          <Suspense fallback={null}>
+            <PlanUi surface="note" onOpenExternal={onOpenExternal} />
+          </Suspense>
+        ) : null}
         <Composer
           draft={state.draft}
           placeholder={state.composerPlaceholder}
@@ -2613,6 +2646,18 @@ export function App({
           canSend={canSend(state)}
           isRunning={isRunning}
           modelLabel={modelLabelFor(state)}
+          planMark={
+            hasPlan ? (
+              <Suspense fallback={null}>
+                <PlanUi
+                  surface="mark"
+                  model={selectedModel}
+                  providerId={selectedProvider}
+                  onOpenExternal={onOpenExternal}
+                />
+              </Suspense>
+            ) : undefined
+          }
           permissionMode={state.permissionMode}
           context={state.context}
           paidBadge={paidBadgeFor(state)}

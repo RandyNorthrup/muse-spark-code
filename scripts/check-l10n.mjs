@@ -13,7 +13,9 @@
 // - The manifest: every user-visible string in package.json is a `%key%` of
 //   package.nls.json, every key there is used, and each
 //   package.nls.<language>.json passes the same checks against it.
-// - Load order: nothing in src/ reads UI_TEXT while its module loads (at
+// - Usage: usage.<language>.json is checked against usageEn.ts with the same
+//   strict rules, in source and the packaged stage. It is a separate family.
+// - Load order: nothing in src/ reads UI_TEXT or USAGE_TEXT while its module loads (at
 //   module level, in a class field or static block, or in a callback run
 //   there: a function called at once, or one passed to map, filter, …),
 //   because the display language's table is installed after that. Imports,
@@ -25,6 +27,8 @@
 //
 //   node scripts/check-l10n.mjs
 
+import { Buffer } from 'node:buffer'
+import { build } from 'esbuild'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { brotliDecompressSync } from 'node:zlib'
@@ -36,12 +40,12 @@ const MANIFEST = 'package.json'
 const MANIFEST_STRINGS = 'package.nls.json'
 const MANIFEST_TRANSLATION = /^package\.nls\.(.+)\.json$/
 const UNTRANSLATED = 'untranslated.json'
-const UNTRANSLATED_SECTIONS = ['ui', 'manifest']
+const UNTRANSLATED_SECTIONS = ['ui', 'usage', 'manifest']
 const EVERY_LOCALE = '*'
-const TABLE_FILE = /^ui\.(.+)\.json$/
+const TABLE_FILE = /^(ui|usage)\.(.+)\.json$/
 const SOURCE_DIR = 'src'
 const SOURCE_FILE = /\.tsx?$/
-const TEXT_TABLE = 'UI_TEXT'
+const TEXT_TABLES = ['UI_TEXT', 'USAGE_TEXT']
 // A manifest string VS Code replaces from package.nls*.json; vsce accepts
 // only these characters in the key.
 const NLS_REFERENCE = /^%([\w.]+)%$/
@@ -246,32 +250,33 @@ function readUntranslated(file, known, locales, problems) {
 }
 
 /** The translated tables in l10n/: one per language TABLE_LOCALES lists, no other. */
-function checkTables(l10n, untranslatedFor, problems) {
-  const { EN, TABLE_DIRECTORY, TABLE_LOCALES, tableFileName, tableProblems } = l10n
+function checkTables(l10n, untranslatedFor, problems, family) {
+  const { TABLE_DIRECTORY, TABLE_LOCALES, tableProblems } = l10n
+  const english = family === 'usage' ? l10n.USAGE_EN : l10n.EN
+  const fileName = family === 'usage' ? l10n.usageTableFileName : l10n.tableFileName
   const directory = path.join(repoRoot, TABLE_DIRECTORY)
   const files = existsSync(directory) ? readdirSync(directory) : []
-  for (const name of files) {
-    const locale = TABLE_FILE.exec(name)?.[1]
-    if (locale === undefined && name !== UNTRANSLATED) {
-      problems.push(
-        `${TABLE_DIRECTORY}/${name}: not a table (ui.<language>.json) or ${UNTRANSLATED}`,
-      )
-    } else if (locale !== undefined && !TABLE_LOCALES.includes(locale)) {
-      problems.push(`${TABLE_DIRECTORY}/${name}: ${locale} is not in TABLE_LOCALES`)
+  // Check directory membership once; both families must have every locale.
+  if (family === 'ui') {
+    for (const name of files) {
+      const locale = TABLE_FILE.exec(name)?.[2]
+      if (locale === undefined && name !== UNTRANSLATED) {
+        problems.push(`${TABLE_DIRECTORY}/${name}: not a ui/usage table or ${UNTRANSLATED}`)
+      } else if (locale !== undefined && !TABLE_LOCALES.includes(locale)) {
+        problems.push(`${TABLE_DIRECTORY}/${name}: ${locale} is not in TABLE_LOCALES`)
+      }
     }
   }
   for (const locale of TABLE_LOCALES) {
-    const file = `${TABLE_DIRECTORY}/${tableFileName(locale)}`
-    if (!files.includes(tableFileName(locale))) {
+    const file = `${TABLE_DIRECTORY}/${fileName(locale)}`
+    if (!files.includes(fileName(locale))) {
       problems.push(`${file}: missing (TABLE_LOCALES lists ${locale})`)
       continue
     }
     const table = readJson(file, problems)
-    if (table === undefined) {
-      continue
-    }
-    const untranslated = untranslatedFor('ui', locale)
-    const found = tableProblems(EN, table, { locale, isStrict: true, untranslated })
+    if (table === undefined) continue
+    const untranslated = untranslatedFor(family, locale)
+    const found = tableProblems(english, table, { locale, isStrict: true, untranslated })
     problems.push(...found.map((problem) => `${file}: ${problem}`))
   }
   return TABLE_LOCALES.length
@@ -446,14 +451,14 @@ function isRead(node) {
 function moduleLoadReads(file, text) {
   const kind = file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, kind)
-  const names = new Set([TEXT_TABLE])
+  const names = new Set(TEXT_TABLES)
   for (const statement of source.statements) {
     const bindings = ts.isImportDeclaration(statement)
       ? statement.importClause?.namedBindings
       : undefined
     if (bindings !== undefined && ts.isNamedImports(bindings)) {
       for (const element of bindings.elements) {
-        if ((element.propertyName ?? element.name).text === TEXT_TABLE) {
+        if (TEXT_TABLES.includes((element.propertyName ?? element.name).text)) {
           names.add(element.name.text)
         }
       }
@@ -494,13 +499,14 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems, isAcp = f
     MANIFEST_STRINGS,
     ...l10n.TABLE_LOCALES.flatMap((locale) => [
       `${l10n.TABLE_DIRECTORY}/${l10n.tableFileName(locale)}`,
+      `${l10n.TABLE_DIRECTORY}/${l10n.usageTableFileName(locale)}`,
       `package.nls.${locale}.json`,
     ]),
   ]
   for (const file of files) {
     if (isAcp && !file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) continue
     let shipped
-    if (file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) {
+    if (TABLE_FILE.exec(path.basename(file))?.[1] === 'ui') {
       try {
         const text = brotliDecompressSync(
           readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.L10N_TABLE_ARCHIVE_FILE)),
@@ -509,37 +515,65 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems, isAcp = f
           },
         ).toString('utf8')
         shipped = JSON.parse(
-          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[1]),
+          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[2]),
         )
       } catch (error) {
         problems.push(`${file}: ${error.message}`)
       }
+    } else if (TABLE_FILE.exec(path.basename(file))?.[1] === 'usage') {
+      const text = brotliDecompressSync(
+        readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.USAGE_TABLE_ARCHIVE_FILE)),
+        { maxOutputLength: l10n.L10N_TABLE_MAX_BYTES * l10n.TABLE_LOCALES.length },
+      ).toString('utf8')
+      shipped = JSON.parse(text)[TABLE_FILE.exec(path.basename(file))?.[2]]
     } else shipped = readJson(file, problems, root)
     const source = readJson(file, problems)
     if (JSON.stringify(shipped) !== JSON.stringify(source))
       problems.push(`packaged ${file}: differs from source`)
     if (file === MANIFEST || file === MANIFEST_STRINGS) continue
     const locale =
-      TABLE_FILE.exec(path.basename(file))?.[1] ??
+      TABLE_FILE.exec(path.basename(file))?.[2] ??
       MANIFEST_TRANSLATION.exec(path.basename(file))?.[1]
-    const isUi = file.startsWith(`${l10n.TABLE_DIRECTORY}/`)
+    const family = TABLE_FILE.exec(path.basename(file))?.[1] ?? 'manifest'
+    const english = { ui: l10n.EN, usage: l10n.USAGE_EN, manifest: strings }[family]
     problems.push(
       ...l10n
-        .tableProblems(isUi ? l10n.EN : strings, shipped, {
+        .tableProblems(english, shipped, {
           ...(locale !== undefined && { locale }),
           isStrict: true,
-          untranslated: untranslatedFor(isUi ? 'ui' : 'manifest', locale ?? 'en'),
+          untranslated: untranslatedFor(family, locale ?? 'en'),
         })
         .map((problem) => `packaged ${file}: ${problem}`),
     )
   }
 }
 
+// Keep the page's English fallback out of the main UI family and its bundles.
+async function loadUsageFamily() {
+  const { outputFiles } = await build({
+    stdin: {
+      contents:
+        "export { USAGE_EN } from './usageEn'; export { usageTableFileName } from './usageTable'",
+      resolveDir: path.join(repoRoot, 'src/shared/l10n'),
+      loader: 'ts',
+    },
+    bundle: true,
+    write: false,
+    format: 'esm',
+    platform: 'node',
+    target: 'node22',
+    logLevel: 'silent',
+  })
+  return import(
+    `data:text/javascript;base64,${Buffer.from(outputFiles[0].contents).toString('base64')}`
+  )
+}
+
 async function main() {
   const problems = []
   let l10n
   try {
-    l10n = await loadL10n(repoRoot)
+    l10n = { ...(await loadL10n(repoRoot)), ...(await loadUsageFamily()) }
   } catch (error) {
     console.log(`src/shared/l10n could not be bundled: ${String(error.message ?? error)}`)
     process.exitCode = 1
@@ -548,6 +582,7 @@ async function main() {
   const strings = readJson(MANIFEST_STRINGS, problems)
   const known = {
     ui: new Set(stringKeys(l10n.EN, l10n.isPluralForms)),
+    usage: new Set(stringKeys(l10n.USAGE_EN, l10n.isPluralForms)),
     manifest: new Set(isRecord(strings) ? Object.keys(strings) : []),
   }
   const untranslatedFor = readUntranslated(
@@ -556,7 +591,8 @@ async function main() {
     l10n.TABLE_LOCALES,
     problems,
   )
-  const tables = checkTables(l10n, untranslatedFor, problems)
+  const tables = checkTables(l10n, untranslatedFor, problems, 'ui')
+  const usageTables = checkTables(l10n, untranslatedFor, problems, 'usage')
   const manifestKeys = checkManifest(l10n, untranslatedFor, strings, problems)
   const sources = checkLoadOrder(problems)
   if (['--packaged', '--packaged-acp'].includes(process.argv[2])) {
@@ -577,7 +613,7 @@ async function main() {
     console.log(problem)
   }
   console.log(
-    `l10n: ${String(tables)} tables, ${String(manifestKeys)} manifest strings, ${String(sources)} source files; ${String(problems.length)} problems`,
+    `l10n: ${String(tables)} UI tables, ${String(usageTables)} usage tables, ${String(manifestKeys)} manifest strings, ${String(sources)} source files; ${String(problems.length)} problems`,
   )
   if (problems.length > 0) {
     process.exitCode = 1

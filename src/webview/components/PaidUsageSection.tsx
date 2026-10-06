@@ -1,44 +1,13 @@
 import {
-  MILLISECONDS_PER_SECOND,
   PAID_PRICES_VERIFIED_ON,
   TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
-import {
-  paidCostUsd,
-  paidFeatureName,
-  paidTotalUsd,
-  type PaidState,
-  type PaidTally,
-} from '../../shared/paid'
+import { paidCostUsd, paidFeatureName, paidTotalUsd, type PaidState } from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
-import { formatDurationMs } from '../agentFormat'
-
-/** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
-function paidUseText(feature: PaidFeature, tally: PaidTally): string {
-  if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
-  if (feature === 'voice') {
-    return fill(UI_TEXT.usagePaidAudio, {
-      duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
-    })
-  }
-  const values = {
-    webSearch: [UI_TEXT.usagePaidSearches, tally.webSearches],
-    imageGeneration: [UI_TEXT.usagePaidImages, tally.images],
-    scheduledPrompts: [UI_TEXT.usagePaidScheduled, tally.scheduledRuns],
-    subagents: [UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests],
-    autoReviewer: [UI_TEXT.usagePaidAutoReviews, tally.autoReviews],
-    teamWorkers: [UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests],
-    bestOfN: [UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts],
-    tab: [UI_TEXT.usagePaidTabRequests, tally.tabRequests],
-    hookModels: [UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns],
-    judge: [UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls],
-  } as const
-  const [forms, count] = values[feature]
-  return plural(forms, count ?? 0)
-}
+import { paidUseText } from '../agentFormat'
 
 /**
  * The paid features this backend uses (D30 rule 5; on Muse Code, the key's

@@ -70,7 +70,8 @@ export const CATALOG_PRESETS = [
 // is always true here; it documents the filter invariant), the modalities the
 // vision filter reads, the release date the New badge reads, the per-million
 // prices the budgets settle from, and the window and output cap the harness
-// sizes requests with. Everything else (docs links, key names, temperature,
+// sizes requests with. Reasoning/sampling/structured-output metadata stays
+// with the row for the capability resolver. Everything else (docs links, key names,
 // knowledge cutoffs, weights, status) stays in the download.
 const COST_FIELDS = ['input', 'output', 'cache_read', 'cache_write', 'reasoning']
 const LIMIT_FIELDS = ['context', 'input', 'output']
@@ -94,6 +95,11 @@ const modelSchema = z.object({
   tool_call: z.boolean().optional(),
   reasoning: z.boolean().optional(),
   attachment: z.boolean().optional(),
+  temperature: z.boolean().optional(),
+  top_p: z.boolean().optional(),
+  reasoning_options: z.json().optional(),
+  structured_output: z.boolean().optional(),
+  interleaved: z.json().optional(),
   // Catalogue metadata stays JSON data; the runtime reader owns its interpretation.
   modalities: z.json().optional(),
   release_date: z.string().max(MAX_DATE_LENGTH).optional(),
@@ -166,8 +172,17 @@ function filterModel(key, entry) {
   if (!isRecord(entry) || entry.tool_call !== true) return
   entry = modelSchema.parse(entry)
   const model = { id: key, name: entry.name ?? key, tool_call: true }
-  if (entry.reasoning === true) model.reasoning = true
-  if (entry.attachment === true) model.attachment = true
+  for (const field of [
+    'reasoning',
+    'attachment',
+    'temperature',
+    'top_p',
+    'reasoning_options',
+    'structured_output',
+    'interleaved',
+  ]) {
+    if (entry[field] !== undefined) model[field] = entry[field]
+  }
   if (entry.modalities !== undefined) model.modalities = entry.modalities
   if (entry.release_date !== undefined) model.release_date = entry.release_date
   if (entry.cost !== undefined && Object.keys(entry.cost).length > 0) model.cost = entry.cost
@@ -233,9 +248,9 @@ export function assertSnapshotSize(byteLength) {
   return byteLength
 }
 
-/** Canonical snapshot bytes: pretty-printed for reviewable PR diffs. */
+/** Compact data keeps complete capability metadata inside the unchanged cap. */
 export function snapshotText(document) {
-  const text = `${JSON.stringify(document, null, 2)}\n`
+  const text = `${JSON.stringify(document)}\n`
   assertSnapshotSize(Buffer.byteLength(text, 'utf8'))
   return text
 }

@@ -14,7 +14,20 @@
 import type { CustomCompat } from '../../core/providers/providersFile'
 
 /** How a provider proves its calls (D74: `apiKey`, `none`, `subscription`). */
-export type ProviderAuthMode = 'apiKey' | 'none'
+export type ProviderAuthMode = 'apiKey' | 'none' | 'subscription'
+
+/** The panel's composition contract; pure ports also serve shared provider core. */
+export interface ModelsPanelSeam {
+  readonly store: ProvidersStore
+  readonly catalog: PresetCatalog
+  readonly policy: AddressPolicy
+  readonly tester: KeyTester
+  readonly fetcher: ModelFetcher
+  readonly exchanger: CodeExchanger
+  readonly usage: KeyUsageReader
+  readonly pkce: PkceSource
+  readonly suggest: SuggestionEngine
+}
 
 /**
  * Lane K's view of one configured provider: the non-secret entry D74 keeps

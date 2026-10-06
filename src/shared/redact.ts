@@ -122,20 +122,9 @@ const SECRET_FIELD_LITERALS = ['token', 'secret', 'apikey', 'api_key', 'password
 const PEM_PRIVATE_KEY =
   /-----BEGIN [A-Z0-9 ]{0,40}PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z0-9 ]{0,40}PRIVATE KEY-----|$)/g
 
-// Muse Gadgets SDK tokens (M92): `mgst_` and 43 base64url characters holding
-// 32 bytes, so the last one is constrained to the endings those bytes take —
-// the shape the SDK's own installer validates. The boundaries are explicit
-// lookarounds over the token alphabet: `\b` treats `-` as a boundary, but
-// `-` is in the alphabet, so a valid-length prefix of a longer run (a token
-// with `-` or `-extra` glued on) must not match.
-const GADGET_SDK_TOKEN_PREFIX = 'mgst_'
-const GADGET_SDK_TOKEN_BODY = '[A-Za-z0-9_-]{42}'
-const GADGET_SDK_TOKEN_LAST = '[AEIMQUYcgkosw048]'
-const GADGET_SDK_TOKEN_EDGE = '[A-Za-z0-9_-]'
-const GADGET_SDK_TOKEN_PATTERN = new RegExp(
-  `(?<!${GADGET_SDK_TOKEN_EDGE})${GADGET_SDK_TOKEN_PREFIX}${GADGET_SDK_TOKEN_BODY}${GADGET_SDK_TOKEN_LAST}(?!${GADGET_SDK_TOKEN_EDGE})`,
-  'g',
-)
+// M92's installer validates exactly 32 base64url bytes with token boundaries.
+const GADGET_SDK_TOKEN_PATTERN =
+  /(?<![A-Za-z0-9_-])mgst_[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048](?![A-Za-z0-9_-])/g
 
 export const SECRET_RULES: readonly SecretRule[] = [
   // M71: redact whole PEM blocks before any rule can consume a boundary.
@@ -202,10 +191,9 @@ export const SECRET_RULES: readonly SecretRule[] = [
   },
   { pattern: /\bglpat-[\w-]{20,255}/g, literals: ['glpat-'], replace: mark },
   { pattern: /\bnpm_[A-Za-z0-9]{36,255}/g, literals: ['npm_'], replace: mark },
+  { pattern: GADGET_SDK_TOKEN_PATTERN, literals: ['mgst_'], replace: mark },
   // Google API keys: `AIza` and 35 more.
   { pattern: /\bAIza[\w-]{35}/g, literals: ['aiza'], replace: mark },
-  // Muse Gadgets SDK tokens.
-  { pattern: GADGET_SDK_TOKEN_PATTERN, literals: ['mgst_'], replace: mark },
   // AWS access key ids, Slack tokens, and `sk-` / `sk_live_` style API keys.
   { pattern: /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/g, literals: ['akia', 'asia'], replace: mark },
   { pattern: /\bxox[abeposr]-[A-Za-z0-9-]{10,}/g, literals: ['xox'], replace: mark },
@@ -414,7 +402,7 @@ function redactPatterns(text: string, matched?: () => void, cuts?: SliceCut[]): 
  * legacy key's tail after the `%` its pattern stops at.
  */
 function literalForms(literal: string): string[] {
-  const forms = [literal]
+  const forms = [literal, JSON.stringify(literal).slice(1, -1)]
   try {
     forms.push(encodeURIComponent(literal))
   } catch {
@@ -427,7 +415,12 @@ function literalForms(literal: string): string[] {
   return forms
 }
 
-function redactWith(text: string, literals: readonly string[], matched?: () => void): string {
+function redactWith(
+  text: string,
+  literals: readonly string[],
+  matched?: () => void,
+  shouldIncludePatterns = true,
+): string {
   let result = text
   const ordered = [
     ...new Set(literals.filter((value) => value !== '').flatMap((value) => literalForms(value))),
@@ -438,12 +431,19 @@ function redactWith(text: string, literals: readonly string[], matched?: () => v
       return REDACTED_MARK
     })
   }
-  return redactPatterns(result, matched)
+  return shouldIncludePatterns ? redactPatterns(result, matched) : result
 }
 
-/** Exact run keys precede patterns, including legacy keys containing percent signs. */
-export function redactSecrets(text: string, literals: readonly string[] = []): string {
-  return redactWith(text, literals)
+/**
+ * Exact run keys precede patterns, including legacy keys containing percent
+ * signs. Executable payloads omit patterns to preserve their syntax.
+ */
+export function redactSecrets(
+  text: string,
+  literals: readonly string[] = [],
+  shouldIncludePatterns = true,
+): string {
+  return redactWith(text, literals, undefined, shouldIncludePatterns)
 }
 
 /** Counts only changed, nonoverlapping matches in the same order as redaction. */

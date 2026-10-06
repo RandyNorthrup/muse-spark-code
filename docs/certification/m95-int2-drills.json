@@ -202,5 +202,59 @@
         ]
       }
     ]
+  },
+  {
+    "name": "package-guards-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": ".vscodeignore",
+        "sha256Parts": [
+          "7fe6eeb17db7416d",
+          "d32e798d4352e559",
+          "47d1791ba72d21b5",
+          "dee7963967cf6974"
+        ]
+      },
+      {
+        "file": "scripts/package-vsix.mjs",
+        "sha256Parts": [
+          "541a51728bfaf89a",
+          "7032321ac427704f",
+          "22a9b420d5e85937",
+          "bc7365277f4bc2ad"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "packaged-l10n-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": "dist/vsix-package/l10n/ui.de.json",
+        "sha256Parts": [
+          "dbb3b400300600ec",
+          "24b99d4982a44f74",
+          "2adabd3ea1d71be8",
+          "0e3c775e34e67914"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "package-helper-membership-red",
+    "exit": 1,
+    "restored": [
+      {
+        "file": ".vscodeignore",
+        "sha256Parts": [
+          "7fe6eeb17db7416d",
+          "d32e798d4352e559",
+          "47d1791ba72d21b5",
+          "dee7963967cf6974"
+        ]
+      }
+    ]
   }
 ]

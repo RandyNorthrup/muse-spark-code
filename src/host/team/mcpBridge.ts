@@ -22,6 +22,7 @@ import {
   JSON_RPC_ERRORS,
   MCP_PROTOCOL_VERSION,
   MODEL_API_MODEL_TEXT,
+  MCP_POOL_MODEL_TEXT,
   CHECK_COMMANDS_MAX,
   CHECK_NAME_MAX_CHARS,
   GIT_PATH_MAX_DEFAULT,
@@ -251,10 +252,10 @@ export class TeamMcpBridge {
     try {
       args = argsJson.trim() === '' ? {} : JSON.parse(argsJson)
     } catch {
-      return this.refused(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
+      return this.refused(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (!bridgeArgumentsSchema.safeParse(args).success) {
-      return this.refused(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
+      return this.refused(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
     }
     if (this.closed || this.callers.get(caller.id) !== live) {
       return this.refused('The team bridge is closed')

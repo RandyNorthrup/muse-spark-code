@@ -39,6 +39,7 @@ export type PaletteAction =
   | { readonly type: 'clearConversation' }
   | { readonly type: 'openHistory' }
   | { readonly type: 'openUsage' }
+  | { readonly type: 'openUsagePage' }
   | { readonly type: 'openAgents' }
   | { readonly type: 'openModelPicker' }
   /** The models view's footer rows (M95): the provider quick-pick, the Models & Agents panel. */
@@ -532,11 +533,16 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
           widget: {
             kind: 'slider',
-            levels: effortLevelsFor(context.currentModel?.modelId),
+            levels:
+              context.models.find((model) => model.modelId === context.currentModel?.modelId)
+                ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
             current: context.effort,
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
+          isDisabled:
+            context.models.find((model) => model.modelId === context.currentModel?.modelId)
+              ?.effortLevels?.length === 0,
         },
         {
           id: 'thinking',
@@ -603,6 +609,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: UI_TEXT.usageItem,
           detail: UI_TEXT.usageItemDetail,
           action: { type: 'openUsage' },
+        },
+        {
+          id: 'usagePage',
+          label: UI_TEXT.usagePageTitle,
+          detail: UI_TEXT.paletteUsagePage,
+          tip: UI_TEXT.paletteUsagePage,
+          slashName: 'usage page',
+          action: { type: 'openUsagePage' },
         },
         {
           id: 'usage',

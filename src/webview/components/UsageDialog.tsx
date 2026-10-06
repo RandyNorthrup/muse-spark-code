@@ -17,16 +17,19 @@ import {
   USAGE_COUNTDOWN_REFRESH_MS,
 } from '../../shared/constants'
 import { fill, formatPercent, plural, templateParts } from '../../shared/l10n/text'
-import { type PaidState, listedPaidFeatures, usablePaidFeatures } from '../../shared/paid'
-import { backendLabel, formatTokenWindow } from '../../shared/palette'
+import {
+  type PaidState,
+  listedPaidFeatures,
+  usablePaidFeatures,
+  modelApiPaidTier,
+} from '../../shared/paid'
+import { formatTokenWindow } from '../../shared/palette'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,
   FULL_PERCENT,
   formatDuration,
   formatWindowLength,
-  planLabel,
-  type AccountFacts,
   type SubscriptionUsage,
   type UsageInsights,
 } from '../../shared/usage'
@@ -34,7 +37,16 @@ import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights
 import type { TeamUsageSummary } from '../../shared/teamView'
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
-import type { SignInMethod } from '../../shared/protocol'
+import type { SignInMethod, WebviewToHostMessage } from '../../shared/protocol'
+import type { ModelOption } from '../../shared/protocol'
+const AccountSection = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.AccountSection }
+})
+const PlanUsageSection = lazy(async () => {
+  const module = await import('./UsageProviderSections')
+  return { default: module.PlanUsageSection }
+})
 import { Modal } from './Modal'
 import { FactRows } from './FactRows'
 
@@ -54,6 +66,7 @@ const TeamSection = lazy(async () => {
 })
 
 export interface UsageDialogProps {
+  readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
   readonly usage: UsageSummary | undefined
@@ -75,6 +88,8 @@ export interface UsageDialogProps {
   readonly onForgetPaidUse: () => void
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
+  /** The chat's existing bridge supplies openUsagePage (editor wiring lane). */
+  readonly onOpenUsagePage?: () => void
   readonly onClose: () => void
 }
 
@@ -265,45 +280,6 @@ function TokensSection({
   )
 }
 
-function signInLabel(method: AccountFacts['signInMethod'] | undefined): string {
-  if (method === 'cli') {
-    return UI_TEXT.usageAuthCli
-  }
-  return method === 'apiKey' ? UI_TEXT.usageAuthKey : UI_TEXT.usageAuthNone
-}
-
-function planFor(report: UsageReport): string {
-  if (report.subscription !== undefined) {
-    return planLabel(report.subscription.tier)
-  }
-  return report.backend === 'modelApi' ? UI_TEXT.usagePlanPayAsYouGo : UI_TEXT.usagePlanUnknown
-}
-
-function AccountSection({
-  report,
-  modelId,
-}: {
-  readonly report: UsageReport
-  readonly modelId: string | undefined
-}) {
-  const { account } = report
-  const signIn = signInLabel(account?.signInMethod)
-  const plan = planFor(report)
-  return (
-    <dl className="usage-facts">
-      <FactRows
-        rows={[
-          [UI_TEXT.usageAuthMethod, signIn],
-          [UI_TEXT.usagePlan, plan],
-          [UI_TEXT.usageBackend, backendLabel(report.backend)],
-          [UI_TEXT.usageCliVersion, account?.cliVersion],
-          [UI_TEXT.usageModel, modelId],
-        ]}
-      />
-    </dl>
-  )
-}
-
 /**
  * One `{percent} of model attempts…` line with the share in its own
  * emphasis, wherever the language puts it; the table's check keeps
@@ -383,12 +359,13 @@ function InsightsSection({
 }
 
 export function UsageDialog({
+  models = [],
   report,
   usage,
   context,
   team,
   modelId,
-  modelPricing,
+  modelPricing: listedPricing,
   paid,
   auth,
   onInstallMuseCode,
@@ -396,6 +373,7 @@ export function UsageDialog({
   onForgetPaidUse,
   now,
   onOpenExternal,
+  onOpenUsagePage,
   onClose,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
@@ -409,12 +387,22 @@ export function UsageDialog({
     }
   }, [])
   const nowMs = now()
+  // The bound reference remains authoritative while the catalogue is recovering.
+  const providerId = modelId?.includes('/') ? modelId.split('/', 1)[0] : undefined
+  const model = models.find((option) => option.modelId === modelId)
+  const provider =
+    (model?.providerId === providerId ? model?.providerLabel : undefined) ??
+    providerId ??
+    UI_TEXT.modelPlan
+  const modelPricing = providerId === 'chatgpt' || providerId === 'copilot' ? 'plan' : listedPricing
   // Priced on the Model API only, whose usage always carries its cached total.
   const cachedTokens = usage?.cachedTokens
   const costUsd =
     usage !== undefined &&
     cachedTokens !== undefined &&
     modelId !== undefined &&
+    (modelPricing === undefined || modelPricing === 'priced') &&
+    modelApiPaidTier(modelId) !== undefined &&
     report?.backend === 'modelApi'
       ? estimateCostUsd(
           { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
@@ -429,17 +417,24 @@ export function UsageDialog({
   if (report === undefined) {
     body = <p className={ROW_META_CLASS}>{UI_TEXT.usageLoading}</p>
   } else {
+    let usageNote =
+      report.backend === 'modelApi' ? UI_TEXT.usageModelApiNote : UI_TEXT.usageNoSubscription
+    if (modelPricing === 'plan') usageNote = UI_TEXT.planUi.usageDetail
     body = (
       <>
         <h3 className="usage-heading">{UI_TEXT.usageAccount}</h3>
-        <AccountSection report={report} modelId={modelId} />
+        <Suspense fallback={null}>
+          <AccountSection
+            report={report}
+            modelId={modelId}
+            modelPricing={modelPricing}
+            providerId={providerId}
+            provider={provider}
+          />
+        </Suspense>
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
-          <p className={ROW_META_CLASS}>
-            {report.backend === 'modelApi'
-              ? UI_TEXT.usageModelApiNote
-              : UI_TEXT.usageNoSubscription}
-          </p>
+          <p className="usage-row-meta">{usageNote}</p>
         ) : (
           <SubscriptionSection subscription={report.subscription} nowMs={nowMs} />
         )}
@@ -454,6 +449,11 @@ export function UsageDialog({
         {report.providers !== undefined && report.providers.length > 0 ? (
           <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
             <ProviderUsageSection providers={report.providers} />
+          </Suspense>
+        ) : null}
+        {report.plans !== undefined && report.plans.length > 0 ? (
+          <Suspense fallback={null}>
+            <PlanUsageSection rows={report.plans} models={models} onOpenExternal={onOpenExternal} />
           </Suspense>
         ) : null}
         {paidFeatures.length > 0 ? (
@@ -496,6 +496,14 @@ export function UsageDialog({
   }
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
+      <button
+        type="button"
+        className="button-secondary"
+        disabled={onOpenUsagePage === undefined}
+        onClick={onOpenUsagePage}
+      >
+        {UI_TEXT.openUsagePage}
+      </button>
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
@@ -581,5 +589,52 @@ export function UsageDialog({
         </div>
       ) : null}
     </Modal>
+  )
+}
+
+/** The state-backed App adapter stays with the deferred account surface. */
+export function UsageSurface({
+  state,
+  postMessage,
+  onSetupSignIn,
+  now,
+  onOpenExternal,
+  onClose,
+}: {
+  readonly state: UiState
+  readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly onSetupSignIn: (method: SignInMethod) => void
+  readonly now: () => number
+  readonly onOpenExternal: (url: string) => void
+  readonly onClose: () => void
+}) {
+  return (
+    <UsageDialog
+      auth={state.auth}
+      report={state.usageReport}
+      usage={state.usage}
+      context={state.context}
+      team={state.usageReport?.team}
+      modelId={state.model?.modelId}
+      modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
+      models={state.models}
+      paid={state.paid}
+      onInstallMuseCode={() => {
+        postMessage({ type: 'installMuseCode' })
+      }}
+      onSetupSignIn={(method) => {
+        onClose()
+        onSetupSignIn(method)
+      }}
+      onForgetPaidUse={() => {
+        postMessage({ type: 'forgetPaidUse' })
+      }}
+      now={now}
+      onOpenExternal={onOpenExternal}
+      onOpenUsagePage={() => {
+        postMessage({ type: 'hostAction', action: 'openUsagePage' })
+      }}
+      onClose={onClose}
+    />
   )
 }

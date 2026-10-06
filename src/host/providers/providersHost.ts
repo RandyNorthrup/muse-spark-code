@@ -6,7 +6,7 @@
 // SecretStorage records and the injected lane-P/T seams.
 
 import type * as vscode from 'vscode'
-import { UI_TEXT } from '../../shared/constants'
+import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
 import type { ProviderCredentialStore as CredentialStore } from './credentialRecords'
@@ -71,6 +71,7 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger
   readonly usage: KeyUsageReader
+  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -140,7 +141,7 @@ async function credentialFor(
   credentials: CredentialStore,
   entry: ProviderEntry,
 ): Promise<string | undefined> {
-  if (entry.auth === 'none') {
+  if (entry.auth === 'none' || entry.auth === 'subscription') {
     return undefined
   }
   const record = await credentials.getProviderCredential(entry.id)
@@ -243,6 +244,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       const states: ProviderState[] = []
       const entries = await deps.store.list()
       for (const entry of entries) {
+        if (entry.auth === 'subscription') {
+          const present = await deps.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)
+          states.push({ entry, hasKey: present !== undefined, origin: entry.address })
+          continue
+        }
         const record = await deps.credentials.getProviderCredential(entry.id)
         states.push({ entry, hasKey: record !== undefined, origin: record?.origin })
       }
@@ -300,7 +306,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       })
       return connection === undefined ? undefined : { key: connection.key }
     },
-    openRouterUsage: (credential) => readOpenRouterKeyUsage(deps.usage, credential),
+    openRouterUsage: async (credential) => {
+      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
+      deps.onKeyUsage?.(snapshot)
+      return snapshot
+    },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

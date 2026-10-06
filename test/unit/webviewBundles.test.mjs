@@ -17,6 +17,7 @@ const output = (imports = [], entryPoint) => ({ imports, entryPoint })
 function metafile() {
   return {
     outputs: {
+      'dist/webview/models.js': output(),
       [MAIN]: output([
         edge(CORE),
         edge(HIGHLIGHT, 'dynamic-import'),
@@ -109,5 +110,20 @@ describe('webview import budgets', () => {
     const meta = metafile()
     Reflect.deleteProperty(meta.outputs, CORE)
     expect(() => webviewStartupOutputs(meta)).toThrow(`Missing webview output: ${CORE}`)
+  })
+
+  it('charges independent usage and models pages to their own static closures', () => {
+    const meta = metafile()
+    meta.outputs['dist/webview/usage.js'] = output([edge(CORE), edge('usage-only.js')])
+    meta.outputs['usage-only.js'] = output()
+    expect(webviewStartupOutputs(meta, 'dist/webview/usage.js')).toEqual([
+      'dist/webview/usage.js',
+      CORE,
+      MAIN,
+      'usage-only.js',
+    ])
+    expect(
+      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'deferred JS')?.outputs,
+    ).toEqual([HISTORY, SHARED, UNKNOWN])
   })
 })

@@ -39,6 +39,12 @@
 //   tolerated; malformed known frames throw.
 
 import * as z from 'zod/mini'
+import {
+  nativeModelMetadataSchema,
+  type NativeModelMetadata,
+} from '../../../providers/modelMetadata'
+import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
+import { capturedCapabilities } from '../../../providers/capturedCapabilities'
 
 import {
   ANTHROPIC_MAX_ARGUMENT_BYTES,
@@ -51,9 +57,10 @@ import {
   CODEC_IMAGE_WITHOUT_VISION,
   HTTP_TOO_MANY_REQUESTS,
   THINKING_OFF_EFFORT,
+  PROVIDER_MANUAL_THINKING_BUDGET,
 } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
-import { ModelApiError } from '../client'
+import { ModelApiError } from '../transport'
 import { cleanJsonStrings, cleanWireText, isBlankWireText, isRecord, nativeCallId } from './shared'
 import {
   type CreateResponseBody,
@@ -89,6 +96,8 @@ function codecError(code: string, message = UI_TEXT.anthropicCodecError): Error 
 }
 
 export interface AnthropicEncodeOptions {
+  readonly capabilityRecord?: ModelCapabilityRecord
+  readonly thinkingBudget?: number
   /** The native model id (`<id>` resolved from `anthropic/<id>`); never `body.model`. */
   readonly model: string
   /** The preset's output cap for this model. */
@@ -222,9 +231,9 @@ export interface AnthropicRequestBody {
   readonly tool_choice?: { readonly type: 'auto' }
   readonly stream: true
   readonly thinking?: {
-    readonly type: 'adaptive'
-    /** M101 lane P1 (BYO item 9): `summarized`, so newer models stream thinking text (Pi). */
-    readonly display: 'summarized'
+    readonly type: 'adaptive' | 'enabled'
+    readonly budget_tokens?: number
+    readonly display?: 'summarized'
     readonly block_binding?: { readonly prefix_mismatch_behavior: 'drop_block' }
   }
   readonly output_config?: { readonly effort: AnthropicEffort }
@@ -424,14 +433,45 @@ export function encodeAnthropicRequest(
   body: CreateResponseBody,
   options: AnthropicEncodeOptions,
 ): AnthropicNativeRequest {
-  const effort = anthropicEffort(options.effort)
+  const record = options.capabilityRecord ?? capturedCapabilities('anthropic', options.model)
+  const modes = record.reasoning.modes.state === 'yes' ? record.reasoning.modes.value : []
+  const isThinking = options.effort !== THINKING_OFF_EFFORT
+  if (isThinking && record.reasoning.supported.state === 'no')
+    throw codecError('reasoning_unsupported')
+  if (
+    !isThinking &&
+    (record.reasoning.forced.state === 'yes' || record.reasoning.canDisable.state === 'no')
+  )
+    throw codecError('thinking_cannot_disable')
+  if (isThinking && !modes.includes('manual') && !modes.includes('adaptive'))
+    throw codecError('unsupported_thinking_mode')
+  const isManual = isThinking && modes.includes('manual') && !modes.includes('adaptive')
+  const selectedEffort = isThinking && !isManual ? anthropicEffort(options.effort) : undefined
+  const effort =
+    selectedEffort !== undefined &&
+    record.reasoning.effortLevels.state === 'yes' &&
+    record.reasoning.effortLevels.value.includes(selectedEffort)
+      ? selectedEffort
+      : undefined
+  const budget =
+    options.thinkingBudget ??
+    Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET)
+  if (
+    isManual &&
+    (!Number.isSafeInteger(budget) ||
+      budget < Math.max(record.reasoning.budget?.min ?? 0, PROVIDER_MANUAL_THINKING_BUDGET) ||
+      budget > (record.reasoning.budget?.max ?? Infinity) ||
+      budget >= options.maxTokens)
+  )
+    throw codecError('invalid_thinking_budget')
   const ttl = options.cacheTtl ?? '5m'
   const messages: AnthropicMessage[] = []
   // Whether any reasoning item survives the replay rule below; the edit rule
   // (the `drop_block` opt-in) rides on the same answer.
   const isThinkingReplayed =
-    effort !== undefined &&
-    body.input.some((item) => replayableEnvelope(item, options.model) !== undefined)
+    isThinking && body.input.some((item) => replayableEnvelope(item, options.model) !== undefined)
+  const shouldBindThinking =
+    isThinkingReplayed && record.reasoning.replay.prefixEditPolicy === 'drop'
 
   const pushUser = (content: string | readonly AnthropicMessageBlock[]): void => {
     const last = messages.at(-1)
@@ -525,7 +565,7 @@ export function encodeAnthropicRequest(
         return
       }
       case 'reasoning': {
-        const envelope = effort === undefined ? undefined : replayableEnvelope(item, options.model)
+        const envelope = isThinking ? replayableEnvelope(item, options.model) : undefined
         if (envelope === undefined) {
           return
         }
@@ -617,7 +657,7 @@ export function encodeAnthropicRequest(
     path: ANTHROPIC_PATH,
     headers: {
       'anthropic-version': ANTHROPIC_VERSION,
-      ...(isThinkingReplayed && { 'anthropic-beta': ANTHROPIC_BETA_DROP_BLOCK }),
+      ...(shouldBindThinking && { 'anthropic-beta': ANTHROPIC_BETA_DROP_BLOCK }),
     },
     body: {
       model: options.model,
@@ -627,18 +667,16 @@ export function encodeAnthropicRequest(
       ...(nativeTools !== undefined && { tools: nativeTools }),
       ...(nativeTools !== undefined && { tool_choice: { type: 'auto' as const } }),
       stream: true,
-      ...(effort !== undefined && {
+      ...(isThinking && {
         thinking: {
-          type: 'adaptive' as const,
-          // M101 lane P1 (BYO item 9): newer models default the display to
-          // `omitted` and stream empty thinking; `summarized` streams the
-          // summary text (Pi `anthropic-messages.ts`).
-          display: 'summarized' as const,
-          ...(isThinkingReplayed && {
+          type: isManual ? ('enabled' as const) : ('adaptive' as const),
+          ...(isManual && { budget_tokens: budget }),
+          ...(!isManual && { display: 'summarized' as const }),
+          ...(shouldBindThinking && {
             block_binding: { prefix_mismatch_behavior: 'drop_block' as const },
           }),
         },
-        output_config: { effort },
+        ...(effort !== undefined && { output_config: { effort } }),
       }),
     },
   }
@@ -1266,16 +1304,18 @@ export function parseAnthropicError(status: number, body: unknown): ModelApiErro
 
 const anthropicModelsListSchema = z.object({
   data: z.array(
-    z.object({
+    z.looseObject({
       id: z.string(),
       display_name: z.optional(z.string()),
       max_input_tokens: z.optional(z.number()),
       max_tokens: z.optional(z.number()),
+      capabilities: z.optional(nativeModelMetadataSchema),
     }),
   ),
 })
 
 export interface AnthropicListedModel {
+  readonly native?: NativeModelMetadata
   readonly id: string
   readonly displayName: string | undefined
   readonly maxInputTokens: number | undefined
@@ -1293,5 +1333,6 @@ export function parseAnthropicModelsList(body: unknown): AnthropicListedModel[] 
     displayName: entry.display_name,
     maxInputTokens: entry.max_input_tokens,
     maxTokens: entry.max_tokens,
+    native: nativeModelMetadataSchema.parse(entry),
   }))
 }

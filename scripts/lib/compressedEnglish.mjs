@@ -69,7 +69,7 @@ export function compressedEnglish(platform) {
   return {
     name: 'compressed-english',
     setup(build) {
-      build.onLoad({ filter: /\/shared\/l10n\/en\.ts$/ }, (args) => {
+      build.onLoad({ filter: /[/\\]shared[/\\]l10n[/\\]en\.ts$/ }, (args) => {
         if (path.resolve(args.path) !== ENGLISH_TABLE) return
         const table = englishTableData(readFileSync(args.path, 'utf8'))
         const packed = deflateSync(JSON.stringify(table), { level: COMPRESSION_LEVEL }).toString(

@@ -15,6 +15,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Record production headless BYO usage at the shared transport boundary, enforce a shared ACP/headless daily budget before dispatch, and defer optional hooks and MCP connections to preserve Model API headroom. New train bundles have measured budgets; existing startup and universal package caps stay fixed.
+
 - **Bring-your-own-model keys and panel host (M95 lane K).** The `Start
 with Your Own Model` wizard (in-memory draft; Save writes
   `providers.json` and the secret together, Cancel discards), the
@@ -436,11 +438,196 @@ with Your Own Model` wizard (in-memory draft; Save writes
   window when no registry resolver is installed. Manual compaction remains
   available and rate limits keep their existing retry path. BYO registry wiring and certified production activation of automatic
   recovery remain integration work.
+### Added
+
+- Integrated Usage & cost across the VS Code command, status bar, panel menu,
+  ACP summary, companion browser page and CLI JSON/CSV exports. All surfaces
+  use the same local journal, aggregates, formatter and translated page.
+- Usage companion authentication uses the shared M104 loopback server: one-use
+  launch codes, per-window in-memory bearer headers and fetch-streamed replies,
+  with no cookies. The separate usage listener is retired.
+- Machine-scoped usage history and retention settings, standalone ACP
+  `--usage-history=off`, and headless `--usage` JSON. Daily budget usage reads
+  preserve unopened ledgers and outstanding reservations.
+
+
+### Fixed
+
+- Usage request observations run at the shared transport boundary for Meta and
+  configured providers. ACP loads `/usage` rendering and headless execution
+  on first use, preserving the existing startup cap. Production headless BYO
+  accounting remains explicitly unavailable before dispatch.
+
+- Contributor models show the confidentiality warning even after contributor
+  confirmation. Package frame validation includes the Models and Usage bundles.
+- Usage and Models pages share React and browser common code with chat. The
+  usage companion loads those modules under its existing authenticated CSP;
+  packaged ACP installs retain every usage translation alongside the archived
+  UI family. All existing bundle and package caps remain unchanged.
+- Usage tables use explicit solid theme backgrounds so axe can decide their
+  contrast. Pages disclose unavailable native editor actions, and browser
+  exports enforce a visible encoded bound before dispatching a download.
+- Usage reads include existing Tab reservations and active parent conversation
+  budgets. Validated OpenRouter account observations remain visible with history
+  off. Terminal daily, model and limit commands render their selected section.
+- The Linux foreground-opener test simulates the actual imported platform
+  binding on Windows, while retaining the native Windows opener coverage.
+- Usage history switches now update the shared preference across native and
+  browser pages, and native reads respect a companion's disabled preference.
+- Integration retains every merged milestone in the plan's proper section and
+  registers standalone usage browser checks in the dead-code graph.
+- Usage history keeps known prices for incomplete calls and records the cost of
+  their known token portion as uncertain, without filling unknown counters.
+- Usage history reads stay consistent across retention, read atomically replaced
+  rollups through one handle, and fsync rollups before publication. Generation
+  locks prevent a paused former owner from releasing its successor's lock.
+- ACP `/usage` cancellation abandons a pending URL elicitation immediately,
+  returns a cancelled response, and lets the next prompt run before the client
+  answers the old request. Late answers cannot send a stale reply.
+- Linux `usage open` acknowledges and detaches the browser handler on spawn,
+  allowing foreground handlers to keep running. The usage companion retains
+  its own idle timeout or explicit-stop lifetime, independent of handler exit.
+- M102 usage sums settle in integer micro-dollars before formatting, keeping
+  buckets, breakdowns and exported totals consistent at cent boundaries.
+  ACP/CLI summaries show the latest provider/source/window limit with its
+  stale or awaiting status, while charts retain the observation history.
+  A held-operation regression now proves usage actions run in order and
+  return the history state from their own completed action. Cache and speed
+  rates use paired observations and retain those sums/counts in the shared
+  aggregation read interface; visible coverage awaits the contract owner.
+- Usage recording retains earlier uncertain billing after HTTP retries and
+  journals Muse Code's reported tokens before a turn completes, preserving
+  those counts if its process exits early. Sent image calls with lost responses
+  retain uncertain reserved costs, ACP records paid tools through the shared
+  producer, and deactivation awaits a bounded final journal flush.
+- Usage & cost preserves keyboard focus through custom-date edits and
+  recovers from native host send failures with localized feedback and retry.
+  Charts use contrasting theme-token boundaries and non-color series cues;
+  provider-limit observations and keyboard selection follow elapsed time.
+- Join general provider management and origin-bound credentials to the ACP
+  runtime. Free terminal probes use the shared transport. Headless provider
+  arguments validate their inputs and explicitly refuse without an accounting
+  runner; they do not dispatch an unbudgeted request.
+  Serialize terminal configuration commits, detect stale snapshots and
+  compensate secret changes on write failure. Retain private-network consent,
+  custom formats/base paths and captured free-probe headers and model lists.
+  Keep translated terminal help complete and show the same help after invalid
+  arguments, including the existing ChatGPT commands.
+
+- Join the configured providers to the shared request transport: origin-bound
+  credentials, redirect refusal, bounded framing, parser redaction and event
+  progress deadlines. Meta's request bytes remain unchanged.
+  Redact stream failure diagnostics while preserving executable arguments
+  and model content. Bind legacy review consent to the client's actual origin
+  and recognize errors structurally across lazy bundles.
+
+- Include the lazy subscription and configured-provider bundles in the VSIX
+  allowlist and keep crash-report frames aligned with the packaged files.
+- Preserve normalized Gemini model IDs when joining free model scans to
+  catalogue capabilities, so captured tool-capable models remain selectable.
+- Pin the patched development source-map parser, `source-map-js` 1.2.2,
+  after the dependency audit reports GHSA-68fv-2mgg-jv7q.
+- Record the plugin runtime launcher's deliberate, bounded subprocess
+  boundary for static analysis, retaining its runtime and credential checks.
+- Restore Copilot's production tool loop by binding admission to the same
+  host grant identity used when the request was confirmed.
+- Connect the captured Mistral plan-key preset and configured providers to
+  a shared, pinned transport in VS Code and ACP. Resolve capabilities and
+  pricing from the selected model, reread origin-bound credentials at each
+  send, and count plan requests separately from dollar budgets.
+- Load subscription authentication and account details lazily so the joined
+  release passes the existing provider and deferred browser size caps.
+- Integrate the M95 capability, host, deflake and subscription lanes onto
+  release 0.14.0, retaining lazy bundle boundaries and translated strings.
+  Keep bundle drills in memory and include the release build inputs and
+  provider bundle in private ACP packaging fixtures.
+- Drive harness scenarios after the real webview ready message, wait for
+  Models data, and acknowledge the plan disclosure before opening usage.
+- Restore model-text split checks over every browser chunk and its own
+  declared readers, retaining all size caps and guard failures.
+- Keep Account & usage open for unpriced models whose usage includes cached
+  tokens; show dollar estimates only with a verified Model API tariff.
+- Restore the confidential contributor-model warning before remembered
+  consent can return, retaining the fresh configured-provider privacy check.
+- Document Copilot's VS Code Language Model API boundary and the ChatGPT/API
+  routes available to other editors; record remaining integration failures.
+
+### Added
+
+- M95b connects ChatGPT and Copilot subscription actions to the Models panel,
+  command palette and shared harness. ChatGPT uses the account catalogue and
+  parses headerless SSE, including usage limits inside HTTP 200; ACP editors
+  use the same dispatch. Plan attempts have separate token/request tallies
+  and bypass USD reservations. Copilot uses host consent and remains reduced
+  and unavailable in confidential workspaces. Live success certification
+  remains pending; Mistral plan-key transport is wired in both hosts.
+
+### Fixed
+
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
+
+- Isolate M95's built exec package and bundle-split drills so parallel unit
+  suites cannot delete each other's browser chunks or read partially written
+  metafiles. Share the verified restored-fixture check across cases, cutting
+  repeated source parsing under CPU load. Keep real production builds, exact
+  guard failures, coverage thresholds and default deadlines unchanged.
+
+- Package only allowlisted build artifacts with a short landing guide and recent
+  release notes. Compact staged translation and manifest JSON preserves every
+  value, and the strict localization gate validates the exact packaged data.
+  Source docs and tables remain complete; the VSIX size cap stays unchanged.
+- M95 capability review repairs keep enabled thinking above zero, omit
+  unsupported effort without disabling supported thinking, and derive the
+  reasoning mode from native/catalogue effort evidence. Sparse Anthropic and
+  Gemini list rows retain native metadata; Anthropic image admission enforces
+  its documented 10 MB bound. Gemini 2.5 fallback mode cites research rather
+  than an uncaptured wire claim. Media refusals explain capability, MIME and
+  individual limits separately from exhausted replay budgets.
+
+- M95 model capabilities now retain evidence sources and distinguish unknown
+  from unsupported. Native model lists retain reasoning, limits, modalities,
+  structured-output and sampling metadata; custom model overrides are validated
+  and stored as user evidence. Haiku 4.5 uses manual budgeted thinking, while
+  captured Sonnet/Opus and Gemini models use their supported reasoning mode.
+  Composer effort tiers and image/PDF admission accept the resolved model
+  policy. Meta request bytes and existing media limits remain unchanged.
+  Final host dispatch and pricing composition remain assigned to lane I.
+- Bind replayed reasoning and Model API hook identity to the producing
+  provider and model; name BYO models in the system prompt.
+
+- Resolve host turns and Auto review through a lazy provider registry seam;
+  honor verified tool support, output limits, effort tiers and price cards.
+  Bind retries and held confirmations to the provider/model/credential,
+  retain unknown costs and separate Meta image credentials from BYO profiles.
+  Production transport composition remains pending M95 lane T/W integration.
+- Windows concurrent ChatGPT refresh recovery retries transient sharing
+  refusals without deleting a live owner or replacing a legacy ownerless lock.
+
+- Plan notices now use a verified account hash, and dismissed usage limits
+  stay dismissed through model switches and saved conversation restoration.
+  Plan billing disclosures survive a temporarily empty model catalogue.
+  Subscription commands install the language in both deferred bundles.
+  Corrupted subscription records return a fixed error without exposing their
+  stored text through JSON parsing failures.
+
+
+- ChatGPT provider add, remove and status commands now reach the ACP executable
+  and appear as terminal or manual actions in every ACP editor. Sign-in saves
+  the account's eligible catalogue models atomically; translated notices and
+  callback text ship in all fourteen languages. Native credential-store failures
+  retain a sanitized recovery category and direct users to an interactive
+  desktop session, without exposing the store's error text.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
   budget counts every static JavaScript chunk; the package ships all chunks.
+  Package and panel regression fixtures exercise the shared parser, module
+  scripts and asynchronous dialog loading.
 
 - M95 integration uses one strict Models panel bridge and includes the captured
   Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a
@@ -888,6 +1075,24 @@ with Your Own Model` wizard (in-memory draft; Save writes
   UTF-8, preserving every language inside the unchanged aggregate cap. Missing,
   duplicate or changed vendor grammar declarations stop the build.
 
+- **First-run and usage UI for bring-your-own providers (M95 lane U).**
+  The sign-in gate offers Start with your own model beside the other two
+  (ranked equally with no backend set up); a finished setup confirms once
+  with Manage providers. The model picker groups by provider with pinned
+  favourites first, priced/unpriced/local/plan details and provider rows;
+  the composer pill names the provider; Account & usage lists per-provider
+  tallies with OpenRouter key usage and unpriced/local costs. A confidential
+  workspace hides training models from the list and refuses them on switch.
+- **Companion transport authentication (M104 lane C, awaiting integration).**
+  Per-window memory bearers replace host-wide cookies, preventing credential
+  leakage across loopback ports and isolating tabs and concurrent runtimes.
+  Rejected launches show localized, accessible instructions to reopen the
+  panel from the editor.
+
+- Archived Node bundles retain their named exports under native `import()` and
+  `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
+  Both package jobs now compare every Node module's exports and selected
+  function calls with the unpacked build.
 - The VSIX packaging unit suite now builds its own English fixtures from source,
   so a fresh checkout can run it before a production build.
 

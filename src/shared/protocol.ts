@@ -71,6 +71,7 @@ import {
   accountFactsSchema,
   providerUsageRowSchema,
   subscriptionUsageSchema,
+  planUsageReportSchema,
   usageInsightsSchema,
 } from './usage'
 import type { TeamTreeAction, TeamTreeUpdate } from './team'
@@ -227,6 +228,8 @@ export const HOST_ACTIONS = [
    * of its own. The conversation controller answers it itself.
    */
   'openTasksTab',
+  /** M102: the shared Usage & cost page. */
+  'openUsagePage',
   /** The bundled skills' offer for Muse Code (M89, PLAN.md D68): Install, Update, Not now. */
   'installBundledSkills',
   'updateBundledSkills',
@@ -268,12 +271,15 @@ const modelOptionSchema = z.object({
   providerId: z.optional(stringSchema),
   providerLabel: z.optional(stringSchema),
   pricing: z.optional(z.enum(MODEL_PRICINGS)),
+  /** Plan-key preset's limits page; no credential or account identity. */
+  planLimitsUrl: z.optional(z.url().check(z.refine((url) => url.startsWith('https://')))),
   inputUsdPerMTokens: z.optional(numberSchema),
   outputUsdPerMTokens: z.optional(numberSchema),
   /** Pinned in the Models section: first in the composer's picker (M95). */
   isPinned: z.optional(booleanSchema),
   /** The provider or route may train on the content (hidden when confidential). */
   trainsOnContent: z.optional(booleanSchema),
+  effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 
@@ -529,6 +535,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
     type: z.literal('decideApproval'),
@@ -891,6 +898,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     hasCli: z.optional(booleanSchema),
     hasCliSession: z.optional(booleanSchema),
     installState: z.optional(z.enum(['running', 'failed'])),
+    /** Host-authored identity for plan notice persistence; no raw account id or credential. */
+    planAccount: z.optional(
+      z.object({
+        providerId: z.string().check(z.regex(/^(?!meta$)[a-z][a-z0-9-]{0,31}$/u)),
+        accountIdHash: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+      }),
+    ),
   }),
   // The active session's model (shown in the composer pill) and identity.
   z.object({
@@ -964,6 +978,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     providers: z.optional(z.array(providerUsageRowSchema)),
     /** The Usage Team section (M96 lane U2); absent where the team cannot run. */
     team: z.optional(teamUsageSchema),
+    plans: z.optional(planUsageReportSchema),
   }),
   // A finished provider setup (M95): the wizard saved a provider and set the
   // composer's model. The panel confirms once, then leaves first run.

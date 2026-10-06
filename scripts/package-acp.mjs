@@ -33,9 +33,20 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'headless.js',
   'modelApi.js',
+  'modelApiHooks.js',
+  'modelApiMcp.js',
+  'runtimeAccounting.js',
+  'providerPolicy.js',
+  'runtimeEngine.js',
   'modelApiBoundaries.js',
   'legalScan.js',
+  'providers.js',
+  'subscriptions.js',
+  'configuredProviders.js',
+  'providerCatalog.json',
+  'providerCatalog.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
@@ -53,6 +64,8 @@ const BUNDLES = [
   'searchWorker.js',
   'pageWorker.js',
   'imageResizeWorker.js',
+  'usageService.js',
+  'usageCompanion.js',
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.
@@ -89,9 +102,50 @@ function requireBundles() {
   }
 }
 
+/** Ship only the usage entry's transitive assets, never chat code or maps. */
+function usageAssets() {
+  const root = path.resolve('dist', 'webview')
+  const meta = JSON.parse(readFileSync(path.join('dist', 'meta', 'usageWebview.json'), 'utf8'))
+  const pending = ['dist/webview/usage.js', 'dist/webview/usage.css']
+  const files = new Set()
+  while (pending.length > 0) {
+    const file = pending.pop()
+    if (files.has(file)) continue
+    const relative = path.relative(root, path.resolve(file))
+    if (
+      relative === '' ||
+      relative.startsWith('..') ||
+      path.isAbsolute(relative) ||
+      !['.js', '.css'].includes(path.extname(file))
+    ) {
+      throw new Error('Usage asset is outside the browser bundle')
+    }
+    const output = meta.outputs?.[file]
+    if (output === undefined || !statSync(file).isFile()) {
+      throw new Error(`${file} is missing from the usage browser build`)
+    }
+    files.add(file)
+    if (output.cssBundle !== undefined) pending.push(output.cssBundle)
+    const imports = output.imports ?? []
+    for (const imported of imports) {
+      if (imported.external) throw new Error('Usage assets must be bundled locally')
+      pending.push(imported.path)
+    }
+  }
+  return [...files]
+}
+
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+const pageAssets = usageAssets()
+// Every installed display language needs the usage family too (lane L).
+for (const table of readdirSync('l10n')) {
+  if (!/^ui\..+\.json$/u.test(table)) continue
+  const source = path.join('l10n', table.replace(/^ui\./u, 'usage.'))
+  if (!statSync(source).isFile()) throw new Error(`${source} is missing`)
+  JSON.parse(readFileSync(source, 'utf8'))
+}
 for (const schema of SCHEMAS) {
   const source = path.join('docs', 'schemas', schema)
   if (!statSync(source).isFile()) {
@@ -111,6 +165,11 @@ for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
 cpSync('dist/legal-data', path.join(STAGE, 'dist', 'legal-data'), { recursive: true })
+for (const source of pageAssets) {
+  const target = path.join(STAGE, source)
+  mkdirSync(path.dirname(target), { recursive: true })
+  copyFileSync(source, target)
+}
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))

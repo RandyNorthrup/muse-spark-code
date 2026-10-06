@@ -1,5 +1,6 @@
 import * as acp from '@agentclientprotocol/sdk'
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
+import { randomUUID } from 'node:crypto'
+import { mkdtempSync, readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { Readable } from 'node:stream'
@@ -7,7 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { pinnedHttpsRequest } from '../../src/host/web/pinnedRequest'
-import { paidGrantsFile } from '../../src/runtime/dataFolder'
+import { paidGrantsFile, agentDataFolder } from '../../src/runtime/dataFolder'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { type AcpPaidFeature, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { memorySecrets } from './helpers/fakes'
@@ -59,6 +60,19 @@ async function until(isMet: () => boolean | Promise<boolean>): Promise<void> {
   }
 }
 
+function imageCall() {
+  const imageId = randomUUID()
+  return {
+    calls: [
+      {
+        name: 'generate_image',
+        arguments: JSON.stringify({ prompt: 'draw', path: `image-${imageId}.png` }),
+        callId: `image-call-${imageId}`,
+      },
+    ],
+  }
+}
+
 function writeCall(file: string, content: string, callId: string) {
   return { name: 'write_file', arguments: JSON.stringify({ path: file, content }), callId }
 }
@@ -76,6 +90,13 @@ function setup(
   const secrets = memorySecrets()
   secrets.values.set(SECRET_KEYS.modelApiKey, KEY)
   const { data, workspace } = shared ?? { data: folder(), workspace: folder() }
+  const dataFolder = agentDataFolder({
+    platform: process.platform,
+    env: { XDG_DATA_HOME: data, LOCALAPPDATA: data },
+    homeDir: data,
+  })
+  mkdirSync(dataFolder, { recursive: true })
+  writeFileSync(path.join(dataFolder, 'settings.json'), '{"paidDailyBudgetUsd":500}')
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
   const runtime = createRuntimeBackend({
     options: {
@@ -95,7 +116,6 @@ function setup(
     homeDir: data,
     secrets,
     runGit: () => Promise.reject(new Error('no git')),
-    museCodeCredentials: [],
     fetch: api.fetch,
     sleep: () => Promise.resolve(),
     log,
@@ -338,32 +358,38 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     await t.runtime.close()
   })
 
-  it('asks before each prompt that may search the web, and tallies each search (M58)', async () => {
-    const t = setup(answerPaid('paid-allow-once'), ['webSearch'])
-    t.api.script(
-      { searches: [{ queries: ['acp registry'] }], text: 'Found it.' },
-      { text: 'Nothing to search.' },
-    )
+  it('asks before each bounded image use and tallies both uses (M58)', async () => {
+    const t = setup(answerPaid('paid-allow-once'), ['imageGeneration'], true)
+    t.api.script(imageCall(), { text: 'One.' }, imageCall(), { text: 'Two.' })
     await t.run(async (client) => {
       const { created } = await promptOnce(client, t.workspace)
       await promptAgain(client, created.sessionId)
     })
-    expect(t.permissions.map((request) => request.toolCall.title)).toEqual([
-      'Let Muse search the web for this prompt?',
-      'Let Muse search the web for this prompt?',
-    ])
-    for (const body of t.api.responseBodies()) {
-      expect(JSON.stringify(body['tools'])).toContain('web_search')
-    }
-    expect(t.log.info).toHaveBeenCalledWith('Paid use of webSearch: 1, 1 since the agent started')
+    expect(t.permissions).toHaveLength(2)
+    expect(
+      t.permissions.every(
+        (request) => request.toolCall.title?.includes('create the image') === true,
+      ),
+    ).toBe(true)
+    expect(t.api.imageBodies()).toHaveLength(2)
+    expect(t.log.info).toHaveBeenCalledWith(
+      'Paid use of imageGeneration: 1, 2 since the agent started',
+    )
     await t.runtime.close()
   })
-
-  it('sends the prompt without web search when its question is denied (M58)', async () => {
-    const t = setup(answerPaid('paid-deny'), ['webSearch'])
-    t.api.script({ text: 'No search.' })
+  it('denies an image before paid dispatch when its question is denied (M58)', async () => {
+    const t = setup(answerPaid('paid-deny'), ['imageGeneration'], true)
+    t.api.script(imageCall(), { text: 'Denied.' })
     await t.run((client) => promptOnce(client, t.workspace))
     expect(t.permissions).toHaveLength(1)
+    expect(t.api.imageBodies()).toHaveLength(0)
+    await t.runtime.close()
+  })
+  it('keeps unbounded hosted search unavailable under the hard daily budget', async () => {
+    const t = setup(answerPaid('paid-allow-once'), ['webSearch'])
+    t.api.script({ text: 'No search.' })
+    await t.run((client) => promptOnce(client, t.workspace))
+    expect(t.permissions).toHaveLength(0)
     expect(JSON.stringify(t.api.responseBodies()[0]?.['tools'])).not.toContain('web_search')
     await t.runtime.close()
   })
@@ -418,8 +444,8 @@ describe('the ACP agent on the Model API backend (M63)', () => {
   )
 
   it('keeps "Allow always" for a trusted folder until the agent starts without the flag (M58)', async () => {
-    const first = setup(answerPaid('paid-allow-always'), ['webSearch'], true)
-    first.api.script({ text: 'One.' }, { text: 'Two.' })
+    const first = setup(answerPaid('paid-allow-always'), ['imageGeneration'], true)
+    first.api.script(imageCall(), { text: 'One.' }, imageCall(), { text: 'Two.' })
     await first.run(async (client) => {
       const { created } = await promptOnce(client, first.workspace)
       await promptAgain(client, created.sessionId)
@@ -431,16 +457,16 @@ describe('the ACP agent on the Model API backend (M63)', () => {
       homeDir: first.data,
     })
     const grants = paidGrantFile({ file, log: first.log, sleep: () => Promise.resolve() })
-    expect(grants.read(first.workspace)).toEqual(new Set(['webSearch']))
+    expect(grants.read(first.workspace)).toEqual(new Set(['imageGeneration']))
     await first.runtime.close()
 
     // Started again with the flag, the folder still asks nothing.
-    const again = setup(answerPaid('paid-deny'), ['webSearch'], true, first)
+    const again = setup(answerPaid('paid-deny'), ['imageGeneration'], true, first)
     await again.runtime.forgetUnflaggedGrants()
-    again.api.script({ text: 'Three.' })
+    again.api.script(imageCall(), { text: 'Three.' })
     await again.run((client) => promptOnce(client, again.workspace))
     expect(again.permissions).toEqual([])
-    expect(JSON.stringify(again.api.responseBodies()[0]?.['tools'])).toContain('web_search')
+    expect(again.api.imageBodies()).toHaveLength(1)
     await again.runtime.close()
 
     // Started without it, the grant lapses, so with it again the folder asks again.
@@ -448,14 +474,12 @@ describe('the ACP agent on the Model API backend (M63)', () => {
     await without.runtime.forgetUnflaggedGrants()
     expect(grants.read(first.workspace)).toEqual(new Set())
     await without.runtime.close()
-    const flaggedAgain = setup(answerPaid('paid-deny'), ['webSearch'], true, first)
+    const flaggedAgain = setup(answerPaid('paid-deny'), ['imageGeneration'], true, first)
     await flaggedAgain.runtime.forgetUnflaggedGrants()
-    flaggedAgain.api.script({ text: 'Four.' })
+    flaggedAgain.api.script(imageCall(), { text: 'Four.' })
     await flaggedAgain.run((client) => promptOnce(client, flaggedAgain.workspace))
     expect(flaggedAgain.permissions).toHaveLength(1)
-    expect(JSON.stringify(flaggedAgain.api.responseBodies()[0]?.['tools'])).not.toContain(
-      'web_search',
-    )
+    expect(flaggedAgain.api.imageBodies()).toHaveLength(0)
     await flaggedAgain.runtime.close()
   })
 })

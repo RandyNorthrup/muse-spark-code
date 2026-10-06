@@ -12,6 +12,21 @@
 **Reviewed baseline:** manifest version 0.8.0, main commit [`bdaede45417ac8dbcaf5f52aa9b3ff307396ab03`](https://github.com/RandyNorthrup/muse-spark-code/commit/bdaede45417ac8dbcaf5f52aa9b3ff307396ab03)  
 **Status:** Proposed roadmap based on repository inspection and current primary documentation. No additional IDE has been installation-tested or certified during this review.
 
+## Subscription platform boundary (M95b, 2026-10-05)
+
+Copilot models are exposed to this extension through VS Code's Language
+Model API (`vscode.lm`) and its permission flow. An editor without that API
+cannot offer this product's Copilot route. JetBrains, Visual Studio, Eclipse,
+Zed, Xcode, Neovim, Emacs and Sublime keep their own Copilot plugin and can
+use this agent's shared ChatGPT/API-key routes where implemented. The ACP
+runtime uses the same shared engine for those routes. No Copilot token is
+read, extracted or reverse-engineered. Compatible VS Code extension hosts
+need an actual Language Model API implementation, not just the webview API.
+
+Offline integration is recorded in [M95R3 certification](certification/m95-r3.md).
+Installed-editor and live plan receipts remain pending; the rig's stopped
+Copilot dispatch regression must be repaired before claiming support.
+
 ## 1. Recommended direction
 
 Develop Muse Spark Code as one product with a shared agent engine, a reusable React interface, and a small set of integration families:
@@ -249,6 +264,18 @@ Test current stable releases and each declared minimum supported version. Includ
 Open VSX distribution is central to reaching several compatible editors. Zed's current distribution documentation instead centers on the ACP Registry. Keep those as separate deliverables. [Open VSX registry FAQ](https://www.eclipse.org/legal/open-vsx-registry-faq/), [Zed agent distribution](https://zed.dev/docs/ai/external-agents)
 
 ## 11. Connection to the Muse Spark Code companion app
+
+M102's local Usage & cost page uses the shared React usage bundle and the same
+journal/service as VS Code. ACP editors can request `/usage`, run the agent's
+`usage` command, or open its loopback browser companion. Native JCEF, WebView2
+and SWT usage bridges carry the same checked messages. The browser companion
+exchanges a one-use fragment code for a separate memory bearer per window;
+authenticated fetch streams use Authorization headers and no cookies. Reading,
+filtering, exporting and counted history deletion use the shared service.
+Native editor installation receipts remain required before claiming editor
+support. Browser requests to reveal an OS folder, open host settings or open the
+native Models panel currently return an explicit unsupported result; those host
+navigation adapters are still outstanding in the integration certification.
 
 The same shared UI and application contracts can support the planned phone companion. Keep media capture as an optional host capability: phone camera, desktop microphone, or a future glasses source. Route captured assets to a specifically paired workspace/session.
 

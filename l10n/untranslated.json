@@ -266,5 +266,33 @@
     "pt-br": ["views.chatView.name"],
     "fr": ["command.hooks.title"],
     "it": ["views.chatView.name"]
+  },
+  "usage": {
+    "*": ["chartBucket"],
+    "cs": ["editor", "kindHook", "model"],
+    "de": [
+      "editor",
+      "kindHook",
+      "kindReviewer",
+      "kindSubagent",
+      "kindWorker",
+      "nameColumn",
+      "originSubagent"
+    ],
+    "es": ["certaintyLocal", "certaintyPlan", "editor", "kindHook", "kindWorker", "tokens"],
+    "fr": [
+      "dateColumn",
+      "images",
+      "kindHook",
+      "kindTurn",
+      "kindWorker",
+      "originTurn",
+      "priceCatalogue"
+    ],
+    "hu": ["kindHook"],
+    "it": ["editor", "kindHook", "kindWorker", "recordCount.one"],
+    "pl": ["certaintyPlan", "kindHook", "model"],
+    "pt-br": ["certaintyLocal", "editor", "kindHook", "kindWorker", "tokens"],
+    "tr": ["certaintyPlan", "model"]
   }
 }

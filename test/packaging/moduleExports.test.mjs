@@ -63,8 +63,36 @@ async function exercise(api, name, table) {
     }
     case 'reviewer.js': {
       const rows = []
+      const client = {
+        streamResponse() {
+          throw new Error('fake reviewer unavailable')
+        },
+      }
       const result = await api.reviewPaidCall(
         {
+          resolved: {
+            ref: 'muse-spark-1.3',
+            client,
+            origin: 'https://api.meta.ai',
+            isCurrent: () => true,
+            policy: {
+              identity: { provider: 'meta', nativeModel: 'muse-spark-1.3' },
+              tools: {
+                calling: { state: 'yes', value: true },
+                parallel: { state: 'yes', value: true },
+              },
+              reasoning: {
+                effortLevels: { state: 'unknown' },
+                canDisable: { state: 'yes', value: true },
+              },
+              output: {},
+              hosted: { webSearch: { state: 'unknown' } },
+              pricing: { kind: 'local' },
+            },
+            price: { reserve: () => 0, settle: () => 0 },
+          },
+          isCountedUsage: () => true,
+          abortError: () => new Error('fake cancelled'),
           table,
           locale: 'en',
           userRequest: 'Inspect',
@@ -79,21 +107,24 @@ async function exercise(api, name, table) {
           emit: ignore,
           deps: {
             newId: () => 'fake-review',
+            now: () => 1,
             workspaceRoot: '/fake',
             platform: 'linux',
             log: { warn: ignore },
-            client: {
-              streamResponse() {
-                throw new Error('fake reviewer unavailable')
-              },
-            },
+            noteReviewerUsage: ignore,
+            client,
           },
         },
         'shell',
         'pwd',
         'fake-turn',
         new globalThis.AbortController().signal,
-        { modelId: 'muse-spark-1.3' },
+        {
+          modelId: 'muse-spark-1.3',
+          keyDigest: 'fake-digest',
+          isStillAllowed: () => true,
+          onRequestStarted: ignore,
+        },
         undefined,
         () => true,
       )
@@ -153,7 +184,11 @@ if (isMainThread) {
   after(() => rmSync(scratch, { recursive: true, force: true }))
   let packageRoot = path.resolve(artifact)
   if (kind === 'acp') {
-    execFileSync('tar', ['-xzf', packageRoot, '-C', scratch])
+    const archiveTar =
+      process.platform === 'win32'
+        ? path.join(process.env['SystemRoot'] ?? String.raw`C:\Windows`, 'System32', 'tar.exe')
+        : 'tar'
+    execFileSync(archiveTar, ['-xzf', packageRoot, '-C', scratch])
     packageRoot = path.join(scratch, 'package')
   }
   const files = readdirSync(path.join(packageRoot, 'dist'))

@@ -45,6 +45,8 @@ export const GOOEY_MENU = {
 } as const
 
 export const COMMAND_IDS = {
+  connectChatGpt: 'museSpark.connectChatGpt',
+  connectCopilot: 'museSpark.connectCopilot',
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
@@ -97,6 +99,7 @@ export const COMMAND_IDS = {
   addModelProvider: 'museSpark.addModelProvider',
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
+  openUsagePage: 'museSpark.openUsagePage',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -117,6 +120,9 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
+/** ACP grant mutations serialize by exclusively listening on this loopback port. */
+export const CHATGPT_REFRESH_LOCK_PORT = 49_953
+export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
 /** A removed provider's secret waits ten seconds behind Undo (D74). */
 export const PROVIDER_UNDO_WINDOW_MS = 10 * 1000
 /** How long Scan this computer waits on one loopback port (D74). */
@@ -477,6 +483,8 @@ export const SETTING_DEFAULTS = {
   // (PLAN.md D26), so its replies never carry one. Display only.
   modelApiReplyUsage: true,
   paidDailyBudgetUsd: 5,
+  usageHistory: true,
+  usageHistoryDays: 365,
   dictationEngine: 'system' as 'system' | 'museVoice',
   // A session budget cap in US dollars for each Model API conversation
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
@@ -530,6 +538,9 @@ export const PAID_DAILY_BUDGET = {
   // Monotonic for this day: a delayed numeric override cannot clear Stop.
   stopDirectory: 'stopped',
 } as const
+export const RUNTIME_SETTINGS_FILE = 'settings.json'
+export const DAILY_BUDGET_LOCK_ATTEMPTS = 100
+export const DAILY_BUDGET_LOCK_WAIT_MS = 10
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
@@ -572,6 +583,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'bundledSkills',
   'modelApiSessionBudgetUsd',
   'paidDailyBudgetUsd',
+  'usageHistory',
+  'usageHistoryDays',
   'dictationEngine',
   'museCodeAutoReviewer',
   'showWhatsNewOnUpdate',
@@ -1014,6 +1027,9 @@ export const PNG_CHUNK_HEADER_BYTES = 8
 export const PNG_CHUNK_CRC_BYTES = 4
 export const PNG_SIGNATURE_BYTES = 8
 export const PIXELS_PER_MEGAPIXEL = 1_000_000
+// Documented Anthropic image limit: 10 MB, not the product's 10 MiB default
+// (docs/certification/m95-research.md §1.5, A-vi).
+export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
@@ -1635,6 +1651,8 @@ export const MODEL_API_PRICES_PER_MILLION = {
 } as const
 export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
 export const MODEL_API_PRICE_DECIMALS = 3
+/** Provider fees may be smaller than Meta's display precision; keep positive fees visible. */
+export const PROVIDER_PRICE_MAX_DECIMALS = 20
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
@@ -1687,6 +1705,8 @@ export const MODEL_API_CONTEXT_BYTES_PER_TOKEN = 4
 export const MODEL_API_SILENT_OVERFLOW_FRACTION = 99 / 100
 // A read uses at most half a window in characters (about one eighth in ordinary text tokens).
 export const READ_FILE_CONTEXT_CHAR_FRACTION = 1 / 2
+/** Smallest documented manual-thinking budget; always below the output cap. */
+export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 // A turn that ran this long earns a notification when it ends while the
 // VS Code window is unfocused (M82): shorter turns answer before the user
 // looks away.
@@ -3763,6 +3783,37 @@ export const HEARTBEAT_BEAM_MAX_TICKS_PER_FRAME = 8
 export const MILLISECONDS_PER_SECOND = 1000
 export const SECONDS_PER_MINUTE = 60
 export const USAGE_COUNTDOWN_REFRESH_MS = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE
+
+// M102 / D82: machine-local usage history, independent of spend ledgers.
+export const USAGE_JOURNAL_VERSION = 1
+export const USAGE_FOLDER = 'usage'
+export const USAGE_SETTINGS_FILE = 'usage-settings.json'
+export const USAGE_VERSION_FOLDER = 'v1'
+export const USAGE_DAYS_FOLDER = 'days'
+export const USAGE_ROLLUPS_FOLDER = 'rollups'
+export const USAGE_ROLLUP_LOCK = 'rollup.lock'
+export const USAGE_DETAIL_DAYS = 30
+export const USAGE_HISTORY_DAYS_DEFAULT = 365
+export const USAGE_HISTORY_DAYS_MIN = 30
+export const USAGE_HISTORY_DAYS_MAX = 1825
+export const USAGE_RECORD_MAX_BYTES = 4096
+export const USAGE_LABEL_MAX_CHARS = 256
+export const USAGE_ID_MAX_CHARS = 128
+export const USAGE_HEADER_MAX_CHARS = 64
+export const USAGE_WARNING_PERCENTS = [75, 90, 100] as const
+export const USAGE_PACE_BAND_POINTS = 5
+export const USAGE_BURN_MIN_MS = 30 * 60 * 1000
+export const USAGE_STALE_MS = 15 * 60 * 1000
+export const USAGE_COMPANION_IDLE_MS = 30 * 60 * 1000
+export const USAGE_COMPANION_EVENT_BYTES = 16 * 1024 * 1024
+export const USAGE_BROWSER_EXPORT_MAX_BYTES = USAGE_COMPANION_EVENT_BYTES / 2
+export const USAGE_COMPANION_REQUEST_MS = 2 * 60 * 1000
+export const USAGE_COMPANION_MAX_WINDOWS = 32
+export const USAGE_ROLLUP_LOCK_STALE_MS = 5 * 60 * 1000
+// Eleven upper edges plus the overflow bucket: twelve log-scale latency buckets.
+export const USAGE_HISTOGRAM_EDGES_MS = [
+  125, 250, 500, 1000, 2000, 4000, 8000, 16_000, 32_000, 64_000, 128_000,
+] as const
 export const MINUTES_PER_HOUR = 60
 export const HOURS_PER_DAY = 24
 export const DAYS_PER_WEEK = 7
@@ -4807,7 +4858,12 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/providers.js',
+  'dist/subscriptions.js',
+  'dist/configuredProviders.js',
   'dist/modelsPanel.js',
+  'dist/usageService.js',
+  'dist/usageCompanion.js',
+  'dist/usagePanel.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
   'dist/team.js',
@@ -4827,6 +4883,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/pageWorker.js',
   'dist/webview/main.js',
   'dist/webview/models.js',
+  'dist/webview/usage.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
@@ -5315,11 +5372,17 @@ export const CODE_INTEL_MODEL_TEXT = {
 // and the paired evaluation that drives it. Kept separate so activation and
 // ACP loaders can discard it without changing any words; the bundle-split
 // gate fails when dist/extension.js or dist/acp.js carries it (PLAN.md D6).
+export const BYO_MODEL_REFERENCE_PATTERN = /^[a-z][a-z0-9-]{0,31}\/\S+$/
+
 export const MODEL_API_MODEL_TEXT = {
   // M91 lane E: BeforeToolSelection's tail note, and TeammateIdle's default.
   hookToolsUnavailable: 'Tools unavailable for this turn:',
   hookTeammateContinue: 'Continue the current task; a TeammateIdle hook requested another check.',
   goalProgressLead: '# Session goal progress',
+  toolCallingUnavailable:
+    'The selected model has no verified tool-calling capability; this call was not run.',
+  providerIdentity:
+    'You are {model}, served by {provider}, a coding agent working inside Visual Studio Code through the Muse Spark Code (Unofficial) extension.',
   // M73 (PLAN.md D49): observation packing. The placeholder names the
   // packed output's id, size and first and last lines; recall_output pages
   // the original back. Placeholders never reach the transcript: only the
@@ -5367,6 +5430,10 @@ export const MODEL_API_MODEL_TEXT = {
     '[An image attached earlier is left out of this request because newer media fill the request limit.]',
   pdfLeftOut:
     '[The PDF {name}, attached earlier, is left out of this request because newer media fill the request limit.]',
+  mediaLeftOut: '[Media is left out of this request because {reason}.]',
+  mediaSupportRefused: 'the selected model does not have established support for this media',
+  mediaMimeRefused: 'the selected model does not support this image MIME type',
+  mediaLimitExceeded: 'the media exceeds the selected model media limits',
   // M67 (PLAN.md D49): the code intelligence tools in the system prompt, and
   // rename_symbol's write, which only the Model API backend applies itself.
   codeIntelInstructions:
@@ -5424,7 +5491,7 @@ export const MODEL_API_MODEL_TEXT = {
     "(This tool's argument schema is beyond what the Model API accepts; send the arguments its description names, as a JSON object.)",
   mcpTextAndImagesOnly: 'the Model API backend passes text and images only',
   mcpNoContent: '(the tool returned no content)',
-  mcpArgumentsNotObject: 'arguments must be a JSON object',
+
   // M75 (PLAN.md D49): the paired evaluation's answer to a question the
   // model asks mid-task; nobody is there to choose.
   evalClarification: 'Proceed without asking; take the simplest reading of the request.',
@@ -5504,7 +5571,7 @@ export const MODEL_API_MODEL_TEXT = {
   // M50: MCP tools on the Model API backend.
   mcpRestrictedMode:
     'MCP servers do not run while the workspace is in Restricted Mode; trust the workspace to enable them',
-  mcpToolUnavailable: 'is not available: its MCP server is not connected',
+
   mcpRequiredUnavailable: 'cancelled: a required MCP server is not connected',
   memoryRestrictedMode:
     'memory is not available while the workspace is in Restricted Mode; trust the workspace to use it',
@@ -5925,6 +5992,15 @@ export const ZAI_KEY_PATTERN = /^[0-9a-f]{32}\.[A-Za-z0-9]{8,64}$/
 export const PROVIDERS_CONFIG_DIR_NAME = 'muse-spark-code'
 export const PROVIDERS_FILE_NAME = 'providers.json'
 export const PROVIDERS_FILE_VERSION = 1
+// M95b destinations: opening one never changes billing or sends a model call.
+export const CHATGPT_MANAGE_USAGE_URL = 'https://chatgpt.com/settings/usage'
+export const COPILOT_REPORT_URL = 'mailto:copilot-partners@github.com'
+export const COPILOT_MANAGE_USAGE_URL = 'https://github.com/settings/copilot'
+export const CHATGPT_PLAN_NOTICE_STORAGE_KEY = 'museSpark.chatGptPlanNotice.v1'
+// Owner capture M95B-FINDINGS.md, 2026-10-05: SSE error inside HTTP 200.
+export const CHATGPT_PLAN_LIMIT_MESSAGE = 'Subscription Sharing usage limit'
+export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_exceeded'
+export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).
 export const CREDENTIAL_RECORD_VERSION = 1
@@ -5943,6 +6019,12 @@ export const OLLAMA_NUM_CTX_OPTIONS: readonly number[] = [32_768, 65_536, 131_07
 // A model id or label a provider lists is untrusted text: control and
 // format characters are stripped and the rest is cut to this.
 export const PROVIDER_MODEL_LABEL_MAX_CHARS = 120
+
+// M95-T: untrusted provider responses are bounded before JSON or codec parsing.
+export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
+export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
+export const PROVIDER_STREAM_MAX_FRAMES = 100_000
+export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.
@@ -5952,6 +6034,11 @@ export const SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS = 10_000
 // the verifier's random bytes, and the `state` secret's.
 export const PKCE_VERIFIER_BYTES = 32
 export const PKCE_STATE_BYTES = 16
+// How long the ACP agent's free provider test waits for one answer (M95
+// lane X: `providers add|test`).
+export const PROVIDER_PROBE_TIMEOUT_MS = 30_000
+// A bounded free models list, shared by the runtime's captured list parsers.
+export const PROVIDER_PROBE_MODEL_IDS_MAX = 5000
 // The OAuth loopback callback (lane K's one-shot `127.0.0.1` server, reused
 // by M95b): bound to loopback only, one use, codes last this long
 // (OpenRouter's codes are single-use and last ten minutes).
@@ -6017,7 +6104,20 @@ export { UI_TEXT } from './l10n/text'
 export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
 export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
-// Quality 10 bounds packaging time for the integrated tables; all byte caps stay fixed.
+export const USAGE_TABLE_ARCHIVE_FILE = 'usage.tables.json.br'
+// The provider presets' public account pages; custom/local origins are unknown.
+export const USAGE_PROVIDER_CONSOLES: Readonly<Record<string, string>> = {
+  openai: 'https://platform.openai.com/api-keys',
+  xai: 'https://console.x.ai',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  gemini: 'https://aistudio.google.com/apikey',
+  openrouter: 'https://openrouter.ai/keys',
+  groq: 'https://console.groq.com/keys',
+  deepseek: 'https://platform.deepseek.com/api_keys',
+  mistral: 'https://console.mistral.ai/api-keys',
+  together: 'https://api.together.ai/settings/api-keys',
+  huggingface: 'https://huggingface.co/settings/tokens',
+}
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024
 export const L10N_PLURAL_SAMPLE_MAX = 200
@@ -6642,4 +6742,9 @@ export const LEGAL_SCAN_TOOL_MODEL_TEXT = {
   invalidResult: 'the legal scan returned an invalid result',
   legalScanRestrictedMode:
     'the legal scan is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+} as const
+
+export const MCP_POOL_MODEL_TEXT = {
+  mcpArgumentsNotObject: 'arguments must be a JSON object',
+  mcpToolUnavailable: 'is not available: its MCP server is not connected',
 } as const

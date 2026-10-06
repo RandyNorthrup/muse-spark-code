@@ -15,11 +15,13 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15D): all six authorized steps are complete,
-including both held `--no-ff` input merges. Every bundle and the universal VSIX
-pass their caps; scoped gates, owning tests and local editor/accessibility
-receipts pass. Full release certification still waits for M95/M102 and the
-lead’s aggregate, native and hosted/live gates.**
+**Current disposition (TRAIN15E): the M95/M102 no-ff integration and bounded
+runtime accounting are implemented. The helperless package passes, but the
+universal helper is absent and its prior compressed contribution projects an
+over-cap archive. One D78 assertion conflicts with the immutable train request
+goldens and remains enabled/red for an owner decision. Exec stdio retains one
+stale locale-fixture expectation under the required two-fix stop. Full release
+certification is held; the continuation receipt is appended below.**
 
 **First-run disposition:** budget stop after M101. The original receipt follows;
 the resumed measurements and bounded stop are appended below.
@@ -752,3 +754,129 @@ leaves stdout empty. All return documented exit 2 with eleven incomplete checks
 and no findings; they are not claimed as complete legal-compliance/CI receipts.
 Artifact digests, final step sizes, complete owning filenames, conflict paths,
 restored drill hashes and all extra checks are in `train-0.15.0-train15d.json`.
+
+## TRAIN15E — M95 round 5 / M102 round 3 continuation (win11, 2026-10-06)
+
+The authorized no-ff integration joins f07bf3e51 to 77dbd65d2. Resolve all
+92 conflicted paths by preserving provider policy, keys,
+price/capability evidence and both locales/manifest dictionaries; retain the
+train's compaction, teams, legal UI, paid consent, history and bundle diet.
+The incoming canonical usage field is cacheWriteTokens1h; existing localized
+labels retain their keys. Generated notices and the host inventory are rebuilt.
+The released changelog suffix is byte-identical (SHA-256
+6ec0ee1bc4a97bee7afe6edef99aedf17a20f55e046c316b80cd63e242a3160d). All 14 tracked captured request
+fixtures are byte-identical; all three golden suites pass 89 assertions.
+
+Production headless BYO runs now reach the existing provider engine, with
+M102 recording at the shared transport boundary. ACP and headless clients
+share a durable local-day journal in the agent data folder. Runtime
+settings.json accepts paidDailyBudgetUsd (default USD 5, range 0.50–500).
+An exclusive process lock admits the durable claim, the final synchronous
+fence rechecks cap/day/key/model, and the hard run ledger admits before fetch.
+Known completed usage settles the claim; sent requests without verified
+usage retain full liability. Corrupt settings or abandoned locks fail closed.
+The two-child last-dollar race admits exactly one process. Native and BYO
+headless tests refuse unaffordable requests before dispatch and verify journal
+recording. Hosted search is explicitly unavailable under this runtime hard
+budget because its returned fees have no dispatch bound; image opt-ins and
+consent remain. The restored accounting/ledger/Gemini batch passes 110 tests.
+
+Optional hooks and MCP pools are lazy. The launcher and headless preflight
+load the shared engine only after admission; the small runtime English
+fallback stays direct, with unchanged bytes and canonical archive snapshot.
+The web-fetch model-text reader moves from ACP to its engine; the existing
+split guard rejects a copy in the launcher. Browser fallback uses native
+deflate decoding; installed activation retains exact bytes/exports in the
+existing digest-checked solid archive. Catalog JSON is generated as guarded
+JavaScript and its redundant packaged JSON is removed. The packaged changelog
+links full Unreleased notes and keeps two released sections byte-identical.
+No existing cap is raised; every new cap follows measured +15%, rounded up
+to 25 KiB. The original deferred cohort remains 47.9 / 50 KiB.
+
+| Artifact                                | First joined KiB | Final KiB | Cap KiB |
+| --------------------------------------- | ---------------: | --------: | ------: |
+| dist/extension.js                       |            457.6 |     458.0 |     600 |
+| dist/modelApi.js                        |            500.2 |     455.4 |     475 |
+| dist/acp.js                             |            839.9 |     145.3 |     850 |
+| dist/headless.js                        |            801.7 |      77.9 |     100 |
+| dist/runtimeEngine.js                   |                — |     754.8 |     875 |
+| dist/providerPolicy.js                  |                — |       7.7 |      25 |
+| dist/modelApiHooks.js                   |                — |      28.3 |      50 |
+| dist/modelApiMcp.js                     |                — |      49.0 |      75 |
+| dist/runtimeAccounting.js               |                — |      26.1 |      50 |
+| dist/providers.js                       |            128.4 |     128.4 |     150 |
+| dist/subscriptions.js                   |             29.3 |      29.3 |      50 |
+| dist/configuredProviders.js             |             24.9 |      24.9 |      50 |
+| dist/modelsPanel.js                     |             90.3 |      90.3 |     125 |
+| dist/usageService.js                    |             77.2 |      77.2 |     100 |
+| dist/usageCompanion.js                  |             38.1 |      38.1 |      50 |
+| dist/usagePanel.js                      |             53.6 |      54.0 |      75 |
+| dist/webview/main.js + static imports   |                — |     806.1 |     900 |
+| dist/webview/models.js + static imports |                — |     424.9 |     500 |
+| dist/webview/usage.js + static imports  |                — |     413.4 |     500 |
+
+The real helperless npm run package passes at **2,505,428 /
+2,534,400 bytes**, with **28,972 headroom** and 51 native probes
+passing without skips. npm run package:acp also passes, including 33 native
+probes, schemas and exact-stage localization. The ACP tarball is
+1,606,947 bytes. The macOS helper is absent. Its prior
+certified 81,327-byte compressed contribution projects at least
+2,586,755 bytes (52,355 over cap before entry headers).
+This is a size hold, not a universal receipt; no dummy helper or raised cap.
+
+Five fresh processes per source and per package run the same empty-stdin
+exec --backend modelApi --max-budget-usd 1 --key-stdin --ephemeral --cwd
+test/fixtures/workspace probe command on Node v24.21.0. All return exit 2
+before keyring/model work. This measures offline startup, not paid latency.
+The initial eager import regressed 68.5%, with a later idle +22.2% repeat;
+deferring the launcher fixed it, then the packaged +21.2% repeat exposed
+archive decoding for the runtime error text. Direct runtime fallback fixes
+that path. Final measurements:
+
+| Form     | 0.14.1 median ms | Train median ms | Change |
+| -------- | ---------------: | --------------: | -----: |
+| Raw      |            323.5 |           282.3 | -12.8% |
+| Packaged |            312.2 |           319.7 |   2.4% |
+
+Only the first named cold packaging fixture receives the brief's permitted
+60-second deadline; its measured 41.466 seconds include compression and
+native checks. Ordinary packaging and exec deadlines remain 30 seconds.
+All five compiler projects, changed-file ESLint/Prettier, CSS, plain knip,
+dpdm, zero-threshold duplication, real PSScriptAnalyzer, exec schemas,
+localization (14 UI / 14 usage tables, 186 manifest strings, 892 files) and
+regenerated/checked host inventory (362 APIs, 40 vscode importers, 27 Node
+built-ins, 66 theme variables) pass. The loader batch passes 87 tests.
+The complete owning receipt lists 124 unique files: 122
+have a positive whole-file result, with the two exceptions below. Batches
+use at most three files/workers and testTimeout=120000; no filtering or
+new skips. Normal local commit hooks are kept on.
+
+All 26 deliberate guard mutations exit 1 and restore byte-exact
+by SHA-256: cap/day rechecks, daily and hard-run admission, exclusive lock,
+transport preparation, Windows English encoding, activation archive, sixteen
+artifact caps, relocated model-text reader and direct runtime English. The
+first admission drill showed the final fence could mask the earlier check;
+strengthen direct admission coverage, then observe it fail and restore.
+The runtime-English drill fails one of 69 packaging cases before exact
+restoration; its restored three-file batch passes 78 cases.
+
+Three holds remain under PLAN section 7. M102's unused-packing-default test
+expects recall_output to be absent before packing; the immutable train
+fixtures declare it from the first request. Restoring M102's behavior passes
+that test but breaks 72 golden assertions. Preserve the train fixtures and
+leave that one D78 assertion enabled/red for an owner decision. Exec stdio
+passes 38 cases, with three existing Windows exclusions; ACP stdio passes
+all ten. Its first packaging fixture still expects the former single de
+table while using all fourteen production tables. After the missing-folder
+and catalog-cache fixes, this is the third failure; honor the common brief's
+two-fix stop and retain the assertion. Universal size recovery/helper proof
+is the third hold. These exceptions remain visible, with no gate weakened.
+
+sync/main is still 964727e1 and has no reference gate; no conditional main
+merge is performed. The lead must integrate/run that gate when available.
+Full quality and hosted/native/live release receipts are excluded here.
+No public network, paid/live model call, install, credential read, push,
+rebase, manual stash or Git configuration write occurs. Badge checks use
+the named network-only skip; source and exact-stage checks still run.
+Exact conflicts, owning filenames, samples, hashes and artifact measurements
+are in train-0.15.0-train15e.json.

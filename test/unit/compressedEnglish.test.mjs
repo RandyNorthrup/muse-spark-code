@@ -32,6 +32,9 @@ describe('lossless compiled English fallback', () => {
       })
       const result =
         platform === 'node' ? require(output) : await import(pathToFileURL(output).href)
+      expect(await readFile(output, 'utf8')).toContain(
+        platform === 'node' ? 'inflateSync' : 'DecompressionStream',
+      )
       expect(result.EN).toEqual(EN)
       expect(Object.keys(result.EN)).toEqual(Object.keys(EN))
     } finally {

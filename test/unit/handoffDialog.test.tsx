@@ -79,6 +79,24 @@ function modalRoots() {
   return [...document.querySelectorAll('[aria-modal="true"]')]
 }
 
+async function readyHandoff() {
+  const postMessage = renderPanel()
+  submitCommand('/handoff')
+  admit()
+  deliver(READY)
+  await screen.findByLabelText(UI_TEXT.handoffDialogBody)
+  return postMessage
+}
+
+async function expectFocusedBrief(brief: string) {
+  await screen.findByLabelText(UI_TEXT.handoffDialogBody)
+  const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
+  expect(modalRoots()).toEqual([dialog])
+  expect(dialog.contains(document.activeElement)).toBe(true)
+  expect(dialogText().value).toBe(brief)
+  expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+}
+
 /** Opens a modal through the palette, as a user does. */
 function openFromPalette(command: string) {
   fireEvent.click(screen.getByLabelText('Commands'))
@@ -173,11 +191,8 @@ describe('/handoff (M74)', () => {
     })
   })
 
-  it('keeps the dialog when the host refuses the confirm, and drops it when the conversation clears', () => {
-    const postMessage = renderPanel()
-    submitCommand('/handoff')
-    admit()
-    deliver(READY)
+  it('keeps the dialog when the host refuses the confirm, and drops it when the conversation clears', async () => {
+    const postMessage = await readyHandoff()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.handoffConfirm }))
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'confirmHandoff',
@@ -197,11 +212,8 @@ describe('/handoff (M74)', () => {
     expect(document.activeElement).toBe(screen.getByLabelText('Message Muse'))
   })
 
-  it('cancels the handoff without starting anything', () => {
-    const postMessage = renderPanel()
-    submitCommand('/handoff')
-    admit()
-    deliver(READY)
+  it('cancels the handoff without starting anything', async () => {
+    const postMessage = await readyHandoff()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
     expect(postMessage).toHaveBeenCalledWith({ type: 'cancelHandoff', requestId: REQUEST_ID })
     expect(screen.queryByRole('dialog')).toBeNull()
@@ -234,11 +246,7 @@ describe('/handoff (M74)', () => {
       expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
       // Closed: the brief's dialog opens in its place, with the focus.
       fireEvent.keyDown(open, { key: 'Escape' })
-      const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
-      expect(modalRoots()).toEqual([dialog])
-      expect(dialog.contains(document.activeElement)).toBe(true)
-      expect(dialogText().value).toBe(BRIEF)
-      expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+      await expectFocusedBrief(BRIEF)
       expect(postMessage).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: 'confirmHandoff' }),
       )
@@ -283,6 +291,7 @@ describe('/handoff (M74)', () => {
       admit()
       if (when === 'after') {
         deliver(READY)
+        await screen.findByLabelText(UI_TEXT.handoffDialogBody)
         fireEvent.change(dialogText(), { target: { value: 'Edited brief.' } })
       }
       deliver({
@@ -302,11 +311,7 @@ describe('/handoff (M74)', () => {
       expect(share.contains(document.activeElement)).toBe(true)
       expect(screen.queryByRole('button', { name: UI_TEXT.handoffConfirm })).toBeNull()
       fireEvent.keyDown(share, { key: 'Escape' })
-      const dialog = screen.getByRole('dialog', { name: UI_TEXT.handoffDialogTitle })
-      expect(modalRoots()).toEqual([dialog])
-      expect(dialog.contains(document.activeElement)).toBe(true)
-      expect(dialogText().value).toBe(when === 'after' ? 'Edited brief.' : BRIEF)
-      expect(screen.getByLabelText('Message Muse').closest('[inert]')).not.toBeNull()
+      await expectFocusedBrief(when === 'after' ? 'Edited brief.' : BRIEF)
       expect(postMessage).not.toHaveBeenCalledWith(
         expect.objectContaining({ type: 'confirmHandoff' }),
       )
@@ -315,11 +320,8 @@ describe('/handoff (M74)', () => {
     },
   )
 
-  it('ignores a result for another request', () => {
-    const postMessage = renderPanel()
-    submitCommand('/handoff')
-    admit()
-    deliver(READY)
+  it('ignores a result for another request', async () => {
+    const postMessage = await readyHandoff()
     // Starting: a refusal for another request does not reopen Start.
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.handoffConfirm }))
     deliver({ type: 'handoffCommandResult', requestId: 'handoff:other:9', accepted: false })

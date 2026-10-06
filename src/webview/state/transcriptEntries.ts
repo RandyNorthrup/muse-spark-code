@@ -411,6 +411,7 @@ const errorEntrySchema = z.object({
    * "Report this" only while it is present.
    */
   reportRef: z.optional(reportEventRefSchema),
+  errorKind: z.optional(z.string()),
 })
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]

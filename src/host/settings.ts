@@ -27,6 +27,8 @@ import {
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  USAGE_HISTORY_DAYS_MIN,
+  USAGE_HISTORY_DAYS_MAX,
   TAB_DAILY_BUDGET_MAX_USD,
   TAB_DAILY_BUDGET_MIN_USD,
   TAB_MODELS,
@@ -43,6 +45,9 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
+  readonly usageHistory: boolean
+  readonly usageHistoryDays: number
+  readonly paidDailyBudgetUsd: number
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -135,7 +140,6 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Copyright/SPDX header hygiene for the read-only legal scan (M97). */
   readonly legalRegistryLookups: boolean
   readonly legalExplanation: boolean
-  readonly paidDailyBudgetUsd: number
   readonly legalHeaderPolicy: LegalHeaderPolicy
 }
 
@@ -217,6 +221,10 @@ const settingSchemas = {
     .number()
     .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
   legalHeaderPolicy: z.enum(LEGAL_HEADER_POLICIES),
+  usageHistory: z.boolean(),
+  usageHistoryDays: z
+    .int()
+    .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -305,6 +313,8 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     notifyOnBackgroundTurn: readSetting(config, 'notifyOnBackgroundTurn', log),
     modelApiReplyUsage: readSetting(config, 'modelApiReplyUsage', log),
     paidDailyBudgetUsd: readSetting(config, 'paidDailyBudgetUsd', log),
+    usageHistory: readSetting(config, 'usageHistory', log),
+    usageHistoryDays: readSetting(config, 'usageHistoryDays', log),
     dictationEngine: readSetting(config, 'dictationEngine', log),
     modelApiSessionBudgetUsd: readSetting(config, 'modelApiSessionBudgetUsd', log),
     modelApiCommandRules: readSetting(config, 'modelApiCommandRules', log),

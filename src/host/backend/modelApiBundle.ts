@@ -7,9 +7,14 @@ import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // would carry the backend back into dist/extension.js, which the
 // bundle-split gate (scripts/check-bundle-split.mjs) refuses.
 
-import type { ModelApiClient, ModelApiClientDeps } from '../../core/backends/modelapi/client'
+import type {
+  ModelApiClient,
+  ModelApiClientDeps,
+  ProviderClient,
+} from '../../core/backends/modelapi/client'
 import type { McpPoolDeps, McpToolSource } from '../../core/backends/modelapi/mcp/pool'
 import type { ModelApiHost, ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
+import type { ModelResolver } from '../../core/backends/modelapi/modelPolicy'
 import type { UiText } from '../../shared/l10n/en'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
@@ -31,6 +36,8 @@ export interface ModelApiBundleDeps {
   readonly uiText: UiText
   readonly uiLocale: string
   readonly client: ModelApiClientDeps
+  readonly createProviders?: (() => Promise<ModelResolver>) | undefined
+  readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
   /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
   readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */

@@ -14,7 +14,7 @@ import type {
   TodoItem,
 } from '../../shared/agentEvents'
 import type { GoalCommandVerb, ModelPricing, SubagentAction } from '../../shared/constants'
-import type { SubscriptionUsage } from '../../shared/usage'
+import type { PlanUsageRow, SubscriptionUsage } from '../../shared/usage'
 import type {
   ScheduleCadence,
   ScheduledPrompt,
@@ -268,6 +268,7 @@ export interface ModelSummary {
   readonly outputUsdPerMTokens?: number | undefined
   readonly isPinned?: boolean | undefined
   readonly trainsOnContent?: boolean | undefined
+  readonly planLimitsUrl?: string | undefined
 }
 
 export interface SkillSummary {
@@ -631,6 +632,7 @@ export interface AgentHost {
    * yet (it reports one after a turn).
    */
   readUsage(): Promise<SubscriptionUsage | undefined>
+  readPlanUsage?(): readonly PlanUsageRow[]
   /** A fresh observation arrived (MSP `usage/changed`). */
   onUsageChanged(listener: (usage: SubscriptionUsage) => void): () => void
   /**

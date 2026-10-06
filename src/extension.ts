@@ -1,3 +1,11 @@
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from './core/usage/recording'
+import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
+import { agentDataFolder } from './runtime/dataFolder'
+import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
@@ -10,6 +18,13 @@ import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 import { execFile, type ExecFileException } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir, hostname, userInfo } from 'node:os'
+import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import type { UsagePanel } from './host/usage/usagePanel'
+import {
+  PROVIDER_SECRET_PREFIX,
+  PROVIDERS_CONFIG_DIR_NAME,
+  PROVIDERS_FILE_NAME,
+} from './shared/constants'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
@@ -196,19 +211,18 @@ import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
 import type { WebviewHostContext } from './host/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
-import { createInsightsReader } from './host/usage/traceLogs'
+import type { InsightsReader } from './runtime/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import {
   modelsPanelLoader,
-  providersSeamLoader,
   providerCredentials,
   recoverProviderRemovals,
 } from './host/models/modelsPanelBundle'
 import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
-import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,
@@ -246,7 +260,6 @@ import {
   BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
-  PROVIDERS_BUNDLE_FILE,
   LEGAL_SCAN_BUNDLE_FILE,
   EXTENSION_SKILLS_DIR,
   WEB_FETCH_BUNDLE_FILE,
@@ -630,6 +643,17 @@ function registerLoggedCommand(
   })
 }
 
+function isUsageInsightsBundle(value: unknown): value is {
+  createInsightsReader(deps: { homeDir: string; now: () => number }): InsightsReader
+} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'createInsightsReader' in value &&
+    typeof value.createInsightsReader === 'function'
+  )
+}
+
 /** A signal that ends a process, as the recorder's vocabulary names it. */
 const EXIT_SIGNAL = /\bSIG[A-Z]{2,6}\b/
 
@@ -645,6 +669,7 @@ function exitCodeWord(description: string): string {
 
 /** What activation made before anything else could fail: the log and the flight recorder. */
 interface EarlyActivation {
+  readonly usageRecording: UsageRecording
   readonly activationStartedAt: number
   readonly channel: vscode.LogOutputChannel
   readonly log: Logger
@@ -657,6 +682,37 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
+  const usageRecording = createUsageRecording({
+    client: vscode.env.appName,
+    now: Date.now,
+    newId: () => crypto.randomUUID(),
+    isEnabled: () =>
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+    log,
+    writer: async (onWriteError) => {
+      const bundle = requireFile(path.join(context.extensionPath, 'dist', 'usageService.js'))
+      if (!isUsageWriterBundle(bundle)) throw new Error('Usage writer factory unavailable')
+      return await bundle.createUsageWriter({
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        writerId: crypto.randomUUID(),
+        now: Date.now,
+        isEnabled: () =>
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>('usageHistory', true),
+        onWriteError,
+      })
+    },
+  })
+  MuseCodeHost.usageRecording = usageRecording
+  ModelApiBackendManager.usageRecording = usageRecording
+  context.subscriptions.push({
+    dispose: () => {
+      void usageRecording.flush()
+    },
+  })
   const { version } = packageManifestSchema.parse(context.extension.packageJSON)
   // The flight recorder (M93, PLAN.md D6, D72): this window's journal and
   // activation marker under global storage. Its front answers from here on;
@@ -684,7 +740,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   })
   lifecycle.reports = reports
   try {
-    await activateWindow(context, { activationStartedAt, channel, log, version, reports })
+    await activateWindow(context, {
+      activationStartedAt,
+      channel,
+      log,
+      version,
+      reports,
+      usageRecording,
+    })
   } catch (error: unknown) {
     reports.recordError('activationFailed', error)
     throw error
@@ -695,7 +758,7 @@ async function activateWindow(
   context: vscode.ExtensionContext,
   early: EarlyActivation,
 ): Promise<void> {
-  const { activationStartedAt, channel, log, version, reports } = early
+  const { activationStartedAt, channel, log, version, reports, usageRecording } = early
   log.info(
     `Activating ${PRODUCT_NAME} ${version} (VS Code ${vscode.version}, Node ${process.versions.node}, ${process.platform})`,
   )
@@ -901,15 +964,71 @@ async function activateWindow(
     hasGit: processGitLocator(),
   })
   void checkpoints.maintain().catch(logRejection(log, 'checkpoint cleanup'))
-  const insights = createInsightsReader({ homeDir: homedir(), now: () => Date.now() })
+  let insightsReader: InsightsReader | undefined
+  const insights: InsightsReader = {
+    read: async () => {
+      if (insightsReader === undefined) {
+        const bundle = requireFile(path.join(context.extensionPath, 'dist', 'usageService.js'))
+        if (!isUsageInsightsBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
+        insightsReader = bundle.createInsightsReader({ homeDir: homedir(), now: Date.now })
+      }
+      return await insightsReader.read()
+    },
+  }
 
-  const providersSeamBundle = providersSeamLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', PROVIDERS_BUNDLE_FILE).fsPath,
+  const modelsPanelBundle = modelsPanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
     log,
   })
-  const credentials = providerCredentials(context.secrets, log, () =>
-    providersSeamBundle().store.list(),
+  const providerConfigFile = path.join(
+    process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+    PROVIDERS_CONFIG_DIR_NAME,
+    PROVIDERS_FILE_NAME,
   )
+  let isSubscriptionConnecting = false
+  let subscriptions:
+    ReturnType<ReturnType<typeof modelsPanelBundle>['createSubscriptionFeatures']> | undefined
+  const subscriptionFeatures = () =>
+    (subscriptions ??= modelsPanelBundle().createSubscriptionFeatures({
+      log,
+      secrets: context.secrets,
+      globalStorageUri: context.globalStorageUri,
+      globalState: context.globalState,
+      l10n,
+      catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
+      configFile: providerConfigFile,
+      isRemote: vscode.env.remoteName !== undefined,
+      isConfidential: () => currentSettings().confidentialWorkspace,
+      access: context.languageModelAccessInformation,
+      disconnected: async () => {
+        await restartBackend('a subscription disconnected')
+        await auth.refresh()
+      },
+      connected: async (ref) => {
+        isSubscriptionConnecting = true
+        try {
+          await vscode.workspace
+            .getConfiguration(SETTINGS_SECTION)
+            .update('backend', 'modelApi', vscode.ConfigurationTarget.Global)
+          await restartBackend('a subscription connected')
+          await auth.refresh()
+          await setComposerModel(ref)
+        } finally {
+          isSubscriptionConnecting = false
+        }
+      },
+    }))
+  const providersSeamBundle = () => subscriptionFeatures().seam
+  const credentials = providerCredentials(context.secrets, log, async () => {
+    const features = subscriptionFeatures()
+    const entries = await features.seam.store.list()
+    // Only a live, non-confidential host grant supplies credential-free readiness.
+    return entries.map((entry) =>
+      entry.id === 'copilot' && features.hasCopilotAccess()
+        ? { ...entry, auth: 'none' as const }
+        : entry,
+    )
+  })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -921,17 +1040,39 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
-  const dailyPaid = createPaidDailyBudget({
-    directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
-    now: Date.now,
-    capUsd: () => currentSettings().paidDailyBudgetUsd,
-    isModelApi: () => paidBackend === 'modelApi',
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-  })
+  let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
+  const loadDailyPaid = () => {
+    if (paidDaily !== undefined) return paidDaily
+    const bundle = requireFile(
+      vscode.Uri.joinPath(context.extensionUri, 'dist', 'usagePanel.js').fsPath,
+    )
+    if (!isUsageBudgetBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
+    paidDaily = bundle.createUsageBudget({
+      l10n,
+      directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
+      now: Date.now,
+      capUsd: () => currentSettings().paidDailyBudgetUsd,
+      isModelApi: () => paidBackend === 'modelApi',
+      sleep: (ms) =>
+        new Promise((resolve) => {
+          setTimeout(resolve, ms)
+        }),
+    })
+    return paidDaily
+  }
+  const dailyPaid: ReturnType<typeof createPaidDailyBudget> = {
+    capUsd: () => loadDailyPaid().capUsd(),
+    reserve: (...args) => loadDailyPaid().reserve(...args),
+    readToday: () => loadDailyPaid().readToday(),
+    judgeLedger: {
+      remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),
+      reserve: (costUsd) => loadDailyPaid().judgeLedger.reserve(costUsd),
+    },
+    latestDay: () => loadDailyPaid().latestDay(),
+    lookupByClaimId: (scope, claimId) => loadDailyPaid().lookupByClaimId(scope, claimId),
+  }
   const paid = createPaidFeatures({
+    usageRecording,
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) =>
@@ -1559,6 +1700,11 @@ async function activateWindow(
   const hasCliSession = async () =>
     backend.hasEnvironmentKey() || isCliSignedIn(await cliAccount.signIn(false))
   const auth = new AuthService({
+    getPlanAccount: async () =>
+      subscriptions === undefined &&
+      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        ? undefined
+        : await subscriptionFeatures().planAccount(),
     backend: {
       resolveCli: () => {
         // The sign-in gate's check is an explicit re-look: an install is noticed at once.
@@ -1660,10 +1806,14 @@ async function activateWindow(
   // (awaited, so its host is closed too), then the backends (the review of
   // PR #49).
   lifecycle.shutdown = async () => {
-    nativeStarts.abort()
-    accountHosts.close()
-    await auth.stopSignIn()
-    await restartBackend('the window is closing', true)
+    try {
+      nativeStarts.abort()
+      accountHosts.close()
+      await auth.stopSignIn()
+      await restartBackend('the window is closing', true)
+    } finally {
+      await usageRecording.flush()
+    }
   }
 
   const editorContext = new EditorContextTracker({
@@ -2244,6 +2394,13 @@ async function activateWindow(
         })
   const modelApi = new ModelApiBackendManager({
     judge,
+    createProviderClient: async (meta) =>
+      subscriptions === undefined &&
+      !existsSync(providerConfigFile) &&
+      (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        ? meta
+        : await subscriptionFeatures().createClient(meta),
+    getProviderAccountId: () => subscriptionFeatures().accountId(),
     log,
     // Each Model API turn's unit (M86): its record before it runs, its own
     // recorded writes while it does, then its writes drained, its unit folded
@@ -2753,6 +2910,10 @@ async function activateWindow(
         await vscode.commands.executeCommand(COMMAND_IDS.modelsAndAgents)
         break
       }
+      case 'openUsagePage': {
+        await vscode.commands.executeCommand('museSpark.openUsagePage')
+        break
+      }
       case 'showWhatsNew': {
         whatsNew.show()
         break
@@ -2910,6 +3071,7 @@ async function activateWindow(
       tasksTabs.set(surface.id, tasksTab)
       controller = factory.createConversation(
         {
+          usageRecording,
           runManualHook: runManualHookByName,
           rewriteMessage: async (text) => {
             const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
@@ -3398,10 +3560,6 @@ async function activateWindow(
   // lane-P/T seam load on the first Models action; activation keeps only
   // these registrations and the loaders. Until lanes P and I merge, the
   // seam load refuses and each command says the panel is unavailable.
-  const modelsPanelBundle = modelsPanelLoader({
-    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODELS_PANEL_BUNDLE_FILE).fsPath,
-    log,
-  })
   /** Asks the conversation to set the composer's model (its refusal stands). */
   const setComposerModel = async (modelRef: string): Promise<void> => {
     if (registry.active === undefined) {
@@ -3430,6 +3588,10 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          connectChatGpt: () => subscriptionFeatures().connectChatGpt(),
+          connectCopilot: () => subscriptionFeatures().connectCopilot(),
+          removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
+          isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: context.secrets,
           extensionUri: context.extensionUri,
           l10n,
@@ -3438,6 +3600,21 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
+          onKeyUsage: (snapshot) => {
+            usageRecording.limit({
+              backend: 'modelApi',
+              provider: 'openrouter',
+              source: 'openRouter',
+              observedAt: Date.now(),
+              windows: [],
+              account: {
+                usedUsd: snapshot.usedThisMonth,
+                period: 'month',
+                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
+                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+              },
+            })
+          },
           onWizardSaved: async (outcome) => {
             await auth.refresh()
             const surface = registry.active
@@ -3451,6 +3628,55 @@ async function activateWindow(
     }
     return modelsFeatures
   }
+
+  // Lane E's editor command adapter; lane S supplies the lazy shared service.
+  const usageBundle = usagePanelLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'usagePanel.js').fsPath,
+    log,
+  })
+  let usagePanel: Promise<UsagePanel> | undefined
+  const openUsagePage = async (): Promise<void> => {
+    usagePanel ??= (async () => {
+      const panel = await usageBundle().createUsagePanel({
+        extensionUri: context.extensionUri,
+        l10n,
+        log,
+        beforeRead: () => usageRecording.flush(),
+        budgetStorageFolder: context.globalStorageUri.fsPath,
+        live: {
+          readBudgets: async () => [
+            ...(await dailyPaid.readToday()),
+            ...(await modelApi.readUsageBudgets()),
+          ],
+          readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
+          providerConsoles: () => [],
+        },
+        openModels: (provider, model) => {
+          ensureModelsFeatures().openPanel({
+            section: 'models',
+            presetId: model === undefined ? provider : `${provider}/${model}`,
+          })
+          return Promise.resolve()
+        },
+      })
+      context.subscriptions.push(panel)
+      return panel
+    })()
+    try {
+      const panel = await usagePanel
+      panel.open()
+    } catch (error: unknown) {
+      usagePanel = undefined
+      throw error
+    }
+  }
+
+  const usageStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right)
+  usageStatus.text = `$(graph) ${UI_TEXT.usagePageTitle}`
+  usageStatus.tooltip = UI_TEXT.openUsagePage
+  usageStatus.command = COMMAND_IDS.openUsagePage
+  usageStatus.show()
+  context.subscriptions.push(usageStatus)
 
   void recoverProviderRemovals(
     context.globalState.get(GLOBAL_STATE_KEYS.providerPendingRemovals),
@@ -3602,6 +3828,7 @@ async function activateWindow(
       // message spawns afresh (and resumes the conversation, D25).
       const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
       if (isBackendSetting) {
+        if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())
           .catch(logRejection(log, 'backend restart'))
@@ -3653,6 +3880,7 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
       openChatPanel(hostContext, registry)
     }),
+    registerLoggedCommand(log, 'museSpark.openUsagePage', openUsagePage),
     registerLoggedCommand(
       log,
       COMMAND_IDS.openTasks,
@@ -3669,6 +3897,12 @@ async function activateWindow(
       surface.reveal()
       await controllerFor(surface).handle({ type: 'clearConversation' })
     }),
+    registerLoggedCommand(log, COMMAND_IDS.connectChatGpt, () =>
+      subscriptionFeatures().connectChatGpt(),
+    ),
+    registerLoggedCommand(log, COMMAND_IDS.connectCopilot, () =>
+      subscriptionFeatures().connectCopilot(),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.signOut, async () => {
       await auth.signOut()
       void vscode.window.showInformationMessage(UI_TEXT.signedOutNotice)

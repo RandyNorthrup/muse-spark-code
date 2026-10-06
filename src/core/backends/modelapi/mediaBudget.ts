@@ -22,6 +22,7 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { pdfPageCount } from '../../pdf'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import type {
   FunctionOutputPart,
   InputContentPart,
@@ -44,14 +45,24 @@ function pdfWeight(part: InputFilePart): number {
   return Math.min(pages ?? MODEL_API_PDF_PAGE_IMAGES, MODEL_API_PDF_PAGE_IMAGES)
 }
 
-function leftOut(part: InputContentPart): InputContentPart {
-  return {
-    type: 'input_text',
-    text:
+type OmissionReason = 'support' | 'mime' | 'limit' | 'budget'
+
+function leftOut(part: InputContentPart, reason: OmissionReason) {
+  const reasons = {
+    support: MODEL_API_MODEL_TEXT.mediaSupportRefused,
+    mime: MODEL_API_MODEL_TEXT.mediaMimeRefused,
+    limit: MODEL_API_MODEL_TEXT.mediaLimitExceeded,
+  }
+  let text: string
+  if (reason === 'budget') {
+    text =
       part.type === 'input_file'
         ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
-        : MODEL_API_MODEL_TEXT.imageLeftOut,
+        : MODEL_API_MODEL_TEXT.imageLeftOut
+  } else {
+    text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
+  return { type: 'input_text' as const, text }
 }
 
 export class MediaBudget {
@@ -110,29 +121,69 @@ export class MediaBudget {
    * A changed item keeps retained content-part identities so the caller can
    * tell which pending tool-read media actually reached that request.
    */
-  public fit(input: readonly InputItem[]): readonly InputItem[] {
+  public fit(input: readonly InputItem[], record?: ModelCapabilityRecord): readonly InputItem[] {
     let left = MODEL_API_MEDIA_PER_REQUEST
+    let imageCount = 0
     let encodedLeft = this.maxEncodedMediaChars
-    const canRetain = (part: InputContentPart): boolean => {
+    const refusal = (part: InputContentPart): OmissionReason | undefined => {
       const weight = this.weightOf(part)
       if (weight === 0) {
-        return true
+        return undefined
       }
       const encodedChars = this.encodedChars(part)
+      if (record !== undefined && record.identity.provider !== 'meta') {
+        const isImage = part.type === 'input_image'
+        const policy = isImage ? record.modalities.image : record.modalities.pdf
+        if (policy.state !== 'yes') return 'support'
+        let dataUrl = ''
+        if (part.type === 'input_image') dataUrl = part.image_url
+        else if (part.type === 'input_file') dataUrl = part.file_data
+        const comma = dataUrl.indexOf(DATA_URL_SEPARATOR)
+        const bytes = comma === -1 ? undefined : Buffer.from(dataUrl.slice(comma + 1), 'base64')
+        if (
+          policy.value.maxBytes !== undefined &&
+          (bytes === undefined || bytes.byteLength > policy.value.maxBytes)
+        )
+          return 'limit'
+        if (isImage) {
+          const image = record.modalities.image
+          if (
+            image.state !== 'yes' ||
+            image.value.mimes.every((mime) => !dataUrl.startsWith(`data:${mime};base64,`))
+          )
+            return 'mime'
+          if (image.value.maxCount !== undefined && imageCount + 1 > image.value.maxCount)
+            return 'budget'
+        } else {
+          const pdf = record.modalities.pdf
+          const pages = bytes === undefined ? undefined : pdfPageCount(bytes)
+          if (
+            pdf.state !== 'yes' ||
+            (pdf.value.maxPages !== undefined &&
+              (pages === undefined || pages > pdf.value.maxPages))
+          )
+            return 'limit'
+        }
+        if (encodedChars > encodedLeft) return 'budget'
+        if (isImage) imageCount++
+        encodedLeft -= encodedChars
+        return undefined
+      }
       if (weight > left || encodedChars > encodedLeft) {
-        return false
+        return 'budget'
       }
       left -= weight
       encodedLeft -= encodedChars
-      return true
+      return undefined
     }
     const reversedInput = input.toReversed()
     const fitted = reversedInput.map((item) => {
       if (item.type === 'function_call_output' && typeof item.output !== 'string') {
         const reversedOutput = item.output.toReversed()
-        const output = reversedOutput.map((part): FunctionOutputPart =>
-          canRetain(part) ? part : { type: 'input_text', text: MODEL_API_MODEL_TEXT.imageLeftOut },
-        )
+        const output = reversedOutput.map((part): FunctionOutputPart => {
+          const reason = refusal(part)
+          return reason === undefined ? part : leftOut(part, reason)
+        })
         const isItemChanged = output.some((part, index) => part !== reversedOutput[index])
         return isItemChanged ? { ...item, output: output.toReversed() } : item
       }
@@ -140,7 +191,10 @@ export class MediaBudget {
         return item
       }
       const reversedContent = item.content.toReversed()
-      const content = reversedContent.map((part) => (canRetain(part) ? part : leftOut(part)))
+      const content = reversedContent.map((part) => {
+        const reason = refusal(part)
+        return reason === undefined ? part : leftOut(part, reason)
+      })
       const isItemChanged = content.some((part, index) => part !== reversedContent[index])
       return isItemChanged ? { ...item, content: content.toReversed() } : item
     })

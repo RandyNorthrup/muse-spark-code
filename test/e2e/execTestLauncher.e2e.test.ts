@@ -1,6 +1,6 @@
 // M80 W (SPEC §7.5): the fake-only test package, packed for real and run for
 // real. A private package tree is built here (the production layout:
-// dist/acp.js with dist/uiText.js and dist/modelApi.js beside it, the two
+// dist/acp.js with uiText.js, validation.js and modelApi.js beside it, the two
 // schemas), scripts/package-acp-test.mjs packs it with the real
 // test/action/exec-test-launcher.ts, and the extracted bin then runs as the
 // Action's agent: the real run-exec.mjs entry drives exec (key over stdin)

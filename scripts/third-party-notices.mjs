@@ -27,11 +27,22 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
 const METAFILE_DIR = path.join('dist', 'meta')
+const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
 // The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
-  path.join('dist', 'meta-acp', 'acp.json'),
+  path.join(ACP_METAFILE_DIR, 'headless.json'),
+  path.join(METAFILE_DIR, 'runtimeEngine.json'),
+  path.join(METAFILE_DIR, 'runtimeAccounting.json'),
+  path.join(METAFILE_DIR, 'providerPolicy.json'),
+  path.join(METAFILE_DIR, 'modelApiHooks.json'),
+  path.join(METAFILE_DIR, 'modelApiMcp.json'),
+  path.join(ACP_METAFILE_DIR, 'acp.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
+  path.join(METAFILE_DIR, 'providers.json'),
+  path.join(METAFILE_DIR, 'usageService.json'),
+  path.join(METAFILE_DIR, 'usageCompanion.json'),
+  path.join(METAFILE_DIR, 'usageWebview.json'),
   path.join(METAFILE_DIR, 'validation.json'),
   path.join(METAFILE_DIR, 'wire.json'),
   path.join(METAFILE_DIR, 'legalScan.json'),

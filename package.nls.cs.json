@@ -179,5 +179,10 @@
   "command.legalScan.title": "Právní kontrola",
   "config.legalRegistryLookups.description": "Povolit dotazy do veřejných registrů po jednorázovém oznámení registrů a odesílaných názvů a verzí balíčků. Vypnutím použijete jen místní metadata.",
   "config.legalExplanation": "Volitelné vysvětlení Model API: USD. Každé použití žádá souhlas a sdílí denní rozpočet.",
-  "config.paidDailyBudgetUsd": "Společný denní rozpočet placených doplňků: USD."
+  "config.paidDailyBudgetUsd": "Společný denní rozpočet placených doplňků: USD.",
+  "command.openUsagePage.title": "Otevřít využití a náklady",
+  "setting.usageHistory.description": "Zaznamenávat využití modelů místně na tomto počítači. Vypnutí zastaví nové záznamy; aktuální limity a rozpočty zůstanou viditelné.",
+  "setting.usageHistoryDays.description": "Počet dní uchování denních souhrnů využití (30–1825). Podrobnosti jednotlivých volání se uchovávají 30 dní.",
+  "command.connectChatGpt": "Pokračovat s ChatGPT",
+  "command.connectCopilot": "Použít mé modely Copilot"
 }

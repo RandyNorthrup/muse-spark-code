@@ -33,7 +33,7 @@ function modelApiCostCase(): Partial<UsageDialogProps> {
   }
 }
 
-function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
+async function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   const props: UsageDialogProps = {
     report: {
       backend: 'museCode',
@@ -79,13 +79,16 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
     ...overrides,
   }
   const view = render(<UsageDialog {...props} />)
+  await act(async () => {
+    await import('../../src/webview/components/UsageProviderSections')
+  })
   return { ...props, unmount: view.unmount }
 }
 
 async function renderPaidDialog(overrides: Partial<UsageDialogProps>) {
   const props = renderDialog(overrides)
   await screen.findByText(/^Estimated (?:paid|extra-feature) total$/)
-  return props
+  return await props
 }
 
 function providersReport(): Partial<UsageDialogProps> {
@@ -125,8 +128,15 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
-  it('shows hook additions separately without subtracting them from packing savings', () => {
-    renderDialog({
+  it('opens the usage page through the injected host callback', async () => {
+    const onOpenUsagePage = vi.fn()
+    await renderDialog({ onOpenUsagePage })
+    fireEvent.click(screen.getByRole('button', { name: 'Open usage page' }))
+    expect(onOpenUsagePage).toHaveBeenCalledOnce()
+  })
+
+  it('shows hook additions separately without subtracting them from packing savings', async () => {
+    await renderDialog({
       usage: {
         inputTokens: 30_000,
         outputTokens: 1200,
@@ -138,8 +148,8 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('Packing saved (estimate)9K')
     expect(dialog).toHaveTextContent('Added by hooks (estimate)500')
   })
-  it('names an installer terminal failure while the Model API stays available', () => {
-    renderDialog({
+  it('names an installer terminal failure while the Model API stays available', async () => {
+    await renderDialog({
       auth: {
         status: 'signedIn',
         detail: 'The installer terminal could not open. Try again or use the install instructions.',
@@ -174,11 +184,11 @@ describe('UsageDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace Model API key' }))
     expect(props.onSetupSignIn).toHaveBeenCalledWith('apiKey')
   })
-  it('advances both reset countdowns while open and stops its clock when closed', () => {
+  it('advances both reset countdowns while open and stops its clock when closed', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(NOW)
     try {
-      const view = renderDialog({
+      const view = await renderDialog({
         now: () => Date.now(),
         report: {
           backend: 'museCode',
@@ -206,8 +216,8 @@ describe('UsageDialog', () => {
     }
   })
 
-  it('hides expired percentages and waits for a fresh provider report per row', () => {
-    renderDialog({
+  it('hides expired percentages and waits for a fresh provider report per row', async () => {
+    await renderDialog({
       report: {
         backend: 'museCode',
         account: undefined,
@@ -227,8 +237,8 @@ describe('UsageDialog', () => {
     expect(screen.getByRole('progressbar', { name: 'This week: 130% used' })).toBeVisible()
   })
 
-  it('expires the weekly row independently of the current five-hour window', () => {
-    renderDialog({
+  it('expires the weekly row independently of the current five-hour window', async () => {
+    await renderDialog({
       report: {
         backend: 'museCode',
         account: undefined,
@@ -246,8 +256,8 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('This weekWaiting for a fresh Muse Code usage report.')
   })
 
-  it('shows opaque tiers generically and provider percentages and reset times verbatim', () => {
-    renderDialog({
+  it('shows opaque tiers generically and provider percentages and reset times verbatim', async () => {
+    await renderDialog({
       report: {
         backend: 'museCode',
         account: undefined,
@@ -270,8 +280,8 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('resets in 1d')
   })
 
-  it('shows the plan, both windows as bars with reset times, and the observation age', () => {
-    renderDialog()
+  it('shows the plan, both windows as bars with reset times, and the observation age', async () => {
+    await renderDialog()
     const dialog = screen.getByRole('dialog', { name: 'Account & usage' })
     expect(dialog).toHaveTextContent('Muse Code (your Muse subscription)')
     expect(dialog).toHaveTextContent('muse-pro')
@@ -285,8 +295,8 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('as of 5 min. ago')
   })
 
-  it('lists this conversation’s tokens and the context, and opens the dashboard', () => {
-    const props = renderDialog()
+  it('lists this conversation’s tokens and the context, and opens the dashboard', async () => {
+    const props = await renderDialog()
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Input12.3K')
     expect(dialog).toHaveTextContent('Output678')
@@ -296,26 +306,26 @@ describe('UsageDialog', () => {
     expect(props.onOpenExternal).toHaveBeenCalledWith('https://dev.meta.ai/')
   })
 
-  it('leaves out the cached rows where the backend cannot total them (D26)', () => {
-    renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
+  it('leaves out the cached rows where the backend cannot total them (D26)', async () => {
+    await renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Input30K')
     expect(dialog).not.toHaveTextContent('Cached')
     expect(dialog).not.toHaveTextContent('Cache hits')
   })
 
-  it('shows the packing ledger while packing runs, and hides it otherwise (M73)', () => {
-    const packed = renderDialog({
+  it('shows the packing ledger while packing runs, and hides it otherwise (M73)', async () => {
+    const packed = await renderDialog({
       usage: { inputTokens: 30_000, outputTokens: 1200, packedTokensAvoided: 9000 },
     })
     expect(screen.getByRole('dialog')).toHaveTextContent('Packing saved (estimate)9K')
     packed.unmount()
-    renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
+    await renderDialog({ usage: { inputTokens: 30_000, outputTokens: 1200 } })
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Packing saved')
   })
 
-  it('explains a key-billed window and an unobserved subscription, and shows empty tokens', () => {
-    renderDialog({
+  it('explains a key-billed window and an unobserved subscription, and shows empty tokens', async () => {
+    await renderDialog({
       report: {
         backend: 'modelApi',
         subscription: undefined,
@@ -334,8 +344,8 @@ describe('UsageDialog', () => {
     expect(screen.queryByRole('progressbar')).toBeNull()
   })
 
-  it('reports a CLI that has not observed usage yet, and a context without a window', () => {
-    renderDialog({
+  it('reports a CLI that has not observed usage yet, and a context without a window', async () => {
+    await renderDialog({
       report: {
         backend: 'museCode',
         subscription: undefined,
@@ -350,14 +360,14 @@ describe('UsageDialog', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Context500')
   })
 
-  it('says it is loading before the host answers', () => {
-    renderDialog({ report: undefined })
+  it('says it is loading before the host answers', async () => {
+    await renderDialog({ report: undefined })
     expect(screen.getByRole('dialog')).toHaveTextContent('Reading usage…')
     expect(screen.queryByText('Account')).toBeNull()
   })
 
-  it('shows the account facts, the cache-hit rate and the insights with a Day/Week toggle (M14)', () => {
-    renderDialog()
+  it('shows the account facts, the cache-hit rate and the insights with a Day/Week toggle (M14)', async () => {
+    await renderDialog()
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Auth methodMeta account (Muse Code CLI)')
     expect(dialog).toHaveTextContent('Muse Code1.3.0')
@@ -371,26 +381,26 @@ describe('UsageDialog', () => {
     expect(dialog).toHaveTextContent('No CLI activity recorded in this window.')
   })
 
-  it('estimates the dollar cost on the Model API from the published prices (M14)', () => {
-    renderDialog(modelApiCostCase())
+  it('estimates the dollar cost on the Model API from the published prices (M14)', async () => {
+    await renderDialog(modelApiCostCase())
     // 800K fresh input at $1.25, 200K cached at $0.15, 100K output at $4.25.
     expect(screen.getByRole('dialog')).toHaveTextContent('Estimated cost$1.46')
     expect(screen.getByRole('dialog')).toHaveTextContent('Prices read on 2026-09-26')
   })
 
-  it('shows what the prompt cache saved on the Model API, and never on Muse Code (M82)', () => {
-    renderDialog(modelApiCostCase())
+  it('shows what the prompt cache saved on the Model API, and never on Muse Code (M82)', async () => {
+    await renderDialog(modelApiCostCase())
     // Uncached: 1M at $1.25 plus 100K output at $4.25 ($1.675); priced $1.455;
     // saved $0.22 (four decimals, like every sub-dollar amount), 13% of why.
     expect(screen.getByRole('dialog')).toHaveTextContent('Cache savings$0.2200 (13%)')
-    renderDialog()
+    await renderDialog()
     const dialogs = screen.getAllByRole('dialog')
     expect(dialogs).toHaveLength(2)
     expect(dialogs[1]).not.toHaveTextContent('Cache savings')
   })
 
-  it('focuses the close button, closes on it and on Escape', () => {
-    const props = renderDialog()
+  it('focuses the close button, closes on it and on Escape', async () => {
+    const props = await renderDialog()
     const close = screen.getByLabelText('Close')
     expect(document.activeElement).toBe(close)
     fireEvent.keyDown(close, { key: 'Escape' })
@@ -405,7 +415,7 @@ describe('UsageDialog in another display language (M40)', () => {
     setUiText(EN, 'en')
   })
 
-  it('puts the emphasised share where the template does and counts in the plural forms', () => {
+  it('puts the emphasised share where the template does and counts in the plural forms', async () => {
     setUiText(
       {
         ...EN,
@@ -416,7 +426,7 @@ describe('UsageDialog in another display language (M40)', () => {
       },
       'de',
     )
-    renderDialog({
+    await renderDialog({
       report: {
         backend: 'museCode',
         subscription: undefined,
@@ -448,8 +458,8 @@ describe('UsageDialog in another display language (M40)', () => {
 })
 
 describe('UsageDialog insights fallback (M18)', () => {
-  it('says no logs were found on the CLI backend when the insights are missing', () => {
-    renderDialog({
+  it('says no logs were found on the CLI backend when the insights are missing', async () => {
+    await renderDialog({
       report: {
         backend: 'museCode',
         subscription,
@@ -463,8 +473,8 @@ describe('UsageDialog insights fallback (M18)', () => {
     ).toBeInTheDocument()
   })
 
-  it('says the Model API has no local trace logs at all', () => {
-    renderDialog({
+  it('says the Model API has no local trace logs at all', async () => {
+    await renderDialog({
       report: {
         backend: 'modelApi',
         subscription: undefined,
@@ -606,8 +616,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0042')
   })
 
-  it('has no paid section on the Muse Code backend without a stored key', () => {
-    renderDialog()
+  it('has no paid section on the Muse Code backend without a stored key', async () => {
+    await renderDialog()
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Paid features')
   })
 
@@ -642,7 +652,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
   })
 
   it('lists this window’s tallies per provider with settled costs (M95)', async () => {
-    renderDialog(providersReport())
+    await renderDialog(providersReport())
     const dialog = screen.getByRole('dialog')
     expect(await screen.findByRole('heading', { name: 'Providers' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent('OpenRouter1.2K / 300 · $0.0010')
@@ -651,7 +661,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
   })
 
   it('shows an account-connected key’s usage, limit and remainder (M95)', async () => {
-    renderDialog(providersReport())
+    await renderDialog(providersReport())
     const dialog = screen.getByRole('dialog')
     expect(await screen.findByText('API key usage')).toBeInTheDocument()
     expect(dialog).toHaveTextContent('Today$0.40')
@@ -660,22 +670,31 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Remaining$7.90')
   })
 
-  it('counts only tokens for the unpriced current model (M95)', () => {
-    renderDialog({
-      ...modelApiCostCase(),
-      usage: { inputTokens: 500, outputTokens: 50 },
-      modelId: 'openrouter/mystery/model',
-      modelPricing: 'unpriced',
-    })
-    const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent(
-      'This model has no price card, so only its tokens are counted.',
-    )
-    expect(screen.queryByText('Estimated cost')).toBeNull()
-  })
+  it.each([
+    ['unpriced', 'openrouter/mystery/model'],
+    ['unpriced', 'muse-spark-1.3'],
+    ['priced', 'openrouter/mystery/model'],
+  ] as const)(
+    'counts only tokens without an applicable tariff (%s, %s)',
+    async (pricing, modelId) => {
+      await renderDialog({
+        ...modelApiCostCase(),
+        usage: { inputTokens: 500, outputTokens: 50, cachedTokens: 0 },
+        modelId,
+        modelPricing: pricing,
+      })
+      const dialog = screen.getByRole('dialog')
+      if (pricing === 'unpriced') {
+        expect(dialog).toHaveTextContent(
+          'This model has no price card, so only its tokens are counted.',
+        )
+      }
+      expect(screen.queryByText('Estimated cost')).toBeNull()
+    },
+  )
 
-  it('offers the own-model choice in its setup rows (M95)', () => {
-    const props = renderDialog()
+  it('offers the own-model choice in its setup rows (M95)', async () => {
+    const props = await renderDialog()
     fireEvent.click(screen.getByRole('button', { name: 'Start with your own model' }))
     expect(props.onSetupSignIn).toHaveBeenCalledWith('byo')
   })
@@ -729,7 +748,7 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
   }
 
   it('shows today and the window, per role and per entry, with estimated marked', async () => {
-    renderDialog({ team })
+    await renderDialog({ team })
     await screen.findByText('Today')
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent('Team')
@@ -741,8 +760,8 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
     expect(dialog).toHaveTextContent('estimated')
   })
 
-  it('stays today’s dialog without a team', () => {
-    renderDialog({})
+  it('stays today’s dialog without a team', async () => {
+    await renderDialog({})
     expect(screen.getByRole('dialog')).not.toHaveTextContent('This window')
   })
 })
@@ -750,10 +769,10 @@ describe('UsageDialog Team section (M96 lane U2)', () => {
 describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
   const tabReport = {
     backend: 'modelApi' as const,
-    providers: undefined,
     subscription: undefined,
     account: { signInMethod: 'apiKey' as const },
     insights: undefined,
+    providers: [],
   }
 
   it('shows requests, tokens, today and window costs, and the budget while Tab is on', async () => {
@@ -969,8 +988,8 @@ describe('M98 Judge usage row', () => {
     expect(screen.getByText(/1 judgment/)).not.toHaveTextContent('$0.000')
   })
 
-  it('never shows subscription judging as a paid key feature', () => {
-    renderDialog({
+  it('never shows subscription judging as a paid key feature', async () => {
+    await renderDialog({
       paid: {
         features: ['judge'],
         isKeyStored: false,

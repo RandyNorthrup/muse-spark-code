@@ -106,6 +106,7 @@ export interface ComposerProps {
   readonly canSend: boolean
   readonly isRunning: boolean
   readonly modelLabel: string
+  readonly planMark?: ReactNode
   readonly permissionMode: PermissionMode
   /** The reported context usage the meter draws (M87); no window, no meter. */
   readonly context: ContextMeterProps['context']
@@ -1037,6 +1038,7 @@ export function Composer(props: ComposerProps) {
           >
             {modelLabel}
           </button>
+          {props.planMark}
           {isShellMode ? (
             <span className="editor-chip shell-chip" title={UI_TEXT.composerShellModeTitle}>
               <span className="editor-chip-label">{UI_TEXT.composerShellMode}</span>

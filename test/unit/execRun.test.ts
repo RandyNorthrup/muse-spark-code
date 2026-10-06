@@ -1,3 +1,4 @@
+import type { UsageRecording } from '../../src/core/usage/recording'
 import {
   mkdtempSync,
   mkdirSync,
@@ -16,6 +17,7 @@ import * as runtimeBackends from '../../src/runtime/backends'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
+import * as z from 'zod/mini'
 import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
@@ -26,7 +28,11 @@ import {
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
 import { EXEC_EXIT, NO_COMPACTABLE_HISTORY, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
-import { paidGrantsFile, workspaceSessionsFolder } from '../../src/runtime/dataFolder'
+import {
+  agentDataFolder,
+  paidGrantsFile,
+  workspaceSessionsFolder,
+} from '../../src/runtime/dataFolder'
 import { memorySecrets } from './helpers/fakes'
 import {
   fakeModelApi,
@@ -40,6 +46,8 @@ import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
 import { createExecClient } from '../../src/runtime/exec/execClient'
 import { createExecSink } from '../../src/runtime/exec/execOutput'
+import * as providersCommands from '../../src/runtime/providersCommands'
+import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import * as keyInput from '../../src/runtime/exec/keyInput'
 
 const actualMemoryStore = keyInput.memorySecretStore
@@ -83,10 +91,11 @@ function useMuseOptions(deps: ExecDeps): void {
     maxRequests: undefined,
   }
 }
-async function imageHarness(file = 'image.png', reply = 'done') {
+async function imageHarness(file = 'image.png', reply = 'done', changes: Partial<ExecDeps> = {}) {
   return await harness(
     ['--permission-mode', 'acceptEdits', '--image-generation'],
     [{ calls: [image(file)] }, { text: reply }],
+    changes,
   )
 }
 
@@ -188,7 +197,6 @@ async function harness(
     stderr: err,
     storeSecrets: store,
     runGit: vi.fn(() => Promise.resolve('')),
-    museCodeCredentials: [],
     fetch: api.fetch,
     sleep: () => Promise.resolve(),
     now,
@@ -1010,7 +1018,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(h.api.imageBodies()).toHaveLength(0)
   })
   it('P2 flagged image has admission and returned tally through real engine', async () => {
-    const h = await imageHarness()
+    const recording = journalTap()
+    const h = await imageHarness('image.png', 'done', { usageRecording: recording })
     const r = await h.run()
     expect(r.code).toBe(0)
     expect(result(r).usage.paid).toMatchObject({
@@ -1022,6 +1031,18 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.events.filter((e) => e.type === 'paid_use').map((e) => e.phase)).toEqual([
       'admitted',
       'returned',
+    ])
+    expect(recording.note.mock.calls.filter(([, context]) => context.kind === 'image')).toEqual([
+      [
+        undefined,
+        expect.objectContaining({
+          model: 'muse-image-1.0',
+          units: { images: 1 },
+          providerCostUsd: 0.01,
+          uncertain: false,
+          outcome: 'completed',
+        }),
+      ],
     ])
   })
   it('P4 protected image destination denied without paid HTTP', async () => {
@@ -1062,7 +1083,8 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
   it.each([429, 500])(
     'P5/P6 image HTTP %s retains uncertainty with rate-limit-only retries',
     async (status) => {
-      const h = await imageHarness()
+      const recording = journalTap()
+      const h = await imageHarness('image.png', 'done', { usageRecording: recording })
       h.api.images.push({ httpError: { status, message: 'failed' } })
       if (status === 429) h.api.images.push({})
       const r = await h.run()
@@ -1073,8 +1095,43 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         imagesUncertain: 1,
         uncertainUsd: 0.01,
       })
+      const images = recording.note.mock.calls.filter(([, context]) => context.kind === 'image')
+      expect(images).toHaveLength(status === 429 ? 2 : 1)
+      expect(images[0]).toEqual([
+        undefined,
+        expect.objectContaining({
+          uncertain: true,
+          retainedLiabilityUsd: 0.01,
+          providerCostUsd: undefined,
+        }),
+      ])
     },
   )
+})
+
+function journalTap() {
+  return {
+    note: vi.fn<UsageRecording['note']>(),
+    limit: vi.fn<UsageRecording['limit']>(),
+    today: () => Promise.resolve([]),
+    flush: vi.fn(() => Promise.resolve()),
+  }
+}
+
+it('records headless model attempts under the shared CLI writer and flushes at shutdown', async () => {
+  const recording = journalTap()
+  const h = await harness([], [{ text: 'done' }], { usageRecording: recording })
+  const result = await h.run()
+  expect(result.code).toBe(0)
+  expect(recording.note).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ input_tokens: expect.any(Number) }),
+    expect.objectContaining({
+      kind: 'turn',
+      provider: 'meta',
+      model: 'muse-spark-1.3-contributor',
+    }),
+  )
+  expect(recording.flush).toHaveBeenCalledOnce()
 })
 
 describe('FIXM101C1 headless compaction', () => {
@@ -1094,3 +1151,137 @@ describe('FIXM101C1 headless compaction', () => {
     expect(h.api.responseBodies()).toHaveLength(0)
   })
 })
+
+it('refuses a headless Meta request when ACP has already reserved the daily budget', async () => {
+  const h = await harness()
+  const data = agentDataFolder({ platform: process.platform, env: {}, homeDir: h.homeDir })
+  mkdirSync(data, { recursive: true })
+  writeFileSync(path.join(data, 'settings.json'), JSON.stringify({ paidDailyBudgetUsd: 1 }))
+  const { createRuntimeDailyBudget } = await import('../../src/runtime/runtimeAccountingEntry')
+  const claim = await createRuntimeDailyBudget({
+    dataFolder: data,
+    now: () => Date.now(),
+    sleep: () => Promise.resolve(),
+  }).reserve(1, new AbortController().signal)
+  expect(claim.check(0).spentUsd).toBe(1)
+  const r = await h.run()
+  expect(r.code).not.toBe(0)
+  expect(h.api.responseBodies()).toHaveLength(0)
+})
+
+it.each(['1', '0.000001'])(
+  'runs production headless BYO through the captured Mistral codec with budget %s',
+  async (budget) => {
+    const recording = journalTap()
+    const h = await harness(
+      [
+        '--provider',
+        'mistral',
+        '--model',
+        'ministral-3b-latest',
+        '--max-budget-usd',
+        budget,
+        '--ephemeral',
+      ],
+      [],
+      { usageRecording: recording },
+    )
+    const config = providersCommands.providersFilePath({
+      platform: process.platform,
+      homeDir: h.homeDir,
+      xdgConfigHome: undefined,
+    })
+    mkdirSync(path.dirname(config), { recursive: true })
+    writeFileSync(
+      config,
+      JSON.stringify({
+        v: 1,
+        defaultModel: 'mistral/ministral-3b-latest',
+        providers: [
+          {
+            id: 'mistral',
+            preset: 'mistral',
+            address: 'https://api.mistral.ai',
+            auth: 'apiKey',
+            models: ['ministral-3b-latest'],
+          },
+        ],
+      }),
+    )
+    writeFileSync(
+      path.join(dist, 'providerCatalog.json'),
+      readFileSync('dist/providerCatalog.json'),
+    )
+    await h.store.delete(SECRET_KEYS.modelApiKey)
+    await h.store.store(
+      'museSpark.provider.mistral',
+      formatStoredProviderSecret(
+        { v: 1, auth: 'apiKey', origin: 'https://api.mistral.ai' },
+        'test-owned-key',
+      ),
+    )
+    const capture = z
+      .object({ response: z.object({ events: z.array(z.object({ data: z.json() })) }) })
+      .parse(
+        JSON.parse(
+          readFileSync(
+            'docs/certification/m95-captures/mistral/03-tool-result-stream.json',
+            'utf8',
+          ),
+        ),
+      )
+    const stream =
+      capture.response.events.map((event) => `data: ${JSON.stringify(event.data)}\n\n`).join('') +
+      'data: [DONE]\n\n'
+    const capturedModels = z
+      .object({ response: z.object({ bodySummary: z.object({ sample: z.array(z.json()) }) }) })
+      .parse(
+        JSON.parse(
+          readFileSync('docs/certification/m95-captures/mistral/01-models-list.json', 'utf8'),
+        ),
+      )
+    const send = vi.fn<typeof fetch>((url) =>
+      Promise.resolve(
+        new Response(
+          (url instanceof Request ? url.url : String(url)).endsWith('/models')
+            ? JSON.stringify({ data: capturedModels.response.bodySummary.sample })
+            : stream,
+        ),
+      ),
+    )
+    h.deps.fetch = send
+    const lookup = vi
+      .spyOn(providersCommands, 'resolveEndpointHost')
+      .mockResolvedValue(['93.184.216.34'])
+    try {
+      const r = await h.run()
+      const dispatched = send.mock.calls.filter(([url]) =>
+        (url instanceof Request ? url.url : String(url)).endsWith('/chat/completions'),
+      )
+      if (budget === '1') {
+        expect(r.code, JSON.stringify(r.result)).toBe(0)
+        expect(dispatched).toHaveLength(1)
+        expect(result(r)).toMatchObject({
+          status: 'completed',
+          model: 'mistral/ministral-3b-latest',
+          usage: { requests: 1 },
+        })
+        expect(recording.note).toHaveBeenCalledWith(
+          expect.objectContaining({ input_tokens: expect.any(Number) }),
+          expect.objectContaining({
+            provider: 'mistral',
+            model: 'mistral/ministral-3b-latest',
+            outcome: 'completed',
+            kind: 'turn',
+          }),
+        )
+        expect(recording.flush).toHaveBeenCalledOnce()
+      } else {
+        expect(r.code).toBe(EXEC_EXIT.limit)
+        expect(dispatched).toHaveLength(0)
+      }
+    } finally {
+      lookup.mockRestore()
+    }
+  },
+)

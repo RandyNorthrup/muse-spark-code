@@ -16,6 +16,13 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M102: the shared usage page; its full table is a separate lazy family.
+  usagePageTitle: 'Usage & cost',
+  paletteUsagePage: 'Track cost, tokens and limits across editors.',
+  openUsagePage: 'Open usage page',
+  acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
+  companionLaunchFailed:
+    'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
@@ -28,6 +35,41 @@ export const EN = {
   paidDailyStop: 'Stop until tomorrow',
   paidDailyRaisePrompt:
     'Enter today’s limit in USD (0.50–500), enough for the pending reservations.',
+  planUi: {
+    copilotConnect: 'Use my Copilot models',
+    copilotUnavailable: 'Copilot models are unavailable. Enable Copilot and try again.',
+    copilotQuota: 'Your Copilot quota is exhausted. Manage usage or choose another model.',
+    copilotRateLimit: 'Copilot is rate limited. Try again later.',
+    copilotConsent: 'Allow access to Copilot in its consent dialog to continue.',
+    expired: 'ChatGPT granted too little time to finish this request. Sign in again.',
+    retry: 'ChatGPT is temporarily unavailable. Try again.',
+    // M95b: plan billing, allowance recovery and Copilot's required content note.
+    chatGptMark: 'Using ChatGPT plan',
+    providerMark: 'Using {provider} plan',
+    manage: 'Manage usage',
+    noticeTitle: 'You’re using your ChatGPT plan',
+    noticeDetail: 'ChatGPT Plus/Pro requests share your allowance; they add none.',
+    credits:
+      'Apps may spend credits after plan limits if enabled. Check ChatGPT’s Manage usage settings.',
+    understood: 'Got it',
+    limitTitle: 'ChatGPT plan usage limit reached',
+    limitDetail:
+      'Wait for a reset or choose an API-key model. Reset time is unknown. You choose billing changes.',
+    chooseModel: 'Choose another model',
+    usageHeading: 'Plan usage',
+    usageDetail:
+      'Plan allowance or credits pay, outside this app’s dollar cap. Quota and reset time are unknown.',
+    requests: 'Requests',
+    reportedTokens: 'Reported tokens',
+    estimatedTokens: 'Estimated tokens',
+    unknownTokens: 'Unknown tokens (requests)',
+    // {input}, {output}, {requests}: localized counts, including the sampled requests.
+    tokenCounts: '{input} input · {output} output · requests: {requests}',
+    reduced: 'Reduced',
+    aiContent:
+      'AI content can be inaccurate. Copilot adds rules and uses AI credits. Unreported token usage is estimated.',
+    reportContent: 'Report harmful content',
+  },
   untitledConversation: 'Untitled',
   crashTitle: 'The panel hit an error',
   crashDetail: 'Reload rebuilds the panel; the conversation is kept by the host.',
@@ -1035,6 +1077,9 @@ export const EN = {
   attachmentsLabel: 'Attachments',
   removeAttachment: 'Remove',
   attachmentTooLarge: 'Images must be 10 MB or smaller.',
+  modelAttachmentUnsupported: 'This model does not support this attachment.',
+  providerCapabilityUnsupported: 'Selected model does not support these request settings.',
+  modelAttachmentOverLimit: "This attachment exceeds the model's limits.",
   attachmentUnsupported: 'Only PNG, JPEG, GIF and WebP images can be attached.',
   attachmentLimit: 'At most 20 files per message.',
   attachmentUnreadable: 'The file could not be read.',
@@ -2698,6 +2743,8 @@ export const EN = {
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
+    '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
+    '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
@@ -2789,6 +2836,58 @@ export const EN = {
     one: '{count} secret match',
     other: '{count} secret matches',
   }),
+  // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
+  // below also lives in all 14 `l10n/ui.*.json` tables.
+  // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
+  providerKeyStored: 'The {provider} key is stored in {store}.',
+  providerKeyNotStored: 'No key was entered, so nothing was stored.',
+  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyAbsent: 'No {provider} key is stored.',
+  providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
+  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  providerUnknown: 'Unknown provider: {provider}.',
+  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
+  providerNotConfigured: '{provider} is not configured; add it with providers add first.',
+  providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
+  // {reason}: the technical detail (a file error or a refused write).
+  providerSaveFailed: 'Could not save the providers file ({reason}).',
+  // {stored}: the origin the credential was stored for; {current}: where the provider points now.
+  providerOriginMismatch:
+    'The {provider} credential was stored for {stored} but the provider now points at {current}; enter the key again.',
+  providersNoneFound: 'No providers are configured.',
+  // {origin}: the exact origin the code goes to.
+  providerAdded: 'Added {provider}; code goes to {origin}.',
+  providerAlreadyConfigured: '{provider} is already configured; remove it first to add it again.',
+  // {count}: the models the free check listed.
+  providerTestOk: forms({
+    one: 'Key works · {count} model.',
+    other: 'Key works · {count} models.',
+  }),
+  providerProbeUnreachable: 'The provider could not be reached.',
+  providerProbeUnparseable: 'The model list could not be read.',
+  providerProbeNoKey: 'No key was supplied.',
+  providerProbeRebinding: 'The address changed networks; the request was refused.',
+  providerSaveSecretFailed: 'The credential store operation failed.',
+  providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
+  providerSaveBusy: 'Another provider update is running or its lock could not be acquired; retry.',
+  providerSaveRecoveryFailed:
+    'Saving failed and the {provider} credential could not be restored. Check auth status and re-enter or clear its key before retrying.',
+  providerTestOkKey: 'Key works.',
+  // {reason}: why the test failed, in plain words.
+  providerPaidTest:
+    '{provider} has no free check; add it from the Models & Agents panel, where the test cost is asked first.',
+  // {origin}: the private-network address, asked once before it is saved.
+  providerPrivateNeedsConfirm:
+    '{origin} is on a private network; re-run with --private-ok to confirm.',
+  // {reason}: the endpoint policy's refusal.
+  providerEndpointRefused: 'That address cannot be used ({reason}).',
+  providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  execProviderNeedsModelApi: '--provider needs --backend modelApi.',
+  execProviderModelRequired: 'This provider run needs --model provider/model.',
+  // {provider}: the provider id the run asked for.
+  execProviderNotReady:
+    'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   execSummary:
@@ -3566,6 +3665,11 @@ export const EN = {
     newBadge: 'New',
   },
   // How a model without a dollar price is marked.
+  modelToolCallingUnavailable: 'Tool calling has not been verified for this model.',
+  paidProviderPrice:
+    'Per million tokens: input {input}, cache read {cached}, cache write {write}, one-hour write {write1h}, output {output}. Per request {request}; per image {image}.',
+  paidProviderPriceTier:
+    'From {threshold} input tokens: input {input}, output {output} per million.',
   modelUnpriced: 'unpriced',
   modelLocal: 'local',
   modelPlan: 'plan',
@@ -3629,6 +3733,27 @@ export const EN = {
   // {id}: the provider id, as written.
   acpProviderAdded: 'Added provider {id}.',
   acpProviderRemoved: 'Removed provider {id}.',
+  acpChatGpt: {
+    usage: 'Usage: muse-spark-code-acp providers add|remove|status chatgpt',
+    actions: {
+      add: 'Continue with ChatGPT',
+      remove: 'Remove ChatGPT sign-in',
+      status: 'Check ChatGPT sign-in',
+    },
+    notice:
+      'ChatGPT Plus or Pro is required. Requests use your plan allowance; OpenAI may spend additional credits if you enabled them in ChatGPT. Continue in your browser to sign in.',
+    alreadyAdded: 'ChatGPT is already added. Remove it before signing in again.',
+    states: {
+      'signed-in': 'ChatGPT is signed in.',
+      expired:
+        'ChatGPT sign-in has expired; it will refresh on use, or remove it and sign in again.',
+      'signed-out': 'ChatGPT is not signed in.',
+    },
+    callback: 'ChatGPT sign-in is complete. Return to your editor or terminal.',
+    failure: 'ChatGPT sign-in could not be completed. Try again or remove it and sign in again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+  },
   execProviderNotConfigured: 'Provider {id} is not configured.',
   // M95 providers: evaluated through UI_TEXT at use time.
   providerText: {

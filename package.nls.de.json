@@ -179,5 +179,10 @@
   "command.legalScan.title": "Legal-Scan",
   "config.legalRegistryLookups.description": "Öffentliche Registrierungsabfragen nach einem einmaligen Hinweis auf die Registrierungen und die gesendeten Paketnamen und Versionen erlauben. Deaktivieren für ausschließlich lokale Metadaten.",
   "config.legalExplanation": "Optionale Model-API-Erklärung: USD. Jede Nutzung fragt nach Zustimmung und nutzt das gemeinsame Tagesbudget.",
-  "config.paidDailyBudgetUsd": "Gemeinsames Tagesbudget für kostenpflichtige Extras: USD."
+  "config.paidDailyBudgetUsd": "Gemeinsames Tagesbudget für kostenpflichtige Extras: USD.",
+  "command.openUsagePage.title": "Nutzung und Kosten öffnen",
+  "setting.usageHistory.description": "Modellnutzung lokal auf diesem Rechner aufzeichnen. Beim Ausschalten werden keine neuen Einträge erstellt; aktuelle Limits und Budgets bleiben sichtbar.",
+  "setting.usageHistoryDays.description": "Aufbewahrungsdauer täglicher Nutzungsübersichten in Tagen (30–1825). Details einzelner Aufrufe werden 30 Tage aufbewahrt.",
+  "command.connectChatGpt": "Mit ChatGPT fortfahren",
+  "command.connectCopilot": "Meine Copilot-Modelle verwenden"
 }

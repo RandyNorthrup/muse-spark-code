@@ -6,7 +6,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { mkdir, stat } from 'node:fs/promises'
+import { mkdir, rmdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type {
@@ -16,7 +16,11 @@ import type {
 } from '../../core/backends/modelapi/sessionBudget'
 import type { StoredSession } from '../../core/backends/modelapi/sessionStore'
 import { formatUsd } from '../../core/usage/insights'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  DAILY_BUDGET_LOCK_ATTEMPTS,
+  DAILY_BUDGET_LOCK_WAIT_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { writeFileAtomically } from '../fsAtomic'
 import { storeErrorCode } from './storeErrors'
@@ -78,6 +82,18 @@ export type SessionBudgetJournalDeps = {
 )
 
 interface ProjectedSessionBudgetJournal extends SessionBudgetJournal {
+  /** Atomic admission. A crashed lock is never stolen; its scope fails closed. */
+  reserveAdmitted(
+    sessionId: string,
+    accountId: string,
+    costUsd: number,
+    capUsd: number,
+  ): Promise<SessionBudgetClaim>
+  /** A usage view must never seed an unopened budget ledger. */
+  readExisting(
+    sessionId: string,
+    accountId: string,
+  ): Promise<(SessionBudgetTotal & { readonly uncertainUsd?: number }) | undefined>
   /** Existing journal data owns this field; an unopened journal leaves a snapshot alone. */
   project(session: StoredSession): Promise<StoredSession>
   /** Read-only reconciliation; ownership of settlement stays with the creator. */
@@ -190,21 +206,31 @@ function readClaim(scope: Scope, seed: Seed, claimId: string): Claim {
   }
 }
 
-function totalFor(scope: Scope): SessionBudgetTotal {
+function totalFor(
+  scope: Scope,
+  isUsageView = false,
+): SessionBudgetTotal & { readonly uncertainUsd?: number } {
   try {
     const seed = readSeed(scope)
     let spentUsd = seed.spentUsd
     let hasUnknownHistoricalFees = seed.hasUnknownHistoricalFees
+    let uncertainUsd = 0
     const claimIds = readdirSync(path.join(scope.directory, CLAIMS_DIRECTORY))
     for (const claimId of claimIds) {
       const claim = readClaim(scope, seed, claimId)
       spentUsd += claim.settledUsd ?? claim.reservedUsd
+      if (claim.settledUsd === undefined || claim.hasUnknownCost === true)
+        uncertainUsd += claim.settledUsd ?? claim.reservedUsd
       hasUnknownHistoricalFees ||=
         claim.hasUnknownCost === true ||
         (claim.isUnbounded === true && claim.settledUsd === undefined)
     }
     assertCost(spentUsd)
-    return { spentUsd, hasUnknownHistoricalFees }
+    return {
+      spentUsd,
+      hasUnknownHistoricalFees,
+      ...(isUsageView && uncertainUsd > 0 && { uncertainUsd }),
+    }
   } catch (error: unknown) {
     throw unavailable(error)
   }
@@ -447,6 +473,43 @@ export function createSessionBudgetJournal(
   }
 
   return {
+    async reserveAdmitted(sessionId, accountId, costUsd, capUsd) {
+      const scope = scopeFor(sessionId, accountId)
+      const lock = `${scope.intent}.lock`
+      await mkdir(path.dirname(lock), { recursive: true })
+      let hasLock = false
+      for (let attempt = 0; attempt < DAILY_BUDGET_LOCK_ATTEMPTS; attempt += 1) {
+        try {
+          await mkdir(lock)
+          hasLock = true
+          break
+        } catch (error: unknown) {
+          if (storeErrorCode(error) !== EXISTS) throw unavailable(error)
+          await deps.sleep(DAILY_BUDGET_LOCK_WAIT_MS)
+        }
+      }
+      if (!hasLock) throw unavailable()
+      try {
+        assertCost(capUsd)
+        if (capUsd <= 0) throw unavailable()
+        const seed = await ensure(scope)
+        const claim = claimFor(scope, seed, await writeClaim(scope, seed, costUsd, true))
+        try {
+          claim.check(capUsd)
+          return claim
+        } catch (error: unknown) {
+          await claim.settle(0)
+          throw error
+        }
+      } finally {
+        await rmdir(lock)
+      }
+    },
+    async readExisting(sessionId, accountId) {
+      const scope = scopeFor(sessionId, accountId)
+      if (!(await isPresent(scope.intent)) && !(await isPresent(scope.directory))) return
+      return totalFor(scope, true)
+    },
     lookupByClaimId(sessionId, accountId, claimId) {
       const scope = scopeFor(sessionId, accountId)
       return Promise.resolve(readClaim(scope, readSeed(scope), claimId))

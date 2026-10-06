@@ -179,5 +179,10 @@
   "command.legalScan.title": "ライセンススキャン",
   "config.legalRegistryLookups.description": "レジストリと送信するパッケージ名・バージョンを初回通知した後、公開レジストリへの照会を許可します。無効にするとローカルのメタデータのみを使用します。",
   "config.legalExplanation": "任意の Model API 説明：USD。使用ごとに同意を求め、日次有料予算を共有します。",
-  "config.paidDailyBudgetUsd": "有料追加機能の共有日次予算：USD。"
+  "config.paidDailyBudgetUsd": "有料追加機能の共有日次予算：USD。",
+  "command.openUsagePage.title": "使用量と費用を開く",
+  "setting.usageHistory.description": "このコンピューターにモデルの使用量をローカル保存します。オフにすると新しい記録を停止します。現在の上限と予算は引き続き表示されます。",
+  "setting.usageHistoryDays.description": "日別の使用量集計を保持する日数（30–1825）。呼び出しごとの詳細は 30 日間保持されます。",
+  "command.connectChatGpt": "ChatGPT で続行",
+  "command.connectCopilot": "自分のCopilotモデルを使う"
 }

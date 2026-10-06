@@ -71,7 +71,7 @@ export interface PricedUsage {
    * cache, OpenRouter's 1 h write): settled at the 1 h write rate, disjoint
    * from the 5-minute remainder. Absent where the provider reports none.
    */
-  readonly cacheWrite1hTokens?: number | undefined
+  readonly cacheWriteTokens1h?: number | undefined
   readonly outputTokens: number
 }
 
@@ -85,12 +85,12 @@ export function isValidUsage(usage: PricedUsage): boolean {
     usage.outputTokens,
     usage.cachedTokens ?? 0,
     usage.cacheWriteTokens ?? 0,
-    usage.cacheWrite1hTokens ?? 0,
+    usage.cacheWriteTokens1h ?? 0,
   ]
   return (
     counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
     (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens &&
-    (usage.cacheWrite1hTokens ?? 0) <= (usage.cacheWriteTokens ?? 0)
+    (usage.cacheWriteTokens1h ?? 0) <= (usage.cacheWriteTokens ?? 0)
   )
 }
 
@@ -103,7 +103,7 @@ export function splitCacheWrites(usage: PricedUsage): {
   readonly standard: number
   readonly oneHour: number
 } {
-  const oneHour = usage.cacheWrite1hTokens ?? 0
+  const oneHour = usage.cacheWriteTokens1h ?? 0
   return { standard: (usage.cacheWriteTokens ?? 0) - oneHour, oneHour }
 }
 

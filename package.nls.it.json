@@ -179,5 +179,10 @@
   "command.legalScan.title": "Analisi legale",
   "config.legalRegistryLookups.description": "Consentire ricerche nei registri pubblici dopo un avviso unico che indica i registri e i nomi e le versioni inviati. Disattivare per usare solo metadati locali.",
   "config.legalExplanation": "Spiegazione Model API facoltativa: USD. Ogni utilizzo chiede il consenso e condivide il budget giornaliero.",
-  "config.paidDailyBudgetUsd": "Budget giornaliero condiviso per gli extra a pagamento: USD."
+  "config.paidDailyBudgetUsd": "Budget giornaliero condiviso per gli extra a pagamento: USD.",
+  "command.openUsagePage.title": "Apri utilizzo e costo",
+  "setting.usageHistory.description": "Registra l’utilizzo dei modelli localmente su questo computer. Disattivando l’opzione, non vengono creati nuovi record; i limiti e i budget attuali restano visibili.",
+  "setting.usageHistoryDays.description": "Giorni di conservazione dei riepiloghi giornalieri di utilizzo (30–1825). I dettagli delle singole chiamate vengono conservati per 30 giorni.",
+  "command.connectChatGpt": "Continua con ChatGPT",
+  "command.connectCopilot": "Usa i miei modelli Copilot"
 }

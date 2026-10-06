@@ -1,6 +1,5 @@
 import * as z from 'zod/mini'
 import { imagesResponseSchema, streamEventSchema } from '../../core/backends/modelapi/schemas'
-import { parseSse } from '../../core/backends/modelapi/sse'
 import { readImageInfo } from '../../core/imageDimensions'
 import { modelApiPaidTier } from '../../shared/paid'
 import {
@@ -373,6 +372,7 @@ export function execFetch(input: {
             output.close()
           },
         })
+        const { parseSse } = await import('../../core/backends/modelapi/sse')
         for await (const event of parseSse(chunks)) {
           if (event.data.trim() === '' || event.data.trim() === '[DONE]') continue
           let value: unknown

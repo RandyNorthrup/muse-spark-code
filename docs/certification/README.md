@@ -120,3 +120,6 @@ The PNGs beside the records are that day's harness renders.
 - [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
 - [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, failed full-gate receipt, budget-stop evidence and nine regression drills
 - [0.15.0 release train](train-0.15.0.md): ordered diet/M101 merges, unchanged caps, universal VSIX budget stop, exact artifact deltas and scoped regression receipts
+
+- [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.
+- [M102 integration](m102.md): usage integration on M95's joined transport, lazy ACP usage and headless loading, golden and guard-fire evidence; round three records the stopped provider-accounting path, cold exec package timeout and universal VSIX cap blocker.

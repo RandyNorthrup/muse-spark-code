@@ -2,7 +2,12 @@ import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
-import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import {
+  type AcpAgentDeps,
+  type BackendReadiness,
+  createAcpAgent,
+  type SignInMethod,
+} from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import * as paidConsent from '../../src/core/paid/paidConsent'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
@@ -19,6 +24,9 @@ import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fak
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
+import { chatGptAuthenticationMethods } from '../../src/runtime/chatGptProviderCommands'
+import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
+import { memorySecrets } from './helpers/fakes'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
 // process, against a scripted backend.
@@ -57,6 +65,7 @@ interface Harness {
 interface HarnessOptions {
   readonly legalScan?: AcpAgentDeps['legalScan']
 
+  readonly providerSignIns?: readonly SignInMethod[]
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -113,6 +122,7 @@ function harness(options: HarnessOptions = {}): Harness {
       args: ['login'],
       command: 'muse-spark-code-acp login',
     },
+    ...(options.providerSignIns !== undefined && { providerSignIns: options.providerSignIns }),
     defaultCwd: CWD,
     paid,
     log,
@@ -424,6 +434,51 @@ async function runMcpForm(
 }
 
 describe('the ACP agent (M63)', () => {
+  it('exposes all three ChatGPT actions to terminal and manual editors and verifies them independently of Meta', async () => {
+    const secrets = memorySecrets()
+    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({})))
+    const methods = chatGptAuthenticationMethods(() =>
+      createRuntimeChatGptHost({
+        secrets,
+        fetch: fetcher,
+        openBrowser: () => Promise.resolve(),
+        callbackText: () => '',
+      }),
+    )
+    const h = harness({
+      providerSignIns: methods,
+      readiness: { state: 'signedOut', message: 'No Meta account' },
+    })
+    await h.run(async (client) => {
+      const terminal = await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { auth: { terminal: true } },
+      })
+      expect(terminal.authMethods?.slice(1)).toMatchObject(
+        methods.map((method) => ({ type: 'terminal', id: method.id, args: method.args })),
+      )
+      const manual = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      expect(manual.authMethods?.slice(1).map((method) => method.description)).toEqual(
+        methods.map((method) => `Run “${method.command}” in a terminal, then try again.`),
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-status' })).resolves.toEqual(
+        {},
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-remove' })).resolves.toEqual(
+        {},
+      )
+      await expect(client.request('authenticate', { methodId: 'chatgpt-add' })).rejects.toThrow()
+      await expect(client.request('authenticate', { methodId: 'copilot-add' })).rejects.toThrow()
+    })
+    expect(h.rechecks).toEqual([])
+    expect(fetcher).not.toHaveBeenCalled()
+    const ready = harness()
+    await ready.run(async (client) => {
+      await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      await expect(client.request('authenticate', { methodId: 'copilot-add' })).rejects.toThrow()
+    })
+    expect(ready.rechecks).toEqual([])
+  })
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -519,14 +574,14 @@ describe('the ACP agent (M63)', () => {
       code: -32_000,
     })
     await expect(
-      signedOut.run((client) => client.request('authenticate', { methodId: 'x' })),
+      signedOut.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
     ).rejects.toMatchObject({ code: -32_000 })
     const missing = harness({ readiness: { state: 'unavailable', message: 'no CLI' } })
     await expect(missing.run((client) => start(client))).rejects.toMatchObject({ code: -32_603 })
     const ready = harness()
-    expect(await ready.run((client) => client.request('authenticate', { methodId: 'x' }))).toEqual(
-      {},
-    )
+    expect(
+      await ready.run((client) => client.request('authenticate', { methodId: 'muse-code-login' })),
+    ).toEqual({})
     await ready.run((client) => start(client))
     // Only authenticate, after a sign-in in the terminal, asks afresh (PR #49).
     expect(ready.rechecks).toEqual([true, false])

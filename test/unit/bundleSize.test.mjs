@@ -7,8 +7,13 @@ const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
 function mockWebviewMeta(meta, models, whatsNew) {
-  const modelsMeta = models ?? { outputs: { 'dist/webview/models.js': { imports: [] } } }
+  const modelsMeta =
+    models ??
+    (meta.outputs['dist/webview/models.js'] === undefined
+      ? { outputs: { 'dist/webview/models.js': { imports: [] } } }
+      : meta)
   const pageMetafiles = {
+    'dist/meta/usageWebview.json': { outputs: { 'dist/webview/usage.js': { imports: [] } } },
     'dist/meta/modelsWebview.json': modelsMeta,
     'dist/meta/whatsNewPage.json': whatsNew ?? {
       outputs: { 'dist/webview/whatsNew.js': { imports: [] } },
@@ -34,6 +39,33 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
+  it('bounds reachable deferred chat chunks while allowing the separately budgeted usage page', async () => {
+    readFileSync.mockReturnValue(
+      JSON.stringify({
+        outputs: {
+          'dist/webview/main.js': {
+            imports: [{ path: 'dist/webview/chunks/dialog.js', kind: 'dynamic-import' }],
+          },
+          'dist/webview/chunks/dialog.js': { imports: [] },
+          'dist/webview/models.js': { imports: [] },
+          'dist/webview/usage.js': { imports: [] },
+          'dist/webview/whatsNew.js': { imports: [] },
+        },
+      }),
+    )
+    statSync.mockImplementation((file) => ({ size: file.endsWith('usage.js') ? 200 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({
+      size: file.endsWith('dialog.js') ? 50 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+    expect(console.log).toHaveBeenCalledWith(
+      'OVER dist/webview deferred JS: 50.0 KiB (budget 50 KiB)',
+    )
+  })
+
   it('counts eager chunks against the unchanged startup cap', async () => {
     mockWebviewMeta({
       outputs: {
@@ -49,7 +81,7 @@ describe('bundled What’s New content budget', () => {
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })
 
-  it('counts shared static chunks against the unchanged Models startup cap', async () => {
+  it('counts shared static chunks against the measured Models startup cap', async () => {
     const chunk = 'dist/webview/chunks/models-shared.js'
     mockWebviewMeta(
       { outputs: { 'dist/webview/main.js': { imports: [] } } },
@@ -60,14 +92,14 @@ describe('bundled What’s New content budget', () => {
         },
       },
     )
-    statSync.mockImplementation((file) => ({ size: file === chunk ? 475 * 1024 : 0 }))
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 500 * 1024 : 0 }))
     await import('../../scripts/check-bundle-size.mjs')
     expect(process.exit).not.toHaveBeenCalled()
     vi.resetModules()
-    statSync.mockImplementation((file) => ({ size: file === chunk ? 475 * 1024 + 1 : 0 }))
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 500 * 1024 + 1 : 0 }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
     expect(console.log).toHaveBeenCalledWith(
-      'OVER dist/webview/models.js + static imports: 475.0 KiB (budget 475 KiB)',
+      'OVER dist/webview/models.js + static imports: 500.0 KiB (budget 500 KiB)',
     )
   })
 
@@ -88,7 +120,38 @@ describe('bundled What’s New content budget', () => {
   })
 
   it.each([
-    ['deferred JS', 50, undefined],
+    { root: 'dist/webview/main.js', budget: 900, over: true },
+    { root: 'dist/webview/models.js', budget: 500, over: true },
+    { root: 'dist/webview/models.js', budget: 500, over: false },
+  ])(
+    'counts $root eager chunks at the $budget KiB boundary (over: $over)',
+    async ({ root, budget, over }) => {
+      const other = root.endsWith('main.js') ? 'dist/webview/models.js' : 'dist/webview/main.js'
+      const eager = 'dist/webview/chunks/eager.js'
+      mockWebviewMeta({
+        outputs: {
+          [root]: { imports: [{ path: eager, kind: 'import-statement' }] },
+          [other]: { imports: [] },
+          'dist/webview/usage.js': { imports: [] },
+          [eager]: { imports: [] },
+        },
+      })
+      statSync.mockImplementation((file) => ({
+        size: file === eager ? budget * 1024 + (over ? 1 : 0) : 0,
+      }))
+      const run = import('../../scripts/check-bundle-size.mjs')
+      if (over) {
+        await expect(run).rejects.toThrow('exit 1')
+        expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`OVER ${root}`))
+      } else {
+        await run
+        expect(process.exit).not.toHaveBeenCalled()
+      }
+    },
+  )
+
+  it.each([
+    ['deferred JS', 50, 'src/webview/deferredUnknown.ts'],
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],

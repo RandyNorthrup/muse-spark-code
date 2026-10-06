@@ -12,7 +12,9 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -30,11 +32,16 @@ const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
 mkdirSync(TEMP, { recursive: true })
 const WORK = mkdtempSync(path.join(TEMP, 'm80d-stdio-'))
+const BUILD_ROOT = path.join(WORK, 'build')
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
+// TRAIN15E: five cold exec starts improve on 0.14.1; this first package also
+// compresses its archive and checks 33 native APIs. Only its cold fixture gets
+// 60 seconds on the Windows rig; cached packaging and exec retain 30 seconds.
+const COLD_PACKAGE_TIMEOUT_MS = 60_000
 const TIMEOUT = 30_000
 // The production build and pack before the built rows: about a minute on the
 // Windows 11 VM, past Vitest's 10 s hook default and a single row's budget.
@@ -78,6 +85,8 @@ const children: ChildProcessWithoutNullStreams[] = []
 
 afterAll(async () => {
   for (const child of children) child.kill()
+  // Remove only the test-owned link before recursive cleanup of its tree.
+  rmSync(path.join(BUILD_ROOT, 'node_modules'), { force: true })
   await removeFolder(WORK)
 })
 
@@ -90,7 +99,13 @@ function command(
 ) {
   return spawnSync(process.execPath, [file, ...args], {
     cwd,
-    env: { ...process.env, LANG: 'C', LC_ALL: 'C', ...env },
+    env: {
+      ...process.env,
+      LANG: 'C',
+      LC_ALL: 'C',
+      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E e2e packaging',
+      ...env,
+    },
     encoding: 'utf8',
     timeout,
   })
@@ -110,6 +125,8 @@ function packagingFixture() {
   for (const folder of [
     'scripts/lib',
     'dist',
+    'dist/webview',
+    'dist/meta',
     'native/windows',
     'l10n',
     'docs/schemas',
@@ -121,9 +138,67 @@ function packagingFixture() {
   for (const script of ['package-acp.mjs', 'package-acp-test.mjs']) {
     cpSync(path.join(ROOT, 'scripts', script), path.join(dir, 'scripts', script))
   }
+  const packer = path.join(dir, 'scripts/package-acp.mjs')
+  const exportCheck = path.join(dir, 'scripts/native-exports.cjs')
+  writeFileSync(
+    exportCheck,
+    `const { createHash } = require('node:crypto');
+const { execFileSync } = require('node:child_process');
+const { existsSync, mkdirSync, readFileSync, writeFileSync } = require('node:fs');
+const path = require('node:path');
+const checker = ${JSON.stringify(path.join(ROOT, 'test/packaging/moduleExports.test.mjs'))};
+const hash = createHash('sha256').update(readFileSync(process.argv[3]))
+  .update(readFileSync(checker)).update(process.version).update(process.argv[2]).digest('hex');
+const cache = path.join(${JSON.stringify(WORK)}, 'native-export-cache');
+const marker = path.join(cache, hash);
+if (!existsSync(marker)) {
+  execFileSync(process.execPath, [checker, ...process.argv.slice(2)], { stdio: 'inherit' });
+  mkdirSync(cache, { recursive: true });
+  writeFileSync(marker, hash);
+}
+`,
+  )
+  writeFileSync(
+    packer,
+    readFileSync(packer, 'utf8')
+      .replace("'scripts/check-l10n.mjs'", () =>
+        JSON.stringify(path.join(ROOT, 'scripts/check-l10n.mjs')),
+      )
+      .replace("'./check-badges.mjs'", () =>
+        JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/check-badges.mjs')).href),
+      )
+      .replace("'scripts/check-badges.mjs'", () =>
+        JSON.stringify(path.join(ROOT, 'scripts/check-badges.mjs')),
+      )
+      .replace("'test/packaging/moduleExports.test.mjs'", () => JSON.stringify(exportCheck)),
+  )
+  mkdirSync(path.join(dir, 'scripts/lib'), { recursive: true })
   writeFileSync(
     path.join(dir, 'scripts/lib/packageArchive.mjs'),
-    `export { packRuntimeArchive } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/lib/packageArchive.mjs')).href)};`,
+    `import { packRuntimeArchive as pack } from ${JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/lib/packageArchive.mjs')).href)};
+import { createHash } from 'node:crypto';
+import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+export async function packRuntimeArchive(root, stage, files, tables) {
+  const hash = createHash('sha256').update(JSON.stringify(tables));
+  for (const file of files) hash.update(file).update(readFileSync(path.join(root, file)));
+  const cache = path.join(${JSON.stringify(WORK)}, 'archive-cache', hash.digest('hex'));
+  const members = [...files.filter(file => file !== 'dist/providerCatalog.json'), 'l10n/ui.tables.json.br', 'l10n/usage.tables.json.br', 'dist/runtime.bundles.json.br'];
+  if (!existsSync(path.join(cache, 'complete'))) {
+    await pack(root, stage, files, tables);
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(cache, file)), { recursive: true });
+      cpSync(path.join(stage, file), path.join(cache, file));
+    }
+    writeFileSync(path.join(cache, 'complete'), 'complete');
+  } else {
+    for (const file of members) {
+      mkdirSync(path.dirname(path.join(stage, file)), { recursive: true });
+      cpSync(path.join(cache, file), path.join(stage, file));
+    }
+  }
+}
+`,
   )
   cpSync(
     path.join(ROOT, 'scripts/lib/packedL10n.mjs'),
@@ -155,6 +230,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({
+      ...JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')),
       name: 'test-fixture',
       version: '0.0.0',
       license: 'MIT',
@@ -165,8 +241,17 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   )
   for (const bundle of [
     'acp',
+    'headless',
     'modelApi',
+    'modelApiHooks',
+    'modelApiMcp',
+    'runtimeAccounting',
+    'runtimeEngine',
+    'providerPolicy',
     'modelApiBoundaries',
+    'providers',
+    'subscriptions',
+    'configuredProviders',
     'reviewer',
     'legalScan',
     'team',
@@ -186,30 +271,39 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'searchWorker',
     'imageResizeWorker',
     'pageWorker',
+    'usageService',
+    'usageCompanion',
   ]) {
-    writeFileSync(
-      path.join(dir, 'dist', `${bundle}.js`),
-      bundle.startsWith('uiText') ? 'exports.EN={};\n' : '// test-owned inert bundle\n',
-    )
+    cpSync(path.join(ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
   }
+  cpSync(path.join(ROOT, 'dist/providerCatalog.json'), path.join(dir, 'dist/providerCatalog.json'))
+  cpSync(path.join(ROOT, 'dist/providerCatalog.js'), path.join(dir, 'dist/providerCatalog.js'))
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
+  cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
+    recursive: true,
+  })
+  for (const name of readdirSync(ROOT)) {
+    if (/^package\.nls.*\.json$/.test(name)) cpSync(path.join(ROOT, name), path.join(dir, name))
+  }
+  const languageFiles = readdirSync(path.join(ROOT, 'l10n'))
+  for (const table of languageFiles) {
+    if (/^(?:ui|usage)\..+\.json$/.test(table))
+      cpSync(path.join(ROOT, 'l10n', table), path.join(dir, 'l10n', table))
+  }
+  cpSync(path.join(ROOT, 'l10n/untranslated.json'), path.join(dir, 'l10n/untranslated.json'))
+  cpSync(path.join(ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'dist/meta/usageWebview.json'),
+    path.join(dir, 'dist/meta/usageWebview.json'),
+  )
   cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
-  writeFileSync(
-    path.join(dir, 'dist/uiText.js'),
-    'exports.EN={fixture:"Example",count:{one:"{count} item",other:"{count} items"}};\n',
-  )
-  writeFileSync(
-    path.join(dir, 'l10n', 'ui.de.json'),
-    JSON.stringify({
-      fixture: 'Beispiel',
-      count: { one: '{count} Eintrag', other: '{count} Einträge' },
-    }),
-  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
-  writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')
+  for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])
+    cpSync(path.join(ROOT, file), path.join(dir, file))
   cpSync(path.join(ROOT, 'docs', 'schemas'), path.join(dir, 'docs', 'schemas'), { recursive: true })
   cpSync(path.join(ROOT, 'src', 'core', 'legal', 'data'), path.join(dir, 'dist/legal-data'), {
     recursive: true,
@@ -222,65 +316,77 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
 }
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
-  it('ships exact committed schemas, keeps production bin, and never packs the test launcher', () => {
-    const dir = packagingFixture()
-    const run = command(path.join(dir, 'scripts', 'package-acp.mjs'), dir)
-    expect(run.status, run.stderr).toBe(0)
-    const stage = path.join(dir, 'dist', 'acp-package')
-    const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-    for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
-      expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
-        readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
+  it(
+    'ships exact committed schemas, keeps production bin, and never packs the test launcher',
+    { timeout: COLD_PACKAGE_TIMEOUT_MS },
+    () => {
+      const dir = packagingFixture()
+      const run = command(
+        path.join(dir, 'scripts', 'package-acp.mjs'),
+        dir,
+        [],
+        {},
+        COLD_PACKAGE_TIMEOUT_MS,
       )
-      expect(packedText(packed, `schemas/${schema}`)).toBe(
-        readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
-      )
-    }
-    const tables = z
-      .object({
-        keys: z.array(z.string()),
-        locales: z.array(z.string()),
-        values: z.array(z.array(z.unknown())),
-      })
-      .parse(
-        JSON.parse(
-          brotliDecompressSync(readFileSync(path.join(stage, 'l10n/ui.tables.json.br'))).toString(
-            'utf8',
-          ),
-        ),
-      )
-    expect(tables.locales).toEqual(['de'])
-    const expected: Readonly<Record<string, unknown>> = {
-      fixture: 'Beispiel',
-      count: { one: '{count} Eintrag', other: '{count} Einträge' },
-    }
-    expect(tables.values[0]).toEqual(tables.keys.map((key: string) => expected[key]))
-    const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
-    expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
-    expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
-    expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
-    for (const member of [
-      'dist/legalScan.js',
-      'dist/legal-data/NOTICE.md',
-      'dist/legal-data/provenance.json',
-    ]) {
-      const source = member.startsWith('dist/legal-data/')
-        ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
-        : path.join(dir, member)
-      if (member === 'dist/legalScan.js') {
-        const runtime = z
-          .object({ bundles: z.record(z.string(), z.string()) })
-          .parse(
-            JSON.parse(
-              brotliDecompressSync(
-                readFileSync(path.join(stage, 'dist/runtime.bundles.json.br')),
-              ).toString('utf8'),
+      expect(run.status, run.stderr).toBe(0)
+      const stage = path.join(dir, 'dist', 'acp-package')
+      const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
+      for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
+        expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
+          readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
+        )
+        expect(packedText(packed, `schemas/${schema}`)).toBe(
+          readFileSync(path.join(ROOT, 'docs', 'schemas', schema), 'utf8'),
+        )
+      }
+      const tables = z
+        .object({
+          keys: z.array(z.string()),
+          locales: z.array(z.string()),
+          values: z.array(z.array(z.unknown())),
+        })
+        .parse(
+          JSON.parse(
+            brotliDecompressSync(readFileSync(path.join(stage, 'l10n/ui.tables.json.br'))).toString(
+              'utf8',
             ),
-          )
-        expect(runtime.bundles['legalScan.js']).toBe(readFileSync(source, 'utf8'))
-      } else expect(packedText(packed, member)).toBe(readFileSync(source, 'utf8'))
-    }
-  })
+          ),
+        )
+      expect(tables.locales).toEqual(['de'])
+      const expected: Readonly<Record<string, unknown>> = {
+        fixture: 'Beispiel',
+        count: { one: '{count} Eintrag', other: '{count} Einträge' },
+      }
+      expect(tables.values[0]).toEqual(tables.keys.map((key: string) => expected[key]))
+      const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
+      expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
+      expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'providerCatalog.json'))).toBe(false)
+      expect(existsSync(path.join(stage, 'dist', 'providerCatalog.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
+      for (const member of [
+        'dist/legalScan.js',
+        'dist/legal-data/NOTICE.md',
+        'dist/legal-data/provenance.json',
+      ]) {
+        const source = member.startsWith('dist/legal-data/')
+          ? path.join(ROOT, 'src/core/legal/data', path.basename(member))
+          : path.join(dir, member)
+        if (member === 'dist/legalScan.js') {
+          const runtime = z
+            .object({ bundles: z.record(z.string(), z.string()) })
+            .parse(
+              JSON.parse(
+                brotliDecompressSync(
+                  readFileSync(path.join(stage, 'dist/runtime.bundles.json.br')),
+                ).toString('utf8'),
+              ),
+            )
+          expect(runtime.bundles['legalScan.js']).toBe(readFileSync(source, 'utf8'))
+        } else expect(packedText(packed, member)).toBe(readFileSync(source, 'utf8'))
+      }
+    },
+  )
 
   it.each(['missing', 'directory', 'invalid-json'])(
     'refuses %s schema before replacing stage',
@@ -338,6 +444,10 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'schemas/exec-event-v1.schema.json',
     'l10n/ui.tables.json.br',
     'dist/runtime.bundles.json.br',
+    'dist/providers.js',
+    'dist/subscriptions.js',
+    'dist/configuredProviders.js',
+    'dist/providerCatalog.js',
   ])('build tarball guard rejects missing %s', (missing) => {
     const dir = packagingFixture()
     expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
@@ -598,23 +708,56 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      // The bundle-split suite mutates its metafiles. Rebuilding its dist/
+      // here can delete chunks or truncate those files during a guard check.
+      mkdirSync(BUILD_ROOT, { recursive: true })
+      for (const folder of [
+        'src',
+        'scripts',
+        'vendor',
+        'native',
+        'l10n',
+        'docs',
+        'test/integration',
+        'test/packaging',
+      ]) {
+        cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
+      }
+      for (const file of [
+        'package.json',
+        'tsconfig.json',
+        'LICENSE',
+        'CHANGELOG.md',
+        'README.md',
+      ]) {
+        cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
+      }
+      for (const file of readdirSync(ROOT)) {
+        if (/^package\.nls.*\.json$/.test(file))
+          cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
+      }
+      symlinkSync(
+        path.join(ROOT, 'node_modules'),
+        path.join(BUILD_ROOT, 'node_modules'),
+        'junction',
+      )
       const built = command(
-        path.join(ROOT, 'scripts', 'build.mjs'),
-        ROOT,
+        path.join(BUILD_ROOT, 'scripts', 'build.mjs'),
+        BUILD_ROOT,
         ['--production'],
         {},
         BUILD_TIMEOUT,
       )
       expect(built.status, built.stderr).toBe(0)
       const packed = command(
-        path.join(ROOT, 'scripts', 'package-acp.mjs'),
-        ROOT,
+        path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
+        BUILD_ROOT,
         [],
         {},
         BUILD_TIMEOUT,
       )
       expect(packed.status, packed.stderr).toBe(0)
-      cpSync(path.join(ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
+      cpSync(path.join(BUILD_ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
     }
     await build({
       stdin: {

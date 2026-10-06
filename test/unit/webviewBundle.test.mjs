@@ -37,12 +37,12 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
-  for (const page of ['modelsWebview', 'whatsNewPage']) {
+  for (const page of ['modelsWebview', 'whatsNewPage', 'usageWebview']) {
     cpSync(`dist/meta/${page}.json`, path.join(built.fixture, `dist/meta/${page}.json`))
   }
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
-})
+}, 120_000)
 
 afterAll(() => {
   if (built.fixture !== '') rmSync(built.fixture, { recursive: true, force: true })
@@ -68,6 +68,10 @@ function sizeFixture(sharedBytes) {
   writeFileSync(path.join(built.fixture, 'dist/webview/shared.js'), Buffer.alloc(sharedBytes))
   writeFileSync(path.join(built.fixture, 'dist/webview/deferred.js'), Buffer.alloc(49 * 1024))
   writeFileSync(path.join(built.fixture, 'dist/webview/TeamUi.js'), '')
+  writeFileSync(
+    path.join(built.fixture, 'dist/meta/usageWebview.json'),
+    JSON.stringify({ outputs: { 'dist/webview/usage.js': { imports: [] } } }),
+  )
   const shared = { path: 'dist/webview/shared.js', kind: 'import-statement', external: false }
   writeFileSync(
     path.join(built.fixture, 'dist/meta/webview.json'),
@@ -81,11 +85,13 @@ function sizeFixture(sharedBytes) {
           ],
         },
         'dist/webview/shared.js': { imports: [] },
+        'dist/webview/models.js': { imports: [] },
         'dist/webview/deferred.js': { imports: [] },
         'dist/webview/TeamUi.js': {
           entryPoint: 'src/webview/components/TeamUi.tsx',
           imports: [],
         },
+        'dist/webview/usage.js': { imports: [] },
       },
     }),
   )
@@ -216,6 +222,7 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(built.outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/usageWebview.json', 'utf8')).outputs),
       ]
         .filter((file, index, files) => files.indexOf(file) === index)
         .filter((file) => file.endsWith('.js'))

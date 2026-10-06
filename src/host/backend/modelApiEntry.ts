@@ -11,16 +11,27 @@ import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // available when this backend is loaded outside the extension.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
+// T's one request loop and framing API are shared by the lazy provider adapters.
+export {
+  RequestTransport,
+  ModelApiError,
+  isModelApiError,
+  rateLimitHeaders,
+  parseJsonResponse,
+  redactModelApiError,
+  ignoreClosingError,
+  redactSecrets,
+} from '../../core/backends/modelapi/transport'
+export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
+export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
+export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
-import {
-  type HookDefinition,
-  type HookLoadDeps,
-  loadHookDefinitions,
-  sparkHooksFiles,
-} from '../../core/backends/modelapi/hooks'
-import { McpServerPool } from '../../core/backends/modelapi/mcp/pool'
+import { type HookDefinition, type HookLoadDeps } from '../../core/backends/modelapi/hooks'
+import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 import { metaModelFacts } from '../../core/backends/modelapi/modelCapabilities'
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import { UI_TEXT } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
@@ -88,18 +99,53 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             hostDeps.log.warn(`Hooks: ${message}`)
           },
         }
+  let providers: ReturnType<NonNullable<typeof deps.createProviders>> | undefined
+  const resolveProviders = async () => {
+    if (deps.createProviders === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+    providers ??= deps.createProviders()
+    try {
+      return await providers
+    } catch (error: unknown) {
+      providers = undefined
+      throw error
+    }
+  }
+  const meta = new ModelApiClient(deps.client)
+  const client = (await deps.createProviderClient?.(meta)) ?? meta
+  const mcp =
+    deps.createMcpServers === undefined
+      ? undefined
+      : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
+  mcp?.setUiText(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
-    client: new ModelApiClient(deps.client),
-    mcpServers: await deps.createMcpServers?.((poolDeps) => new McpServerPool(poolDeps)),
+    client,
+    ...('models' in client && { models: client.models }),
+    ...(deps.createProviders !== undefined && {
+      models: {
+        resolve: async (ref: string) => {
+          const registry = await resolveProviders()
+          return await registry.resolve(ref)
+        },
+        list: async () => {
+          const { list } = await resolveProviders()
+          if (list === undefined) throw new Error(UI_TEXT.modelsPanelUnavailable)
+          return await list()
+        },
+      },
+    }),
+    mcpServers:
+      mcp === undefined
+        ? undefined
+        : await deps.createMcpServers?.((poolDeps) => new mcp.McpServerPool(poolDeps)),
     loadHooks: async () => {
       const sources = sourcesFor()
       // Hooks imported in another agent's format live in spark-hooks.json and
       // join the same per-session snapshot, after Muse Code's (M91 lane W).
-      return sources === undefined
-        ? []
-        : [...(await loadHookDefinitions(sources)), ...(await loadForeignHooks(sources))]
+      if (sources === undefined) return []
+      const hooks = await import('../../core/backends/modelapi/modelApiHooksEntry.js')
+      return [...(await hooks.loadHookDefinitions(sources)), ...(await loadForeignHooks(sources))]
     },
     // spark-hooks.json loads beside Muse Code's sources, under the same
     // trust gate and opt-in, into the same per-session snapshot (M91 lane E).
@@ -142,3 +188,4 @@ export async function* streamLegalExplanation(
     guard,
   )
 }
+export { setUiText } from '../../shared/l10n/text'

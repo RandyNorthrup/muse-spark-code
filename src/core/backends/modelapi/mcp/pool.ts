@@ -15,7 +15,7 @@ import {
   MCP_TOOLS_MAX_PER_SERVER,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_MODEL_TEXT,
+  MCP_POOL_MODEL_TEXT,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
 import { withDeadline } from '../../../timeouts'
@@ -447,7 +447,7 @@ export class McpServerPool implements McpToolSource {
       args = undefined
     }
     if (typeof args !== 'object' || args === null || Array.isArray(args)) {
-      throw new McpError(MODEL_API_MODEL_TEXT.mcpArgumentsNotObject)
+      throw new McpError(MCP_POOL_MODEL_TEXT.mcpArgumentsNotObject)
     }
     return Object.fromEntries(Object.entries(args))
   }
@@ -538,7 +538,7 @@ export class McpServerPool implements McpToolSource {
     const found = this.byFunction.get(functionName)
     const connection = found?.server.connection
     if (found === undefined || connection === undefined) {
-      throw new McpError(`${functionName} ${MODEL_API_MODEL_TEXT.mcpToolUnavailable}`)
+      throw new McpError(`${functionName} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`)
     }
     const args = this.parseCallArgs(argsJson)
     if (onElicitation !== undefined) {

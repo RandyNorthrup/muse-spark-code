@@ -170,6 +170,34 @@ describe('D78 interactive paid daily budget', () => {
       expect(await ordinaryRequest(isPacking, true, false)).toBe(plain)
     },
   )
+  it('reads usage without seeding a ledger and retains outstanding reservations in the meter', async () => {
+    const daily = budget()
+    expect(await daily.readToday()).toEqual([
+      {
+        budget: expect.objectContaining({
+          kind: 'paidDaily',
+          spentUsd: 0,
+          capUsd: 5,
+          stopped: false,
+        }),
+      },
+    ])
+    expect(await readdir(state.directory)).toEqual([])
+    const claim = requireClaim(await daily.reserve(IMAGE, 'imageGeneration', undefined))
+    const before = await readdir(state.directory)
+    const reserved = await daily.readToday()
+    expect(reserved[0]?.budget.spentUsd).toBeGreaterThan(0)
+    expect(reserved[0]?.budget.uncertainUsd).toBe(reserved[0]?.budget.spentUsd)
+    expect(await readdir(state.directory)).toEqual(before)
+    await claim.settle(0)
+    const settled = await daily.readToday()
+    expect(settled[0]?.budget.spentUsd).toBe(0)
+  })
+
+  it('keeps the unused packing default flip byte-exact, including tools and cache key', async () => {
+    const plain = await ordinaryRequest(false, false, false)
+    expect(await ordinaryRequest(true, false, false)).toBe(plain)
+  })
 
   it('keeps a later committed Stop in force when another window publishes a held raise', async () => {
     const daily = budget(0.5)

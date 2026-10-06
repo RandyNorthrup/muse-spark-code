@@ -13,6 +13,24 @@ beforeEach(() => {
 })
 
 describe('createProvidersHost', () => {
+  it('publishes only validated OpenRouter account snapshots to the local usage feed', async () => {
+    const snapshot = {
+      usedToday: 0.1,
+      usedThisWeek: 0.2,
+      usedThisMonth: 0.3,
+      limit: 1,
+      remaining: 0.7,
+    }
+    const onKeyUsage = vi.fn()
+    const { providers } = testProvidersHost({
+      deps: { usage: { read: () => Promise.resolve(snapshot) }, onKeyUsage },
+    })
+    await providers.openRouterUsage('synthetic-provider-credential')
+    expect(onKeyUsage).toHaveBeenCalledExactlyOnceWith(snapshot)
+    snapshot.usedToday = -1
+    await expect(providers.openRouterUsage('synthetic-provider-credential')).rejects.toThrow()
+    expect(onKeyUsage).toHaveBeenCalledTimes(1)
+  })
   it('refuses edited origins before stored-key tests and scans dispatch', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))
     const fetchModels = vi.fn(() => Promise.resolve({ rows: [] }))

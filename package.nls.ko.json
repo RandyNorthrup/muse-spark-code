@@ -179,5 +179,10 @@
   "command.legalScan.title": "법률 검사",
   "config.legalRegistryLookups.description": "레지스트리와 전송할 패키지 이름 및 버전을 최초 한 번 안내한 후 공개 레지스트리 조회를 허용합니다. 끄면 로컬 메타데이터만 사용합니다.",
   "config.legalExplanation": "선택 사항인 Model API 설명: USD. 사용할 때마다 동의를 요청하며 일일 유료 예산을 공유합니다.",
-  "config.paidDailyBudgetUsd": "유료 추가 기능의 공유 일일 예산: USD."
+  "config.paidDailyBudgetUsd": "유료 추가 기능의 공유 일일 예산: USD.",
+  "command.openUsagePage.title": "사용량 및 비용 열기",
+  "setting.usageHistory.description": "이 컴퓨터에 모델 사용량을 로컬로 기록합니다. 끄면 새 기록이 중지되지만 현재 한도와 예산은 계속 표시됩니다.",
+  "setting.usageHistoryDays.description": "일별 사용량 요약을 보관할 기간(30–1825일)입니다. 호출별 상세 기록은 30일간 보관됩니다.",
+  "command.connectChatGpt": "ChatGPT로 계속",
+  "command.connectCopilot": "내 Copilot 모델 사용"
 }

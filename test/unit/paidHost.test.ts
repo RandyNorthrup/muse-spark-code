@@ -14,6 +14,7 @@ import { FakeLogOutputChannel } from './helpers/fakes'
 import { mockJudgePaidConfiguration } from './helpers/judgePaidConfiguration'
 import { confirmModal } from './helpers/vscodeViews'
 import { window } from './mocks/vscode'
+import { usageRecordSchema } from '../../src/shared/usageJournal'
 
 const TASK = {
   role: 'reviewer',
@@ -76,6 +77,51 @@ async function details(request: Parameters<typeof askPaidUse>[0]) {
 }
 
 describe('the paid-use popup (M58)', () => {
+  it('restores prior journal units once while keeping additions during the read', async () => {
+    const opened = vi.spyOn(Date, 'now').mockReturnValue(100)
+    try {
+      const record = usageRecordSchema.parse({
+        v: 1,
+        type: 'usage',
+        id: 'old',
+        at: 99,
+        day: '2026-10-05',
+        timezoneOffsetMins: 0,
+        client: 'Zed',
+        backend: 'modelApi',
+        provider: 'meta',
+        model: 'muse-image-1.0',
+        startedAt: 99,
+        kind: 'image',
+        tokens: {},
+        units: { images: 2 },
+        cost: { certainty: 'computed', usd: 0.01 },
+        outcome: 'completed',
+      })
+      const read = Promise.withResolvers<readonly (typeof record)[]>()
+      const paid = createPaidFeatures({
+        globalState: memento(new Map()),
+        workspaceState: memento(new Map()),
+        isSettingOn: () => false,
+        isKeyStored: () => true,
+        canRememberPaidUse: () => true,
+        log: new FakeLogOutputChannel(),
+        usageRecording: {
+          note: vi.fn(),
+          limit: vi.fn(),
+          today: () => read.promise,
+          flush: () => Promise.resolve(),
+        },
+      })
+      paid.usage.add('imageGeneration', 1)
+      read.resolve([record, { ...record, id: 'live', at: 100, units: { images: 1 } }])
+      await vi.waitFor(() => {
+        expect(paid.usage.current.images).toBe(3)
+      })
+    } finally {
+      opened.mockRestore()
+    }
+  })
   it('offers Allow once, Allow always in this workspace and Deny, Deny closing it', async () => {
     answerWith(UI_TEXT.paidAllowAlways)
     await expect(askPaidUse({ feature: 'webSearch' }, true)).resolves.toBe('always')

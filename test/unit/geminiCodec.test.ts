@@ -428,9 +428,14 @@ describe('encodeGeminiRequest history', () => {
   it.each(['gemini-3.5-flash-lite', 'gemini-2.5-flash'])(
     'omits tool-result image bytes without vision on %s',
     (model) => {
-      const request = encodeGeminiRequest(imageResultBody(true), model, {
-        capabilities: { vision: false },
-      })
+      const request = encodeGeminiRequest(
+        imageResultBody(true),
+        model,
+        {
+          capabilities: { vision: false },
+        },
+        128,
+      )
       const contents = JSON.stringify(request.body['contents'])
       expect(contents).toContain('picture from view_image')
       expect(contents).toContain('[image omitted: this model takes no images]')
@@ -478,7 +483,7 @@ describe('encodeGeminiRequest history', () => {
     'still refuses tool-result images before Gemini 3 (text: %s)',
     (hasText) => {
       const body = imageResultBody(hasText)
-      expect(() => encodeGeminiRequest(body, 'gemini-2.5-flash')).toThrow(
+      expect(() => encodeGeminiRequest(body, 'gemini-2.5-flash', undefined, 128)).toThrow(
         expect.objectContaining({
           name: 'ModelApiError',
           kind: 'unsupported_content',
@@ -1098,7 +1103,17 @@ describe('parseGeminiModelsList', () => {
       ],
     })
     expect(models).toEqual([
-      { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
+      {
+        id: 'gemini-3.5-flash-lite',
+        inputTokenLimit: 1_048_576,
+        outputTokenLimit: 65_536,
+        native: {
+          name: 'models/gemini-3.5-flash-lite',
+          inputTokenLimit: 1_048_576,
+          outputTokenLimit: 65_536,
+          supportedGenerationMethods: ['generateContent', 'countTokens'],
+        },
+      },
     ])
   })
 
@@ -1108,11 +1123,12 @@ describe('parseGeminiModelsList', () => {
     const summary: unknown = capture('01-models-list.json').response.bodySummary
     const entries: unknown =
       isRecord(summary) && 'sample' in summary ? summary['sample'] : undefined
-    expect(parseGeminiModelsList({ models: entries })).toEqual([
+    expect(parseGeminiModelsList({ models: entries })).toMatchObject([
       { id: 'gemini-2.5-flash', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-2.5-pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
       { id: 'gemini-3.5-flash-lite', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536 },
     ])
+    expect(parseGeminiModelsList({ models: entries }).map((model) => model.native)).toEqual(entries)
   })
 
   it('throws when the list has no models', () => {
@@ -1202,6 +1218,8 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
     const old = encodeGeminiRequest(
       { ...TOOL_BODY, tools: [{ ...timeTool, parameters }] },
       'gemini-2.5-flash',
+      undefined,
+      128,
     )
     expect(JSON.stringify(old.body)).not.toContain('additionalProperties')
     expect(JSON.stringify(old.body)).toContain('"parameters":')
@@ -1430,6 +1448,7 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
       },
       'gemini-2.5-flash',
       { capabilities: { vision: false } },
+      128,
     )
     const contents = JSON.stringify(request.body['contents'])
     expect(contents).not.toContain('"text":"   "')
@@ -1452,6 +1471,8 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 7, 11, 13)', () => {
         ],
       },
       'gemini-2.5-flash',
+      undefined,
+      128,
     )
     const text = JSON.stringify(request.body)
     expect(text).toContain('be brie�f')

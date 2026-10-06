@@ -12,6 +12,7 @@ import { unlessAborted } from '../core/timeouts'
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import type { UsageAdapter } from '../runtime/usage/usageAdapter'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -64,7 +65,7 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -128,6 +129,8 @@ export interface SignInMethod {
   readonly args: readonly string[]
   /** The command a user runs by hand where the client cannot (`muse-spark-code-acp auth set`). */
   readonly command: string
+  /** Terminal provider actions verify their own local result, independently of Meta. */
+  readonly verify?: () => Promise<string | undefined>
 }
 
 export interface AcpAgentDeps {
@@ -140,10 +143,14 @@ export interface AcpAgentDeps {
       ) => Promise<string>)
     | undefined
 
+  readonly onClientName?: (name: string) => void
+  /** Shared journal/service, required lazily on the local /usage command. */
+  readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
+  readonly providerSignIns?: readonly SignInMethod[]
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -198,6 +205,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 interface PreparingPrompt {
   isCancelled: boolean
   error?: unknown
+  abandonElicitation?: () => void
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -326,7 +334,7 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      return
+      if (this.deps.usage === undefined) return
     }
     this.send({
       sessionUpdate: 'available_commands_update',
@@ -335,8 +343,22 @@ class AcpSession {
         ...(this.deps.legalScan === undefined
           ? []
           : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
+        ...(this.deps.usage === undefined
+          ? []
+          : [
+              {
+                name: 'usage',
+                description: UI_TEXT.acpUsageDescription,
+                input: null,
+              },
+            ]),
         ...this.skills
-          .filter((skill) => skill.selector !== ACP_COMPACT_COMMAND && skill.selector !== 'legal')
+          .filter(
+            (skill) =>
+              skill.selector !== ACP_COMPACT_COMMAND &&
+              skill.selector !== 'legal' &&
+              (this.deps.usage === undefined || skill.selector !== 'usage'),
+          )
           .map((skill) => ({
             name: skill.selector,
             description: skill.description === '' ? skill.displayName : skill.description,
@@ -723,6 +745,41 @@ class AcpSession {
     }
   }
 
+  private async usageReply(
+    blocks: readonly ContentBlock[],
+    preparing: PreparingPrompt,
+  ): Promise<boolean> {
+    const [block] = blocks
+    const usage = this.deps.usage
+    if (
+      usage === undefined ||
+      blocks.length !== 1 ||
+      block?.type !== 'text' ||
+      !['/usage', '/usage page', '/usage open'].includes(block.text.trim())
+    )
+      return false
+    const entry = await import('../runtime/usage/usageAcp')
+    entry.setUiText(UI_TEXT, uiLocale())
+    await entry.replyAcpUsage({
+      usage,
+      preparing,
+      canReply: () => this.canReplyUsage(preparing),
+      send: (text) => {
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+      },
+      canElicitUrl: this.clientCapabilities.elicitation?.url != null,
+      sessionId: this.sessionId,
+      request: (params, signal) =>
+        this.client.request('elicitation/create', params, { cancellationSignal: signal }),
+      log: this.deps.log,
+    })
+    return true
+  }
+
+  private canReplyUsage(preparing: PreparingPrompt): boolean {
+    return !preparing.isCancelled && !this.isDisposed
+  }
+
   /**
    * The question before a paid use (M58, PLAN.md D48): a row naming what is
    * about to be billed and its price, and a permission prompt on it with the
@@ -911,8 +968,10 @@ class AcpSession {
       return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
+    let isUsage: boolean
     try {
       await this.announceCommands()
+      isUsage = await this.usageReply(blocks, preparing)
     } finally {
       this.preparing = undefined
     }
@@ -922,6 +981,10 @@ class AcpSession {
     if (preparing.isCancelled) {
       await this.outbox
       return 'cancelled'
+    }
+    if (isUsage) {
+      await this.outbox
+      return 'end_turn'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
@@ -980,6 +1043,7 @@ class AcpSession {
     this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -1003,6 +1067,7 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.abandonElicitation?.()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -1029,6 +1094,7 @@ class AcpSession {
     this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.abandonElicitation?.()
     }
     const wasRunning = this.pending !== undefined
     this.pending?.resolve('cancelled')
@@ -1067,8 +1133,8 @@ class AgentState {
    * allows a terminal method only then), otherwise by the user, whose
    * `authenticate` this checks.
    */
-  private authMethod(): AuthMethod {
-    const { id, name, description, args, command } = this.deps.signIn
+  private authMethod(method: SignInMethod): AuthMethod {
+    const { id, name, description, args, command } = method
     return this.clientCapabilities.auth?.terminal === true
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
@@ -1272,13 +1338,22 @@ class AgentState {
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },
       },
-      authMethods: [this.authMethod()],
+      authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
+        this.authMethod(method),
+      ),
       agentInfo: { name: ACP_AGENT_NAME, title: ACP_AGENT_TITLE, version: this.deps.version },
     }
   }
 
   /** Confirms the sign-in took; the client asks again if not. */
-  public async authenticate(): Promise<Record<string, never>> {
+  public async authenticate(methodId: string): Promise<Record<string, never>> {
+    const provider = this.deps.providerSignIns?.find((method) => method.id === methodId)
+    if (provider?.verify !== undefined) {
+      const failure = await provider.verify()
+      if (failure !== undefined) throw RequestError.authRequired(undefined, failure)
+      return {}
+    }
+    if (methodId !== this.deps.signIn.id) throw RequestError.invalidParams()
     await this.requireReady(true)
     return {}
   }
@@ -1422,8 +1497,11 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     state.askPaidUse(sessionId, request, canRemember),
   )
   return acpAgent({ name: ACP_AGENT_NAME })
-    .onRequest('initialize', (context) => state.initialize(context.params.clientCapabilities))
-    .onRequest('authenticate', () => state.authenticate())
+    .onRequest('initialize', (context) => {
+      deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
+      return state.initialize(context.params.clientCapabilities)
+    })
+    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
     .onRequest('session/new', (context) =>
       state.newSession(context.params.cwd, context.params.mcpServers, context.client),
     )
