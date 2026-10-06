@@ -1,0 +1,15 @@
+{
+  "source": "src/shared/reportSchema.ts",
+  "export": "reportDocumentSchema",
+  "output": "docs/schemas/report-v1.schema.json",
+  "format": "report-v1",
+  "runtimeInvariants": [
+    "Needs you has id and label needsYou, and is the first section.",
+    "Section ids, row keys, column keys and source ids are unique within their containers.",
+    "Every row has exactly the declared columns and references only named sources.",
+    "A source without observedAt has unknown freshness, never a claimed age.",
+    "All sections declare key order, compared by code unit; collectors sort before rendering.",
+    "The content hash is SHA-256 of canonical JSON excluding asOf and the hash itself.",
+    "Source strings are scrubbed at snapshot creation and again on each rendered output."
+  ]
+}

@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "仅您自己的聊天模型评判；从不切换模型。",
   "config.judge.engine.enumDescriptions.off": "无评判器：审批与没有评判器时完全一致。",
   "command.openHelp.title": "帮助与参考",
-  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。"
+  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。",
+  "command.showReport.title": "显示报告…",
+  "config.reports.network.description": "选择报告何时可以读取 GitHub 和公共发布渠道。终端报告仅在带有 --network 时使用网络。",
+  "config.reports.network.enumDescriptions.whenSignedIn": "登录 GitHub 时读取 GitHub，同时读取公共发布渠道。",
+  "config.reports.network.enumDescriptions.always": "允许报告使用网络来源。",
+  "config.reports.network.enumDescriptions.off": "仅读取本地来源。",
+  "config.reports.keepHistory.description": "在此计算机上保留每种类型最近的 50 份报告，用于历史记录和比较。",
+  "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。"
 }

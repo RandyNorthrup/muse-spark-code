@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Seul votre propre modèle de conversation évalue ; il ne change jamais de modèle.",
   "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui.",
   "command.openHelp.title": "Aide et référence",
-  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement."
+  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement.",
+  "command.showReport.title": "Afficher un rapport…",
+  "config.reports.network.description": "Choisissez quand les rapports peuvent lire GitHub et les canaux publics de publication. Les rapports du terminal n’utilisent le réseau qu’avec --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Lire GitHub lorsque vous y êtes connecté, ainsi que les canaux publics de publication.",
+  "config.reports.network.enumDescriptions.always": "Autoriser les sources réseau pour les rapports.",
+  "config.reports.network.enumDescriptions.off": "Lire uniquement les sources locales.",
+  "config.reports.keepHistory.description": "Conserver les 50 derniers rapports de chaque type sur cet ordinateur pour l’historique et la comparaison.",
+  "config.reports.agentSources.description": "Autoriser la lecture de vos propres fichiers d’utilisation et de limites de Claude Code ou Codex. Par défaut : aucun. Le texte des conversations et les fichiers d’identifiants ne sont jamais lus comme sources de rapports."
 }

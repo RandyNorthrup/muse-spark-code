@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Csak a saját csevegőmodellje értékel; modellt soha nem vált.",
   "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle.",
   "command.openHelp.title": "Súgó és referencia",
-  "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét."
+  "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét.",
+  "command.showReport.title": "Jelentés megjelenítése…",
+  "config.reports.network.description": "Válassza ki, mikor olvashatják a jelentések a GitHubot és a nyilvános kiadási csatornákat. A termináljelentések csak --network kapcsolóval használják a hálózatot.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub olvasása bejelentkezve, és a nyilvános kiadási csatornák olvasása.",
+  "config.reports.network.enumDescriptions.always": "Hálózati források engedélyezése a jelentésekhez.",
+  "config.reports.network.enumDescriptions.off": "Csak helyi források olvasása.",
+  "config.reports.keepHistory.description": "A legújabb 50 jelentés megőrzése típusonként ezen a gépen az előzményekhez és összevetéshez.",
+  "config.reports.agentSources.description": "Saját Claude Code vagy Codex használati és korlátfájlok olvasásának engedélyezése. Alapérték: nincs. Beszélgetésszöveget és hitelesítőadat-fájlokat soha nem olvas jelentésforrásként."
 }

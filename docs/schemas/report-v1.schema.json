@@ -1,0 +1,1398 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "format": { "type": "string", "const": "report-v1" },
+    "header": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "project",
+            "milestone",
+            "release",
+            "usage",
+            "session",
+            "changes",
+            "quality",
+            "fleet",
+            "security",
+            "accounts",
+            "estimate",
+            "playbook",
+            "issues",
+            "schedules",
+            "keybindings"
+          ]
+        },
+        "scope": { "type": "string", "maxLength": 65536 },
+        "asOf": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+        },
+        "generatorVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "required": ["kind", "scope", "asOf", "generatorVersion", "contentHash"],
+      "additionalProperties": false
+    },
+    "needsYou": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        },
+        "label": {
+          "type": "string",
+          "enum": [
+            "needsYou",
+            "releases",
+            "milestones",
+            "lanes",
+            "pullRequests",
+            "ci",
+            "usage",
+            "risks",
+            "nextSteps",
+            "status",
+            "date",
+            "goal",
+            "dependencies",
+            "certification",
+            "gates",
+            "residuals",
+            "questions",
+            "changelog",
+            "tag",
+            "channels",
+            "releaseRecord",
+            "totals",
+            "breakdown",
+            "limits",
+            "model",
+            "backend",
+            "turns",
+            "tokens",
+            "cost",
+            "tools",
+            "files",
+            "approvals",
+            "checks",
+            "paidUses",
+            "commits",
+            "agents",
+            "workers",
+            "devices",
+            "nodes",
+            "vault",
+            "grants",
+            "denials",
+            "locks",
+            "developerAudit",
+            "accounts",
+            "swaps",
+            "confirmations",
+            "criticalPath",
+            "limitingResource",
+            "setups",
+            "inputs",
+            "calibration",
+            "decisions",
+            "drills",
+            "disabledRules",
+            "refusals",
+            "issues",
+            "timeline",
+            "schedules",
+            "fires",
+            "keybindings",
+            "conflicts",
+            "diff",
+            "sources",
+            "planFormat",
+            "name",
+            "scope",
+            "version",
+            "commit",
+            "branch",
+            "outcome",
+            "duration",
+            "count",
+            "provider",
+            "kind",
+            "tool",
+            "session",
+            "client",
+            "account",
+            "certainty",
+            "reported",
+            "estimated",
+            "unknown",
+            "freshness",
+            "observedAt",
+            "reason",
+            "ok",
+            "partial",
+            "unavailable",
+            "notApplicable",
+            "fresh",
+            "stale",
+            "planned",
+            "building",
+            "built",
+            "certified",
+            "merged",
+            "released",
+            "complete",
+            "superseded",
+            "waiting",
+            "blocked",
+            "inReview",
+            "inProgress",
+            "passed",
+            "failed",
+            "running",
+            "skipped",
+            "cancelled",
+            "answered",
+            "open",
+            "dismissed",
+            "added",
+            "removed",
+            "changed",
+            "unchanged"
+          ]
+        },
+        "sortKey": { "type": "string", "const": "key" },
+        "columns": {
+          "minItems": 1,
+          "maxItems": 64,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "label": {
+                "type": "string",
+                "enum": [
+                  "needsYou",
+                  "releases",
+                  "milestones",
+                  "lanes",
+                  "pullRequests",
+                  "ci",
+                  "usage",
+                  "risks",
+                  "nextSteps",
+                  "status",
+                  "date",
+                  "goal",
+                  "dependencies",
+                  "certification",
+                  "gates",
+                  "residuals",
+                  "questions",
+                  "changelog",
+                  "tag",
+                  "channels",
+                  "releaseRecord",
+                  "totals",
+                  "breakdown",
+                  "limits",
+                  "model",
+                  "backend",
+                  "turns",
+                  "tokens",
+                  "cost",
+                  "tools",
+                  "files",
+                  "approvals",
+                  "checks",
+                  "paidUses",
+                  "commits",
+                  "agents",
+                  "workers",
+                  "devices",
+                  "nodes",
+                  "vault",
+                  "grants",
+                  "denials",
+                  "locks",
+                  "developerAudit",
+                  "accounts",
+                  "swaps",
+                  "confirmations",
+                  "criticalPath",
+                  "limitingResource",
+                  "setups",
+                  "inputs",
+                  "calibration",
+                  "decisions",
+                  "drills",
+                  "disabledRules",
+                  "refusals",
+                  "issues",
+                  "timeline",
+                  "schedules",
+                  "fires",
+                  "keybindings",
+                  "conflicts",
+                  "diff",
+                  "sources",
+                  "planFormat",
+                  "name",
+                  "scope",
+                  "version",
+                  "commit",
+                  "branch",
+                  "outcome",
+                  "duration",
+                  "count",
+                  "provider",
+                  "kind",
+                  "tool",
+                  "session",
+                  "client",
+                  "account",
+                  "certainty",
+                  "reported",
+                  "estimated",
+                  "unknown",
+                  "freshness",
+                  "observedAt",
+                  "reason",
+                  "ok",
+                  "partial",
+                  "unavailable",
+                  "notApplicable",
+                  "fresh",
+                  "stale",
+                  "planned",
+                  "building",
+                  "built",
+                  "certified",
+                  "merged",
+                  "released",
+                  "complete",
+                  "superseded",
+                  "waiting",
+                  "blocked",
+                  "inReview",
+                  "inProgress",
+                  "passed",
+                  "failed",
+                  "running",
+                  "skipped",
+                  "cancelled",
+                  "answered",
+                  "open",
+                  "dismissed",
+                  "added",
+                  "removed",
+                  "changed",
+                  "unchanged"
+                ]
+              }
+            },
+            "required": ["key", "label"],
+            "additionalProperties": false
+          }
+        },
+        "rows": {
+          "maxItems": 20000,
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "cells": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                },
+                "additionalProperties": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "text" },
+                        "value": { "type": "string", "maxLength": 65536 }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "label" },
+                        "value": {
+                          "type": "string",
+                          "enum": [
+                            "needsYou",
+                            "releases",
+                            "milestones",
+                            "lanes",
+                            "pullRequests",
+                            "ci",
+                            "usage",
+                            "risks",
+                            "nextSteps",
+                            "status",
+                            "date",
+                            "goal",
+                            "dependencies",
+                            "certification",
+                            "gates",
+                            "residuals",
+                            "questions",
+                            "changelog",
+                            "tag",
+                            "channels",
+                            "releaseRecord",
+                            "totals",
+                            "breakdown",
+                            "limits",
+                            "model",
+                            "backend",
+                            "turns",
+                            "tokens",
+                            "cost",
+                            "tools",
+                            "files",
+                            "approvals",
+                            "checks",
+                            "paidUses",
+                            "commits",
+                            "agents",
+                            "workers",
+                            "devices",
+                            "nodes",
+                            "vault",
+                            "grants",
+                            "denials",
+                            "locks",
+                            "developerAudit",
+                            "accounts",
+                            "swaps",
+                            "confirmations",
+                            "criticalPath",
+                            "limitingResource",
+                            "setups",
+                            "inputs",
+                            "calibration",
+                            "decisions",
+                            "drills",
+                            "disabledRules",
+                            "refusals",
+                            "issues",
+                            "timeline",
+                            "schedules",
+                            "fires",
+                            "keybindings",
+                            "conflicts",
+                            "diff",
+                            "sources",
+                            "planFormat",
+                            "name",
+                            "scope",
+                            "version",
+                            "commit",
+                            "branch",
+                            "outcome",
+                            "duration",
+                            "count",
+                            "provider",
+                            "kind",
+                            "tool",
+                            "session",
+                            "client",
+                            "account",
+                            "certainty",
+                            "reported",
+                            "estimated",
+                            "unknown",
+                            "freshness",
+                            "observedAt",
+                            "reason",
+                            "ok",
+                            "partial",
+                            "unavailable",
+                            "notApplicable",
+                            "fresh",
+                            "stale",
+                            "planned",
+                            "building",
+                            "built",
+                            "certified",
+                            "merged",
+                            "released",
+                            "complete",
+                            "superseded",
+                            "waiting",
+                            "blocked",
+                            "inReview",
+                            "inProgress",
+                            "passed",
+                            "failed",
+                            "running",
+                            "skipped",
+                            "cancelled",
+                            "answered",
+                            "open",
+                            "dismissed",
+                            "added",
+                            "removed",
+                            "changed",
+                            "unchanged"
+                          ]
+                        }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "count" },
+                        "value": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "number" },
+                        "value": { "type": "number" }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "percent" },
+                        "value": { "type": "number" }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "usd" },
+                        "value": {
+                          "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+                        },
+                        "certainty": {
+                          "type": "string",
+                          "enum": ["reported", "estimated", "unknown"]
+                        }
+                      },
+                      "required": ["type", "value", "certainty"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "durationMs" },
+                        "value": { "type": "number", "minimum": 0 }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "timestamp" },
+                        "value": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                        }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "boolean" },
+                        "value": { "type": "boolean" }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "type": { "type": "string", "const": "textList" },
+                        "value": {
+                          "maxItems": 20000,
+                          "type": "array",
+                          "items": { "type": "string", "maxLength": 65536 }
+                        }
+                      },
+                      "required": ["type", "value"],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "sourceIds": {
+                "maxItems": 100,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                }
+              }
+            },
+            "required": ["key", "cells", "sourceIds"],
+            "additionalProperties": false
+          }
+        },
+        "omittedRows": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      },
+      "required": ["id", "label", "sortKey", "columns", "rows", "omittedRows"],
+      "additionalProperties": false
+    },
+    "sections": {
+      "maxItems": 64,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+          },
+          "label": {
+            "type": "string",
+            "enum": [
+              "needsYou",
+              "releases",
+              "milestones",
+              "lanes",
+              "pullRequests",
+              "ci",
+              "usage",
+              "risks",
+              "nextSteps",
+              "status",
+              "date",
+              "goal",
+              "dependencies",
+              "certification",
+              "gates",
+              "residuals",
+              "questions",
+              "changelog",
+              "tag",
+              "channels",
+              "releaseRecord",
+              "totals",
+              "breakdown",
+              "limits",
+              "model",
+              "backend",
+              "turns",
+              "tokens",
+              "cost",
+              "tools",
+              "files",
+              "approvals",
+              "checks",
+              "paidUses",
+              "commits",
+              "agents",
+              "workers",
+              "devices",
+              "nodes",
+              "vault",
+              "grants",
+              "denials",
+              "locks",
+              "developerAudit",
+              "accounts",
+              "swaps",
+              "confirmations",
+              "criticalPath",
+              "limitingResource",
+              "setups",
+              "inputs",
+              "calibration",
+              "decisions",
+              "drills",
+              "disabledRules",
+              "refusals",
+              "issues",
+              "timeline",
+              "schedules",
+              "fires",
+              "keybindings",
+              "conflicts",
+              "diff",
+              "sources",
+              "planFormat",
+              "name",
+              "scope",
+              "version",
+              "commit",
+              "branch",
+              "outcome",
+              "duration",
+              "count",
+              "provider",
+              "kind",
+              "tool",
+              "session",
+              "client",
+              "account",
+              "certainty",
+              "reported",
+              "estimated",
+              "unknown",
+              "freshness",
+              "observedAt",
+              "reason",
+              "ok",
+              "partial",
+              "unavailable",
+              "notApplicable",
+              "fresh",
+              "stale",
+              "planned",
+              "building",
+              "built",
+              "certified",
+              "merged",
+              "released",
+              "complete",
+              "superseded",
+              "waiting",
+              "blocked",
+              "inReview",
+              "inProgress",
+              "passed",
+              "failed",
+              "running",
+              "skipped",
+              "cancelled",
+              "answered",
+              "open",
+              "dismissed",
+              "added",
+              "removed",
+              "changed",
+              "unchanged"
+            ]
+          },
+          "sortKey": { "type": "string", "const": "key" },
+          "columns": {
+            "minItems": 1,
+            "maxItems": 64,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                },
+                "label": {
+                  "type": "string",
+                  "enum": [
+                    "needsYou",
+                    "releases",
+                    "milestones",
+                    "lanes",
+                    "pullRequests",
+                    "ci",
+                    "usage",
+                    "risks",
+                    "nextSteps",
+                    "status",
+                    "date",
+                    "goal",
+                    "dependencies",
+                    "certification",
+                    "gates",
+                    "residuals",
+                    "questions",
+                    "changelog",
+                    "tag",
+                    "channels",
+                    "releaseRecord",
+                    "totals",
+                    "breakdown",
+                    "limits",
+                    "model",
+                    "backend",
+                    "turns",
+                    "tokens",
+                    "cost",
+                    "tools",
+                    "files",
+                    "approvals",
+                    "checks",
+                    "paidUses",
+                    "commits",
+                    "agents",
+                    "workers",
+                    "devices",
+                    "nodes",
+                    "vault",
+                    "grants",
+                    "denials",
+                    "locks",
+                    "developerAudit",
+                    "accounts",
+                    "swaps",
+                    "confirmations",
+                    "criticalPath",
+                    "limitingResource",
+                    "setups",
+                    "inputs",
+                    "calibration",
+                    "decisions",
+                    "drills",
+                    "disabledRules",
+                    "refusals",
+                    "issues",
+                    "timeline",
+                    "schedules",
+                    "fires",
+                    "keybindings",
+                    "conflicts",
+                    "diff",
+                    "sources",
+                    "planFormat",
+                    "name",
+                    "scope",
+                    "version",
+                    "commit",
+                    "branch",
+                    "outcome",
+                    "duration",
+                    "count",
+                    "provider",
+                    "kind",
+                    "tool",
+                    "session",
+                    "client",
+                    "account",
+                    "certainty",
+                    "reported",
+                    "estimated",
+                    "unknown",
+                    "freshness",
+                    "observedAt",
+                    "reason",
+                    "ok",
+                    "partial",
+                    "unavailable",
+                    "notApplicable",
+                    "fresh",
+                    "stale",
+                    "planned",
+                    "building",
+                    "built",
+                    "certified",
+                    "merged",
+                    "released",
+                    "complete",
+                    "superseded",
+                    "waiting",
+                    "blocked",
+                    "inReview",
+                    "inProgress",
+                    "passed",
+                    "failed",
+                    "running",
+                    "skipped",
+                    "cancelled",
+                    "answered",
+                    "open",
+                    "dismissed",
+                    "added",
+                    "removed",
+                    "changed",
+                    "unchanged"
+                  ]
+                }
+              },
+              "required": ["key", "label"],
+              "additionalProperties": false
+            }
+          },
+          "rows": {
+            "maxItems": 20000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 256,
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                },
+                "cells": {
+                  "type": "object",
+                  "propertyNames": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                  },
+                  "additionalProperties": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "text" },
+                          "value": { "type": "string", "maxLength": 65536 }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "label" },
+                          "value": {
+                            "type": "string",
+                            "enum": [
+                              "needsYou",
+                              "releases",
+                              "milestones",
+                              "lanes",
+                              "pullRequests",
+                              "ci",
+                              "usage",
+                              "risks",
+                              "nextSteps",
+                              "status",
+                              "date",
+                              "goal",
+                              "dependencies",
+                              "certification",
+                              "gates",
+                              "residuals",
+                              "questions",
+                              "changelog",
+                              "tag",
+                              "channels",
+                              "releaseRecord",
+                              "totals",
+                              "breakdown",
+                              "limits",
+                              "model",
+                              "backend",
+                              "turns",
+                              "tokens",
+                              "cost",
+                              "tools",
+                              "files",
+                              "approvals",
+                              "checks",
+                              "paidUses",
+                              "commits",
+                              "agents",
+                              "workers",
+                              "devices",
+                              "nodes",
+                              "vault",
+                              "grants",
+                              "denials",
+                              "locks",
+                              "developerAudit",
+                              "accounts",
+                              "swaps",
+                              "confirmations",
+                              "criticalPath",
+                              "limitingResource",
+                              "setups",
+                              "inputs",
+                              "calibration",
+                              "decisions",
+                              "drills",
+                              "disabledRules",
+                              "refusals",
+                              "issues",
+                              "timeline",
+                              "schedules",
+                              "fires",
+                              "keybindings",
+                              "conflicts",
+                              "diff",
+                              "sources",
+                              "planFormat",
+                              "name",
+                              "scope",
+                              "version",
+                              "commit",
+                              "branch",
+                              "outcome",
+                              "duration",
+                              "count",
+                              "provider",
+                              "kind",
+                              "tool",
+                              "session",
+                              "client",
+                              "account",
+                              "certainty",
+                              "reported",
+                              "estimated",
+                              "unknown",
+                              "freshness",
+                              "observedAt",
+                              "reason",
+                              "ok",
+                              "partial",
+                              "unavailable",
+                              "notApplicable",
+                              "fresh",
+                              "stale",
+                              "planned",
+                              "building",
+                              "built",
+                              "certified",
+                              "merged",
+                              "released",
+                              "complete",
+                              "superseded",
+                              "waiting",
+                              "blocked",
+                              "inReview",
+                              "inProgress",
+                              "passed",
+                              "failed",
+                              "running",
+                              "skipped",
+                              "cancelled",
+                              "answered",
+                              "open",
+                              "dismissed",
+                              "added",
+                              "removed",
+                              "changed",
+                              "unchanged"
+                            ]
+                          }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "count" },
+                          "value": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "number" },
+                          "value": { "type": "number" }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "percent" },
+                          "value": { "type": "number" }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "usd" },
+                          "value": {
+                            "anyOf": [{ "type": "number", "minimum": 0 }, { "type": "null" }]
+                          },
+                          "certainty": {
+                            "type": "string",
+                            "enum": ["reported", "estimated", "unknown"]
+                          }
+                        },
+                        "required": ["type", "value", "certainty"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "durationMs" },
+                          "value": { "type": "number", "minimum": 0 }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "timestamp" },
+                          "value": {
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                          }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "boolean" },
+                          "value": { "type": "boolean" }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": { "type": "string", "const": "textList" },
+                          "value": {
+                            "maxItems": 20000,
+                            "type": "array",
+                            "items": { "type": "string", "maxLength": 65536 }
+                          }
+                        },
+                        "required": ["type", "value"],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "sourceIds": {
+                  "maxItems": 100,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 256,
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+                  }
+                }
+              },
+              "required": ["key", "cells", "sourceIds"],
+              "additionalProperties": false
+            }
+          },
+          "omittedRows": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+        },
+        "required": ["id", "label", "sortKey", "columns", "rows", "omittedRows"],
+        "additionalProperties": false
+      }
+    },
+    "sources": {
+      "minItems": 1,
+      "maxItems": 100,
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "observedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  { "type": "null" }
+                ]
+              },
+              "freshness": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "fresh" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "stale" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "unknown" },
+                      "ageMs": { "type": "null" }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "status": { "type": "string", "const": "ok" },
+              "reason": { "type": "null" }
+            },
+            "required": ["id", "observedAt", "freshness", "status", "reason"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "observedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  { "type": "null" }
+                ]
+              },
+              "freshness": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "fresh" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "stale" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "unknown" },
+                      "ageMs": { "type": "null" }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "status": { "type": "string", "const": "partial" },
+              "reason": { "type": "string", "minLength": 1, "maxLength": 65536 }
+            },
+            "required": ["id", "observedAt", "freshness", "status", "reason"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "observedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  { "type": "null" }
+                ]
+              },
+              "freshness": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "fresh" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "stale" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "unknown" },
+                      "ageMs": { "type": "null" }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "status": { "type": "string", "const": "unavailable" },
+              "reason": { "type": "string", "minLength": 1, "maxLength": 65536 }
+            },
+            "required": ["id", "observedAt", "freshness", "status", "reason"],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 256,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+              },
+              "observedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                  },
+                  { "type": "null" }
+                ]
+              },
+              "freshness": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "fresh" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "stale" },
+                      "ageMs": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "state": { "type": "string", "const": "unknown" },
+                      "ageMs": { "type": "null" }
+                    },
+                    "required": ["state", "ageMs"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "status": { "type": "string", "const": "notApplicable" },
+              "reason": { "type": "string", "minLength": 1, "maxLength": 65536 }
+            },
+            "required": ["id", "observedAt", "freshness", "status", "reason"],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "footer": {
+      "type": "object",
+      "properties": {
+        "rendererVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        },
+        "icuVersion": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        },
+        "locale": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+        }
+      },
+      "required": ["rendererVersion", "icuVersion", "locale"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["format", "header", "needsYou", "sections", "sources", "footer"],
+  "additionalProperties": false,
+  "x-runtime-invariants": [
+    "Needs you has id and label needsYou, and is the first section.",
+    "Section ids, row keys, column keys and source ids are unique within their containers.",
+    "Every row has exactly the declared columns and references only named sources.",
+    "A source without observedAt has unknown freshness, never a claimed age.",
+    "All sections declare key order, compared by code unit; collectors sort before rendering.",
+    "The content hash is SHA-256 of canonical JSON excluding asOf and the hash itself.",
+    "Source strings are scrubbed at snapshot creation and again on each rendered output."
+  ]
+}

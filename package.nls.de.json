@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Nur Ihr eigenes Chatmodell beurteilt; es wechselt nie das Modell.",
   "config.judge.engine.enumDescriptions.off": "Kein Beurteiler: Genehmigungen verhalten sich genau wie ohne ihn.",
   "command.openHelp.title": "Hilfe und Referenz",
-  "config.shell.passEnvironmentVariables.description": "Namen von Umgebungsvariablen, die an interaktive Shell-Befehle der Hauptsitzung übergeben werden, einschließlich normalerweise zurückgehaltener Zugangsdaten. Nur Namen, niemals Werte. Standard: keine. Ein Befehl kann diese Werte im Gespräch und gegenüber dem Modellanbieter offenlegen. Prüfungen/then_run, Zeitpläne, untergeordnete/Team-Worker und Hooks erhalten niemals Zugangsdatenvariablen, auch wenn sie hier genannt sind. Ein in den Hintergrund verschobener interaktiver Befehl behält seine ursprüngliche Umgebung. Ändert weder Muse Code noch explizit konfigurierte MCP-Serverumgebungen."
+  "config.shell.passEnvironmentVariables.description": "Namen von Umgebungsvariablen, die an interaktive Shell-Befehle der Hauptsitzung übergeben werden, einschließlich normalerweise zurückgehaltener Zugangsdaten. Nur Namen, niemals Werte. Standard: keine. Ein Befehl kann diese Werte im Gespräch und gegenüber dem Modellanbieter offenlegen. Prüfungen/then_run, Zeitpläne, untergeordnete/Team-Worker und Hooks erhalten niemals Zugangsdatenvariablen, auch wenn sie hier genannt sind. Ein in den Hintergrund verschobener interaktiver Befehl behält seine ursprüngliche Umgebung. Ändert weder Muse Code noch explizit konfigurierte MCP-Serverumgebungen.",
+  "command.showReport.title": "Bericht anzeigen…",
+  "config.reports.network.description": "Wählen Sie, wann Berichte GitHub und öffentliche Veröffentlichungskanäle lesen dürfen. Terminalberichte nutzen das Netzwerk nur mit --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "GitHub bei bestehender GitHub-Anmeldung sowie öffentliche Veröffentlichungskanäle lesen.",
+  "config.reports.network.enumDescriptions.always": "Netzwerkquellen für Berichte erlauben.",
+  "config.reports.network.enumDescriptions.off": "Nur lokale Quellen lesen.",
+  "config.reports.keepHistory.description": "Die neuesten 50 Berichte je Art auf diesem Rechner für Verlauf und Vergleiche aufbewahren.",
+  "config.reports.agentSources.description": "Das Lesen Ihrer eigenen Claude-Code- oder Codex-Nutzungs- und Limitdateien erlauben. Standard: keine. Gesprächstexte und Zugangsdaten werden niemals als Berichtsquellen gelesen."
 }

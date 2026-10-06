@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Posuzuje pouze váš vlastní chatovací model; model nikdy nemění.",
   "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj.",
   "command.openHelp.title": "Nápověda a reference",
-  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP."
+  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
+  "command.showReport.title": "Zobrazit zprávu…",
+  "config.reports.network.description": "Zvolte, kdy mohou zprávy číst GitHub a veřejné kanály vydání. Terminálové zprávy používají síť jen s --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Číst GitHub po přihlášení a veřejné kanály vydání.",
+  "config.reports.network.enumDescriptions.always": "Povolit síťové zdroje zpráv.",
+  "config.reports.network.enumDescriptions.off": "Číst pouze místní zdroje.",
+  "config.reports.keepHistory.description": "Uchovávat na tomto počítači nejnovějších 50 zpráv každého druhu pro historii a porovnání.",
+  "config.reports.agentSources.description": "Volitelně číst vlastní soubory využití a limitů Claude Code nebo Codex. Výchozí: žádné. Text konverzací a soubory přihlašovacích údajů se nikdy nečtou jako zdroje zpráv."
 }

@@ -4020,7 +4020,188 @@ export const SLASH_COMMAND_NAMES = {
   // M70: Claude Code's name for its security review, and the review pane.
   securityReview: 'security-review',
   changes: 'changes',
+  report: 'report',
 } as const
+
+// M113 / D93: deterministic reports, independent of M93's problem reports.
+export const REPORT_FORMAT_VERSION = 'report-v1'
+export const REPORT_SECTION_ROWS = 10
+export const REPORT_GIT_MAX_COMMITS = 5000
+export const REPORT_SOURCE_TIMEOUT_MS = 5000
+export const REPORT_GITHUB_RATE_FLOOR = 10
+export const REPORT_CHECK_RUNS_MAX = 500
+export const REPORT_HISTORY_MAX_PER_KIND = 50
+export const REPORT_LOCAL_BUDGET_MS = 2000
+export const REPORT_PLAN_BUDGET_MS = 200
+export const REPORT_TEXT_COLUMNS = 80
+export const REPORT_SAVE_RETENTION_DEFAULT = 30
+export const REPORT_EMAIL_CODE_TTL_MS = 15 * 60 * 1000
+export const REPORT_EMAIL_CODE_TRIES = 5
+export const REPORT_EMAIL_PER_HOUR = 6
+export const REPORT_EMAIL_PER_DAY = 20
+export const REPORT_SMS_PER_HOUR = 2
+export const REPORT_SMS_PER_DAY = 10
+// Bound saved documents and bridge messages before rendering untrusted input.
+export const REPORT_MAX_SECTIONS = 64
+export const REPORT_MAX_ROWS = 20_000
+export const REPORT_MAX_COLUMNS = 64
+export const REPORT_MAX_SOURCES = 100
+export const REPORT_MAX_TEXT_CHARS = 64 * 1024
+export const REPORT_MAX_ID_CHARS = 256
+export const REPORT_HASH_PATTERN = /^[a-f0-9]{64}$/
+export const REPORT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/
+export const REPORT_STORAGE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+export const REPORT_KINDS = [
+  'project',
+  'milestone',
+  'release',
+  'usage',
+  'session',
+  'changes',
+  'quality',
+  'fleet',
+  'security',
+  'accounts',
+  'estimate',
+  'playbook',
+  'issues',
+  'schedules',
+  'keybindings',
+] as const
+export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const
+export const REPORT_FAIL_ON = [
+  'unavailable',
+  'drift',
+  'blocked',
+  'channelLag',
+  'ciFailing',
+] as const
+export const REPORT_EXIT_CODES = {
+  generated: 0,
+  failed: 1,
+  usage: 2,
+  notFound: 3,
+  conditionHeld: 4,
+} as const
+// Schema labels are identifiers only; renderers resolve UI_TEXT.reportLabels at use time.
+export const REPORT_LABEL_KEYS = [
+  'needsYou',
+  'releases',
+  'milestones',
+  'lanes',
+  'pullRequests',
+  'ci',
+  'usage',
+  'risks',
+  'nextSteps',
+  'status',
+  'date',
+  'goal',
+  'dependencies',
+  'certification',
+  'gates',
+  'residuals',
+  'questions',
+  'changelog',
+  'tag',
+  'channels',
+  'releaseRecord',
+  'totals',
+  'breakdown',
+  'limits',
+  'model',
+  'backend',
+  'turns',
+  'tokens',
+  'cost',
+  'tools',
+  'files',
+  'approvals',
+  'checks',
+  'paidUses',
+  'commits',
+  'agents',
+  'workers',
+  'devices',
+  'nodes',
+  'vault',
+  'grants',
+  'denials',
+  'locks',
+  'developerAudit',
+  'accounts',
+  'swaps',
+  'confirmations',
+  'criticalPath',
+  'limitingResource',
+  'setups',
+  'inputs',
+  'calibration',
+  'decisions',
+  'drills',
+  'disabledRules',
+  'refusals',
+  'issues',
+  'timeline',
+  'schedules',
+  'fires',
+  'keybindings',
+  'conflicts',
+  'diff',
+  'sources',
+  'planFormat',
+  'name',
+  'scope',
+  'version',
+  'commit',
+  'branch',
+  'outcome',
+  'duration',
+  'count',
+  'provider',
+  'kind',
+  'tool',
+  'session',
+  'client',
+  'account',
+  'certainty',
+  'reported',
+  'estimated',
+  'unknown',
+  'freshness',
+  'observedAt',
+  'reason',
+  'ok',
+  'partial',
+  'unavailable',
+  'notApplicable',
+  'fresh',
+  'stale',
+  'planned',
+  'building',
+  'built',
+  'certified',
+  'merged',
+  'released',
+  'complete',
+  'superseded',
+  'waiting',
+  'blocked',
+  'inReview',
+  'inProgress',
+  'passed',
+  'failed',
+  'running',
+  'skipped',
+  'cancelled',
+  'answered',
+  'open',
+  'dismissed',
+  'added',
+  'removed',
+  'changed',
+  'unchanged',
+] as const
 export const REFERENCE_DOCS_URL =
   'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
 export const REFERENCE_BUNDLE_FILE = 'reference.js'

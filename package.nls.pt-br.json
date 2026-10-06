@@ -164,5 +164,12 @@
   "config.judge.engine.enumDescriptions.same": "Somente seu próprio modelo de conversa avalia; ele nunca troca de modelo.",
   "config.judge.engine.enumDescriptions.off": "Sem avaliador: as aprovações se comportam exatamente como sem ele.",
   "command.openHelp.title": "Ajuda e referência",
-  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente."
+  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente.",
+  "command.showReport.title": "Mostrar relatório…",
+  "config.reports.network.description": "Escolha quando os relatórios podem ler o GitHub e os canais públicos de lançamento. Relatórios do terminal usam a rede apenas com --network.",
+  "config.reports.network.enumDescriptions.whenSignedIn": "Ler o GitHub enquanto estiver conectado e os canais públicos de lançamento.",
+  "config.reports.network.enumDescriptions.always": "Permitir fontes de rede para relatórios.",
+  "config.reports.network.enumDescriptions.off": "Ler apenas fontes locais.",
+  "config.reports.keepHistory.description": "Manter os 50 relatórios mais recentes de cada tipo neste computador para histórico e comparação.",
+  "config.reports.agentSources.description": "Permitir a leitura dos seus próprios arquivos de uso e limites do Claude Code ou Codex. Padrão: nenhum. O texto das conversas e arquivos de credenciais nunca são lidos como fontes de relatórios."
 }
