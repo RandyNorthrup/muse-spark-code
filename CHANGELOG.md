@@ -9,10 +9,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The Help reference gate accepts Windows file paths and continues checking
+  keyboard dispatch against the runtime registry.
+
 - Activation paid-setting checks are directly importable in tests, and ACP
   stdio checks include the localized Help reference hint.
 
 ### Performance
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
 
 - The VSIX omits the duplicate generated Markdown reference; Help continues
   to load its bundled reference and links to the complete online guide.

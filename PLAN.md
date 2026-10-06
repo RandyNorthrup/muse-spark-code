@@ -13047,6 +13047,18 @@ explicit release rule sets its cap to measured bytes plus 5%, rounded up to
 lint, formatting and localization directly on Kubuntu; local hook-on commits
 only, no push, tag, publication, paid/live calls or aggregate quality.
 
+Round 4 repairs the second hosted CI failure on `900a06738`: build the
+generator test's unchanged model once per file, reuse unchanged keyboard
+analysis for mutation checks, and normalize all reference evidence paths to
+forward slashes before lookup or matching. Keep mutation checks sensitive to
+changed source and registry inputs; prove Windows-style paths and deliberate
+registry bypass failures. Audit the other reference/help suites for repeated
+setup. Run every requested release/reference/fake stdio suite with repository
+default timeouts, recording the slowest tests before and after; repeat real
+packaging and scoped static/build gates. No timeout, threshold, hook or bundle
+cap changes. Aggregate quality and hosted cross-platform runs remain with the
+lead under the explicit rig/shared rule; local hook-on commits only.
+
 ### Delivery order (2026-10-06)
 
 The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff

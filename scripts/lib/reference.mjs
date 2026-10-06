@@ -58,6 +58,71 @@ function lintReferenceText(ref, identity, resolve) {
   return errors
 }
 
+// Evidence identifiers use one spelling on every platform, including allow-lists.
+function referencePath(file) {
+  return file.replaceAll('\\', '/')
+}
+
+// Catalogue mutations do not change handler source. Cache only this pure scan;
+// context membership is checked against the current registry on every build.
+const keyboardAnalysis = new Map()
+function keyboardDispatch(file, text) {
+  const previous = keyboardAnalysis.get(file)
+  if (previous?.text === text) return previous
+  const errors = []
+  const contexts = new Set()
+  const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const visit = (node, functionName = '', keyboardParameters = new Set()) => {
+    if (ts.isFunctionDeclaration(node)) functionName = node.name?.text ?? ''
+    if (ts.isFunctionLike(node)) {
+      keyboardParameters = new Set(keyboardParameters)
+      const attribute = node.parent?.parent
+      const isKeyHandler =
+        attribute !== undefined &&
+        ts.isJsxAttribute(attribute) &&
+        ['onKeyDown', 'onKeyUp'].includes(attribute.name.getText(tree))
+      for (const parameter of node.parameters) {
+        const isKeyboardParameter =
+          parameter.type !== undefined &&
+          ts.isTypeReferenceNode(parameter.type) &&
+          parameter.type.typeName.getText(tree).split('.').at(-1) === 'KeyboardEvent'
+        if (isKeyHandler || isKeyboardParameter) {
+          if (ts.isIdentifier(parameter.name)) keyboardParameters.add(parameter.name.text)
+          else errors.push(`Keyboard dispatch bypasses registry: ${file}`)
+        }
+      }
+    }
+    const isKeyboardAccess =
+      ((ts.isPropertyAccessExpression(node) && ['key', 'code'].includes(node.name.text)) ||
+        (ts.isElementAccessExpression(node) &&
+          ts.isStringLiteral(node.argumentExpression) &&
+          ['key', 'code'].includes(node.argumentExpression.text))) &&
+      ts.isIdentifier(node.expression) &&
+      keyboardParameters.has(node.expression.text)
+    const isImeAccess =
+      file === 'src/webview/components/Composer.tsx' &&
+      functionName === 'isComposing' &&
+      ts.isBinaryExpression(node.parent) &&
+      node.parent.right.getText(tree) === 'IME_PROCESS_KEY'
+    if (
+      !isImeAccess &&
+      (isKeyboardAccess ||
+        (ts.isPropertyAccessExpression(node) && node.getText(tree) === 'event.key'))
+    )
+      errors.push(`Keyboard dispatch bypasses registry: ${file}`)
+    if (ts.isCallExpression(node) && node.expression.getText(tree) === 'webviewKey') {
+      const context = node.arguments[0]
+      if (!context || !ts.isStringLiteral(context)) errors.push(`Unknown keyboard context: ${file}`)
+      else contexts.add(context.text)
+    }
+    ts.forEachChild(node, (child) => visit(child, functionName, keyboardParameters))
+  }
+  visit(tree)
+  const result = { text, errors, contexts }
+  keyboardAnalysis.set(file, result)
+  return result
+}
+
 export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
@@ -82,7 +147,7 @@ export async function referenceSources(root) {
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
       .filter((name) => /\.tsx?$/.test(name))
-      .map((name) => `src/webview/${name}`),
+      .map((name) => referencePath(`src/webview/${name}`)),
   ]
   return {
     ...source,
@@ -300,6 +365,12 @@ export function referenceFacts(source) {
 }
 
 export function buildReference(manifest, nls, source, runtimeSource, readme) {
+  source = {
+    ...source,
+    evidence: Object.fromEntries(
+      Object.entries(source.evidence).map(([file, text]) => [referencePath(file), text]),
+    ),
+  }
   const anchors = new Set(
     readme
       .split('\n')
@@ -342,58 +413,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   const usedContexts = new Set()
   for (const [file, text] of Object.entries(source.evidence)) {
     if (!/\.tsx?$/.test(file) || !file.startsWith('src/webview/')) continue
-    const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-    const visit = (node, functionName = '', keyboardParameters = new Set()) => {
-      if (ts.isFunctionDeclaration(node)) functionName = node.name?.text ?? ''
-      if (ts.isFunctionLike(node)) {
-        keyboardParameters = new Set(keyboardParameters)
-        const attribute = node.parent?.parent
-        const isKeyHandler =
-          attribute !== undefined &&
-          ts.isJsxAttribute(attribute) &&
-          ['onKeyDown', 'onKeyUp'].includes(attribute.name.getText(tree))
-        for (const parameter of node.parameters) {
-          const isKeyboardParameter =
-            parameter.type !== undefined &&
-            ts.isTypeReferenceNode(parameter.type) &&
-            parameter.type.typeName.getText(tree).split('.').at(-1) === 'KeyboardEvent'
-          if (isKeyHandler || isKeyboardParameter) {
-            if (ts.isIdentifier(parameter.name)) keyboardParameters.add(parameter.name.text)
-            else errors.push(`Keyboard dispatch bypasses registry: ${file}`)
-          }
-        }
-      }
-      const isKeyboardAccess =
-        ((ts.isPropertyAccessExpression(node) && ['key', 'code'].includes(node.name.text)) ||
-          (ts.isElementAccessExpression(node) &&
-            ts.isStringLiteral(node.argumentExpression) &&
-            ['key', 'code'].includes(node.argumentExpression.text))) &&
-        ts.isIdentifier(node.expression) &&
-        keyboardParameters.has(node.expression.text)
-      const isImeAccess =
-        file === 'src/webview/components/Composer.tsx' &&
-        functionName === 'isComposing' &&
-        ts.isBinaryExpression(node.parent) &&
-        node.parent.right.getText(tree) === 'IME_PROCESS_KEY'
-      if (
-        !isImeAccess &&
-        (isKeyboardAccess ||
-          (ts.isPropertyAccessExpression(node) && node.getText(tree) === 'event.key'))
-      )
-        errors.push(`Keyboard dispatch bypasses registry: ${file}`)
-      if (ts.isCallExpression(node) && node.expression.getText(tree) === 'webviewKey') {
-        const context = node.arguments[0]
-        if (
-          !context ||
-          !ts.isStringLiteral(context) ||
-          !Object.hasOwn(source.WEBVIEW_KEYBINDINGS, context.text)
-        )
-          errors.push(`Unknown keyboard context: ${file}`)
-        else usedContexts.add(context.text)
-      }
-      ts.forEachChild(node, (child) => visit(child, functionName, keyboardParameters))
+    const analysis = keyboardDispatch(file, text)
+    errors.push(...analysis.errors)
+    for (const context of analysis.contexts) {
+      if (Object.hasOwn(source.WEBVIEW_KEYBINDINGS, context)) usedContexts.add(context)
+      else errors.push(`Unknown keyboard context: ${file}`)
     }
-    visit(tree)
   }
   for (const context of Object.keys(source.WEBVIEW_KEYBINDINGS))
     if (!usedContexts.has(context)) errors.push(`Keyboard context has no handler: ${context}`)
@@ -416,6 +441,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       if (!source.evidence[file].replaceAll(/\s+/g, ' ').includes(fragment.replaceAll(/\s+/g, ' ')))
         errors.push(`Host capability witness changed: ${file}`)
 
+  const facts = referenceFacts(source)
   const features = source.featureCatalog().map((feature) => {
     const paidId = source.PAID_FEATURES.find(
       (id) => source.PAID_USE_REGISTRY[id].featureId === feature.id,
@@ -443,7 +469,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       details: feature.details.map((text) => source.referenceDescription(text)),
       paid: paidId !== undefined,
       facts: {
-        ...referenceFacts(source)[feature.id],
+        ...facts[feature.id],
         ...(paidId !== undefined && {
           paidFeature: paidId,
           paidSettings: [settingId],

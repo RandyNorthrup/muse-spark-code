@@ -28,8 +28,9 @@ const ReferencePage = createReferencePage({
   formatNumber,
   Modal,
 })
+const model = referenceModel()
 const values = {
-  model: JSON.stringify(referenceModel()),
+  model: JSON.stringify(model),
   values: { 'museSpark.modelApiTab': 'false' },
   nls: {},
 }
@@ -276,13 +277,13 @@ describe('RVHELPREF2 presentation truth', () => {
   it('B03 every webview shortcut uses its own description, with Tab prose only on inline suggestions', () => {
     page()
     const section = screen.getByRole('region', { name: EN.referenceShortcuts })
-    for (const shortcut of referenceModel().shortcuts) {
+    for (const shortcut of model.shortcuts) {
       if (shortcut.text === undefined) continue
       const heading = within(section).getByRole('heading', { name: shortcut.command })
       const row = heading.closest('article')
       expect(row).not.toHaveTextContent(EN.referenceCliOptions.output)
       expect(row).not.toHaveTextContent(
-        referenceModel().settings.find((s) => s.id === 'museSpark.tabTrigger')?.description ?? '',
+        model.settings.find((s) => s.id === 'museSpark.tabTrigger')?.description ?? '',
       )
       expect(row?.querySelectorAll('p')).toHaveLength(2)
     }

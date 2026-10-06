@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import {
   buildReference,
@@ -17,10 +17,27 @@ const nls = JSON.parse(readFileSync(path.join(root, 'package.nls.json'), 'utf8')
 const runtime = readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8')
 const readme = readFileSync(path.join(root, 'README.md'), 'utf8')
 const source = await referenceSources(root)
+const baseline = { model: undefined }
+beforeAll(async () => {
+  baseline.model = await generateReference(root, true)
+})
 const build = (pkg = manifest, overrides = {}) =>
-  buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme)
+  pkg === manifest && Object.keys(overrides).length === 0
+    ? baseline.model
+    : buildReference(pkg, nls, { ...source, ...overrides }, runtime, readme)
 
 describe('the code-derived reference gate', () => {
+  it('shares the unchanged reference between lookups', () => {
+    expect(build()).toBe(baseline.model)
+    expect(build()).toBe(build())
+  })
+  it('rechecks registry membership after caching unchanged keyboard source', () => {
+    const bindings = { ...source.WEBVIEW_KEYBINDINGS }
+    delete bindings['composer.dictation']
+    expect(() => build(manifest, { WEBVIEW_KEYBINDINGS: bindings })).toThrow(
+      'Unknown keyboard context: src/webview/components/Composer.tsx',
+    )
+  })
   it('covers both backend palettes, manifest metadata and all CLI routes', () => {
     const model = build()
     expect(model.commands).toHaveLength(manifest.contributes.commands.length)
@@ -105,8 +122,36 @@ describe('the code-derived reference gate', () => {
       ),
     ).toThrow('CLI command lacks entry: newRoute')
   })
-  it('checks all generated outputs byte-for-byte', async () => {
-    await expect(generateReference(root, true)).resolves.toHaveProperty('features')
+  it('checks all generated outputs byte-for-byte in the shared setup', () => {
+    expect(build()).toHaveProperty('features')
+  })
+  it('accepts Windows evidence paths and still rejects a keyboard registry bypass', () => {
+    const evidence = Object.fromEntries(
+      Object.entries(source.evidence).map(([file, text]) => [
+        path.win32.join(...file.split('/')),
+        text,
+      ]),
+    )
+    expect(build(manifest, { evidence })).toEqual(build())
+    const composer = path.win32.join('src', 'webview', 'components', 'Composer.tsx')
+    evidence[composer] = evidence[composer].replace(
+      "webviewKey('composer.dictation', event)",
+      'event.key',
+    )
+    expect(() => build(manifest, { evidence })).toThrow(
+      'Keyboard dispatch bypasses registry: src/webview/components/Composer.tsx',
+    )
+  })
+  it('accepts Windows recursive directory entries for the Composer IME check', () => {
+    const evidence = Object.fromEntries(
+      Object.entries(source.evidence).map(([file, text]) => [
+        file.startsWith('src/webview/')
+          ? `src/webview/${path.win32.join(...file.slice('src/webview/'.length).split('/'))}`
+          : file,
+        text,
+      ]),
+    )
+    expect(build(manifest, { evidence })).toEqual(build())
   })
 })
 
@@ -755,7 +800,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
     expect(scan).toContain('held.key = undefined')
   })
   it('C04 preserves every argument slot when Markdown prose is parsed', () => {
-    const model = build()
+    const model = globalThis.structuredClone(build())
     const prose = { ui: 'referenceCodeOutput' }
     const entry = model.features[0]
     entry.name = entry.summary = entry.description = prose
