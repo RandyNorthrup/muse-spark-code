@@ -36,6 +36,10 @@ export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
+// Group fallback assumes a PID cannot cycle through this namespace within one CLK_TCK.
+export const LINUX_PID_IDENTITY_MIN_PID_MAX = 4_194_304
+export const RESOURCE_TREE_STOP_TIMEOUT_MS = 5000
+export const RESOURCE_TREE_STOP_POLL_MS = 10
 // Resource-bearing exec events need a new envelope; M80's v1 stays frozen.
 export const RESOURCE_EXEC_EVENT_VERSION = 2
 

@@ -12,6 +12,12 @@ export type ResourceActionResult = z.infer<typeof resourceActionResultSchema>
 
 /** Internal mutation port. The reader holds the OS identity proof through the action. */
 export interface ResourceTreeActionReader extends ResourceTreeReader {
+  /** Kernel-contained trees return completion only after their empty-scope receipt. */
+  killCgroup?(
+    ticket: ResourceTicket,
+    signal: ResourceSignal,
+    isRegistered: () => boolean,
+  ): Promise<ResourceTreeKillResult>
   actionMembers(ticket: ResourceTicket): Promise<readonly ResourceProcessIdentity[] | null>
   signal(
     ticket: ResourceTicket,

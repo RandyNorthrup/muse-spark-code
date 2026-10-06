@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux resource trees launch behind a gate in their own delegated cgroup.
+  Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
+  an outside same-tick PID replacement from inheriting tree authority.
+  Undelegated groups refuse small PID namespaces and recheck identity bounds.
 - Registered resource trees expose verified signal and tree-kill actions, with
   exact birth checks and honest outcomes. Observed descendants retain authority
   after reparenting or starting another session; recycled PIDs need new proof.

@@ -37,6 +37,7 @@ export interface PosixTreeSource {
     identity: ResourceProcessIdentity,
     signal: ResourceSignal,
     isRegistered: () => boolean,
+    ticket: ResourceTicket,
   ): Promise<ResourceActionResult>
 }
 
@@ -70,6 +71,13 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
       .parse(snapshot.rows)
       .filter((row) => row.pid !== process.pid)
     const unavailable = z.array(unavailableProcessSchema).parse(snapshot.unavailable ?? [])
+    if (ticket.scope.type === 'cgroup') {
+      // The source filters by current kernel membership. Never inherit ancestry/birth witnesses.
+      const live = rows.filter((row) => !row.exited)
+      return snapshot.cpuSeconds === null || unavailable.length > 0
+        ? null
+        : { rows: live, cpuSeconds: snapshot.cpuSeconds, epoch: state }
+    }
     if (
       unavailable.some(
         (row) =>
@@ -112,9 +120,7 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
         return null
     }
     const isScopeAnchored =
-      anchor !== undefined &&
-      (ticket.scope.type !== 'group' ||
-        (anchor.pgid === ticket.scope.pgid && (await this.source.containsNow(ticket, anchor))))
+      anchor?.pgid === ticket.scope.pgid && (await this.source.containsNow(ticket, anchor))
     if (this.states.get(ticket.id) !== state) return null
     const members =
       anchor === undefined
@@ -122,10 +128,7 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
         : live.filter(
             (row) =>
               BigInt(row.startTime) >= BigInt(ticket.root.startTime) &&
-              (isKnown(row) ||
-                (isScopeAnchored &&
-                  isInScope(row) &&
-                  (ticket.scope.type === 'cgroup' || !state.known.has(row.pid)))),
+              (isKnown(row) || (isScopeAnchored && isInScope(row) && !state.known.has(row.pid))),
           )
     // A scope proof admits its current members. Detached newcomers need an observed,
     // freshly verified parent identity and a still-current parent edge at enrollment.
@@ -217,8 +220,9 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
   async actionMembers(ticket: ResourceTicket): Promise<readonly ResourceProcessIdentity[] | null> {
     const snapshot = await this.read(ticket)
     const state = this.states.get(ticket.id)
-    return snapshot === null || state !== snapshot.epoch
-      ? null
+    if (snapshot === null || state !== snapshot.epoch) return null
+    return ticket.scope.type === 'cgroup'
+      ? snapshot.rows.map(({ pid, startTime }) => ({ pid, startTime }))
       : [...state.known].map(([pid, startTime]) => ({ pid, startTime }))
   }
 
@@ -228,6 +232,19 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     signal: ResourceSignal,
     isRegistered: () => boolean,
   ): Promise<ResourceActionResult> {
+    if (ticket.scope.type === 'cgroup') {
+      const state = this.states.get(ticket.id)
+      return state?.signature !== JSON.stringify(ticket) ||
+        !(await this.source.containsNow(ticket, identity)) ||
+        this.source.signalNow === undefined
+        ? 'refused'
+        : await this.source.signalNow(
+            identity,
+            signal,
+            () => isRegistered() && this.states.get(ticket.id) === state,
+            ticket,
+          )
+    }
     let state = this.states.get(ticket.id)
     if (state?.known.get(identity.pid) !== identity.startTime) {
       await this.read(ticket)
@@ -242,6 +259,7 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
           identity,
           signal,
           () => isRegistered() && this.states.get(ticket.id) === state,
+          ticket,
         )
   }
 

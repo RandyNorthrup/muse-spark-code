@@ -19617,6 +19617,29 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**Lane T3 Linux containment (2026-10-06).** Close RVM104L3 finding 2's
+same-tick PID alias with a private cgroup per governed Linux launch. No M96 K
+scope implementation exists on this base. Detect cgroup v2/user delegation
+without root; launch a gated workload inside a delegated systemd user scope
+(or a writable subtree already containing this harness), create its own child
+cgroup, bind its ticket before GO, and retain the outer scope until cleanup.
+Cgroup membership alone enrolls descendants; old birth/parent witnesses never
+admit an outside replacement. Stop uses cgroup.kill, or freezes and signals
+all recursively enumerated cgroup.procs members before thawing. Completion
+requires cgroup.events populated 0, followed by removal; unknown/timeout reads
+refuse completion and retain ownership. Accounting uses that same cgroup's
+lifetime CPU and its current members' RSS. Group fallback reads pid_max and
+CLK_TCK, refuses authority below LINUX_PID_IDENTITY_MIN_PID_MAX, and freshly
+checks observed membership before each signal. Its bounded identity assumption
+and final read-to-signal race stay explicit in §9. Darwin identities and
+Windows jobs are unchanged. All editor/ACP/headless launch consumers share the
+portable API; C1/C2/W still own all-spawn and lazy-bundle integration. No new
+user command, setting, paid call, dependency or wire shape. Certify the 711/712
+same-tick replacement, launch-before-GO, freeze fallback, populated-zero wait,
+low-pid_max refusal and a native forked-grandchild Stop with deliberate red
+mutations in docs/certification/m107-t3.md. Direct bounded owning suites and
+static/build gates only; the brief forbids aggregate quality and branch merges.
+
 **Lane T2 process authority (2026-10-05).** Before M104 LSP supervision
 resumes, add registered, freshly identity-verified `signal` and snapshot-based
 `kill` to the tree registry. These are Stop/cancel services, never governor
@@ -20089,6 +20112,15 @@ Hook-on commits use complete owning files, deliberate guard-break drills,
 typecheck, scoped lint/format and the required static/build checks. The lead
 retains full integrated quality, coverage, native platform and editor receipts.
 No threshold, timeout, rule, skip policy or guard is weakened.
+
+**M107 T3 scoped certification (2026-10-06).** The rig/shared brief forbids
+aggregate quality and branch merges. T3 certifies complete owning files,
+native cgroup launch/Stop on Kubuntu, deliberate guard mutations and serial
+static/build gates. Full integrated quality/coverage and all editor/spawn
+wiring remain the lead's handoff. No gate configuration or dependency changes.
+The existing W-owned host-API snapshot must include the new Linux launcher
+and timer imports on integration; this lane records its actual check result
+in docs/certification/m107-t3.md rather than claiming that deferral green.
 
 **M107 T2 scoped certification (2026-10-06).** The rig brief prohibits
 aggregate quality and merges; the lead retains integrated quality/coverage
@@ -21283,6 +21315,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-T3 Linux fallback identity bound (2026-10-06).** Private cgroup
+  launches use current kernel containment for enrollment and cgroup.kill for
+  forced Stop; completion is cgroup.events populated 0 followed by removal.
+  Without delegation, admission and every signal require pid_max at least
+  LINUX_PID_IDENTITY_MIN_PID_MAX (4,194,304), with a valid observed CLK_TCK.
+  The rig reads 100 Hz, so a starttime bucket is 10 ms (generally 1/CLK_TCK
+  seconds). This is an explicit assumption that a numerical PID cannot be
+  reused inside that bucket, not a uniqueness theorem derived from pid_max:
+  allocator wrap, occupied slots and churn are not bounded by this code.
+  A same-tick reuse can still alias an observed group identity despite fresh
+  parent/birth proofs in this fallback. Below the bound, unknown pid_max or
+  unavailable clock units refuse authority. No native same-tick reuse was
+  forced. Individual POSIX signals (including the specified freeze fallback)
+  still have a final membership/read-to-signal race; only cgroup.kill avoids
+  numerical PID action. User-space group observation also cannot reconstruct
+  an unobserved fork/reparent edge. All-spawn and lazy-bundle integration stay
+  C1/C2/W handoffs; Darwin and Windows authority is unchanged. See
+  docs/certification/m107-t3.md for native and deliberate guard-fire receipts.
 
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,
