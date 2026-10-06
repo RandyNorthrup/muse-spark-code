@@ -3,6 +3,7 @@ import {
   closeSync,
   fsyncSync,
   lstatSync,
+  existsSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -25,6 +26,12 @@ import {
   type PlaybookRecord,
 } from '../../../shared/playbook'
 import { redactSecrets } from '../../../shared/redact'
+import {
+  PLAYBOOK_IDENTITY_NOTE,
+  PLAYBOOK_LEASE_NOTE,
+  PLAYBOOK_RELEASE_NOTE,
+  PLAYBOOK_USER_NOTE,
+} from './modules'
 
 /** The planner must share one journal per canonical workspace, across teams,
  * branches and lanes. replace is synchronous, atomic and compare-and-swap;
@@ -87,6 +94,16 @@ export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecor
   let excess = records.length - PLAYBOOK_RECORD_MAX
   const bounded = records.filter((record) => {
     if (
+      record.kind === 'note' &&
+      [
+        PLAYBOOK_IDENTITY_NOTE,
+        PLAYBOOK_LEASE_NOTE,
+        PLAYBOOK_RELEASE_NOTE,
+        PLAYBOOK_USER_NOTE,
+      ].includes(record.value.laneId ?? '')
+    )
+      return true
+    if (
       (excess > 0 && record.kind === 'note' && record.value.code === 'checksPassed') ||
       (excess > 0 &&
         record.kind === 'note' &&
@@ -102,8 +119,17 @@ export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecor
   return bounded
 }
 
+/** Bindings surface this storage failure as a user recovery item. */
+export class PlaybookHistoryLostError extends Error {
+  readonly needsUser = true
+  constructor() {
+    super(UI_TEXT.playbookUnavailable)
+  }
+}
+
 /** No branch/lane/team component in this key; directory aliases agree. */
 export class FilePlaybookJournal implements PlaybookJournal {
+  private readonly marker: string
   readonly file: string
 
   constructor(agentDataFolder: string, workspaceFolder: string) {
@@ -111,6 +137,21 @@ export class FilePlaybookJournal implements PlaybookJournal {
     const identity = process.platform === 'win32' ? canonical.toLowerCase() : canonical
     const key = createHash('sha256').update(identity).digest('hex')
     this.file = path.join(agentDataFolder, playbookRecordFile(key))
+    this.marker = path.join(agentDataFolder, 'playbook', 'workspace-state', `${key}.established`)
+  }
+
+  private markEstablished(): void {
+    if (existsSync(this.marker)) {
+      if (!lstatSync(this.marker).isFile()) throw new PlaybookHistoryLostError()
+      return
+    }
+    mkdirSync(path.dirname(this.marker), { recursive: true, mode: CHECKPOINT_STORAGE_MODE })
+    const fd = openSync(this.marker, 'a', CHECKPOINT_JOURNAL_FILE_MODE)
+    try {
+      fsyncSync(fd)
+    } finally {
+      closeSync(fd)
+    }
   }
 
   read(): readonly unknown[] {
@@ -119,9 +160,14 @@ export class FilePlaybookJournal implements PlaybookJournal {
       if (!lstatSync(this.file).isFile()) throw new Error(UI_TEXT.playbookUnavailable)
       text = readFileSync(this.file, 'utf8')
     } catch (error) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return []
-      throw new Error(UI_TEXT.playbookUnavailable, { cause: error })
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        if (existsSync(this.marker)) throw new PlaybookHistoryLostError()
+        return []
+      }
+      throw new PlaybookHistoryLostError()
     }
+    // Also mark journals written by builds predating this loss guard.
+    this.markEstablished()
     if (text.length === 0 || !text.endsWith('\n')) throw new Error(UI_TEXT.playbookUnavailable)
     const lines = text.split('\n')
     if (lines.at(-1) === '') lines.pop()
@@ -159,6 +205,9 @@ export class FilePlaybookJournal implements PlaybookJournal {
       } finally {
         closeSync(fd)
       }
+      // The marker is durable first: a crash here requires recovery, never
+      // fresh initialization. Losing the JSONL cannot reset safety history.
+      this.markEstablished()
       renameSync(stage, this.file)
     } finally {
       rmSync(stage, { force: true })

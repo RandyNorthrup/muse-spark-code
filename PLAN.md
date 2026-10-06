@@ -28345,6 +28345,16 @@ anywhere joined it).
 
 ## 7. Gates
 
+**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
+quality and all merges/pushes/rebases in P; the lead runs integrated quality.
+P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production budgets. The W-owned host
+API inventory remains an integration handoff. The required shell-quote parser
+is already locked/installed at 1.10.0, transitively through npm-run-all2;
+its direct declaration is absent in this base. Any package-manifest ownership
+change is explicitly coordinated with the owner; no gate ignore or dependency
+installation substitutes for that declaration. Results are in `m116-p.md`.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -29555,6 +29565,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM116P (2026-10-06).** The P1 and all eight P2 findings are repaired;
+  none is accepted as residual. Every repair has a named regression and a
+  observed red drill with byte-exact restoration in `m116-p.md`. The shared
+  contracts stay frozen: internal technical journal notes retain file hashes,
+  patch lease holder/start (expiry is start plus the existing one-hour window),
+  releases and real user decisions. I must supply the canonical workspace,
+  renew reservations while work runs, release canceled work, surface lost
+  history's `needsUser` error, and bind override authority to the user's actual
+  decision. These planned integrations remain outside P's certification.
 
 - **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
   are fixed in the contracts/fixtures; none is deferred as a residual.

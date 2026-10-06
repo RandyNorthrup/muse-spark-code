@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../../shared/constants'
 import {
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
@@ -35,6 +37,12 @@ import { actionIdentity, commandBlock } from './guard'
 import { retainRecords, validatedRecords, type PlaybookJournal } from './journal'
 import {
   hasOverlappingFiles,
+  fileIdentities,
+  renamedFiles,
+  PLAYBOOK_IDENTITY_NOTE,
+  PLAYBOOK_LEASE_NOTE,
+  PLAYBOOK_RELEASE_NOTE,
+  PLAYBOOK_USER_NOTE,
   moduleStates,
   normalizedModule,
   predecessorIds,
@@ -61,6 +69,8 @@ import {
 export interface PlaybookPolicyOptions {
   readonly journal: PlaybookJournal
   readonly teamId: string
+  /** Trusted canonical workspace; the model never supplies file fingerprints. */
+  readonly workspaceFolder: string
   readonly now: () => number
   /** Bound to trusted harness authority, never to a model's actor field. */
   readonly authorizeOverride: OverrideAuthority
@@ -78,6 +88,7 @@ export interface PlaybookCheckAdmission {
  * Every entrypoint reloads the shared journal; concurrent/stale writers fail
  * comparison instead of overwriting another team's strikes or refusals. */
 export class OrchestratorPlaybook implements PlaybookPolicy {
+  private readonly holder = randomUUID()
   private records: PlaybookRecord[] = []
   private expected: readonly unknown[] = []
   private states = new Map<string, ModuleState>()
@@ -151,15 +162,66 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   }
 
   private strikeRefusal(state: ModuleState): PlaybookDecision | undefined {
-    const code = this.on('threeStrikes')
-      ? redesignBlock(state, this.settings.patchRoundsMax)
-      : undefined
+    let code: PlaybookWhyNote['code'] | undefined
+    if (state.escalated) code = 'redesignEscalated'
+    else if (this.on('threeStrikes')) code = redesignBlock(state, this.settings.patchRoundsMax)
     return code
       ? this.decide('refuse', 'threeStrikes', code, {
           ...this.moduleNote(state),
           needsUser: code === 'redesignEscalated' || state.design?.outcome === 'caught',
         })
       : undefined
+  }
+
+  /** The existing one-hour safety window also bounds patch leases. Hosts
+   * renew before it elapses; a recovered process gets a new holder identity. */
+  private reservations(state: ModuleState): PlaybookWhyNote[] {
+    const latest = new Map<string, PlaybookWhyNote>()
+    for (const record of this.records) {
+      if (
+        record.kind !== 'note' ||
+        ![PLAYBOOK_LEASE_NOTE, PLAYBOOK_RELEASE_NOTE].includes(record.value.laneId ?? '')
+      )
+        continue
+      if (record.value.module === state.module.id || state.linked.has(record.value.module ?? ''))
+        latest.set(record.value.module ?? '', record.value)
+    }
+    const leases: PlaybookWhyNote[] = []
+    for (const note of latest.values()) if (note.laneId === PLAYBOOK_LEASE_NOTE) leases.push(note)
+    return leases
+  }
+
+  private reservationRefusal(
+    state: ModuleState,
+    isForReview = false,
+  ): PlaybookDecision | undefined {
+    const isBlocked = this.reservations(state).some((lease) => {
+      const isActive = lease.at + PLAYBOOK_LAUNDER_WINDOW_MS > this.options.now()
+      return isActive ? lease.workerId !== this.holder : isForReview
+    })
+    return isBlocked
+      ? this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
+          module: state.module.key,
+          missing: ['patchReservation'],
+          needsUser: isForReview,
+        })
+      : undefined
+  }
+
+  private reserve(state: ModuleState): PlaybookDecision | undefined {
+    const blocked = this.reservationRefusal(state)
+    if (blocked) return blocked
+    this.publish([
+      {
+        kind: 'note',
+        value: this.note('threeStrikes', 'checksPassed', {
+          laneId: PLAYBOOK_LEASE_NOTE,
+          module: state.module.id,
+          workerId: this.holder,
+        }),
+      },
+    ])
+    return undefined
   }
 
   private passed(
@@ -182,43 +244,89 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   ): PlaybookDecision | undefined {
     const module = normalizedModule(input)
     const existing = this.states.get(module.id)
-    if (
+    const isUnchanged =
       existing?.module.key === module.key &&
       JSON.stringify(existing.module.files) === JSON.stringify(module.files)
-    )
-      return undefined
+    const identities = fileIdentities(this.options.workspaceFolder, module)
+    const renames = renamedFiles(this.options.workspaceFolder)
     const predecessors = predecessorIds(module)
+    const namedLineage = new Set(
+      predecessors.flatMap((id) => [id, ...(this.states.get(id)?.linked ?? [])]),
+    )
     const isInvalidLineage =
-      new Set(predecessors).size !== predecessors.length ||
-      predecessors.some((id) => !this.states.has(id)) ||
-      (module.lineage !== undefined &&
-        'renamedFrom' in module.lineage &&
-        module.lineage.renamedFrom !== module.id) ||
-      (module.lineage !== undefined &&
-        !('renamedFrom' in module.lineage) &&
-        (predecessors.includes(module.id) || existing !== undefined))
+      !isUnchanged &&
+      (new Set(predecessors).size !== predecessors.length ||
+        predecessors.some((id) => !this.states.has(id)) ||
+        (module.lineage !== undefined &&
+          'renamedFrom' in module.lineage &&
+          module.lineage.renamedFrom !== module.id) ||
+        (module.lineage !== undefined &&
+          !('renamedFrom' in module.lineage) &&
+          (predecessors.includes(module.id) || existing !== undefined)))
     const overlap = [...this.states]
       .map(([, state]) => state)
       .filter(
         (state) =>
-          (state.counts.get(undefined) ?? 0) > 0 &&
-          (hasOverlappingFiles(module, state.module) || module.key === state.module.key),
+          state.module.id !== module.id &&
+          (hasOverlappingFiles(module, { ...state.module, files: state.historicalFiles }) ||
+            module.key === state.module.key ||
+            renames.some(
+              (rename) =>
+                module.files.includes(rename.to) && state.historicalFiles.includes(rename.from),
+            ) ||
+            this.records.some(
+              (record) =>
+                record.kind === 'note' &&
+                record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
+                record.value.workerId === state.module.id &&
+                identities.some((identity) => identity.hash === record.value.reason),
+            )),
       )
     const isUnlinked =
-      (existing !== undefined && predecessors.length === 0) ||
-      overlap.some((state) => !predecessors.includes(state.module.id))
+      (existing !== undefined && !isUnchanged && predecessors.length === 0) ||
+      overlap.some(
+        (state) =>
+          !namedLineage.has(state.module.id) &&
+          !(isUnchanged && existing.linked.has(state.module.id)),
+      )
     const isAuthorized =
       override !== undefined && this.options.authorizeOverride(override, module.id)
-    if (isInvalidLineage || (isUnlinked && !isAuthorized))
+    if (isInvalidLineage || isUnlinked)
       return this.decide('refuse', 'threeStrikes', 'lineageRequired', {
         module: module.key,
         needsUser: true,
       })
+    const identityNotes: PlaybookRecord[] = identities
+      .filter((identity) =>
+        this.records.every(
+          (record) =>
+            !(
+              record.kind === 'note' &&
+              record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
+              record.value.workerId === module.id &&
+              record.value.module === identity.file &&
+              record.value.reason === identity.hash
+            ),
+        ),
+      )
+      .map((identity) => ({
+        kind: 'note',
+        value: this.note('threeStrikes', 'checksPassed', {
+          laneId: PLAYBOOK_IDENTITY_NOTE,
+          workerId: module.id,
+          module: identity.file,
+          reason: identity.hash,
+        }),
+      }))
+    if (isUnchanged) {
+      if (identityNotes.length > 0) this.publish(identityNotes)
+      return undefined
+    }
     const value = playbookRecordSchema.parse({
       kind: 'module',
       value: { module, ...(isAuthorized && { override }), at: this.options.now() },
     })
-    this.publish([value])
+    this.publish([value, ...identityNotes])
     return undefined
   }
 
@@ -241,6 +349,13 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       })
     const state = this.state(module)
     if ('kind' in state) return state
+    if (state.escalated)
+      return this.decide('refuse', 'threeStrikes', 'redesignEscalated', {
+        module: state.module.key,
+        needsUser: true,
+      })
+    const reserved = this.reservationRefusal(state, true)
+    if (reserved) return reserved
     if (!areFindingsAnswered(state, this.options.authorizeOverride, this.on('onePassReview')))
       return this.decide('refuse', 'onePassReview', 'answersPending', { module: module.key })
     return this.on('threeStrikes') &&
@@ -248,6 +363,43 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       (!state.design || state.design.outcome === 'impossible')
       ? this.decide('refuse', 'threeStrikes', 'designRequired', { module: module.key })
       : undefined
+  }
+
+  /** Integrations renew while work/review runs and release on explicit cancel.
+   * Complete review publication releases atomically with the round records. */
+  renewPatch(module: PlaybookModule): PlaybookDecision {
+    this.refresh()
+    const state = this.state(module)
+    if ('kind' in state) return state
+    const lease = this.reservations(state).find((note) => note.workerId === this.holder)
+    if (!lease || lease.at + PLAYBOOK_LAUNDER_WINDOW_MS <= this.options.now())
+      return this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
+        module: state.module.key,
+        missing: ['patchReservation'],
+        needsUser: true,
+      })
+    return this.reserve(state) ?? this.passed('threeStrikes', { module: state.module.key })
+  }
+
+  releasePatch(module: PlaybookModule): PlaybookDecision {
+    this.refresh()
+    const state = this.state(module)
+    if ('kind' in state) return state
+    const blocked = this.reservationRefusal(state)
+    if (blocked) return blocked
+    this.publish(
+      this.reservations(state)
+        .filter((lease) => lease.workerId === this.holder)
+        .map((lease) => ({
+          kind: 'note',
+          value: this.note('threeStrikes', 'checksPassed', {
+            laneId: PLAYBOOK_RELEASE_NOTE,
+            module: lease.module,
+            workerId: this.holder,
+          }),
+        })),
+    )
+    return this.passed('threeStrikes', { module: state.module.key })
   }
 
   getRecord(): readonly PlaybookRecord[] {
@@ -263,6 +415,24 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     this.refresh()
     const parsed = playbookSettingsSchema.parse(settings)
     if (parsed.teamId !== this.options.teamId) throw new Error(UI_TEXT.playbookUnavailable)
+    const setting = parsed.rules.threeStrikes
+    if (
+      !setting.enabled &&
+      JSON.stringify(setting) !== JSON.stringify(this.settings.rules.threeStrikes)
+    ) {
+      // Actor/time in an agent's settings object convey no authority.
+      const decision: Parameters<OverrideAuthority>[0] = {
+        actor: 'owner',
+        reason: setting.reason,
+        at: this.options.now(),
+      }
+      if (!this.options.authorizeOverride(decision, `playbook.threeStrikes:${parsed.teamId}`))
+        return this.decide('refuse', 'threeStrikes', 'prerequisiteMissing', {
+          needsUser: true,
+          missing: ['userDecision'],
+        })
+      parsed.rules.threeStrikes = { enabled: false, ...decision }
+    }
     this.publish([{ kind: 'settings', value: parsed }])
     return this.decide('allow', 'threeStrikes')
   }
@@ -283,7 +453,9 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     const state = this.state(module)
     return 'kind' in state
       ? state
-      : (this.strikeRefusal(state) ?? this.passed('threeStrikes', { module: state.module.key }))
+      : (this.strikeRefusal(state) ??
+          this.reserve(state) ??
+          this.passed('threeStrikes', { module: state.module.key }))
   }
 
   beforeReview(module: PlaybookModule, agents: PlaybookReviewAgents): PlaybookDecision {
@@ -341,6 +513,17 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
             : resolutionOutcome(review.resolution ?? []),
         },
       })
+    for (const lease of this.reservations(state)) {
+      if (lease.workerId !== this.holder) continue
+      records.push({
+        kind: 'note',
+        value: this.note('threeStrikes', 'checksPassed', {
+          laneId: PLAYBOOK_RELEASE_NOTE,
+          module: lease.module,
+          workerId: this.holder,
+        }),
+      })
+    }
     this.publish(records)
     const next = this.states.get(module.id)
     const code =
@@ -384,6 +567,28 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     const decision = playbookDesignDecisionSchema.parse(input)
     const state = this.state(decision.module)
     if ('kind' in state) return state
+    if (state.escalated) {
+      const evidence: Parameters<OverrideAuthority>[0] = {
+        actor: 'owner',
+        reason: decision.structuralChange,
+        at: this.options.now(),
+      }
+      if (!this.options.authorizeOverride(evidence, `redesign:${state.module.id}`))
+        return this.decide('refuse', 'threeStrikes', 'redesignEscalated', {
+          module: state.module.key,
+          needsUser: true,
+        })
+      this.publish([
+        {
+          kind: 'note',
+          value: this.note('threeStrikes', 'checksPassed', {
+            laneId: PLAYBOOK_USER_NOTE,
+            module: state.module.id,
+            ...evidence,
+          }),
+        },
+      ])
+    }
     if (
       decision.outcome !== 'pending' ||
       !state.current?.findings.length ||
@@ -432,6 +637,11 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       })
     const state = this.state(lane.module)
     if ('kind' in state) return state
+    if (state.escalated)
+      return this.decide('refuse', 'threeStrikes', 'redesignEscalated', {
+        module: state.module.key,
+        needsUser: true,
+      })
     if (this.on('threeStrikes')) {
       if (
         lane.kind === 'redesign' &&
@@ -445,7 +655,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         })
       if (lane.kind !== 'redesign') return this.beforeFixRound(lane.module)
     }
-    return this.passed('contractsFirst', { laneId: lane.id })
+    return this.reserve(state) ?? this.passed('contractsFirst', { laneId: lane.id })
   }
 
   beforeMerge(lane: PlaybookLane): PlaybookDecision {

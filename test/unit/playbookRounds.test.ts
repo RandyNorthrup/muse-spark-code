@@ -1,4 +1,9 @@
-import { describe, expect, it } from 'vitest'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, rmSync, mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
+import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../src/shared/constants'
+import { afterEach, describe, expect, it } from 'vitest'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { newPlaybookModule } from '../../src/core/orchestration/playbook/modules'
 import {
@@ -17,6 +22,16 @@ import {
   reviewBlock,
   strike,
 } from './playbookPolicyFixture'
+
+const diskWorkspaces: string[] = []
+afterEach(() => {
+  for (const folder of diskWorkspaces.splice(0)) rmSync(folder, { recursive: true, force: true })
+})
+function diskPolicyFixture() {
+  const folder = mkdtempSync(path.join(tmpdir(), 'm116p-lineage-'))
+  diskWorkspaces.push(folder)
+  return policyFixture(folder)
+}
 
 describe('M116 three strikes and durable identity', () => {
   it('permits the build and two fixes, then refuses a fourth patch and requires a design', () => {
@@ -143,7 +158,7 @@ describe('M116 three strikes and durable identity', () => {
         },
         REVIEW_AGENTS,
       ),
-    ).toMatchObject({ kind: 'refuse', note: { code: 'redesignOpen', needsUser: true } })
+    ).toMatchObject({ kind: 'refuse', note: { code: 'redesignEscalated', needsUser: true } })
     expect(latestRound(policy).findings).toContainEqual(expect.objectContaining({ id: findingId }))
   })
 
@@ -317,7 +332,11 @@ describe('M116 three strikes and durable identity', () => {
     const override = { actor: 'owner' as const, reason: 'A deliberate replacement.', at: 100 }
     expect(fixture.policy.declareModule(replacement, override).kind).toBe('refuse')
     fixture.authority.mockReturnValue(true)
-    expect(fixture.policy.declareModule(replacement, override).kind).toBe('allow')
+    expect(fixture.policy.declareModule(replacement, override).kind).toBe('refuse')
+    expect(
+      fixture.policy.declareModule({ ...replacement, lineage: { splitFrom: MODULE.id } }, override)
+        .kind,
+    ).toBe('allow')
     expect(fixture.policy.getRecord().findLast((entry) => entry.kind === 'module')).toMatchObject({
       value: { override },
     })
@@ -342,6 +361,191 @@ describe('M116 three strikes and durable identity', () => {
     policy.afterReview(MODULE, reviewBlock('docs', 'P3'), REVIEW_AGENTS)
     expect(latestRound(policy)).toMatchObject({ round: 5, phase: 'build' })
     expect(policy.beforeFixRound(MODULE).kind).toBe('allow')
+  })
+
+  it('requires lineage before predeclaring overlaps and shares subsequent strikes after restart', () => {
+    const fixture = policyFixture()
+    expect(fixture.policy.declareModule(MODULE).kind).toBe('allow')
+    const alias = { ...MODULE, id: 'predeclared', key: 'src/another-module' }
+    expect(fixture.policy.declareModule(alias)).toMatchObject({
+      kind: 'refuse',
+      note: { code: 'lineageRequired' },
+    })
+    const linked = { ...alias, lineage: { splitFrom: MODULE.id } }
+    expect(fixture.policy.declareModule(linked).kind).toBe('allow')
+    strike(fixture.policy)
+    const restarted = new OrchestratorPlaybook({ ...fixture.options, teamId: 'other' })
+    expect(restarted.beforeFixRound(linked)).toMatchObject({
+      kind: 'refuse',
+      note: { code: 'redesignRequired' },
+    })
+    const board = new FakePlaybookBoard()
+    board.merge('0', true)
+    expect(
+      restarted.beforeDispatch(
+        { ...board.readBoard().lanes[0]!, module: linked, starts: [] },
+        board.readBoard(),
+      ).kind,
+    ).toBe('refuse')
+    const renamed = {
+      ...MODULE,
+      files: ['src/core/new/store.ts'],
+      key: 'src/core/new',
+      lineage: { renamedFrom: MODULE.id },
+    }
+    expect(restarted.declareModule(renamed).kind).toBe('allow')
+    expect(restarted.declareModule({ ...alias, id: 'historical-overlap' }).note.code).toBe(
+      'lineageRequired',
+    )
+  })
+
+  it('requires lineage for moved content hashes without trusting the new module id', () => {
+    const fixture = diskPolicyFixture()
+    const oldPath = path.join(fixture.options.workspaceFolder, MODULE.files[0]!)
+    const newFile = 'src/core/claims/store.ts'
+    const newPath = path.join(fixture.options.workspaceFolder, newFile)
+    mkdirSync(path.dirname(oldPath), { recursive: true })
+    mkdirSync(path.dirname(newPath), { recursive: true })
+    writeFileSync(oldPath, 'export const claim = () => "atomic"\n')
+    fixture.policy.declareModule(MODULE)
+    strike(fixture.policy)
+    renameSync(oldPath, newPath)
+    const moved = {
+      ...MODULE,
+      id: 'fresh-id',
+      key: 'src/core/claims',
+      files: [String.raw`src\core\claims\store.ts`],
+    }
+    const restarted = new OrchestratorPlaybook(fixture.options)
+    expect(restarted.declareModule(moved).note.code).toBe('lineageRequired')
+    const linked = { ...moved, lineage: { splitFrom: MODULE.id } }
+    expect(restarted.declareModule(linked).kind).toBe('allow')
+    expect(restarted.beforeFixRound(linked).kind).toBe('refuse')
+    expect(JSON.stringify(restarted.getRecord())).not.toContain('export const')
+    const unrelated = newPlaybookModule(['src/independent/new.ts'])
+    expect(restarted.declareModule(unrelated).kind).toBe('allow')
+  })
+
+  it('uses trusted Git rename detection when moved code has a different content hash', () => {
+    const fixture = diskPolicyFixture()
+    const workspace = fixture.options.workspaceFolder
+    const git = (args: string[]) => execFileSync('git', args, { cwd: workspace, stdio: 'pipe' })
+    git(['init'])
+    const oldPath = path.join(workspace, MODULE.files[0]!)
+    mkdirSync(path.dirname(oldPath), { recursive: true })
+    const source = Array.from(
+      { length: 30 },
+      (_, i) => `export const claim${String(i)} = ${String(i)};`,
+    ).join('\n')
+    writeFileSync(oldPath, source)
+    git(['add', '--', '.'])
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-m',
+      'Fixture baseline',
+    ])
+    fixture.policy.declareModule(MODULE)
+    strike(fixture.policy)
+    const file = 'src/core/claims/store.ts'
+    const destination = path.join(workspace, file)
+    mkdirSync(path.dirname(destination), { recursive: true })
+    renameSync(oldPath, destination)
+    writeFileSync(destination, `${source}\nexport const changed = true;\n`)
+    git(['add', '--', '.'])
+    const moved = { ...MODULE, id: 'new-identity', key: 'src/core/claims', files: [file] }
+    expect(new OrchestratorPlaybook(fixture.options).declareModule(moved).note.code).toBe(
+      'lineageRequired',
+    )
+  })
+
+  it('keeps a failed redesign escalated until a recorded real user decision', () => {
+    const fixture = policyFixture()
+    strike(fixture.policy)
+    fixture.policy.recordDesignDecision(design())
+    const review = threeStrikesScript('remains', latestRound(fixture.policy).findings[0]!.id).at(
+      -1,
+    )!.review
+    expect(fixture.policy.afterReview(MODULE, review, REVIEW_AGENTS).note.needsUser).toBe(true)
+    answerAll(fixture.policy)
+    const replacement = { ...design(), id: 'renamed-design', redesignLane: 'R2' }
+    const restarted = new OrchestratorPlaybook(fixture.options)
+    expect(restarted.recordDesignDecision(replacement)).toMatchObject({
+      kind: 'refuse',
+      note: { code: 'redesignEscalated', needsUser: true },
+    })
+    const board = new FakePlaybookBoard()
+    board.merge('0', true)
+    const lane = {
+      ...board.readBoard().lanes[0]!,
+      id: 'R2',
+      kind: 'redesign' as const,
+      starts: [],
+      designDecisionId: replacement.id,
+    }
+    expect(restarted.beforeDispatch(lane, board.readBoard()).note.needsUser).toBe(true)
+    fixture.authority.mockReturnValue(true)
+    expect(restarted.recordDesignDecision(replacement).kind).toBe('allow')
+    const approved = new OrchestratorPlaybook(fixture.options)
+    expect(approved.beforeDispatch(lane, board.readBoard()).kind).toBe('allow')
+    expect(approved.getRecord()).toContainEqual(
+      expect.objectContaining({
+        kind: 'note',
+        value: expect.objectContaining({
+          actor: 'owner',
+          laneId: 'playbook-redesign-user-decision',
+        }),
+      }),
+    )
+  })
+
+  it('reserves a patch durably across orchestrators through complete review publication', () => {
+    const fixture = policyFixture()
+    for (let round = 0; round < 2; round += 1) {
+      fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS)
+      answerAll(fixture.policy)
+    }
+    const other = new OrchestratorPlaybook({ ...fixture.options, teamId: 'other' })
+    expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('allow')
+    expect(other.beforeFixRound(MODULE)).toMatchObject({
+      kind: 'refuse',
+      note: { missing: ['patchReservation'] },
+    })
+    expect(other.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
+    expect(other.releasePatch(MODULE).kind).toBe('refuse')
+    const board = new FakePlaybookBoard()
+    board.merge('0', true)
+    const lane = { ...board.readBoard().lanes[0]!, starts: [] }
+    expect(other.beforeDispatch(lane, board.readBoard()).kind).toBe('refuse')
+    fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS - 1)
+    expect(fixture.policy.renewPatch(MODULE).kind).toBe('allow')
+    fixture.advance(1)
+    expect(new OrchestratorPlaybook(fixture.options).beforeFixRound(MODULE).kind).toBe('refuse')
+    expect(fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).note.code).toBe(
+      'redesignRequired',
+    )
+    answerAll(fixture.policy)
+    expect(other.beforeFixRound(MODULE).note.code).toBe('redesignRequired')
+  })
+
+  it('releases canceled work, expires a crashed holder, and refuses its stale review', () => {
+    const fixture = policyFixture()
+    fixture.policy.beforeFixRound(MODULE)
+    const other = new OrchestratorPlaybook(fixture.options)
+    expect(other.beforeFixRound(MODULE).kind).toBe('refuse')
+    expect(fixture.policy.releasePatch(MODULE).kind).toBe('allow')
+    expect(other.beforeFixRound(MODULE).kind).toBe('allow')
+    fixture.advance(PLAYBOOK_LAUNDER_WINDOW_MS)
+    expect(other.renewPatch(MODULE).kind).toBe('refuse')
+    expect(other.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('refuse')
+    expect(fixture.policy.beforeFixRound(MODULE).kind).toBe('allow')
+    expect(other.beforeFixRound(MODULE).kind).toBe('refuse')
+    expect(fixture.policy.afterReview(MODULE, reviewBlock(), REVIEW_AGENTS).kind).toBe('allow')
+    answerAll(fixture.policy)
+    expect(other.beforeFixRound(MODULE).kind).toBe('allow')
   })
 
   it('rejects path traversal and absolute module selectors and validates all design fields', () => {

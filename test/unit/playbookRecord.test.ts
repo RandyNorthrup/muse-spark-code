@@ -49,6 +49,25 @@ describe('M116 durable record', () => {
     )
   })
 
+  it('fails closed with needsUser when an established workspace loses its journal', () => {
+    const { directory, workspace, journal } = diskJournal()
+    const options = { ...policyFixture().options, journal }
+    expect(journal.read()).toEqual([])
+    strike(new OrchestratorPlaybook(options))
+    rmSync(journal.file)
+    const restarted = new FilePlaybookJournal(path.join(directory, 'data'), workspace)
+    let failure: unknown
+    try {
+      new OrchestratorPlaybook({ ...options, journal: restarted }).beforeFixRound(MODULE)
+    } catch (error) {
+      failure = error
+    }
+    expect(failure).toMatchObject({ needsUser: true })
+    expect(() => {
+      restarted.replace([], [])
+    }).toThrow()
+  })
+
   it('shares the journal across renamed lanes and Git worktrees via the common directory', () => {
     const { directory, workspace } = diskJournal()
     const common = path.join(workspace, '.git')

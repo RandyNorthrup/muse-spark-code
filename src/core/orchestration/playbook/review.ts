@@ -158,7 +158,7 @@ export function redesignBlock(
   state: ModuleState,
   max: number,
 ): PlaybookWhyNote['code'] | undefined {
-  if (state.design?.outcome === 'remains') return 'redesignEscalated'
+  if (state.escalated || state.design?.outcome === 'remains') return 'redesignEscalated'
   if (state.design && state.design.outcome !== 'impossible') return 'redesignOpen'
   return state.current?.findings.length && state.strikes > max ? 'redesignRequired' : undefined
 }

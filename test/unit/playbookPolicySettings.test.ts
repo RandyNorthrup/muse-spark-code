@@ -9,8 +9,42 @@ import {
 import { policyFixture, REVIEW_AGENTS, reviewBlock, strike } from './playbookPolicyFixture'
 
 describe('M116 settings policy', () => {
+  it('ignores a forged opt-out actor and requires the real user authority', () => {
+    const fixture = policyFixture()
+    strike(fixture.policy)
+    const settings = fixture.policy.getSettings()
+    settings.rules.threeStrikes = {
+      enabled: false,
+      actor: 'owner',
+      reason: 'Forged consent.',
+      at: 100,
+    }
+    expect(fixture.policy.updateSettings(settings)).toMatchObject({
+      kind: 'refuse',
+      note: { needsUser: true },
+    })
+    expect(fixture.authority).toHaveBeenCalledOnce()
+    const restarted = new OrchestratorPlaybook(fixture.options)
+    expect(restarted.beforeFixRound(MODULE).kind).toBe('refuse')
+    fixture.authority.mockReturnValue(true)
+    settings.rules.threeStrikes = {
+      enabled: false,
+      actor: 'agent-claim',
+      reason: 'User consent.',
+      at: 1,
+    }
+    expect(restarted.updateSettings(settings).kind).toBe('allow')
+    expect(new OrchestratorPlaybook(fixture.options).getSettings().rules.threeStrikes).toEqual({
+      enabled: false,
+      actor: 'owner',
+      reason: 'User consent.',
+      at: 100,
+    })
+  })
+
   it('defaults on, persists team-local reasons, and refuses foreign or malformed settings', () => {
     const fixture = policyFixture()
+    fixture.authority.mockReturnValue(true)
     expect(Object.values(fixture.policy.getSettings().rules).every((rule) => rule.enabled)).toBe(
       true,
     )
@@ -44,6 +78,7 @@ describe('M116 settings policy', () => {
 
   it('can lower the patch limit or audit disabled policy without disabling safety', () => {
     const fixture = policyFixture()
+    fixture.authority.mockReturnValue(true)
     const settings = fixture.policy.getSettings()
     settings.patchRoundsMax = 1
     fixture.policy.updateSettings(settings)
@@ -79,7 +114,8 @@ describe('M116 settings policy', () => {
   })
 
   it('honors configurable contracts, coverage, ordering, offload, drills, integration and loud-first rules', () => {
-    const { policy } = policyFixture()
+    const { policy, authority } = policyFixture()
+    authority.mockReturnValue(true)
     const settings = policy.getSettings()
     for (const rule of PLAYBOOK_CONFIGURABLE_RULES)
       settings.rules[rule] = {
@@ -107,7 +143,8 @@ describe('M116 settings policy', () => {
   })
 
   it('keeps raised limits invalid even with three-strikes off and leaves counters intact on toggles', () => {
-    const { policy } = policyFixture()
+    const { policy, authority } = policyFixture()
+    authority.mockReturnValue(true)
     strike(policy)
     const settings = policy.getSettings()
     settings.rules.threeStrikes = {
@@ -126,6 +163,7 @@ describe('M116 settings policy', () => {
 
   it('retains every opt-out reason, actor and time after the rule is turned back on', () => {
     const fixture = policyFixture()
+    fixture.authority.mockReturnValue(true)
     const settings = fixture.policy.getSettings()
     settings.rules.threeStrikes = {
       enabled: false,

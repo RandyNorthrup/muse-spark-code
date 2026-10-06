@@ -1,4 +1,7 @@
-import { vi } from 'vitest'
+import { onTestFinished, vi } from 'vitest'
+import { mkdtempSync, rmSync } from 'node:fs'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { PLAYBOOK_FINDING_CLASSES } from '../../src/shared/constants'
 import type {
   PlaybookDesignDecision,
@@ -19,7 +22,12 @@ export const REVIEW_AGENTS: PlaybookReviewAgents = {
   reviewerSessionId: 'review-session',
 }
 
-export function policyFixture() {
+export function policyFixture(inputWorkspace?: string) {
+  const workspaceFolder = inputWorkspace ?? mkdtempSync(path.join(tmpdir(), 'm116p-policy-'))
+  if (inputWorkspace === undefined)
+    onTestFinished(() => {
+      rmSync(workspaceFolder, { recursive: true, force: true })
+    })
   let records: readonly unknown[] = []
   let now = 100
   const authority = vi.fn(() => false)
@@ -32,6 +40,7 @@ export function policyFixture() {
   }
   const options = {
     journal,
+    workspaceFolder,
     teamId: 'panel',
     now: () => now,
     authorizeOverride: authority,

@@ -12,6 +12,11 @@ happened, not what was planned; superseded entries are kept.
 - Harden the shared orchestrator playbook's safety history: policy refusals
   block same-effect retries across tools, agents and restart. Disk-journal
   tests create and clean their own OS temporary directories.
+- Parse orchestrator Git commands before admission, including combined short
+  options, environment and shell wrappers, aliases and hook configuration.
+  Track file lineage through historical paths, hashes and Git renames; keep
+  journal loss and failed redesigns closed; require real user authorization
+  for three-strikes opt-outs; reserve patch work durably across orchestrators.
 
 ## [0.14.1] - 2026-10-05
 
