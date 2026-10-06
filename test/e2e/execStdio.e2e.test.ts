@@ -138,6 +138,7 @@ function packagingFixture() {
     'hookRuntime',
     'extensionHooks',
     'recorder',
+    'reference',
     'uiText',
     'uiTextRuntime',
     'uiTextHooks',

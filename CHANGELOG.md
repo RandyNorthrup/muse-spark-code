@@ -7,7 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.14.2] - 2026-10-06
+
 ### Fixed
+
+- Hungarian Help translations now package correctly alongside the other languages.
+
+- Help includes the shell credential pass-through setting and its restrictions
+  on interactive Model API commands.
 
 - Help keeps conditional state in typed descriptions with a rejecting guard
   for new plain-text claims. Hooks describes both backends, and secret-scanner
@@ -25,7 +32,8 @@ happened, not what was planned; superseded entries are kept.
   availability explicitly. All descriptions have catalogue translations. Search
   includes displayed shortcut text and keeps related command targets visible.
   Headless image help states its flag, mode and budget admission without promising
-  an interactive price question. Deferred reference-bundle fixtures are complete.
+  an interactive price question. Deferred and headless package reference-bundle
+  fixtures are complete.
 
 - Help now distinguishes host/backend combinations, subscription and key billing,
   paid defaults and actual voice/Tab availability. It retains setting schemas,
@@ -43,6 +51,9 @@ happened, not what was planned; superseded entries are kept.
   `check:reference` guards catalogue coverage and generated-file freshness.
 
 ### Performance
+
+- Frequent Help reference values use shorter lossless dictionary tokens, keeping
+  the complete reference within its existing bundle limit.
 
 - Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
 

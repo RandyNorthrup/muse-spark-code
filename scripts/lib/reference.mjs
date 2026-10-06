@@ -1203,6 +1203,18 @@ export async function generateReference(root, isCheck = false) {
       ? JSON.stringify(`~${indices.get(token).toString(source.REFERENCE_POOL_RADIX)}`)
       : token,
   )
+  // Give the most-used pool entries the shortest references, including object keys.
+  const uses = new Map()
+  for (const token of [packed, ...pool].join(' ').match(tokens))
+    uses.set(token, (uses.get(token) ?? 0) + 1)
+  const poolToken = (index) => JSON.stringify(`~${index.toString(source.REFERENCE_POOL_RADIX)}`)
+  const orderedPool = pool
+    .map((fragment, index) => ({ fragment, token: poolToken(index) }))
+    .toSorted((a, b) => (uses.get(b.token) ?? 0) - (uses.get(a.token) ?? 0))
+  const remappedTokens = new Map(orderedPool.map(({ token }, index) => [token, poolToken(index)]))
+  const remap = (json) => json.replaceAll(tokens, (token) => remappedTokens.get(token) ?? token)
+  for (const [index, { fragment }] of orderedPool.entries()) pool[index] = remap(fragment)
+  packed = remap(packed)
   // Share text identifiers with their boundary enums instead of shipping them twice.
   const encodeTextKeys = (json) =>
     json.replaceAll(tokens, (token, offset) => {

@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,

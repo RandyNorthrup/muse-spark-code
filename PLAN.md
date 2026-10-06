@@ -12858,9 +12858,18 @@ the release/version, packaging, badge, Help/reference and fake stdio suites;
 localization, reference, five-project typecheck, changed-file lint/format,
 production build and unchanged bundle budgets. No tag, push or publication.
 The brief prohibits aggregate quality; the lead retains integrated quality.
+The release packaging suite exposed a differently ordered Hungarian Help
+translation suffix. Normalize its key order to the other tables without
+changing any key or translated value, preserving the existing archive gate.
+The headless stdio package fixture must also include Help's lazy reference
+bundle, which the production packager now requires; retain every guard.
+The integrated reference bundle exceeded its unchanged 100 KiB budget by
+631 bytes. Assign the shortest existing pool references to the most frequent
+values, preserving all expanded JSON, schemas and translations; prove the
+lossless round trip and retain the existing size cap.
 
 - [x] Resolve and certify the main integration, then commit with hooks on.
-- [ ] Prepare the release metadata and user-facing notes; repeat release checks.
+- [x] Prepare the release metadata and user-facing notes; repeat release checks.
 
 Evidence: `docs/certification/rel0142.md`.
 
