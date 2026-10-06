@@ -106,7 +106,10 @@ Q must drive 60/0/5→10 from the machine setting, keep approvals outside
 this path, expire the 21st open card, coalesce waiting/reasked cards by key,
 retain drafts under deferral, deliver late answers through existing
 `submit`, queue idle dismissals before the next user message, and implement
-bounded reminders and session removal. The fixed late-answer template
+bounded reminders and session removal. Scheduled/unattended turns defer at
+once, even when the interactive setting is 0 (D92.8 as amended by D95);
+they never start the interactive clock. Q must cover both 60 and 0 in its
+scheduled-turn fake tests. The fixed late-answer template
 expects `{ id, question, answer }`; truncate the question text to 2,000
 characters and format `answer` exactly as today's `questionResultText`
 (`Answers:\n` plus JSON, or the existing clarification lead plus text).
@@ -143,8 +146,10 @@ no-form client's immediate deferral. The fake ACP client mirrors pinned SDK
 1.5.0 `SendRequestOptions.cancellationSignal`: an abort sends
 `$/cancel_request` but the response promise can still resolve normally.
 Its forms/cancellation capabilities can be disabled independently.
-Headless, best-of-N, worktrees and the evaluation keep immediate
-cancellation/clarification. Scheduled interactive prompts do defer.
+Headless exec, best-of-N, worktrees and the evaluation keep immediate
+cancellation/clarification. Scheduled/unattended prompts defer at once,
+retain their open questions, and never wait for an interactive answer,
+including when the interactive setting is 0 (D92.8 as amended by D95).
 A owns README, ACP/CI docs, CONTRIBUTING, layout, editor matrix and
 CHANGELOG. No claim that lane 0 ships those behaviours.
 
@@ -168,8 +173,10 @@ above and its request-id/error envelopes:
 
 `questions/defer` and `questions/list` satisfy the brief's additional
 open/defer/answer/list handoff; D92 names open/answer/dismiss and counts.
-The host must validate session ownership for every request and refuse
-headless/unattended deferral. These methods are not implemented by lane 0.
+The host must validate session ownership for every request. Headless exec
+keeps its immediate decline and must not start a deferral clock; scheduled/
+unattended turns instead require immediate deferral, including with the
+interactive setting at 0. These methods are not implemented by lane 0.
 JetBrains/JCEF, Visual Studio/WebView2 and Eclipse/SWT bridges, companion
 page, M110a0 lane T's TUI and M111b's desktop bind this same contract when
 those lanes land. They do not block Q/U/A on main. Native key mappings need
