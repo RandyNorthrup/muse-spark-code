@@ -1,0 +1,482 @@
+[
+  {
+    "id": "B0-PINS-SCHEMA",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed schemaVersion boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed image boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed baseDigest boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed capturedAt boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed digest boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed length boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed version boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed kind boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses malformed command boundary data",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses unknown manifest pins",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses path manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-STRICT",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses unknown manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-TOOLS",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses missing manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-FILE",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses path manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-ALIASES",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses duplicate manifest pins",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses caseAlias manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-PACKAGES",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses duplicatePackage manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-TRAILING-DOT",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses dot manifest pins",
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses trailingDot manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-ORIGIN",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses source manifest pins",
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses redirect and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-CREDENTIALS",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses credentials manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-FRAGMENT",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses fragment manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-QUERY",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses query manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-LATEST",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses latest manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-ARCHIVE",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses archive manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-NODE24",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses wrongNode manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-PINS-PACK",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > refuses pack manifest pins"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-CACHE-LENGTH",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses a modified cache file by both length and digest",
+      "FAIL  test/unit/nodeToolset.test.mjs > offline staging > rejects a changed cache before building, removes only its new stage and preserves the cache"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-CACHE-HASH",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses a modified cache file by both length and digest"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-REDIRECTS",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses redirectLimit and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-LOCATION",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses noLocation and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-STATUS",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses status and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-HEADER",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses header and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-CAP",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses overflow and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-INTEGRITY",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses digest and cleans the partial file",
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses length and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-IDENTITY",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > downloads and publishes the exact digest, then independently verifies the file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-TRANSFER-CLEANUP",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses digest and cleans the partial file",
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses length and cleans the partial file",
+      "FAIL  test/unit/nodeToolset.test.mjs > verified artifact download > refuses overflow and cleans the partial file"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-STAGE-ARCHITECTURE",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > offline staging > refuses unsupported architectures before creating a directory"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-STAGE-NEW-DIR",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > offline staging > stages both packs with complete checksum lists and refuses to reuse an existing directory"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-STAGE-VERIFY",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > offline staging > rejects a changed cache before building, removes only its new stage and preserves the cache"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-STAGE-CLEANUP",
+    "file": "scripts/lib/nodeToolset.mjs",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > offline staging > rejects a changed cache before building, removes only its new stage and preserves the cache"
+    ],
+    "restoredSha256": "d2cd1a825fc71aee657d8fd8b87e28fe4d7449d318854f246355b191dcd46cff"
+  },
+  {
+    "id": "B0-IMAGE-DIGEST",
+    "file": "deploy/toolset/Containerfile",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "e04cfa411a32a69f08274e692866a05e18b2d3181d3d1acd7574257dfbb6626e"
+  },
+  {
+    "id": "B0-IMAGE-NONROOT",
+    "file": "deploy/toolset/Containerfile",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "e04cfa411a32a69f08274e692866a05e18b2d3181d3d1acd7574257dfbb6626e"
+  },
+  {
+    "id": "B0-IMAGE-BIND",
+    "file": "deploy/toolset/Containerfile",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "e04cfa411a32a69f08274e692866a05e18b2d3181d3d1acd7574257dfbb6626e"
+  },
+  {
+    "id": "B0-SIZE-CAP",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > rejects an over-budget base receipt",
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > rejects an over-budget build receipt",
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > does not let a supplied budget enlarge the existing base cap"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-BASE-CAP",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > does not let a supplied budget enlarge the existing base cap"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-MANIFEST",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses manifest image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-ARCH",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses architecture image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-PATH",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses path image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-LAYERS",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses layers image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-IMAGES",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses images image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-CONFIG",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses config image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-LAYER",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses layer image metadata"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-PACK",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses invalid pack/budget unknown/1"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-SIZE-BUDGET",
+    "file": "scripts/measure-node-toolset.py",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolsetSize.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses invalid pack/budget build/-1",
+      "FAIL  test/unit/nodeToolsetSize.test.mjs > compressed toolset image measurements > refuses invalid pack/budget build/true"
+    ],
+    "restoredSha256": "8ade12f4271d29dfd2fbe5c56d8bd1f13fad8680f9e7c98f8e646e7a5bd92407"
+  },
+  {
+    "id": "B0-INSTALL-HASH",
+    "file": "deploy/toolset/install.sh",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "f251fd99c8b0cfba961d4fa7670a809bebca6fb8ac7c5d6e23fd6631ca3ffd80"
+  },
+  {
+    "id": "B0-INSTALL-OWNER",
+    "file": "deploy/toolset/install.sh",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "f251fd99c8b0cfba961d4fa7670a809bebca6fb8ac7c5d6e23fd6631ca3ffd80"
+  },
+  {
+    "id": "B0-INSTALL-MODES",
+    "file": "deploy/toolset/install.sh",
+    "exitCode": 1,
+    "testFiles": ["test/unit/nodeToolset.test.mjs"],
+    "failures": [
+      "FAIL  test/unit/nodeToolset.test.mjs > base toolset pins > records both architectures, every required tool and the exact pinned container base"
+    ],
+    "restoredSha256": "f251fd99c8b0cfba961d4fa7670a809bebca6fb8ac7c5d6e23fd6631ca3ffd80"
+  }
+]

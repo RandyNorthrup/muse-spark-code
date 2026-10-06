@@ -70,5 +70,16 @@
       "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > uses the chosen platform for portable package roots"
     ],
     "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
+  },
+  {
+    "id": "B0-MUSE-OPTIONAL",
+    "file": "src/core/context/baseAgentToolset.ts",
+    "exitCode": 1,
+    "testFiles": ["test/unit/baseAgentToolset.test.ts"],
+    "failures": [
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > defaults bundled source and automation-runtime preparation on, without doing work at construction",
+      "FAIL  test/unit/baseAgentToolset.test.ts > base agent first-boot preparation > honours explicit false settings and reads them again on each preparation"
+    ],
+    "restoredSha256": "44a10c9a37a704357fe4a407ab96e897423eee8c644f05dba233adbd12bfeeae"
   }
 ]

@@ -1,0 +1,7 @@
+{
+  "baseCompressedBytes": 200000000,
+  "buildCompressedBytes": 450000000,
+  "measuredAmd64BaseBytes": 181489585,
+  "measuredAmd64BuildBytes": 388029252,
+  "buildBudgetRule": "Measured amd64 build pack plus 15 percent, rounded up to 25 MB; native arm64 measurement is required before release. The existing 200 MB base cap is unchanged."
+}

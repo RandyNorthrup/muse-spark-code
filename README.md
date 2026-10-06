@@ -3857,6 +3857,12 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
+The M110 base agent toolset layer pins all development tools for amd64 and
+arm64, stages verified artifacts for an offline build, and measures the
+base and separate compiler pack against their budgets. See the
+[toolset build commands and integration limits](deploy/toolset/README.md);
+this layer is groundwork for the node and sandbox editions.
+
 ## Development
 
 After every complete four-channel release, the workflow runs

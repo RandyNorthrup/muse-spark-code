@@ -9251,8 +9251,13 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
     Chrome for Testing through M81's existing verified store after download
     consent, never the user's Chrome. Missing platform pins refuse explicitly.
     No Muse Code binary, credentials, autonomous approvals or new dependency.
-    Record measured compressed sizes against the existing image target and
-    list `/help` integration entries if the feature catalog is absent.
+    The amd64 toolset base measures 181,489,585 compressed bytes against the
+    unchanged 200,000,000-byte base cap. D90.4's separate `build` pack (all
+    listed compilers) measures 388,029,252 bytes; its new budget is 450 MB
+    (measured +15%, rounded up to 25 MB). `budgets.json` and the saved-layer
+    gate record both; native arm64 measurement is required before release.
+    C must remeasure the composed service image under the existing base cap.
+    List `/help` integration entries if the feature catalog is absent.
 
 **Suggested additions** (not in the owner's words; each with its reason):
 
@@ -23610,6 +23615,18 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M110B0 lane verification delegation and inherited record deferral
+(2026-10-06).** The rig/common briefs delegate full quality/coverage/platform
+gates to the lead. B0 runs default-timeout owned suites, all-project
+typecheck, scoped lint/format, deadcode, duplication, localization and
+production build, plus offline amd64 image build/smoke/compressed-size
+receipts. `check:host-api` reports the same eleven J-owned stale Node import
+counts as N, with no new VS Code dependency/API; B0-J-HOST-API binds the
+record regeneration to J after integration. Native ARM64 image/browser
+execution, composed-image sizing and help registry/package/boot bindings
+remain named handoffs in `docs/certification/m110-b0-base-agent-toolset.md`.
+No gate, budget, threshold, ignore or timeout is weakened.
 
 **M110N lane verification delegation (2026-10-06).** The rig brief and
 shared lane rules explicitly prohibit full quality/full-suite runs here.

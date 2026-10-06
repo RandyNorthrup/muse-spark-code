@@ -1,0 +1,3377 @@
+{
+  "schemaVersion": 1,
+  "name": "Muse Spark Code Node (Unofficial) base agent toolset",
+  "capturedAt": "2026-10-06",
+  "baseImage": "docker.io/library/debian:trixie-slim@sha256:a29215f6a35e51e22adffa17f89e9d2ef06214e64a2bad10d765c46aea49f11f",
+  "tools": [
+    {
+      "name": "git",
+      "package": "git",
+      "pack": "base",
+      "command": "git",
+      "args": ["--version"]
+    },
+    {
+      "name": "gh",
+      "package": "gh",
+      "pack": "base",
+      "command": "gh",
+      "args": ["--version"]
+    },
+    {
+      "name": "node",
+      "package": "node",
+      "pack": "base",
+      "command": "node",
+      "args": ["--version"]
+    },
+    {
+      "name": "python",
+      "package": "python3",
+      "pack": "base",
+      "command": "python3",
+      "args": ["--version"]
+    },
+    {
+      "name": "uv",
+      "package": "uv",
+      "pack": "base",
+      "command": "uv",
+      "args": ["--version"]
+    },
+    {
+      "name": "ripgrep",
+      "package": "ripgrep",
+      "pack": "base",
+      "command": "rg",
+      "args": ["--version"]
+    },
+    {
+      "name": "fd",
+      "package": "fd-find",
+      "pack": "base",
+      "command": "fd",
+      "args": ["--version"]
+    },
+    {
+      "name": "jq",
+      "package": "jq",
+      "pack": "base",
+      "command": "jq",
+      "args": ["--version"]
+    },
+    {
+      "name": "curl",
+      "package": "curl",
+      "pack": "base",
+      "command": "curl",
+      "args": ["--version"]
+    },
+    {
+      "name": "unzip",
+      "package": "unzip",
+      "pack": "base",
+      "command": "unzip",
+      "args": ["-v"]
+    },
+    {
+      "name": "build-essential",
+      "package": "build-essential",
+      "pack": "build",
+      "command": "dpkg-query",
+      "args": ["-W", "build-essential"]
+    },
+    {
+      "name": "clang",
+      "package": "clang",
+      "pack": "build",
+      "command": "clang",
+      "args": ["--version"]
+    },
+    {
+      "name": "make",
+      "package": "make",
+      "pack": "build",
+      "command": "make",
+      "args": ["--version"]
+    },
+    {
+      "name": "cmake",
+      "package": "cmake",
+      "pack": "build",
+      "command": "cmake",
+      "args": ["--version"]
+    },
+    {
+      "name": "gitleaks",
+      "package": "gitleaks",
+      "pack": "base",
+      "command": "gitleaks",
+      "args": ["version"]
+    }
+  ],
+  "architectures": {
+    "amd64": {
+      "baseDigest": "sha256:918311b7b6c4c6f68b232ba516584925f6c78ad82b6fd534b98979df6438e483",
+      "baseCompressedBytes": 29843350,
+      "artifacts": [
+        {
+          "name": "binutils-common",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils-common_2.44-3_amd64.deb",
+          "sha256": "002da5d23f8757dee97a2c0a40e0e1d4d85a43da094488ee2ee7068d4d3691f9",
+          "bytes": 2508768,
+          "file": "binutils-common_002da5d23f8757de.deb",
+          "pack": "build"
+        },
+        {
+          "name": "binutils-x86-64-linux-gnu",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils-x86-64-linux-gnu_2.44-3_amd64.deb",
+          "sha256": "e6741ce95ff0f7a131c8d9faa3528ccbbc453078bbc62a97da81340ed7462c53",
+          "bytes": 1013844,
+          "file": "binutils-x86-64-linux-gnu_e6741ce95ff0f7a1.deb",
+          "pack": "build"
+        },
+        {
+          "name": "binutils",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils_2.44-3_amd64.deb",
+          "sha256": "6bc08c02539ba53b5e748142397144c499f9b20b5fa9bb56431545db124addeb",
+          "bytes": 265400,
+          "file": "binutils_6bc08c02539ba53b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "build-essential",
+          "version": "12.12",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/build-essential/build-essential_12.12_amd64.deb",
+          "sha256": "a45159aebea0d98d6652ac5a56b7fff164a7733a7dc736b9f8715ca504519d3a",
+          "bytes": 4624,
+          "file": "build-essential_a45159aebea0d98d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "bzip2",
+          "version": "1.0.8-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/bzip2/bzip2_1.0.8-6_amd64.deb",
+          "sha256": "6b5fbe71f0fc41e85919bc4b3c514e6c47577c5005dbf1f5af6e4a49cc221aab",
+          "bytes": 40520,
+          "file": "bzip2_6b5fbe71f0fc41e8.deb",
+          "pack": "build"
+        },
+        {
+          "name": "ca-certificates",
+          "version": "20250419",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/ca-certificates/ca-certificates_20250419_all.deb",
+          "sha256": "ef590f89563aa4b46c8260d49d1cea0fc1b181d19e8df3782694706adf05c184",
+          "bytes": 161704,
+          "file": "ca-certificates_ef590f89563aa4b4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "clang-19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/clang-19_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "bbb74458d782b7792b61b0eed92746df5e6d033778c045cf8c2b3835b7c4efc4",
+          "bytes": 116584,
+          "file": "clang-19_bbb74458d782b779.deb",
+          "pack": "build"
+        },
+        {
+          "name": "clang",
+          "version": "1:19.0-63",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-defaults/clang_19.0-63_amd64.deb",
+          "sha256": "5cf22fc7e42face0071b0e83d012dfc675b947a138acfe23a92d0bb39e5b1cdb",
+          "bytes": 6244,
+          "file": "clang_5cf22fc7e42face0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cmake-data",
+          "version": "3.31.6-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cmake/cmake-data_3.31.6-2_all.deb",
+          "sha256": "d9060145be892f43cd1888024114ceab019c81479d4b0a3383fe14cebe2295cb",
+          "bytes": 2268208,
+          "file": "cmake-data_d9060145be892f43.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cmake",
+          "version": "3.31.6-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cmake/cmake_3.31.6-2_amd64.deb",
+          "sha256": "dee2fc94973325240604ffbca677a3f16b462fb6520946bd81be1ecbac770a02",
+          "bytes": 11969144,
+          "file": "cmake_dee2fc9497332524.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-14-x86-64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/cpp-14-x86-64-linux-gnu_14.2.0-19_amd64.deb",
+          "sha256": "ef274b5379f5f97fc71619d39ecc84d039d3e184570d207b909c90afaa5d79e0",
+          "bytes": 11047460,
+          "file": "cpp-14-x86-64-linux-gnu_ef274b5379f5f97f.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/cpp-14_14.2.0-19_amd64.deb",
+          "sha256": "3bae5fe03c56c6d021900ab4fb79e35c6f75eee72a73fccc6f28a39db559d6a0",
+          "bytes": 1280,
+          "file": "cpp-14_3bae5fe03c56c6d0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-x86-64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/cpp-x86-64-linux-gnu_14.2.0-1_amd64.deb",
+          "sha256": "d902f484e38bce59e82efc0df2fe20139a0932ca759ecafdfe6e5b6c72238eb8",
+          "bytes": 4840,
+          "file": "cpp-x86-64-linux-gnu_d902f484e38bce59.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/cpp_14.2.0-1_amd64.deb",
+          "sha256": "a6ba40550aadec80437813e0fce5516574945ff40e72306a5b378c03af3a6544",
+          "bytes": 1568,
+          "file": "cpp_a6ba40550aadec80.deb",
+          "pack": "build"
+        },
+        {
+          "name": "curl",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/curl_8.14.1-2%2bdeb13u5_amd64.deb",
+          "sha256": "ebb7e0cbe30ad23bce0d28a848ccfeb9b73b82817eb4fe12fa20d2845f62dc73",
+          "bytes": 270064,
+          "file": "curl_ebb7e0cbe30ad23b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "debconf",
+          "version": "1.5.91",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/debconf/debconf_1.5.91_all.deb",
+          "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
+          "bytes": 121088,
+          "file": "debconf_1ddc7e6c5925f748.deb",
+          "pack": "base"
+        },
+        {
+          "name": "dpkg-dev",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/dpkg-dev_1.22.22_all.deb",
+          "sha256": "6d4020421740a70e1fb9c41b07f8bb8306d93aef6fea1a8ce11a1f839921f414",
+          "bytes": 1337268,
+          "file": "dpkg-dev_6d4020421740a70e.deb",
+          "pack": "build"
+        },
+        {
+          "name": "dpkg",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/dpkg_1.22.22_amd64.deb",
+          "sha256": "3e800c6d75e8e709007ed1c356e5fa8509a75c1694fb0a1183709abc9cfdc1f3",
+          "bytes": 1537216,
+          "file": "dpkg_3e800c6d75e8e709.deb",
+          "pack": "base"
+        },
+        {
+          "name": "fd-find",
+          "version": "10.2.0-1+b5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rust-fd-find/fd-find_10.2.0-1%2bb5_amd64.deb",
+          "sha256": "1554c6892db7be10d4c6bdbf19f7ad4172826a1b6d01e5cc537b81d6b02db4d1",
+          "bytes": 1052604,
+          "file": "fd-find_1554c6892db7be10.deb",
+          "pack": "base"
+        },
+        {
+          "name": "g++-14-x86-64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/g%2b%2b-14-x86-64-linux-gnu_14.2.0-19_amd64.deb",
+          "sha256": "c66b009fedd340520279d1af2f91d0668e9f64f0c08fe62179ca1c75e556be58",
+          "bytes": 12114812,
+          "file": "g++-14-x86-64-linux-gnu_c66b009fedd34052.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/g%2b%2b-14_14.2.0-19_amd64.deb",
+          "sha256": "4706ab29eab3d81e93582b45b229fdedc71f1eec3071996a448cf2c8beb83f3a",
+          "bytes": 22544,
+          "file": "g++-14_4706ab29eab3d81e.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++-x86-64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/g%2b%2b-x86-64-linux-gnu_14.2.0-1_amd64.deb",
+          "sha256": "15e10fc3948ec76be8d51b23e75ad9df9c39588c94f1f47059cee02c117c7583",
+          "bytes": 1200,
+          "file": "g++-x86-64-linux-gnu_15e10fc3948ec76b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/g%2b%2b_14.2.0-1_amd64.deb",
+          "sha256": "f86661c021ab2acb39ceb87315e7c2d4d420fdadc19945d5d589f3953410445c",
+          "bytes": 1344,
+          "file": "g++_f86661c021ab2acb.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-14-base",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_amd64.deb",
+          "sha256": "5b6825de4263824b78c4c51f6476414f3b4e89c2ab63e81dc8b9b5501e867cf6",
+          "bytes": 49432,
+          "file": "gcc-14-base_5b6825de4263824b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "gcc-14-x86-64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-x86-64-linux-gnu_14.2.0-19_amd64.deb",
+          "sha256": "a17ef039f1ba482051c3efb5c2c24070002e60dd0bd09fd456ec31481a11b725",
+          "bytes": 21389968,
+          "file": "gcc-14-x86-64-linux-gnu_a17ef039f1ba4820.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19_amd64.deb",
+          "sha256": "21500408b5019d8d29f70ce58488e2eea469a1adb4b5fd7db45e819b5efcac4e",
+          "bytes": 540064,
+          "file": "gcc-14_21500408b5019d8d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-x86-64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-x86-64-linux-gnu_14.2.0-1_amd64.deb",
+          "sha256": "04c28c2760b0094b3d7758154ac095303dd00599b63ebad4086a325b607308b7",
+          "bytes": 1436,
+          "file": "gcc-x86-64-linux-gnu_04c28c2760b0094b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc_14.2.0-1_amd64.deb",
+          "sha256": "eee65c41a441c57c05f754ced1b9d093956966a1c7da9938c3ec00d3dc2f905d",
+          "bytes": 5136,
+          "file": "gcc_eee65c41a441c57c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gh",
+          "version": "2.46.0-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gh/gh_2.46.0-3_amd64.deb",
+          "sha256": "4af2d243a11c94ade52aa2e66bb28d8a048fc05f95e2f7cb0e0ecad2343ea872",
+          "bytes": 7615896,
+          "file": "gh_4af2d243a11c94ad.deb",
+          "pack": "base"
+        },
+        {
+          "name": "git-man",
+          "version": "1:2.47.3-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/git/git-man_2.47.3-0%2bdeb13u1_all.deb",
+          "sha256": "b58306b60e1dff920e1e18bc7e1e499f2ef75184190ab3d98657b165969bf7c9",
+          "bytes": 2204692,
+          "file": "git-man_b58306b60e1dff92.deb",
+          "pack": "base"
+        },
+        {
+          "name": "git",
+          "version": "1:2.47.3-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/git/git_2.47.3-0%2bdeb13u1_amd64.deb",
+          "sha256": "3e35662fd5c46add561703e54031a1d8ad9df45811927689f0a51122b13be722",
+          "bytes": 8861572,
+          "file": "git_3e35662fd5c46add.deb",
+          "pack": "base"
+        },
+        {
+          "name": "init-system-helpers",
+          "version": "1.69~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/i/init-system-helpers/init-system-helpers_1.69%7edeb13u1_all.deb",
+          "sha256": "addf78073e1cbc5a5508937e11d2571055e29835e00ee8fab52a66775649378f",
+          "bytes": 39360,
+          "file": "init-system-helpers_addf78073e1cbc5a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "jq",
+          "version": "1.7.1-6+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/j/jq/jq_1.7.1-6%2bdeb13u4_amd64.deb",
+          "sha256": "7350392f700e20e46b7ae174a57f54e4ea106dd559753646d629b4e618bf2bff",
+          "bytes": 78900,
+          "file": "jq_7350392f700e20e4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libacl1",
+          "version": "2.3.2-2+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/a/acl/libacl1_2.3.2-2%2bb1_amd64.deb",
+          "sha256": "08074f01e384bc07c0c2d79a58cf4a6523f71cf75d1808101c79617656c9a39d",
+          "bytes": 32860,
+          "file": "libacl1_08074f01e384bc07.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libarchive13t64",
+          "version": "3.7.4-4+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/liba/libarchive/libarchive13t64_3.7.4-4%2bdeb13u1_amd64.deb",
+          "sha256": "12e06195a899e8db371803ed70111fc7302573d3ed84e967d3d48ef2d543ace8",
+          "bytes": 350192,
+          "file": "libarchive13t64_12e06195a899e8db.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libasan8",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libasan8_14.2.0-19_amd64.deb",
+          "sha256": "771899ade7310fe31aa538a509354c33d62bbe4e408b4e5fc1e513988dc42645",
+          "bytes": 2725272,
+          "file": "libasan8_771899ade7310fe3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libatomic1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libatomic1_14.2.0-19_amd64.deb",
+          "sha256": "212b399aae2f7299203d261a57e49372e09565a9a5ea971905f94a3960366c05",
+          "bytes": 9308,
+          "file": "libatomic1_212b399aae2f7299.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbinutils",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libbinutils_2.44-3_amd64.deb",
+          "sha256": "4f4664c8a8f0ad0c8631c39fab02e3d8d86ccc6f4436a1d59f059dbcb0492679",
+          "bytes": 534440,
+          "file": "libbinutils_4f4664c8a8f0ad0c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbrotli1",
+          "version": "1.1.0-2+b7",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/brotli/libbrotli1_1.1.0-2%2bb7_amd64.deb",
+          "sha256": "0fb79f88db210afbd69282ab9649e525f393ec6950ca34da1a6b359250b8d7db",
+          "bytes": 306624,
+          "file": "libbrotli1_0fb79f88db210afb.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libbsd0",
+          "version": "0.12.2-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libb/libbsd/libbsd0_0.12.2-2_amd64.deb",
+          "sha256": "e5a85986fa6bec3307ab1bc860736b478b331882bc45e17675a7bdf88eecb43a",
+          "bytes": 130968,
+          "file": "libbsd0_e5a85986fa6bec33.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbz2-1.0",
+          "version": "1.0.8-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_amd64.deb",
+          "sha256": "cba4cda04244b5e481bb15524bc3c983a7d1b6f330013b9b381706a2fcb65310",
+          "bytes": 37912,
+          "file": "libbz2-1.0_cba4cda04244b5e4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libc-dev-bin",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc-dev-bin_2.41-12%2bdeb13u4_amd64.deb",
+          "sha256": "2c21175d6a8283ed566d154c0c0bc06f60836e53b0b9e1f74c14eac586b68c24",
+          "bytes": 59960,
+          "file": "libc-dev-bin_2c21175d6a8283ed.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libc6-dev",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc6-dev_2.41-12%2bdeb13u4_amd64.deb",
+          "sha256": "1fda734dabcd80b77266a09ab62b0f1e3e16d8091db62899890b2200745632a2",
+          "bytes": 1994660,
+          "file": "libc6-dev_1fda734dabcd80b7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libc6",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.41-12%2bdeb13u4_amd64.deb",
+          "sha256": "967aa62605721081c3eb2a17650611a792aa802d76a6511d1840242623d204c9",
+          "bytes": 2846580,
+          "file": "libc6_967aa62605721081.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcap2",
+          "version": "1:2.75-10+deb13u1+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libc/libcap2/libcap2_2.75-10%2bdeb13u1%2bb3_amd64.deb",
+          "sha256": "89fc4d34fc7a28ad6f0fcd0c561ab253b9dedf6f77f5a000b47c276c8295bf67",
+          "bytes": 28988,
+          "file": "libcap2_89fc4d34fc7a28ad.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcc1-0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libcc1-0_14.2.0-19_amd64.deb",
+          "sha256": "2d587e3bfba4aec701946b7ba0c1640b97b6d8dd0a34ba1c70ae85261ecedefa",
+          "bytes": 42796,
+          "file": "libcc1-0_2d587e3bfba4aec7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang-common-19-dev",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang-common-19-dev_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "4018e40e2d4144fe38c45822e68cca63c1bf6c7872c3073ebb262ad4b2f9b8bc",
+          "bytes": 739932,
+          "file": "libclang-common-19-dev_4018e40e2d4144fe.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang-cpp19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang-cpp19_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "a7d2b6df51050834f6ea5c0d5e34869c2298b0bcdaa91eff17ba3db2cd545c47",
+          "bytes": 13191148,
+          "file": "libclang-cpp19_a7d2b6df51050834.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang1-19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang1-19_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "4e7e2a5fe236e280d32fb529350b3c1cfd9410a964629a57ea079a314c45d7a3",
+          "bytes": 7623496,
+          "file": "libclang1-19_4e7e2a5fe236e280.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcom-err2",
+          "version": "1.47.2-3+b12",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libcom-err2_1.47.2-3%2bb12_amd64.deb",
+          "sha256": "bd43e020b8fed399db3eebf098111f10fba4c436fff99ccad72cc7e27c9764ec",
+          "bytes": 25036,
+          "file": "libcom-err2_bd43e020b8fed399.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcrypt-dev",
+          "version": "1:4.4.38-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt-dev_4.4.38-1_amd64.deb",
+          "sha256": "98e2333aea8d64ca68f9b75c16256d3a05492fd8f9e6dba96adbc6f19e4f5a09",
+          "bytes": 119040,
+          "file": "libcrypt-dev_98e2333aea8d64ca.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcrypt1",
+          "version": "1:4.4.38-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_amd64.deb",
+          "sha256": "0ebc144d662e3197982d1bf3a7b8b35ca845e54c68811de0328b1f0d7c67585c",
+          "bytes": 90072,
+          "file": "libcrypt1_0ebc144d662e3197.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libctf-nobfd0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libctf-nobfd0_2.44-3_amd64.deb",
+          "sha256": "e280b2be3db6e584500e865c251605b95c346767d87ccb2524e44992048fc657",
+          "bytes": 155672,
+          "file": "libctf-nobfd0_e280b2be3db6e584.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libctf0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libctf0_2.44-3_amd64.deb",
+          "sha256": "120cafcd93132a276fa92a8fb4cf39b23d14e5a3e348f4f5580638d71ca95ac5",
+          "bytes": 88616,
+          "file": "libctf0_120cafcd93132a27.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcurl3t64-gnutls",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/libcurl3t64-gnutls_8.14.1-2%2bdeb13u5_amd64.deb",
+          "sha256": "19da93544615a4c9a3d7df473f5bf8ebca99442454622e9b0460168dadf7b8ae",
+          "bytes": 384460,
+          "file": "libcurl3t64-gnutls_19da93544615a4c9.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcurl4t64",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/libcurl4t64_8.14.1-2%2bdeb13u5_amd64.deb",
+          "sha256": "0dedddfe614fc4a4335c9167b73c64a50136edd76b7991aa851408d0795163eb",
+          "bytes": 391492,
+          "file": "libcurl4t64_0dedddfe614fc4a4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libdb5.3t64",
+          "version": "5.3.28+dfsg2-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/db5.3/libdb5.3t64_5.3.28%2bdfsg2-9_amd64.deb",
+          "sha256": "18d02510ee78b67e4504ba050176797a200ff24214a7cd318082ab60ad7bf3fc",
+          "bytes": 703676,
+          "file": "libdb5.3t64_18d02510ee78b67e.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libdpkg-perl",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/libdpkg-perl_1.22.22_all.deb",
+          "sha256": "b41eaeb4879091023f8c1a058510844a244d3d0bd0f437e0e05d58213e36fd9f",
+          "bytes": 650808,
+          "file": "libdpkg-perl_b41eaeb487909102.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libedit2",
+          "version": "3.1-20250104-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libe/libedit/libedit2_3.1-20250104-1_amd64.deb",
+          "sha256": "b002ea172b9c1e34a67bc497c523c67bb74c3f0a4e98113cb083990a1f1d3bfe",
+          "bytes": 93832,
+          "file": "libedit2_b002ea172b9c1e34.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liberror-perl",
+          "version": "0.17030-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libe/liberror-perl/liberror-perl_0.17030-1_all.deb",
+          "sha256": "06110a972bdc52f6c6d6615dddbe97f836c61d0e36c685ef4107c2eaa81f871f",
+          "bytes": 26872,
+          "file": "liberror-perl_06110a972bdc52f6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libexpat1",
+          "version": "2.8.3-1~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/e/expat/libexpat1_2.8.3-1%7edeb13u1_amd64.deb",
+          "sha256": "38abe0e710a07688e9c149d74536e67cfee0364bdb64dd6d644c32a1cfad389f",
+          "bytes": 122672,
+          "file": "libexpat1_38abe0e710a07688.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libffi8",
+          "version": "3.4.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libf/libffi/libffi8_3.4.8-2_amd64.deb",
+          "sha256": "0ebdc340de33333639c3c63874cd4b15ac2e83dfa1ef3053b7eefaf4919f4f68",
+          "bytes": 24144,
+          "file": "libffi8_0ebdc340de333336.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgc1",
+          "version": "1:8.2.8-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libg/libgc/libgc1_8.2.8-1_amd64.deb",
+          "sha256": "0279fc16692a3a4a6d5f84051f5e55fc721f3cbb0e2bbc052d8980888f18c698",
+          "bytes": 247256,
+          "file": "libgc1_0279fc16692a3a4a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgcc-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-14-dev_14.2.0-19_amd64.deb",
+          "sha256": "ca6f2d36d96b19b3eb71405b0b80134d8c89380b02204a2512e5c58ceb090628",
+          "bytes": 2672328,
+          "file": "libgcc-14-dev_ca6f2d36d96b19b3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgcc-s1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_amd64.deb",
+          "sha256": "3c71917b490d1a17aed43196a2787a256ecf060526cdb20216a74bedc061b150",
+          "bytes": 72772,
+          "file": "libgcc-s1_3c71917b490d1a17.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgdbm-compat4t64",
+          "version": "1.24-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-compat4t64_1.24-2_amd64.deb",
+          "sha256": "2cbd43cf2dfbf57ff48188b5d79d29cf7ea8f0dedaa61ab0bcc02eceff50ea01",
+          "bytes": 50280,
+          "file": "libgdbm-compat4t64_2cbd43cf2dfbf57f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgdbm6t64",
+          "version": "1.24-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gdbm/libgdbm6t64_1.24-2_amd64.deb",
+          "sha256": "e7b42c68c391e278733adb3c1efdacd24d660862bd7bac0efbc10a91e5696dfc",
+          "bytes": 75176,
+          "file": "libgdbm6t64_e7b42c68c391e278.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgmp10",
+          "version": "2:6.3.0+dfsg-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gmp/libgmp10_6.3.0%2bdfsg-3_amd64.deb",
+          "sha256": "d0d0265eb01770f17afd0f7c8c0622f80479dcfbbe13653a0debeec61464e622",
+          "bytes": 560220,
+          "file": "libgmp10_d0d0265eb01770f1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgnutls30t64",
+          "version": "3.8.9-3+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gnutls28/libgnutls30t64_3.8.9-3%2bdeb13u4_amd64.deb",
+          "sha256": "18a8bdfd91c7e3bcb01719d55a2b56849c7160b34f1f52b1c4fdfdd41bf1352b",
+          "bytes": 1469024,
+          "file": "libgnutls30t64_18a8bdfd91c7e3bc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgomp1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgomp1_14.2.0-19_amd64.deb",
+          "sha256": "72b7a1a33c48f3195efeb044111b34ae684b1e640bb6495c832443b798601cd5",
+          "bytes": 137148,
+          "file": "libgomp1_72b7a1a33c48f319.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgprofng0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libgprofng0_2.44-3_amd64.deb",
+          "sha256": "0d36d0bde85c467ac6735dded08e19dd30ae1369e3908b9eb48ccc0d6ff66648",
+          "bytes": 807764,
+          "file": "libgprofng0_0d36d0bde85c467a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgssapi-krb5-2",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libgssapi-krb5-2_1.21.3-5%2bdeb13u1_amd64.deb",
+          "sha256": "30847c1fde4240567d7ed3aeab4f655dd591203758b857e85e824045aae70299",
+          "bytes": 138356,
+          "file": "libgssapi-krb5-2_30847c1fde424056.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libhogweed6t64",
+          "version": "3.10.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nettle/libhogweed6t64_3.10.1-1_amd64.deb",
+          "sha256": "b059ed155115ac09da295322de48ee1ed58ef5fa45edcc9e12ff0e94636ef25f",
+          "bytes": 335240,
+          "file": "libhogweed6t64_b059ed155115ac09.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libhwasan0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libhwasan0_14.2.0-19_amd64.deb",
+          "sha256": "2cdaf797cad8ac30a964ab081370682dd065ae1b0305a0be9d8e0e14cd0657d7",
+          "bytes": 1487768,
+          "file": "libhwasan0_2cdaf797cad8ac30.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libidn2-0",
+          "version": "2.3.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libi/libidn2/libidn2-0_2.3.8-2_amd64.deb",
+          "sha256": "90b039bcdc4578f8e1c4935adf8dbb525e36a164deefdbbb8c45bac347d48278",
+          "bytes": 109096,
+          "file": "libidn2-0_90b039bcdc4578f8.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libisl23",
+          "version": "0.27-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/i/isl/libisl23_0.27-1_amd64.deb",
+          "sha256": "ac8518042e81c00de1effb72bba7e88ac4ecd488f7ea8b9e3ebc63159cb53b35",
+          "bytes": 659152,
+          "file": "libisl23_ac8518042e81c00d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libitm1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libitm1_14.2.0-19_amd64.deb",
+          "sha256": "febdb3c528cde1a3abe952e17a1d3cfa7ccaca5b6f506d983d34385dad199490",
+          "bytes": 25956,
+          "file": "libitm1_febdb3c528cde1a3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libjansson4",
+          "version": "2.14-2+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/j/jansson/libjansson4_2.14-2%2bb3_amd64.deb",
+          "sha256": "60707a62fe6c1228c3389b12a13ca4efd76defc5532473e547a29e99cf7d2a6e",
+          "bytes": 39792,
+          "file": "libjansson4_60707a62fe6c1228.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libjq1",
+          "version": "1.7.1-6+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/j/jq/libjq1_1.7.1-6%2bdeb13u4_amd64.deb",
+          "sha256": "70bb2cbd66d5ada4349067ae9f61d0560b3b359d4203f2c051ca5773153ae0ba",
+          "bytes": 167808,
+          "file": "libjq1_70bb2cbd66d5ada4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libjsoncpp26",
+          "version": "1.9.6-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libj/libjsoncpp/libjsoncpp26_1.9.6-3_amd64.deb",
+          "sha256": "fd0b75839fe7b1a08df49e4203b1fb042df4f7d982db8d91c1fd7bdbcd4b1460",
+          "bytes": 81684,
+          "file": "libjsoncpp26_fd0b75839fe7b1a0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libk5crypto3",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libk5crypto3_1.21.3-5%2bdeb13u1_amd64.deb",
+          "sha256": "7da07ee674b47f1f0be7cc89317c25310086a1f1761217d0f72e6ae2c5a69b84",
+          "bytes": 81152,
+          "file": "libk5crypto3_7da07ee674b47f1f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkeyutils1",
+          "version": "1.6.3-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/keyutils/libkeyutils1_1.6.3-6_amd64.deb",
+          "sha256": "0b11ad17be0300b63ad4eeb4c6450fed24d34b7b740f23e5363dcb29ee6d5eba",
+          "bytes": 9456,
+          "file": "libkeyutils1_0b11ad17be0300b6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkrb5-3",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5-3_1.21.3-5%2bdeb13u1_amd64.deb",
+          "sha256": "47d71d6a7f2e59b9bae5f89602397594805113b95889ad18fa703cd53abafc97",
+          "bytes": 326056,
+          "file": "libkrb5-3_47d71d6a7f2e59b9.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkrb5support0",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5support0_1.21.3-5%2bdeb13u1_amd64.deb",
+          "sha256": "3a0acd8b37955c0e102c756b52c97df2a31f67b96453c35dab70df218d309117",
+          "bytes": 33124,
+          "file": "libkrb5support0_3a0acd8b37955c0e.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libldap2",
+          "version": "2.6.10+dfsg-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/o/openldap/libldap2_2.6.10%2bdfsg-1_amd64.deb",
+          "sha256": "60069e4a550ca890113fa89d3001417781b18e146ec5d637d31e368dec9909bd",
+          "bytes": 193576,
+          "file": "libldap2_60069e4a550ca890.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libllvm19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libllvm19_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "db0d614d61345ca710fb73e75105f1ec6e38898fa7b3aa99fa7eb7d8b0a11d57",
+          "bytes": 25978316,
+          "file": "libllvm19_db0d614d61345ca7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblsan0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/liblsan0_14.2.0-19_amd64.deb",
+          "sha256": "a0df07da76287a45e665d584363dc2a6a1c4e240aee41b8bbc0f67cdff97cd68",
+          "bytes": 1204164,
+          "file": "liblsan0_a0df07da76287a45.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblz4-1",
+          "version": "1.10.0-4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-4_amd64.deb",
+          "sha256": "c31ec4c7c82755a38b2f3fe066fc0c5518cc91a601a268fbcd19bdacb1f22e1e",
+          "bytes": 63900,
+          "file": "liblz4-1_c31ec4c7c82755a3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblzma5",
+          "version": "5.8.1-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.8.1-1%2bdeb13u1_amd64.deb",
+          "sha256": "1cfcc6e0dc36f438a79b6e2189facdb9d150b08f57d190a60e01c98075c7f896",
+          "bytes": 309492,
+          "file": "liblzma5_1cfcc6e0dc36f438.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libmd0",
+          "version": "1.1.0-2+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libm/libmd/libmd0_1.1.0-2%2bb1_amd64.deb",
+          "sha256": "7244ec3839b61fac0c1884fe08aaa040f26e8f1f35f1f5d3482eacefd30d1b44",
+          "bytes": 36272,
+          "file": "libmd0_7244ec3839b61fac.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libmpc3",
+          "version": "1.3.1-1+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/mpclib3/libmpc3_1.3.1-1%2bb3_amd64.deb",
+          "sha256": "2af0a5c128e03694a41c0b011bd8a958b7297436cdb3a15ddad7866dae8c300b",
+          "bytes": 52244,
+          "file": "libmpc3_2af0a5c128e03694.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libmpfr6",
+          "version": "4.2.2-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/mpfr4/libmpfr6_4.2.2-1_amd64.deb",
+          "sha256": "75dddce11dabc7fc543712c33dc27b7f2ee66a111763eb5eac654d010b42cd92",
+          "bytes": 729320,
+          "file": "libmpfr6_75dddce11dabc7fc.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libncursesw6",
+          "version": "6.5+20250216-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.5%2b20250216-2_amd64.deb",
+          "sha256": "47baa2e11579583654583a066b69bd5a5d2f22423081f707ed6c0c3ba6d538b7",
+          "bytes": 135484,
+          "file": "libncursesw6_47baa2e115795836.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnettle8t64",
+          "version": "3.10.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nettle/libnettle8t64_3.10.1-1_amd64.deb",
+          "sha256": "1b03d4a9cd9c8143ba50fe6396f36937e901a317d492d179f4596862c1731cfe",
+          "bytes": 305436,
+          "file": "libnettle8t64_1b03d4a9cd9c8143.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnghttp2-14",
+          "version": "1.64.0-1.1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nghttp2/libnghttp2-14_1.64.0-1.1%2bdeb13u1_amd64.deb",
+          "sha256": "896cb217537c09251fb909b8541349010ac279d802d871e98c06a62a2c67ce2c",
+          "bytes": 76188,
+          "file": "libnghttp2-14_896cb217537c0925.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnghttp3-9",
+          "version": "1.8.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nghttp3/libnghttp3-9_1.8.0-1_amd64.deb",
+          "sha256": "388e4c33b72829cbf0d098afdc8539fa5ba7458eddb077f5538fdb4d5538716b",
+          "bytes": 67656,
+          "file": "libnghttp3-9_388e4c33b72829cb.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libngtcp2-16",
+          "version": "1.11.0-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-16_1.11.0-1%2bdeb13u1_amd64.deb",
+          "sha256": "627eec81ebbd48c4e6091f5cd9dc5070b792b7075000eed60ab08c7daa961caf",
+          "bytes": 131904,
+          "file": "libngtcp2-16_627eec81ebbd48c4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libngtcp2-crypto-gnutls8",
+          "version": "1.11.0-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-crypto-gnutls8_1.11.0-1%2bdeb13u1_amd64.deb",
+          "sha256": "2a7f109c0c4db6a800e4661c5e5e34e1f1f83c8162482276183d1ada9da7c96c",
+          "bytes": 29524,
+          "file": "libngtcp2-crypto-gnutls8_2a7f109c0c4db6a8.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libobjc-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libobjc-14-dev_14.2.0-19_amd64.deb",
+          "sha256": "60f8a34f94d46b0ae8d48335525bfaae3daef93c56d6b8bce0e76118e44a9136",
+          "bytes": 172516,
+          "file": "libobjc-14-dev_60f8a34f94d46b0a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libobjc4",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libobjc4_14.2.0-19_amd64.deb",
+          "sha256": "d48411ec79114d5941256dddb1720fc65cbe4733285b29d5ecc87eb452ab30d9",
+          "bytes": 43280,
+          "file": "libobjc4_d48411ec79114d59.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libonig5",
+          "version": "6.9.9-1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libo/libonig/libonig5_6.9.9-1%2bb1_amd64.deb",
+          "sha256": "3abee130696244050500bcc7870e3b4cb82ddd87149ece3fd55010c3d4e1d18c",
+          "bytes": 189396,
+          "file": "libonig5_3abee13069624405.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libp11-kit0",
+          "version": "0.25.5-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/p11-kit/libp11-kit0_0.25.5-3_amd64.deb",
+          "sha256": "784bf2063e166c8bc851a32623b74ebd85c499043a9d57c5bbd64fa63447f45a",
+          "bytes": 425240,
+          "file": "libp11-kit0_784bf2063e166c8b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpcre2-8-0",
+          "version": "10.46-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1%7edeb13u3_amd64.deb",
+          "sha256": "e226f661d918f04daf38cdbc4806b7ed7d6ef95c7eb0ade692fc350e31970040",
+          "bytes": 299148,
+          "file": "libpcre2-8-0_e226f661d918f04d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libperl5.40",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/libperl5.40_5.40.1-6%2bdeb13u1_amd64.deb",
+          "sha256": "e44777ff47ad248d1debd57e1f96ab5e89061a341008ae39880ba3b5fc15f273",
+          "bytes": 4325996,
+          "file": "libperl5.40_e44777ff47ad248d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libproc2-0",
+          "version": "2:4.0.4-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/procps/libproc2-0_4.0.4-9_amd64.deb",
+          "sha256": "c9d61caab1b2ddfc3f17edb95be31b9809fcb2daf27d853dff615bc4ebd08b4b",
+          "bytes": 65596,
+          "file": "libproc2-0_c9d61caab1b2ddfc.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libpsl5t64",
+          "version": "0.21.2-1.1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libp/libpsl/libpsl5t64_0.21.2-1.1%2bb1_amd64.deb",
+          "sha256": "59d42bb1f9ebc0d1776fe616efb08a7a8568b05982e00f70b03c63863db768ab",
+          "bytes": 57188,
+          "file": "libpsl5t64_59d42bb1f9ebc0d1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3-stdlib",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/libpython3-stdlib_3.13.5-1_amd64.deb",
+          "sha256": "7e142ed64a81ccdd39714f213467bd365736ef341adb2be11be981f638b9175f",
+          "bytes": 10180,
+          "file": "libpython3-stdlib_7e142ed64a81ccdd.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3.13-minimal",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/libpython3.13-minimal_3.13.5-2%2bdeb13u5_amd64.deb",
+          "sha256": "a4aa6a9a8c77f87bfe545e1d14ec42c001d189ace90e3aa75deec882b39dee49",
+          "bytes": 863168,
+          "file": "libpython3.13-minimal_a4aa6a9a8c77f87b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3.13-stdlib",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/libpython3.13-stdlib_3.13.5-2%2bdeb13u5_amd64.deb",
+          "sha256": "db161322a3481d2c0c3b9a3b9a03c3ab0e2b1718f54b88755fb4a3f939165b84",
+          "bytes": 1958624,
+          "file": "libpython3.13-stdlib_db161322a3481d2c.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libquadmath0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libquadmath0_14.2.0-19_amd64.deb",
+          "sha256": "f5b51cf0ece3ec3bb7494d0cdbff3ce715ae00cfb2b6ed787f7db91319d64a7b",
+          "bytes": 145068,
+          "file": "libquadmath0_f5b51cf0ece3ec3b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libreadline8t64",
+          "version": "8.2-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/readline/libreadline8t64_8.2-6_amd64.deb",
+          "sha256": "eeadf2b5e755c9f183883feea2d9b5b28560284275d5f54d3e55d0923b1d0967",
+          "bytes": 168832,
+          "file": "libreadline8t64_eeadf2b5e755c9f1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "librhash1",
+          "version": "1.4.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rhash/librhash1_1.4.5-1_amd64.deb",
+          "sha256": "9bf56d7d8ce3e7680a0dd8e3cfe8acdf50e0aa3b98b0a907cf744a4d1711af72",
+          "bytes": 132184,
+          "file": "librhash1_9bf56d7d8ce3e768.deb",
+          "pack": "build"
+        },
+        {
+          "name": "librtmp1",
+          "version": "2.4+20151223.gitfa8646d.1-2+b5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rtmpdump/librtmp1_2.4%2b20151223.gitfa8646d.1-2%2bb5_amd64.deb",
+          "sha256": "93baa2004cbe6c8721b9e81beed078612540aef120970b4751305c51c6697368",
+          "bytes": 58840,
+          "file": "librtmp1_93baa2004cbe6c87.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsasl2-2",
+          "version": "2.1.28+dfsg1-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-2_2.1.28%2bdfsg1-9_amd64.deb",
+          "sha256": "66e49d7ae026811b49a0050f18b0325960a2625ffd1ff60d91b7844a815fa9d2",
+          "bytes": 57512,
+          "file": "libsasl2-2_66e49d7ae026811b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsasl2-modules-db",
+          "version": "2.1.28+dfsg1-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-modules-db_2.1.28%2bdfsg1-9_amd64.deb",
+          "sha256": "a5c38659fbd62c33c6d9bfa2be43e75a572d1818531aad32dd74d0a58cc4bd19",
+          "bytes": 19768,
+          "file": "libsasl2-modules-db_a5c38659fbd62c33.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libselinux1",
+          "version": "3.8.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1_3.8.1-1_amd64.deb",
+          "sha256": "68bb8d32bd8d6d7d2f5952a169db03d1484b46ae1e52abccdec42a19dccea5d5",
+          "bytes": 84680,
+          "file": "libselinux1_68bb8d32bd8d6d7d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsframe1",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libsframe1_2.44-3_amd64.deb",
+          "sha256": "38f625dfdc582717029ac3a3e97c51d994ec2e7a0e9b230c6b44e40d1276311f",
+          "bytes": 78360,
+          "file": "libsframe1_38f625dfdc582717.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libsqlite3-0",
+          "version": "3.46.1-7+deb13u2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-0_3.46.1-7%2bdeb13u2_amd64.deb",
+          "sha256": "0a459adaffd901109f7811ab65f58e7a957b4907d05539cf3d1184efdcde0468",
+          "bytes": 914584,
+          "file": "libsqlite3-0_0a459adaffd90110.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libssh2-1t64",
+          "version": "1.11.1-1+deb13u2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libs/libssh2/libssh2-1t64_1.11.1-1%2bdeb13u2_amd64.deb",
+          "sha256": "dbb1024c192d4d292b7cfa902b96076cfe81b56a5eed4fb28da36e8bf543e49a",
+          "bytes": 245240,
+          "file": "libssh2-1t64_dbb1024c192d4d29.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libssl3t64",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/libssl3t64_3.5.7-1%7edeb13u3_amd64.deb",
+          "sha256": "ff16bc048bcd7d1b256094450b79c77947d8e76fe2a24bd99b91021d591fa074",
+          "bytes": 2458176,
+          "file": "libssl3t64_ff16bc048bcd7d1b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libstdc++-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libstdc%2b%2b-14-dev_14.2.0-19_amd64.deb",
+          "sha256": "4b962fac5f1af0bd8b1b3f97e0f47b9d8e9a79e88802143f00ebfbd78ad87a7b",
+          "bytes": 2375760,
+          "file": "libstdc++-14-dev_4b962fac5f1af0bd.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libstdc++6",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libstdc%2b%2b6_14.2.0-19_amd64.deb",
+          "sha256": "ab1fa05837aa7a92aae748fd07a18a35f7d18bb4a71c4724fe2bbf0e32089de0",
+          "bytes": 713628,
+          "file": "libstdc++6_ab1fa05837aa7a92.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libsystemd0",
+          "version": "257.13-1~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd0_257.13-1%7edeb13u1_amd64.deb",
+          "sha256": "ab0d4127b5e46e6f8c015a1db15a62ba9ae274cdefa150083adf90ada0600ea1",
+          "bytes": 454648,
+          "file": "libsystemd0_ab0d4127b5e46e6f.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libtasn1-6",
+          "version": "4.20.0-2+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libt/libtasn1-6/libtasn1-6_4.20.0-2%2bdeb13u1_amd64.deb",
+          "sha256": "23fec6e06583ce2bad9b2c04c9b485e90440e259b1abf8677cd80d3ce60831ad",
+          "bytes": 50112,
+          "file": "libtasn1-6_23fec6e06583ce2b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libtinfo6",
+          "version": "6.5+20250216-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5%2b20250216-2_amd64.deb",
+          "sha256": "8b9f6a7983e9418564e48a627518de4c03917b56efe68d7f3e93bd8fffa1cc10",
+          "bytes": 348380,
+          "file": "libtinfo6_8b9f6a7983e94185.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libtsan2",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libtsan2_14.2.0-19_amd64.deb",
+          "sha256": "529d7f68227d16975076c5f842e8b687faea1b5df8e0dcf62e436d5402844ca5",
+          "bytes": 2460216,
+          "file": "libtsan2_529d7f68227d1697.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libubsan1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libubsan1_14.2.0-19_amd64.deb",
+          "sha256": "9205a1bef7d6a52ffc06548e0cde169ff303e688c12d9be3a98f734449077e22",
+          "bytes": 1074340,
+          "file": "libubsan1_9205a1bef7d6a52f.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libunistring5",
+          "version": "1.3-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libu/libunistring/libunistring5_1.3-2_amd64.deb",
+          "sha256": "6dd3490bef06ea1096f32d10766b7e016cf579bfae8451d1b7df15ce05b8aa46",
+          "bytes": 476768,
+          "file": "libunistring5_6dd3490bef06ea10.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libuuid1",
+          "version": "2.41.5-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0%2bdeb13u1_amd64.deb",
+          "sha256": "c1bf4c4c3ff48c57fabf93307dfb56996b60cfa33927afc4158b5db36fb2721e",
+          "bytes": 37848,
+          "file": "libuuid1_c1bf4c4c3ff48c57.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libuv1t64",
+          "version": "1.50.0-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libu/libuv1/libuv1t64_1.50.0-2_amd64.deb",
+          "sha256": "5fec8035002e0c745b64d1c5b3e1dc42790d1a77574315b976cf3e4aab9ddc0a",
+          "bytes": 153752,
+          "file": "libuv1t64_5fec8035002e0c74.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libxml2",
+          "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.12.7%2bdfsg%2breally2.9.14-2.1%2bdeb13u3_amd64.deb",
+          "sha256": "e0c6b63ce4602a036a526f60fe5e6c1586710688058d98fc1001b9b3147b7efd",
+          "bytes": 699724,
+          "file": "libxml2_e0c6b63ce4602a03.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libxxhash0",
+          "version": "0.8.3-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_amd64.deb",
+          "sha256": "81da7064d56fc044f5db4bb3c1e80ff50a4986dcbbf80d958eeca565b44c157f",
+          "bytes": 27096,
+          "file": "libxxhash0_81da7064d56fc044.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libz3-4",
+          "version": "4.13.3-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/z/z3/libz3-4_4.13.3-1_amd64.deb",
+          "sha256": "71383373523ef62d47eccf660cf6535c3febcbb3f88e54cb7a43124014b57359",
+          "bytes": 8560036,
+          "file": "libz3-4_71383373523ef62d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libzstd1",
+          "version": "1.5.7+dfsg-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7%2bdfsg-1_amd64.deb",
+          "sha256": "2f6a2aeacfc925eba8b00ac9139bc4bfccf8cacb09eb93de067074b26948eef9",
+          "bytes": 303836,
+          "file": "libzstd1_2f6a2aeacfc925eb.deb",
+          "pack": "base"
+        },
+        {
+          "name": "linux-libc-dev",
+          "version": "6.12.111-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.12.111-1_all.deb",
+          "sha256": "b9055566f71a6fa2e818174dcc3622aa0fb5d16cdff1bc5346e52492ba27b57c",
+          "bytes": 2988444,
+          "file": "linux-libc-dev_b9055566f71a6fa2.deb",
+          "pack": "build"
+        },
+        {
+          "name": "llvm-19-linker-tools",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/llvm-19-linker-tools_19.1.7-3%2bb1_amd64.deb",
+          "sha256": "874a0a5cde797cda3e94e9310a0a9958608f526f177637414a8ce9620c804818",
+          "bytes": 1263460,
+          "file": "llvm-19-linker-tools_874a0a5cde797cda.deb",
+          "pack": "build"
+        },
+        {
+          "name": "make",
+          "version": "4.4.1-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/make-dfsg/make_4.4.1-2_amd64.deb",
+          "sha256": "70a9709e665383b06068ccd423d62ea191b65355f318a25565dbf324b254cec6",
+          "bytes": 463104,
+          "file": "make_70a9709e665383b0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "media-types",
+          "version": "13.0.0",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/media-types/media-types_13.0.0_all.deb",
+          "sha256": "0788e4b0b72db1bcf74a19cb24c3511e7770ad0b341f0f30e361701c3072f53e",
+          "bytes": 29336,
+          "file": "media-types_0788e4b0b72db1bc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "netbase",
+          "version": "6.5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/netbase/netbase_6.5_all.deb",
+          "sha256": "76bafa92947ebd37b0a6f9ec6570412041f56edebc1c66d323731216d318471e",
+          "bytes": 12436,
+          "file": "netbase_76bafa92947ebd37.deb",
+          "pack": "base"
+        },
+        {
+          "name": "openssl-provider-legacy",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl-provider-legacy_3.5.7-1%7edeb13u3_amd64.deb",
+          "sha256": "c12e0266c4780749a4702b8959ac979689f4182e18eed85a8a5eb90ed0e16eab",
+          "bytes": 316452,
+          "file": "openssl-provider-legacy_c12e0266c4780749.deb",
+          "pack": "base"
+        },
+        {
+          "name": "openssl",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.5.7-1%7edeb13u3_amd64.deb",
+          "sha256": "43a9cbcf2a8a0e1f0a1c3f5a33ee1f56b269690e7a2129f2b2d0582e789589d7",
+          "bytes": 1508068,
+          "file": "openssl_43a9cbcf2a8a0e1f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "patch",
+          "version": "2.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/patch/patch_2.8-2_amd64.deb",
+          "sha256": "80c46a0085b33acc74bf451fddb6a70cb43d4ebcc4a873aec04d8d0a63ffc630",
+          "bytes": 134328,
+          "file": "patch_80c46a0085b33acc.deb",
+          "pack": "build"
+        },
+        {
+          "name": "perl-base",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl-base_5.40.1-6%2bdeb13u1_amd64.deb",
+          "sha256": "b795464137a0f4d443fc9284f4b93e883fb83883cb533adf300ac660807a352a",
+          "bytes": 1666320,
+          "file": "perl-base_b795464137a0f4d4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "perl-modules-5.40",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl-modules-5.40_5.40.1-6%2bdeb13u1_all.deb",
+          "sha256": "4c46cdd8f3135aa1c95f07e817f8e5d9be590687441ac1c27e3a8c49400f35ce",
+          "bytes": 3013728,
+          "file": "perl-modules-5.40_4c46cdd8f3135aa1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "perl",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl_5.40.1-6%2bdeb13u1_amd64.deb",
+          "sha256": "ef145c247787d6f40dcdefd5b417502484827cde0d555998c17fd5b27ec1e1dd",
+          "bytes": 267736,
+          "file": "perl_ef145c247787d6f4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "procps",
+          "version": "2:4.0.4-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/procps/procps_4.0.4-9_amd64.deb",
+          "sha256": "4db90bb6776772fc52585d6b1fbfc52ec2a85480e1b4363b743fbb2ffa2a5375",
+          "bytes": 882088,
+          "file": "procps_4db90bb6776772fc.deb",
+          "pack": "build"
+        },
+        {
+          "name": "python3-minimal",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3-minimal_3.13.5-1_amd64.deb",
+          "sha256": "a5d2371bebf3689f676e3f3bae800371bcc4392a8a51269e23d528249b399615",
+          "bytes": 27248,
+          "file": "python3-minimal_a5d2371bebf3689f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3.13-minimal",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13-minimal_3.13.5-2%2bdeb13u5_amd64.deb",
+          "sha256": "c1fda9e7b1bf15b2fa75a238d8a8710e142fe14c722fc650c5fc614f078c9073",
+          "bytes": 2224552,
+          "file": "python3.13-minimal_c1fda9e7b1bf15b2.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3.13",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13_3.13.5-2%2bdeb13u5_amd64.deb",
+          "sha256": "460c1fd72845516ac3ce9d1686916f3ab2e4c86f8a9746e14d26243a47e2b98d",
+          "bytes": 757492,
+          "file": "python3.13_460c1fd72845516a.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3_3.13.5-1_amd64.deb",
+          "sha256": "c1388174dc7140e6c19a6dd39f8a0dcb38a835cd66c65644e0dded43d5223cb0",
+          "bytes": 28244,
+          "file": "python3_c1388174dc7140e6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "readline-common",
+          "version": "8.2-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-6_all.deb",
+          "sha256": "f77e8aa0bf0de618f11cb0b21658a4ed60f177d63b3cf26d7fc3706b6d0eaaa9",
+          "bytes": 69360,
+          "file": "readline-common_f77e8aa0bf0de618.deb",
+          "pack": "base"
+        },
+        {
+          "name": "ripgrep",
+          "version": "14.1.1-1+b4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rust-ripgrep/ripgrep_14.1.1-1%2bb4_amd64.deb",
+          "sha256": "7e0c32510c264c31335fe3b9ae37ab76dcd22f7d1627a0a08518a5bf28b17ac2",
+          "bytes": 1433568,
+          "file": "ripgrep_7e0c32510c264c31.deb",
+          "pack": "base"
+        },
+        {
+          "name": "rpcsvc-proto",
+          "version": "1.4.3-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rpcsvc-proto/rpcsvc-proto_1.4.3-1_amd64.deb",
+          "sha256": "32ac0692694f8a34cc90c895f4fc739680fb2ef0e2d4870a68833682bf1c81a3",
+          "bytes": 63268,
+          "file": "rpcsvc-proto_32ac0692694f8a34.deb",
+          "pack": "build"
+        },
+        {
+          "name": "tar",
+          "version": "1.35+dfsg-3.1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/t/tar/tar_1.35%2bdfsg-3.1_amd64.deb",
+          "sha256": "214c02e1aa291076a3147b8a4c4cae02fadf4c67df629186e3e313726faef1de",
+          "bytes": 814968,
+          "file": "tar_214c02e1aa291076.deb",
+          "pack": "base"
+        },
+        {
+          "name": "tzdata",
+          "version": "2026c-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/t/tzdata/tzdata_2026c-0%2bdeb13u1_all.deb",
+          "sha256": "813b9bbbe14ccda2b24617b8bade0ade4d745957e75921766c153d249886bd4c",
+          "bytes": 264156,
+          "file": "tzdata_813b9bbbe14ccda2.deb",
+          "pack": "base"
+        },
+        {
+          "name": "unzip",
+          "version": "6.0-29+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/u/unzip/unzip_6.0-29%2bdeb13u1_amd64.deb",
+          "sha256": "fc11f8736bdec6fc46a6864f75bce0c8206a790df37dbcab5ddb25b1bf0f58f0",
+          "bytes": 172916,
+          "file": "unzip_fc11f8736bdec6fc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "xz-utils",
+          "version": "5.8.1-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xz-utils/xz-utils_5.8.1-1%2bdeb13u1_amd64.deb",
+          "sha256": "9e0a39d95373afdaad3c9dfaab3c8b0beb9a2c4654e6be10b4bcf458509a3217",
+          "bytes": 659488,
+          "file": "xz-utils_9e0a39d95373afda.deb",
+          "pack": "build"
+        },
+        {
+          "name": "zlib1g",
+          "version": "1:1.3.dfsg+really1.3.1-1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg%2breally1.3.1-1%2bb1_amd64.deb",
+          "sha256": "015be740d6236ad114582dea500c1d907f29e16d6db00566ca32fb68d71ac90d",
+          "bytes": 88892,
+          "file": "zlib1g_015be740d6236ad1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "node",
+          "version": "24.21.0",
+          "kind": "tar",
+          "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.gz",
+          "sha256": "6e1db87ef58b8819e5d5402eff1536491b18edd8eb7bee5ef7897876e88dc5ff",
+          "bytes": 58088022,
+          "file": "node-v24.21.0-linux-x64.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "uv",
+          "version": "0.12.23",
+          "kind": "tar",
+          "source": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6",
+          "bytes": 19906150,
+          "file": "uv-x86_64-unknown-linux-gnu.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "gitleaks",
+          "version": "8.30.1",
+          "kind": "tar",
+          "source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz",
+          "sha256": "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb",
+          "bytes": 8230402,
+          "file": "gitleaks_8.30.1_linux_x64.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "uv-license-mit",
+          "version": "0.12.23",
+          "kind": "license",
+          "source": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-MIT",
+          "sha256": "860e3d7a86b84e6a7012c7a635fc64df475cebc6cce34dfeb73a5982ec58176c",
+          "bytes": 1077,
+          "file": "uv-license-mit",
+          "pack": "base"
+        },
+        {
+          "name": "uv-license-apache",
+          "version": "0.12.23",
+          "kind": "license",
+          "source": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "bytes": 11357,
+          "file": "uv-license-apache",
+          "pack": "base"
+        }
+      ]
+    },
+    "arm64": {
+      "baseDigest": "sha256:a2ca65377c251208de42e1a2722cb949211236c161b634f6f3663754e2d06850",
+      "baseCompressedBytes": 30200282,
+      "artifacts": [
+        {
+          "name": "binutils-aarch64-linux-gnu",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils-aarch64-linux-gnu_2.44-3_arm64.deb",
+          "sha256": "79cbf1459118bce3535133ffbf1fd2adbd57af65271f95c829af5cfa7f474168",
+          "bytes": 820124,
+          "file": "binutils-aarch64-linux-gnu_79cbf1459118bce3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "binutils-common",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils-common_2.44-3_arm64.deb",
+          "sha256": "f2d6b7d0b5521c4c90fc105e32819cd5268c1aa69104173b3fb856595f898249",
+          "bytes": 2508772,
+          "file": "binutils-common_f2d6b7d0b5521c4c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "binutils",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/binutils_2.44-3_arm64.deb",
+          "sha256": "7228716cad15e78d1571f1cd4ec7141f64608790d0fbcba23a07f2eda6298272",
+          "bytes": 261580,
+          "file": "binutils_7228716cad15e78d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "build-essential",
+          "version": "12.12",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/build-essential/build-essential_12.12_arm64.deb",
+          "sha256": "3278c93c699f9c12b6f7fe8e03393aa50d1c6b1c4b35da8f15b1c7bae67dc961",
+          "bytes": 4624,
+          "file": "build-essential_3278c93c699f9c12.deb",
+          "pack": "build"
+        },
+        {
+          "name": "bzip2",
+          "version": "1.0.8-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/bzip2/bzip2_1.0.8-6_arm64.deb",
+          "sha256": "9fa8514c3fb3f363e7fa8bc85f699aaf15e747afaf220c57b978e9b74fd568bc",
+          "bytes": 39492,
+          "file": "bzip2_9fa8514c3fb3f363.deb",
+          "pack": "build"
+        },
+        {
+          "name": "ca-certificates",
+          "version": "20250419",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/ca-certificates/ca-certificates_20250419_all.deb",
+          "sha256": "ef590f89563aa4b46c8260d49d1cea0fc1b181d19e8df3782694706adf05c184",
+          "bytes": 161704,
+          "file": "ca-certificates_ef590f89563aa4b4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "clang-19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/clang-19_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "4cb5d48c887e0c1071a058ae8eb30540db77379be50388fcd6b3f9ad1016d54c",
+          "bytes": 112840,
+          "file": "clang-19_4cb5d48c887e0c10.deb",
+          "pack": "build"
+        },
+        {
+          "name": "clang",
+          "version": "1:19.0-63",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-defaults/clang_19.0-63_arm64.deb",
+          "sha256": "a9fca67115f164c782fc9acbefeffbc723b8a65efcfe97714440635c3cb4bb11",
+          "bytes": 6244,
+          "file": "clang_a9fca67115f164c7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cmake-data",
+          "version": "3.31.6-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cmake/cmake-data_3.31.6-2_all.deb",
+          "sha256": "d9060145be892f43cd1888024114ceab019c81479d4b0a3383fe14cebe2295cb",
+          "bytes": 2268208,
+          "file": "cmake-data_d9060145be892f43.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cmake",
+          "version": "3.31.6-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cmake/cmake_3.31.6-2_arm64.deb",
+          "sha256": "983aa00debd072f7bfae69f93b1b9e4628da0a914c3745b9022e4cd60215493b",
+          "bytes": 9905888,
+          "file": "cmake_983aa00debd072f7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-14-aarch64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/cpp-14-aarch64-linux-gnu_14.2.0-19_arm64.deb",
+          "sha256": "8e588ac3efe06f7784b08feac584c70e6965b74c045bae7e4e80bb42938f7dbe",
+          "bytes": 9168888,
+          "file": "cpp-14-aarch64-linux-gnu_8e588ac3efe06f77.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/cpp-14_14.2.0-19_arm64.deb",
+          "sha256": "0b440241f7c3e2e87f2d0f1dd36792c4e2705d38a699ed331818799f21ef9437",
+          "bytes": 1276,
+          "file": "cpp-14_0b440241f7c3e2e8.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp-aarch64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/cpp-aarch64-linux-gnu_14.2.0-1_arm64.deb",
+          "sha256": "bd9c9f4536a0aea285c4735d2dfedff624f8457b8f1bb3d15ab924e029cd7aff",
+          "bytes": 4832,
+          "file": "cpp-aarch64-linux-gnu_bd9c9f4536a0aea2.deb",
+          "pack": "build"
+        },
+        {
+          "name": "cpp",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/cpp_14.2.0-1_arm64.deb",
+          "sha256": "88b702b0fa5942a4ee52c27f1ccf6316b831357e86693b709d216ba43348172e",
+          "bytes": 1568,
+          "file": "cpp_88b702b0fa5942a4.deb",
+          "pack": "build"
+        },
+        {
+          "name": "curl",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/curl_8.14.1-2%2bdeb13u5_arm64.deb",
+          "sha256": "3ea9ea868ffaddb2aba840b52dcd1e59b74dbe625f0c4c4e2458c9d01bc03e6f",
+          "bytes": 262460,
+          "file": "curl_3ea9ea868ffaddb2.deb",
+          "pack": "base"
+        },
+        {
+          "name": "debconf",
+          "version": "1.5.91",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/debconf/debconf_1.5.91_all.deb",
+          "sha256": "1ddc7e6c5925f748eefb7ca811d98e049f18c158bb21fbc7e122262ce6011e49",
+          "bytes": 121088,
+          "file": "debconf_1ddc7e6c5925f748.deb",
+          "pack": "base"
+        },
+        {
+          "name": "dpkg-dev",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/dpkg-dev_1.22.22_all.deb",
+          "sha256": "6d4020421740a70e1fb9c41b07f8bb8306d93aef6fea1a8ce11a1f839921f414",
+          "bytes": 1337268,
+          "file": "dpkg-dev_6d4020421740a70e.deb",
+          "pack": "build"
+        },
+        {
+          "name": "dpkg",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/dpkg_1.22.22_arm64.deb",
+          "sha256": "1142468e57f69e13d174f517dff739508c61ee97d81c182c120cd6b281d8cdfa",
+          "bytes": 1521436,
+          "file": "dpkg_1142468e57f69e13.deb",
+          "pack": "base"
+        },
+        {
+          "name": "fd-find",
+          "version": "10.2.0-1+b5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rust-fd-find/fd-find_10.2.0-1%2bb5_arm64.deb",
+          "sha256": "f29605eb3a63303af941fd2d8e9f40ad0c0d2c3f46089522c39132680e6d19b8",
+          "bytes": 901384,
+          "file": "fd-find_f29605eb3a63303a.deb",
+          "pack": "base"
+        },
+        {
+          "name": "g++-14-aarch64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/g%2b%2b-14-aarch64-linux-gnu_14.2.0-19_arm64.deb",
+          "sha256": "411dac8f1c1d0293e58deddeb170c641ad82c56d51a95f056ee12ba02c24288b",
+          "bytes": 10059100,
+          "file": "g++-14-aarch64-linux-gnu_411dac8f1c1d0293.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/g%2b%2b-14_14.2.0-19_arm64.deb",
+          "sha256": "f4813643994aa96c527e687c9c7d01855aa5fdd86e63cc8bd05c63ecc9373796",
+          "bytes": 22540,
+          "file": "g++-14_f4813643994aa96c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++-aarch64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/g%2b%2b-aarch64-linux-gnu_14.2.0-1_arm64.deb",
+          "sha256": "655d9a7cb70b0342f5f1bf4f2a7b0241df15d49ab9a2567445c785b7592122f9",
+          "bytes": 1200,
+          "file": "g++-aarch64-linux-gnu_655d9a7cb70b0342.deb",
+          "pack": "build"
+        },
+        {
+          "name": "g++",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/g%2b%2b_14.2.0-1_arm64.deb",
+          "sha256": "e4b8f8fae7c838c40b9db29251b152c9af03a4d4463388d69efdda66c4e97e79",
+          "bytes": 1332,
+          "file": "g++_e4b8f8fae7c838c4.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-14-aarch64-linux-gnu",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-aarch64-linux-gnu_14.2.0-19_arm64.deb",
+          "sha256": "5ff736a332ba5d60ad463355ed25c8c39da1281acf9155cc2f8a55fc1d478be8",
+          "bytes": 17686496,
+          "file": "gcc-14-aarch64-linux-gnu_5ff736a332ba5d60.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-14-base",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14-base_14.2.0-19_arm64.deb",
+          "sha256": "34ee90679b018c0e64234747a4c4c0ae6b7f63541115037465a8627c2dfbc594",
+          "bytes": 49444,
+          "file": "gcc-14-base_34ee90679b018c0e.deb",
+          "pack": "base"
+        },
+        {
+          "name": "gcc-14",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/gcc-14_14.2.0-19_arm64.deb",
+          "sha256": "f4ba77903d7efc3c64c69a8a98c7efa8ea1ae4331521bb74abd76bcc43f1b576",
+          "bytes": 529264,
+          "file": "gcc-14_f4ba77903d7efc3c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc-aarch64-linux-gnu",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc-aarch64-linux-gnu_14.2.0-1_arm64.deb",
+          "sha256": "c8390408ed90cc96d4fead68e313ed5ce147f1654807c23235818d535d2d7d7e",
+          "bytes": 1440,
+          "file": "gcc-aarch64-linux-gnu_c8390408ed90cc96.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gcc",
+          "version": "4:14.2.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-defaults/gcc_14.2.0-1_arm64.deb",
+          "sha256": "f543b52e29a6780a78c73cf08e551e8e524d623c1092c477cfd8beb5285a86f5",
+          "bytes": 5136,
+          "file": "gcc_f543b52e29a6780a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "gh",
+          "version": "2.46.0-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gh/gh_2.46.0-3_arm64.deb",
+          "sha256": "4f17755b8325f60cf970ef651c712a39f75aee5766b8fdeb736a1cfa29ccdafa",
+          "bytes": 6578096,
+          "file": "gh_4f17755b8325f60c.deb",
+          "pack": "base"
+        },
+        {
+          "name": "git-man",
+          "version": "1:2.47.3-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/git/git-man_2.47.3-0%2bdeb13u1_all.deb",
+          "sha256": "b58306b60e1dff920e1e18bc7e1e499f2ef75184190ab3d98657b165969bf7c9",
+          "bytes": 2204692,
+          "file": "git-man_b58306b60e1dff92.deb",
+          "pack": "base"
+        },
+        {
+          "name": "git",
+          "version": "1:2.47.3-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/git/git_2.47.3-0%2bdeb13u1_arm64.deb",
+          "sha256": "8c6b1e96b226211260d7814472215a8a1ed38ee37400c421d454391c1807cb5a",
+          "bytes": 8665568,
+          "file": "git_8c6b1e96b2262112.deb",
+          "pack": "base"
+        },
+        {
+          "name": "init-system-helpers",
+          "version": "1.69~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/i/init-system-helpers/init-system-helpers_1.69%7edeb13u1_all.deb",
+          "sha256": "addf78073e1cbc5a5508937e11d2571055e29835e00ee8fab52a66775649378f",
+          "bytes": 39360,
+          "file": "init-system-helpers_addf78073e1cbc5a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "jq",
+          "version": "1.7.1-6+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/j/jq/jq_1.7.1-6%2bdeb13u4_arm64.deb",
+          "sha256": "5d77ae282441d3ef0560141d55b4ac562d2cba7a873eb9ad7572ccfe69471ebf",
+          "bytes": 78424,
+          "file": "jq_5d77ae282441d3ef.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libacl1",
+          "version": "2.3.2-2+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/a/acl/libacl1_2.3.2-2%2bb1_arm64.deb",
+          "sha256": "10b2399169e42e6d8db55944116cb2ed61caab997cf700acb83de0b0668e5721",
+          "bytes": 32216,
+          "file": "libacl1_10b2399169e42e6d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libarchive13t64",
+          "version": "3.7.4-4+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/liba/libarchive/libarchive13t64_3.7.4-4%2bdeb13u1_arm64.deb",
+          "sha256": "9dc7897bc1c83b03a69c581018010fbd9723ce199b99433639343d8b3a5bcf81",
+          "bytes": 324064,
+          "file": "libarchive13t64_9dc7897bc1c83b03.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libasan8",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libasan8_14.2.0-19_arm64.deb",
+          "sha256": "5621bd583a3390b45726a8eebe23601f7fad86a25193e5349976cbf17e2bc9ad",
+          "bytes": 2577836,
+          "file": "libasan8_5621bd583a3390b4.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libatomic1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libatomic1_14.2.0-19_arm64.deb",
+          "sha256": "7ccff90234484bf21ae5ecb79d25b6a84b2f4038f65dd139085b2e3a937cd8dc",
+          "bytes": 10128,
+          "file": "libatomic1_7ccff90234484bf2.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbinutils",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libbinutils_2.44-3_arm64.deb",
+          "sha256": "c51c0cc0272202d00fc3e6da8b96bfed2a428c239b689363abddd3bac6bd7a02",
+          "bytes": 660392,
+          "file": "libbinutils_c51c0cc0272202d0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbrotli1",
+          "version": "1.1.0-2+b7",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/brotli/libbrotli1_1.1.0-2%2bb7_arm64.deb",
+          "sha256": "10270398c4842e71c72b4081fa1761728b3225d6c8dce7c58d5baafe58a5e18f",
+          "bytes": 307600,
+          "file": "libbrotli1_10270398c4842e71.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libbsd0",
+          "version": "0.12.2-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libb/libbsd/libbsd0_0.12.2-2_arm64.deb",
+          "sha256": "6827c1b3ad8dcbf3478803f9150359433e3376a3bde01c4503888a22eb3924e3",
+          "bytes": 128944,
+          "file": "libbsd0_6827c1b3ad8dcbf3.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libbz2-1.0",
+          "version": "1.0.8-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/bzip2/libbz2-1.0_1.0.8-6_arm64.deb",
+          "sha256": "3537fe4fc577a60c8a9568873cd577db7ebc135eb8bb1825f18caf8972d9d2f2",
+          "bytes": 37772,
+          "file": "libbz2-1.0_3537fe4fc577a60c.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libc-dev-bin",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc-dev-bin_2.41-12%2bdeb13u4_arm64.deb",
+          "sha256": "cd4b3bdf404a01792003f4ca400bc602252ab24e0a8c53e45d474d1818dc02e3",
+          "bytes": 59092,
+          "file": "libc-dev-bin_cd4b3bdf404a0179.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libc6-dev",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc6-dev_2.41-12%2bdeb13u4_arm64.deb",
+          "sha256": "71e373cb5e9da975b02fb4af555929cb1977560e2dd8245de4eb8a7b03677a08",
+          "bytes": 1624488,
+          "file": "libc6-dev_71e373cb5e9da975.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libc6",
+          "version": "2.41-12+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.41-12%2bdeb13u4_arm64.deb",
+          "sha256": "8784eda966b189c777a384dac5ce009e8fc9b52d006926c5a013e7fa8aa688cc",
+          "bytes": 2483572,
+          "file": "libc6_8784eda966b189c7.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcap2",
+          "version": "1:2.75-10+deb13u1+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libc/libcap2/libcap2_2.75-10%2bdeb13u1%2bb3_arm64.deb",
+          "sha256": "863aa5b9cdf6f80010b48982d4639126b09a89eeef2c0c5c7be226297c811581",
+          "bytes": 28568,
+          "file": "libcap2_863aa5b9cdf6f800.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcc1-0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libcc1-0_14.2.0-19_arm64.deb",
+          "sha256": "f5e390b5fd65432b820afa403a61ab4d6286948fc07ca3aacb4d230a81f5c9a5",
+          "bytes": 42164,
+          "file": "libcc1-0_f5e390b5fd65432b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang-common-19-dev",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang-common-19-dev_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "fc0f2c5ffd2b2d7cd0119ed4fb1050c5757d0ed20a4f5c0964d8d737c73b0843",
+          "bytes": 740064,
+          "file": "libclang-common-19-dev_fc0f2c5ffd2b2d7c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang-cpp19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang-cpp19_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "9c0465b890bc962467043fa47dd0fc4dbb278422c3fdf7f7f0e1c3e6e8a13620",
+          "bytes": 11983120,
+          "file": "libclang-cpp19_9c0465b890bc9624.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libclang1-19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libclang1-19_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "e0719cbb2bd6bb3b91f471d1fa41b364eae0604774db56a7b3dd8d24738a5f20",
+          "bytes": 6865736,
+          "file": "libclang1-19_e0719cbb2bd6bb3b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcom-err2",
+          "version": "1.47.2-3+b12",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/e/e2fsprogs/libcom-err2_1.47.2-3%2bb12_arm64.deb",
+          "sha256": "1acba7e14a17a3f4b8008454e1a75840a5cdff4259d3c1d369092d82089ea0d8",
+          "bytes": 24932,
+          "file": "libcom-err2_1acba7e14a17a3f4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcrypt-dev",
+          "version": "1:4.4.38-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt-dev_4.4.38-1_arm64.deb",
+          "sha256": "eec6d4658495cdb8ce505cad91e0918edb8086677f280f3851c07ccd70543054",
+          "bytes": 123160,
+          "file": "libcrypt-dev_eec6d4658495cdb8.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcrypt1",
+          "version": "1:4.4.38-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxcrypt/libcrypt1_4.4.38-1_arm64.deb",
+          "sha256": "b9aaa808aa3812b3de3e54eb5dfb16762c1779db032604abef2354c02fdc29b8",
+          "bytes": 91760,
+          "file": "libcrypt1_b9aaa808aa3812b3.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libctf-nobfd0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libctf-nobfd0_2.44-3_arm64.deb",
+          "sha256": "7b1894cbd09bd59507af259ba680a1f5d3b68c6ba9e5d69508ea2d75b3f01be6",
+          "bytes": 152088,
+          "file": "libctf-nobfd0_7b1894cbd09bd595.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libctf0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libctf0_2.44-3_arm64.deb",
+          "sha256": "12cb7df9eafd965c00c38a8720c5b78e7b0106390f69fe180a3b3589f407d550",
+          "bytes": 84232,
+          "file": "libctf0_12cb7df9eafd965c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libcurl3t64-gnutls",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/libcurl3t64-gnutls_8.14.1-2%2bdeb13u5_arm64.deb",
+          "sha256": "e7907dba88227fa61f86e1e3ea198c770cb0a255d506f31d9564278dfba3c898",
+          "bytes": 354020,
+          "file": "libcurl3t64-gnutls_e7907dba88227fa6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libcurl4t64",
+          "version": "8.14.1-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/curl/libcurl4t64_8.14.1-2%2bdeb13u5_arm64.deb",
+          "sha256": "af72e1cd69240a42a76a578e6902b65f9fa641f5e7352e4bfa0ec5aa38d25204",
+          "bytes": 359892,
+          "file": "libcurl4t64_af72e1cd69240a42.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libdb5.3t64",
+          "version": "5.3.28+dfsg2-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/db5.3/libdb5.3t64_5.3.28%2bdfsg2-9_arm64.deb",
+          "sha256": "bfef56508d69fd3f940668f6abd0a466a362cabf63c4cc1c787cc58d28f6e92f",
+          "bytes": 629132,
+          "file": "libdb5.3t64_bfef56508d69fd3f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libdpkg-perl",
+          "version": "1.22.22",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/d/dpkg/libdpkg-perl_1.22.22_all.deb",
+          "sha256": "b41eaeb4879091023f8c1a058510844a244d3d0bd0f437e0e05d58213e36fd9f",
+          "bytes": 650808,
+          "file": "libdpkg-perl_b41eaeb487909102.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libedit2",
+          "version": "3.1-20250104-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libe/libedit/libedit2_3.1-20250104-1_arm64.deb",
+          "sha256": "496c31df89fac9cb7e98102fcc21daf887376dcd9914f6322c86dd5bd4360ff1",
+          "bytes": 89296,
+          "file": "libedit2_496c31df89fac9cb.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liberror-perl",
+          "version": "0.17030-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libe/liberror-perl/liberror-perl_0.17030-1_all.deb",
+          "sha256": "06110a972bdc52f6c6d6615dddbe97f836c61d0e36c685ef4107c2eaa81f871f",
+          "bytes": 26872,
+          "file": "liberror-perl_06110a972bdc52f6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libexpat1",
+          "version": "2.8.3-1~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/e/expat/libexpat1_2.8.3-1%7edeb13u1_arm64.deb",
+          "sha256": "c3248c4beb721c8290e6e34527ae56b1fc965aa6a14982ca602df4458ef0854e",
+          "bytes": 109116,
+          "file": "libexpat1_c3248c4beb721c82.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libffi8",
+          "version": "3.4.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libf/libffi/libffi8_3.4.8-2_arm64.deb",
+          "sha256": "d84a783b818f2386627604e64b793eb4ac5bb9ea1ba321a194a1c9c82fe09a01",
+          "bytes": 21260,
+          "file": "libffi8_d84a783b818f2386.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgc1",
+          "version": "1:8.2.8-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libg/libgc/libgc1_8.2.8-1_arm64.deb",
+          "sha256": "58747952e7bd66396023aa8bf53f5039217fddd750b337dfa13352d4fc07f528",
+          "bytes": 241044,
+          "file": "libgc1_58747952e7bd6639.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgcc-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-14-dev_14.2.0-19_arm64.deb",
+          "sha256": "64b8ebc7182a69aa9525df6eab5e7eb849b947e350d821549f8a8a3e9b19e5ba",
+          "bytes": 2358568,
+          "file": "libgcc-14-dev_64b8ebc7182a69aa.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgcc-s1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgcc-s1_14.2.0-19_arm64.deb",
+          "sha256": "1108bc87879833d6d9a145f22a4a15cddb34e065b4b5f4b97bee586adbac2851",
+          "bytes": 54104,
+          "file": "libgcc-s1_1108bc87879833d6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgdbm-compat4t64",
+          "version": "1.24-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gdbm/libgdbm-compat4t64_1.24-2_arm64.deb",
+          "sha256": "266b9a9e8d1ecc4393ebd29bec7e7c0fe1505b1d8755033af9e15df161316627",
+          "bytes": 50320,
+          "file": "libgdbm-compat4t64_266b9a9e8d1ecc43.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgdbm6t64",
+          "version": "1.24-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gdbm/libgdbm6t64_1.24-2_arm64.deb",
+          "sha256": "329efe726e24a413b9933e298ce24d255973ec111eea0ca721157968fd24156a",
+          "bytes": 74028,
+          "file": "libgdbm6t64_329efe726e24a413.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgmp10",
+          "version": "2:6.3.0+dfsg-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gmp/libgmp10_6.3.0%2bdfsg-3_arm64.deb",
+          "sha256": "a27bbc27f119161ea9702c8dd66f54131cdf0d2ca73000f50ea91ef2fdfef0fb",
+          "bytes": 535088,
+          "file": "libgmp10_a27bbc27f119161e.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgnutls30t64",
+          "version": "3.8.9-3+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gnutls28/libgnutls30t64_3.8.9-3%2bdeb13u4_arm64.deb",
+          "sha256": "337ef41ab360015d051d6a07f85f8aa6706b35712e3dea23157eba9c902196e2",
+          "bytes": 1378804,
+          "file": "libgnutls30t64_337ef41ab360015d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libgomp1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libgomp1_14.2.0-19_arm64.deb",
+          "sha256": "43e84cb7971d8a4d8870cab6204e998ea4f23ee1339bb0ff556dd881bac82d25",
+          "bytes": 123520,
+          "file": "libgomp1_43e84cb7971d8a4d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgprofng0",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libgprofng0_2.44-3_arm64.deb",
+          "sha256": "4642014c84f3d070d889725900fbd23165189597d45deddc7bdcf9928de9e32e",
+          "bytes": 667648,
+          "file": "libgprofng0_4642014c84f3d070.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libgssapi-krb5-2",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libgssapi-krb5-2_1.21.3-5%2bdeb13u1_arm64.deb",
+          "sha256": "70803e8f5b9dd0a7167671bdd0b3cd05642384c1fc49e8270d340d85bf6c7d4c",
+          "bytes": 127624,
+          "file": "libgssapi-krb5-2_70803e8f5b9dd0a7.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libhogweed6t64",
+          "version": "3.10.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nettle/libhogweed6t64_3.10.1-1_arm64.deb",
+          "sha256": "cb92d5a51c4fd6c7b7cbb62aaa60c7af830d0bea5b410fb1f47ee685e26944d1",
+          "bytes": 331628,
+          "file": "libhogweed6t64_cb92d5a51c4fd6c7.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libhwasan0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libhwasan0_14.2.0-19_arm64.deb",
+          "sha256": "5a758db399fafd354b6488c4f250b7670fb1f61c31b4e4f329d0fbb750a17084",
+          "bytes": 1442000,
+          "file": "libhwasan0_5a758db399fafd35.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libidn2-0",
+          "version": "2.3.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libi/libidn2/libidn2-0_2.3.8-2_arm64.deb",
+          "sha256": "d2e5cef812f15db1eeb35f0a193158ee102a9e94284036c0e293521f2761d2d7",
+          "bytes": 107232,
+          "file": "libidn2-0_d2e5cef812f15db1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libisl23",
+          "version": "0.27-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/i/isl/libisl23_0.27-1_arm64.deb",
+          "sha256": "21c490db3fa5f0a517c55090a199334da6164589772ebd922dff1e569c78515d",
+          "bytes": 600836,
+          "file": "libisl23_21c490db3fa5f0a5.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libitm1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libitm1_14.2.0-19_arm64.deb",
+          "sha256": "d6f0255b498af876ab7bf4420672e43cbe58dcd577f0711131cbfbcbee283cdb",
+          "bytes": 24192,
+          "file": "libitm1_d6f0255b498af876.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libjansson4",
+          "version": "2.14-2+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/j/jansson/libjansson4_2.14-2%2bb3_arm64.deb",
+          "sha256": "7938472b1ddfa8b0c8f58d5f44406ae7a77a342dbb502a02f6bf292b4f853ab0",
+          "bytes": 39228,
+          "file": "libjansson4_7938472b1ddfa8b0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libjq1",
+          "version": "1.7.1-6+deb13u4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/j/jq/libjq1_1.7.1-6%2bdeb13u4_arm64.deb",
+          "sha256": "400a7367f8acf48d48776a877a8d08b237804546ab598affd0fe15e6e7ab84e5",
+          "bytes": 151980,
+          "file": "libjq1_400a7367f8acf48d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libjsoncpp26",
+          "version": "1.9.6-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libj/libjsoncpp/libjsoncpp26_1.9.6-3_arm64.deb",
+          "sha256": "346da1614a66ae07549243f2abf1dc5fdcc590a4ccb408458b5ea7ef7997477d",
+          "bytes": 72912,
+          "file": "libjsoncpp26_346da1614a66ae07.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libk5crypto3",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libk5crypto3_1.21.3-5%2bdeb13u1_arm64.deb",
+          "sha256": "2453e8d4fa3b91b868d5bc10e84a15ad9c7bc4e4cb49379cb1f560bdce50db4a",
+          "bytes": 81416,
+          "file": "libk5crypto3_2453e8d4fa3b91b8.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkeyutils1",
+          "version": "1.6.3-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/keyutils/libkeyutils1_1.6.3-6_arm64.deb",
+          "sha256": "5e680f317a6613161986417fb3ed63007c9228343f5ac2348551b103cc7fd7b4",
+          "bytes": 9716,
+          "file": "libkeyutils1_5e680f317a661316.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkrb5-3",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5-3_1.21.3-5%2bdeb13u1_arm64.deb",
+          "sha256": "1f5c46480abf894f662d894696c8a6c6510c2b20616cd453e88b27b11d3be25d",
+          "bytes": 308256,
+          "file": "libkrb5-3_1f5c46480abf894f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libkrb5support0",
+          "version": "1.21.3-5+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/k/krb5/libkrb5support0_1.21.3-5%2bdeb13u1_arm64.deb",
+          "sha256": "6381bcb54e58854f9ebac2dfa580c3d6112d01b4ca3f725e7263b9374f79608e",
+          "bytes": 32508,
+          "file": "libkrb5support0_6381bcb54e58854f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libldap2",
+          "version": "2.6.10+dfsg-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/o/openldap/libldap2_2.6.10%2bdfsg-1_arm64.deb",
+          "sha256": "38fae6af20d41e4b0a8ea1b96d0b81a7a5551a61595bc866c9af870eadfdf1bd",
+          "bytes": 179312,
+          "file": "libldap2_38fae6af20d41e4b.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libllvm19",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/libllvm19_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "8a48e1a49f7fcc3be74e697767d72902f4b03041401d1529bcfad1849df39148",
+          "bytes": 23285344,
+          "file": "libllvm19_8a48e1a49f7fcc3b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblsan0",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/liblsan0_14.2.0-19_arm64.deb",
+          "sha256": "488a54a5fe01a926ae16d73dc7ea9f530f1bf63fae73640f741695eec2541a38",
+          "bytes": 1161132,
+          "file": "liblsan0_488a54a5fe01a926.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblz4-1",
+          "version": "1.10.0-4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/lz4/liblz4-1_1.10.0-4_arm64.deb",
+          "sha256": "f86fa7f8112d56b74f99c4a8baade57a9962d187d7c8e319428e171b2a34d223",
+          "bytes": 59988,
+          "file": "liblz4-1_f86fa7f8112d56b7.deb",
+          "pack": "build"
+        },
+        {
+          "name": "liblzma5",
+          "version": "5.8.1-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xz-utils/liblzma5_5.8.1-1%2bdeb13u1_arm64.deb",
+          "sha256": "6a7b98005f84fc26d66a45e432f70d0793646a734f8c44cd1626b3ffa8edd7c6",
+          "bytes": 302720,
+          "file": "liblzma5_6a7b98005f84fc26.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libmd0",
+          "version": "1.1.0-2+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libm/libmd/libmd0_1.1.0-2%2bb1_arm64.deb",
+          "sha256": "772e86842fd3fa1816a0cfee4833a73996aaa550461491543b886b9c8f999052",
+          "bytes": 33664,
+          "file": "libmd0_772e86842fd3fa18.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libmpc3",
+          "version": "1.3.1-1+b3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/mpclib3/libmpc3_1.3.1-1%2bb3_arm64.deb",
+          "sha256": "d4cfe026a624e51641c80ef2af77387185714f62f3b5c87035e62d9ed8d9eec1",
+          "bytes": 50480,
+          "file": "libmpc3_d4cfe026a624e516.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libmpfr6",
+          "version": "4.2.2-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/mpfr4/libmpfr6_4.2.2-1_arm64.deb",
+          "sha256": "628a4ef58cc6815880f72e9d3953984a379a017e4042bc575f1fcbf3954d79ac",
+          "bytes": 685000,
+          "file": "libmpfr6_628a4ef58cc68158.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libncursesw6",
+          "version": "6.5+20250216-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ncurses/libncursesw6_6.5%2b20250216-2_arm64.deb",
+          "sha256": "72121aeb08be2d915da321ddfae74f62a0764286f336279b2c2609ba07496d6d",
+          "bytes": 124048,
+          "file": "libncursesw6_72121aeb08be2d91.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnettle8t64",
+          "version": "3.10.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nettle/libnettle8t64_3.10.1-1_arm64.deb",
+          "sha256": "16107ce5a7b522da021fa8aba42d42af9c5e90ddabfcda3710aff6ea95808ee0",
+          "bytes": 310548,
+          "file": "libnettle8t64_16107ce5a7b522da.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnghttp2-14",
+          "version": "1.64.0-1.1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nghttp2/libnghttp2-14_1.64.0-1.1%2bdeb13u1_arm64.deb",
+          "sha256": "ca222b98d5bef2193c05a1e736d0619798ba7a8f8e92526f3e1d06edcd0bf751",
+          "bytes": 71604,
+          "file": "libnghttp2-14_ca222b98d5bef219.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libnghttp3-9",
+          "version": "1.8.0-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/nghttp3/libnghttp3-9_1.8.0-1_arm64.deb",
+          "sha256": "26bfb8d1bead043f57d95663bab02f7611e7078fb7cf71383fa480c4b4c24d81",
+          "bytes": 63232,
+          "file": "libnghttp3-9_26bfb8d1bead043f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libngtcp2-16",
+          "version": "1.11.0-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-16_1.11.0-1%2bdeb13u1_arm64.deb",
+          "sha256": "1ced2874229e4a503060c244730baf75e61b1d5444472b10e5022f1594f4ab88",
+          "bytes": 121080,
+          "file": "libngtcp2-16_1ced2874229e4a50.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libngtcp2-crypto-gnutls8",
+          "version": "1.11.0-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ngtcp2/libngtcp2-crypto-gnutls8_1.11.0-1%2bdeb13u1_arm64.deb",
+          "sha256": "4a220245385ec7222f4a20e444532808b90139b70ea9c7eeab179c927a27b37f",
+          "bytes": 28404,
+          "file": "libngtcp2-crypto-gnutls8_4a220245385ec722.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libobjc-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libobjc-14-dev_14.2.0-19_arm64.deb",
+          "sha256": "b248dc482ad75e0dbe64e70a468ce61b2c167fe63420185290dd441b28cd1357",
+          "bytes": 166276,
+          "file": "libobjc-14-dev_b248dc482ad75e0d.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libobjc4",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libobjc4_14.2.0-19_arm64.deb",
+          "sha256": "2c402e31c3636f8c5be1f1c4a4716e9335e570862b7e393ade1e63bde9ff933c",
+          "bytes": 39376,
+          "file": "libobjc4_2c402e31c3636f8c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libonig5",
+          "version": "6.9.9-1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libo/libonig/libonig5_6.9.9-1%2bb1_arm64.deb",
+          "sha256": "137e708575c0622d347815d19cb471a107546b16e9602805ee27afad7bba107f",
+          "bytes": 180512,
+          "file": "libonig5_137e708575c0622d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libp11-kit0",
+          "version": "0.25.5-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/p11-kit/libp11-kit0_0.25.5-3_arm64.deb",
+          "sha256": "78bfc746e68a5217e845f488f69100ed89d10c8886fbd3ffce937acb6a7d88fb",
+          "bytes": 409108,
+          "file": "libp11-kit0_78bfc746e68a5217.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpcre2-8-0",
+          "version": "10.46-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/p/pcre2/libpcre2-8-0_10.46-1%7edeb13u3_arm64.deb",
+          "sha256": "1a02b7129990690ea095fd35d7ace6853742923d158019e1fb4ef27efd2c51a7",
+          "bytes": 262648,
+          "file": "libpcre2-8-0_1a02b7129990690e.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libperl5.40",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/libperl5.40_5.40.1-6%2bdeb13u1_arm64.deb",
+          "sha256": "b3cf688efb6096b2f3d95e96ad5b216602146ad11f792c1f3b2f66b5556241d9",
+          "bytes": 4137968,
+          "file": "libperl5.40_b3cf688efb6096b2.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libproc2-0",
+          "version": "2:4.0.4-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/procps/libproc2-0_4.0.4-9_arm64.deb",
+          "sha256": "e81069b58fe82223c71fcd74c760cb0fd3b0e61792fbaf2e5675fd948dc16dba",
+          "bytes": 62752,
+          "file": "libproc2-0_e81069b58fe82223.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libpsl5t64",
+          "version": "0.21.2-1.1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libp/libpsl/libpsl5t64_0.21.2-1.1%2bb1_arm64.deb",
+          "sha256": "7ea03d8a7d16edce7b1b1e94980c058c0f1fb3c595eb9154b0e8590d0e7f75af",
+          "bytes": 57076,
+          "file": "libpsl5t64_7ea03d8a7d16edce.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3-stdlib",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/libpython3-stdlib_3.13.5-1_arm64.deb",
+          "sha256": "0e5b09b3c90f34399a357c32e1be08a3f31b39d3c615464f00354b309f82e732",
+          "bytes": 10180,
+          "file": "libpython3-stdlib_0e5b09b3c90f3439.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3.13-minimal",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/libpython3.13-minimal_3.13.5-2%2bdeb13u5_arm64.deb",
+          "sha256": "3655ef258b19142cf6fe38ef89731d5c630b2cf3309632494a720b28c1cfcd85",
+          "bytes": 856328,
+          "file": "libpython3.13-minimal_3655ef258b19142c.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libpython3.13-stdlib",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/libpython3.13-stdlib_3.13.5-2%2bdeb13u5_arm64.deb",
+          "sha256": "d1178d24e4d143cc6c577d9dc0f26dd982efccc2e600d25ce86361f168a22be0",
+          "bytes": 1894712,
+          "file": "libpython3.13-stdlib_d1178d24e4d143cc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libreadline8t64",
+          "version": "8.2-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/readline/libreadline8t64_8.2-6_arm64.deb",
+          "sha256": "f78ff432b2a627bc04f7eef0e6e2696501c9e06feca748a5b741d5e594429033",
+          "bytes": 159264,
+          "file": "libreadline8t64_f78ff432b2a627bc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "librhash1",
+          "version": "1.4.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rhash/librhash1_1.4.5-1_arm64.deb",
+          "sha256": "3bee5b995ee3219779d0f50b2622b0fbc05bb89c69fa833c83d685a3c88aa73d",
+          "bytes": 128888,
+          "file": "librhash1_3bee5b995ee32197.deb",
+          "pack": "build"
+        },
+        {
+          "name": "librtmp1",
+          "version": "2.4+20151223.gitfa8646d.1-2+b5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rtmpdump/librtmp1_2.4%2b20151223.gitfa8646d.1-2%2bb5_arm64.deb",
+          "sha256": "20d52d20c4834158e956ae8e1d42a61d22330062052116d5422daa2d3b1d433b",
+          "bytes": 56840,
+          "file": "librtmp1_20d52d20c4834158.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsasl2-2",
+          "version": "2.1.28+dfsg1-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-2_2.1.28%2bdfsg1-9_arm64.deb",
+          "sha256": "6431628c62524c8397255c1c4a7c7ef63661b801f3be9a59ad41e7a2e46e6210",
+          "bytes": 55628,
+          "file": "libsasl2-2_6431628c62524c83.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsasl2-modules-db",
+          "version": "2.1.28+dfsg1-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/c/cyrus-sasl2/libsasl2-modules-db_2.1.28%2bdfsg1-9_arm64.deb",
+          "sha256": "ed6eb05f8ded71ab16a0369845805b373fc8a71c0e7d33f73fa2fb11e83a1977",
+          "bytes": 20144,
+          "file": "libsasl2-modules-db_ed6eb05f8ded71ab.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libselinux1",
+          "version": "3.8.1-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libs/libselinux/libselinux1_3.8.1-1_arm64.deb",
+          "sha256": "fc13da4c7783b8f4361d92ef1045931f298d1b0ac78ed1a85c2232615f49fc6f",
+          "bytes": 79352,
+          "file": "libselinux1_fc13da4c7783b8f4.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libsframe1",
+          "version": "2.44-3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/b/binutils/libsframe1_2.44-3_arm64.deb",
+          "sha256": "d4a90764fa79858347aaa3197bc4489404f005d9cdbea9b2ec75a607ea5ff518",
+          "bytes": 77772,
+          "file": "libsframe1_d4a90764fa798583.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libsqlite3-0",
+          "version": "3.46.1-7+deb13u2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/s/sqlite3/libsqlite3-0_3.46.1-7%2bdeb13u2_arm64.deb",
+          "sha256": "5b09efca71cb7a16d67f5453af3989ae1a84fe6b68c6dd3913de527cb0ca23aa",
+          "bytes": 854152,
+          "file": "libsqlite3-0_5b09efca71cb7a16.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libssh2-1t64",
+          "version": "1.11.1-1+deb13u2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libs/libssh2/libssh2-1t64_1.11.1-1%2bdeb13u2_arm64.deb",
+          "sha256": "245565f4ce5493d67a3c54e26bc3d9cf28b1b70eeb912de7cda61af52268017d",
+          "bytes": 236268,
+          "file": "libssh2-1t64_245565f4ce5493d6.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libssl3t64",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/libssl3t64_3.5.7-1%7edeb13u3_arm64.deb",
+          "sha256": "d0681293a160392186c6ef85a165e40603d1628a099936137d24d391bd591f97",
+          "bytes": 2770200,
+          "file": "libssl3t64_d0681293a1603921.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libstdc++-14-dev",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libstdc%2b%2b-14-dev_14.2.0-19_arm64.deb",
+          "sha256": "8760122d044cd8eb8c69426311d6b5ce7bb8f0f76e9cda1944d153ae878138f8",
+          "bytes": 2294728,
+          "file": "libstdc++-14-dev_8760122d044cd8eb.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libstdc++6",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libstdc%2b%2b6_14.2.0-19_arm64.deb",
+          "sha256": "6669b0c52a2e7c6af9adfdabce3ff6e286065cdfbc7b85280862b5f799daebee",
+          "bytes": 637536,
+          "file": "libstdc++6_6669b0c52a2e7c6a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libsystemd0",
+          "version": "257.13-1~deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/s/systemd/libsystemd0_257.13-1%7edeb13u1_arm64.deb",
+          "sha256": "d2f63c408549c29eaefb6f4c948393edce99f45ee8e43c991391bef63fb7d54b",
+          "bytes": 422500,
+          "file": "libsystemd0_d2f63c408549c29e.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libtasn1-6",
+          "version": "4.20.0-2+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libt/libtasn1-6/libtasn1-6_4.20.0-2%2bdeb13u1_arm64.deb",
+          "sha256": "e421da949cd26245f24c594265d6a01900b5e060e80793f68b977f7bfaa009ef",
+          "bytes": 47304,
+          "file": "libtasn1-6_e421da949cd26245.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libtinfo6",
+          "version": "6.5+20250216-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/ncurses/libtinfo6_6.5%2b20250216-2_arm64.deb",
+          "sha256": "2a747f7fff3c2347c357387a7133df997410f07ba1b1df1a1461a97bd7fbc2fc",
+          "bytes": 341360,
+          "file": "libtinfo6_2a747f7fff3c2347.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libtsan2",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libtsan2_14.2.0-19_arm64.deb",
+          "sha256": "c767c05f3dade13b5780478366029f2ff32e44bea852c6a4d7a1f93f1363d3e3",
+          "bytes": 2383440,
+          "file": "libtsan2_c767c05f3dade13b.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libubsan1",
+          "version": "14.2.0-19",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/g/gcc-14/libubsan1_14.2.0-19_arm64.deb",
+          "sha256": "b5539003465ea1e60f66b9e3a1019da182e826c82d480944f3656b12351c74c8",
+          "bytes": 1038924,
+          "file": "libubsan1_b5539003465ea1e6.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libunistring5",
+          "version": "1.3-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libu/libunistring/libunistring5_1.3-2_arm64.deb",
+          "sha256": "4847467a0e47039837895e88f5a99a4a86a3d8266be40c3c896fc7c10d552dc7",
+          "bytes": 452856,
+          "file": "libunistring5_4847467a0e470398.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libuuid1",
+          "version": "2.41.5-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/u/util-linux/libuuid1_2.41.5-0%2bdeb13u1_arm64.deb",
+          "sha256": "448ad6b190184dbff24508ef2eda88bd737a5ffc0f9750eb779fcf9885292bea",
+          "bytes": 37648,
+          "file": "libuuid1_448ad6b190184dbf.deb",
+          "pack": "base"
+        },
+        {
+          "name": "libuv1t64",
+          "version": "1.50.0-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libu/libuv1/libuv1t64_1.50.0-2_arm64.deb",
+          "sha256": "a9be0f24d7686ba94a6ef4f3c638079c6b39c4263306860d51046c4125d065f4",
+          "bytes": 147988,
+          "file": "libuv1t64_a9be0f24d7686ba9.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libxml2",
+          "version": "2.12.7+dfsg+really2.9.14-2.1+deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libx/libxml2/libxml2_2.12.7%2bdfsg%2breally2.9.14-2.1%2bdeb13u3_arm64.deb",
+          "sha256": "a66b9c960acef8ed9653223cbd00b155a92ebb758ea13a788c41609246c23bc7",
+          "bytes": 631428,
+          "file": "libxml2_a66b9c960acef8ed.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libxxhash0",
+          "version": "0.8.3-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xxhash/libxxhash0_0.8.3-2_arm64.deb",
+          "sha256": "66665776740ced6c5ddcb48a89a92b056d0dcb13851e1ff573d2b99b766e5c6c",
+          "bytes": 22276,
+          "file": "libxxhash0_66665776740ced6c.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libz3-4",
+          "version": "4.13.3-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/z/z3/libz3-4_4.13.3-1_arm64.deb",
+          "sha256": "29a7b924a5a38c9ac4e2a64aa11586a9c54f26b579b18e4f75adf8f7c1106e45",
+          "bytes": 7506868,
+          "file": "libz3-4_29a7b924a5a38c9a.deb",
+          "pack": "build"
+        },
+        {
+          "name": "libzstd1",
+          "version": "1.5.7+dfsg-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/libz/libzstd/libzstd1_1.5.7%2bdfsg-1_arm64.deb",
+          "sha256": "924540bd59fdbfa77a0604360efdaca54411a43daf11c7e002a3c64791b67448",
+          "bytes": 266052,
+          "file": "libzstd1_924540bd59fdbfa7.deb",
+          "pack": "base"
+        },
+        {
+          "name": "linux-libc-dev",
+          "version": "6.12.111-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/l/linux/linux-libc-dev_6.12.111-1_all.deb",
+          "sha256": "b9055566f71a6fa2e818174dcc3622aa0fb5d16cdff1bc5346e52492ba27b57c",
+          "bytes": 2988444,
+          "file": "linux-libc-dev_b9055566f71a6fa2.deb",
+          "pack": "build"
+        },
+        {
+          "name": "llvm-19-linker-tools",
+          "version": "1:19.1.7-3+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/l/llvm-toolchain-19/llvm-19-linker-tools_19.1.7-3%2bb1_arm64.deb",
+          "sha256": "2538a8ea604718a02cae7ffab7ee2d537fab2e5eed256584a0bd475bddc3da39",
+          "bytes": 1099620,
+          "file": "llvm-19-linker-tools_2538a8ea604718a0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "make",
+          "version": "4.4.1-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/make-dfsg/make_4.4.1-2_arm64.deb",
+          "sha256": "043219839669c431def9bb410c4a827f115ee5bf377469d55c4ed905f81f73be",
+          "bytes": 452396,
+          "file": "make_043219839669c431.deb",
+          "pack": "build"
+        },
+        {
+          "name": "media-types",
+          "version": "13.0.0",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/m/media-types/media-types_13.0.0_all.deb",
+          "sha256": "0788e4b0b72db1bcf74a19cb24c3511e7770ad0b341f0f30e361701c3072f53e",
+          "bytes": 29336,
+          "file": "media-types_0788e4b0b72db1bc.deb",
+          "pack": "base"
+        },
+        {
+          "name": "netbase",
+          "version": "6.5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/n/netbase/netbase_6.5_all.deb",
+          "sha256": "76bafa92947ebd37b0a6f9ec6570412041f56edebc1c66d323731216d318471e",
+          "bytes": 12436,
+          "file": "netbase_76bafa92947ebd37.deb",
+          "pack": "base"
+        },
+        {
+          "name": "openssl-provider-legacy",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl-provider-legacy_3.5.7-1%7edeb13u3_arm64.deb",
+          "sha256": "dae4ab96be3a1fc8fd490bbeb3938ecd102d360555d4af8ee2728b42ce9f1059",
+          "bytes": 313896,
+          "file": "openssl-provider-legacy_dae4ab96be3a1fc8.deb",
+          "pack": "base"
+        },
+        {
+          "name": "openssl",
+          "version": "3.5.7-1~deb13u3",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian-security/pool/updates/main/o/openssl/openssl_3.5.7-1%7edeb13u3_arm64.deb",
+          "sha256": "68f226057a7a1c1f23e2ffde0075ea16e27e646d829c8d3c63414c49b839c258",
+          "bytes": 1472692,
+          "file": "openssl_68f226057a7a1c1f.deb",
+          "pack": "base"
+        },
+        {
+          "name": "patch",
+          "version": "2.8-2",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/patch/patch_2.8-2_arm64.deb",
+          "sha256": "182ad723623dcd02dfe5054f3515a26d8bf4a9cce717f03e3e514c02cb9e59e8",
+          "bytes": 128220,
+          "file": "patch_182ad723623dcd02.deb",
+          "pack": "build"
+        },
+        {
+          "name": "perl-base",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl-base_5.40.1-6%2bdeb13u1_arm64.deb",
+          "sha256": "4cee6f6b5b4b501d82118c56aa31bbefc2491415bc03a00e21bdacff2406b288",
+          "bytes": 1529152,
+          "file": "perl-base_4cee6f6b5b4b501d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "perl-modules-5.40",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl-modules-5.40_5.40.1-6%2bdeb13u1_all.deb",
+          "sha256": "4c46cdd8f3135aa1c95f07e817f8e5d9be590687441ac1c27e3a8c49400f35ce",
+          "bytes": 3013728,
+          "file": "perl-modules-5.40_4c46cdd8f3135aa1.deb",
+          "pack": "base"
+        },
+        {
+          "name": "perl",
+          "version": "5.40.1-6+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/perl/perl_5.40.1-6%2bdeb13u1_arm64.deb",
+          "sha256": "7f15c34267346a0da41b9fe36d509d70dfb8d39561d275c4f4c53d429290f6d2",
+          "bytes": 267732,
+          "file": "perl_7f15c34267346a0d.deb",
+          "pack": "base"
+        },
+        {
+          "name": "procps",
+          "version": "2:4.0.4-9",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/procps/procps_4.0.4-9_arm64.deb",
+          "sha256": "9afd4ad2e8da92322715114fb9555c63ce92f6c72bf72867e76ab2d6a7a3b541",
+          "bytes": 871348,
+          "file": "procps_9afd4ad2e8da9232.deb",
+          "pack": "build"
+        },
+        {
+          "name": "python3-minimal",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3-minimal_3.13.5-1_arm64.deb",
+          "sha256": "b1dff61d3e68c83c747b03399356ba707d491bcaf6e495b575d46be3143cdec8",
+          "bytes": 27244,
+          "file": "python3-minimal_b1dff61d3e68c83c.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3.13-minimal",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13-minimal_3.13.5-2%2bdeb13u5_arm64.deb",
+          "sha256": "95237a3ad99bf9366308e16f7c79449c9371c4cff9c883772fb7c254652467eb",
+          "bytes": 2008016,
+          "file": "python3.13-minimal_95237a3ad99bf936.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3.13",
+          "version": "3.13.5-2+deb13u5",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3.13/python3.13_3.13.5-2%2bdeb13u5_arm64.deb",
+          "sha256": "3d027394c6afd08a2663c3da588824aa9ee0c54e3c2b4382bb9f644584bc99a1",
+          "bytes": 757492,
+          "file": "python3.13_3d027394c6afd08a.deb",
+          "pack": "base"
+        },
+        {
+          "name": "python3",
+          "version": "3.13.5-1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3_3.13.5-1_arm64.deb",
+          "sha256": "8d5be256bf3bb4f07afce1aa86f0595c6939e1a6c2ea939bdcb7b36351cbe021",
+          "bytes": 28244,
+          "file": "python3_8d5be256bf3bb4f0.deb",
+          "pack": "base"
+        },
+        {
+          "name": "readline-common",
+          "version": "8.2-6",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/readline/readline-common_8.2-6_all.deb",
+          "sha256": "f77e8aa0bf0de618f11cb0b21658a4ed60f177d63b3cf26d7fc3706b6d0eaaa9",
+          "bytes": 69360,
+          "file": "readline-common_f77e8aa0bf0de618.deb",
+          "pack": "base"
+        },
+        {
+          "name": "ripgrep",
+          "version": "14.1.1-1+b4",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rust-ripgrep/ripgrep_14.1.1-1%2bb4_arm64.deb",
+          "sha256": "9b4f347ba2320b22cba217cc4b078536596cc6a1409df001fc560ad3fa396609",
+          "bytes": 1247232,
+          "file": "ripgrep_9b4f347ba2320b22.deb",
+          "pack": "base"
+        },
+        {
+          "name": "rpcsvc-proto",
+          "version": "1.4.3-1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/r/rpcsvc-proto/rpcsvc-proto_1.4.3-1%2bb1_arm64.deb",
+          "sha256": "6ae3c216e6c7d8e042ad3f122b8aa89aff56b2b5174b1c5780a7841b3becd61c",
+          "bytes": 60468,
+          "file": "rpcsvc-proto_6ae3c216e6c7d8e0.deb",
+          "pack": "build"
+        },
+        {
+          "name": "tar",
+          "version": "1.35+dfsg-3.1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/t/tar/tar_1.35%2bdfsg-3.1_arm64.deb",
+          "sha256": "c460a8294202ca3802b7c703b0bd70dd8bda1f2fc8785839595cf9d5e060d71b",
+          "bytes": 802008,
+          "file": "tar_c460a8294202ca38.deb",
+          "pack": "base"
+        },
+        {
+          "name": "tzdata",
+          "version": "2026c-0+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/t/tzdata/tzdata_2026c-0%2bdeb13u1_all.deb",
+          "sha256": "813b9bbbe14ccda2b24617b8bade0ade4d745957e75921766c153d249886bd4c",
+          "bytes": 264156,
+          "file": "tzdata_813b9bbbe14ccda2.deb",
+          "pack": "base"
+        },
+        {
+          "name": "unzip",
+          "version": "6.0-29+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/u/unzip/unzip_6.0-29%2bdeb13u1_arm64.deb",
+          "sha256": "b455bc70ff59f790c619802f921fc5bd22ab25acb6394fd7505f34b93c5b2cdb",
+          "bytes": 163616,
+          "file": "unzip_b455bc70ff59f790.deb",
+          "pack": "base"
+        },
+        {
+          "name": "xz-utils",
+          "version": "5.8.1-1+deb13u1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/x/xz-utils/xz-utils_5.8.1-1%2bdeb13u1_arm64.deb",
+          "sha256": "07b6145c6c934d744c712c252b293ce506d427ea127c7f77b711c518aead54b3",
+          "bytes": 657732,
+          "file": "xz-utils_07b6145c6c934d74.deb",
+          "pack": "build"
+        },
+        {
+          "name": "zlib1g",
+          "version": "1:1.3.dfsg+really1.3.1-1+b1",
+          "kind": "deb",
+          "source": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.3.dfsg%2breally1.3.1-1%2bb1_arm64.deb",
+          "sha256": "209aa5cf671e97b9eb0410844fa6df4cae2e75b0c72e7802ab6c8ece13e6ddef",
+          "bytes": 85116,
+          "file": "zlib1g_209aa5cf671e97b9.deb",
+          "pack": "base"
+        },
+        {
+          "name": "node",
+          "version": "24.21.0",
+          "kind": "tar",
+          "source": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-arm64.tar.gz",
+          "sha256": "724282c3b43aec998aa9527380465b45d229e021b58035f5f4f63095eabfe5d5",
+          "bytes": 57824078,
+          "file": "node-v24.21.0-linux-arm64.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "uv",
+          "version": "0.12.23",
+          "kind": "tar",
+          "source": "https://github.com/astral-sh/uv/releases/download/0.12.23/uv-aarch64-unknown-linux-gnu.tar.gz",
+          "sha256": "6524bd338177ed50d035d39354e12545e993bbeba2ecbddf0480c5b3a81d313f",
+          "bytes": 18965616,
+          "file": "uv-aarch64-unknown-linux-gnu.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "gitleaks",
+          "version": "8.30.1",
+          "kind": "tar",
+          "source": "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz",
+          "sha256": "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080",
+          "bytes": 7601421,
+          "file": "gitleaks_8.30.1_linux_arm64.tar.gz",
+          "pack": "base"
+        },
+        {
+          "name": "uv-license-mit",
+          "version": "0.12.23",
+          "kind": "license",
+          "source": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-MIT",
+          "sha256": "860e3d7a86b84e6a7012c7a635fc64df475cebc6cce34dfeb73a5982ec58176c",
+          "bytes": 1077,
+          "file": "uv-license-mit",
+          "pack": "base"
+        },
+        {
+          "name": "uv-license-apache",
+          "version": "0.12.23",
+          "kind": "license",
+          "source": "https://raw.githubusercontent.com/astral-sh/uv/0.12.23/LICENSE-APACHE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "bytes": 11357,
+          "file": "uv-license-apache",
+          "pack": "base"
+        }
+      ]
+    }
+  }
+}

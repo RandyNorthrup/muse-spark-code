@@ -11,6 +11,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Added a pinned amd64/arm64 base agent toolset layer with offline builds,
+  verified artifact staging, bundled skill assets, an unprivileged smoke
+  fixture and measured base/compiler-pack budgets. Deployment and native
+  ARM64 qualification remain integration work.
+
 - Added portable default-on first-boot toolset preparation with explicit-off
   settings preserved, and a verified Chrome for Testing Linux ARM64 pin
   through the existing runtime store. Native ARM64 execution qualification
