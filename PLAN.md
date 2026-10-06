@@ -4891,7 +4891,29 @@ exactly what will be sent.
 
 #### Guard redesign (REDM103G, 2026-10-05)
 
-**Third design (REDM103G2, owner ruling after RVM103G2).** Detection is
+**Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
+command in a hardware session asks the host UI once for the exact command;
+there is no shell read allowlist, standing grant, reviewer grant or classifier
+grant. Bypass and unattended shell calls are refused at request, answer and
+process entry. Registered canonical Stop is matched first and remains exempt.
+Classification, including irreversible-operation detection, labels the card;
+it cannot grant execution. Typed read/list/search/serial-monitor inspection
+retains its own policy. Typed irreversible device operations remain refused.
+
+Hardware mode is a session latch: project markers are read at session start,
+and any host-observed registered device latches it on. Removing a marker or
+device never turns a running session off. Only an explicit host UI action,
+with no command or device session active, may reset it. Approval binds frozen
+target identities, payload and expiry; an approved single-use binding travels
+to the adapter and is revalidated synchronously immediately before spawn.
+Scope is the guard, session guard, approval hardware, hardware regions in the
+two dispatch paths, their tests and this certification record. Necessary
+permission-engine/session-construction/bundle wiring outside that explicit
+list awaits scope authorization. No paid/live/device operations or aggregate
+quality run are authorized on this rig. The editor matrix must distinguish
+shared-core evidence from actual editor and external CLI qualification.
+
+**Superseded third design (REDM103G2, owner ruling after RVM103G2).** Detection is
 advisory, never an execution exemption in a hardware workspace. A host-owned
 maker enablement/project-detection flag, connected board, mounted board root
 or registered machine makes a hardware workspace. Every model shell command
@@ -5324,6 +5346,24 @@ have equivalent functionality even if we need to develop it ourselves".
   `docs/certification/m104-research.md` (this file, moved in).
 
 ## 3. Open questions (need the owner)
+
+- **M103 fourth-design scope (2026-10-05, REDM103G3):** the brief authorizes
+  guard/sessionGuard/approvalHardware and two hardware dispatch regions, but
+  explicitly excludes every other source file. Deleting the allowlist requires
+  permission-engine and lazy-export/split wiring; starting the Muse Code latch
+  and exempting Stop require MuseCodeHost; the hook native-entry callback needs
+  the ToolIo interface. A concrete candidate also updates README, ACP notes,
+  changelog and the generated host API record. May these exact integration
+  files be included? Pending approval, excluded files remain untouched. The
+  complete candidate is validated through temporary in-memory overlays and
+  retained as `temp/guard4-candidate.patch`; source/test/translation edits are
+  restored to the branch base so the committed record does not break builds.
+- **M103 external CLI dispatch contract:** the captured MSP frames provide
+  approval answers, not an immutable target-binding handoff or a final spawn
+  acknowledgement. What captured CLI contract can enforce dispatch-time
+  identity/unattended checks and prevent standing-rule or silent shell runs?
+  Default: make no safety-certification claim for this gap; do not invent a
+  wire field. Physical adapters without a binding contract remain unavailable.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -15225,9 +15265,16 @@ panel (M104); M103's maker pages are built on the same server and bridge.
 (h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
 owner's; release assets and install docs ship meanwhile.
 
-**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
-guard ships first and alone if the others slip, because it closes H1–H5 for
-every user.
+**Status 2026-10-05: planned; guard fourth-design candidate awaits scope
+authorization (REDM103G3).**
+RVM103G3's six P1 findings invalidate the third-design safety certification.
+Fourth-design implementation and gate-fire receipts belong in
+`docs/certification/m103-g.md`; external CLI process-entry enforcement and
+the maker adapter/editor lanes require separate evidence before full safety
+certification. The candidate is retained in the rig's ignored temp artifacts;
+the committed lane record contains no partial source change. Sub-milestones
+land in order a → f. Guard a cannot be called complete or ship as a safety
+fix while these process-entry and qualification gaps remain open.
 
 - **Goal.** Makers get skills, detection, simulation and offline tools that
   work out of the box, and device and machine access that never moves,
