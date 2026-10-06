@@ -1,7 +1,10 @@
+import * as z from 'zod/mini'
 import { makerLimits as limits } from './helpers/fakeMakerMachine'
 import { describe, expect, it } from 'vitest'
-import { analyseGcode, type GcodeState } from '../../src/core/maker/gcode/analyser'
-import { gcodeClass } from '../../src/core/maker/gcode/dialects'
+import { analyseGcode, type GcodeState, type Bounds } from '../../src/core/maker/gcode/analyser'
+import grblArcCapture from '../fixtures/maker/grbl-arcs.json'
+import klipperArcCapture from '../fixtures/maker/klipper-arcs.json'
+import { gcodeClass, type GcodeDialect } from '../../src/core/maker/gcode/dialects'
 import { checkGcodeLimits, effectiveLimits, limitsSchema } from '../../src/core/maker/gcode/limits'
 import {
   canonicalGcodeCommand,
@@ -18,6 +21,49 @@ const initial: GcodeState = {
 }
 
 const analyse = (script: string) => analyseGcode(script, 'klipper', initial, policy)
+
+function expectCapturedArcBounds(name: string, dialect: GcodeDialect, values: unknown) {
+  const [plane, command, mode, units] = z
+    .tuple([
+      z.enum(['G17', 'G18', 'G19']),
+      z.enum(['G2', 'G3']),
+      z.enum(['G90', 'G91']),
+      z.enum(['G20', 'G21']),
+    ])
+    .parse(name.split('-'))
+  const capture = dialect === 'grbl' ? grblArcCapture : klipperArcCapture
+  const scale = units === 'G21' ? 1 : policy.mmPerInch
+  const coordinate = (mode === 'G90' ? capture.initial.x / scale : 0).toFixed(12)
+  const payload = `${units}\n${mode}\n${command} X${coordinate} Y${coordinate} Z${coordinate} ${plane === 'G19' ? 'J' : 'I'}${(capture.radiusMm / scale).toFixed(12)} F${(600 / scale).toFixed(12)}`
+  const [minX, minY, minZ, maxX, maxY, maxZ] = z
+    .tuple([z.number(), z.number(), z.number(), z.number(), z.number(), z.number()])
+    .parse(values)
+  const captured: Bounds = {
+    min: { x: minX, y: minY, z: minZ },
+    max: { x: maxX, y: maxY, z: maxZ },
+  }
+  const result = analyseGcode(payload, dialect, { ...initial, position: capture.initial }, policy)
+  expect(result.unknown).toEqual([])
+  const bounds = result.bounds
+  expect(bounds).toBeDefined()
+  if (bounds === undefined) throw new Error('missingBounds')
+  for (const axis of ['x', 'y', 'z'] as const) {
+    expect(bounds.min[axis]).toBeLessThanOrEqual(captured.min[axis])
+    expect(bounds.max[axis]).toBeGreaterThanOrEqual(captured.max[axis])
+  }
+  if (captured.max.z > capture.zCapMm) {
+    expect(
+      checkGcodeLimits(
+        result,
+        {
+          ...limits,
+          travel: { ...limits.travel, max: { ...limits.travel.max, z: capture.zCapMm } },
+        },
+        true,
+      ),
+    ).toBe('travelLimit')
+  }
+}
 
 describe('maker G-code tokenizer and dialects', () => {
   it('serializes the canonical stream and uses it directly for analysis', () => {
@@ -110,8 +156,33 @@ describe('maker G-code analysis and limits', () => {
   })
   it('includes arc extrema, not merely endpoints', () => {
     const result = analyse('G2 X10 Y10 I-20 J0')
-    expect(result.bounds).toEqual({ min: { x: -30, y: -10, z: 10 }, max: { x: 10, y: 30, z: 10 } })
+    expect(result.bounds).toEqual({ min: { x: -30, y: -10, z: -10 }, max: { x: 10, y: 30, z: 30 } })
     expect(checkGcodeLimits(result, limits, true)).toBe('travelLimit')
+  })
+  it.each(['G2', 'G3'])(
+    'bounds %s in unseen XZ and YZ planes and refuses the user Z cap',
+    (command) => {
+      for (const offset of ['I5', 'J5']) {
+        const result = analyse(`${command} X10 Y10 ${offset} F600`)
+        expect(result.unknown).toEqual([])
+        expect(result.bounds?.min.z).toBe(5)
+        expect(result.bounds?.max.z).toBe(15)
+        expect(
+          checkGcodeLimits(
+            result,
+            { ...limits, travel: { ...limits.travel, max: { ...limits.travel.max, z: 12 } } },
+            true,
+          ),
+        ).toBe('travelLimit')
+      }
+    },
+  )
+  it('does not admit plane selectors or K arcs while bounding their offline geometry', () => {
+    for (const script of ['G17', 'G18', 'G19', 'G2 K5', 'G3 J5 K5']) {
+      expect(checkGcodeLimits(analyse(script), limits, true)).toBe('unknownEffects')
+    }
+    const result = analyse('G3 J5 K5')
+    expect(result.bounds?.max.z).toBeGreaterThan(20)
   })
   it('takes maximum targets and feeds across the entire script', () => {
     const result = analyse('M104 S260\nM104 S0\nM190 R110\nG1 X20 F2000\nG1 X10 F10')
@@ -160,4 +231,29 @@ describe('maker G-code analysis and limits', () => {
     ).toBe(false)
     expect(limitsSchema.safeParse({ feedMmMin: NaN }).success).toBe(false)
   })
+})
+
+describe('maker native firmware arc-plane replay captures', () => {
+  it.each(Object.entries(grblArcCapture.accepted))('bounds native GRBL %s', (name, values) => {
+    expect(grblArcCapture.acceptedReply).toBe('ok')
+    expectCapturedArcBounds(name, 'grbl', values)
+  })
+  it.each(Object.entries(klipperArcCapture.accepted))(
+    'bounds native Klipper %s',
+    (name, values) => {
+      expect(klipperArcCapture.acceptedReply).toBe('exit 0')
+      expectCapturedArcBounds(name, 'klipper', values)
+    },
+  )
+  it.each(Object.entries(klipperArcCapture.rejected))(
+    'records native Klipper rejection for %s',
+    (name, errors) => {
+      expect(klipperArcCapture.rejectedReply).toBe('exit 255')
+      expect(errors).toContain(
+        name.endsWith('G20')
+          ? 'Machine does not support G20 (inches) command'
+          : 'G2/G3 does not support relative move mode',
+      )
+    },
+  )
 })

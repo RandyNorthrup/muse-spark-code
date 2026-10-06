@@ -239,7 +239,7 @@ describe('maker printer status and guarded send', () => {
     server.holdSend()
     const sending = machine.send('G1 X20')
     await vi.waitFor(() => {
-      expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(true)
+      expect(server.requests.at(-1)?.path).toBe('/printer/gcode/script')
     })
     const staleRead = machine.status()
     await snapshotReady.promise
@@ -341,6 +341,25 @@ describe('maker printer status and guarded send', () => {
       const payload = `${command.toUpperCase().startsWith('G') ? 'G1' : 'M104'} ${parameter}`
       await expect(machine.send(payload)).rejects.toThrow('unknownEffects')
       await expect(machine.send(`${command} ${parameter}`)).rejects.toThrow('unknownEffects')
+      expect(confirm).not.toHaveBeenCalled()
+      expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(
+        false,
+      )
+    },
+  )
+  it.each(['G2', 'G3'])(
+    'refuses %s that can exceed the Z cap in an unreported arc plane before approval',
+    async (command) => {
+      const { target, deps, server, confirm } = await moonrakerTest()
+      const capped = {
+        ...target,
+        limits: {
+          ...target.limits,
+          travel: { ...limits.travel, max: { ...limits.travel.max, z: 12 } },
+        },
+      }
+      const machine = createMoonrakerMachine(capped, http(capped), deps)
+      await expect(machine.send(`${command} X10 Y10 I5 F600`)).rejects.toThrow('travelLimit')
       expect(confirm).not.toHaveBeenCalled()
       expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(
         false,

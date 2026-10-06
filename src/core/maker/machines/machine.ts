@@ -338,7 +338,7 @@ export function protectMachine(
                 deps.policy.requestDeadlineMs,
               )
             } catch {
-              /* The caller still receives the successful dispatch and missing audit. */
+              /* The caller still receives the dispatch outcome and missing audit. */
             }
           }
           if (dispatchOutcome === 'sentOutcomeUnknown') {

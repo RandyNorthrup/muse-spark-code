@@ -46,9 +46,10 @@ function include(bounds: Bounds | undefined, next: Point): Bounds {
 }
 
 /**
- * Bounds are conservative. XY I/J arcs include the complete circle, including
- * helical Z endpoints. R arcs, offsets, extrusion and opaque macros have
- * unknown effects and cannot be sent. This is an analyser, not a firmware emulator.
+ * Bounds are conservative: telemetry does not certify the active arc plane,
+ * so arcs include complete circles in XY, XZ and YZ, plus helical endpoints.
+ * R/K arcs, coordinate offsets, extrusion and opaque macros still have unknown
+ * effects and cannot be sent. This is an analyser, not a firmware emulator.
  */
 export function analyseGcode(
   payload: string | readonly GcodeBlock[],
@@ -145,18 +146,36 @@ export function analyseGcode(
     bounds = include(include(bounds, position), next)
     if (command === 'G2' || command === 'G3') {
       if (!('I' in p || 'J' in p)) unknown.add(command)
-      const i = (p['I'] ?? 0) * scale
-      const j = (p['J'] ?? 0) * scale
-      const radius = Math.hypot(i, j)
-      const cx = position.x + i
-      const cy = position.y + j
-      // A mismatched endpoint may be accepted differently by firmware: bound
-      // both radii rather than assuming a tolerance from a particular dialect.
-      const outer = Math.max(radius, Math.hypot(next.x - cx, next.y - cy))
-      bounds = include(
-        include(bounds, point(cx - outer, cy - outer, Math.min(position.z, next.z))),
-        point(cx + outer, cy + outer, Math.max(position.z, next.z)),
-      )
+      const offsets = {
+        x: (p['I'] ?? 0) * scale,
+        y: (p['J'] ?? 0) * scale,
+        z: (p['K'] ?? 0) * scale,
+      }
+      // Other clients can select G18/G19 without changing represented status.
+      // Include every possible plane instead of inventing a telemetry field
+      // or silently sending a plane selector the user did not approve.
+      for (const [first, second, helix] of [
+        ['x', 'y', 'z'],
+        ['x', 'z', 'y'],
+        ['y', 'z', 'x'],
+      ] as const) {
+        const cx = position[first] + offsets[first]
+        const cy = position[second] + offsets[second]
+        // Bound both radii; firmware endpoint tolerances are not assumed.
+        const outer = Math.max(
+          Math.hypot(offsets[first], offsets[second]),
+          Math.hypot(next[first] - cx, next[second] - cy),
+        )
+        const low = { ...position }
+        const high = { ...position }
+        low[first] = cx - outer
+        low[second] = cy - outer
+        low[helix] = Math.min(position[helix], next[helix])
+        high[first] = cx + outer
+        high[second] = cy + outer
+        high[helix] = Math.max(position[helix], next[helix])
+        bounds = include(include(bounds, low), high)
+      }
     }
     if ([next.x, next.y, next.z, scale].some((value) => !Number.isFinite(value)))
       unknown.add(command)

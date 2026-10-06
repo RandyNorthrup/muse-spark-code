@@ -15624,7 +15624,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**FIXM103M / FIXM103M2 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
+**FIXM103M / FIXM103M2 / FIXM103M3 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
 full-suite runs and assigns integration gates to the lead. This fix lane
 runs its four owning test files, red drills and required static/build checks
 directly on the rig. The existing generated Node import inventory is stale;
@@ -15637,6 +15637,13 @@ passes 189 owning tests, all type checks, changed-file lint/format, dead code,
 duplication, localization and production build. The host API inventory gate
 still reports only its previously assigned generated Node-reader drift;
 regeneration remains lane W's integration work.
+
+FIXM103M3 resolves response uncertainty and the native-confirmed arc-plane
+candidate, passes **249** owning tests and **48** native replay cases, and
+proves five distinct byte-exact red drills. All required static/build checks
+pass except that same generated inventory drift. Surface outcome mapping
+and P3 offline GRBL decimal precision are named in §9; full shipping/editor,
+coverage and physical-device acceptance stay with integration.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -16216,6 +16223,22 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **RVM103M3-ARC-PLANE (native planner confirmed, fixed by FIXM103M3):**
+  Klipper offline batch and GRBL native check mode both generate G18/G19 Z
+  sweeps beyond the review's user cap. Telemetry cannot establish the plane,
+  so the analyzer conservatively unions XY/XZ/YZ complete-circle/helical
+  bounds. No previously refused command is admitted. The 48-case replay
+  covers both arc directions, coordinate modes and units; native Klipper's
+  relative/G20 rejections remain explicit. Receipts: `docs/certification/m103-m.md`.
+- **RVM103M3-GRBL-DECIMAL (P3 offline precision, 2026-10-05):** GRBL's
+  eight-digit decoder and float32 arithmetic can quantize repeating absolute
+  inch endpoints by under two micrometers in the capture; the analyzer's
+  double-precision ideal endpoint is not a native numeric emulator. The
+  plane cap remains refused, and GRBL/FluidNC model actuation is prohibited,
+  so no physical action uses this discrepancy. Maker is unshipped. Follow-up:
+  conservative numeric/parser envelopes before any CNC-motion owner decision;
+  no exact native GRBL endpoint-precision claim. The final plane regression
+  uses representable unit conversions and strict captured-envelope checks.
 - **RVM103M3-RESPONSE-LOSS (portable core fixed by FIXM103M3, 2026-10-05):**
   an error after the synchronous final write guard returns `sentOutcomeUnknown`
   in the send result and device log. It requires a successful explicit status
