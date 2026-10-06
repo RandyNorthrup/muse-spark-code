@@ -28579,6 +28579,8 @@ anywhere joined it).
       and preserve the complete inline English fallback with lossless encoding.
 - [x] Accessible loading, local load failure and retry; shared-host CSP/asset
       proof; owning tests and intentional static-import red drill.
+- [x] Fix RVMDIET1 P2-1, P2-2 and P3 with owning regressions and byte-exact
+      red drills; final 628-page accessibility matrix exits 0 on macmini.
 - [~] Scoped rig gates, production/package, accessibility and browser smoke;
   certification `docs/certification/diet1.md`, contribution rule and changelog.
   Lane rules prohibit aggregate quality, network, merges and pushes; the
@@ -28605,12 +28607,13 @@ accessibility matrix, real-browser fake-host smoke and VSIX packaging. Local
 packaging uses the existing named badge-network skip; CI rejects it. The lead
 must run integrated `npm run quality` and hosted checks before integration.
 See `docs/certification/diet1.md` for measurements and byte-exact red drills.
-The second complete accessibility scan reports zero violations/undecided rules
-across 628 pages, but exits 1 because one light/usage-install page misses the
-unchanged 10-second readiness deadline. The affected scenarios are rerun in all
-four themes at that same deadline. The 120-minute lane timebox leaves the full
-all-pages exit-0 receipt to the lead's integrated gate; no timeout, exemption,
-worker policy or accessibility rule is changed.
+The initial second accessibility scan reported zero violations/undecided rules
+across 628 pages but exited 1 when light/usage-install missed the unchanged
+10-second readiness deadline. FIXDIET1's final complete matrix supersedes that
+outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
+violations, zero undecided rules, zero exemptions and zero missing results.
+No timeout, exemption, worker policy or accessibility rule changed. The lead
+still owns integrated aggregate quality and actual host/release certification.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
