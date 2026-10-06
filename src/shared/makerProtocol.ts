@@ -351,6 +351,7 @@ export const makerHostMessageSchema = /* @__PURE__ */ (() =>
 export type MakerHostMessage = Immutable<z.infer<typeof makerHostMessageSchema>>
 
 export const makerSurfaceMessageSchema = z.discriminatedUnion('type', [
+  frame('makerPayloadReviewed', { id: uuid, digest, isComplete: boolean }),
   frame('makerPreviewRendered', { id: uuid, digest }),
   frame('makerReady', {}),
   frame('makerAnswer', {

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hardware approval now counts only fully visible hard-split segments, resets
+  progress on resize and requires host-owned completed review against the exact
+  outgoing bytes. Read-only/native preview paint cannot authorize a send.
+  Stop sits outside dialog scrolling and standalone controls form a stack.
+  Failed optional views retry a fresh chunk URL or close to restore chat.
+  The maker unit-test project now typechecks.
+
 - Maker approval now requires review of every payload line before Send once,
   with paged and keyboard review, rendered-byte receipts and equally sized
   choices. Serial-only Stop, failed-view recovery and short-pane preview Stop

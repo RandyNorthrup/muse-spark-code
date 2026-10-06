@@ -78,8 +78,12 @@ export function MachineWizard({
     onClose()
   }
   return (
-    <Modal title={UI_TEXT.makerAddMachine} titleId="maker-wizard-title" onClose={onClose}>
-      {stop}
+    <Modal
+      title={UI_TEXT.makerAddMachine}
+      titleId="maker-wizard-title"
+      onClose={onClose}
+      fixedControls={stop}
+    >
       <form
         onSubmit={(event) => {
           event.preventDefault()

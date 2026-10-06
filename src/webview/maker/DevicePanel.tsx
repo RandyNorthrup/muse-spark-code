@@ -40,8 +40,12 @@ export function DevicePanel({
     </button>
   )
   return (
-    <Modal title={UI_TEXT.makerDevicesTitle} titleId="maker-devices-title" onClose={onClose}>
-      {stop}
+    <Modal
+      title={UI_TEXT.makerDevicesTitle}
+      titleId="maker-devices-title"
+      onClose={onClose}
+      fixedControls={stop}
+    >
       <p>{UI_TEXT.makerSoftwareStopWarning}</p>
       <p>
         {admission?.hardwareEnabled === true

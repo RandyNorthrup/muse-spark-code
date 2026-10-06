@@ -37,6 +37,7 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
   const seen = new Set<string>()
   const timers = new Map<string, ReturnType<typeof setTimeout>>()
   const rendered = new Map<string, string>()
+  const reviewed = new Set<string>()
   const publish = (next: MakerState) => {
     state = next
     for (const listener of listeners) listener()
@@ -68,6 +69,7 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
       decision === 'allow_once' &&
       isAdmitted() &&
       now() < request.expiresAt &&
+      reviewed.has(id) &&
       rendered.get(id) === request.digest
         ? 'allow_once'
         : 'reject_once'
@@ -158,10 +160,24 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
     answer: didAnswer,
     isAdmitted,
     previewRendered: (id: string, digest: string) => {
-      if (!didSend({ v: MAKER_PROTOCOL_VERSION, type: 'makerPreviewRendered', id, digest })) return
       rendered.set(id, digest)
       const request = state.approvals.find((item) => item.id === id)
       if (request !== undefined && digest !== request.digest) didAnswer(id, 'reject_once')
+    },
+    reviewCompleted: (id: string, digest: string | undefined) => {
+      const wasReviewed = reviewed.delete(id)
+      const request = state.approvals.find((item) => item.id === id)
+      if (request === undefined) return
+      const isComplete = digest === request.digest && rendered.get(id) === digest
+      if (!isComplete && !wasReviewed) return
+      const didNotify = didSend({
+        v: MAKER_PROTOCOL_VERSION,
+        type: 'makerPayloadReviewed',
+        id,
+        digest: digest ?? request.digest,
+        isComplete,
+      })
+      if (isComplete && didNotify) reviewed.add(id)
     },
     subscribe: (listener: () => void) => {
       listeners.add(listener)

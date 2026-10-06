@@ -2602,7 +2602,11 @@
   "judgeStatusPaid": "Payant",
   "makerReadPayload": "Lire le contenu",
   "makerNextPage": "Page suivante",
-  "makerReviewProgress": "{count} lignes sur {total} vérifiées",
+  "makerReviewProgress": {
+    "one": "{reviewed} sur {count} segment vérifié",
+    "many": "{reviewed} sur {count} segments vérifiés",
+    "other": "{reviewed} sur {count} segments vérifiés"
+  },
   "makerLoadFailed": "La vue des appareils n’a pas pu se charger. L’arrêt reste disponible.",
   "makerRetry": "Réessayer",
   "makerCategoryPrinter": "Imprimante 3D",

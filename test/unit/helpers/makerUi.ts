@@ -62,6 +62,23 @@ export function installMakerBrowser() {
     callback: (entries: IntersectionObserverEntry[]) => void
     targets: Set<Element>
   }[] = []
+  const resizes: { callback: () => void; active: boolean }[] = []
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      private readonly record
+      public constructor(callback: () => void) {
+        this.record = { callback, active: false }
+        resizes.push(this.record)
+      }
+      public observe() {
+        this.record.active = true
+      }
+      public disconnect() {
+        this.record.active = false
+      }
+    },
+  )
   vi.stubGlobal('crypto', webcrypto)
   vi.stubGlobal(
     'IntersectionObserver',
@@ -78,7 +95,7 @@ export function installMakerBrowser() {
       }
     },
   )
-  return (indexes?: readonly number[]) => {
+  const visible = (indexes?: readonly number[]) => {
     for (const observer of observers)
       observer.callback(
         [...observer.targets]
@@ -97,6 +114,11 @@ export function installMakerBrowser() {
           })),
       )
   }
+  return Object.assign(visible, {
+    resize: () => {
+      for (const resize of resizes) if (resize.active) resize.callback()
+    },
+  })
 }
 export function uiBridge() {
   const post = vi.fn<(message: MakerSurfaceMessage) => void>()

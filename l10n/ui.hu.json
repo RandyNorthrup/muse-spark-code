@@ -2507,7 +2507,10 @@
   "judgeStatusPaid": "Fizetős",
   "makerReadPayload": "Tartalom olvasása",
   "makerNextPage": "Következő oldal",
-  "makerReviewProgress": "{count} / {total} sor áttekintve",
+  "makerReviewProgress": {
+    "one": "{reviewed} / {count} szegmens áttekintve",
+    "other": "{reviewed} / {count} szegmens áttekintve"
+  },
   "makerLoadFailed": "Az eszköznézet nem tölthető be. A leállítás továbbra is elérhető.",
   "makerRetry": "Újrapróbálkozás",
   "makerCategoryPrinter": "3D nyomtató",

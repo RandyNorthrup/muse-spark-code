@@ -27,6 +27,11 @@
   min-height: 26px;
 }
 
+.maker-stop button {
+  min-width: 44px;
+  min-height: 28px;
+}
+
 .maker-surface button:not([class]),
 .maker-toolbar button:not([class]) {
   padding: 6px 12px;
@@ -48,17 +53,19 @@
 }
 
 .maker-surface .modal {
-  max-height: calc(100vh - 100px);
+  max-height: calc(100dvh - 16px);
+}
+
+.maker-surface .modal-header,
+.maker-surface .maker-stop-slot {
+  flex-shrink: 0;
 }
 
 .maker-surface .modal-body {
   overflow-y: auto;
 }
 
-.maker-surface .modal-body .maker-stop-slot {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+.maker-surface .modal > .maker-stop-slot {
   padding-block: 4px;
   background: var(--vscode-editorWidget-background);
 }
@@ -69,6 +76,9 @@
 }
 
 .maker-surface .maker-payload {
+  font-family: monospace;
+  white-space: pre;
+  overflow-wrap: normal;
   flex-shrink: 0;
   max-height: 40vh;
   overflow: auto;
@@ -82,6 +92,23 @@
   min-height: 1em;
   min-width: 1px;
   scroll-margin-top: 64px;
+  width: max-content;
+  white-space: pre;
+}
+
+.maker-payload > span[data-continuation]::after {
+  content: ' ↪';
+}
+
+@media (height <= 160px) {
+  .maker-surface .modal-header {
+    padding-block: 2px;
+  }
+
+  .maker-surface .maker-stop-slot {
+    gap: 2px;
+    padding-block: 2px;
+  }
 }
 
 .maker-surface form button[type='submit'] {

@@ -38,6 +38,27 @@ afterEach(() => {
 })
 
 describe('bounded host-owned STL preview', () => {
+  it('three machines and Stop all get separate controls in one viewport stack', () => {
+    const buttons = ['', 'one', 'two', 'three'].map((id) => {
+      const button = document.createElement('button')
+      button.dataset['makerStop'] = id
+      document.body.append(button)
+      return button
+    })
+    const { host, post } = uiBridge()
+    lifetime.dispose = wireMakerPreview(document, host)
+    const stack = document.querySelector('.maker-stop-stack')
+    expect(stack?.children).toHaveLength(4)
+    for (const [index, button] of buttons.entries()) {
+      expect(button.parentElement).toBe(stack)
+      button.click()
+      expect(post).toHaveBeenLastCalledWith({
+        v: 1,
+        type: 'makerStop',
+        ...(index > 0 && { machineId: button.dataset['makerStop'] }),
+      })
+    }
+  })
   it.each([undefined, 'not-an-artifact'])(
     'refuses a preview document without its host artifact UUID',
     (id) => {

@@ -31,6 +31,14 @@ describe('maker UI echoes through the single host authority', () => {
     const engine = new MakerApproval(request, () => true)
     store.receive({ v: 1, type: 'makerApproval', request })
     store.previewRendered(request.id, request.digest)
+    store.reviewCompleted(request.id, request.digest)
+    engine.review({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: request.id,
+      digest: request.digest,
+      isComplete: true,
+    })
     post.mockClear()
     expect(store.answer(request.id, 'allow_once')).toBe(true)
     const raw = post.mock.calls[0]?.[0]
@@ -69,8 +77,16 @@ describe('maker UI echoes through the single host authority', () => {
         () => true,
         () => now,
       )
+      engine.review({
+        v: 1,
+        type: 'makerPayloadReviewed',
+        id: request.id,
+        digest: request.digest,
+        isComplete: true,
+      })
       store.receive({ v: 1, type: 'makerApproval', request })
       store.previewRendered(request.id, request.digest)
+      store.reviewCompleted(request.id, request.digest)
       post.mockClear()
       store.answer(request.id, 'allow_once')
       const raw = post.mock.calls[0]?.[0]

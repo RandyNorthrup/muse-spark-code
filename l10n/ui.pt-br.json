@@ -2602,7 +2602,11 @@
   "judgeStatusPaid": "Pago",
   "makerReadPayload": "Ler conteúdo",
   "makerNextPage": "Próxima página",
-  "makerReviewProgress": "{count} de {total} linhas revisadas",
+  "makerReviewProgress": {
+    "one": "{reviewed} de {count} segmento revisado",
+    "many": "{reviewed} de {count} segmentos revisados",
+    "other": "{reviewed} de {count} segmentos revisados"
+  },
   "makerLoadFailed": "Não foi possível carregar a visualização dos dispositivos. Parar continua disponível.",
   "makerRetry": "Tentar novamente",
   "makerCategoryPrinter": "Impressora 3D",

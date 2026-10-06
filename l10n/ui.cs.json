@@ -2697,7 +2697,12 @@
   "judgeStatusPaid": "Placené",
   "makerReadPayload": "Přečíst obsah",
   "makerNextPage": "Další stránka",
-  "makerReviewProgress": "Zkontrolováno {count} z {total} řádků",
+  "makerReviewProgress": {
+    "one": "Zkontrolováno {reviewed} z {count} segmentu",
+    "few": "Zkontrolováno {reviewed} z {count} segmentů",
+    "many": "Zkontrolováno {reviewed} z {count} segmentů",
+    "other": "Zkontrolováno {reviewed} z {count} segmentů"
+  },
   "makerLoadFailed": "Zobrazení zařízení se nepodařilo načíst. Zastavení je stále dostupné.",
   "makerRetry": "Zkusit znovu",
   "makerCategoryPrinter": "3D tiskárna",

@@ -2507,7 +2507,10 @@
   "judgeStatusPaid": "Kostenpflichtig",
   "makerReadPayload": "Nutzdaten lesen",
   "makerNextPage": "Nächste Seite",
-  "makerReviewProgress": "{count} von {total} Zeilen geprüft",
+  "makerReviewProgress": {
+    "one": "{reviewed} von {count} Segment geprüft",
+    "other": "{reviewed} von {count} Segmenten geprüft"
+  },
   "makerLoadFailed": "Die Geräteansicht konnte nicht geladen werden. Stopp bleibt verfügbar.",
   "makerRetry": "Erneut versuchen",
   "makerCategoryPrinter": "3D-Drucker",

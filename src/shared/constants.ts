@@ -244,6 +244,7 @@ export const MAKER_PROTOCOL_MAX_TEXT_CHARS = 1024 * 1024
 export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
 export const MAKER_PROTOCOL_MAX_ITEMS = 256
 export const MAKER_REVIEW_PAGE_LINES = 20
+export const MAKER_REVIEW_SEGMENT_CHARS = 24
 export const MAKER_DIGEST_RADIX = 16
 // M103 U: bounded preview geometry and UI defaults; no device opens at startup.
 export const MAKER_SERIAL_DEFAULT_BAUD = 115_200

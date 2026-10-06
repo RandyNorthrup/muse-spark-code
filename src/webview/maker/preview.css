@@ -6,12 +6,20 @@ body {
   padding-bottom: 48px;
 }
 
-[data-maker-stop] {
+.maker-stop-stack.maker-preview-controls {
   position: fixed;
   bottom: 8px;
   right: 8px;
   z-index: 1;
   max-width: calc(100vw - 16px);
+  display: grid;
+  gap: 4px;
+  background: var(--vscode-editorWidget-background);
+}
+
+.maker-stop-stack [data-maker-stop] {
+  min-width: 44px;
+  min-height: 28px;
 }
 
 [id='maker-canvas'] {

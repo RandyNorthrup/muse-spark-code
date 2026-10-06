@@ -4153,17 +4153,20 @@ prompt; clients without one and native plugins use the same shared dialog
 through the companion page or their HostBridge. All use the same engine's
 single-use target binding.
 
-Send once stays disabled until every payload line has been visible or traversed
-in the Read payload region. Long payloads have Next page, which focuses the
-payload, and a reviewed-line count. Reject remains available throughout.
-Both payload views post `makerPreviewRendered {id, digest}` from their DOM
-bytes on paint, replacement, appearance changes and visibility return.
-For a native approval preview, the host supplies the approval UUID as the
-payload preview's `id` and its `encoding` (`text`, or `hex` for encoded bytes).
-Hex receipts hash the decoded displayed bytes. Legacy previews without an id
-are read-only and cannot supply an approval receipt. V/R must revoke changed
-receipts under the terminal-latch contract. Failed views retain Stop and offer
-Retry; Stop also remains available for serial-only targets.
+Send once stays disabled until every payload segment has been fully visible
+in the Read payload scrollport. Each monospace segment holds at most 24
+characters, with a visible continuation mark on hard-split lines. Focus,
+selection and Next page never count as review; resizing resets progress.
+Reject remains available throughout. Completed approval review posts
+`makerPayloadReviewed {id, digest, isComplete}`. The portable host owns readiness,
+recomputes the frozen outgoing bytes' digest and refuses an answer before review
+or after a mismatch. `MakerHost.confirm` receives its host-only review callback;
+adapters must route completed shared approval review to it. Hex review hashes
+the decoded displayed bytes. Native and read-only previews send no digest or
+readiness and cannot authorize Send once. V/R still own installed-editor routing.
+Failed views retain Stop, retry their chunk at a fresh URL and offer Close to
+restore chat; Stop also remains available for serial-only targets. Dialog Stop
+controls sit outside the scrolling body and remain usable in a 120 px pane.
 
 The separate `dist/webview/makerPreview.js` / `.css` page has a 25 KiB script
 cap. Its host-rendered HTML supplies localized buttons with `data-maker-view`
@@ -4177,7 +4180,9 @@ viewer. Runtime/native hosts can supply their own HostBridge to
 While machines are registered, the host also renders Stop buttons with
 `data-maker-stop="<machine id>"` (an empty value stops all). These work before
 geometry arrives and after a WebGL failure, without approval or admission.
-The Stop buttons stay fixed in the viewport. Invalid matching geometry clears
+The Stop buttons form a fixed viewport stack with separate hit areas for Stop
+all and each machine. Stop all posts the intent for every registered machine.
+Invalid matching geometry clears
 the old view and shows the unavailable alert. Array size is checked before
 validation; accepted geometry is validated in bounded chunks with a deadline,
 and Stop cancels pending validation.

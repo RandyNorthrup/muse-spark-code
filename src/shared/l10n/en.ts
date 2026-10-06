@@ -74,7 +74,10 @@ export const EN = {
   makerCategory: 'Category',
   makerReadPayload: 'Read payload',
   makerNextPage: 'Next page',
-  makerReviewProgress: '{count} of {total} lines reviewed',
+  makerReviewProgress: forms({
+    one: '{reviewed} of {count} segment reviewed',
+    other: '{reviewed} of {count} segments reviewed',
+  }),
   makerLoadFailed: 'Maker view could not load. Stop remains available.',
   makerRetry: 'Retry',
   makerCategoryPrinter: '3D printer',

@@ -16,6 +16,8 @@ export interface ModalProps {
   readonly isWide?: boolean
   readonly onClose: () => void
   readonly children: ReactNode
+  /** Safety controls stay outside the scrolling body. */
+  readonly fixedControls?: ReactNode
 }
 
 const FOCUSABLE =
@@ -42,7 +44,14 @@ function trapTab(event: KeyboardEvent<HTMLDivElement>): void {
   }
 }
 
-export function Modal({ title, titleId, isWide = false, onClose, children }: ModalProps) {
+export function Modal({
+  title,
+  titleId,
+  isWide = false,
+  onClose,
+  children,
+  fixedControls,
+}: ModalProps) {
   const closeButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     closeButton.current?.focus()
@@ -88,6 +97,7 @@ export function Modal({ title, titleId, isWide = false, onClose, children }: Mod
             <CloseIcon />
           </button>
         </header>
+        {fixedControls}
         <div className="modal-body">{children}</div>
       </div>
     </div>

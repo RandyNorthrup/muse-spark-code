@@ -20,6 +20,10 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
   )
   if (!artifact.success) throw new Error('makerPreviewArtifact')
   const artifactId = artifact.data
+  const stops = document.createElement('div')
+  stops.className = 'maker-stop-stack maker-preview-controls'
+  stops.append(...document.querySelectorAll('[data-maker-stop]'))
+  document.body.append(stops)
   let renderer: ReturnType<typeof createMeshRenderer> | undefined
   let isDisposed = false
   let generation = 0
@@ -134,5 +138,6 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
     host.messages.removeEventListener('message', receive)
     document.removeEventListener('click', onControl)
     canvas.removeEventListener('webglcontextlost', lost)
+    stops.remove()
   }
 }

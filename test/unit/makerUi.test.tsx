@@ -12,13 +12,9 @@ import {
   installMakerBrowser,
 } from './helpers/makerUi'
 
-const browser: { visible: ReturnType<typeof installMakerBrowser> } = {
-  visible: () => {
-    throw new Error('browser setup')
-  },
-}
+const visibility = { current: installMakerBrowser() }
 beforeEach(() => {
-  browser.visible = installMakerBrowser()
+  visibility.current = installMakerBrowser()
 })
 
 afterEach(() => {
@@ -41,6 +37,17 @@ async function askOnce(store: ReturnType<typeof uiBridge>['store']) {
 }
 
 describe('shared maker views', () => {
+  it('shared dialog Stop is outside the scrolling body', async () => {
+    const { store, post } = renderMaker()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevicesTitle }))
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.makerDevicesTitle })
+    const stop = within(dialog).getByRole('button', { name: UI_TEXT.makerStopAll })
+    expect(stop.closest('.modal-body')).toBeNull()
+    expect(stop.closest('.maker-stop-slot')?.parentElement).toBe(dialog)
+    fireEvent.click(stop)
+    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+    store.dispose()
+  })
   it('renders exact target, payload and analysis; one click echoes the host request', async () => {
     const { store, post } = renderMaker()
     const request = uiApproval(Date.now() + 60_000)
@@ -54,7 +61,7 @@ describe('shared maker views', () => {
     expect(dialog).toHaveTextContent('Klipper')
     expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeDisabled()
     act(() => {
-      browser.visible()
+      visibility.current()
     })
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeEnabled(),

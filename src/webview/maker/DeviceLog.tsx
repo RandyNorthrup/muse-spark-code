@@ -14,8 +14,12 @@ export function DeviceLog({
   readonly onClose: () => void
 }) {
   return (
-    <Modal title={UI_TEXT.makerOpenDeviceLog} titleId="maker-log-title" onClose={onClose}>
-      {stop}
+    <Modal
+      title={UI_TEXT.makerOpenDeviceLog}
+      titleId="maker-log-title"
+      onClose={onClose}
+      fixedControls={stop}
+    >
       <p>{UI_TEXT.makerDeviceLogPrivacy}</p>
       <LogEntries log={log} />
     </Modal>

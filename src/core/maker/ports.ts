@@ -1,9 +1,12 @@
 // M103 I: the one portable host seam. UI answers enter only through confirm.
 import { performance } from 'node:perf_hooks'
+import { createHash } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 import {
   makerApprovalAnswerSchema,
   makerApprovalRequestSchema,
   makerTargetSchema,
+  makerSurfaceMessageSchema,
   type ApprovalRequest,
   type MakerMachineSummary,
   type MakerNotice,
@@ -55,7 +58,8 @@ export interface MakerSerialProvider {
   release(): Promise<void>
 }
 export interface MakerHost<Request extends ApprovalRequest = ApprovalRequest> {
-  confirm(request: Request): Promise<unknown>
+  /** Only completed approval review may call review; a preview receipt is not authority. */
+  confirm(request: Request, didReview: (raw: unknown) => boolean): Promise<unknown>
   notify(notice: MakerNotice): void | Promise<void>
   /** Install/remove independent Stop controls; each invokes the engine's ungated stop path. */
   stopControls(machines: readonly MakerMachineSummary[]): void | Promise<void>
@@ -109,6 +113,7 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
   private didConsume = false
   private didStart = false
   private binding: ApprovedTargetBinding | undefined
+  private reviewedDigest: string | undefined
   readonly request: Request
 
   constructor(
@@ -130,6 +135,33 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
       performance.now() - this.started < this.lifetime
     )
   }
+  private payloadDigest(): string {
+    const payload =
+      this.request.kind === 'serial' ? this.request.payload.value : this.request.payload
+    const bytes =
+      this.request.kind === 'serial' && this.request.payload.encoding === 'hex'
+        ? Buffer.from(payload, 'hex')
+        : Buffer.from(payload, 'utf8')
+    return createHash('sha256').update(bytes).digest('hex')
+  }
+  /** Host-owned state: native/read-only first paint cannot advance this review. */
+  review(raw: unknown): boolean {
+    this.reviewedDigest = undefined
+    const message = makerSurfaceMessageSchema.safeParse(raw)
+    if (
+      !message.success ||
+      message.data.type !== 'makerPayloadReviewed' ||
+      message.data.id !== this.request.id ||
+      !message.data.isComplete ||
+      this.didAnswer ||
+      !this.isCurrent() ||
+      message.data.digest !== this.request.digest ||
+      message.data.digest !== this.payloadDigest()
+    )
+      return false
+    this.reviewedDigest = message.data.digest
+    return true
+  }
   answer(raw: unknown): ApprovedTargetBinding | undefined {
     if (this.didAnswer) return undefined
     this.didAnswer = true
@@ -137,6 +169,7 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
     if (
       !answer.success ||
       !this.isCurrent() ||
+      this.reviewedDigest !== this.payloadDigest() ||
       answer.data.decision !== 'allow_once' ||
       answer.data.id !== this.request.id ||
       answer.data.digest !== this.request.digest ||
@@ -159,6 +192,7 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
     this.didStart =
       this.binding === binding &&
       this.isCurrent() &&
+      this.reviewedDigest === this.payloadDigest() &&
       live.success &&
       isSameMakerTarget(live.data, binding.target)
     return this.didStart

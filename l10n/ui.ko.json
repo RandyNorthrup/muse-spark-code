@@ -2412,7 +2412,9 @@
   "judgeStatusPaid": "유료",
   "makerReadPayload": "전송 내용 읽기",
   "makerNextPage": "다음 페이지",
-  "makerReviewProgress": "{total}개 줄 중 {count}개 검토됨",
+  "makerReviewProgress": {
+    "other": "{count}개 세그먼트 중 {reviewed}개 검토 완료"
+  },
   "makerLoadFailed": "장치 화면을 불러오지 못했습니다. 중지는 계속 사용할 수 있습니다.",
   "makerRetry": "다시 시도",
   "makerCategoryPrinter": "3D 프린터",

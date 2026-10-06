@@ -18921,6 +18921,36 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103U2 (2026-10-06, Win11).** Fix all seven RVM103U2 findings by
+construction: hard-split payloads into fixed-width segments, count only
+fully visible segments inside their scrollport and reset on resize. Focus
+and selection confer no review authority. Read-only previews send no receipt;
+only completed approval review reaches the portable host review state machine,
+which recomputes the exact outgoing-byte digest before accepting an answer.
+Keep Stop outside modal scrolling, stack standalone Stop controls, retry failed
+module fetches at a fresh URL and provide dismissal. Typecheck the test project.
+Move maker English and loader work behind the lazy boundary to close startup
+growth without raising any cap. Every fix has a failing regression/drill with
+byte-exact restoration in `docs/certification/m103-u.md`. No dependency, live
+call, hardware operation, merge or aggregate gate; final integration is the lead's.
+
+Round-2 disposition: both P1s and all four P2s are fixed. The host port now
+passes its review callback to serial and machine confirmation; legacy native
+preview receipts cannot satisfy the engine. V/R/W must adopt this contract
+before claiming installed-editor qualification. Group approval, wizard and
+log in the existing lazy maker root, retaining a separately retriable device
+view, so the safety fixes fit the unchanged 25 KiB cap. The startup split is
+still a named residual: the compressed lazy-English prototype reduced startup
+to 798.5 KiB but raised the maker root to 27.1 KiB, and still left about 4 KiB
+growth. Restore canonical fallback rather than weaken validation or budgets.
+The shared brief's stop-after-two-unsuccessful-fixes rule ends that path;
+the lead must schedule the broader Zod/fallback bundle redesign. No waiver of
+D83 acceptance 17 is claimed. Exact final sizes and failed drills follow in
+`docs/certification/m103-u.md`.
+Segments preserve complete Unicode graphemes within the 24 UTF-16-unit bound;
+a single grapheme larger than that bound explicitly fails the view, retaining
+the boundary's independent Stop and Reject-on-close path.
+
 **FIXM103U (2026-10-06, Win11).** Correct all RVM103U P1/P2 findings:
 approval needs the union of visible payload lines (paged for long payloads),
 with sequential keyboard/screen-reader traversal and reviewed-line progress;
@@ -20895,12 +20925,27 @@ before a repaired one loads (2026-09-30).
   now: no maker implementation runs at activation and all numeric caps stay
   unchanged. Lead/W follow-up: split the fallback/validation closure, measure
   exact production startup and close D83 acceptance 17; no waiver is claimed.
+  RVM103U2 round-2 repair: still unresolved. A compressed lazy maker-English
+  prototype with eager slot/form metadata failed the unchanged maker cap
+  (27.1 / 25 KiB), while startup still grew about 4 KiB. It was removed.
+  This is a performance/acceptance residual, not approval authority: all maker
+  implementation remains lazy and all final numeric caps pass unchanged.
+  The shared brief ends this failed path; follow-up is a coordinated fallback
+  and Zod chunk redesign, preserving full boundary checks and the existing caps.
+  Final FIXM103U2 production measurement: 818,889 B startup versus the
+  integration base's 813,602 B, **+5,287 B**. Maker surfaces: 25,500 / 25,600 B;
+  standalone preview: 23,303 / 25,600 B. Exact closure receipt is in
+  `docs/certification/m103-u/round2/sizes.json`.
 - **M103U-ADAPTER-QUALIFICATION (2026-10-06):** this rig has no m103/v objects.
   Render receipts follow REDM103V's terminal-latch contract and the new shared
   protocol; V/R/W must deliver payload id/encoding and verify native and
   companion receipt routing before claiming installed-editor support. The
   generic views fail closed without a receipt. No native/hardware receipt or
   aggregate quality pass is claimed here; those remain the lead's gates.
+  Round 2 supersedes the rendered-receipt handoff: preview paint has no
+  authority. `MakerHost.confirm(request, review)` accepts only completed shared
+  approval review through `makerPayloadReviewed`; the engine refuses legacy
+  native answers until this callback succeeds against its exact frozen bytes.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

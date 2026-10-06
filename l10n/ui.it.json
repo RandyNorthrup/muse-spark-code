@@ -2602,7 +2602,11 @@
   "judgeStatusPaid": "A pagamento",
   "makerReadPayload": "Leggi il contenuto",
   "makerNextPage": "Pagina successiva",
-  "makerReviewProgress": "{count} di {total} righe esaminate",
+  "makerReviewProgress": {
+    "one": "{reviewed} di {count} segmento esaminato",
+    "many": "{reviewed} di {count} segmenti esaminati",
+    "other": "{reviewed} di {count} segmenti esaminati"
+  },
   "makerLoadFailed": "Impossibile caricare la vista dei dispositivi. L’arresto resta disponibile.",
   "makerRetry": "Riprova",
   "makerCategoryPrinter": "Stampante 3D",

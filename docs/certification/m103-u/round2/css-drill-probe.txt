@@ -1,0 +1,11 @@
+import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
+const file='src/webview/maker/preview.css';const original=readFileSync(file);const sha=bytes=>createHash('sha256').update(bytes).digest('hex');let result;
+try {
+writeFileSync(file,Buffer.concat([original,Buffer.from('\n.maker-stop-stack [data-maker-stop] { position: fixed; bottom: 8px; right: 8px; }\n')]));
+result=spawnSync(process.execPath,['temp/round2-browser.mjs'],{encoding:'utf8',timeout:60000});
+if(result.status===0||!result.stderr.includes('AssertionError'))throw Error('overlap drill did not fire');
+} finally {writeFileSync(file,original);if(sha(readFileSync(file))!==sha(original))throw Error('CSS restore mismatch');}
+writeFileSync('docs/certification/m103-u/round2/css-drill.json',JSON.stringify({finding:'P2-5 CSS overlap',exit:result.status,restored:true,sha256:sha(original),output:result.stderr},null,2)+'\n');
+console.log('P2-5 overlap browser assertion failed; CSS restored byte-exact.');

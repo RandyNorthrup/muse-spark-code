@@ -33,3 +33,22 @@ it('a failed optional view preserves Stop and Retry remounts it', async () => {
   expect(await screen.findByText('Devices recovered')).toBeInTheDocument()
   store.dispose()
 })
+
+it('dismissing a rejected optional view restores chat and toolbar', async () => {
+  view.fails = true
+  vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const chat = document.createElement('div')
+  chat.id = 'root'
+  document.body.append(chat)
+  const { store } = uiBridge()
+  render(<MakerSurface store={store} />)
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerDevicesTitle }))
+  await screen.findByRole('alert')
+  expect(chat.inert).toBe(true)
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.usageClose }))
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  expect(chat.inert).toBe(false)
+  expect(document.querySelector('.maker-toolbar')).not.toHaveAttribute('inert')
+  store.dispose()
+  chat.remove()
+})

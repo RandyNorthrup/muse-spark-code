@@ -227,7 +227,7 @@ export function protectMachine(
             performance.now() - approvalStarted >= deps.policy.approvalTtlMs
           // The host sees a detached snapshot, never mutable engine state.
           const supplied = await withMakerDeadline(
-            () => deps.host.confirm(structuredClone(request)),
+            () => deps.host.confirm(structuredClone(request), (raw) => approvalCheck.review(raw)),
             deps.policy.approvalTtlMs,
           )
           access()

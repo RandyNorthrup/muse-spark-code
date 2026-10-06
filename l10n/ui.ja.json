@@ -2412,7 +2412,9 @@
   "judgeStatusPaid": "有料",
   "makerReadPayload": "送信内容を読む",
   "makerNextPage": "次のページ",
-  "makerReviewProgress": "{total} 行中 {count} 行を確認済み",
+  "makerReviewProgress": {
+    "other": "{count} セグメント中 {reviewed} セグメントを確認済み"
+  },
   "makerLoadFailed": "デバイス画面を読み込めませんでした。停止は引き続き使用できます。",
   "makerRetry": "再試行",
   "makerCategoryPrinter": "3Dプリンター",

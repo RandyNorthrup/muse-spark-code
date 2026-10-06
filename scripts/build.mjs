@@ -57,6 +57,7 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserEnglish,
+  retryMakerImports,
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
@@ -515,7 +516,8 @@ const pageWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction ? [compactBrowserEnglish] : [],
+  metafile: true,
+  plugins: isProduction ? [compactBrowserEnglish, retryMakerImports] : [retryMakerImports],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,

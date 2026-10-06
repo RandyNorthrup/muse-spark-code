@@ -2697,7 +2697,12 @@
   "judgeStatusPaid": "Платно",
   "makerReadPayload": "Прочитать содержимое",
   "makerNextPage": "Следующая страница",
-  "makerReviewProgress": "Проверено {count} из {total} строк",
+  "makerReviewProgress": {
+    "one": "Просмотрено {reviewed} из {count} сегмента",
+    "few": "Просмотрено {reviewed} из {count} сегментов",
+    "many": "Просмотрено {reviewed} из {count} сегментов",
+    "other": "Просмотрено {reviewed} из {count} сегментов"
+  },
   "makerLoadFailed": "Не удалось загрузить представление устройств. Остановка по-прежнему доступна.",
   "makerRetry": "Повторить",
   "makerCategoryPrinter": "3D-принтер",

@@ -2602,7 +2602,11 @@
   "judgeStatusPaid": "De pago",
   "makerReadPayload": "Leer contenido",
   "makerNextPage": "Página siguiente",
-  "makerReviewProgress": "{count} de {total} líneas revisadas",
+  "makerReviewProgress": {
+    "one": "{reviewed} de {count} segmento revisado",
+    "many": "{reviewed} de {count} segmentos revisados",
+    "other": "{reviewed} de {count} segmentos revisados"
+  },
   "makerLoadFailed": "No se pudo cargar la vista de dispositivos. Detener sigue disponible.",
   "makerRetry": "Reintentar",
   "makerCategoryPrinter": "Impresora 3D",

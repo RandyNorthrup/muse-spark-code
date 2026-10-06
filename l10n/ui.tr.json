@@ -2507,7 +2507,10 @@
   "judgeStatusPaid": "Ücretli",
   "makerReadPayload": "İçeriği oku",
   "makerNextPage": "Sonraki sayfa",
-  "makerReviewProgress": "{total} satırdan {count} satır incelendi",
+  "makerReviewProgress": {
+    "one": "{count} bölümden {reviewed} tanesi incelendi",
+    "other": "{count} bölümden {reviewed} tanesi incelendi"
+  },
   "makerLoadFailed": "Aygıt görünümü yüklenemedi. Durdurma hâlâ kullanılabilir.",
   "makerRetry": "Yeniden dene",
   "makerCategoryPrinter": "3D yazıcı",

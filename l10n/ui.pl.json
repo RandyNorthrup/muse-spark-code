@@ -2697,7 +2697,12 @@
   "judgeStatusPaid": "Płatne",
   "makerReadPayload": "Przeczytaj zawartość",
   "makerNextPage": "Następna strona",
-  "makerReviewProgress": "Sprawdzono {count} z {total} wierszy",
+  "makerReviewProgress": {
+    "one": "Sprawdzono {reviewed} z {count} segmentu",
+    "few": "Sprawdzono {reviewed} z {count} segmentów",
+    "many": "Sprawdzono {reviewed} z {count} segmentów",
+    "other": "Sprawdzono {reviewed} z {count} segmentów"
+  },
   "makerLoadFailed": "Nie udało się wczytać widoku urządzeń. Zatrzymanie jest nadal dostępne.",
   "makerRetry": "Spróbuj ponownie",
   "makerCategoryPrinter": "Drukarka 3D",

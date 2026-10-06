@@ -2412,7 +2412,9 @@
   "judgeStatusPaid": "付費",
   "makerReadPayload": "閱讀傳送內容",
   "makerNextPage": "下一頁",
-  "makerReviewProgress": "已檢查 {total} 行中的 {count} 行",
+  "makerReviewProgress": {
+    "other": "已檢閱 {reviewed} / {count} 個片段"
+  },
   "makerLoadFailed": "無法載入裝置檢視。停止功能仍可使用。",
   "makerRetry": "重試",
   "makerCategoryPrinter": "3D印表機",

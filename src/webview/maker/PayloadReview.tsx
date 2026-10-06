@@ -1,8 +1,13 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react'
-import { MAKER_DIGEST_RADIX, MAKER_REVIEW_PAGE_LINES, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
+import {
+  MAKER_DIGEST_RADIX,
+  MAKER_REVIEW_PAGE_LINES,
+  MAKER_REVIEW_SEGMENT_CHARS,
+  UI_TEXT,
+} from '../../shared/constants'
+import { plural, formatNumber, uiLocale } from '../../shared/l10n/text'
 
-/** Receipts bind DOM bytes; approval also requires visible or sequentially read lines. */
+/** Only full segment visibility counts; navigation never confers review authority. */
 export function PayloadReview({
   content,
   onRendered,
@@ -10,7 +15,7 @@ export function PayloadReview({
   encoding = 'text',
 }: {
   readonly content: string
-  readonly onRendered: (digest: string) => void
+  readonly onRendered?: (digest: string) => void
   readonly onReviewed?: (isComplete: boolean) => void
   readonly encoding?: 'text' | 'hex' | undefined
 }) {
@@ -23,7 +28,25 @@ export function PayloadReview({
   })
   const [count, setCount] = useState(0)
   const [page, setPage] = useState(0)
-  const lines = content.split('\n')
+  const segmenter = new Intl.Segmenter(uiLocale(), { granularity: 'grapheme' })
+  const lines = content.split('\n').flatMap((line, lineIndex, logicalLines) => {
+    const segments: string[] = []
+    let text = ''
+    const characters = segmenter.segment(line + (lineIndex < logicalLines.length - 1 ? '\n' : ''))
+    for (const { segment } of characters) {
+      if (segment.length > MAKER_REVIEW_SEGMENT_CHARS) throw new Error('makerPayloadSegment')
+      if (text.length + segment.length > MAKER_REVIEW_SEGMENT_CHARS) {
+        segments.push(text)
+        text = ''
+      }
+      text += segment
+    }
+    segments.push(text)
+    return segments.map((value, index) => ({
+      text: value,
+      isContinuation: index < segments.length - 1,
+    }))
+  })
   const seen = useRef(new Set<Element>())
   const progress = useCallback(() => {
     setCount(seen.current.size)
@@ -37,6 +60,7 @@ export function PayloadReview({
     setPage(0)
     let generation = 0
     const receipt = () => {
+      if (callbacks.current.onRendered === undefined) return
       const current = ++generation
       const text = node.textContent
       const bytes =
@@ -52,7 +76,7 @@ export function PayloadReview({
           const digest = [...new Uint8Array(result)]
             .map((byte) => byte.toString(MAKER_DIGEST_RADIX).padStart(2, '0'))
             .join('')
-          callbacks.current.onRendered(digest)
+          callbacks.current.onRendered?.(digest)
         })
         .catch(() => {
           callbacks.current.onReviewed?.(false)
@@ -75,15 +99,30 @@ export function PayloadReview({
       (entries) => {
         for (const entry of entries) {
           if (entry.intersectionRatio !== 1 || document.visibilityState === 'hidden') continue
-          const { x, y } = entry.boundingClientRect
-          if (!node.contains(document.elementFromPoint(x + 1, y + 1))) continue
+          const { x, y, width, height } = entry.boundingClientRect
+          const inset = Math.min(1, width / 2, height / 2)
+          if (
+            [x + inset, x + width - inset].some((left) =>
+              [y + inset, y + height - inset].some(
+                (top) => !entry.target.contains(document.elementFromPoint(left, top)),
+              ),
+            )
+          )
+            continue
           seen.current.add(entry.target)
         }
         progress()
       },
-      { threshold: 1 },
+      { root: node, threshold: 1 },
     )
     for (const line of node.children) observer.observe(line)
+    const resize = new ResizeObserver(() => {
+      seen.current.clear()
+      progress()
+      observer.disconnect()
+      for (const line of node.children) observer.observe(line)
+    })
+    resize.observe(node)
     // The complete read-only document is mounted; scrolling/paging never changes its bytes.
     const paint = requestAnimationFrame(receipt)
     return () => {
@@ -91,6 +130,7 @@ export function PayloadReview({
       refresh.current = undefined
       cancelAnimationFrame(paint)
       observer.disconnect()
+      resize.disconnect()
       mutation.disconnect()
       document.removeEventListener('visibilitychange', receipt)
     }
@@ -98,9 +138,8 @@ export function PayloadReview({
   return (
     <>
       <p role="status">
-        {fill(UI_TEXT.makerReviewProgress, {
-          count: formatNumber(count),
-          total: formatNumber(lines.length),
+        {plural(UI_TEXT.makerReviewProgress, lines.length, {
+          reviewed: formatNumber(count),
         })}
       </p>
       <pre
@@ -109,19 +148,10 @@ export function PayloadReview({
         role="region"
         aria-label={UI_TEXT.makerReadPayload}
         tabIndex={0}
-        onFocusCapture={(event) => {
-          if (event.target === event.currentTarget) {
-            return
-          }
-
-          seen.current.add(event.target)
-          progress()
-        }}
       >
         {lines.map((line, index) => (
-          <span key={index} tabIndex={0}>
-            {line}
-            {index < lines.length - 1 ? '\n' : ''}
+          <span key={index} tabIndex={0} data-continuation={line.isContinuation || undefined}>
+            {line.text}
           </span>
         ))}
       </pre>

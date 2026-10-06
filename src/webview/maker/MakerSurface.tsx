@@ -16,37 +16,23 @@ import { makerWarningText } from './presentation'
 import { StopChip } from './StopChip'
 import { PayloadReview } from './PayloadReview'
 import { MakerBoundary } from './MakerBoundary'
+import { ApprovalDialog } from './ApprovalDialog'
+import { MachineWizard } from './MachineWizard'
+import { DeviceLog } from './DeviceLog'
 import './maker.css'
 
-const loadApproval = async () => {
-  const { ApprovalDialog } = await import('./ApprovalDialog')
-  return { default: ApprovalDialog }
-}
 const loadDevices = async () => {
   const { DevicePanel } = await import('./DevicePanel')
   return { default: DevicePanel }
 }
-const loadWizard = async () => {
-  const { MachineWizard } = await import('./MachineWizard')
-  return { default: MachineWizard }
-}
-const loadLog = async () => {
-  const { DeviceLog } = await import('./DeviceLog')
-  return { default: DeviceLog }
-}
-const createViews = () => ({
-  ApprovalDialog: lazy(loadApproval),
-  DevicePanel: lazy(loadDevices),
-  MachineWizard: lazy(loadWizard),
-  DeviceLog: lazy(loadLog),
-})
+const createViews = () => ({ DevicePanel: lazy(loadDevices) })
 
 export function MakerSurface({ store }: { readonly store: ReturnType<typeof createMakerStore> }) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const [view, setView] = useState<'devices' | 'wizard' | 'log' | undefined>()
   const [closedPreview, setClosedPreview] = useState<unknown>()
   const [views, setViews] = useState(createViews)
-  const { ApprovalDialog, DevicePanel, MachineWizard, DeviceLog } = views
+  const { DevicePanel } = views
   const approval = state.approvals[0]
   const close = () => {
     setView(undefined)
@@ -78,6 +64,9 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
           stop={stop}
           onRendered={(digest) => {
             store.previewRendered(approval.id, digest)
+          }}
+          onReview={(digest) => {
+            store.reviewCompleted(approval.id, digest)
           }}
           onAnswer={(decision) => {
             store.answer(approval.id, decision)
@@ -146,6 +135,11 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
       )}
       <MakerBoundary
         stop={stop}
+        onClose={() => {
+          close()
+          setClosedPreview(state.preview)
+          if (approval !== undefined) store.answer(approval.id, 'reject_once')
+        }}
         onRetry={() => {
           setViews(createViews())
         }}
@@ -162,8 +156,8 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
                   store.answer(approval.id, 'reject_once')
                 }
               }}
+              fixedControls={stop}
             >
-              {stop}
               <p role="status" data-deferred-loading>
                 {UI_TEXT.loadingOutput}
               </p>
@@ -172,45 +166,37 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
         >
           {overlay}
         </Suspense>
-        {state.preview !== undefined &&
-          closedPreview !== state.preview &&
-          approval === undefined &&
-          view === undefined && (
-            <Modal
-              title={state.preview.preview.title}
-              titleId="maker-preview-title"
-              onClose={() => {
-                setClosedPreview(state.preview)
-              }}
-            >
-              {stop}
-              {state.preview.preview.kind === 'payload' ? (
-                <PayloadReview
-                  content={state.preview.preview.content}
-                  encoding={state.preview.preview.encoding}
-                  onRendered={(digest) => {
-                    const preview = state.preview?.preview
-                    if (preview?.kind === 'payload' && preview.id !== undefined)
-                      store.previewRendered(preview.id, digest)
-                  }}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (state.preview?.preview.kind === 'stl')
-                      store.send({
-                        v: MAKER_PROTOCOL_VERSION,
-                        type: 'makerOpenPreview',
-                        artifactId: state.preview.preview.artifactId,
-                      })
-                  }}
-                >
-                  {UI_TEXT.makerPreviewTitle}
-                </button>
-              )}
-            </Modal>
-          )}
+        {state.preview !== undefined && isPreviewOpen && (
+          <Modal
+            title={state.preview.preview.title}
+            titleId="maker-preview-title"
+            onClose={() => {
+              setClosedPreview(state.preview)
+            }}
+            fixedControls={stop}
+          >
+            {state.preview.preview.kind === 'payload' ? (
+              <PayloadReview
+                content={state.preview.preview.content}
+                encoding={state.preview.preview.encoding}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (state.preview?.preview.kind === 'stl')
+                    store.send({
+                      v: MAKER_PROTOCOL_VERSION,
+                      type: 'makerOpenPreview',
+                      artifactId: state.preview.preview.artifactId,
+                    })
+                }}
+              >
+                {UI_TEXT.makerPreviewTitle}
+              </button>
+            )}
+          </Modal>
+        )}
       </MakerBoundary>
     </div>
   )

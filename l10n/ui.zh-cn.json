@@ -2412,7 +2412,9 @@
   "judgeStatusPaid": "付费",
   "makerReadPayload": "阅读发送内容",
   "makerNextPage": "下一页",
-  "makerReviewProgress": "已检查 {total} 行中的 {count} 行",
+  "makerReviewProgress": {
+    "other": "已查看 {reviewed} / {count} 个片段"
+  },
   "makerLoadFailed": "无法加载设备视图。停止功能仍可使用。",
   "makerRetry": "重试",
   "makerCategoryPrinter": "3D打印机",
