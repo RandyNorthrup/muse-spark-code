@@ -11240,6 +11240,86 @@ Needs: <items>.`).
     own unless the user schedules it (an M115 schedule whose action is
     "post report"), and the schedule's grant then names the target. Copying
     and saving stay the defaults. GitHub's identity is the one D95.13 uses.
+18. **Scheduled reports, delivered** (amended 2026-10-06). The owner: "i would
+    also like to be able to schedule reports same method as the prompt
+    scheduling and it can either save to a destination, open in the
+    browser, or emailed to the user".
+    - **A report is a schedule's action** (D95.14): any kind, with its
+      arguments and format, on M115's time and event triggers, stacking,
+      timeline, unattended rules and missed-fire policy. A report run makes
+      no model call, so no paid budget applies; network sources follow
+      `museSpark.reports.network`. Its `asOf` is the occurrence's scheduled
+      time, so a retried fire renders the same bytes.
+    - **Destinations,** one or more per schedule:
+      1. **Save:** a folder the user picks through the save dialog (recorded
+         as that schedule's allowed root), the workspace's `reports/`
+         folder, or a node's storage (M110's data volume, shown in its web
+         UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
+         `{hash8}`, `{ext}`; `{kind}-{date}.{ext}` by default) and a
+         retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
+         which deletes only files that schedule wrote (its own manifest).
+         Paths are canonicalised and confined to the allowed root (no link
+         or junction escapes, `canonicalPath.ts`), and every write is atomic
+         (`fsAtomic.ts`).
+      2. **Open in the browser:** the HTML report opens in the default
+         browser as a local file, or as the node's authenticated report URL
+         for a node-run schedule, only while a user session is active (a
+         focused editor window, or an unlocked desktop session); otherwise
+         it waits, with **Open when I'm back**. Never a public URL.
+      3. **Email to the user:**
+         - **Recipients:** the user's own addresses, each verified once by a
+           six-digit code sent to it (`REPORT_EMAIL_CODE_TTL_MS`, 15
+           minutes; five tries). Any other address needs its own entry in an
+           allow-list the user writes; agents never add one.
+         - **Sending:** the user's own SMTP server (its credentials a vault
+           item, M109; TLS required, certificate checked), or Gmail or
+           Outlook through OAuth the user connects (the connect click and the
+           consent are theirs; the tokens in the vault). Never a relay we
+           operate.
+         - **The first send to each recipient** asks once, showing the
+           message as it will go.
+         - **The message:** an HTML body with a text alternative, and the
+           report attached in the chosen format, after the renderer's scrub
+           (decision 8) runs on body, alternative and attachment.
+         - **Bounded:** `REPORT_EMAIL_PER_HOUR` (6) and
+           `REPORT_EMAIL_PER_DAY` (20).
+      4. **Post** (decision 17), as already planned.
+    - **Surfaces.** The schedule editor's **Action: Report** with a
+      destination picker; `/report <kind> … --schedule` opens it filled in;
+      the CLI's `schedule add --report <kind> [args] --to save:<path> |
+browser | email:<address>` (repeatable); the orchestrator's
+      `schedule_report` tool under D95.8's no-escalation rule, which may save
+      within its creator's roots and email only verified addresses.
+19. **Cloud saves and text messages: planned, after the first destinations
+    ship** (M113d). The owner: "future plans for cloud saving, and sms".
+    - **Cloud save** to providers the user connects (the connect click and
+      the consent are theirs; tokens in the vault): Google Drive, OneDrive,
+      Dropbox, and S3-compatible storage (a bucket with access keys, or the
+      provider's single sign-on).
+      - Uploads go to a chosen folder with the name template and retention,
+        resumable.
+      - Links are private by default; "anyone with the link" only when the
+        user picks it.
+      - Gated per provider by what it supports; the scrub runs before every
+        upload.
+    - **Text messages (SMS)** through the user's own messaging provider
+      account (Twilio, Vonage, AWS SNS or similar; its credentials a vault
+      item). We operate no relay.
+      - **Recipients:** the user's own numbers, each verified by a one-time
+        code; opt-in per number, with STOP and HELP handled and quiet hours.
+      - **The text is a summary,** never the report: the "Needs you" lines
+        and one or two key numbers, and a link to the full report on the
+        user's own node or storage.
+      - **Bounded:** `REPORT_SMS_PER_HOUR` (2) and `REPORT_SMS_PER_DAY` (10).
+      - **It costs money,** so the provider's per-message price is shown
+        before the first send and the paid ask-once rule (D78, D48) applies,
+        with its daily budget. It bills the user's messaging account, never
+        the Model API key: AGENTS rule 12 gains this exception beside
+        TypeSafe's.
+    - Both use the same scheduler, destination picker, CLI flags
+      (`--to cloud:<provider>:<folder>`, `--to sms:<number>`) and test
+      pattern, with fake providers. **Needs:** M109's vault; M110's node to
+      host the links.
 
 ---
 
@@ -11671,7 +11751,14 @@ initial filing of the issue".
     C lands first, M115 builds on it. M45's goal wakes and M96c's task
     scheduler stay as they are. Muse Code's own cron tools stay the model's,
     inside its turns.
-13. **The issue watchdog** (M115w, a phase of its own). An "issue opened"
+13. **A schedule's action is a prompt or a report** (amended 2026-10-06,
+    with D93.18). The action is `prompt` (decisions 1–8) or `report`: an
+    M113 kind with its arguments, format and destinations. A report action
+    makes no model call and has no paid budget; it is unattended like any
+    fire, its grant names its destinations, and its triggers, stacking,
+    timeline, collision order and missed-fire policy are the same. The
+    orchestrator's `schedule_report` follows decision 8.
+14. **The issue watchdog** (M115w, a phase of its own). An "issue opened"
     event trigger (decision 11) on GitHub or GitLab hands each new issue to
     the orchestrator, which carries it from acknowledgement to the reply that
     closes it.
@@ -12089,6 +12176,15 @@ answers "how long" or "with what".
      kind and target, previewed before the first post, never automatic unless
      the user schedules it (M115); copying and saving stay the defaults
      (D93.17).
+
+  3. **OAuth app registrations** (2026-10-06, D93.18 and 19). Sending through
+     Gmail or Outlook, and saving to Google Drive, OneDrive or Dropbox, need
+     an OAuth client registered with each provider under the product's name;
+     Gmail's send scope also needs Google's verification for a public app.
+     Each is a credential and an account, so it is his. **Default:** email
+     goes through the user's own SMTP server (Gmail's and Outlook's SMTP with
+     an app password, where the provider still allows it), cloud saves wait,
+     and each OAuth route turns on once its client exists.
 
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
 
@@ -26997,8 +27093,17 @@ kind). The usage kind waits for M102, the native-host rows for M104b–d.
 | H History, diff and the check-run journal (b) | D93.9 and 10: the history store and its bound; `report history`; the diff and its section; "No change since"; the check-run journal written by M68's runner (and M96c's slots once merged)                                                                                                                                                                                                                       | new `src/core/reporting/history.ts`, `src/core/reporting/diff.ts`, `src/core/reporting/checkRuns.ts`                                                      | `src/core/verify/checkCommands.ts` and the verify loop's run site (one append call, with M68's owner); M96c's check slots (the same call, once merged)                                                                                                                                                                                                 | after R                      | Win11 VM |    10 |
 | W Wiring, docs and gates (last)               | `dist/reporting.js` and `dist/reportingPanel.js`, budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                                                        | `docs/certification/m113*.md`                                                                                                                             | `scripts/build.mjs`; the bundle-size and split gates; the host API record; knip and dpdm entries; `.vscodeignore`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; AGENTS.md's layout; PLAN                                                                            | last                         | Kubuntu  |     8 |
 
-Total: about 140 lane-hours: a about 105, b about 30, and c about 5 as its
-milestones merge.
+| Q Scheduled reports and destinations (c) | D93.18 and D95.14: the report action's run path (no model call, `asOf` at the occurrence); the destinations: save (the allowed root, the name template, retention by manifest, confinement, atomic writes, a node's storage), the browser (the active-session check, **Open when I'm back**, the node's authenticated URL), email (SMTP through the vault with TLS, Gmail and Outlook through the user's OAuth connect, the verification codes, the allow-list, the first-send confirmation, HTML with a text alternative and the attachment, the hourly and daily caps, the scrub before sending), post (decision 17); the shared destination picker; `/report … --schedule` | new `src/core/reporting/destinations/**`, `src/webview/reporting/destinations/**` | M115's schedule store and editor (the action and the picker, with M115 RA's owner); M109's vault items (with its owner); `canonicalPath.ts` and `fsAtomic.ts` (callers only) | after R and N, with M115 merged | Kubuntu | 28 |
+
+Total: about 168 lane-hours: a about 105, b about 30, and c about 33 as its
+milestones merge. **M113d** (D93.19, planned after the first destinations
+ship) adds about 40: lanes **CL** (cloud saves: Google Drive, OneDrive,
+Dropbox and S3-compatible adapters, resumable uploads, private links by
+default, capability gating, the scrub; 20 h, Mac mini) and **SM** (text
+messages: the user's provider adapters, number verification, opt-in, STOP
+and HELP, quiet hours, the summary and link, the caps, the price and the
+paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
+M110, and fake providers for every adapter.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
@@ -27069,7 +27174,24 @@ milestones merge.
      rows; the same hash says "No change since".
   9. **The check-run journal** holds no command line or output (a canary),
      is bounded at 500, and feeds the quality kind.
-  10. **Editors.**
+  10. **Scheduled reports** (lane Q, on fakes: an SMTP server, OAuth
+      providers, a browser opener):
+      - a fired report renders the same bytes as one run by hand with the
+        same `asOf` (the occurrence's time), and twice across processes;
+      - a save stays inside its root (a planted link and `..` are refused),
+        is atomic, follows the template, and retention deletes only that
+        schedule's own files;
+      - the browser opens only with an active session, else waits for **Open
+        when I'm back**, and never a public URL;
+      - an unverified recipient, or one off the allow-list, is refused; a
+        code expires and a sixth try fails;
+      - nothing is sent without the first-send confirmation (a red drill
+        skips it, and the test fails); planted canaries are absent from the
+        body, the alternative and the attachment; SMTP without TLS is
+        refused; the hourly and daily caps hold;
+      - an agent's `schedule_report` cannot reach an unverified address or a
+        root its creator lacks.
+  11. **Editors.**
       - VS Code: `/report`, the picker, the tab's actions, the save dialog;
         harness scenes pass axe in four themes and at 320 px.
       - The companion page; the native hosts through fake JCEF, WebView2 and
@@ -27079,10 +27201,10 @@ milestones merge.
       - The CLI: every format and flag; bare `report` is still M93's
         problem report, byte for byte; each exit code from its fixture.
       - The TUI and the desktop on the MHP fakes, or named as waiting.
-  11. **Speed.** A local project report of this repository within 2 seconds
+  12. **Speed.** A local project report of this repository within 2 seconds
       on each rig, and the plan's parse within 200 ms; the figures in the
       certification record.
-  12. **Budgets.** As below; activation unchanged.
+  13. **Budgets.** As below; activation unchanged.
 - **Tests.** Unit tests per lane with a red drill each, recorded in
   `docs/certification/m113-<lane>.md`:
   - `planReader.test.ts` (every grammar row and drift kind; this
@@ -27142,10 +27264,12 @@ milestones merge.
   | `dist/acp.js`                  | ≤ 2 KiB (the command; the engine lazy) | 850 KiB, unchanged                                      |
   | `dist/uiText.js`               |                              ≤ 0.5 KiB | 125 KiB, unchanged (labels in their own table family)   |
 
-- **Size.** M–L: about 140 lane-hours.
+- **Size.** M–L: about 168 lane-hours, and M113d's 40 later.
 - **Certification checklist** (§6.0, plus):
   - [ ] `check:plan` green over this repository's plan with no baseline, and
         each drift kind drilled
+  - [ ] Lane Q's destinations with their drills, once M115 has merged;
+        M113d named as planned
   - [ ] Delivery a's lanes with drills; determinism byte-compared across
         processes, time zones and languages
   - [ ] Delivery b's network, history and journal, with the rate-limit and
@@ -27380,7 +27504,9 @@ core (below).
 | X Runtime, ACP, CLI, companion, MHP | D95.9's opt-in OS entry (the question at the first schedule; Task Scheduler, launchd and systemd user timer entries that wake `schedule run-due` and exit; removal in Settings, `schedule background off` and uninstall cleanup); D95.10's other rows: the runtime's scheduler host; the CLI's `schedule` subcommands with `--json`; ACP's `/schedule`; the companion page through the panel; MHP's `schedules/*` through the fake bridges; the TUI's and the desktop's hooks; `exec`'s refusal kept | new `src/runtime/schedules/**`, `src/acp/schedules.ts`                                                                                   | `src/runtime/cliArgs.ts` and `main.ts` (`schedule`); `src/acp/agent.ts` (commands); `src/runtime/companion/server.ts` (with M104 lane C's owner, once merged)                                                                                                                                                                                                                                                       | after 0 and S                                | Win11 VM |    12 |
 | W Wiring, docs, help, report (lead) | `dist/schedules.js` (lazy), budgets, the split rule, `package.json`, the docs, AGENTS.md rule 12's line, the `/help` rows, M113's `schedules` kind, registry rows, certification, the full gate                                                                                                                                                                                                                                                                                                      | `docs/certification/m115*.md`                                                                                                            | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; AGENTS.md; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; M113's collector (with its owner); PLAN                                                                                                                                                       | last                                         | Kubuntu  |     6 |
 
-Total: about 134 lane-hours.
+| RA Report action | D95.14: the action union (`prompt` or `report`) in the store and the scheduler; the report run path through M113's lane Q; the grant naming destinations; **Action: Report** in the editor (V's region); the CLI's `--report` and `--to`; the `schedule_report` tool under G's no-escalation rule | new `src/core/schedules/reportAction.ts` | `src/shared/scheduleV2.ts` (with 0's owner); the editor (with V's owner); `agentTools.ts` (with G's owner); `src/runtime/schedules/**` (with X's owner) | after S, V and G; with M113's lane Q | Mac mini | 10 |
+
+Total: about 144 lane-hours.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`scheduleV2.ts`:** the schedule (id, name, trigger, target, delivery,
@@ -27473,12 +27599,17 @@ Total: about 134 lane-hours.
       runtime at the next due fire only, fires through the claim (no double
       fire beside an open editor) and exits; **Remove** deletes it (each
       checked on the Win11 VM, the Mac mini and Kubuntu).
-  13. **Editors.** VS Code's list, editor and timeline pass axe in four
+  13. **The report action** (with M113's lane Q): a report schedule fires on
+      each trigger kind with no model request and no paid reservation (a spy
+      counts none), honours collisions and the missed-fire policy, and
+      delivers to its destinations; `schedule add --report … --to …` works;
+      an agent's report schedule stays inside its creator's grant.
+  14. **Editors.** VS Code's list, editor and timeline pass axe in four
       themes and at 320 px; the companion page; the fake JCEF, WebView2 and
       SWT bridges; ACP's `/schedule`; the CLI's subcommands with `--json`;
       `exec` refuses; the TUI and the desktop on the MHP fakes, or named as
       waiting.
-  14. **Budgets.** As below; activation unchanged.
+  15. **Budgets.** As below; activation unchanged.
 - **Tests.** Unit tests per lane with a red drill each, recorded in
   `docs/certification/m115-<lane>.md`:
   - `scheduleTime.test.ts` (zones, gaps, folds, previews);
@@ -27541,7 +27672,7 @@ Total: about 134 lane-hours.
   The poll stays at one minute and reads only the store's index; event
   sources poll at their own bounded rates under M113's limits.
 
-- **Size.** M–L: about 134 lane-hours.
+- **Size.** M–L: about 144 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] Lane 0's contracts; M52's migration verified on a real store copy
   - [ ] Lanes T, S, U, D, G, V and X with their drills
