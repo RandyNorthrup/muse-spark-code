@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Preserve pending native starts across idle snapshots so scheduled work
+  cannot claim an ordinary turn acknowledged after that observation.
+
 - Keep complete source inventories for cached scheduled context, refuse
   incomplete derivations, and use one canonical workspace boundary for live
   and cached reads. Reviewer omissions and truncated context no longer gain

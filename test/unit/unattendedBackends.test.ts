@@ -1898,6 +1898,33 @@ describe('scheduled Model API dispatch', () => {
 })
 
 describe('scheduled Muse Code dispatch over captured MSP frames', () => {
+  it('RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode', async () => {
+    const fixture = await museBackend('denyUnmatched')
+    fixture.server.silence('turn/start')
+    const ordinary = fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    await vi.waitFor(() => {
+      expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
+    })
+    fixture.server.notify('session/statusChanged', {
+      sessionId: fixture.session.sessionId,
+      status: 'idle',
+    })
+    await settle()
+    answerNative(fixture, 'turn/start', 0, () => ({
+      turnId: 'ordinary',
+      disposition: 'started',
+      startedNewTurn: true,
+    }))
+    await ordinary
+    const { run } = unattendedRun()
+    await expect(
+      fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),
+    ).rejects.toThrow()
+    expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    await fixture.host.close()
+  })
+
   it('RVM115U4 P2-1: a stale native mode acknowledgement clears only its pending effect', async () => {
     const fixture = await museBackend()
     await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])

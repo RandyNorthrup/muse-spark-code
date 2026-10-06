@@ -28,7 +28,8 @@ export class SessionOwner {
   private modePending: SessionEffect | undefined
   private isQuarantined = false
   private restoring = false
-  private readonly liveTurns = new Set<string>()
+  private sequence = 0
+  private readonly liveTurns = new Map<string, number>()
   private readonly terminalTurns = new Set<string>()
   private readonly starts = new Set<SessionToken>()
 
@@ -48,7 +49,9 @@ export class SessionOwner {
   }
 
   public get currentTurnId(): string | undefined {
-    return [...this.liveTurns].at(-1)
+    let current: string | undefined
+    for (const turnId of this.liveTurns.keys()) current = turnId
+    return current
   }
 
   public token(): SessionToken {
@@ -157,7 +160,12 @@ export class SessionOwner {
     const wasPending = this.starts.delete(token)
     if (!wasPending || token.generation !== this.generation) return
     // A queued turn's terminal cannot discard evidence for another turn.
-    if (didStart && !this.terminalTurns.has(turnId)) this.liveTurns.add(turnId)
+    if (!didStart || this.terminalTurns.has(turnId)) {
+      return
+    }
+
+    this.liveTurns.set(turnId, ++this.sequence)
+    if (this.fire !== undefined) this.fire.hasStopEvidence = false
   }
 
   public startFailed(token: SessionToken): void {
@@ -184,7 +192,7 @@ export class SessionOwner {
   }
 
   public observedStart(turnId: string): void {
-    if (!this.terminalTurns.has(turnId)) this.liveTurns.add(turnId)
+    if (!this.terminalTurns.has(turnId)) this.liveTurns.set(turnId, ++this.sequence)
     if (this.fire !== undefined) this.fire.hasStopEvidence = false
     this.observeFireTurn(turnId)
   }
@@ -198,7 +206,7 @@ export class SessionOwner {
     }
 
     this.fire.observedTurns.add(turnId)
-    if (!this.terminalTurns.has(turnId)) this.liveTurns.add(turnId)
+    if (!this.terminalTurns.has(turnId)) this.liveTurns.set(turnId, ++this.sequence)
   }
 
   public admitted(token: SessionToken, turnId: string): SessionEffect | undefined {
@@ -221,6 +229,7 @@ export class SessionOwner {
       this.fire.turnId !== token.turnId
     )
       return
+    this.starts.delete(token)
     this.fire.turnId ??= [...this.fire.observedTurns].at(-1)
     this.fire.phase = 'failed'
     return this.fire.hasStopEvidence ||
@@ -232,9 +241,12 @@ export class SessionOwner {
 
   /** Unambiguous session-wide stop evidence also settles an unknown dispatched turn. */
   public stopped(): SessionEffect | undefined {
-    for (const turnId of this.liveTurns) this.terminalTurns.add(turnId)
-    this.liveTurns.clear()
-    this.starts.clear()
+    const observedAt = ++this.sequence
+    for (const [turnId, startedAt] of this.liveTurns) {
+      if (startedAt < observedAt) this.liveTurns.delete(turnId)
+    }
+    // Outstanding commands can start after this observation. Only their own
+    // acknowledgement/failure resolves them; idle never supplies that proof.
     if (this.fire === undefined) return undefined
     this.fire.hasStopEvidence = true
     return this.fire.phase === 'failed' ? this.release() : undefined

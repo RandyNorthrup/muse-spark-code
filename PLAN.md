@@ -6875,6 +6875,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115U6 — Structural inventories and per-turn idle evidence (2026-10-06)
+
+Repair all three RVM115U5 P1s. Pending native commands survive idle snapshots;
+monotonic turn evidence limits idle settlement to earlier observed starts.
+Replace caller-certified derivations with closed recording-reader scopes.
+Context builders consume recorded files, cached material, Git facts and skill
+sources through that reader; direct filesystem/Git imports are forbidden in
+builder modules. Unrecordable language-server dependencies refuse automatic
+verification content during fires, before diagnostics are read. Record cached
+Git facts as opaque repository material, never trusted scaffolding.
+Move fire-only authorization and schedule parsers into the lazy schedules
+chunk, freeing at least 10 KiB of Model API. Add the three regressions,
+extend interleavings, prove every guard red with byte-exact restoration.
+No dependency, paid/live call, merge, push or rebase. The lead owns aggregate
+quality; this rig runs bounded default-timeout suites and the required static
+and build checks. Shared core behavior applies to every editor/runtime.
+
 ### FIXM115U5 — Close RVM115U4's derived-input and owner lifecycle findings (2026-10-06)
 
 Repair its P1 and all five P2 findings inside lane U's existing architecture.

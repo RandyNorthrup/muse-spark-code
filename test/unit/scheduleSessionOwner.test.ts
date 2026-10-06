@@ -27,6 +27,41 @@ function fire(owner: SessionOwner) {
 }
 
 describe('native session serialized authority', () => {
+  it('RVM115U5 P1-1: idle cannot erase an in-flight ordinary start', () => {
+    for (const order of permutations(['idle', 'ack', 'unrelated'] as const)) {
+      const owner = new SessionOwner('denyUnmatched')
+      const token = owner.token()
+      expect(owner.start(token)).toBe(true)
+      let isPending = true
+      let isLive = false
+      for (const action of order) {
+        if (action === 'idle') {
+          owner.stopped()
+          isLive = false
+        } else if (action === 'ack') {
+          owner.startAcknowledged(token, 'ordinary', true)
+          isPending = false
+          isLive = true
+        } else owner.terminal('unrelated')
+        expect(owner.currentTurnId === 'ordinary').toBe(isLive)
+        const claim = owner.claim(owner.token(), unattendedRun().run)
+        expect(claim === undefined).toBe(isPending || isLive)
+        if (claim !== undefined) applied(owner, owner.admissionFailed(claim))
+      }
+    }
+  })
+
+  it('RVM115U5 P1-1: a successful fire ack supersedes earlier idle evidence', () => {
+    const owner = new SessionOwner('denyUnmatched')
+    const { token, run } = fire(owner)
+    owner.start(token, run)
+    owner.stopped()
+    owner.startAcknowledged(token, 'fire', true)
+    expect(owner.admitted(token, 'fire')).toBeUndefined()
+    expect(owner.run()).toBe(run)
+    applied(owner, owner.terminal('fire'))
+  })
+
   it('RVM115U3 P1-1: a pre-claim mode waiter cannot install Bypass after restoration', () => {
     const owner = new SessionOwner('promptUnmatched')
     const first = fire(owner)
