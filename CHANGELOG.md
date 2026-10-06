@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Durable questions: late answers now use the ordinary send path's permission
+  barriers and session recovery. Re-asks keep their own deferral deadline,
+  publication saves once with durable rollback, coalesced replies finish
+  independently before their shared card retires, and session deletion removes
+  temporary question snapshots left by interrupted writes.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

@@ -56,6 +56,27 @@ function configuration(
 }
 
 describe('owner-only question persistence', () => {
+  it('deletes every crash-left temporary snapshot for the session and preserves other sessions and link targets', async () => {
+    const folder = await directory()
+    const store = createQuestionStore(folder)
+    await store.save('session-1', [questionFixture()])
+    const own = ['session-1.json.111.tmp', 'session-1.json.222.tmp']
+    const other = ['session-10.json.111.tmp', 'other.json.222.tmp', 'session-1.json.keep']
+    for (const name of [...own, ...other])
+      await writeFile(path.join(folder, name), 'QUESTION_CRASH_CANARY')
+    const target = path.join(folder, 'target')
+    await writeFile(target, 'QUESTION_LINK_TARGET')
+    await symlink(target, path.join(folder, 'session-1.json.link.tmp'))
+    await store.remove('session-1')
+    expect(await readdir(folder)).toEqual(expect.arrayContaining([...other, 'target']))
+    expect(await readdir(folder)).toHaveLength(other.length + 1)
+    expect(await readFile(target, 'utf8')).toBe('QUESTION_LINK_TARGET')
+    await writeFile(path.join(folder, own[0] ?? ''), 'QUESTION_SECOND_CRASH')
+    await store.remove('session-1')
+    expect(await readdir(folder)).toEqual(expect.arrayContaining([...other, 'target']))
+    expect(await readdir(folder)).toHaveLength(other.length + 1)
+  })
+
   it('round-trips across host/runtime adapters, enforces permissions, atomically replaces and removes by session', async () => {
     const root = await directory()
     const host = createHostQuestionStore(root)

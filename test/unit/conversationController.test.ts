@@ -7182,12 +7182,7 @@ describe('ConversationController: permission hardening (D24)', () => {
   it('ignores a refused Bypass fallback after its conversation was replaced', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
     await t.send('l1', 'hi')
-    t.server.silence('session/setApprovalMode')
-    t.setBypassAllowed(false)
-    const revoking = t.controller.revokeBypass()
-    await vi.waitFor(() => {
-      expect(approvalModes(t)).toEqual(['promptUnmatched'])
-    })
+    const { revoking } = await heldBypassRevocation(t)
     await t.controller.handle({ type: 'clearConversation' })
     t.server.handle('session/start', (params) => ({
       session: { sessionId: 'replacement', modelId: params['modelId'], status: 'idle' },
@@ -10235,6 +10230,16 @@ async function endReviewInManual(t: ReturnType<typeof setup>) {
 
 const approvalModes = (t: ReturnType<typeof setup>) =>
   t.server.requestsFor('session/setApprovalMode').map((request) => request.params?.['mode'])
+
+async function heldBypassRevocation(t: ReturnType<typeof setup>) {
+  t.server.silence('session/setApprovalMode')
+  t.setBypassAllowed(false)
+  const revoking = t.controller.revokeBypass()
+  await vi.waitFor(() => {
+    expect(approvalModes(t)).toEqual(['promptUnmatched'])
+  })
+  return { revoking }
+}
 
 /** A held fake-host acknowledgement applies that requested mode, or refuses it. */
 function answerModeRequest(t: ReturnType<typeof setup>, index: number, isAccepted = true): string {
@@ -15400,10 +15405,11 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
 })
 
 // M112 Q: the real MSP backend, portable registry and controller's submit path.
-async function questionConversation() {
+async function questionConversation(options: Parameters<typeof runningTurn>[0] = {}) {
   const clock = new FakeQuestionClock()
   const store = new FakeQuestionStore()
   const t = await runningTurn({
+    ...options,
     questions: {
       store,
       clock,
@@ -15452,6 +15458,49 @@ function openAnswer(): Extract<ConversationMessage, { type: 'answerOpenQuestion'
 }
 
 describe('ConversationController: durable open questions (M112 Q)', () => {
+  it('holds a late answer behind Bypass revocation until the restrictive mode is acknowledged', async () => {
+    const t = await questionConversation({
+      hasApprovalUi: true,
+      initialPermissionMode: 'bypassPermissions',
+    })
+    t.finishTurn()
+    await settle()
+    const { revoking } = await heldBypassRevocation(t)
+    const answering = t.controller.handle(openAnswer())
+    await settle()
+    const beforeAcknowledgement = t.server.requestsFor('turn/start').length
+    answerModeRequest(t, 0)
+    await Promise.all([revoking, answering])
+    expect(beforeAcknowledgement).toBe(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    await t.host.close()
+  })
+
+  it('resumes an evicted session and retries its late answer exactly once through the ordinary send path', async () => {
+    const t = await questionConversation()
+    t.finishTurn()
+    await settle()
+    let attempts = 0
+    t.server.handle('turn/start', (params) => {
+      attempts += 1
+      if (attempts === 1) throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+      return { turnId: 't2', status: 'accepted', commandId: params['commandId'] }
+    })
+    t.server.handle('session/resume', () =>
+      envelope({ ...storedSession, sessionId: 's1', modelId: 'muse-spark-1.3' }),
+    )
+    await t.controller.handle(openAnswer())
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(attempts).toBe(2)
+    expect(t.server.requestsFor('turn/start')[2]?.params).toMatchObject({
+      displayText: fill(UI_TEXT.questionLateAnswerDisplay, { header: 'Colour' }),
+      input: expect.arrayContaining([NOTE]),
+    })
+    const saved = await t.questionStore.load('s1')
+    expect(saved.some((entry) => entry.state === 'open')).toBe(false)
+    await t.host.close()
+  })
+
   it('defers through the captured clarification and steers a late answer exactly once', async () => {
     const t = await questionConversation()
     await Promise.all([t.controller.handle(openAnswer()), t.controller.handle(openAnswer())])
@@ -15461,6 +15510,7 @@ describe('ConversationController: durable open questions (M112 Q)', () => {
       expectedTurnId: 't1',
       input: [
         { type: 'text', text: expect.stringContaining('Answer to your earlier question q-1') },
+        NOTE,
       ],
     })
     expect(t.server.requestsFor('approval/decide')).toHaveLength(0)

@@ -2856,7 +2856,7 @@ export class ConversationController {
       )
   }
 
-  /** The user's own turn in its current mode, using the established steer/refused-steer path. */
+  /** A late answer is an ordinary send, bound to the question's current session. */
   private async deliverQuestion(
     session: AgentSession,
     message: QuestionDelivery,
@@ -2869,57 +2869,32 @@ export class ConversationController {
       this.isAuthAdmitted()
     if (!isCurrent() || this.revertsInFlight > 0 || this.pendingHandoff?.hasSubmittedTurn === true)
       return 'notTaken'
-    const deliveryState: { outcome: QuestionDeliveryOutcome } = { outcome: 'notTaken' }
-    const localId = this.deps.newAttachmentId()
-    let checkpoint: PendingMark | undefined
-    this.turnSubmissionsInFlight += 1
-    try {
-      if (this.deps.isAutosaveEnabled()) await this.deps.saveAll()
-      if (!isCurrent()) return 'notTaken'
-      if (this.activeTurnId === undefined && !this.isSideChat)
-        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
-      if (!isCurrent()) return 'notTaken'
-      this.post({
-        type: 'briefSubmitted',
-        localId,
-        text: message.displayText ?? message.text,
-        attachments: [],
-      })
-      const submission = await this.submit(
-        session,
-        [{ type: 'text', text: message.text }],
-        message.displayText,
-        false,
-        isCurrent,
-        (state) => {
-          deliveryState.outcome = state
-        },
-      )
-      this.checkpoints.accepted(
-        checkpoint,
-        submission.turnId,
-        submission.disposition !== QUEUED_DISPOSITION &&
-          submission.disposition !== STEERED_DISPOSITION,
-      )
-      this.acceptSubmission(localId, message.displayText ?? message.text, submission)
-      this.noteReviewMessage(message.displayText ?? message.text)
-      this.noteQueuedMessage(session, localId, submission)
-      return 'taken'
-    } catch {
-      this.post({
-        type: 'sendFailed',
-        localId,
-        reason:
-          deliveryState.outcome === 'notTaken'
-            ? UI_TEXT.questionAnswerFailed
-            : UI_TEXT.questionAnswerUncertain,
-        attachmentsKept: false,
-      })
-      return deliveryState.outcome
-    } finally {
-      this.checkpoints.dropPending(checkpoint)
-      this.turnSubmissionsInFlight -= 1
+    const deliveryState: { session: AgentSession; outcome: QuestionDeliveryOutcome } = {
+      session,
+      outcome: 'notTaken',
     }
+    const localId = this.deps.newAttachmentId()
+    this.post({
+      type: 'briefSubmitted',
+      localId,
+      text: message.displayText ?? message.text,
+      attachments: [],
+    })
+    await this.send(
+      localId,
+      message.text,
+      [],
+      false,
+      undefined,
+      undefined,
+      message.displayText ?? message.text,
+      undefined,
+      false,
+      undefined,
+      undefined,
+      deliveryState,
+    )
+    return deliveryState.outcome
   }
 
   /** The question card's Cancel: the prompt is declined and the model told (M16). */
@@ -6123,6 +6098,7 @@ export class ConversationController {
     isSecretAccepted = false,
     gitDraft?: GitDraftKind,
     gitDraftBase?: string,
+    question?: { readonly session: AgentSession; outcome: QuestionDeliveryOutcome },
   ): Promise<SendOutcome> {
     // M92e (PLAN.md D71): a plain composer prompt holding a detected secret
     // is held before sending. Nothing starts and nothing is released: the
@@ -6143,7 +6119,7 @@ export class ConversationController {
     // Counted once past the review barrier (M70), so a message held behind a
     // starting review does not make that review refuse as busy (M87).
     let isCountedSubmission = false
-    const isComposerMessage = brief === undefined
+    const isComposerMessage = brief === undefined && question === undefined
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
@@ -6176,6 +6152,8 @@ export class ConversationController {
       if (session === undefined) {
         return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
+      if (question !== undefined && question.session !== session)
+        throw new Error(UI_TEXT.turnStoppedByRestart)
       this.turnSubmissionsInFlight += 1
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration
@@ -6322,6 +6300,11 @@ export class ConversationController {
             this.sendInvalidationEpoch === sendEpoch &&
             this.session === current &&
             this.attachmentGeneration === expectedGeneration,
+          question === undefined
+            ? undefined
+            : (outcome) => {
+                question.outcome = outcome
+              },
         )
       })
       // A Git form may close while the submitted model call finishes. Its
@@ -6366,7 +6349,12 @@ export class ConversationController {
       return { isAccepted: true, hasSetTodos: seededSession !== undefined, turnId }
     } catch (error: unknown) {
       this.checkpoints.dropPending(checkpoint)
-      const reason = describe(error)
+      let reason = describe(error)
+      if (question !== undefined)
+        reason =
+          question.outcome === 'notTaken'
+            ? UI_TEXT.questionAnswerFailed
+            : UI_TEXT.questionAnswerUncertain
       this.deps.log.error(
         `sendMessage failed: ${isComposerMessage ? describeForLog(error) : errorKind(error)}`,
       )

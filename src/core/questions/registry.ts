@@ -53,8 +53,14 @@ export class QuestionRegistry {
   private readonly entries = new Map<string, OpenQuestion>()
   private readonly requests = new Map<string, QuestionRequest & { cardId: string }>()
   private readonly timers = new Map<string, () => void>()
-  private readonly deferrals = new Map<string, Promise<void>>()
+  private readonly deferrals = new Map<
+    string,
+    { readonly ids: ReadonlySet<string>; readonly promise: Promise<void> }
+  >()
+  /** Presentation only: the durable answer mark is deletion before any reply dispatch. */
+  private readonly replying = new Map<string, OpenQuestion>()
   private readonly endedTurns = new Set<string>()
+  private publication = 0
   private tail: Promise<void> = Promise.resolve()
   private readonly loading: Promise<void>
   private isDisposed = false
@@ -98,20 +104,28 @@ export class QuestionRegistry {
       if (this.isDisposed) throw new Error(UI_TEXT.questionAnswerFailed)
       const entries = structuredClone([...this.entries])
       const requests = structuredClone([...this.requests])
+      const replying = structuredClone([...this.replying])
       const endedTurns = [...this.endedTurns]
+      const publication = this.publication
       try {
         return await work()
       } catch (error: unknown) {
         this.entries.clear()
         this.requests.clear()
+        this.replying.clear()
         this.endedTurns.clear()
         for (const turn of endedTurns) this.endedTurns.add(turn)
         for (const [id, entry] of entries) this.entries.set(id, entry)
         for (const [id, request] of requests) this.requests.set(id, request)
+        for (const [id, entry] of replying) this.replying.set(id, entry)
         for (const id of this.timers.keys()) this.stopTimer(id)
         for (const entry of this.entries.values())
           if (entry.deadlineAt !== undefined && entry.deadlineAt > this.deps.now())
             this.armTimer(entry)
+        if (this.publication !== publication) {
+          await this.deps.store.save(this.sessionId, this.snapshot(false).questions)
+          this.deps.changed(this.snapshot())
+        }
         throw error
       }
     })()
@@ -149,18 +163,26 @@ export class QuestionRegistry {
   }
 
   private async publish(): Promise<void> {
-    const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot())
-    await this.deps.store.save(this.sessionId, snapshot.questions)
-    this.deps.changed(snapshot)
+    const snapshot = openQuestionsSnapshotSchema.parse(this.snapshot(false))
+    const retained = snapshot.questions.filter((entry) =>
+      ['waiting', 'open', 'dismissed'].includes(entry.state),
+    )
+    // One atomic replacement: terminal deletion is itself the durable answer mark.
+    await this.deps.store.save(this.sessionId, retained)
+    this.publication += 1
     for (const entry of snapshot.questions) {
-      if (entry.state !== 'waiting' && entry.state !== 'open' && entry.state !== 'dismissed')
+      if (retained.every((kept) => kept.userInputId !== entry.userInputId))
         this.entries.delete(entry.userInputId)
     }
-    if (this.entries.size !== snapshot.questions.length)
-      await this.deps.store.save(
-        this.sessionId,
-        Array.from(this.entries.values(), (entry) => ({ ...entry })),
-      )
+    this.deps.changed(
+      structuredClone({
+        ...snapshot,
+        questions: [
+          ...snapshot.questions.filter((entry) => !this.replying.has(entry.userInputId)),
+          ...this.replying.values(),
+        ],
+      }),
+    )
   }
 
   public async ready(): Promise<void> {
@@ -168,10 +190,12 @@ export class QuestionRegistry {
     await this.tail
   }
 
-  public snapshot(): OpenQuestionsSnapshot {
+  public snapshot(shouldIncludePendingReplies = true): OpenQuestionsSnapshot {
+    const entries = new Map(this.entries)
+    if (shouldIncludePendingReplies) for (const [id, entry] of this.replying) entries.set(id, entry)
     return structuredClone({
       sessionId: this.sessionId,
-      questions: Array.from(this.entries.values(), (entry) => ({ ...entry })).toSorted(
+      questions: Array.from(entries.values(), (entry) => ({ ...entry })).toSorted(
         (a, b) => a.askedAt - b.askedAt,
       ),
     })
@@ -233,7 +257,13 @@ export class QuestionRegistry {
 
   public defer(cardId: string): Promise<void> {
     const current = this.deferrals.get(cardId)
-    if (current !== undefined) return current
+    const ids = new Set(
+      Array.from(this.requests.values(), (request) => ({ ...request }))
+        .filter((request) => request.cardId === cardId)
+        .map((request) => request.userInputId),
+    )
+    if (current !== undefined && [...ids].every((id) => current.ids.has(id))) return current.promise
+    const batchIds = new Set([...(current?.ids ?? []), ...ids])
     const pending = (async () => {
       try {
         const ids = await this.run(async () => {
@@ -249,7 +279,10 @@ export class QuestionRegistry {
           await this.publish()
           const requests = Array.from(this.requests.values(), (request) => ({ ...request }))
           return requests
-            .filter((request) => request.cardId === cardId)
+            .filter(
+              (request) =>
+                request.cardId === cardId && current?.ids.has(request.userInputId) !== true,
+            )
             .map((request) => request.userInputId)
         })
         const results = await Promise.allSettled(ids.map((id) => this.deps.deferQuestions(id)))
@@ -259,11 +292,16 @@ export class QuestionRegistry {
         await this.run(() => {
           for (const id of ids) this.requests.delete(id)
         })
+        // A fresh deadline dispatches its own IDs before waiting for an older ack.
+        await current?.promise
       } finally {
-        this.deferrals.delete(cardId)
+        if (this.deferrals.get(cardId)?.ids === batchIds) this.deferrals.delete(cardId)
       }
     })()
-    this.deferrals.set(cardId, pending)
+    this.deferrals.set(cardId, {
+      ids: batchIds,
+      promise: pending,
+    })
     return pending
   }
 
@@ -273,7 +311,7 @@ export class QuestionRegistry {
       if (request === undefined) return
       this.requests.delete(userInputId)
       const entry = this.entries.get(request.cardId)
-      if (entry === undefined) return
+      if (entry === undefined || this.replying.has(request.cardId)) return
       let state: OpenQuestion['state'] = 'open'
       switch (outcome) {
         case 'answered': {
@@ -311,7 +349,7 @@ export class QuestionRegistry {
     cardId: string,
     raw: OpenQuestionAnswer | undefined,
   ): Promise<QuestionDeliveryOutcome> {
-    await this.deferrals.get(cardId)
+    await this.deferrals.get(cardId)?.promise
     const reserved = await this.run(async () => {
       const entry = this.entries.get(cardId)
       if (entry === undefined || (entry.state !== 'open' && entry.state !== 'waiting'))
@@ -330,24 +368,44 @@ export class QuestionRegistry {
         else state = 'answeredOnReask'
       }
       this.entries.set(cardId, { ...entry, state })
+      if (entry.state === 'waiting') this.replying.set(cardId, entry)
       // A durable mark prevents a second surface or a reload from sending again.
       await this.publish()
-      return { entry, reply, requests }
+      return { entry, reply, requests, state }
     })
     let outcome: QuestionDeliveryOutcome = 'uncertain'
     try {
       // Check after reserving: the deadline can win while this answer waits for its turn.
-      await this.deferrals.get(cardId)
+      await this.deferrals.get(cardId)?.promise
       if (reserved.entry.state === 'waiting') {
-        for (const request of reserved.requests) {
-          let reply = reserved.reply
-          if (reply !== undefined && 'answers' in reply)
-            reply = {
-              answers: answersForRequest(reserved.entry, reply.answers, request.questions),
-            }
-          await this.deps.reply(request.userInputId, reply)
-        }
+        const results = await Promise.allSettled(
+          reserved.requests.map(async (request) => {
+            let reply = reserved.reply
+            if (reply !== undefined && 'answers' in reply)
+              reply = {
+                answers: answersForRequest(reserved.entry, reply.answers, request.questions),
+              }
+            await this.deps.reply(request.userInputId, reply)
+          }),
+        )
         outcome = 'taken'
+        for (const result of results) {
+          if (result.status !== 'rejected' || isPromptSettledError(result.reason)) continue
+          outcome = 'uncertain'
+          this.deps.failed()
+        }
+        await this.run(() => {
+          for (const request of reserved.requests) this.requests.delete(request.userInputId)
+          this.replying.delete(cardId)
+          // Already durably marked. Retire the visible card only after every attempt settles.
+          this.deps.changed({
+            ...this.snapshot(),
+            questions: [
+              ...this.snapshot().questions,
+              structuredClone({ ...reserved.entry, state: reserved.state }),
+            ],
+          })
+        })
       } else if (reserved.reply !== undefined)
         outcome = await this.deps.deliver(
           lateAnswer(reserved.entry, reserved.reply, this.deps.formatAnswer),
@@ -436,6 +494,7 @@ export class QuestionRegistry {
       for (const id of this.timers.keys()) this.stopTimer(id)
       this.entries.clear()
       this.requests.clear()
+      this.replying.clear()
       await this.deps.store.remove(this.sessionId)
       this.deps.changed(this.snapshot())
     })

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { chmod, lstat, mkdir, open, readFile, rename, rm } from 'node:fs/promises'
+import { chmod, lstat, mkdir, open, readFile, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import {
   CHECKPOINT_STORAGE_MODE,
@@ -76,6 +76,11 @@ export function createQuestionStore(directory: string): QuestionStore {
       const file = fileFor(sessionId)
       await prepare()
       await rm(file, { force: true })
+      const prefix = `${path.basename(file)}.`
+      const names = await readdir(directory)
+      for (const name of names)
+        if (name.startsWith(prefix) && name.endsWith('.tmp'))
+          await rm(path.join(directory, name), { force: true })
     },
   }
 }

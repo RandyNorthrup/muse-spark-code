@@ -6844,6 +6844,24 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM112Q — Durable-question review corrections (2026-10-06)
+
+Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.
+Late answers use the ordinary user-message send path, including permission-mode
+barriers and session-not-loaded recovery. Re-asks own a fresh deferral deadline;
+publication makes one atomic store replacement and failed publication restores
+the durable snapshot as well as memory. Coalesced replies attempt every live
+request independently and retain the card until every attempt settles. Session
+deletion sweeps every snapshot temporary file bearing that session's prefix.
+No dependency, wire shape, guard relaxation, paid call or new command is needed.
+Shared registry/storage behavior applies to runtime/editor integrations; the
+controller correction applies wherever the existing conversation bridge runs.
+
+Each finding requires a failing-before regression and a deliberate red drill
+with byte-exact restoration in `docs/certification/m112-q.md`. Run targeted
+Kubuntu suites and the lane's static/build checks; the lead owns full quality
+and cross-platform integration. No merge or push is authorized in this lane.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
@@ -18965,6 +18983,15 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM112Q bounded-lane certification (2026-10-06).** The rig/shared brief
+forbids aggregate quality and full-suite runs; full integrated quality remains
+with the lead. Run all owned complete test files, red drills, scoped lint and
+format, compiler projects, plain knip, duplication, localization, host API and
+production build directly on Kubuntu. The frozen Q base's U-owned
+`uiState.ts:2452` reducer and A-owned generated host-API inventory are already
+named integration handoffs in `docs/certification/m112-q.md`; do not weaken
+either gate or claim them green. No review finding is deferred.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -19577,6 +19604,17 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM112Q (2026-10-06).** All six RVM112Q findings are corrected; none is
+  accepted as a residual. Permission admission and session recovery are the
+  ordinary send's; re-asks get independent deadline dispatch, publication is
+  one atomic replacement with durable rollback, coalesced replies all receive
+  independent attempts before card retirement, and deletion sweeps crashed
+  temporary snapshots. Tests and byte-exact red controls are recorded in
+  `docs/certification/m112-q.md`. The already-recorded U reducer, A host-API
+  inventory and runtime/editor binding handoffs remain integration work on
+  this frozen Q base; full quality and cross-platform/live receipts stay with
+  the lead, with no new guard exception or dependency here.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
