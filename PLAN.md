@@ -27606,7 +27606,8 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   placeholder fitting depend on render timing. Wait for the actual harness
   root to mount before advancing scenario time, then settle a 1 px resize
   and restore the target width so the component's own ResizeObserver refits
-  the final placeholder. Never assign textarea rows or alter product code;
+  the final placeholder. Narrow temporarily (width - 1), since a scenario's
+  max-width can clamp width + 1 and otherwise prevent its resize callback. Never assign textarea rows or alter product code;
   retain actual components, clock/state/AA policy and all coverage. The old candidate was never
   repeat-certified. If its unsettled frames differ, make a named reviewed
   replacement from the committed capture repair, inspect those views and
@@ -29125,7 +29126,8 @@ exact cases and attempted repairs; no certified baseline is claimed.
 **M114 S continuation (lead authorization, 2026-10-06).** The rendering-noise
 stop above is lifted for the dated 0.1/AA-detection/0.01%-or-12-pixel policy.
 S now owns the missing captured theme observation and CI binding previously
-handed to the lead. Validate both local and reconstructed comparisons,
+handed to the lead. Validate two full local comparisons and a scoped source replay;
+the new CI job owns the complete source-reconstructed comparison,
 record the four actual UI red drills and two consecutive complete passes;
 startup compaction remains assigned to P1/P2/lane 0 and integration. The
 historical failed receipts above remain evidence of the superseded policy.

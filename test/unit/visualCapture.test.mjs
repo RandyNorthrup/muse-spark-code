@@ -15,7 +15,14 @@ beforeAll(async () => {
     process.cwd(),
     {
       ...audit,
-      scenes: ['board', 'deferred-modal', 'whats-new', 'whats-new-highlights', 'approval-several'],
+      scenes: [
+        'board',
+        'deferred-modal',
+        'whats-new',
+        'whats-new-highlights',
+        'approval-several',
+        'approval-narrow',
+      ],
     },
     { ...matrix, themes: ['light'], widths: [320] },
     async (capture, bytes, page) => {
@@ -25,7 +32,7 @@ beforeAll(async () => {
           await page.locator('[role="dialog"]').count(),
           `${capture.state}: dialog remains open`,
         ).toBe(1)
-      else if (capture.scene === 'approval-several')
+      else if (capture.scene.startsWith('approval-'))
         captured.busyRows.push(
           await page.locator('.composer-input').evaluate((element) => element.rows),
         )
@@ -89,7 +96,7 @@ describe('M114 real visual capture driver', () => {
     }
   })
   it('settles the empty busy composer with its own resize handler at the final width', () => {
-    expect(captured.busyRows).toEqual([1, 1, 1, 1, 1, 1])
+    expect(captured.busyRows).toEqual(Array.from({ length: 12 }, () => 1))
   })
   it('records actual font rasterization and exact narrow viewport dimensions', () => {
     expect(captured.rootWidths).toEqual(

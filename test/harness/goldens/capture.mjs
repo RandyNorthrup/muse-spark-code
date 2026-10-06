@@ -97,7 +97,7 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   }
   // Let the component's real ResizeObserver refit at the final viewport
   // after host messages/fonts settle; do not assign textarea rows ourselves.
-  for (const settledWidth of [width + 1, width]) {
+  for (const settledWidth of [width - 1, width]) {
     await page.evaluate(
       (nextWidth) =>
         new Promise((resolve) => {

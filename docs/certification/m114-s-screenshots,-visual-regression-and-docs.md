@@ -455,3 +455,25 @@ committed capture repair, with byte-identical product code. All original
 candidate receipts remain historical; the new manifest/index and complete
 repeat/reconstruction evidence follow below. Startup compaction is still
 integration-owned.
+
+## Capped viewport correction
+
+The first replacement completed all 4,824 captures at 246,738,652 bytes,
+but its real comparison rejected `approval-narrow/default/light/320` with
+33,778 changed pixels. It remains an **unaccepted candidate**, preserved at
+`/home/randy/archive/m114-s-settled-88d57fbe1`. The scenario's `max-width: 320px`
+clamped the temporary widening, so the component's observer saw no size change.
+Temporarily narrowing by one pixel and then restoring the declared width
+triggers the native handler even under that cap. The real-capture regression
+now covers both approval variants in all six states and checks twelve actual
+one-row measurements; restoring the widening deliberately fails its named
+row-fitting test. [The byte-exact drill receipt](m114-s-after/capped-layout-drill.json)
+records that failure. The owning three-file run passes 15/15 in 7.95 s at
+default timeouts. No product source or tolerance changes.
+
+The final local requirement is two consecutive **complete archive comparisons**.
+A scoped real Git-source replay also exercises the reconstruction pipeline;
+full source reconstruction runs in the new CI job, whose hosted execution
+belongs to the lead. This keeps the continuation within its 90-minute brief
+without describing a scoped replay as a full source comparison. The final
+receipts distinguish both paths explicitly.

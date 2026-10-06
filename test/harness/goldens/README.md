@@ -18,7 +18,11 @@ They are evidence, not visual-regression baselines.
 Capture pins English, UTC, a fixed clock, disabled animations and reduced
 motion; only the loopback repository server is reachable. It uses the captured
 host colours and editor font stacks in all six themes, including the exact
-One Dark Pro/Dracula fixtures. No remote font, theme code or model runs.
+One Dark Pro/Dracula fixtures. No remote font, theme code or model runs. Before scenario time advances,
+the actual harness root must mount. After fonts/host messages settle, a 1 px
+resize followed by restoration to the declared width lets the component's
+native ResizeObserver and RAF refit the composer. No textarea rows or product
+state are assigned by the renderer.
 
 Default state preserves the scenario. Hover, focus-visible and pressed use
 Chromium's CSS pseudo-state forcing on a recorded visible real control; this
