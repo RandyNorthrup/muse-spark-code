@@ -2679,6 +2679,11 @@
       "few": "{count} požadavky",
       "many": "{count} požadavku",
       "other": "{count} požadavků"
-    }
+    },
+    "unavailable": "Účty budou dostupné po připojení tohoto prostředí ke sdílené službě účtů.",
+    "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [seřazená ID]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
+    "slashDescription": "Vypsat účty, zobrazit prahové hodnoty nebo vybrat účet.",
+    "execHelp": "Účty bez interakce: {command} exec --account <id> [--account-pool]. CI s --key-stdin používá pouze výchozí účet a nikdy účty nestřídá.",
+    "keyPrompt": "API klíč pro {provider} · {account} (při psaní se nezobrazuje): "
   }
 }

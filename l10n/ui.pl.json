@@ -2679,6 +2679,11 @@
       "few": "{count} żądania",
       "many": "{count} żądań",
       "other": "{count} żądania"
-    }
+    },
+    "unavailable": "Konta będą dostępne po połączeniu tego środowiska z usługą współdzielonych kont.",
+    "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [uporządkowane identyfikatory]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
+    "slashDescription": "Wyświetl konta, sprawdź progi lub wybierz konto.",
+    "execHelp": "Konta bez interakcji: {command} exec --account <id> [--account-pool]. CI z --key-stdin używa tylko konta domyślnego i nigdy nie zmienia konta.",
+    "keyPrompt": "Klucz API dla {provider} · {account} (ukryty podczas wpisywania): "
   }
 }

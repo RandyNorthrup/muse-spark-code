@@ -2489,6 +2489,11 @@
     "requestCount": {
       "one": "{count} kérés",
       "other": "{count} kérés"
-    }
+    },
+    "unavailable": "A fiókok akkor érhetők el, ha ez a futtatókörnyezet csatlakozik a közös fiókszolgáltatáshoz.",
+    "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [rendezett azonosítók]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
+    "slashDescription": "Fiókok listázása, küszöbértékek megtekintése vagy fiók kiválasztása.",
+    "execHelp": "Fiókok interakció nélkül: {command} exec --account <id> [--account-pool]. A --key-stdin kapcsolót használó CI csak az alapértelmezett fiókot használja, és soha nem vált fiókot.",
+    "keyPrompt": "{provider} · {account} API-kulcs (gépelés közben rejtve): "
   }
 }

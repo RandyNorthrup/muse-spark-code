@@ -2584,6 +2584,11 @@
       "one": "{count} solicitud",
       "many": "{count} solicitudes",
       "other": "{count} solicitudes"
-    }
+    },
+    "unavailable": "Las cuentas estarán disponibles cuando este entorno se conecte al servicio compartido de cuentas.",
+    "cliUsage": "Cuentas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciales: {command} auth set --provider <id> --account <id> (solo entrada estándar).",
+    "slashDescription": "Mostrar cuentas, consultar umbrales o elegir una cuenta.",
+    "execHelp": "Cuentas sin interacción: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo la cuenta predeterminada y nunca cambia de cuenta.",
+    "keyPrompt": "Clave API de {provider} · {account} (oculta al escribir): "
   }
 }

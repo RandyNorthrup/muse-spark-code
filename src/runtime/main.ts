@@ -59,6 +59,22 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import {
+  runAccountsCommand,
+  runAccountAuthSet,
+  type AccountsCommandDeps,
+} from './providers/accountsCommand'
+import type { AccountsSessionPort } from '../acp/accounts'
+import type { ExecAccountsPort } from './exec/execAccounts'
+import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
+
+/** H-W-PROFILE: integration supplies one broker-owned service. With no
+ * binding, additional-account commands fail before reading a credential. */
+interface RuntimeAccountsServices {
+  readonly commands: Omit<AccountsCommandDeps, 'print' | 'printError'>
+  readonly sessions: AccountsSessionPort
+  readonly exec: ExecAccountsPort
+}
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -305,7 +321,11 @@ async function setupHooks(
   return 0
 }
 
-async function serve(options: ServeOptions, log: Logger): Promise<number> {
+async function serve(
+  options: ServeOptions,
+  log: Logger,
+  accounts?: RuntimeAccountsServices,
+): Promise<number> {
   const runtime = runtimeFor(options, log)
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
@@ -326,6 +346,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const journal = await reportJournal(log)
   await journal.startup()
   const agent = createAcpAgent({
+    ...(accounts !== undefined && { accounts: accounts.sessions }),
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -360,7 +381,7 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
   return command.options.isVerbose ? 'trace' : 'info'
 }
 
-async function main(): Promise<number> {
+async function main(accounts?: RuntimeAccountsServices): Promise<number> {
   const command = parseCommandLine(process.argv.slice(2))
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
@@ -438,6 +459,7 @@ async function main(): Promise<number> {
         }
       }
       headlessCode = await runExec(lifecycle, {
+        ...(accounts !== undefined && { accounts: accounts.exec }),
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -491,7 +513,7 @@ async function main(): Promise<number> {
       return await setupHooks(command.options, command.maintenance, log)
     }
     case 'serve': {
-      return await serve(command.options, log)
+      return await serve(command.options, log, accounts)
     }
     case 'login': {
       const { museCode } = runtimeFor(command.options, log)
@@ -507,7 +529,30 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      return await authSet(authDeps())
+      const { target } = command
+      if (target === undefined) return await authSet(authDeps())
+      if (accounts === undefined) {
+        if (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
+          return await authSet(authDeps())
+        writeLine(process.stderr, UI_TEXT.accounts.unavailable)
+        return EXIT_FAILED
+      }
+      return await runAccountAuthSet(target, { ...accounts.commands, ...authDeps() })
+    }
+    case 'accounts': {
+      if (accounts === undefined) {
+        writeLine(process.stderr, UI_TEXT.accounts.unavailable)
+        return EXIT_FAILED
+      }
+      return await runAccountsCommand(command.options, {
+        ...accounts.commands,
+        print: (line) => {
+          writeLine(process.stdout, line)
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
     }
     case 'authStatus': {
       return await authStatus(authDeps())
@@ -592,10 +637,18 @@ async function main(): Promise<number> {
     }
     case 'help': {
       writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }))
+      writeLine(process.stdout, fill(UI_TEXT.accounts.execHelp, { command: ACP_AGENT_NAME }))
       return 0
     }
     case 'invalid': {
-      writeLine(process.stderr, command.reason)
+      // Normal commands render after language installation; headless usage
+      // errors keep their earlier bounded exit path (M80).
+      const localized = parseCommandLine(process.argv.slice(2))
+      writeLine(
+        process.stderr,
+        localized.command === 'invalid' ? localized.reason : UI_TEXT.accounts.unavailable,
+      )
       writeLine(process.stderr, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
       return command.exitCode ?? EXIT_FAILED
     }

@@ -3047,6 +3047,14 @@ export const EN = {
   exportThenRunSkipped: 'then_run `{command}`: {outcome}',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
+    keyPrompt: '{provider} · {account} API key (not shown as you type): ',
+    execHelp:
+      'Headless accounts: {command} exec --account <id> [--account-pool]. CI with --key-stdin uses only the default account and never swaps.',
+    unavailable:
+      'Accounts are unavailable until this runtime is connected to the shared account service.',
+    cliUsage:
+      'Accounts: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ordered ids]. Credentials: {command} auth set --provider <id> --account <id> (standard input only).',
+    slashDescription: 'List accounts, view thresholds, or choose an account.',
     title: 'Accounts',
     defaultLabel: 'Default account',
     add: 'Add account',

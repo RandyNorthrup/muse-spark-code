@@ -72,6 +72,7 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
+import { AcpAccounts, type AccountsSessionPort } from './accounts'
 import {
   elicitationSchema,
   elicitationText,
@@ -129,6 +130,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  /** H-W-SESSION: one profile-owned account service, bound to this backend. */
+  readonly accounts?: AccountsSessionPort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -220,6 +223,7 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 
 /** One ACP session over one AgentSession. */
 class AcpSession {
+  private readonly accounts: AcpAccounts | undefined
   private readonly translator: UpdateTranslator
   private readonly unsubscribe: () => void
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -256,6 +260,26 @@ class AcpSession {
     this.unsubscribe = session.onEvent((event) => {
       this.onEvent(event)
     })
+    this.accounts =
+      deps.accounts === undefined
+        ? undefined
+        : new AcpAccounts(
+            this.sessionId,
+            deps.accounts,
+            () => {
+              this.send({
+                sessionUpdate: 'config_option_update',
+                configOptions: this.configOptions(),
+              })
+            },
+            (text, event) => {
+              this.send({
+                sessionUpdate: 'agent_message_chunk',
+                _meta: { accountNotice: event },
+                content: { type: 'text', text },
+              })
+            },
+          )
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
@@ -318,11 +342,18 @@ class AcpSession {
     }
     this.send({
       sessionUpdate: 'available_commands_update',
-      availableCommands: this.skills.map((skill) => ({
-        name: skill.selector,
-        description: skill.description === '' ? skill.displayName : skill.description,
-        input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
-      })),
+      availableCommands: [
+        ...(this.accounts === undefined
+          ? []
+          : [{ name: 'accounts', description: UI_TEXT.accounts.slashDescription, input: null }]),
+        ...this.skills
+          .filter((skill) => this.accounts === undefined || skill.selector !== 'accounts')
+          .map((skill) => ({
+            name: skill.selector,
+            description: skill.description === '' ? skill.displayName : skill.description,
+            input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
+          })),
+      ],
     })
   }
 
@@ -696,6 +727,10 @@ class AcpSession {
     return answer
   }
 
+  public async startAccounts(): Promise<void> {
+    await this.accounts?.start()
+  }
+
   public modes(): SessionModeState {
     return {
       currentModeId: this.mode,
@@ -709,6 +744,7 @@ class AcpSession {
 
   public configOptions(): SessionConfigOption[] {
     return [
+      ...(this.accounts?.option() ?? []),
       {
         id: ACP_CONFIG_IDS.model,
         name: UI_TEXT.groupModel,
@@ -780,6 +816,21 @@ class AcpSession {
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
+    if (configId === ACP_CONFIG_IDS.account) {
+      if (this.accounts === undefined)
+        throw RequestError.invalidParams(undefined, UI_TEXT.accounts.unavailable)
+      if (this.pending !== undefined || this.preparing !== undefined)
+        throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
+      try {
+        await this.accounts.use(
+          value,
+          () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
+        )
+      } catch {
+        throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+      }
+      return
+    }
     if (configId === ACP_CONFIG_IDS.model) {
       if (this.models.every((model) => model.modelId !== value)) {
         throw RequestError.invalidParams(undefined, value)
@@ -830,6 +881,27 @@ class AcpSession {
     this.preparing = preparing
     try {
       await this.announceCommands()
+      const first = parsed.parts[0]
+      if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
+        if (this.accounts === undefined)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.unavailable)
+        if (parsed.parts.length !== 1)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        let text: string | undefined
+        try {
+          text = await this.accounts.command(
+            first.text,
+            () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
+          )
+        } catch {
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        }
+        if (preparing.isCancelled || this.isDisposed) return 'cancelled'
+        if (text !== undefined)
+          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      }
     } finally {
       this.preparing = undefined
     }
@@ -930,6 +1002,7 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.accounts?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }
@@ -1047,6 +1120,7 @@ class AgentState {
       )
       this.adopting.set(sessionId, acp)
       await prepare(acp)
+      await acp.startAccounts()
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
         // A newer load of this session, or a close, let it go meanwhile.

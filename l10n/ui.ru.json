@@ -2679,6 +2679,11 @@
       "few": "{count} запроса",
       "many": "{count} запросов",
       "other": "{count} запроса"
-    }
+    },
+    "unavailable": "Учётные записи будут доступны после подключения этой среды к общей службе учётных записей.",
+    "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [упорядоченные идентификаторы]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
+    "slashDescription": "Показать учётные записи, посмотреть пороги или выбрать учётную запись.",
+    "execHelp": "Учётные записи без взаимодействия: {command} exec --account <id> [--account-pool]. CI с --key-stdin использует только учётную запись по умолчанию и никогда не переключает её.",
+    "keyPrompt": "Ключ API для {provider} · {account} (скрыт при вводе): "
   }
 }

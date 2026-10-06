@@ -4,6 +4,7 @@
 
 import { parseArgs } from 'node:util'
 import {
+  ACCOUNT_DEFAULT_ID,
   ACP_AGENT_NAME,
   ACP_BACKENDS,
   ACP_DEFAULT_BACKEND,
@@ -16,8 +17,14 @@ import {
   type ShellSandboxMode,
   UI_TEXT,
 } from '../shared/constants'
+import { accountIdSchema } from '../shared/accounts'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import {
+  parseAccountsCommand,
+  type AccountsCommand,
+  type AccountTarget,
+} from './providers/accountsCommand'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -53,7 +60,9 @@ export type RuntimeCommand =
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
-  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
+  | { readonly command: 'accounts'; readonly options: AccountsCommand }
+  | { readonly command: 'authSet'; readonly target?: AccountTarget }
+  | { readonly command: 'authStatus' | 'authClear' | 'help' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
@@ -88,12 +97,20 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'providers') {
+    const options = argv[1] === 'accounts' ? parseAccountsCommand(argv.slice(2)) : undefined
+    return options === undefined
+      ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
+      : { command: 'accounts', options }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
   } catch (error: unknown) {
+    if (argv.includes('auth'))
+      return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
     return { command: 'invalid', reason: error instanceof Error ? error.message : String(error) }
   }
   const { values, positionals } = parsed
@@ -105,11 +122,15 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
   }
   const backend = values.backend ?? ACP_DEFAULT_BACKEND
   if (!isOneOf(ACP_BACKENDS, backend)) {
-    return invalid(`--backend ${backend}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--backend ${backend}`)
   }
   const shellSandbox = values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox
   if (!isOneOf(SHELL_SANDBOX_MODES, shellSandbox)) {
-    return invalid(`--shell-sandbox ${shellSandbox}`)
+    return positionals[0] === 'auth'
+      ? { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+      : invalid(`--shell-sandbox ${shellSandbox}`)
   }
   const paidFeatures = paidFeaturesOf(values)
   const [firstPaid] = paidFeatures
@@ -130,6 +151,9 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     isVerbose: values.verbose === true,
   }
   const [first, second, ...rest] = positionals
+  const hasTarget = values.provider !== undefined || values.account !== undefined
+  if (hasTarget && (first !== 'auth' || second !== 'set' || rest.length > 0))
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
   if (first === 'setup' && second === undefined) {
     return options.trustWorkspace
       ? { command: 'setup', options, maintenance: values.maintenance === true }
@@ -143,6 +167,15 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     return { command: 'login', options }
   }
   const auth = first === 'auth' && rest.length === 0 ? authCommand(second) : undefined
+  if (first === 'auth' && auth === undefined)
+    return { command: 'invalid', reason: UI_TEXT.accounts.credentialHelp }
+  if (auth === 'authSet' && hasTarget) {
+    const provider = accountIdSchema.safeParse(values.provider ?? 'meta')
+    const account = accountIdSchema.safeParse(values.account ?? ACCOUNT_DEFAULT_ID)
+    return provider.success && account.success
+      ? { command: auth, target: { provider: provider.data, account: account.data } }
+      : { command: 'invalid', reason: UI_TEXT.accounts.invalidAccount }
+  }
   return auth === undefined ? invalid(positionals.join(' ')) : { command: auth }
 }
 
@@ -165,6 +198,8 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             'untrusted-file': { type: 'string', multiple: true },
             'permission-mode': { type: 'string' },
             model: { type: 'string' },
+            account: { type: 'string' },
+            'account-pool': { type: 'boolean' },
             effort: { type: 'string' },
             output: { type: 'string' },
             'max-budget-usd': { type: 'string' },
@@ -251,6 +286,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: {
       backend: { type: 'string' },
+      provider: { type: 'string' },
+      account: { type: 'string' },
       'trust-workspace': { type: 'boolean' },
       maintenance: { type: 'boolean' },
       'muse-binary': { type: 'string' },

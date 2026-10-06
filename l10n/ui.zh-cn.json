@@ -2394,6 +2394,11 @@
     "removeConfirm": "移除 {account}？其已存储的凭据将被删除，登录授权将被撤销。",
     "requestCount": {
       "other": "{count} 次请求"
-    }
+    },
+    "unavailable": "此运行时连接到共享账户服务后，账户才可用。",
+    "cliUsage": "账户：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [按顺序排列的ID]。凭据：{command} auth set --provider <id> --account <id>（仅限标准输入）。",
+    "slashDescription": "列出账户、查看阈值或选择账户。",
+    "execHelp": "非交互账户：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI仅使用默认账户，永不切换账户。",
+    "keyPrompt": "{provider} · {account} API密钥（输入时隐藏）："
   }
 }

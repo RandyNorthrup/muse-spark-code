@@ -27,6 +27,8 @@ import {
 } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
 import type { ServeOptions } from '../cliArgs'
+import { accountIdSchema } from '../../shared/accounts'
+import { ACCOUNT_DEFAULT_ID } from '../../shared/constants'
 
 export type ExecMode = 'plan' | 'acceptEdits'
 export type ExecOutput = 'text' | 'json' | 'jsonl'
@@ -36,6 +38,8 @@ export type PromptSource =
   | { readonly kind: 'file'; readonly path: string }
   | { readonly kind: 'stdin' }
 export interface ExecOptions {
+  readonly account?: string
+  readonly accountPool?: boolean
   readonly backend: AcpBackendKind
   readonly cwd: string | undefined
   readonly prompt: PromptSource
@@ -69,6 +73,7 @@ const BOOLEAN_OPTIONS = new Set([
   'trust-workspace',
   'allow-dangerously-skip-permissions',
   'web-search',
+  'account-pool',
 ])
 const STRING_OPTIONS = new Set([
   'backend',
@@ -83,6 +88,7 @@ const STRING_OPTIONS = new Set([
   'timeout',
   'muse-binary',
   'shell-sandbox',
+  'account',
 ])
 const DECIMAL_BUDGET = /^[0-9]+(?:\.[0-9]{1,6})?$/
 const INTEGER = /^[0-9]+$/
@@ -136,6 +142,14 @@ export function parseExec(
   if (values['trust-workspace'] === true || values['allow-dangerously-skip-permissions'] === true)
     return invalid(UI_TEXT.execTrustRefused)
   if (values['web-search'] === true) return invalid(UI_TEXT.execWebSearchUnbounded)
+  if (values['account'] !== undefined && !accountIdSchema.safeParse(values['account']).success)
+    return invalid(UI_TEXT.accounts.invalidAccount)
+  if (
+    values['key-stdin'] === true &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.credentialHelp)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
   if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
@@ -145,6 +159,12 @@ export function parseExec(
     values['shell-sandbox'] ?? SETTING_DEFAULTS.shellSandbox,
   )
   const effort = enumValue(EFFORT_LEVELS, values['effort'])
+  if (
+    backend === 'museCode' &&
+    (values['account-pool'] === true ||
+      (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
+  )
+    return invalid(UI_TEXT.accounts.museCodeUnavailable)
   if (
     backend === undefined ||
     output === undefined ||
@@ -211,6 +231,8 @@ export function parseExec(
   return {
     ok: true,
     options: {
+      ...(typeof values['account'] === 'string' && { account: values['account'] }),
+      ...(values['account-pool'] === true && { accountPool: true }),
       backend,
       cwd: stringValue('cwd'),
       prompt,

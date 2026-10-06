@@ -2489,6 +2489,11 @@
     "requestCount": {
       "one": "{count} Anfrage",
       "other": "{count} Anfragen"
-    }
+    },
+    "unavailable": "Konten sind erst verfügbar, wenn diese Laufzeit mit dem gemeinsamen Kontendienst verbunden ist.",
+    "cliUsage": "Konten: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [geordnete IDs]. Zugangsdaten: {command} auth set --provider <id> --account <id> (nur Standardeingabe).",
+    "slashDescription": "Konten auflisten, Schwellenwerte anzeigen oder ein Konto auswählen.",
+    "execHelp": "Konten ohne Interaktion: {command} exec --account <id> [--account-pool]. CI mit --key-stdin nutzt nur das Standardkonto und wechselt nie das Konto.",
+    "keyPrompt": "API-Schlüssel für {provider} · {account} (bei der Eingabe verborgen): "
   }
 }

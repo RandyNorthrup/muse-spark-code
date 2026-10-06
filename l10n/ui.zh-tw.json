@@ -2394,6 +2394,11 @@
     "removeConfirm": "移除 {account}？其已儲存的認證將被刪除，登入授權將被撤銷。",
     "requestCount": {
       "other": "{count} 次請求"
-    }
+    },
+    "unavailable": "此執行環境連線至共用帳戶服務後，帳戶才可使用。",
+    "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [依序排列的ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
+    "slashDescription": "列出帳戶、查看閾值或選擇帳戶。",
+    "execHelp": "非互動式帳戶：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI僅使用預設帳戶，永不切換帳戶。",
+    "keyPrompt": "{provider} · {account} API金鑰（輸入時隱藏）："
   }
 }
