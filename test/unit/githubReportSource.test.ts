@@ -1,13 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ghReportTransport,
   githubReportSource,
   type ReportGhOptions,
 } from '../../src/core/reporting/sources/github'
-import type { ReportNetworkTransport } from '../../src/core/reporting/sources/cache'
+import type {
+  ReportNetworkPolicy,
+  ReportNetworkTransport,
+} from '../../src/core/reporting/sources/cache'
 import { UI_TEXT } from '../../src/shared/constants'
 import { CAPTURED_CHECKS_FAILED, CAPTURED_PULL_LIST } from './helpers/githubCapture'
-import { networkContext, networkRig } from './helpers/reportNetwork'
+import { networkContext, networkRig, pauseNetworkAdmission } from './helpers/reportNetwork'
 
 const options = {
   remote: 'https://github.com/RandyNorthrup/muse-spark-code.git',
@@ -32,6 +35,10 @@ const ghProbe = {
   pathVariable: '/system/bin',
   fileExists: () => true,
 }
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 describe('GitHub report source', () => {
   it('scrubs escaped credentials in captured pull titles before persistent cache writes', async () => {
@@ -203,6 +210,95 @@ describe('GitHub report source', () => {
       record: { status: 'unavailable', reason: UI_TEXT.reportUi.signInRequired },
     })
     expect(transport).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { stage: 'cache', change: 'whenSignedIn' },
+    { stage: 'cache', change: 'sign-out' },
+    { stage: 'egress', change: 'whenSignedIn' },
+    { stage: 'egress', change: 'sign-out' },
+    { stage: 'host', change: 'whenSignedIn' },
+    { stage: 'host', change: 'sign-out' },
+  ] as const)('refuses GitHub after $change during $stage admission', async ({ stage, change }) => {
+    vi.useFakeTimers()
+    const entered = Promise.withResolvers<undefined>()
+    const release = Promise.withResolvers<undefined>()
+    let mode: ReportNetworkPolicy['mode'] = change === 'sign-out' ? 'whenSignedIn' : 'always'
+    let isSignedIn = change === 'sign-out'
+    const base = networkRig()
+    const transport = capturedTransport()
+    if (stage === 'host')
+      transport.mockImplementationOnce(async () => {
+        entered.resolve(undefined)
+        await release.promise
+        return Response.json(CAPTURED_PULL_LIST)
+      })
+    const rig = networkRig({
+      transport,
+      policy: {
+        ...base.deps.policy,
+        get mode() {
+          return mode
+        },
+        get githubSignedIn() {
+          return isSignedIn
+        },
+      },
+    })
+    const admission =
+      stage === 'host'
+        ? {
+            entered: entered.promise,
+            release: () => {
+              release.resolve(undefined)
+            },
+          }
+        : pauseNetworkAdmission(rig, stage)
+    const source = githubReportSource({ ...options, reader: rig.reader })
+    const owner = stage === 'host' ? source.read(networkContext()) : undefined
+    if (stage === 'host') await admission.entered
+    const pending = source.read(networkContext())
+    await admission.entered
+    await vi.advanceTimersByTimeAsync(0)
+    mode = 'whenSignedIn'
+    isSignedIn = false
+    admission.release()
+    const result = await pending
+    expect(result.data).toBeNull()
+    expect(result.record).toMatchObject({
+      status: 'unavailable',
+      reason: expect.stringContaining(UI_TEXT.reportUi.signInRequired),
+    })
+    expect(transport).toHaveBeenCalledTimes(stage === 'host' ? 1 : 0)
+    await owner
+  })
+
+  it('rechecks GitHub sign-in before every subsequent page', async () => {
+    let isSignedIn = true
+    const base = networkRig()
+    const transport = capturedTransport().mockImplementationOnce(() => {
+      isSignedIn = false
+      return Promise.resolve(Response.json(CAPTURED_PULL_LIST))
+    })
+    const rig = networkRig({
+      transport,
+      policy: {
+        ...base.deps.policy,
+        mode: 'whenSignedIn',
+        get githubSignedIn() {
+          return isSignedIn
+        },
+      },
+    })
+    const result = await githubReportSource({ ...options, reader: rig.reader }).read(
+      networkContext(),
+    )
+    expect(result.data?.pullRequests).toHaveLength(1)
+    expect(result.record).toMatchObject({
+      status: 'partial',
+      reason: expect.stringContaining(UI_TEXT.reportUi.signInRequired),
+    })
+    expect(transport).toHaveBeenCalledOnce()
   })
 
   it.each([

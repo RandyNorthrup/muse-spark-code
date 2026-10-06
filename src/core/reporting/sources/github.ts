@@ -181,7 +181,7 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
           `${UI_TEXT.reportUi.generationFailed} (github-remote-required)`,
           'notApplicable',
         )
-      if (options.reader.requiresSignIn && !options.reader.signedIn)
+      if (!options.reader.allowed(context, 'api.github.com'))
         return unavailableReportSource('github', UI_TEXT.reportUi.signInRequired)
       if (!isCommitSha(options.headSha) || options.defaultBranch.trim() === '')
         return unavailableReportSource(

@@ -369,3 +369,112 @@ The first repair commit's normal hook ran lint-staged ESLint/Prettier and
 gitleaks, exit 0, no leaks. The second uses the same enabled hooks with only
 explicit paths staged. No merge, rebase, push, live service or model call,
 dependency install or global setting change occurred.
+
+## Round-two review repair RVM113N2 (FIXM113N2)
+
+Authority: `/home/randy/lanes/_ctx/M113N.rig.md`, shared
+`codex/common.md`, the complete `codex/RVM113N2.report.md`, AGENTS.md,
+and PLAN D93/M113. Starting branch `m113/n`, HEAD `6741cea1d`.
+The review confirmed two P2 findings, no P1/P3. Both are fixed structurally;
+there are no remaining review findings. Edits stay within N's cache/GitHub
+modules, owned tests and certification, and PLAN's scoped records.
+No dependency, escape hatch, wire field, path comparison, localization key,
+setting, command or activation import is added. Public documentation and
+the feature catalogue remain W's existing named integration handoff.
+
+| Finding                                                         | Fix                                                                                                                                                                                                                                                                                                                                       | Regression cases                                                                                                                                                                                                                                                                          | Status              |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| P2.1 ignored cancellation blocks later host admission           | Replace the chained dispatch queue with one live owner per host. Both the owner wait and transport response race the existing five-second source deadline/abort signal. Finally releases the owner on success, failure, abort or timeout; late responses check their generation, cancel their bodies and cannot reach rate/cache updates. | `releases same-host admission after deadline when transport ignores cancellation`; the explicit-abort variant; `removes an aborted waiter without releasing the active host owner`; `discards a late transport response without changing the new host generation`; the rejection variant. | Fixed, no residual. |
+| P2.2 GitHub dispatch bypasses the live whenSignedIn requirement | `isReportNetworkAllowed` owns the setting, terminal flag and endpoint-specific GitHub sign-in decision. GitHub's initial eligibility and every reader dispatch use it; the final check has no await before transport. Stores keep public access under whenSignedIn without a GitHub login.                                                | `refuses GitHub after whenSignedIn during cache admission` and `refuses GitHub after sign-out during cache admission`, plus both transitions during egress and host admission; `rechecks GitHub sign-in before every subsequent page`.                                                    | Fixed, no residual. |
+
+The initial ten new regressions failed against reviewed HEAD (85 existing
+cases passed). The expanded full-suite baseline failed all twelve fix
+regressions (89 passed); four additional terminal-consent cases already
+passed and protect each declared host: `api.github.com`,
+`marketplace.visualstudio.com`, `open-vsx.org`, `registry.npmjs.org`.
+The real GitHub source uses the existing M71 captured pull/check response
+shapes; rate/stream/admission faults remain synthetic port fixtures.
+No new service shape or capture is claimed. All editors share these core
+ports: no VS Code-only behavior is introduced.
+
+### Round-two deliberate failures
+
+Every mutation ran complete owned suites (at most three files per run,
+`--maxWorkers=3`, repository default timeout, no test-name filters),
+returned exit 1 at the expected semantic assertion, and restored both
+production files from saved bytes in `finally`. SHA-256 matched after
+each run. The reviewed baseline and six guard drills are recorded in
+`temp/fixm113n2/drills.json` with matching `drill-*.log` receipts.
+
+| Drill                  | Deliberate break                                                           | Named failure                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `reviewed-baseline`    | Restore the reviewed cache/GitHub modules while retaining the final tests. | All twelve new fix regressions fail; 89 tests pass.                                                                                      |
+| `transport-unbounded`  | Await the raw transport without racing cancellation/deadline.              | `releases same-host admission after deadline when transport ignores cancellation` and the abort/recovery cases.                          |
+| `wait-unbounded`       | Await an owner's release without racing the waiter's cancellation.         | `removes an aborted waiter without releasing the active host owner`: the canceled collector's cleanup does not run.                      |
+| `late-generation`      | Remove the obsolete-generation completion guard.                           | `discards a late transport response without changing the new host generation`: the late body's cancellation is missing.                  |
+| `host-serialization`   | Bypass the active owner's wait.                                            | `serializes concurrent same-host dispatches until rate headers establish the floor`.                                                     |
+| `github-live-policy`   | Omit the endpoint from the final policy decision.                          | `refuses GitHub after sign-out during host admission`; all seven GitHub live-policy cases fail.                                          |
+| `final-network-policy` | Remove the final policy check.                                             | `rechecks terminal consent before dispatch to registry.npmjs.org`; all four declared-host cases and the existing network-off cases fail. |
+
+Restored production SHA-256:
+
+- `src/core/reporting/sources/cache.ts`:
+  `03010b5c23aaa0c329b5563b8a56c9e44613c52892bfd623a266e221985732fa`
+- `src/core/reporting/sources/github.ts`:
+  `dc0d56ab9d742269885a099d2cab50b90ed0a4433ea69693cbb283a3cd16070d`
+
+The shared five-second deadline is unchanged. Waiting callers observe the
+owner's release without retaining a chain of timed-out dispatches. A canceled
+waiter finishes its collector cleanup promptly while the active owner keeps
+its slot. A recovered request may own that host before an obsolete transport
+completes; neither an obsolete response nor rejection changes that ownership.
+The host's rate state remains serialized through response headers.
+The owner's once-only release signal keeps the implementation compatible
+with Node 20. Scoped lint required await-based transport handling and this
+release mechanism; test naming/void-expression errors were corrected.
+The duplication gate caught two copied setup blocks and then a generic
+barrier block shared with an unrelated suite. Test-only factories and a
+grouped barrier state remove those copies; zero clones pass at the unchanged
+zero threshold, with all assertions retained.
+The reader-wiring handoff requires current setting/sign-in getters and a
+shared reader in each host. N-cache-storage still requires bounded ports that
+honour their AbortSignal; this repair does not replace the storage binding.
+
+All work is local and fake-only on Kubuntu. No network/model/paid calls,
+credentials, installs, merge, rebase, push or global configuration changes.
+The worktree's `.husky/_/pre-commit` exists; commits use normal enabled
+lint-staged/gitleaks hooks and explicit staged paths.
+
+### FIXM113N2 final verification (Kubuntu, 2026-10-06)
+
+All checks run directly and sequentially in this worktree. Final commands,
+exit codes and logs are in `temp/fixm113n2/checks-final.json`; the final
+production bytes match the restoration hashes above. Vitest uses repository
+default timeouts, complete owned files, no filters and `--maxWorkers=3`.
+No runtime source or assertion changes follow this verification.
+
+| Check                                                                                                                                                      | Result                                                                                                                                                                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                                                                                                                        | Exit 0, all five projects on the final owner implementation.                                                                                                                                        |
+| ESLint, all eight owned TypeScript files, `--max-warnings=0`                                                                                               | Exit 0.                                                                                                                                                                                             |
+| Prettier, those eight files and PLAN                                                                                                                       | Exit 0; this final certification append also receives a format check before commit.                                                                                                                 |
+| `npm run deadcode`, plain knip with `JITI_FS_CACHE=0`                                                                                                      | Exit 0; caching off prevents writes under shared node_modules.                                                                                                                                      |
+| `npx --no-install jscpd`                                                                                                                                   | Exit 0, zero clones, unchanged zero threshold.                                                                                                                                                      |
+| `npm run check:reference`                                                                                                                                  | Exit 0, generated reference current.                                                                                                                                                                |
+| `node scripts/check-l10n.mjs`                                                                                                                              | Exit 1, exactly the seven existing unused report manifest keys; all 14 UI tables checked. W's N-manifest-reference-docs handoff remains.                                                            |
+| `npm run check:host-api`                                                                                                                                   | Exit 1, the existing generated-record freshness mismatch: node:child_process 13→14, node:crypto 46→47, node:util 5→6. This repair adds no import/API change. W's N-host-api-record handoff remains. |
+| `npm run build`                                                                                                                                            | Exit 0, unchanged size/split, host-global and third-party notice gates.                                                                                                                             |
+| `npx --no-install vitest run test/unit/reportNetworkCache.test.ts test/unit/githubReportSource.test.ts test/unit/storeReportSource.test.ts --maxWorkers=3` | Exit 0, 101 tests.                                                                                                                                                                                  |
+| `npx --no-install vitest run test/unit/reportPosting.test.ts --maxWorkers=3`                                                                               | Exit 0, 31 tests; 132 total owned tests.                                                                                                                                                            |
+| Final reviewed-baseline and guard drills                                                                                                                   | Seven expected red exits at named assertions, with byte-exact restoration after each run.                                                                                                           |
+| `git diff --check`                                                                                                                                         | Exit 0.                                                                                                                                                                                             |
+
+Build sizes: extension 439.5/600 KiB, Model API 446.9/475 KiB,
+ACP 821.5/850 KiB, checkpoint store 76.9/225 KiB. W's future lazy reporting
+entry is still unbound on this base, so these receipts do not certify its
+integrated bundle. The brief reserves aggregate `npm run quality` for the
+lead; it was not run. Both nonzero scoped gates are named pre-existing W
+handoffs and are not claimed green. No threshold, rule or ignore is weakened.
+W retains the public Unreleased documentation for these two repairs.
+PLAN §9 records no review residuals and keeps all existing integration
+handoffs with their named owners.

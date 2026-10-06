@@ -158,13 +158,21 @@ export function unavailableReportSource<T>(
 export function isReportNetworkAllowed(
   policy: ReportNetworkPolicy,
   context: SourceReadContext,
+  hostname?: string,
 ): boolean {
-  return policy.mode !== 'off' && (policy.surface === 'editor' || context.options.network)
+  return (
+    policy.mode !== 'off' &&
+    (policy.surface === 'editor' || context.options.network) &&
+    (hostname !== 'api.github.com' || policy.mode !== 'whenSignedIn' || policy.githubSignedIn)
+  )
 }
 
 export class ReportNetworkReader {
   private readonly limitedUntil = new Map<string, number>()
-  private readonly dispatches = new Map<string, Promise<void>>()
+  private readonly dispatches = new Map<
+    string,
+    { generation: AbortController; released: Promise<void> }
+  >()
 
   public constructor(private readonly deps: ReportNetworkDeps) {
     z.number().check(z.int(), z.positive()).parse(deps.maxBytes)
@@ -253,7 +261,24 @@ export class ReportNetworkReader {
     return { data, observedAt: now, cached: false }
   }
 
-  /** Hold each host's admission through its response headers and rate-state update. */
+  /** Bound admission and transport by the source signal, even if a port ignores it. */
+  private async untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+    let abortListener: (() => void) | undefined
+    const aborted = new Promise<never>((_resolve, reject) => {
+      abortListener = () => {
+        reject(new ReportNetworkFailure('source-deadline'))
+      }
+      signal.addEventListener('abort', abortListener, { once: true })
+      if (signal.aborted) abortListener()
+    })
+    try {
+      return await Promise.race([work, aborted])
+    } finally {
+      if (abortListener !== undefined) signal.removeEventListener('abort', abortListener)
+    }
+  }
+
+  /** One live owner per host, held through its response headers and rate update. */
   private async dispatch(
     request: ReportNetworkRequest,
     etag: string | null,
@@ -261,10 +286,24 @@ export class ReportNetworkReader {
     context: SourceReadContext,
     origin: string,
   ): Promise<{ response: Response; limited: number | null; now: string }> {
-    const previous = this.dispatches.get(origin) ?? Promise.resolve()
-    const dispatched = (async () => {
-      await previous
+    for (;;) {
       signal.throwIfAborted()
+      const owner = this.dispatches.get(origin)
+      if (owner === undefined) break
+      await this.untilAborted(owner.released, signal)
+    }
+    const generation = new AbortController()
+    const released = new Promise<void>((resolve) => {
+      generation.signal.addEventListener(
+        'abort',
+        () => {
+          resolve()
+        },
+        { once: true },
+      )
+    })
+    this.dispatches.set(origin, { generation, released })
+    try {
       const now = timestamp.parse(this.deps.now())
       const until = this.limitedUntil.get(origin)
       if (until !== undefined && until > Date.parse(now))
@@ -272,24 +311,28 @@ export class ReportNetworkReader {
           fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(until).toISOString() }),
         )
       // No await between the live setting check and the actual transport call.
-      if (!this.allowed(context)) throw new ReportNetworkFailure(UI_TEXT.reportUi.networkOff)
-      const response = await this.deps.transport(request, etag, signal)
+      if (!this.allowed(context, new URL(request.url).hostname))
+        throw new ReportNetworkFailure(
+          this.allowed(context) ? UI_TEXT.reportUi.signInRequired : UI_TEXT.reportUi.networkOff,
+        )
+      const response = await this.untilAborted(
+        (async () => {
+          const response = await this.deps.transport(request, etag, signal)
+          if (signal.aborted || this.dispatches.get(origin)?.generation !== generation) {
+            // Obsolete work cannot publish rate state or cache data in a later generation.
+            await response.body?.cancel()
+            throw new ReportNetworkFailure('source-deadline')
+          }
+          return response
+        })(),
+        signal,
+      )
+      signal.throwIfAborted()
       const limited = this.rateLimit(response, origin, Date.parse(now))
       return { response, limited, now }
-    })()
-    const pending = (async () => {
-      try {
-        await dispatched
-      } catch {
-        // The caller receives the failure; later host admissions can still run.
-        return
-      }
-    })()
-    this.dispatches.set(origin, pending)
-    try {
-      return await dispatched
     } finally {
-      if (this.dispatches.get(origin) === pending) this.dispatches.delete(origin)
+      if (this.dispatches.get(origin)?.generation === generation) this.dispatches.delete(origin)
+      generation.abort()
     }
   }
 
@@ -358,16 +401,8 @@ export class ReportNetworkReader {
       await stop()
     }
   }
-  public allowed(context: SourceReadContext): boolean {
-    return isReportNetworkAllowed(this.deps.policy, context)
-  }
-
-  public get signedIn(): boolean {
-    return this.deps.policy.githubSignedIn
-  }
-
-  public get requiresSignIn(): boolean {
-    return this.deps.policy.mode === 'whenSignedIn'
+  public allowed(context: SourceReadContext, hostname?: string): boolean {
+    return isReportNetworkAllowed(this.deps.policy, context, hostname)
   }
 
   /** One deadline covers all pages, parsing, egress admission and storage. */
@@ -419,19 +454,11 @@ export class ReportNetworkReader {
         data: schema.parse(scrubStructured(result.data, this.deps.scrub)),
       }
     }
-    let abortListener: (() => void) | undefined
-    const aborted = new Promise<never>((_resolve, reject) => {
-      abortListener = () => {
-        reject(new ReportNetworkFailure('source-deadline'))
-      }
-      signal.addEventListener('abort', abortListener, { once: true })
-      if (signal.aborted) abortListener()
-    })
     const timer = setTimeout(() => {
       controller.abort()
     }, REPORT_SOURCE_TIMEOUT_MS)
     try {
-      return await Promise.race([work(), aborted])
+      return await this.untilAborted(work(), signal)
     } catch (error: unknown) {
       const detail = error instanceof ReportNetworkFailure ? error.message : 'source-failed'
       return unavailableReportSource(
@@ -440,7 +467,6 @@ export class ReportNetworkReader {
       )
     } finally {
       clearTimeout(timer)
-      if (abortListener !== undefined) signal.removeEventListener('abort', abortListener)
       controller.abort()
     }
   }

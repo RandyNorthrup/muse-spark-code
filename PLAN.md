@@ -27544,6 +27544,15 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane N round-two repair RVM113N2 (2026-10-06).** Fix both P2 findings
+structurally within N's files: one serialized admission owner per host,
+abort/deadline-bounded waits and transport settlement, and generation checks
+that discard late transport completions. Centralize the live policy decision
+for every dispatch, including GitHub's `whenSignedIn` requirement, while
+keeping public stores eligible without sign-in. Add failing regressions and
+byte-exact red drills to N's certification. No dependency, guard widening or
+other lane's edits; the existing W integration handoffs remain.
+
 **Lane N review repair RVM113N (2026-10-06).** Fix all four P2 findings
 within N's network/cache/store modules and owned tests: parse responses before
 scrubbing decoded structured values and persisting them; validate 304 cache
@@ -28723,7 +28732,7 @@ anywhere joined it).
 
 ## 7. Gates
 
-**M113-N-RVM113N bounded rig certification (2026-10-06).** The explicit
+**M113-N-RVM113N/RVM113N2 bounded rig certification (2026-10-06).** The explicit
 rig/shared brief reserves aggregate quality for the lead and forbids merges.
 Run complete owned suites (at most three files per run), default timeouts,
 scoped static checks and the production build directly in this worktree.
@@ -30097,6 +30106,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-N-review-RVM113N2 (2026-10-06).** Both P2 findings fixed;
+  no review residuals. Each host has one admission owner; its waits and
+  transport settlement race the source's existing deadline/abort signal.
+  Cancellation releases admission even when the transport never settles;
+  obsolete generations discard late responses without rate/cache updates.
+  One shared policy function checks GitHub's live sign-in requirement at
+  each dispatch; public stores retain their declared eligibility. Regression
+  and byte-exact red-drill evidence is in N's certification. Existing
+  N-captures, N-cache-storage (storage must honour cancellation),
+  N-reader-wiring (one shared reader per host with live setting/sign-in
+  getters), N-lazy-bundle and W's documentation/quality handoffs remain;
+  no live-service or integrated-editor claim is added.
 
 - **M113-N-review-RVM113N (2026-10-06).** All four P2 findings fixed;
   no review residuals. Responses are parsed, scrubbed as decoded structured

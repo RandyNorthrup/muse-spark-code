@@ -13,7 +13,7 @@ import {
   REPORT_SOURCE_TIMEOUT_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { networkContext, networkRig } from './helpers/reportNetwork'
+import { networkContext, networkRig, pauseNetworkAdmission } from './helpers/reportNetwork'
 
 const schema = z.strictObject({ value: z.string() })
 const request = { url: 'https://api.github.com/repos/fixture/repo' }
@@ -32,6 +32,17 @@ function rateFloorTransport(remaining = '10') {
       ),
     ),
   )
+}
+function ignoredCancellationTransport() {
+  const entered = Promise.withResolvers<undefined>()
+  const transport = vi
+    .fn<ReportNetworkTransport>()
+    .mockImplementationOnce(() => {
+      entered.resolve(undefined)
+      return new Promise<Response>(() => undefined)
+    })
+    .mockResolvedValue(Response.json({ value: 'recovered' }))
+  return { transport, entered: entered.promise }
 }
 afterEach(() => {
   vi.useRealTimers()
@@ -157,8 +168,6 @@ describe('report network policy and cache', () => {
   it.each(['cache', 'egress'] as const)(
     'rechecks network-off after an awaited %s admission',
     async (stage) => {
-      const entered = Promise.withResolvers<undefined>()
-      const release = Promise.withResolvers<undefined>()
       let mode: ReportNetworkPolicy['mode'] = 'always'
       const base = networkRig()
       const rig = networkRig({
@@ -167,25 +176,13 @@ describe('report network policy and cache', () => {
           get mode() {
             return mode
           },
-          allowEgress: async () => {
-            if (stage === 'egress') {
-              entered.resolve(undefined)
-              await release.promise
-            }
-            return true
-          },
         },
       })
-      if (stage === 'cache')
-        rig.storage.read.mockImplementationOnce(async () => {
-          entered.resolve(undefined)
-          await release.promise
-          return undefined
-        })
+      const admission = pauseNetworkAdmission(rig, stage)
       const pending = read(rig)
-      await entered.promise
+      await admission.entered
       mode = 'off'
-      release.resolve(undefined)
+      admission.release()
       expect(await pending).toMatchObject({
         data: null,
         record: {
@@ -216,6 +213,39 @@ describe('report network policy and cache', () => {
     expect(result.record.reason).toContain(UI_TEXT.reportUi.networkOff)
     expect(rig.transport).toHaveBeenCalledOnce()
   })
+
+  it.each(['api.github.com', 'marketplace.visualstudio.com', 'open-vsx.org', 'registry.npmjs.org'])(
+    'rechecks terminal consent before dispatch to %s',
+    async (hostname) => {
+      const entered = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      let surface: ReportNetworkPolicy['surface'] = 'editor'
+      const base = networkRig()
+      const rig = networkRig({
+        policy: {
+          ...base.deps.policy,
+          get surface() {
+            return surface
+          },
+        },
+      })
+      rig.storage.read.mockImplementationOnce(async () => {
+        entered.resolve(undefined)
+        await release.promise
+        return undefined
+      })
+      const pending = rig.reader.read(networkContext(false), 'network', schema, async (query) => ({
+        data: await query({ url: `https://${hostname}/fixture` }, schema),
+        reason: null,
+      }))
+      await entered.promise
+      surface = 'terminal'
+      release.resolve(undefined)
+      const result = await pending
+      expect(result.record.reason).toContain(UI_TEXT.reportUi.networkOff)
+      expect(rig.transport).not.toHaveBeenCalled()
+    },
+  )
 
   it('reuses a 304 with the original observation and age', async () => {
     let observedAt = networkContext().asOf
@@ -455,6 +485,112 @@ describe('report network policy and cache', () => {
     const observed12 = await pending
     expect(observed12.record.reason).toContain('source-deadline')
   })
+
+  it.each(['deadline', 'abort'] as const)(
+    'releases same-host admission after %s when transport ignores cancellation',
+    async (stop) => {
+      vi.useFakeTimers()
+      const { transport, entered } = ignoredCancellationTransport()
+      const rig = networkRig({ transport })
+      const controller = new AbortController()
+      const pending = read(rig, { ...networkContext(), signal: controller.signal })
+      await entered
+      if (stop === 'abort') controller.abort()
+      else await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+      const expired = await pending
+      expect(expired.record.reason).toContain('source-deadline')
+      const recovering = read(rig)
+      await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+      expect(await recovering).toMatchObject({
+        data: { value: 'recovered' },
+        record: { status: 'ok' },
+      })
+      expect(transport).toHaveBeenCalledTimes(2)
+    },
+  )
+
+  it('removes an aborted waiter without releasing the active host owner', async () => {
+    vi.useFakeTimers()
+    const { transport, entered } = ignoredCancellationTransport()
+    const rig = networkRig({ transport })
+    const ownerController = new AbortController()
+    const owner = read(rig, { ...networkContext(), signal: ownerController.signal })
+    await entered
+    const waiterController = new AbortController()
+    const finished = vi.fn()
+    const waiter = rig.reader.read(
+      { ...networkContext(), signal: waiterController.signal },
+      'network',
+      schema,
+      async (query) => {
+        try {
+          return { data: await query(request, schema), reason: null }
+        } finally {
+          finished()
+        }
+      },
+    )
+    await vi.advanceTimersByTimeAsync(0)
+    waiterController.abort()
+    const canceledWaiter = await waiter
+    expect(canceledWaiter.record.reason).toContain('source-deadline')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(finished).toHaveBeenCalledOnce()
+    const next = read(rig)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(transport).toHaveBeenCalledOnce()
+    ownerController.abort()
+    const canceledOwner = await owner
+    expect(canceledOwner.record.reason).toContain('source-deadline')
+    await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+    const recovered = await next
+    expect(recovered.record.status).toBe('ok')
+    expect(transport).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['response', 'rejection'] as const)(
+    'discards a late transport %s without changing the new host generation',
+    async (completion) => {
+      vi.useFakeTimers()
+      const obsolete = Promise.withResolvers<Response>()
+      const current = Promise.withResolvers<Response>()
+      const transport = vi
+        .fn<ReportNetworkTransport>()
+        .mockReturnValueOnce(obsolete.promise)
+        .mockReturnValueOnce(current.promise)
+        .mockImplementation(() => Promise.resolve(Response.json({ value: 'recovered' })))
+      const rig = networkRig({ transport })
+      const expired = read(rig)
+      await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+      const expiredResult = await expired
+      expect(expiredResult.record.reason).toContain('source-deadline')
+      const recovering = read(rig)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(transport).toHaveBeenCalledTimes(2)
+      const cancel = vi.fn()
+      if (completion === 'response')
+        obsolete.resolve(
+          new Response(new ReadableStream<Uint8Array>({ cancel }), {
+            headers: { 'x-ratelimit-remaining': '0', 'x-ratelimit-reset': '1791288060' },
+          }),
+        )
+      else obsolete.reject(new Error('obsolete-transport'))
+      await vi.advanceTimersByTimeAsync(0)
+      if (completion === 'response') expect(cancel).toHaveBeenCalledOnce()
+      expect(rig.storage.write).not.toHaveBeenCalled()
+      const waiting = read(rig)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(transport).toHaveBeenCalledTimes(2)
+      current.resolve(Response.json({ value: 'current' }))
+      await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+      const recovered = await recovering
+      const waited = await waiting
+      expect(recovered.record.status).toBe('ok')
+      expect(waited.record.status).toBe('ok')
+      expect(transport).toHaveBeenCalledTimes(3)
+      expect(rig.storage.write).toHaveBeenCalledTimes(2)
+    },
+  )
 
   it('refuses an already aborted read', async () => {
     const rig = networkRig()
