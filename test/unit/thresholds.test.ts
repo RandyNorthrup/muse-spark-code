@@ -47,7 +47,111 @@ function setup(thresholds: AccountThresholds = {}, snapshot?: AccountLimitsSnaps
   return { clock, journal, read, evaluate, append }
 }
 
+const dollars = (nano: bigint) => Number(`0.${nano.toString().padStart(9, '0')}`)
+const asTotals = (values: bigint[]) => ({
+  ...EMPTY,
+  settledUsd: dollars(values[0]!),
+  reservedUsd: dollars(values[1]!),
+  uncertainUsd: dollars(values[2]!),
+})
+
 describe('M108 T account thresholds', () => {
+  it('admits $0.10 plus $0.20 at $0.30 and stops $0.70 plus $0.10 at $0.80', () => {
+    for (const period of ['day', 'week', 'month'] as const) {
+      const base = {
+        provider: 'meta',
+        account: { id: 'work', thresholds: { spendUsd: { [period]: 0.3 } } },
+        now: NOW,
+        journal: { read: () => ({ ...EMPTY, settledUsd: 0.1 }) },
+      }
+      expect(
+        evaluateAccountThresholds({ ...base, request: { ...EMPTY, reservedUsd: 0.2 } }),
+      ).toEqual([])
+      expect(
+        evaluateAccountThresholds({
+          ...base,
+          account: { id: 'work', thresholds: { spendUsd: { [period]: 0.8 } } },
+          journal: { read: () => ({ ...EMPTY, settledUsd: 0.7, reservedUsd: 0.1 }) },
+        }),
+      ).toEqual([expect.objectContaining({ kind: 'userCap', period, value: 0.8, threshold: 0.8 })])
+    }
+  })
+
+  it('matches independent exact cap comparison for seeded nano-USD reservations', () => {
+    let seed = 108n
+    const next = () => {
+      seed = (seed * 1_664_525n + 1_013_904_223n) % 4_294_967_296n
+      return seed % 1_000_000_000n
+    }
+    for (let sample = 0; sample < 600; sample++) {
+      const current = [next(), next(), next()]
+      const pending = [next(), next(), next()]
+      const used = current.reduce((sum, value) => sum + value, 0n)
+      const projected = used + pending.reduce((sum, value) => sum + value, 0n)
+      let cap = next()
+      if (sample % 3 === 0) cap = used
+      else if (sample % 3 === 1) cap = projected
+      // Integer nano-USD is the oracle; the production helper is not used here.
+      const capUsd = Number(
+        `${String(cap / 1_000_000_000n)}.${(cap % 1_000_000_000n).toString().padStart(9, '0')}`,
+      )
+      const result = evaluateAccountThresholds({
+        provider: 'meta',
+        account: { id: 'work', thresholds: { spendUsd: { day: capUsd } } },
+        now: NOW,
+        journal: { read: () => asTotals(current) },
+        request: asTotals(pending),
+      })
+      expect(result.length > 0, `sample ${String(sample)}`).toBe(used >= cap || projected > cap)
+    }
+  })
+
+  it.each(['requests', 'tokens'] as const)(
+    'trips %s headroom at 7 of 25 remaining and exactly 28 percent',
+    (metric) => {
+      for (const [remaining, threshold, stopped] of [
+        [7, 28, true],
+        [8, 28, false],
+        [7, 27.99, false],
+        [7, 28.01, true],
+      ] as const) {
+        expect(
+          setup(
+            { rateLimitHeadroomPercent: { [metric]: threshold } },
+            { rateLimits: { [metric]: { limit: 25, remaining, resetAt: TOMORROW } } },
+          ).evaluate().length > 0,
+        ).toBe(stopped)
+      }
+    },
+  )
+
+  it('refuses fractional and unsafe request/token buckets', () => {
+    for (const metric of ['requests', 'tokens'] as const) {
+      for (const bucket of [
+        { limit: 25.5, remaining: 7 },
+        { limit: 25, remaining: 7.5 },
+        { limit: Number.MAX_SAFE_INTEGER + 1, remaining: 7 },
+        { limit: 25, remaining: Number.MAX_SAFE_INTEGER + 1 },
+      ]) {
+        expect(() =>
+          setup(
+            { rateLimitHeadroomPercent: { [metric]: 28 } },
+            { rateLimits: { [metric]: { ...bucket, resetAt: TOMORROW } } },
+          ).evaluate(),
+        ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+      }
+    }
+  })
+
+  it('refuses headroom percentages finer than the exact decimal unit', () => {
+    expect(() =>
+      setup(
+        { rateLimitHeadroomPercent: { requests: 0.0000000001 } },
+        { rateLimits: { requests: { limit: 25, remaining: 1, resetAt: TOMORROW } } },
+      ).evaluate(),
+    ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+  })
+
   it.each(['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const)(
     'trips %s at its exact day, week and month value, from generated journals',
     (metric) => {

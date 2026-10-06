@@ -10,6 +10,7 @@ import {
   type AccountUsageTotals,
 } from '../../shared/accounts'
 import { DAYS_PER_WEEK, UI_TEXT } from '../../shared/constants'
+import { multiplyUsd, parseUsd, sumUsd, usdNumber } from '../../shared/usd'
 
 const amount = z.number().check(z.nonnegative())
 const count = z.int().check(z.nonnegative())
@@ -27,8 +28,8 @@ const windowSchema = z.strictObject({
   resetAt,
 })
 const bucketSchema = z.strictObject({
-  limit: z.number().check(z.positive()),
-  remaining: amount,
+  limit: z.int().check(z.positive()),
+  remaining: count,
   resetAt: z.iso.datetime(),
 })
 const limitsSchema = z.strictObject({
@@ -131,7 +132,13 @@ export function evaluateAccountThresholds(deps: {
       if (threshold === undefined) continue
       const bucket = snapshot.rateLimits?.[metric]
       if (bucket === undefined || bucket.remaining > bucket.limit) unavailable()
-      if (isActive(bucket.resetAt) && (bucket.remaining / bucket.limit) * 100 <= threshold)
+      const percent = parseUsd(threshold)
+      if (usdNumber(percent) !== threshold) unavailable()
+      if (
+        isActive(bucket.resetAt) &&
+        multiplyUsd(parseUsd(100), BigInt(bucket.remaining)) <=
+          multiplyUsd(percent, BigInt(bucket.limit))
+      )
         triggers.push({ kind: 'vendorLimit', reason: 'rateLimitHeadroom', resetAt: bucket.resetAt })
     }
   }
@@ -148,26 +155,30 @@ export function evaluateAccountThresholds(deps: {
     )
     if (!result.success) unavailable()
     const totals = result.data
-    const spend = totals.settledUsd + totals.reservedUsd + totals.uncertainUsd
-    const pendingSpend =
-      request.data.settledUsd + request.data.reservedUsd + request.data.uncertainUsd
-    if (!Number.isFinite(spend + pendingSpend)) unavailable()
+    const spend = sumUsd([
+      parseUsd(totals.settledUsd),
+      parseUsd(totals.reservedUsd),
+      parseUsd(totals.uncertainUsd),
+    ])
+    const pendingSpend = sumUsd([
+      parseUsd(request.data.settledUsd),
+      parseUsd(request.data.reservedUsd),
+      parseUsd(request.data.uncertainUsd),
+    ])
     for (const metric of metrics) {
       const threshold = thresholds[metric]?.[period]
       if (threshold === undefined) continue
-      const value = metric === 'spendUsd' ? spend : totals[metric]
-      const projected = value + (metric === 'spendUsd' ? pendingSpend : request.data[metric])
-      if (
-        !Number.isFinite(projected) ||
-        (metric !== 'spendUsd' && !Number.isSafeInteger(projected))
-      )
-        unavailable()
-      if (value >= threshold || projected > threshold)
+      const value = metric === 'spendUsd' ? spend : BigInt(totals[metric])
+      const projected =
+        value + (metric === 'spendUsd' ? pendingSpend : BigInt(request.data[metric]))
+      const cap = metric === 'spendUsd' ? parseUsd(threshold, 'floor') : BigInt(threshold)
+      if (metric !== 'spendUsd' && projected > BigInt(Number.MAX_SAFE_INTEGER)) unavailable()
+      if (value >= cap || projected > cap)
         triggers.push({
           kind: 'userCap',
           metric,
           period,
-          value: Math.max(value, projected),
+          value: metric === 'spendUsd' ? usdNumber(projected) : Number(projected),
           threshold,
           resetAt: range.end,
         })

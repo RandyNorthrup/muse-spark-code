@@ -19833,6 +19833,23 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108T (2026-10-06):** repair both RVM108T P2 findings, with no
+review residuals. Sum settled/reserved/uncertain USD and projected requests
+as integer nano-USD through `src/shared/usd.ts`; compare counts as integers.
+Headroom compares remaining × 100 against threshold × live limit by integer
+cross multiplication, including fractional configured percentages. Refuse
+fractional or unsafe request/token buckets. Audit money/quota arithmetic in
+thresholds.ts, sessionBudget.ts and paidDailyBudget.ts; use the same exact
+helper for token-price reservations, settlements and daily-budget arithmetic.
+Preserve existing numeric contract boundaries on this base, converting only
+before/after exact calculation; never use binary sums or quotients to admit.
+M106H's helper is absent from this checkout and the named local source path;
+record the shared parse/add/subtract/rational-multiply/compare/ceiling-format
+API in T's certification for integration to retain one implementation.
+Add the review's decimal-cap and 25/7/28% regressions, seeded independent
+integer admission properties, and deliberate failure/restoration receipts.
+No new dependency, UI, credential, paid policy or gate changes.
+
 **FIXM108K (2026-10-05):** repair all four RVM108K findings in lane K.
 Extend shared literal scrubbing to JSON, URL, base64/base64url and hexadecimal
 forms through one matcher; invalidate pending account dispatches by removal
@@ -20046,6 +20063,13 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**FIXM108T bounded-lane certification (2026-10-06).** The rig brief and
+shared rules prohibit full quality/full unit runs, merges and network calls.
+Run complete owning test files with the default timeout, at most three files
+and workers per run, plus scoped static/build gates and hook-on commits.
+The lead retains integrated quality, coverage and editor/live certification.
+No gate is weakened; receipts are in `docs/certification/m108-t-thresholds.md`.
 
 **FIXM108K bounded-lane certification.** The explicit rig brief and shared
 rules prohibit aggregate quality/full test runs, merges and network calls.

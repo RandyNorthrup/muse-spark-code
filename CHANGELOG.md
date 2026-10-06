@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Account threshold evaluation and paid token reservations use exact nano-USD
+  arithmetic, preserving exactly affordable decimal costs. Request/token
+  headroom checks trip at the exact configured percentage boundary.
+
 - Registered credentials are scrubbed from JSON, URL/form, base64/base64url
   and hexadecimal diagnostic output. Account-store removal fences pending
   lookups and writes across instances in one process; endpoint changes allow

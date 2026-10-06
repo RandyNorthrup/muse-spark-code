@@ -27,10 +27,19 @@ import {
 } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { modelApiPaidTier } from '../../../shared/paid'
-import { formatUsd, estimateCostUsd } from '../../usage/insights'
+import {
+  formatUsd,
+  multiplyUsd,
+  parseUsd,
+  subtractUsd,
+  sumUsd,
+  usdNumber,
+} from '../../../shared/usd'
 import type { CreateResponseBody, Usage } from './schemas'
 
 const PART_DIGEST = 'sha256'
+const ONE_TOKEN = 1n
+const ZERO_TOKENS = 0n
 
 /** The last reported request: what the next request's estimate starts from. */
 export interface BudgetBase {
@@ -152,9 +161,12 @@ export function estimateInput(
   parts: readonly string[],
   base: BudgetBase | undefined,
 ): InputEstimate {
+  const baseTokens = base?.inputTokens ?? 0
+  if (!Number.isSafeInteger(baseTokens) || baseTokens < 0)
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   const own = new Map<string, number>()
   const unmatched = new Map(base?.parts)
-  let addedBytes = 0
+  let addedBytes = ZERO_TOKENS
   for (const part of parts) {
     const digest = createHash(PART_DIGEST).update(part).digest('hex')
     own.set(digest, (own.get(digest) ?? 0) + 1)
@@ -162,12 +174,15 @@ export function estimateInput(
     if (left > 0) {
       unmatched.set(digest, left - 1)
     } else {
-      addedBytes += Buffer.byteLength(part)
+      addedBytes += BigInt(Buffer.byteLength(part))
     }
   }
+  const bytesPerToken = BigInt(SESSION_BUDGET_MIN_BYTES_PER_TOKEN)
+  const inputTokens = BigInt(baseTokens) + (addedBytes + bytesPerToken - ONE_TOKEN) / bytesPerToken
+  if (inputTokens > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   return {
-    inputTokens:
-      (base?.inputTokens ?? 0) + Math.ceil(addedBytes / SESSION_BUDGET_MIN_BYTES_PER_TOKEN),
+    inputTokens: Number(inputTokens),
     parts: own,
   }
 }
@@ -190,26 +205,41 @@ export function reserveRequest(request: {
       fill(UI_TEXT.sessionBudgetUnpriced, { model: request.modelId }),
     )
   }
+  if (!Number.isSafeInteger(request.estimatedInputTokens) || request.estimatedInputTokens < 0)
+    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   const prices = MODEL_API_PRICES_PER_MILLION[tier]
-  const inputCostUsd = (request.estimatedInputTokens * prices.input) / TOKENS_PER_MILLION
-  const leftUsd = request.capUsd - request.spentUsd
-  const affordableOutputTokens = Math.floor(
-    ((leftUsd - inputCostUsd) * TOKENS_PER_MILLION) / prices.output,
+  const inputCost = multiplyUsd(
+    parseUsd(prices.input),
+    BigInt(request.estimatedInputTokens),
+    BigInt(TOKENS_PER_MILLION),
   )
-  if (affordableOutputTokens < 1) {
+  const cap = parseUsd(request.capUsd, 'floor')
+  const spent = parseUsd(request.spentUsd)
+  const left = subtractUsd(subtractUsd(cap, spent), inputCost)
+  const outputTokenCost = multiplyUsd(
+    parseUsd(prices.output),
+    ONE_TOKEN,
+    BigInt(TOKENS_PER_MILLION),
+  )
+  const affordableOutputTokens = left / outputTokenCost
+  if (affordableOutputTokens < ONE_TOKEN) {
     throw new SessionBudgetExceededError(
       fill(UI_TEXT.sessionBudgetStopped, {
-        estimate: formatUsd(inputCostUsd),
-        cap: formatUsd(request.capUsd),
-        spent: formatUsd(request.spentUsd),
+        estimate: formatUsd(inputCost),
+        cap: formatUsd(cap),
+        spent: formatUsd(spent),
       }),
     )
   }
-  const maxOutputTokens = Math.min(affordableOutputTokens, MODEL_API_MAX_OUTPUT_TOKENS)
+  const maxOutputTokens = Number(
+    affordableOutputTokens < BigInt(MODEL_API_MAX_OUTPUT_TOKENS)
+      ? affordableOutputTokens
+      : BigInt(MODEL_API_MAX_OUTPUT_TOKENS),
+  )
   return {
     estimatedInputTokens: request.estimatedInputTokens,
     maxOutputTokens,
-    costUsd: inputCostUsd + (maxOutputTokens * prices.output) / TOKENS_PER_MILLION,
+    costUsd: usdNumber(sumUsd([inputCost, multiplyUsd(outputTokenCost, BigInt(maxOutputTokens))])),
   }
 }
 
@@ -225,13 +255,24 @@ export function helperRequestSettlement(
   const hasUsage = usage !== null && usage !== undefined && isCountedUsage(usage)
   let costUsd = wasSent && !wasRefused ? reservedUsd : 0
   if (usage !== null && usage !== undefined && isCountedUsage(usage)) {
-    costUsd = estimateCostUsd(
-      {
-        inputTokens: usage.input_tokens,
-        outputTokens: usage.output_tokens,
-        cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
-      },
-      modelId,
+    const tier = modelApiPaidTier(modelId)
+    if (tier === undefined) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    const prices = MODEL_API_PRICES_PER_MILLION[tier]
+    const cached = Math.min(usage.input_tokens_details?.cached_tokens ?? 0, usage.input_tokens)
+    costUsd = usdNumber(
+      sumUsd([
+        multiplyUsd(
+          parseUsd(prices.input),
+          BigInt(usage.input_tokens - cached),
+          BigInt(TOKENS_PER_MILLION),
+        ),
+        multiplyUsd(parseUsd(prices.cachedInput), BigInt(cached), BigInt(TOKENS_PER_MILLION)),
+        multiplyUsd(
+          parseUsd(prices.output),
+          BigInt(usage.output_tokens),
+          BigInt(TOKENS_PER_MILLION),
+        ),
+      ]),
     )
   }
   return { costUsd, isUnknown: wasSent && !wasRefused && !hasUsage }

@@ -175,6 +175,45 @@ function boundBudget(accountAdmission: AccountBudgetAdmission, capUsd = 0.5) {
 }
 
 describe('D78 interactive paid daily budget', () => {
+  it('returns exact decimal headroom to Judge without binary subtraction', async () => {
+    const daily = budget(0.8)
+    await requireClaim(await daily.reserve(IMAGE, 'imageGeneration')).settle(0.1)
+    expect(await daily.judgeLedger.remainingUsd()).toBe(0.7)
+  })
+
+  it('reserves token extras at exact nano-USD prices', async () => {
+    const daily = budget()
+    const claim = requireClaim(
+      await daily.reserve(
+        { ...BODY, model: 'muse-spark-1.3-contributor', max_output_tokens: 3 },
+        'subagents',
+        7,
+      ),
+    )
+    expect(claim.reservedUsd).toBe(0.0000013)
+    await claim.settle(0)
+  })
+
+  it('refuses fractional, negative and unsafe token estimates before reserving', async () => {
+    const daily = budget()
+    for (const value of [0.5, -1, Number.MAX_SAFE_INTEGER + 1]) {
+      await expect(daily.reserve(BODY, 'subagents', value)).rejects.toThrow(
+        UI_TEXT.paidDailyLedgerUnavailable,
+      )
+      await expect(
+        daily.reserve({ ...BODY, max_output_tokens: value }, 'subagents', 1),
+      ).rejects.toThrow(UI_TEXT.paidDailyLedgerUnavailable)
+    }
+  })
+
+  it('rounds a newly entered cap down to nano-USD before publication', async () => {
+    const daily = await raiseAtCap()
+    vi.mocked(window.showInputBox).mockResolvedValueOnce('1.0000000001')
+    const claim = requireClaim(await daily.reserve(IMAGE, 'imageGeneration'))
+    expect(daily.capUsd()).toBe(1)
+    await claim.settle(0)
+  })
+
   it.each(['extra', 'judge'] as const)(
     'refunds a refused %s account preflight and preserves its structured trigger',
     async (kind) => {

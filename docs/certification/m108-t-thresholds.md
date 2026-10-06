@@ -266,3 +266,105 @@ features falsely advertised in README or the absent feature catalogue.
 The only calendar choice defaulted locally is an ISO Monday-start week;
 reconcile it with D82 when M102 lands. Paid defaults, consent and all existing
 spend caps retain today's behavior.
+
+## FIXM108T — RVM108T findings (macmini, 2026-10-06)
+
+Both confirmed P2 findings are fixed; no review residuals. Read the entire
+RVM108T report and the rig/shared rules. No dependency or tool install,
+credential access, paid/live call, network request, merge, rebase or push.
+
+| Finding                    | Fixed behavior                                                                                                                                                                                  | Regression                                                                                                                                                                  | Deliberate red drill                                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-1 decimal USD admission | Settled, reserved, uncertain and projected amounts are summed and compared as integer nano-USD for day/week/month. $0.10 + $0.20 may use a $0.30 cap; $0.70 + $0.10 trips an $0.80 reached cap. | `admits $0.10 plus $0.20 at $0.30 and stops $0.70 plus $0.10 at $0.80`; 600 seeded nano-USD cases compare admission to an independent bigint oracle.                        | `money-projection` restores binary projected addition; `money-reached-cap` restores binary settled/reserved/uncertain comparison. Both fail the named decimal regression; projection also fails the property test. |
+| P2-2 headroom division     | Remaining × 100 and configured percentage × live limit are compared as integers before any quotient. Request/token buckets must be safe integers.                                               | Both `trips ... headroom at 7 of 25 remaining and exactly 28 percent` cases, including just above/below fractional percentages; malformed bucket and precision regressions. | `headroom-division` restores division first and fails both request/token cases. Integer/precision guard removal fails its named regression.                                                                        |
+
+### Arithmetic audit and exact helper
+
+Inspected every arithmetic operation in thresholds.ts, sessionBudget.ts and
+paidDailyBudget.ts (operator/Math scan and manual review). Threshold money and
+count aggregation/comparison use bigint. Rate-limit counts are validated safe
+integers; percentages finer than the supported decimal unit refuse instead of
+silently widening admission. Plan percentages compare their validated source
+values directly, with no division. Date arithmetic remains local-calendar
+integer arithmetic.
+
+Session input byte/token accumulation and output affordability use integer
+arithmetic. Token input/output/cache prices, reservations and helper settlements
+use exact rational multiplication and addition. Daily token estimates, remaining
+USD, raise proposals, cap validation and over-cap preflight use the same helper.
+A newly entered cap is parsed as decimal text before conversion/publication.
+Cap conversion rounds down, liability/rational-charge conversion rounds up to
+a nano-USD; neither grants additional room. Ceiling display uses exact whole
+and fractional Intl parts and the currently installed locale, including large
+amounts. No positive amount disappears at the default precision.
+
+Existing lane-0/M82 numeric contracts are compatibility boundaries on this
+base: parse before arithmetic and convert the exact result only for the
+existing output contract. T does not rewrite another lane's journal, UI or
+wire contracts. The existing T-M102-AGGREGATE handoff also requires an exact
+upstream sum: an authoritative reader must supply nano-USD totals rather than
+first adding binary dollar numbers. Full journal migration and shared money
+ports belong to M106H's integrated exact-money work.
+
+### T-M106H-USD-API — keep one shared implementation
+
+`src/shared/usd.ts` did not exist on this base; the brief's named local
+`/Users/randy/lanes/M106H/src/shared/usd.ts` also does not exist on macmini,
+and H's reported Git object is unavailable here. Therefore source-level API
+parity with H cannot be independently asserted on this rig. This is the
+explicit shared API handoff for the lead to consolidate with H, keeping one
+`src/shared/usd.ts` implementation and these callers' signatures/semantics:
+
+| API                                                                  | Contract                                                                                                                                                             |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Usd`                                                                | Integer nano-USD, `bigint`.                                                                                                                                          |
+| `parseUsd(number \| string, rounding = 'ceil'): Usd`                 | Parse the existing numeric boundary's decimal spelling or exact decimal text; caps pass `'floor'`. Finite nonnegative supported amounts only; bounded text/exponent. |
+| `sumUsd(readonly Usd[]): Usd`                                        | Exact addition without numeric intermediate values.                                                                                                                  |
+| `subtractUsd(Usd, Usd): Usd`                                         | Exact signed difference.                                                                                                                                             |
+| `multiplyUsd(Usd, bigint, denominator = 1n, rounding = 'ceil'): Usd` | Exact rational multiplication; positive divisor; charge ceiling.                                                                                                     |
+| `compareUsd(Usd, Usd): -1 \| 0 \| 1`                                 | Exact ordering.                                                                                                                                                      |
+| `usdDecimal(Usd): string`                                            | Canonical decimal spelling.                                                                                                                                          |
+| `usdNumber(Usd): number`                                             | Existing nonnegative output boundary only; no subsequent local dollar arithmetic.                                                                                    |
+| `formatUsd(Usd, fractionDigits?): string`                            | Installed-language Intl display with a ceiling; visible sub-cent amounts.                                                                                            |
+
+No alternate helper, duplicate journal or fallback backend is introduced.
+T-M102-AGGREGATE, T-M106-PACING, T-P-ADMISSION and T-W-DOCS-HELP remain the
+previously named integration handoffs. The shared evaluator/helper run in all
+editors and ACP/headless; no VS Code-only arithmetic is added.
+
+### Executed FIXM108T drills
+
+Each command runs the complete owning test file directly on macmini with
+`--maxWorkers=3` and the repository's default timeout. Every mutation exits 1
+with the named test failure and restores the original bytes in finally;
+SHA-256 before/after restoration matches. The session division mutation throws
+the budget refusal in the test that requires an affordable request to succeed;
+it is a named test failure, not a compile/suite-loading failure.
+
+| Drill                     | First named failing test                                                 | Restored SHA-256                                                   |
+| ------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `money-projection`        | admits $0.10 plus $0.20 at $0.30 and stops $0.70 plus $0.10 at $0.80     | `c0470cde5476cc2e6de81a3926af029e55dd0fec37416c8a1271643a74f351da` |
+| `money-reached-cap`       | admits $0.10 plus $0.20 at $0.30 and stops $0.70 plus $0.10 at $0.80     | `c0470cde5476cc2e6de81a3926af029e55dd0fec37416c8a1271643a74f351da` |
+| `headroom-division`       | trips requests headroom at 7 of 25 remaining and exactly 28 percent      | `c0470cde5476cc2e6de81a3926af029e55dd0fec37416c8a1271643a74f351da` |
+| `bucket-integers`         | refuses fractional and unsafe request/token buckets                      | `c0470cde5476cc2e6de81a3926af029e55dd0fec37416c8a1271643a74f351da` |
+| `percent-precision`       | refuses headroom percentages finer than the exact decimal unit           | `c0470cde5476cc2e6de81a3926af029e55dd0fec37416c8a1271643a74f351da` |
+| `session-output-division` | keeps exactly one output token affordable after decimal cap subtraction  | `20ccd19ecfb1f66221bb0ab0451a84e46a48a71f0b8fde63056235c3610c1885` |
+| `session-base-count`      | refuses fractional, negative and overflowing input token counts          | `20ccd19ecfb1f66221bb0ab0451a84e46a48a71f0b8fde63056235c3610c1885` |
+| `session-count-overflow`  | refuses fractional, negative and overflowing input token counts          | `20ccd19ecfb1f66221bb0ab0451a84e46a48a71f0b8fde63056235c3610c1885` |
+| `helper-settlement`       | settles helper token costs exactly and retains unknown sent liability    | `20ccd19ecfb1f66221bb0ab0451a84e46a48a71f0b8fde63056235c3610c1885` |
+| `daily-token-cost`        | reserves token extras at exact nano-USD prices                           | `3b8b3e279ebf1c7162e5a4d44d3ea7439349c7613c7ff29ce55d27868530be46` |
+| `daily-count-validation`  | refuses fractional, negative and unsafe token estimates before reserving | `3b8b3e279ebf1c7162e5a4d44d3ea7439349c7613c7ff29ce55d27868530be46` |
+| `daily-headroom`          | returns exact decimal headroom to Judge without binary subtraction       | `3b8b3e279ebf1c7162e5a4d44d3ea7439349c7613c7ff29ce55d27868530be46` |
+| `daily-cap-parse`         | rounds a newly entered cap down to nano-USD before publication           | `3b8b3e279ebf1c7162e5a4d44d3ea7439349c7613c7ff29ce55d27868530be46` |
+| `liability-ceiling`       | keeps sums, differences and rational multiplication in integer nano-USD  | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `cap-floor`               | rounds liabilities up and caps down without binary arithmetic            | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `display-ceiling`         | displays 0.00003375 with a ceiling and visible positive fractions        | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `rational-divisor`        | refuses malformed, unbounded and negative amounts and invalid divisors   | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `decimal-length`          | refuses malformed, unbounded and negative amounts and invalid divisors   | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `decimal-exponent`        | refuses malformed, unbounded and negative amounts and invalid divisors   | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+| `decimal-range`           | refuses malformed, unbounded and negative amounts and invalid divisors   | `75c415e119edeb22fec55183cb10d7333e20d4f651640315ff1809592239b8fe` |
+
+After restoration, the complete threshold/session/daily suites pass 73 tests
+and the helper suite passes 10, all with default timeouts. Static/build final
+receipts are recorded below after those commands complete. No timeout, test
+filter, gate, cap, paid default, consent flow or escape hatch is weakened.
