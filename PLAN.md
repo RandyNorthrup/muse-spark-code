@@ -18059,7 +18059,13 @@ every emitted JavaScript file, including browser chunks, against its own
 text and declared readers; do not attribute all browser text to main.js.
 Model the new Models entry point in the existing budget fixtures without
 changing any cap. Replace formatter/linter-conflicting nested ternaries
-with ordinary control flow.
+with ordinary control flow. The complete accessibility scan reports zero
+rule violations but 18 harness pages without a result. Start scenarios only
+after the real webview ready message, wait for the Models section rather
+than its early nav shell, and close the ChatGPT allowance disclosure through
+its real button before opening plan usage. Keep every existing wait, scan
+rule and full-run failure receipt; recheck all affected scenarios in four
+themes before the final aggregate gate.
 
 **M95R3 contributor guard repair (2026-10-05).** The release/M95 join
 left a remembered-consent return ahead of the confidential-workspace check
@@ -20919,7 +20925,10 @@ fixed bundle caps stay unchanged. The joined build reports providers
 146.4/125 KiB, browser startup 910.7/900 KiB and deferred browser code
 59.0/50 KiB. The brief assigns the startup diet to a separate batch; the
 provider composition also requires a lazy split before this tree can ship.
-Exact final gate receipts belong in docs/certification/m95-r3.md. No
+The full 764-page accessibility run reports zero violations but 18 harness
+pages without results. The repaired 48 affected pages and three deliberate
+guard drills pass after exact restoration; a complete 764-page rerun remains
+open. Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 
 **DEFLAKE5 unit/coverage acceptance (2026-10-05, kubuntu).** On committed

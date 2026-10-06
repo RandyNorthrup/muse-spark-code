@@ -1077,6 +1077,7 @@
               break
             }
           }
+          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) playScenario()
         },
       })
     </script>
@@ -3343,13 +3344,21 @@
               estimated: { requests: 2, inputTokens: 8000, outputTokens: 1000 },
             },
           ]
-          whenFound('.composer-area:not([inert]) .plan-mark', () => {
-            click('Commands')
-            whenFound('.palette-filter', (filter) => {
-              setValue(filter, HTMLInputElement.prototype, '/usage')
-              filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-            })
-          })
+          whenFound(
+            '[aria-labelledby="chatgpt-plan-title"] .plan-actions .button-primary',
+            (button) => {
+              button.click()
+              whenFound('.composer-area:not([inert]) .plan-mark', () => {
+                click('Commands')
+                whenFound('.palette-filter', (filter) => {
+                  setValue(filter, HTMLInputElement.prototype, '/usage')
+                  filter.dispatchEvent(
+                    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+                  )
+                })
+              })
+            },
+          )
         },
         'plan-usage-narrow': () => {
           steps['plan-usage']()
@@ -5380,14 +5389,15 @@
       // a sign-in or install gate, or the crash screen; never sooner than the
       // 400 ms it always waited. A fixed delay alone raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
-      if (scenario !== null && scenario in steps) {
-        // The Models & Agents panel (`?bundle=models`, M95) draws neither a
-        // composer nor a gate: its nav marks the surface instead.
-        later(100, () =>
-          whenFound('textarea, .gate, .todo-surface, [role="alert"], .models-panel', () =>
-            steps[scenario](),
-          ),
-        )
+      let hasPlayedScenario = false
+      const playScenario = () => {
+        if (hasPlayedScenario || scenario === null || !(scenario in steps)) return
+        hasPlayedScenario = true
+        const surface =
+          harnessBundle === 'models'
+            ? '.models-panel section'
+            : 'textarea, .gate, .todo-surface, [role="alert"]'
+        whenFound(surface, () => steps[scenario]())
       }
 
       // `?theme=<kind>` applies the colours VS Code gives a webview in one of
