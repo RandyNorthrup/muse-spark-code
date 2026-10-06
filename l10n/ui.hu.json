@@ -44,7 +44,54 @@
     "storageUnavailable": "Az eszközállapot nem menthető vagy olvasható. Az új munka blokkolva van; őrizze meg a lezáratlan munkát és javítsa meg a helyi tárolót.",
     "fingerprintChanged": "Az eszköz ujjlenyomata megváltozott. Párosítsa újra; a korábbi lezáratlan munka blokkolva marad.",
     "settingsDescription": "Engedélyezi a párosított LAN-eszközöket az ujjlenyomatok kölcsönös megerősítése és kifejezett helyi felajánlás után. Alapértelmezésben kikapcsolva. Minden végrehajtó eszköz megtartja saját hitelesítő adatait, jóváhagyásait és díjait.",
-    "discoveryDescription": "Engedélyezi a munkát felajánló párosított fogadók opcionális LAN-felderítését. Alapértelmezésben kikapcsolva. Csak átlátszatlan szolgáltatásazonosítót, portot és protokollverziót hirdet; a felderítés nem ad bizalmat."
+    "discoveryDescription": "Engedélyezi a munkát felajánló párosított fogadók opcionális LAN-felderítését. Alapértelmezésben kikapcsolva. Csak átlátszatlan szolgáltatásazonosítót, portot és protokollverziót hirdet; a felderítés nem ad bizalmat.",
+    "offHelp": "Az Eszközök alapértelmezés szerint ki van kapcsolva. A párosítás és a munka felajánlása külön-külön kifejezett helyi választást igényel.",
+    "importInvitation": "Meghívó importálása",
+    "importConfirmation": "Megerősítés importálása",
+    "peerFingerprint": "Másik eszköz ujjlenyomata",
+    "fingerprintMatches": "Összehasonlítottam a két képernyőt, és az ujjlenyomat egyezik",
+    "confirmFingerprint": "Ujjlenyomat megerősítése",
+    "invalidMessage": "Az eszköz üzenete érvénytelen, vagy a kérés sikertelen. A meglévő munka és kötelezettség megmarad.",
+    "localApprovalHelp": "A jóváhagyást és a fizetési hozzájárulást a végrehajtó eszköz kéri. Ott válaszoljon; a párosítás nem ad jóváhagyást.",
+    "capacityHelp": "A fogadó készlet elérte a kapacitását. Várjon a helyben bizonyított befejezésre; a bizonytalan munkát ne ossza ki újra.",
+    "grantHelp": "A fogadó eszköznek jóvá kell hagynia a tároló hozzárendelését, az alap-pillanatképet és a helyi ajánlatot.",
+    "unknown": "Ismeretlen",
+    "observationHelp": "Az állapot az utolsó megfigyelés, nem bizonyítja a munka leállását.",
+    "noOffers": "Nincs jóváhagyott ajánlat",
+    "payer": "Fizető",
+    "readiness": "Modell készenléte",
+    "address": "Privát cím",
+    "port": "TCP-port",
+    "retryAddress": "Cím mentése és párosított azonosság újrapróbálása",
+    "capHelp": "A korlátok csak erre a felajánló ablakra vonatkoznak. A szűkítés a következő ellenőrzött határon lép életbe.",
+    "saveOffer": "Helyi ajánlat áttekintése és mentése",
+    "confirmUnlink": "Leválasztás megerősítése",
+    "cancel": "Mégse",
+    "costOwnership": "Minden eszköz megtartja saját bejelentkezéseit és díjait. A helyi fizetési ablak az első terhelés előtt kérdez, és mutatja a modell árát és a közös napi keretet. Nem kerül át flottaszintű keret vagy előfizetési jogosultság.",
+    "working": "Várakozás a helyi gazdagépre…",
+    "retainedLiability": "Fenntartott kiadási kötelezettség: {amount}",
+    "payers": {
+      "subscription": "Előfizetés",
+      "apiKey": "API-kulcs",
+      "local": "Helyi",
+      "unknown": "Ismeretlen"
+    },
+    "readinessStates": {
+      "ready": "Kész",
+      "unavailable": "Nem elérhető",
+      "unknown": "Ismeretlen"
+    },
+    "unresolvedCount": {
+      "one": "{count} megoldatlan kísérlet",
+      "other": "{count} megoldatlan kísérlet"
+    },
+    "pool": "Készlet",
+    "entry": "Bejegyzés",
+    "usageKinds": {
+      "known": "Ismert használat",
+      "estimated": "Becsült használat",
+      "uncertain": "Bizonytalan használat"
+    }
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",

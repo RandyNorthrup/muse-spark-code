@@ -1,0 +1,619 @@
+// @vitest-environment jsdom
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useState } from 'react'
+import { EN } from '../../src/shared/l10n/en'
+import { setUiText } from '../../src/shared/l10n/text'
+import { DEVICE_FAILURES, deviceInvitationSchema } from '../../src/shared/devices'
+import {
+  DEVICE_STATUSES,
+  type DevicesPanelState,
+  type DeviceHostMessage,
+  type DevicesPanelPort,
+} from '../../src/shared/modelsPanel'
+import { DeviceCard } from '../../src/webview/models/sections/agents/DeviceCard'
+import { DevicePairing } from '../../src/webview/models/sections/agents/DevicePairing'
+import { DevicesView } from '../../src/webview/models/sections/agents/DevicesView'
+import {
+  DeviceTaskDetails,
+  type DeviceTaskView,
+} from '../../src/webview/models/sections/agents/DeviceTaskDetails'
+import {
+  UI_BOARD_ID,
+  UI_PAIR_ID,
+  uiDevice,
+  uiConfirmation,
+  uiInvitation,
+  uiMessage,
+  uiOffer,
+  uiPort,
+} from './helpers/deviceUiFakes'
+
+const expectedStatuses = {
+  local: EN.devices.local,
+  connected: EN.devices.connected,
+  paused: EN.devices.paused,
+  offline: EN.devices.offline,
+  uncertain: EN.devices.uncertain,
+  incompatible: EN.devices.incompatible,
+  'blocked-or-unreachable': EN.devices.blocked,
+}
+const expectedFailures = {
+  'blocked-or-unreachable': EN.devices.blocked,
+  incompatible: EN.devices.protocolMismatch,
+  'unsupported-host': EN.devices.unsupportedHost,
+  storage: EN.devices.storageUnavailable,
+  'reconcile-required': EN.devices.unresolvedHelp,
+  uncertain: EN.devices.unresolvedHelp,
+  'approval-required': EN.devices.localApprovalHelp,
+  'paid-consent-required': EN.devices.localApprovalHelp,
+  revoked: EN.devices.fingerprintChanged,
+  unpaired: EN.devices.fingerprintChanged,
+  capacity: EN.devices.capacityHelp,
+  grant: EN.devices.grantHelp,
+  'invalid-frame': EN.devices.invalidMessage,
+  'payload-changed': EN.devices.invalidMessage,
+}
+function LiveView({
+  initial = uiMessage(),
+  port = uiPort(),
+}: {
+  readonly initial?: DeviceHostMessage
+  readonly port?: DevicesPanelPort
+}) {
+  const [message, setMessage] = useState(initial)
+  return (
+    <DevicesView
+      message={message}
+      onState={setMessage}
+      port={port}
+      explicitSetup
+      boards={[{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: true }]}
+    />
+  )
+}
+function offerForm(): HTMLFormElement {
+  const button = screen.getByRole('button', { name: EN.devices.saveOffer })
+  const form = button.closest('form')
+  if (form === null) throw new Error('missing offer form')
+  return form
+}
+afterEach(() => {
+  setUiText(EN, 'en')
+})
+
+describe('M100 U shared Devices view', () => {
+  it.each<DevicesPanelState>([
+    { enabled: false },
+    { enabled: true, discoveryEnabled: false, devices: [] },
+  ])('keeps ordinary chat empty without an approved offer: %j', (state) => {
+    const port = uiPort()
+    const message: DeviceHostMessage = { type: 'deviceState', state }
+    const { container } = render(<DevicesView message={message} port={port} onState={vi.fn()} />)
+    expect(container).toBeEmptyDOMElement()
+    expect(port.request).not.toHaveBeenCalled()
+  })
+  it('hides a paired but unoffered device and its discovery control', () => {
+    const port = uiPort()
+    const { container } = render(
+      <DevicesView message={uiMessage({ offers: [] })} port={port} onState={vi.fn()} />,
+    )
+    expect(container).toBeEmptyDOMElement()
+    expect(port.request).not.toHaveBeenCalled()
+  })
+  it('rejects malformed observations before rendering controls or invoking a port', () => {
+    const malformed = { ...uiMessage(), privatePath: 'peer-sentinel' }
+    const port = uiPort()
+    render(<DevicesView message={malformed} port={port} onState={vi.fn()} explicitSetup />)
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+    expect(screen.queryByText('Mac receiver')).toBeNull()
+    expect(port.request).not.toHaveBeenCalled()
+  })
+  it('plainly shows off in explicit setup and does no activity until Pair', async () => {
+    const port = uiPort({ type: 'deviceState', state: { enabled: false } })
+    render(<LiveView initial={{ type: 'deviceState', state: { enabled: false } }} port={port} />)
+    expect(screen.getByText(EN.devices.offHelp)).toBeVisible()
+    expect(screen.queryByLabelText(EN.devices.discovery)).toBeNull()
+    expect(port.request).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledOnce()
+    })
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({ kind: 'pair' })
+  })
+  it('pairs by keyboard text, focuses comparison and requires the full explicit fingerprint check', async () => {
+    const peer = { ...uiInvitation, invitationId: '6'.repeat(32), fingerprint: '7'.repeat(64) }
+    const port = uiPort()
+    port.request.mockImplementation((request) => {
+      const setup: NonNullable<DeviceHostMessage['setup']> = { requestId: request.requestId }
+      if (request.action.kind === 'pair') setup.invitation = uiInvitation
+      else if (request.action.kind === 'importInvitation') setup.invitation = peer
+      else setup.confirmation = uiConfirmation
+      return Promise.resolve({ ...uiMessage(), setup })
+    })
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    const field = await screen.findByLabelText<HTMLTextAreaElement>(EN.devices.copyInvitation)
+    fireEvent.focus(field)
+    expect(deviceInvitationSchema.parse(JSON.parse(field.value))).toEqual(uiInvitation)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify(peer) },
+    })
+    fireEvent.submit(
+      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
+    )
+    const confirm = await screen.findByRole('button', { name: EN.devices.confirmFingerprint })
+    expect(confirm).toBeDisabled()
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { name: EN.devices.peerFingerprint }),
+    )
+    fireEvent.click(confirm)
+    expect(port.request).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByLabelText(EN.devices.fingerprintMatches))
+    fireEvent.click(confirm)
+    await screen.findByLabelText(EN.devices.copyConfirmation)
+    expect(port.request.mock.calls[2]?.[0].action).toEqual({
+      kind: 'confirmFingerprint',
+      invitationId: peer.invitationId,
+      fingerprint: peer.fingerprint,
+    })
+  })
+  it('does not advance pairing when the local host reports a failure', async () => {
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation, failure: 'storage' },
+    })
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await screen.findByText(EN.devices.storageUnavailable)
+    expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
+  })
+  it('selects public text when copying is unavailable and sends validated confirmation only', async () => {
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+    })
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    const text = await screen.findByLabelText<HTMLTextAreaElement>(EN.devices.copyInvitation)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.copyInvitation }))
+    expect(document.activeElement).toBe(text)
+    expect(text.selectionStart).toBe(0)
+    expect(text.selectionEnd).toBe(text.value.length)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify({ ...uiConfirmation, paidConsent: true }) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+    expect(port.request).toHaveBeenCalledOnce()
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify(uiConfirmation) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledTimes(2)
+    })
+    expect(port.request.mock.calls[1]?.[0].action).toEqual({
+      kind: 'importConfirmation',
+      confirmation: uiConfirmation,
+    })
+  })
+  it.each(DEVICE_STATUSES)('renders observed %s status without a liveness claim', (status) => {
+    render(
+      <LiveView
+        initial={uiMessage({
+          status,
+          lastObservedAt: 1000,
+          unresolvedAttempts: 1,
+          retainedLiabilityUsd: 1,
+          waitingApprovals: 1,
+        })}
+      />,
+    )
+    expect(screen.getByText(expectedStatuses[status], { exact: true })).toBeVisible()
+    expect(screen.getByText(EN.devices.observationHelp)).toBeVisible()
+    expect(screen.getByText('Waiting for approval on Mac receiver')).toBeVisible()
+    expect(screen.queryByRole('button', { name: /allow|approve|hand off/i })).toBeNull()
+    expect(screen.getByRole('button', { name: /Resume queue/ })).toBeDisabled()
+  })
+  it.each(DEVICE_FAILURES)('maps %s to fixed local recovery text', (failure) => {
+    render(<LiveView initial={{ ...uiMessage(), setup: { requestId: UI_PAIR_ID, failure } }} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(expectedFailures[failure])
+  })
+  it('shows the actual listener, interface and endpoint with usable OS/admin recovery', () => {
+    const message = uiMessage({
+      status: 'blocked-or-unreachable',
+      unresolvedAttempts: 1,
+      retainedLiabilityUsd: 2,
+    })
+    render(
+      <LiveView
+        initial={{
+          ...message,
+          setup: {
+            requestId: UI_PAIR_ID,
+            listenerApplication: 'Editor host',
+            interfaceLabel: 'LAN en0',
+          },
+        }}
+      />,
+    )
+    expect(screen.getByText(/Check Editor host on LAN en0 at 10.2.3.4:32,123/)).toHaveTextContent(
+      'Ask an administrator for scoped access',
+    )
+    expect(screen.getByText(/A timeout does not prove/)).toBeVisible()
+    expect(screen.getByText('Retained spending liability: $2.00')).toBeVisible()
+    expect(screen.getByText(EN.devices.unresolvedHelp)).toBeVisible()
+  })
+  it('refuses public/manual address mutations and retains debt through an unsuccessful paired retry', async () => {
+    const message = uiMessage({
+      status: 'uncertain',
+      unresolvedAttempts: 1,
+      retainedLiabilityUsd: 2,
+    })
+    const port = uiPort({
+      ...message,
+      setup: { requestId: UI_PAIR_ID, failure: 'blocked-or-unreachable' },
+    })
+    render(<LiveView initial={message} port={port} />)
+    fireEvent.change(screen.getByLabelText(EN.devices.address), { target: { value: '8.8.8.8' } })
+    fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
+    expect(port.request).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText(EN.devices.address), { target: { value: '10.2.3.4' } })
+    fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledOnce()
+    })
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({
+      kind: 'setAddress',
+      pairId: UI_PAIR_ID,
+      endpoint: uiInvitation.endpoint,
+    })
+    expect(screen.getByText('Retained spending liability: $2.00')).toBeVisible()
+    expect(screen.getByRole('button', { name: /Resume queue/ })).toBeDisabled()
+  })
+  it('edits caps locally, requires a nonempty offer and lets the host select the repository', async () => {
+    const port = uiPort()
+    render(<LiveView port={port} />)
+    fireEvent.submit(offerForm())
+    expect(port.request).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByLabelText(EN.devices.offer))
+    fireEvent.change(screen.getByLabelText(EN.devices.workers), { target: { value: '0' } })
+    fireEvent.submit(offerForm())
+    expect(port.request).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText(EN.devices.workers), { target: { value: '2' } })
+    fireEvent.submit(offerForm())
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledOnce()
+    })
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({
+      kind: 'offer',
+      pairId: UI_PAIR_ID,
+      lanes: true,
+      checks: false,
+      caps: { ...uiOffer.caps, workers: 2 },
+    })
+    expect(screen.getByText(EN.devices.capHelp)).toBeVisible()
+  })
+  it('shows each model entry cap as well as the offered window cap', () => {
+    const entry = uiOffer.entries[0]!
+    render(
+      <LiveView
+        initial={uiMessage({
+          offers: [
+            {
+              ...uiOffer,
+              caps: { ...uiOffer.caps, workers: 2 },
+              entries: [{ ...entry, caps: { ...entry.caps, workers: 1 } }],
+            },
+          ],
+        })}
+      />,
+    )
+    const row = screen
+      .getByText(`${entry.roleId} · ${entry.model.providerId}/${entry.model.modelId}`)
+      .closest('li')
+    if (row === null) throw new Error('missing model entry')
+    const worker = within(row).getByText(EN.devices.workers).closest('div')
+    if (worker === null) throw new Error('missing worker cap')
+    expect(within(worker).getByText('1', { exact: true })).toBeVisible()
+  })
+  it('refuses Offer lanes on an unsupported host', () => {
+    render(
+      <LiveView
+        initial={{ ...uiMessage(), setup: { requestId: UI_PAIR_ID, failure: 'unsupported-host' } }}
+      />,
+    )
+    expect(screen.getByLabelText(EN.devices.offer)).toBeDisabled()
+    expect(screen.getByRole('button', { name: EN.devices.saveOffer })).toBeDisabled()
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.unsupportedHost)
+  })
+  it('requires the saved reconciled board and never resumes offline or uncertain work', async () => {
+    const port = uiPort()
+    const props = { message: uiMessage(), port, onState: vi.fn(), explicitSetup: true }
+    const { rerender } = render(<DevicesView {...props} />)
+    expect(screen.queryByRole('button', { name: /Resume queue/ })).toBeNull()
+    const boards = [{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: false }]
+    rerender(<DevicesView {...props} boards={boards} />)
+    expect(screen.getByRole('button', { name: /Resume queue/ })).toBeDisabled()
+    rerender(<DevicesView {...props} boards={[{ ...boards[0]!, canResume: true }]} />)
+    fireEvent.click(screen.getByRole('button', { name: /Resume queue/ }))
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledOnce()
+    })
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({
+      kind: 'resumeQueue',
+      pairId: UI_PAIR_ID,
+      boardId: UI_BOARD_ID,
+    })
+  })
+  it.each([
+    'offline',
+    'uncertain',
+    'incompatible',
+    'blocked-or-unreachable',
+  ] satisfies (typeof DEVICE_STATUSES)[number][])(
+    'does not resume %s merely because its occupancy count is zero',
+    (status) => {
+      render(<LiveView initial={uiMessage({ status, unresolvedAttempts: 0 })} />)
+      expect(screen.getByRole('button', { name: /Resume queue/ })).toBeDisabled()
+    },
+  )
+  it('rejects malformed adapter replies and preserves the previous caps and liabilities', async () => {
+    const port = uiPort()
+    const forged = {
+      ...uiMessage({ offers: [] }),
+      privatePath: 'peer-sentinel',
+      setup: { requestId: UI_PAIR_ID },
+    }
+    port.request.mockImplementation((request) =>
+      Promise.resolve({ ...forged, setup: { requestId: request.requestId } }),
+    )
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await screen.findByText(EN.devices.invalidMessage)
+    expect(screen.getByText(uiOffer.entries[0]!.model.modelId, { exact: false })).toBeVisible()
+  })
+  it('reports an unavailable request identity source without an unhandled rejection or host call', async () => {
+    const random = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      throw new Error('identity-unavailable')
+    })
+    const port = uiPort()
+    try {
+      render(<LiveView port={port} />)
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      await screen.findByText(EN.devices.invalidMessage)
+      expect(port.request).not.toHaveBeenCalled()
+    } finally {
+      random.mockRestore()
+    }
+  })
+  it('validates outgoing board identifiers before invoking the injected host', async () => {
+    const port = uiPort()
+    render(
+      <DevicesView
+        message={uiMessage()}
+        port={port}
+        onState={vi.fn()}
+        explicitSetup
+        boards={[{ pairId: UI_PAIR_ID, boardId: 'invalid', canResume: true }]}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /Resume queue/ }))
+    await screen.findByText(EN.devices.invalidMessage)
+    expect(port.request).not.toHaveBeenCalled()
+  })
+  it('warns before unlink, cancels with Escape and restores focus to the opener', async () => {
+    const port = uiPort()
+    render(<LiveView port={port} />)
+    const unlink = screen.getByRole('button', { name: EN.devices.unlink })
+    fireEvent.click(unlink)
+    expect(port.request).not.toHaveBeenCalled()
+    expect(screen.getByText(EN.devices.unlinkHelp)).toBeVisible()
+    fireEvent.keyDown(screen.getByRole('button', { name: EN.devices.cancel }), { key: 'Escape' })
+    expect(screen.queryByText(EN.devices.unlinkHelp)).toBeNull()
+    expect(document.activeElement).toBe(unlink)
+    fireEvent.click(unlink)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.confirmUnlink }))
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledOnce()
+    })
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({ kind: 'unlink', pairId: UI_PAIR_ID })
+  })
+  it('never sends a second local action while a response is pending and rejects mismatched replies', async () => {
+    const held = Promise.withResolvers<DeviceHostMessage>()
+    const port = { request: vi.fn(() => held.promise) }
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
+    expect(port.request).toHaveBeenCalledOnce()
+    held.resolve({ ...uiMessage({ offers: [] }), setup: { requestId: UI_PAIR_ID } })
+    await screen.findByText(EN.devices.invalidMessage)
+    expect(screen.getByText(uiOffer.entries[0]!.model.modelId, { exact: false })).toBeVisible()
+  })
+  it('prevents a pending action from being superseded by a submitted pairing form', async () => {
+    const held = Promise.withResolvers<DeviceHostMessage>()
+    const port = { request: vi.fn(() => held.promise) }
+    render(<LiveView port={port} />)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: 'public invitation' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    fireEvent.submit(
+      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
+    )
+    expect(port.request).toHaveBeenCalledOnce()
+    held.resolve({ ...uiMessage(), setup: { requestId: UI_PAIR_ID } })
+    await screen.findByText(EN.devices.invalidMessage)
+  })
+  it.each([{ workers: 33 }, { processes: 1.5 }, { spendUsd: 501 }, { artifactBytes: 67_108_865 }])(
+    'validates editable caps at the component boundary before sending: %j',
+    (change) => {
+      const send = vi.fn(() => Promise.resolve(undefined))
+      render(
+        <DeviceCard device={uiDevice} setup={undefined} boards={[]} busy={false} send={send} />,
+      )
+      fireEvent.click(screen.getByLabelText(EN.devices.offer))
+      for (const [key, value] of Object.entries(change)) {
+        const field = offerForm().elements.namedItem(key)
+        if (!(field instanceof HTMLInputElement)) throw new Error('missing cap')
+        fireEvent.change(field, { target: { value: String(value) } })
+      }
+      fireEvent.submit(offerForm())
+      expect(send).not.toHaveBeenCalled()
+      expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+    },
+  )
+  it('validates private addresses at the component boundary before sending', () => {
+    const send = vi.fn(() => Promise.resolve(undefined))
+    render(<DeviceCard device={uiDevice} setup={undefined} boards={[]} busy={false} send={send} />)
+    fireEvent.change(screen.getByLabelText(EN.devices.address), { target: { value: '8.8.8.8' } })
+    fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
+    expect(send).not.toHaveBeenCalled()
+  })
+  it('validates a pasted confirmation before calling the local action boundary', () => {
+    const send = vi.fn(() => Promise.resolve(undefined))
+    render(<DevicePairing setup={undefined} busy={false} send={send} />)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify({ ...uiConfirmation, paidConsent: true }) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    expect(send).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+  })
+  it('refuses a blank invitation at the component boundary', () => {
+    const send = vi.fn(() => Promise.resolve(undefined))
+    render(<DevicePairing setup={undefined} busy={false} send={send} />)
+    fireEvent.submit(
+      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
+    )
+    expect(send).not.toHaveBeenCalled()
+  })
+  it('handles malformed pasted JSON as a local error without a request', () => {
+    const send = vi.fn(() => Promise.resolve(undefined))
+    render(<DevicePairing setup={undefined} busy={false} send={send} />)
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: '{' } })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
+    expect(send).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+  })
+  it('passes local discovery and pause choices without a paid or approval grant', async () => {
+    const port = uiPort()
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByLabelText(EN.devices.discovery))
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: EN.devices.pause })).toBeEnabled(),
+    )
+    expect(port.request.mock.calls[0]?.[0].action).toEqual({ kind: 'setDiscovery', enabled: true })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
+    await waitFor(() => {
+      expect(port.request).toHaveBeenCalledTimes(2)
+    })
+    expect(port.request.mock.calls[1]?.[0].action).toEqual({
+      kind: 'pauseOffers',
+      pairId: UI_PAIR_ID,
+    })
+  })
+  it('reads the installed language at render and names local prices/budget before consent', () => {
+    setUiText({ ...EN, devices: { ...EN.devices, title: 'Installed Devices' } }, 'de')
+    render(
+      <DevicesView
+        message={uiMessage()}
+        port={uiPort()}
+        onState={vi.fn()}
+        explicitSetup
+        paid={{ price: '€0.10', budgetUsd: 5 }}
+      />,
+    )
+    expect(screen.getByRole('heading', { name: 'Installed Devices' })).toBeVisible()
+    expect(screen.getByText(/Before the first paid use/)).toHaveTextContent('5,00')
+  })
+  it('renders peer labels and branch/usage as inert text with route attribution', () => {
+    const entry = uiOffer.entries[0]!
+    const task: DeviceTaskView = {
+      taskId: UI_BOARD_ID,
+      title: '<img src=x onerror=alert(1)>',
+      route: {
+        pairId: UI_PAIR_ID,
+        deviceId: uiOffer.deviceId,
+        receiverIncarnationId: uiOffer.receiverIncarnationId,
+        poolId: uiOffer.poolId,
+        entryId: entry.entryId,
+        model: entry.model,
+      },
+      branch: 'https://peer.invalid/branch',
+      usage: { kind: 'uncertain', amountUsd: 1 },
+    }
+    const { container } = render(<DeviceTaskDetails input={task} deviceLabel="Peer <script>" />)
+    expect(container.querySelector('img,script,a')).toBeNull()
+    expect(screen.getByText(task.branch!)).toBeVisible()
+    expect(screen.getByText('Uncertain usage: $1.00')).toBeVisible()
+    expect(within(screen.getByRole('article')).getByText(uiOffer.poolId)).toBeVisible()
+  })
+  it('shows tasks only for their exact saved device and pair', () => {
+    const entry = uiOffer.entries[0]!
+    const task: DeviceTaskView = {
+      taskId: UI_BOARD_ID,
+      title: 'Bound task',
+      route: {
+        pairId: UI_PAIR_ID,
+        deviceId: uiOffer.deviceId,
+        receiverIncarnationId: uiOffer.receiverIncarnationId,
+        poolId: uiOffer.poolId,
+        entryId: entry.entryId,
+        model: entry.model,
+      },
+      usage: { kind: 'known', amountUsd: 1 },
+    }
+    const props = { message: uiMessage(), port: uiPort(), onState: vi.fn(), explicitSetup: true }
+    const { rerender } = render(<DevicesView {...props} tasks={[task]} />)
+    expect(screen.getByRole('article', { name: 'Bound task' })).toBeVisible()
+    rerender(
+      <DevicesView
+        {...props}
+        tasks={[{ ...task, route: { ...task.route, deviceId: '0'.repeat(32) } }]}
+      />,
+    )
+    expect(screen.queryByRole('article', { name: 'Bound task' })).toBeNull()
+    rerender(
+      <DevicesView
+        {...props}
+        tasks={[{ ...task, route: { ...task.route, pairId: '0'.repeat(32) } }]}
+      />,
+    )
+    expect(screen.queryByRole('article', { name: 'Bound task' })).toBeNull()
+  })
+  it('rejects invalid task boundaries rather than rendering a fake success', () => {
+    render(
+      <DeviceTaskDetails
+        input={{ title: 'Forged', route: { pairId: UI_PAIR_ID } }}
+        deviceLabel="Peer"
+      />,
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+    expect(screen.queryByText('Forged')).toBeNull()
+  })
+  it('passes only public invitation text to the optional qualified QR renderer', async () => {
+    const qr = vi.fn((text: string) => <output aria-label="Test QR">{text}</output>)
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+    })
+    const onState = vi.fn()
+    render(
+      <DevicesView
+        message={uiMessage()}
+        port={port}
+        onState={onState}
+        explicitSetup
+        renderQr={qr}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await screen.findByLabelText(EN.devices.copyInvitation)
+    expect(qr).toHaveBeenCalledOnce()
+    expect(deviceInvitationSchema.parse(JSON.parse(qr.mock.calls[0]?.[0] ?? ''))).toEqual(
+      uiInvitation,
+    )
+  })
+})

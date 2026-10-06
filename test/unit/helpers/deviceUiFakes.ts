@@ -1,0 +1,102 @@
+import { vi } from 'vitest'
+import type {
+  DeviceHostMessage,
+  DevicesPanelState,
+  DeviceWebviewRequest,
+} from '../../../src/shared/modelsPanel'
+import type {
+  DeviceCaps,
+  DeviceInvitation,
+  DeviceOffer,
+  DevicePairingConfirmation,
+} from '../../../src/shared/devices'
+
+export const UI_DEVICE_ID = '1'.repeat(32)
+export const UI_PAIR_ID = '2'.repeat(32)
+export const UI_BOARD_ID = '3'.repeat(32)
+export const UI_FINGERPRINT = '4'.repeat(64)
+export const uiCaps: DeviceCaps = {
+  workers: 1,
+  processes: 2,
+  heavyChecks: 1,
+  tokens: 1000,
+  spendUsd: 1,
+  artifactBytes: 1024,
+}
+export const uiInvitation: DeviceInvitation = {
+  version: 1,
+  invitationId: '5'.repeat(32),
+  deviceId: UI_DEVICE_ID,
+  fingerprint: UI_FINGERPRINT,
+  certificateDerBase64: 'AAAA',
+  endpoint: { address: '10.2.3.4', port: 32_123 },
+  issuedAt: 1000,
+  expiresAt: 2000,
+}
+export const uiConfirmation: DevicePairingConfirmation = {
+  version: 1,
+  pairId: UI_PAIR_ID,
+  localInvitationId: uiInvitation.invitationId,
+  peerInvitationId: '6'.repeat(32),
+  localFingerprint: UI_FINGERPRINT,
+  peerFingerprint: '7'.repeat(64),
+  transcriptDigest: '8'.repeat(64),
+  confirmedAt: 1500,
+  signatureBase64: 'AAAA',
+}
+export const uiOffer: DeviceOffer = {
+  deviceId: UI_DEVICE_ID,
+  receiverIncarnationId: '9'.repeat(32),
+  poolId: 'a'.repeat(32),
+  repositoryId: 'b'.repeat(32),
+  grantId: 'c'.repeat(32),
+  grantRevision: 1,
+  platform: 'darwin',
+  toolchainDigest: 'd'.repeat(64),
+  lanes: true,
+  checks: true,
+  caps: uiCaps,
+  checkIds: ['e'.repeat(32)],
+  entries: [
+    {
+      entryId: 'f'.repeat(32),
+      roleId: UI_BOARD_ID,
+      model: { providerId: 'local', modelId: 'qualified-model' },
+      capabilities: {
+        vision: false,
+        tools: true,
+        structuredOutput: true,
+        hostedSearch: false,
+        reasoningEffort: false,
+      },
+      readiness: 'ready',
+      payer: 'local',
+      caps: uiCaps,
+    },
+  ],
+}
+export const uiDevice: Extract<DevicesPanelState, { enabled: true }>['devices'][number] = {
+  deviceId: UI_DEVICE_ID,
+  pairId: UI_PAIR_ID,
+  label: 'Mac receiver',
+  fingerprint: UI_FINGERPRINT,
+  endpoint: uiInvitation.endpoint,
+  status: 'connected',
+  waitingApprovals: 0,
+  unresolvedAttempts: 0,
+  retainedLiabilityUsd: 0,
+  offers: [uiOffer],
+}
+export function uiMessage(change: Partial<typeof uiDevice> = {}): DeviceHostMessage {
+  return {
+    type: 'deviceState',
+    state: { enabled: true, discoveryEnabled: false, devices: [{ ...uiDevice, ...change }] },
+  }
+}
+export function uiPort(response: DeviceHostMessage = uiMessage()) {
+  return {
+    request: vi.fn((request: DeviceWebviewRequest) =>
+      Promise.resolve({ ...response, setup: { ...response.setup, requestId: request.requestId } }),
+    ),
+  }
+}

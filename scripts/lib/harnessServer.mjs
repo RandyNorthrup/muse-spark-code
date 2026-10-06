@@ -13,6 +13,17 @@ export const HARNESS_PATH = 'test/harness/index.html'
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
+  'devices-off',
+  'devices-pairing',
+  'devices-connected',
+  'devices-waiting',
+  'devices-uncertain-narrow',
+  'devices-blocked-narrow',
+  'devices-unlink-narrow',
+  'devices-caps-narrow',
+  'devices-incompatible',
+  'devices-offline-narrow',
+  'devices-paused-narrow',
   'empty',
   'signin',
   'signin-nocli',
@@ -213,6 +224,12 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  'devices-uncertain-narrow': { width: 320, ready: '[data-devices-ready]' },
+  'devices-blocked-narrow': { width: 320, ready: '[data-devices-ready]' },
+  'devices-unlink-narrow': { width: 320, ready: '[data-devices-ready]' },
+  'devices-caps-narrow': { width: 320, ready: '[data-devices-ready]' },
+  'devices-offline-narrow': { width: 320, ready: '[data-devices-ready]' },
+  'devices-paused-narrow': { width: 320, ready: '[data-devices-ready]' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

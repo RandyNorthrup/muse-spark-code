@@ -44,7 +44,56 @@
     "storageUnavailable": "Stav zařízení nelze uložit ani přečíst. Nová práce je blokována; zachovejte nevyřešenou práci a opravte místní úložiště.",
     "fingerprintChanged": "Otisk zařízení se změnil. Spárujte je znovu; dřívější nevyřešená práce zůstává blokována.",
     "settingsDescription": "Povolí spárovaná zařízení v LAN po vzájemném potvrzení otisků a výslovné místní nabídce. Ve výchozím stavu vypnuto. Každé vykonávající zařízení si ponechává vlastní přihlašovací údaje, schválení a poplatky.",
-    "discoveryDescription": "Povolí volitelné vyhledávání v LAN pro spárované příjemce nabízející práci. Ve výchozím stavu vypnuto. Zveřejňuje jen neprůhledné ID služby, port a verzi protokolu; vyhledání nezakládá důvěru."
+    "discoveryDescription": "Povolí volitelné vyhledávání v LAN pro spárované příjemce nabízející práci. Ve výchozím stavu vypnuto. Zveřejňuje jen neprůhledné ID služby, port a verzi protokolu; vyhledání nezakládá důvěru.",
+    "offHelp": "Zařízení jsou ve výchozím nastavení vypnutá. Párování i nabídka práce vyžadují výslovnou místní volbu.",
+    "importInvitation": "Importovat pozvánku",
+    "importConfirmation": "Importovat potvrzení",
+    "peerFingerprint": "Otisk druhého zařízení",
+    "fingerprintMatches": "Porovnal(a) jsem obě obrazovky a otisk souhlasí",
+    "confirmFingerprint": "Potvrdit otisk",
+    "invalidMessage": "Zpráva zařízení je neplatná nebo požadavek selhal. Stávající práce a závazky zůstávají zachovány.",
+    "localApprovalHelp": "Schválení a souhlas s platbou se vyžadují na vykonávajícím zařízení. Odpovězte na něm; párování není schválení.",
+    "capacityHelp": "Přijímající fond dosáhl kapacity. Počkejte na místně prokázané ukončení; nejistou práci nepřidělujte znovu.",
+    "grantHelp": "Přijímající zařízení musí schválit mapování repozitáře, základní snímek a místní nabídku.",
+    "unknown": "Neznámé",
+    "observationHelp": "Stav je poslední pozorování, nikoli důkaz ukončení práce.",
+    "noOffers": "Žádné schválené nabídky",
+    "payer": "Plátce",
+    "readiness": "Připravenost modelu",
+    "address": "Soukromá adresa",
+    "port": "Port TCP",
+    "retryAddress": "Uložit adresu a zkusit znovu spárovanou identitu",
+    "capHelp": "Limity platí jen pro toto nabízející okno. Zúžení limitu se projeví na další řízené hranici.",
+    "saveOffer": "Zkontrolovat a uložit místní nabídku",
+    "confirmUnlink": "Potvrdit odpojení",
+    "cancel": "Zrušit",
+    "costOwnership": "Každé zařízení má vlastní přihlášení a poplatky. Místní platební dialog se ptá před prvním účtováním a ukazuje cenu modelu a sdílený denní rozpočet. Nepřenáší se rozpočet skupiny ani nárok z předplatného.",
+    "working": "Čekání na místního hostitele…",
+    "retainedLiability": "Zachovaný závazek za výdaje: {amount}",
+    "payers": {
+      "subscription": "Předplatné",
+      "apiKey": "Klíč API",
+      "local": "Místní",
+      "unknown": "Neznámé"
+    },
+    "readinessStates": {
+      "ready": "Připraveno",
+      "unavailable": "Nedostupné",
+      "unknown": "Neznámé"
+    },
+    "unresolvedCount": {
+      "one": "{count} nevyřešený pokus",
+      "few": "{count} nevyřešené pokusy",
+      "many": "{count} nevyřešeného pokusu",
+      "other": "{count} nevyřešených pokusů"
+    },
+    "pool": "Fond",
+    "entry": "Položka",
+    "usageKinds": {
+      "known": "Známá spotřeba",
+      "estimated": "Odhadovaná spotřeba",
+      "uncertain": "Nejistá spotřeba"
+    }
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",

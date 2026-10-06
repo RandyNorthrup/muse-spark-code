@@ -44,7 +44,53 @@
     "storageUnavailable": "기기 상태를 저장하거나 읽을 수 없습니다. 새 작업이 차단됩니다. 미해결 작업을 보존하고 로컬 저장소를 복구하세요.",
     "fingerprintChanged": "기기 지문이 변경되었습니다. 다시 페어링하세요. 이전의 미해결 작업은 계속 차단됩니다.",
     "settingsDescription": "지문 상호 확인 및 명시적인 로컬 제공 설정 후 페어링된 LAN 기기를 활성화합니다. 기본값은 꺼짐입니다. 실행 기기마다 자체 인증 정보, 승인 및 비용을 유지합니다.",
-    "discoveryDescription": "작업을 제공하는 페어링된 수신 기기의 선택적 LAN 검색을 활성화합니다. 기본값은 꺼짐입니다. 불투명한 서비스 ID, 포트 및 프로토콜 버전만 알리며 검색은 신뢰를 부여하지 않습니다."
+    "discoveryDescription": "작업을 제공하는 페어링된 수신 기기의 선택적 LAN 검색을 활성화합니다. 기본값은 꺼짐입니다. 불투명한 서비스 ID, 포트 및 프로토콜 버전만 알리며 검색은 신뢰를 부여하지 않습니다.",
+    "offHelp": "기기 기능은 기본적으로 꺼져 있습니다. 페어링과 작업 제공에는 각각 명시적인 로컬 선택이 필요합니다.",
+    "importInvitation": "초대 가져오기",
+    "importConfirmation": "확인 가져오기",
+    "peerFingerprint": "상대 기기 지문",
+    "fingerprintMatches": "두 화면을 비교했으며 지문이 일치합니다",
+    "confirmFingerprint": "지문 확인",
+    "invalidMessage": "기기 메시지가 잘못되었거나 요청이 실패했습니다. 기존 작업과 지출 책임은 유지됩니다.",
+    "localApprovalHelp": "승인과 유료 사용 동의는 실행 기기에서 요청됩니다. 해당 기기에서 응답하세요. 페어링은 승인을 부여하지 않습니다.",
+    "capacityHelp": "수신 풀의 용량이 가득 찼습니다. 로컬에서 종료가 입증될 때까지 기다리고 불확실한 작업을 재할당하지 마세요.",
+    "grantHelp": "수신 기기는 저장소 매핑, 기준 스냅샷 및 로컬 제공을 승인해야 합니다.",
+    "unknown": "알 수 없음",
+    "observationHelp": "상태는 마지막 관찰이며 작업이 멈췄다는 증거가 아닙니다.",
+    "noOffers": "승인된 제공 없음",
+    "payer": "지불 주체",
+    "readiness": "모델 준비 상태",
+    "address": "사설 주소",
+    "port": "TCP 포트",
+    "retryAddress": "주소 저장 후 동일한 페어링 신원으로 재시도",
+    "capHelp": "제한은 이 제공 창에만 적용됩니다. 제한 축소는 다음 제어 경계에서 적용됩니다.",
+    "saveOffer": "로컬 제공 검토 및 저장",
+    "confirmUnlink": "연결 해제 확인",
+    "cancel": "취소",
+    "costOwnership": "각 기기는 자체 로그인과 요금을 유지합니다. 로컬 유료 대화상자는 첫 청구 전에 모델 가격과 공유 일일 예산을 표시하고 동의를 요청합니다. 전체 기기 예산이나 구독 권리는 이전되지 않습니다.",
+    "working": "로컬 호스트 대기 중…",
+    "retainedLiability": "유지된 지출 책임: {amount}",
+    "payers": {
+      "subscription": "구독",
+      "apiKey": "API 키",
+      "local": "로컬",
+      "unknown": "알 수 없음"
+    },
+    "readinessStates": {
+      "ready": "준비됨",
+      "unavailable": "사용 불가",
+      "unknown": "알 수 없음"
+    },
+    "unresolvedCount": {
+      "other": "미해결 시도 {count}개"
+    },
+    "pool": "풀",
+    "entry": "항목",
+    "usageKinds": {
+      "known": "확정 사용량",
+      "estimated": "추정 사용량",
+      "uncertain": "불확실한 사용량"
+    }
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",

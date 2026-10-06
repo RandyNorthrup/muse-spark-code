@@ -44,7 +44,55 @@
     "storageUnavailable": "Não é possível salvar ou ler o estado do dispositivo. Novos trabalhos estão bloqueados; preserve o trabalho não resolvido e repare o armazenamento local.",
     "fingerprintChanged": "A impressão digital do dispositivo mudou. Pareie novamente; o trabalho anterior não resolvido permanece bloqueado.",
     "settingsDescription": "Ativa dispositivos LAN pareados após confirmação mútua das impressões digitais e oferta local explícita. Desativado por padrão. Cada dispositivo executor mantém suas próprias credenciais, aprovações e cobranças.",
-    "discoveryDescription": "Ativa a descoberta LAN opcional de receptores pareados que oferecem trabalho. Desativada por padrão. Anuncia apenas um ID de serviço opaco, porta e versão de protocolo; a descoberta não concede confiança."
+    "discoveryDescription": "Ativa a descoberta LAN opcional de receptores pareados que oferecem trabalho. Desativada por padrão. Anuncia apenas um ID de serviço opaco, porta e versão de protocolo; a descoberta não concede confiança.",
+    "offHelp": "Dispositivos fica desativado por padrão. Emparelhar e oferecer trabalho exigem, cada um, uma escolha local explícita.",
+    "importInvitation": "Importar convite",
+    "importConfirmation": "Importar confirmação",
+    "peerFingerprint": "Impressão digital do outro dispositivo",
+    "fingerprintMatches": "Comparei as duas telas e a impressão digital confere",
+    "confirmFingerprint": "Confirmar impressão digital",
+    "invalidMessage": "A mensagem do dispositivo é inválida ou a solicitação falhou. O trabalho e a responsabilidade existentes são mantidos.",
+    "localApprovalHelp": "As aprovações e o consentimento de pagamento são solicitados no dispositivo executor. Responda nele; o emparelhamento não concede aprovação.",
+    "capacityHelp": "O grupo receptor atingiu a capacidade. Aguarde o encerramento comprovado localmente; não reatribua trabalho incerto.",
+    "grantHelp": "O dispositivo receptor deve aprovar o mapeamento do repositório, a cópia base e a oferta local.",
+    "unknown": "Desconhecido",
+    "observationHelp": "O estado é a última observação, não uma prova de que o trabalho parou.",
+    "noOffers": "Nenhuma oferta aprovada",
+    "payer": "Pagador",
+    "readiness": "Prontidão do modelo",
+    "address": "Endereço privado",
+    "port": "Porta TCP",
+    "retryAddress": "Salvar endereço e tentar novamente a identidade emparelhada",
+    "capHelp": "Os limites valem apenas para esta janela que oferece trabalho. Reduzir um limite passa a valer no próximo ponto de controle.",
+    "saveOffer": "Revisar e salvar oferta local",
+    "confirmUnlink": "Confirmar desvinculação",
+    "cancel": "Cancelar",
+    "costOwnership": "Cada dispositivo mantém seus próprios acessos e cobranças. Seu diálogo local de pagamento pergunta antes da primeira cobrança e mostra o preço do modelo e o orçamento diário compartilhado. Não se transfere orçamento de frota nem direito de assinatura.",
+    "working": "Aguardando o host local…",
+    "retainedLiability": "Responsabilidade de gastos mantida: {amount}",
+    "payers": {
+      "subscription": "Assinatura",
+      "apiKey": "Chave API",
+      "local": "Neste dispositivo",
+      "unknown": "Desconhecido"
+    },
+    "readinessStates": {
+      "ready": "Pronto",
+      "unavailable": "Indisponível",
+      "unknown": "Desconhecido"
+    },
+    "unresolvedCount": {
+      "one": "{count} tentativa não resolvida",
+      "many": "{count} tentativas não resolvidas",
+      "other": "{count} tentativas não resolvidas"
+    },
+    "pool": "Grupo",
+    "entry": "Entrada",
+    "usageKinds": {
+      "known": "Uso conhecido",
+      "estimated": "Uso estimado",
+      "uncertain": "Uso incerto"
+    }
   },
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",

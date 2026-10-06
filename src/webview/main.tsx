@@ -20,6 +20,11 @@ import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
 
+const DevicesApp = lazy(async () => {
+  const { DevicesApp } = await import('./models/sections/agents/DevicesApp')
+  return { default: DevicesApp }
+})
+
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')
   return { default: TasksApp }
@@ -64,10 +69,34 @@ function CrashReportDialog({
   )
 }
 
-if (document.body.dataset['surface'] === 'tasks') {
+if (document.body.dataset['surface'] === 'devices') {
+  mountDevices(rootElement)
+} else if (document.body.dataset['surface'] === 'tasks') {
   mountTasks(rootElement)
 } else {
   mountChat(rootElement)
+}
+
+function mountDevices(element: Element): void {
+  const api = acquireVsCodeApi()
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) throw tableError
+  createRoot(element).render(
+    <Suspense
+      fallback={
+        <main>
+          <p role="status">{UI_TEXT.loadingOutput}</p>
+        </main>
+      }
+    >
+      <DevicesApp
+        messages={window}
+        postMessage={(message) => {
+          api.postMessage(message)
+        }}
+      />
+    </Suspense>,
+  )
 }
 
 function mountTasks(element: Element): void {

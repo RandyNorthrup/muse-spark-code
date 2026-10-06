@@ -44,7 +44,55 @@
     "storageUnavailable": "Impossibile salvare o leggere lo stato del dispositivo. Il nuovo lavoro è bloccato; conserva il lavoro irrisolto e ripara l’archivio locale.",
     "fingerprintChanged": "L’impronta del dispositivo è cambiata. Associalo di nuovo; il lavoro precedente irrisolto resta bloccato.",
     "settingsDescription": "Abilita i dispositivi LAN associati dopo la conferma reciproca delle impronte e un’offerta locale esplicita. Disattivato per impostazione predefinita. Ogni dispositivo esecutore mantiene credenziali, approvazioni e costi propri.",
-    "discoveryDescription": "Abilita la ricerca LAN facoltativa dei ricevitori associati che offrono lavoro. Disattivata per impostazione predefinita. Annuncia solo un ID di servizio opaco, la porta e la versione del protocollo; la ricerca non concede fiducia."
+    "discoveryDescription": "Abilita la ricerca LAN facoltativa dei ricevitori associati che offrono lavoro. Disattivata per impostazione predefinita. Annuncia solo un ID di servizio opaco, la porta e la versione del protocollo; la ricerca non concede fiducia.",
+    "offHelp": "Dispositivi è disattivato per impostazione predefinita. Abbinare e offrire lavoro richiedono ciascuno una scelta locale esplicita.",
+    "importInvitation": "Importa invito",
+    "importConfirmation": "Importa conferma",
+    "peerFingerprint": "Impronta dell’altro dispositivo",
+    "fingerprintMatches": "Ho confrontato entrambi gli schermi e l’impronta corrisponde",
+    "confirmFingerprint": "Conferma impronta",
+    "invalidMessage": "Il messaggio del dispositivo non è valido o la richiesta non è riuscita. Il lavoro e gli obblighi esistenti vengono conservati.",
+    "localApprovalHelp": "Le approvazioni e il consenso al pagamento vengono richiesti sul dispositivo che esegue. Rispondi su quel dispositivo; l’abbinamento non concede approvazioni.",
+    "capacityHelp": "Il gruppo ricevente ha raggiunto la capacità. Attendi una conclusione dimostrata localmente; non riassegnare lavoro incerto.",
+    "grantHelp": "Il dispositivo ricevente deve approvare l’associazione del repository, l’istantanea di base e l’offerta locale.",
+    "unknown": "Sconosciuto",
+    "observationHelp": "Lo stato è l’ultima osservazione, non la prova che il lavoro sia terminato.",
+    "noOffers": "Nessuna offerta approvata",
+    "payer": "Pagante",
+    "readiness": "Disponibilità del modello",
+    "address": "Indirizzo privato",
+    "port": "Porta TCP",
+    "retryAddress": "Salva indirizzo e riprova l’identità abbinata",
+    "capHelp": "I limiti valgono solo per questa finestra che offre lavoro. Una riduzione ha effetto al successivo punto di controllo.",
+    "saveOffer": "Verifica e salva offerta locale",
+    "confirmUnlink": "Conferma scollegamento",
+    "cancel": "Annulla",
+    "costOwnership": "Ogni dispositivo mantiene i propri accessi e costi. Il suo dialogo di pagamento locale chiede prima del primo addebito e mostra il prezzo del modello e il budget giornaliero condiviso. Non vengono trasferiti budget di gruppo o diritti di abbonamento.",
+    "working": "In attesa dell’host locale…",
+    "retainedLiability": "Obbligo di spesa mantenuto: {amount}",
+    "payers": {
+      "subscription": "Abbonamento",
+      "apiKey": "Chiave API",
+      "local": "Locale",
+      "unknown": "Sconosciuto"
+    },
+    "readinessStates": {
+      "ready": "Pronto",
+      "unavailable": "Non disponibile",
+      "unknown": "Sconosciuto"
+    },
+    "unresolvedCount": {
+      "one": "{count} tentativo irrisolto",
+      "many": "{count} tentativi irrisolti",
+      "other": "{count} tentativi irrisolti"
+    },
+    "pool": "Gruppo",
+    "entry": "Voce",
+    "usageKinds": {
+      "known": "Utilizzo noto",
+      "estimated": "Utilizzo stimato",
+      "uncertain": "Utilizzo incerto"
+    }
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",

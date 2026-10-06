@@ -44,7 +44,54 @@
     "storageUnavailable": "Cihaz durumu kaydedilemiyor veya okunamıyor. Yeni işler engellendi; çözümlenmemiş işi koruyup yerel depolamayı onarın.",
     "fingerprintChanged": "Cihazın parmak izi değişti. Yeniden eşleştirin; önceki çözümlenmemiş iş engelli kalır.",
     "settingsDescription": "Karşılıklı parmak izi onayı ve açık yerel teklif sonrasında eşleştirilmiş LAN cihazlarını etkinleştirir. Varsayılan olarak kapalıdır. Her yürütücü cihaz kendi kimlik bilgilerini, onaylarını ve ücretlerini korur.",
-    "discoveryDescription": "İş sunan eşleştirilmiş alıcılar için isteğe bağlı LAN keşfini etkinleştirir. Varsayılan olarak kapalıdır. Yalnızca opak hizmet kimliği, bağlantı noktası ve protokol sürümünü duyurur; keşif güven vermez."
+    "discoveryDescription": "İş sunan eşleştirilmiş alıcılar için isteğe bağlı LAN keşfini etkinleştirir. Varsayılan olarak kapalıdır. Yalnızca opak hizmet kimliği, bağlantı noktası ve protokol sürümünü duyurur; keşif güven vermez.",
+    "offHelp": "Cihazlar varsayılan olarak kapalıdır. Eşleştirme ve iş sunma ayrı ayrı açık bir yerel seçim gerektirir.",
+    "importInvitation": "Daveti içe aktar",
+    "importConfirmation": "Onayı içe aktar",
+    "peerFingerprint": "Diğer cihazın parmak izi",
+    "fingerprintMatches": "İki ekranı karşılaştırdım ve parmak izi eşleşiyor",
+    "confirmFingerprint": "Parmak izini onayla",
+    "invalidMessage": "Cihaz iletisi geçersiz veya istek başarısız oldu. Mevcut iş ve yükümlülük korunur.",
+    "localApprovalHelp": "Onaylar ve ücretli kullanım rızası işi yürüten cihazda istenir. O cihazda yanıtlayın; eşleştirme onay vermez.",
+    "capacityHelp": "Alıcı havuz kapasitesine ulaştı. Yerel olarak kanıtlanmış sonlanmayı bekleyin; belirsiz işi yeniden atamayın.",
+    "grantHelp": "Alıcı cihaz depo eşlemesini, temel anlık görüntüyü ve yerel teklifi onaylamalıdır.",
+    "unknown": "Bilinmiyor",
+    "observationHelp": "Durum son gözlemdir; işin durduğunun kanıtı değildir.",
+    "noOffers": "Onaylanmış teklif yok",
+    "payer": "Ödeyen",
+    "readiness": "Model hazırlığı",
+    "address": "Özel adres",
+    "port": "TCP bağlantı noktası",
+    "retryAddress": "Adresi kaydet ve aynı eşleştirilmiş kimliği yeniden dene",
+    "capHelp": "Sınırlar yalnızca bu teklif sunan pencere için geçerlidir. Daraltılan sınır sonraki kontrollü sınırda uygulanır.",
+    "saveOffer": "Yerel teklifi incele ve kaydet",
+    "confirmUnlink": "Bağlantıyı kaldırmayı onayla",
+    "cancel": "İptal",
+    "costOwnership": "Her cihaz kendi oturumlarını ve ücretlerini korur. Yerel ücretli kullanım penceresi ilk ücret öncesi model fiyatını ve ortak günlük bütçeyi göstererek sorar. Filo bütçesi veya abonelik hakkı aktarılmaz.",
+    "working": "Yerel ana bilgisayar bekleniyor…",
+    "retainedLiability": "Korunan harcama yükümlülüğü: {amount}",
+    "payers": {
+      "subscription": "Abonelik",
+      "apiKey": "API anahtarı",
+      "local": "Yerel",
+      "unknown": "Bilinmiyor"
+    },
+    "readinessStates": {
+      "ready": "Hazır",
+      "unavailable": "Kullanılamıyor",
+      "unknown": "Bilinmiyor"
+    },
+    "unresolvedCount": {
+      "one": "{count} çözümlenmemiş deneme",
+      "other": "{count} çözümlenmemiş deneme"
+    },
+    "pool": "Havuz",
+    "entry": "Girdi",
+    "usageKinds": {
+      "known": "Bilinen kullanım",
+      "estimated": "Tahmini kullanım",
+      "uncertain": "Belirsiz kullanım"
+    }
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",
