@@ -6851,19 +6851,30 @@ on `plan/m105-m107`. No storage deferral: an immutable generation plus an
 operation/byte-bounded delta journal replaces full snapshots per revision.
 Readers and writers share a recoverable heartbeat lease; activation retries
 Windows locking errors and retirement is deferred and retried without holding
-up committed work. Separate segmented identity fences remain while the
+up committed work. Sealed revision slots and segmented generation activation
+fences prevent an expired writer's in-flight rename from becoming current.
+Token-scoped heartbeats cannot overwrite a replacement owner; unchanged
+heartbeats also expire by monotonic observation during wall-clock rollback.
+Separate segmented identity fences remain while the
 schedule exists plus eight days; fire audit retains at most 100 per schedule
 and 30 days. Identifier tombstones contain hashes, never historical prompts.
+Only the current trigger/zone cursor remains for each live schedule; edits
+retire the old lane without reopening its occurrence fences. Reserved object
+map identifiers are refused before any write rather than dropped by parsing.
 
 Persist ordered pending intents before delivery. Admission is idempotent by
 run id at the target, which exposes an absent/admitted/settled/uncertain ledger
 lookup. Every poll reconciles bounded outbox work, including living owners'
 failed persistence. Definitely unsent work is delivered; ambiguous dispatched
 paid work is settled with uncertainty and retained liability, never replayed.
+An uncertain target response must carry unknown cost certainty. Interrupted
+transport with target-owned admitted work retains its intent until the target
+supplies terminal accounting; it does not invent a completed failed run.
 Cursor CAS refuses a superseded time candidate before dispatch. Durable
 source-fingerprint/target-revision migration receipts reconcile raced v1
 receipts and preserve legitimate v2 authority edits; source removal still
-requires verification. Creation-time/id ordering is shared across pending
+requires verification. Completed migration receipts leave the live index for
+a separate archive. Creation-time/id ordering is shared across pending
 batches; parallel remains an explicit fresh-conversation opt-in.
 
 Record changed internal ports, native Windows fault/handle evidence, the

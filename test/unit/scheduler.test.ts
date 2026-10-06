@@ -174,10 +174,16 @@ describe('M115 host-neutral scheduler', () => {
     const { host, scheduler, queue } = await fixture('parallel', jobs)
     const spy = vi.spyOn(queue, 'serialize')
     host.deferSettlements = true
-    const run = scheduler.poll('workspace-1')
-    await vi.waitFor(() => {
-      expect(host.deliveries).toHaveLength(3)
+    const started = Promise.withResolvers<undefined>()
+    const deliver = host.deliver.bind(host)
+    vi.spyOn(host, 'deliver').mockImplementation((...args) => {
+      const settlement = deliver(...args)
+      if (host.deliveries.length === jobs.length) started.resolve(undefined)
+      return settlement
     })
+    const run = scheduler.poll('workspace-1')
+    await started.promise
+    expect(host.deliveries).toHaveLength(3)
     expect(spy).toHaveBeenCalledTimes(3)
     expect(
       host.deliveries

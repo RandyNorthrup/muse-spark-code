@@ -107,7 +107,7 @@ describe('M115 verified M52 migration', () => {
       paidCapUsd: 1,
     })
   })
-  it('commits reconciliation and its migration receipt atomically across a failed journal publication', async () => {
+  it('commits reconciliation and its migration receipt atomically across a crash after reconciliation', async () => {
     const { job, directory, store, source } = await fixture('atomic-receipt')
     vi.spyOn(source, 'removeVerified').mockRejectedValueOnce(new Error('interrupted removal'))
     await expect(migrateSchedules(source, store, 'workspace-1', 'UTC')).rejects.toThrow(

@@ -30,9 +30,12 @@ export interface ScheduleQueuePort {
 export function scheduleStorageHash(value: string): string {
   return createHash('sha256').update(value).digest('hex')
 }
-const identifier = z
-  .string()
-  .check(z.minLength(1), z.maxLength(SCHEDULE_ID_MAX_CHARS), z.regex(/^[\w-][\w.-]*$/))
+const identifier = z.string().check(
+  z.minLength(1),
+  z.maxLength(SCHEDULE_ID_MAX_CHARS),
+  z.regex(/^[\w-][\w.-]*$/),
+  z.refine((id) => !['__proto__', 'constructor', 'prototype'].includes(id)),
+)
 const intentSchema = z.strictObject({
   runId: scheduleFireRecordSchema.shape.runId,
   schedule: scheduleV2Schema,
@@ -104,7 +107,8 @@ function ordered(a: ScheduleRunIntent, b: ScheduleRunIntent): number {
   )
 }
 function compareId(a: string, b: string): number {
-  return a === b ? 0 : a < b ? -1 : 1
+  if (a === b) return 0
+  return a < b ? -1 : 1
 }
 function fenceFolder(runId: string): string {
   const hash = scheduleStorageHash(runId)
@@ -193,6 +197,8 @@ export function createScheduleStore(
   const store: ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort = {
     async create(input) {
       const schedule = scheduleV2Schema.parse(input)
+      // Map keys must survive JSON/zod records without prototype semantics.
+      identifier.parse(schedule.id)
       if (schedule.revision !== 0) throw new Error('scheduleCreationRevisionInvalid')
       const file = `identifiers/${scheduleStorageHash(schedule.id)}.json`
       const reservation = {
@@ -223,7 +229,15 @@ export function createScheduleStore(
     async update(input) {
       const job = scheduleV2Schema.parse(input)
       return await index(job.workspaceKey).transact((value) => {
-        if (value.schedules[job.id]?.revision !== job.revision) return { value, result: false }
+        const current = value.schedules[job.id]
+        if (current?.revision !== job.revision) return { value, result: false }
+        if (
+          JSON.stringify(current.trigger) !== JSON.stringify(job.trigger) ||
+          current.zone !== job.zone
+        )
+          for (const key of Object.keys(value.timeCursors)) {
+            if (key.startsWith(`${job.id}:`)) Reflect.deleteProperty(value.timeCursors, key)
+          }
         value.schedules[job.id] = scheduleV2Schema.parse({ ...job, revision: job.revision + 1 })
         return { value, result: true }
       })
@@ -404,6 +418,14 @@ export function createScheduleStore(
         if (previous !== undefined && previous !== hash)
           throw new Error('scheduleSettlementConflict')
         const pending = value.pending[fire.runId]
+        if (pending !== undefined)
+          validateScheduleSettlement(
+            pending.intent.schedule,
+            pending.intent.runId,
+            pending.intent.occurrenceMs,
+            fire,
+            pending.intent.event,
+          )
         if (
           previous !== undefined &&
           pending === undefined &&

@@ -35,6 +35,39 @@ function generationNames(fs: MemoryScheduleFs) {
   const names = Array.from(fs.files, ([file]) => file)
   return names.filter((file) => file.endsWith('/state.json'))
 }
+function generationOf(fs: MemoryScheduleFs, directory: string): string {
+  return z
+    .object({ generation: z.string() })
+    .parse(JSON.parse(fs.files.get(`${directory}/current.json`) ?? 'null')).generation
+}
+function pauseActivation<T>(fs: MemoryScheduleFs, work: () => Promise<T>) {
+  const entered = Promise.withResolvers<undefined>()
+  const resumed = Promise.withResolvers<undefined>()
+  const replace = fs.replace.bind(fs)
+  vi.spyOn(fs, 'lock').mockImplementationOnce(
+    async (_key, callback) => await callback(() => Promise.resolve()),
+  )
+  vi.spyOn(fs, 'replace').mockImplementationOnce(async (file, content, guard) => {
+    await guard?.()
+    entered.resolve(undefined)
+    await resumed.promise
+    // The old rename passed its guard before suspension. Epoch publication
+    // decides authority even though this really overwrites the pointer hint.
+    await replace(file, content)
+  })
+  const result = work()
+  const withoutActivation = async () => {
+    await result
+    throw new Error('expected activation never paused')
+  }
+  return {
+    result,
+    entered: Promise.race([entered.promise, withoutActivation()]),
+    resume: () => {
+      resumed.resolve(undefined)
+    },
+  }
+}
 
 describe('bounded schedule generations', () => {
   it('leaves the old committed generation current after interrupted activation and retires the orphan on retry', async () => {
@@ -114,29 +147,85 @@ describe('bounded schedule generations', () => {
     const fs = new MemoryScheduleFs()
     const journal = counter(fs)
     for (let index = 0; index < SCHEDULE_JOURNAL_MAX_OPS; index += 1) await journal.increment()
-    const entered = Promise.withResolvers<undefined>()
-    const resumed = Promise.withResolvers<undefined>()
-    const replace = fs.replace.bind(fs)
-    vi.spyOn(fs, 'lock').mockImplementationOnce(
-      async (_key, work) => await work(() => Promise.resolve()),
-    )
-    vi.spyOn(fs, 'replace').mockImplementationOnce(async (file, content, guard) => {
-      await guard?.()
-      entered.resolve(undefined)
-      await resumed.promise
-      // The old rename passed its guard before suspension. It really replaces
-      // the hint; the exclusive epoch fence still decides the active generation.
-      await replace(file, content)
-    })
-    const stale = journal.increment()
-    await entered.promise
+    const paused = pauseActivation(fs, () => journal.increment())
+    await paused.entered
     await counter(fs).increment()
-    resumed.resolve(undefined)
-    await expect(stale).rejects.toThrow('OwnershipLost')
+    paused.resume()
+    await expect(paused.result).rejects.toThrow('OwnershipLost')
     expect(await countOf(counter(fs))).toBe(SCHEDULE_JOURNAL_MAX_OPS + 1)
     await counter(fs).increment()
     expect(await countOf(counter(fs))).toBe(SCHEDULE_JOURNAL_MAX_OPS + 2)
   })
+  it('seals a byte-full journal before compaction so a stale writer cannot erase a smaller competing operation', async () => {
+    const fs = new MemoryScheduleFs()
+    const schema = z.object({ values: z.record(z.string(), z.string()) })
+    const journal = () =>
+      createScheduleJournal(fs, 'bytes', (raw) => schema.parse(raw), { values: {} })
+    const set = async (text: string) => {
+      await journal().transact(() => ({ value: { values: { prompt: text } }, result: undefined }))
+    }
+    const size = Math.floor(SCHEDULE_JOURNAL_MAX_BYTES / 3) + 1
+    for (const letter of ['a', 'b', 'c']) await set(letter.repeat(size))
+    const paused = pauseActivation(fs, () => set('d'.repeat(size)))
+    await paused.entered
+    await set('new committed value')
+    paused.resume()
+    await expect(paused.result).rejects.toThrow('OwnershipLost')
+    const state = await journal().read()
+    expect(state.value.values['prompt']).toBe('new committed value')
+  })
+  it.each(['operations', 'bytes', 'collection', 'key'] as const)(
+    'rejects a corrupt journal exceeding its %s boundary',
+    async (boundary) => {
+      const fs = new MemoryScheduleFs()
+      const journal = counter(fs)
+      await journal.increment()
+      const generation = generationOf(fs, 'counter')
+      if (boundary === 'operations') {
+        for (let revision = 1; revision <= SCHEDULE_JOURNAL_MAX_OPS + 1; revision += 1)
+          await fs.publish(
+            `counter/${generation}/${String(revision)}.json`,
+            JSON.stringify({ revision, changes: [] }),
+          )
+      } else
+        await fs.publish(
+          `counter/${generation}/1.json`,
+          JSON.stringify({
+            revision: 1,
+            changes: [
+              {
+                collection: boundary === 'collection' ? 'injected' : 'values',
+                key: boundary === 'key' ? '__proto__' : 'n',
+                value: boundary === 'bytes' ? 'x'.repeat(SCHEDULE_JOURNAL_MAX_BYTES) : 2,
+              },
+            ],
+          }),
+        )
+      await expect(journal.read()).rejects.toThrow(
+        boundary === 'bytes' || boundary === 'operations' ? 'LimitExceeded' : 'DeltaInvalid',
+      )
+      expect(Object.prototype).not.toHaveProperty('n')
+    },
+  )
+  it.each(['gap', 'sealed'] as const)(
+    'refuses a %s journal revision before exposing changed state',
+    async (kind) => {
+      const fs = new MemoryScheduleFs()
+      const journal = counter(fs)
+      await journal.increment()
+      const generation = generationOf(fs, 'counter')
+      if (kind === 'sealed')
+        await fs.publish(
+          `counter/${generation}/1.json`,
+          JSON.stringify({ revision: 1, changes: [], sealed: true }),
+        )
+      await fs.publish(
+        `counter/${generation}/2.json`,
+        JSON.stringify({ revision: 2, changes: [{ collection: 'values', key: 'n', value: 2 }] }),
+      )
+      await expect(journal.read()).rejects.toThrow('RevisionMismatch')
+    },
+  )
   it('bounds the live journal and audit at 10,000 fires while identity fences grow only linearly', async () => {
     const fs = new MemoryScheduleFs()
     const store = createScheduleStore(fs)

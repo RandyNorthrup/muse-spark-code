@@ -55,6 +55,7 @@ const leaseSchema = z.strictObject({
   start: z.number().check(z.gte(0)),
   token: z.uuid(),
   heartbeat: z.number().check(z.gte(0)),
+  heartbeatSequence: z.optional(z.int().check(z.gte(0))),
 })
 const processStart = Date.now() - process.uptime() * MILLISECONDS_PER_SECOND
 
@@ -138,11 +139,18 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         } catch (error: unknown) {
           // Our unique temporary bytes identify a publication already committed.
           if (isExclusive && hasCode(error, 'EEXIST')) {
-            const [destination, staged] = await Promise.all([
-              lstatIdentity(file),
-              lstatIdentity(temporary),
-            ])
-            return sameFile(destination, staged)
+            try {
+              const [destination, staged] = await Promise.all([
+                lstatIdentity(file),
+                lstatIdentity(temporary),
+              ])
+              return sameFile(destination, staged)
+            } catch (identityError: unknown) {
+              // A competing lease release may remove the destination between
+              // EEXIST and lstat. No publication of ours remains to acquire.
+              if (hasCode(identityError, 'ENOENT')) return false
+              throw identityError
+            }
           }
           if ((await fs.read(relative)) === content) return true
           throw error
@@ -216,6 +224,17 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         start: processStart,
         token: randomUUID(),
         heartbeat: Date.now(),
+        heartbeatSequence: 0,
+      }
+      const observations = new Map<string, { content: string; atMs: number }>()
+      const expired = (name: string, content: string, heartbeatMs: number) => {
+        const now = performance.now()
+        const observed = observations.get(name)
+        if (observed?.content !== content) observations.set(name, { content, atMs: now })
+        return (
+          Date.now() - heartbeatMs > SCHEDULE_LEASE_EXPIRES_MS ||
+          (observed?.content === content && now - observed.atMs > SCHEDULE_LEASE_EXPIRES_MS)
+        )
       }
       for (;;) {
         owner.heartbeat = Date.now()
@@ -229,25 +248,32 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           previous.start === owner.start
         )
           break
+        const heartbeatFile = `${file}.${previous.token}.heartbeat`
+        const pulse = (await fs.read(heartbeatFile)) ?? content
+        const refreshed = leaseSchema.parse(parseScheduleStoredJson(pulse))
         if (
-          !isScheduleProcessAlive(previous.pid) ||
-          Date.now() - previous.heartbeat > SCHEDULE_LEASE_EXPIRES_MS
-        ) {
+          refreshed.token !== previous.token ||
+          refreshed.pid !== previous.pid ||
+          refreshed.start !== previous.start
+        )
+          throw new Error('scheduleQueueOwnershipLost')
+        if (!isScheduleProcessAlive(previous.pid) || expired('owner', pulse, refreshed.heartbeat)) {
           // One taker handles an exact owner token. It never removes a renewed
           // or replacement owner; the old owner's guarded writes then fail.
           const takeover = `${file}.${previous.token}.takeover`
           const debt = await fs.read(takeover)
           if (debt !== undefined) {
             const taker = leaseSchema.parse(parseScheduleStoredJson(debt))
-            if (
-              !isScheduleProcessAlive(taker.pid) ||
-              Date.now() - taker.heartbeat > SCHEDULE_LEASE_EXPIRES_MS
-            )
+            if (!isScheduleProcessAlive(taker.pid) || expired('takeover', debt, taker.heartbeat))
               await fs.remove(takeover)
           }
           if (await fs.publish(takeover, JSON.stringify(owner))) {
             try {
-              if ((await fs.read(file)) === content) await fs.remove(file)
+              if (
+                (await fs.read(file)) === content &&
+                ((await fs.read(heartbeatFile)) ?? content) === pulse
+              )
+                await fs.remove(file)
             } finally {
               await fs.remove(takeover)
             }
@@ -270,7 +296,10 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           await previous
           await guard()
           owner.heartbeat = Date.now()
-          await fs.replace(file, JSON.stringify(owner), guard)
+          owner.heartbeatSequence += 1
+          // A paused heartbeat rename can only touch its own token's pulse.
+          // It cannot replace the new owner's authoritative lease file.
+          await fs.replace(`${file}.${owner.token}.heartbeat`, JSON.stringify(owner), guard)
         } catch (error: unknown) {
           heartbeatError =
             error instanceof Error ? error : new Error('scheduleLeaseHeartbeatFailed')
@@ -294,6 +323,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         try {
           await guard()
           await fs.remove(file)
+          await fs.remove(`${file}.${owner.token}.heartbeat`)
         } catch {
           /* Expiry owns release recovery. */
         }

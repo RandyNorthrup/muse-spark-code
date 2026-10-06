@@ -6,6 +6,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { setTimeout as delay } from 'node:timers/promises'
 import { build } from 'esbuild'
+import * as z from 'zod/mini'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   createScheduleStore,
@@ -17,7 +18,11 @@ import {
   createNodeScheduleQueue,
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import { schedulesFolder } from '../../src/runtime/dataFolder'
-import { SCHEDULE_MAX_PER_WORKSPACE } from '../../src/shared/constants'
+import {
+  SCHEDULE_MAX_PER_WORKSPACE,
+  SCHEDULE_OUTBOX_MAX_PENDING,
+  SCHEDULE_MIN_INTERVAL_MS,
+} from '../../src/shared/constants'
 import { scheduleFireRecordSchema } from '../../src/shared/scheduleV2'
 import { fakeSchedule } from './helpers/schedules/fixtures'
 import { removeFolder } from './helpers/temporaryFolders'
@@ -25,6 +30,7 @@ import {
   scheduleStateFile,
   seedScheduleIndex,
   schedulePointerFence,
+  MemoryScheduleFs,
 } from './helpers/schedules/storage'
 
 const exec = promisify(execFile)
@@ -544,5 +550,98 @@ describe('M115 durable shared store', () => {
     expect(current?.fireCount).toBe(0)
     await writeFile(path.join(directory, await scheduleStateFile(fs)), 'private phrase')
     await expect(store.list(job.workspaceKey)).rejects.toThrow('scheduleStoredJsonInvalid')
+  })
+  it('refuses more than the bounded pending outbox without changing committed state', async () => {
+    const fs = new MemoryScheduleFs()
+    const job = fakeSchedule()
+    await seedScheduleIndex(fs, [job])
+    const file = await scheduleStateFile(fs)
+    const pending = Object.fromEntries(
+      Array.from({ length: SCHEDULE_OUTBOX_MAX_PENDING }, (_value, index) => {
+        const runId = `${job.id}:queued-${String(index)}`
+        return [
+          runId,
+          {
+            ownerPid: process.pid,
+            intent: { runId, schedule: job, occurrenceMs: index, advancesTime: false },
+          },
+        ]
+      }),
+    )
+    await fs.replace(
+      file,
+      JSON.stringify({
+        revision: 0,
+        value: {
+          schedules: { [job.id]: job },
+          pending,
+          timeCursors: {},
+          migrations: {},
+          retirements: {},
+        },
+      }),
+    )
+    const before = fs.bytes()
+    await expect(
+      createScheduleStore(fs).admit({
+        runId: `${job.id}:overflow`,
+        schedule: job,
+        occurrenceMs: 0,
+        advancesTime: false,
+      }),
+    ).rejects.toThrow('OutboxLimit')
+    expect(fs.bytes()).toBe(before)
+  })
+  it.each(['__proto__', 'constructor', 'prototype'])(
+    'refuses the reserved map identifier %s before any write',
+    async (id) => {
+      const fs = new MemoryScheduleFs()
+      await expect(createScheduleStore(fs).create(fakeSchedule({ id }))).rejects.toThrow()
+      expect(fs.files.size).toBe(0)
+    },
+  )
+  it('keeps only the current time cursor after repeated trigger edits without reopening prior identities', async () => {
+    const fs = new MemoryScheduleFs()
+    const store = createScheduleStore(fs)
+    const initial = fakeSchedule()
+    await store.create(initial)
+    for (let run = 1; run <= 100; run += 1) {
+      const [current] = await store.list(initial.workspaceKey)
+      const occurrenceMs = initial.createdAtMs + run * SCHEDULE_MIN_INTERVAL_MS
+      await store.update({
+        ...current!,
+        trigger: { kind: 'interval', everyMs: SCHEDULE_MIN_INTERVAL_MS, anchorMs: occurrenceMs },
+        nextFireAtMs: occurrenceMs,
+      })
+      const [schedule] = await store.list(initial.workspaceKey)
+      const intent = {
+        schedule: schedule!,
+        runId: `${initial.id}:${String(occurrenceMs)}`,
+        occurrenceMs,
+        advancesTime: true,
+      }
+      await store.admit(intent)
+      expect(await store.advance(intent)).toBe(true)
+      await store.record({
+        runId: intent.runId,
+        scheduleId: initial.id,
+        workspaceKey: initial.workspaceKey,
+        occurrenceMs,
+        observedAtMs: occurrenceMs,
+        target: initial.target,
+        delivery: initial.delivery,
+        outcome: 'ran',
+        refusedActions: [],
+        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      })
+    }
+    const file = await scheduleStateFile(fs)
+    const snapshot = z
+      .object({ value: z.object({ timeCursors: z.record(z.string(), z.number()) }) })
+      .parse(JSON.parse(fs.files.get(file) ?? 'null'))
+    expect(Object.keys(snapshot.value.timeCursors).length).toBeLessThanOrEqual(1)
+    expect(
+      await store.claim(`${initial.id}:${String(initial.createdAtMs + SCHEDULE_MIN_INTERVAL_MS)}`),
+    ).toBe(false)
   })
 })

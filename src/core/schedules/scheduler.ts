@@ -45,8 +45,8 @@ export interface SchedulerDeps {
   readonly time: ScheduleTimePort
   /** E persists a manual event composed with time; T computes its due instant. */
   readonly deferEvent: (schedule: ScheduleV2, event: ScheduleEvent) => Promise<void>
-  /** D/U settle thrown delivery errors and abandoned claims, including their
-   * retained liability. S never invents an exact zero-cost failed dispatch. */
+  /** D/U provide conservative final accounting when a returned terminal result
+   * is invalid. S never invents an exact zero-cost failed dispatch. */
   readonly failureSettlement: (
     intent: ScheduleRunIntent,
     error: unknown,
@@ -184,6 +184,7 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const delivery = { ...intent, schedule: fresh }
     let result: unknown
+    let hasReturned = false
     try {
       result = await deps.host.deliver(
         fresh,
@@ -191,6 +192,7 @@ export function createScheduler(deps: SchedulerDeps) {
         intent.occurrenceMs,
         intent.event,
       )
+      hasReturned = true
       validateScheduleSettlement(
         delivery.schedule,
         delivery.runId,
@@ -205,6 +207,9 @@ export function createScheduler(deps: SchedulerDeps) {
       // Absence is a proof of no admission/send: leave the retained intent for
       // the next poll instead of burning this occurrence or guessing a bill.
       if (after.status === 'absent') throw error
+      // A queued/running target still owns recovery. A transport error does
+      // not turn its unfinished work into a final failed accounting record.
+      if (!hasReturned && after.status === 'admitted') throw error
       if (after.status === 'settled' || after.status === 'uncertain') {
         try {
           result = validateScheduleSettlement(

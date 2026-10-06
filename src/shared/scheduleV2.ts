@@ -377,7 +377,11 @@ export type ScheduleDeliveryResult = ScheduleFireRecord
 export const scheduleDeliveryStateSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('absent') }),
   z.strictObject({ status: z.literal('admitted') }),
-  z.strictObject({ status: z.enum(['settled', 'uncertain']), fire: scheduleFireRecordSchema }),
+  z
+    .strictObject({ status: z.enum(['settled', 'uncertain']), fire: scheduleFireRecordSchema })
+    .check(
+      z.refine((state) => state.status !== 'uncertain' || state.fire.cost.certainty === 'unknown'),
+    ),
 ])
 export type ScheduleDeliveryState = z.infer<typeof scheduleDeliveryStateSchema>
 export interface ScheduleHostPort {
@@ -389,8 +393,9 @@ export interface ScheduleHostPort {
    * Queued, steered and idle-held work keeps this promise pending until its
    * run finishes or is withdrawn; withdrawals settle as skipped/missed.
    * The target durably admits context.runId BEFORE sending, refuses duplicates
-   * even after restart and exposes that receipt through lookupRun. Recovery of
-   * an ambiguous sent request returns uncertain, informs the person and never
+   * even after restart and exposes that receipt through lookupRun. Delivery
+   * identities survive the schedule's complete fence retention window. Recovery
+   * of an ambiguous sent request returns uncertain, informs the person and never
    * sends it again. Failures after dispatch settle as failed with known/uncertain cost and
    * retained liability. The result keeps context.runId and occurrenceMs. */
   deliver(
