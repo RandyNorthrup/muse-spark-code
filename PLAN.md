@@ -31541,3 +31541,21 @@ against `SHA256SUMS`, installs as 0.11.0 in throwaway profiles on the
 Windows host (VS Code 1.140.0), the Windows 11 VM (1.139.1), the Mac mini
 (1.139.1) and Kubuntu (1.130.0); the GitHub tarball installs on Kubuntu and
 `muse-spark-code-acp --version` prints 0.11.0.
+
+**0.14.3 prepared (2026-10-06, draft; PR, tag and run ids to be filled by the lead).**
+M112, questions that never block (D92), on top of the 0.14.2 Help reference.
+`release/0.14.3` merges main `e56b795a1` into the reviewed M112 integration
+`e730cd8bd`. `check:reference` now covers the open-question commands,
+`museSpark.questions.deferAfterSeconds`, `--questions-defer-after` and the
+ACP-local `/questions` and `/answer`. The Node reference stays within its
+unchanged 100 KiB budget (99.5 KiB) through lossless CLI route-prefix
+packing. Live through the ACP agent, contributor model, empty workspace:
+Model API 2 of 2 expected requests (budget 3), answered form only; Muse Code
+2 of 2 turns (budget 2), deferral and a late answer, 10 CLI model attempts
+(`docs/certification/m112.md#live-checks-2026-10-06`). Open before release:
+the webview deferred-JS aggregate is 89 bytes over its unchanged 50 KiB cap,
+so `npm run build` and `npm run package` exit 1 on the host; the VSIX packed
+directly is 2,278,496 bytes, under its 2400 KiB cap. Also open: Model API
+deferral live, installed editors and screenshots. Evidence:
+`docs/certification/rel0143.md`. Release run, tag commit and channel results:
+pending.

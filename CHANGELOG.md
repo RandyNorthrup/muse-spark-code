@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.14.3] - 2026-10-06
+
 ### Added
 
 - Questions stay in the dock and transcript, defer after a machine-scoped
@@ -18,6 +20,9 @@ happened, not what was planned; superseded entries are kept.
   `--questions-defer-after` and its help is translated in all 14 languages.
   The real registry and private durable idle-answer queue are connected to
   the launcher. Headless's explicit policy declines immediately with no clock.
+- Help & Reference covers questions: the Next and Previous open question
+  commands, `museSpark.questions.deferAfterSeconds`, `--questions-defer-after`
+  and the ACP-local `/questions` and `/answer`, which ACP `/help` now lists.
 
 ### Changed
 
@@ -26,24 +31,8 @@ happened, not what was planned; superseded entries are kept.
   stays visible while loading, and the shared draft survives loading and
   remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
 
-### Security
-
-- Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
-  within npm-run-all2's existing dependency range.
-
 ### Fixed
 
-- The release-artifact check validates complete ACP help, including its reference
-  hint, in English and every installed language using the CLI's shared formatter.
-
-- The report CLI help test follows the documented complete-reference contract
-  for subcommand `--help` and `-h`.
-
-- The Help reference gate accepts Windows file paths and continues checking
-  keyboard dispatch against the runtime registry.
-
-- Activation paid-setting checks are directly importable in tests, and ACP
-  stdio checks include the localized Help reference hint.
 - Durable questions: late answers now use the ordinary send path's permission
   barriers and session recovery. Re-asks keep their own deferral deadline,
   publication saves once with durable rollback, coalesced replies finish
@@ -75,17 +64,29 @@ happened, not what was planned; superseded entries are kept.
 
 ### Performance
 
-- Reference tests share unchanged setup and keyboard analysis, keeping
-  catalogue mutation checks within the normal test timeout.
-
-- The VSIX omits the duplicate generated Markdown reference; Help continues
-  to load its bundled reference and links to the complete online guide.
-  Its compressed universal package budget is 2400 KiB, measured with Help
-  and the macOS helper plus 5%, rounded up to 25 KiB.
+- The Help reference packs each CLI route prefix losslessly, keeping the
+  Node reference within its existing 100 KiB budget with the question entries.
 
 ## [0.14.2] - 2026-10-06
 
+### Security
+
+- Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
+  within npm-run-all2's existing dependency range.
+
 ### Fixed
+
+- The release-artifact check validates complete ACP help, including its reference
+  hint, in English and every installed language using the CLI's shared formatter.
+
+- The report CLI help test follows the documented complete-reference contract
+  for subcommand `--help` and `-h`.
+
+- The Help reference gate accepts Windows file paths and continues checking
+  keyboard dispatch against the runtime registry.
+
+- Activation paid-setting checks are directly importable in tests, and ACP
+  stdio checks include the localized Help reference hint.
 
 - Hungarian Help translations now package correctly alongside the other languages.
 
@@ -132,6 +133,14 @@ happened, not what was planned; superseded entries are kept.
   `check:reference` guards catalogue coverage and generated-file freshness.
 
 ### Performance
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
 
 - Frequent Help reference values use shorter lossless dictionary tokens, keeping
   the complete reference within its existing bundle limit.
