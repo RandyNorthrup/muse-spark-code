@@ -38,7 +38,16 @@ used. Hooks exist at `.husky/_/pre-commit`.
   schedule removal. Record storage belongs to S; this file supplies no
   production filesystem implementation.
 - `ScheduleHostPort`: wall and monotonic clocks, workspace ownership and
-  delivery. `ScheduleSessionPort`: backend/session identity, open/running
+  delivery. `ScheduleDeliveryResult` is the complete `ScheduleFireRecord`,
+  validated with its schema: run/schedule/workspace ids, occurrence and
+  observation times, target, delivery, outcome/reason, refused actions, cost,
+  certainty, retained liability and event. `deliver` resolves only on final
+  settlement, including queued, steered and idle-held runs, not on admission.
+  D/U retain each run's refusal and accounting facts until it settles; a
+  withdrawn run settles as skipped/missed, and a failed run carries its cost
+  and uncertain liability. S persists the returned settlement without guessing
+  or replacing it with a free successful result. `ScheduleSessionPort`:
+  backend/session identity, open/running
   state, steer, Stop-compatible cancel, queue/withdraw, send. D owns actual
   idle holds, background resume, fresh sessions and partial-approval cleanup.
 - `ScheduleGrantMatcher.matches(grant, action)` and
@@ -70,10 +79,31 @@ used. Hooks exist at `.husky/_/pre-commit`.
   Methods are `schedules/list`, `create`, `update`, `remove`, `runNow`,
   `timeline`, `pause`, `resume`, `revokeGrant`, `fire`, `background`. Every
   request/result carries a `requestId` in its postMessage envelope. MHP can
-  reuse the method payloads. Neither runtime, UI nor MHP handlers are
+  reuse the method payloads. Both envelopes require `version: 1`
+  (`SCHEDULE_PROTOCOL_VERSION`); missing/unsupported versions are rejected.
+  MHP/native/companion bridges must validate that version at their envelope
+  boundary too, preserving request ids and the same payload schemas.
+  `schedules/update` also requires the listed record's `revision`; a conflict
+  refuses the edit and reloads the current projection rather than restoring
+  stale authority. Neither runtime, UI nor MHP handlers are
   registered by lane 0.
+- The shared surface payloads are `schedules/grantAudit` → `grantAudit`
+  (schedule id and strict argument-free entries); `schedules/eventSources`
+  → `eventSources` (source id, supported kinds and available/explicit reason);
+  and `schedules/historyPreview` → `historyPreview` (the event trigger with
+  filters, a half-open `fromMs`/`toMs` range, and available/matchedCount/events
+  or an explicit no-history reason). E computes the filtered count and scrubs
+  the retained preview events before delivery; V renders those facts without
+  treating them as authority. These routes carry the card's audit, unavailable
+  choices and history preview equally through postMessage and MHP.
 - `ScheduleBackgroundPort`: status, registration with explicit consent,
   removal. Consent has `yes`, `notNow`, `never` and a decision timestamp.
+  `schedules/backgroundStatus` → `backgroundStatus` carries `registered`
+  and optional `nextWakeAtMs`; an unregistered entry cannot have a next wake.
+  `schedules/backgroundRemove` removes the entry without registration consent;
+  it acknowledges only after removal succeeds. `schedules/background` remains
+  the explicit registration consent route. Platform failures use `refused`
+  with an explicit reason, never a false successful registration/removal.
   X binds Task Scheduler, launchd and the systemd user timer, plus uninstall
   cleanup; no OS entry is created by this lane.
 
@@ -122,13 +152,13 @@ refusals. Report kinds remain strings until M113's registry is bound.
 | Lane    | Binding                                                                                                                                                                            |
 | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | T       | Time trigger/zone/end schemas, reference occurrence anchor; `FakeScheduleClock` with Los Angeles, Berlin and Sydney gap/fold cases and separate wall/monotonic jumps               |
-| S       | Store/host ports, durable run-id claim, fire record, pure v1 mapping, `FakeScheduleDisk` with independently reopened clients; migrate receipts and verify before deletion          |
+| S       | Revision CAS store/host ports, permanent ids/claims, final fire settlement, ceil v1 migration and receipt replay fences; durable cross-process locking and verified source removal |
 | U       | Run context, action classes, grant/audit/consent shapes; empty authority on migration; both backend approval streams expose every request by unique id, including repeated classes |
-| D       | Session port and recorder on both backends; interrupt's cancel uses the same adapter as Stop; queue ids are withdrawable                                                           |
-| E       | Source union, events/conditions/history, tainted block and full encoded event identity; fake polling source for every kind                                                         |
+| D       | Session port and final run-scoped settlement on both backends; interrupt uses Stop; queued/steered runs stay pending until each settles, including withdrawals/failures            |
+| E       | Source union, validated Unicode identities, capability/history-preview channel and tainted event block; filtered/scrubbed previews and fake polling source for every kind          |
 | G       | Creator, depth/explicit permission, grant matcher/no-escalation ports, orchestrator consent strings; lifetime follows the creator unless pinned                                    |
-| V       | `scheduleDraftSchema`, safe projections, lazy channel parsers, `UI_TEXT.scheduleV2`; store private authority is never a draft field                                                |
-| X/M104  | Background consent/port/fake and `schedules/*` payloads; bind CLI, ACP, companion and bridges through the core; keep exec refusing schedules                                       |
+| V       | `scheduleDraftSchema`, revision-bearing safe projections/edit requests, version-1 lazy channel, audit/source/history/background payloads and `UI_TEXT.scheduleV2`                  |
+| X/M104  | Background consent/status/remove port and version-1 `schedules/*` envelope/payloads; bind CLI, ACP, companion and native bridges through the core; keep exec refusing schedules    |
 | RA/M113 | Report action/destinations and destination-id grant; bind the deterministic report runner and source capabilities                                                                  |
 | W       | Register manifest settings/commands; bind the lazy bundle/readers and channel, help, docs, report collection and full certification                                                |
 
@@ -139,10 +169,11 @@ return explicit capability reasons until those milestones land.
 
 ## Ownership handoffs requiring W
 
-The brief assigns `package.json`, the bundle-split guard, PLAN/CHANGELOG and
-shipping docs to W, and forbids editing another lane's files without a
-handoff. A narrow exception was requested asynchronously; no answer was
-received when this record was prepared. Those files are left unchanged.
+The original brief assigns manifest, bundle-split, feature registration and
+shipping docs to W. Those implementation handoffs remain pending. FIXM115L0
+explicitly requires the review record in PLAN and certification; its narrow
+PLAN/CHANGELOG updates describe internal contract repairs only. No manifest,
+registered feature, bundle reader or shipping command is added here.
 
 The setting descriptions are already translated in
 `UI_TEXT.scheduleV2.settings.{enabled,defaultDelivery,agentCreation}` for

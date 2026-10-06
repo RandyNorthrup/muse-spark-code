@@ -3,16 +3,19 @@
 import * as z from 'zod/mini'
 import { scheduleRequestSchema, scheduleResponseSchema } from './scheduleV2'
 import { parseWith, type ParseResult } from './protocol'
+import { SCHEDULE_PROTOCOL_VERSION } from './constants'
 
 // M115's lazy schedule surface uses a separate validated channel, like Tasks.
 // The main conversation protocol stays on M52 until lane W binds the surface.
 export const scheduleWebviewMessageSchema = z.strictObject({
   type: z.literal('schedulesRequest'),
+  version: z.literal(SCHEDULE_PROTOCOL_VERSION),
   requestId: z.string().check(z.minLength(1)),
   request: scheduleRequestSchema,
 })
 export const scheduleHostMessageSchema = z.strictObject({
   type: z.literal('schedulesResponse'),
+  version: z.literal(SCHEDULE_PROTOCOL_VERSION),
   requestId: z.string().check(z.minLength(1)),
   response: scheduleResponseSchema,
 })

@@ -7,7 +7,11 @@ import {
   type ScheduleEventSource,
   type ScheduleSubscribedEventSource,
 } from '../../src/shared/scheduleEvents'
-import { scheduleTimeRunId, type ScheduleFireRecord } from '../../src/shared/scheduleV2'
+import {
+  scheduleFireRecordSchema,
+  scheduleTimeRunId,
+  type ScheduleFireRecord,
+} from '../../src/shared/scheduleV2'
 import { FakeScheduleApprovalStream } from './helpers/schedules/approvals'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import { FakeScheduleClock } from './helpers/schedules/clock'
@@ -161,14 +165,35 @@ describe('M115 deterministic fakes', () => {
     expect(host.holds(schedule.workspaceKey)).toBe(true)
     expect(host.now()).toBe(clock.now())
     expect(host.monotonicNow()).toBe(clock.monotonicNow())
-    expect(await host.deliver(schedule, fakeRunContext(schedule), clock.now())).toEqual({
+    const record = await host.deliver(schedule, fakeRunContext(schedule), clock.now())
+    expect(record).toMatchObject({
       outcome: 'ran',
     })
     expect(host.deliveries).toHaveLength(1)
-    const record: ScheduleFireRecord = {
+    const disk = new FakeScheduleDisk()
+    await disk.client().record(record)
+    expect(await disk.client().fires(schedule.workspaceKey)).toEqual([record])
+    expect(await disk.client().fires('other-workspace')).toEqual([])
+  })
+
+  it('delivers complete run-scoped settlements including refusals, cost certainty and liability', async () => {
+    const clock = new FakeScheduleClock('2026-10-05T12:00:00Z')
+    const host = new FakeScheduleHost(clock)
+    const schedule = fakeSchedule()
+    const context = fakeRunContext(schedule)
+    const event = {
+      source: 'manual',
+      eventKey: 'poke-1',
+      kind: 'manual',
+      observedAt: clock.now(),
+      fields: {},
+    } as const
+    const free = await host.deliver(schedule, context, clock.now(), event)
+    expect(scheduleFireRecordSchema.safeParse(free).success).toBe(true)
+    expect(free).toEqual({
+      runId: context.runId,
       scheduleId: schedule.id,
       workspaceKey: schedule.workspaceKey,
-      runId: scheduleTimeRunId(schedule.id, clock.now()),
       occurrenceMs: clock.now(),
       observedAtMs: clock.now(),
       target: schedule.target,
@@ -176,12 +201,79 @@ describe('M115 deterministic fakes', () => {
       outcome: 'ran',
       refusedActions: [],
       cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      event,
+    })
+    host.result = {
+      ...free,
+      refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outsideGrant' }],
+      cost: { usd: 0.1, certainty: 'estimated', retainedLiabilityUsd: 0.2 },
     }
+    const paid = await host.deliver(schedule, context, clock.now(), event)
     const disk = new FakeScheduleDisk()
-    await disk.client().record(record)
-    expect(await disk.client().fires(schedule.workspaceKey)).toEqual([record])
-    expect(await disk.client().fires('other-workspace')).toEqual([])
+    await disk.client().record(paid)
+    expect(await disk.client().fires(schedule.workspaceKey)).toEqual([host.result])
   })
+
+  it.each(['museCode', 'modelApi'] as const)(
+    'settles queued and steered delivery only when each run finishes on %s',
+    async (backend) => {
+      const clock = new FakeScheduleClock('2026-10-05T12:00:00Z')
+      const host = new FakeScheduleHost(clock)
+      host.deferSettlements = true
+      const queued = fakeSchedule({
+        delivery: 'queue',
+        target: { kind: 'conversation', backend, sessionId: 'session-1' },
+      })
+      const steered = fakeSchedule({ id: 'schedule-2', delivery: 'steer', target: queued.target })
+      const queueContext = fakeRunContext(queued)
+      const steerContext = fakeRunContext(steered)
+      let queueResult: ScheduleFireRecord | undefined
+      let steerResult: ScheduleFireRecord | undefined
+      const queuePromise = (async () => {
+        queueResult = await host.deliver(queued, queueContext, clock.now())
+      })()
+      const steerPromise = (async () => {
+        steerResult = await host.deliver(steered, steerContext, clock.now())
+      })()
+      await Promise.resolve()
+      expect(queueResult).toBeUndefined()
+      expect(steerResult).toBeUndefined()
+      await expect(host.deliver(queued, queueContext, clock.now())).rejects.toThrow(
+        'already pending',
+      )
+      const record: ScheduleFireRecord = {
+        runId: queueContext.runId,
+        scheduleId: queued.id,
+        workspaceKey: queued.workspaceKey,
+        occurrenceMs: clock.now(),
+        observedAtMs: clock.now(),
+        target: queued.target,
+        delivery: queued.delivery,
+        outcome: 'ran',
+        refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outsideGrant' }],
+        cost: { usd: 0.1, certainty: 'unknown', retainedLiabilityUsd: 0.2 },
+      }
+      host.settle(record)
+      await queuePromise
+      expect(queueResult).toEqual(record)
+      expect(steerResult).toBeUndefined()
+      const failed: ScheduleFireRecord = {
+        ...record,
+        runId: steerContext.runId,
+        scheduleId: steered.id,
+        delivery: 'steer',
+        outcome: 'failed',
+        reason: 'turnFailed',
+      }
+      host.settle(failed)
+      await steerPromise
+      expect(steerResult).toEqual(failed)
+      expect(() => {
+        host.settle(failed)
+      }).toThrow('No pending')
+      expect(host.pending.size).toBe(0)
+    },
+  )
 
   it('rejects stale whole-record updates after grant, consent and pause revocation', async () => {
     const disk = new FakeScheduleDisk()
@@ -242,6 +334,9 @@ describe('M115 deterministic fakes', () => {
         second.update({ ...fresh!, name: 'Second edit' }),
       ]),
     ).toEqual([true, false])
+    expect(await first.remove(job.workspaceKey, job.id)).toBe(true)
+    await expect(disk.client().create(fakeSchedule({ id: job.id }))).rejects.toThrow('exists')
+    expect(await second.update(job)).toBe(false)
   })
 
   it.each(SCHEDULE_EVENT_KINDS)('provides a source, history and replay for %s', async (kind) => {

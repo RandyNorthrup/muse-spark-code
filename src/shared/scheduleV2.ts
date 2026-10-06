@@ -26,6 +26,7 @@ import {
   SCHEDULE_TIMELINE_HOURS,
 } from './constants'
 import {
+  SCHEDULE_EVENT_KINDS,
   scheduleEventSchema,
   scheduleEventTriggerSchema,
   type ScheduleEvent,
@@ -368,14 +369,17 @@ export interface ScheduleStoreV2 {
   record(fire: ScheduleFireRecord): Promise<void>
   fires(workspaceKey: string): Promise<readonly ScheduleFireRecord[]>
 }
-export interface ScheduleDeliveryResult {
-  readonly outcome: ScheduleFireRecord['outcome']
-  readonly reason?: string
-}
+/** Complete, run-scoped final settlement, parsed with scheduleFireRecordSchema. */
+export type ScheduleDeliveryResult = ScheduleFireRecord
 export interface ScheduleHostPort {
   now(): number
   monotonicNow(): number
   holds(workspaceKey: string): boolean
+  /** Resolves at final settlement, never at send/steer/queue admission.
+   * Queued, steered and idle-held work keeps this promise pending until its
+   * run finishes or is withdrawn; withdrawals settle as skipped/missed.
+   * Failures after dispatch settle as failed with known/uncertain cost and
+   * retained liability. The result keeps context.runId and occurrenceMs. */
   deliver(
     schedule: ScheduleV2,
     context: ScheduleRunContext,
@@ -406,8 +410,11 @@ export const scheduleBackgroundConsentSchema = z.strictObject({
   choice: z.enum(SCHEDULE_BACKGROUND_CHOICES),
   decidedAtMs: timestamp,
 })
+export const scheduleBackgroundStatusSchema = z
+  .strictObject({ registered: z.boolean(), nextWakeAtMs: z.optional(timestamp) })
+  .check(z.refine((status) => status.registered || status.nextWakeAtMs === undefined))
 export interface ScheduleBackgroundPort {
-  status(): Promise<{ readonly registered: boolean; readonly nextWakeAtMs?: number }>
+  status(): Promise<z.infer<typeof scheduleBackgroundStatusSchema>>
   register(
     nextWakeAtMs: number,
     consent: z.infer<typeof scheduleBackgroundConsentSchema>,
@@ -511,6 +518,22 @@ export const scheduleDraftSchema = z
   .check(z.refine(isSchedulePolicyValid))
 export type ScheduleDraft = z.infer<typeof scheduleDraftSchema>
 
+const scheduleHistoryRangeSchema = z
+  .strictObject({ fromMs: timestamp, toMs: timestamp })
+  .check(z.refine((range) => range.fromMs < range.toMs))
+const scheduleSourceCapabilitySchema = z.discriminatedUnion('available', [
+  z.strictObject({ available: z.literal(true) }),
+  z.strictObject({ available: z.literal(false), reason: text }),
+])
+const scheduleHistoryPreviewSchema = z.discriminatedUnion('available', [
+  z.strictObject({
+    available: z.literal(true),
+    matchedCount: z.int().check(z.gte(0)),
+    events: z.array(scheduleEventSchema),
+  }),
+  z.strictObject({ available: z.literal(false), reason: text }),
+])
+
 // Shared by postMessage and MHP. A bridge translates only its envelope; these
 // method names and payloads are the binding for M104, ACP and the companion.
 export const scheduleRequestSchema = z.discriminatedUnion('method', [
@@ -524,6 +547,7 @@ export const scheduleRequestSchema = z.discriminatedUnion('method', [
     method: z.literal('schedules/update'),
     workspaceKey: identifier,
     id: identifier,
+    revision: scheduleShape.revision,
     draft: scheduleDraftSchema,
   }),
   z.strictObject({
@@ -547,6 +571,21 @@ export const scheduleRequestSchema = z.discriminatedUnion('method', [
     method: z.literal('schedules/background'),
     consent: scheduleBackgroundConsentSchema,
   }),
+  z.strictObject({
+    method: z.literal('schedules/grantAudit'),
+    workspaceKey: identifier,
+    id: identifier,
+  }),
+  z.strictObject({ method: z.literal('schedules/eventSources'), workspaceKey: identifier }),
+  z.strictObject({
+    method: z.literal('schedules/historyPreview'),
+    workspaceKey: identifier,
+    trigger: scheduleEventTriggerSchema,
+    range: scheduleHistoryRangeSchema,
+  }),
+  z.strictObject({
+    method: z.enum(['schedules/backgroundStatus', 'schedules/backgroundRemove']),
+  }),
 ])
 export type ScheduleRequest = z.infer<typeof scheduleRequestSchema>
 export const scheduleResponseSchema = z.discriminatedUnion('kind', [
@@ -554,4 +593,26 @@ export const scheduleResponseSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('timeline'), entries: z.array(scheduleTimelineEntrySchema) }),
   z.strictObject({ kind: z.literal('accepted'), id: z.optional(identifier) }),
   z.strictObject({ kind: z.literal('refused'), reason: text }),
+  z.strictObject({
+    kind: z.literal('grantAudit'),
+    scheduleId: identifier,
+    entries: z.array(scheduleGrantAuditSchema),
+  }),
+  z.strictObject({
+    kind: z.literal('eventSources'),
+    sources: z.array(
+      z.strictObject({
+        id: identifier,
+        kinds: z.array(z.enum(SCHEDULE_EVENT_KINDS)),
+        capability: scheduleSourceCapabilitySchema,
+      }),
+    ),
+  }),
+  z.strictObject({
+    kind: z.literal('historyPreview'),
+    trigger: scheduleEventTriggerSchema,
+    range: scheduleHistoryRangeSchema,
+    preview: scheduleHistoryPreviewSchema,
+  }),
+  z.strictObject({ kind: z.literal('backgroundStatus'), status: scheduleBackgroundStatusSchema }),
 ])

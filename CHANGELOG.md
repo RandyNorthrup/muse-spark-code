@@ -12,7 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain
-  observable, and event identity validation rejects malformed Unicode.
+  observable, delivery returns a complete final fire settlement, the versioned
+  editor channel carries audits/history/background controls, and event identity
+  validation rejects malformed Unicode.
   These contracts do not enable scheduled-prompts v2 in the shipped extension.
 
 ## [0.14.1] - 2026-10-05

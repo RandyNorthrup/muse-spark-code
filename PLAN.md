@@ -19593,6 +19593,17 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
+  none is deferred. These are unshipped internal schedule contracts, not
+  certification of the production scheduler, approvals, settlements or OS
+  adapters. S must implement durable cross-process revision compare-and-swap
+  and never reuse removed ids; D/U must retain run-scoped refusal and cost
+  facts until final settlement; V/E/X/M104 must bind the versioned surface
+  routes. Those implementing lanes and W own their production/platform and
+  full-quality receipts, as recorded in `docs/certification/m115-contracts.md`
+  and `docs/certification/m115-0.md`. No new authority or shipping feature is
+  enabled by this repair.
+
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
   and its full security contract are in README, D89.5, the manifest and all

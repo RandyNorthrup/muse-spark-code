@@ -11,6 +11,7 @@ const key = (workspace: string, id: string) => `${workspace}:${id}`
 /** A test disk survives client crashes and restarts; clients never share objects. */
 export class FakeScheduleDisk {
   readonly jobs = new Map<string, ScheduleV2>()
+  readonly issuedIds = new Set<string>()
   readonly claims = new Set<string>()
   readonly records = new Map<string, ScheduleFireRecord>()
   client(): ScheduleStoreV2 {
@@ -18,9 +19,10 @@ export class FakeScheduleDisk {
       create: (schedule) => {
         const job = scheduleV2Schema.parse(structuredClone(schedule))
         const id = key(job.workspaceKey, job.id)
-        if (this.jobs.has(id)) return Promise.reject(new Error('Schedule already exists'))
+        if (this.issuedIds.has(id)) return Promise.reject(new Error('Schedule already exists'))
         if (job.revision !== 0)
           return Promise.reject(new Error('New schedule revision must be zero'))
+        this.issuedIds.add(id)
         this.jobs.set(id, job)
         return Promise.resolve()
       },

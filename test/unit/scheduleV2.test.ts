@@ -27,6 +27,7 @@ import {
   scheduleGrantRuleSchema,
   scheduleReportDestinationSchema,
   scheduleRequestSchema,
+  scheduleResponseSchema,
   scheduleRunContextSchema,
   scheduleTimeRunId,
   scheduleTimeTriggerSchema,
@@ -392,6 +393,7 @@ describe('schedule v2 boundary contracts', () => {
       expect(
         parseScheduleHostMessage({
           type: 'schedulesResponse',
+          version: 1,
           requestId: 'request-1',
           response: { kind: 'list', schedules: [{ ...scheduleViewV2Of(schedule), ...override }] },
         }).ok,
@@ -400,7 +402,13 @@ describe('schedule v2 boundary contracts', () => {
     const requests: ScheduleRequest[] = [
       { method: 'schedules/list', workspaceKey: 'workspace-1' },
       { method: 'schedules/create', workspaceKey: 'workspace-1', draft },
-      { method: 'schedules/update', workspaceKey: 'workspace-1', id: schedule.id, draft },
+      {
+        method: 'schedules/update',
+        workspaceKey: 'workspace-1',
+        id: schedule.id,
+        revision: schedule.revision,
+        draft,
+      },
       ...(
         [
           'schedules/remove',
@@ -421,13 +429,29 @@ describe('schedule v2 boundary contracts', () => {
     for (const request of requests) {
       expect(scheduleRequestSchema.safeParse(request).success).toBe(true)
       expect(
-        parseScheduleWebviewMessage({ type: 'schedulesRequest', requestId: 'request-1', request })
-          .ok,
+        parseScheduleWebviewMessage({
+          type: 'schedulesRequest',
+          version: 1,
+          requestId: 'request-1',
+          request,
+        }).ok,
       ).toBe(true)
+    }
+    for (const revision of [undefined, -1, 0.25]) {
+      expect(
+        scheduleRequestSchema.safeParse({
+          method: 'schedules/update',
+          workspaceKey: schedule.workspaceKey,
+          id: schedule.id,
+          draft,
+          revision,
+        }).success,
+      ).toBe(false)
     }
     expect(
       parseScheduleWebviewMessage({
         type: 'schedulesRequest',
+        version: 1,
         requestId: 'request-1',
         request: { method: 'schedules/timeline', workspaceKey: 'workspace-1', hours: 1 },
       }).ok,
@@ -450,8 +474,12 @@ describe('schedule v2 boundary contracts', () => {
       { kind: 'refused', reason: 'busy' },
     ]) {
       expect(
-        parseScheduleHostMessage({ type: 'schedulesResponse', requestId: 'request-1', response })
-          .ok,
+        parseScheduleHostMessage({
+          type: 'schedulesResponse',
+          version: 1,
+          requestId: 'request-1',
+          response,
+        }).ok,
       ).toBe(true)
     }
   })
@@ -517,6 +545,132 @@ describe('schedule v2 boundary contracts', () => {
     ).toBe(true)
     expect(scheduleTimeRunId('schedule-1', 100)).toBe('schedule-1:100')
     expect(() => scheduleTimeRunId('schedule-1', -1)).toThrow()
+  })
+
+  it('carries grant audit, source capability, history preview and background status across the versioned channel', () => {
+    const trigger = {
+      kind: 'event',
+      source: 'github',
+      event: 'pullRequestMerged',
+      conditions: [{ field: 'branch', equals: 'main' }],
+    }
+    const range = { fromMs: 0, toMs: 100 }
+    const audit = { scheduleId: 'schedule-1', atMs: 0, kind: 'revoked', ruleId: 'command-1' }
+    const responses = [
+      { kind: 'grantAudit', scheduleId: 'schedule-1', entries: [audit] },
+      {
+        kind: 'eventSources',
+        sources: [
+          { id: 'github', kinds: ['pullRequestMerged'], capability: { available: true } },
+          {
+            id: 'usage',
+            kinds: ['usageThresholdCrossed'],
+            capability: { available: false, reason: 'milestoneUnavailable' },
+          },
+        ],
+      },
+      {
+        kind: 'historyPreview',
+        trigger,
+        range,
+        preview: {
+          available: true,
+          matchedCount: 1,
+          events: [
+            {
+              source: 'github',
+              eventKey: 'pr-1',
+              kind: 'pullRequestMerged',
+              observedAt: 0,
+              fields: { branch: 'main' },
+            },
+          ],
+        },
+      },
+      {
+        kind: 'historyPreview',
+        trigger,
+        range,
+        preview: { available: false, reason: 'noHistory' },
+      },
+      { kind: 'backgroundStatus', status: { registered: true, nextWakeAtMs: 100 } },
+      { kind: 'backgroundStatus', status: { registered: false } },
+    ]
+    for (const response of responses) {
+      expect(scheduleResponseSchema.safeParse(response).success).toBe(true)
+      const message = { type: 'schedulesResponse', version: 1, requestId: 'surface-1', response }
+      const parsed = parseScheduleHostMessage(message)
+      expect(parsed).toEqual({ ok: true, message })
+      expect(parseScheduleHostMessage({ ...message, version: 2 }).ok).toBe(false)
+      const { version: _version, ...unversioned } = message
+      expect(parseScheduleHostMessage(unversioned).ok).toBe(false)
+    }
+    const requests = [
+      { method: 'schedules/grantAudit', workspaceKey: 'workspace-1', id: 'schedule-1' },
+      { method: 'schedules/eventSources', workspaceKey: 'workspace-1' },
+      { method: 'schedules/historyPreview', workspaceKey: 'workspace-1', trigger, range },
+      { method: 'schedules/backgroundStatus' },
+      { method: 'schedules/backgroundRemove' },
+    ]
+    for (const request of requests) {
+      expect(scheduleRequestSchema.safeParse(request).success).toBe(true)
+      const message = { type: 'schedulesRequest', version: 1, requestId: 'surface-1', request }
+      expect(parseScheduleWebviewMessage(message)).toEqual({ ok: true, message })
+      expect(parseScheduleWebviewMessage({ ...message, version: 2 }).ok).toBe(false)
+      const { version: _version, ...unversioned } = message
+      expect(parseScheduleWebviewMessage(unversioned).ok).toBe(false)
+    }
+  })
+
+  it('rejects malformed surface data without dropping private audit fields or unavailable reasons', () => {
+    const trigger = { kind: 'event', source: 'github', event: 'pullRequestMerged', conditions: [] }
+    for (const range of [
+      { fromMs: 100, toMs: 0 },
+      { fromMs: 0, toMs: 0 },
+      { fromMs: -1, toMs: 100 },
+    ]) {
+      expect(
+        scheduleRequestSchema.safeParse({
+          method: 'schedules/historyPreview',
+          workspaceKey: 'workspace-1',
+          trigger,
+          range,
+        }).success,
+      ).toBe(false)
+    }
+    for (const response of [
+      {
+        kind: 'grantAudit',
+        scheduleId: 'schedule-1',
+        entries: [{ scheduleId: 'schedule-1', atMs: 0, kind: 'used', command: 'private' }],
+      },
+      {
+        kind: 'eventSources',
+        sources: [{ id: 'github', kinds: ['pullRequestMerged'], capability: { available: false } }],
+      },
+      {
+        kind: 'historyPreview',
+        trigger,
+        range: { fromMs: 0, toMs: 100 },
+        preview: { available: false },
+      },
+      {
+        kind: 'historyPreview',
+        trigger,
+        range: { fromMs: 0, toMs: 100 },
+        preview: { available: true, matchedCount: -1, events: [] },
+      },
+      { kind: 'backgroundStatus', status: { registered: false, nextWakeAtMs: 100 } },
+      { kind: 'backgroundStatus', status: { registered: true, nextWakeAtMs: -1 } },
+    ]) {
+      expect(scheduleResponseSchema.safeParse(response).success).toBe(false)
+    }
+    expect(
+      scheduleRequestSchema.safeParse({
+        method: 'schedules/backgroundRemove',
+        consent: { choice: 'yes', decidedAtMs: 0 },
+      }).success,
+    ).toBe(false)
   })
 
   it('rejects unpaired surrogate event keys before run-id generation and preserves valid Unicode', () => {
