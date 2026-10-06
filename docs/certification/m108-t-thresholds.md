@@ -366,5 +366,39 @@ it is a named test failure, not a compile/suite-loading failure.
 
 After restoration, the complete threshold/session/daily suites pass 73 tests
 and the helper suite passes 10, all with default timeouts. Static/build final
-receipts are recorded below after those commands complete. No timeout, test
+receipts follow. No timeout, test
 filter, gate, cap, paid default, consent flow or escape hatch is weakened.
+
+### FIXM108T final gate receipts
+
+All commands ran directly on macmini. Final tests use the repository default
+5-second timeout, with no test-name filter, skip or raised timeout.
+
+| Check                                                                                                                          | Result                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/thresholds.test.ts test/unit/sessionBudget.test.ts test/unit/paidDailyBudget.test.ts --maxWorkers=3` | Exit 0; **73 tests passed** in three complete files.                                                                            |
+| `npx vitest run test/unit/usd.test.ts --maxWorkers=3`                                                                          | Exit 0; **10 tests passed**. Total **83 tests**, including 600 seeded exact-cap cases.                                          |
+| `npm run typecheck`                                                                                                            | Exit 0; all five projects.                                                                                                      |
+| Changed-file ESLint `--max-warnings=0`                                                                                         | Exit 0 on all eight TypeScript files; commit hook repeats it with the repository's normal `--fix`.                              |
+| Changed-file Prettier and `git diff --check`                                                                                   | Exit 0.                                                                                                                         |
+| `npm run deadcode`                                                                                                             | Exit 0; only the existing vendor/axe-core configuration hints.                                                                  |
+| `npx jscpd`                                                                                                                    | Exit 0; 1,178 files, zero clones, unchanged zero threshold.                                                                     |
+| `node scripts/check-l10n.mjs`                                                                                                  | Exit 0; 14 tables, 164 manifest strings, 603 source files, zero problems.                                                       |
+| `npm run check:host-api`                                                                                                       | Exit 0; 332 VS Code APIs, 31 importers, 25 Node built-ins, 61 theme variables, zero problems.                                   |
+| `npm run build`                                                                                                                | Exit 0; all size/split/host-global checks and 83-package notices pass.                                                          |
+| New red drills                                                                                                                 | **20 named failures**, exit 1, exact byte restoration and matching SHA-256; helper drills refreshed after lint formatting.      |
+| Local commit hooks                                                                                                             | Normal lint-staged ESLint/Prettier and staged gitleaks pass; zero leaks. `.husky/_/pre-commit` existed before the first commit. |
+
+Production sizes: activation **440.2/600 KiB**, Model API **450.1/475 KiB**,
+ACP **818.4/850 KiB**, checkpoint store **76.9/225 KiB**, webview startup with
+static imports **897.3/900 KiB**, deferred webview JS **49.7/50 KiB**. The
+backend session-budget module stays outside activation; no bundle cap changes.
+
+Implementation commit: `5fd85846` (hooks on, explicit paths). Both review P2s
+are closed; no review finding is deferred. The shared-helper API consolidation
+and the original M102/M106/P/W bindings remain explicit integration handoffs;
+source parity with the unavailable H worktree is not falsely certified.
+The lead retains full quality/coverage, cross-editor and live certification,
+as the bounded rig brief requires. No new dependency, installation, paid call,
+credential access, or Git merge/rebase/push. Drill scratch files were removed
+inside this worktree; the named failures and final hashes above are retained.
