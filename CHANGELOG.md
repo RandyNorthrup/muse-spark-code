@@ -300,6 +300,12 @@ happened, not what was planned; superseded entries are kept.
   budget with six real copies, then checks the exact read bound and reuse of
   the same directory cursor. It avoids hundreds of unnecessary disk operations
   and no longer accepts repeated traversal restarts as eventual success.
+- **Companion transport authentication (M104 lane C, awaiting integration).**
+  Per-window memory bearers replace host-wide cookies, preventing credential
+  leakage across loopback ports and isolating tabs and concurrent runtimes.
+  Rejected launches show localized, accessible instructions to reopen the
+  panel from the editor.
+
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". The train now
   describes 0.14.0, the Marketplace README carries the same section, and a

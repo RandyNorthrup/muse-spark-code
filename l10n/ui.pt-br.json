@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "Não foi possível abrir o painel. Volte ao seu editor e abra o Muse Spark Code novamente para obter um novo link de inicialização.",
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",
   "crashDetail": "Recarregar reconstrói o painel; o host mantém a conversa.",
