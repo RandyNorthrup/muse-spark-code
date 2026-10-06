@@ -1,0 +1,51 @@
+[
+  {
+    "drill": "review-trust",
+    "file": "src/runtime/features/editReview.ts",
+    "exitCode": 1,
+    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9"
+  },
+  {
+    "drill": "review-release",
+    "file": "src/runtime/features/editReview.ts",
+    "exitCode": 1,
+    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9"
+  },
+  {
+    "drill": "review-admission",
+    "file": "src/runtime/features/editReview.ts",
+    "exitCode": 1,
+    "sha256Before": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9",
+    "sha256Restored": "447d7d6af633167527b4cea81c4ef33f892460e534729b79666be65d600e9ad9"
+  },
+  {
+    "drill": "context-confinement",
+    "file": "src/runtime/features/editorContext.ts",
+    "exitCode": 1,
+    "sha256Before": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407",
+    "sha256Restored": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407"
+  },
+  {
+    "drill": "context-index",
+    "file": "src/runtime/features/editorContext.ts",
+    "exitCode": 1,
+    "sha256Before": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407",
+    "sha256Restored": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407"
+  },
+  {
+    "drill": "context-protected",
+    "file": "src/runtime/features/editorContext.ts",
+    "exitCode": 1,
+    "sha256Before": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407",
+    "sha256Restored": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407"
+  },
+  {
+    "drill": "context-order",
+    "file": "src/runtime/features/editorContext.ts",
+    "exitCode": 1,
+    "sha256Before": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407",
+    "sha256Restored": "6314a281e94527613854c354902e3ce218d9b8a1340c91104814e0436c597407"
+  }
+]

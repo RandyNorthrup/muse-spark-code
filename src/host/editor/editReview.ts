@@ -487,6 +487,11 @@ export class EditReview implements EditReviewActions {
     return this.originals.get(uriPath)
   }
 
+  /** The owning surface is released after its in-flight operations have drained. */
+  public dispose(): void {
+    this.originals.clear()
+  }
+
   /** Opens one diff per file in the patch; returns the notices to show. */
   public async openDiff(itemId: string, patchJson: string): Promise<readonly ReviewNotice[]> {
     const { ready, notices } = await this.prepare(patchJson)
