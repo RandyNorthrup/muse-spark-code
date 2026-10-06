@@ -739,6 +739,27 @@ export const HOOK_THOUGHT_MAX_CHARS = 2048
 export const HOOK_DISPLAY_MESSAGE_MAX_CHARS = 4096
 export const HOOK_EXPANSION_MAX_CHARS = 2048
 
+// M104X: emitted into the native host by hosts/xcode/Scripts/generate.mjs.
+export const XCODE_HOST = {
+  maxFrameBytes: 1_048_576,
+  maxLaunchBytes: 512,
+  commandTimeoutSeconds: 180,
+  launchTimeoutSeconds: 15,
+  stopGraceSeconds: 2,
+  bearerBytes: 32,
+  maxPort: 65_535,
+  maxConnections: 8,
+  windowWidth: 1100,
+  windowHeight: 760,
+} as const
+
+// M104X: only the native table generator reads this block; no JavaScript bundle carries it.
+export const XCODE_MODEL_TEXT = {
+  explainSelection: 'Explain the selected code, including its behavior and any relevant risks.',
+  fixSelection:
+    'Propose a corrected replacement for the selected code. Return the replacement in a code block for review. Do not write files; the user will approve the replacement in the Xcode companion app.',
+} as const
+
 // --- Paid features on the Model API backend (M33–M35, PLAN.md D30) ---
 
 // Each is off by default, confirmed with its price when turned on, named in

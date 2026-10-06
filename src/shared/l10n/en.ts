@@ -27,6 +27,26 @@ export const EN = {
   fallbackEmpty: 'No entries',
   fallbackWorktrees: 'Worktrees',
   fallbackActionFailed: 'The action failed. Try again.',
+
+  xcodeTitle: 'Xcode companion — Muse Spark Code (Unofficial)',
+  xcodeOpenWorkspace: 'Open workspace',
+  xcodeRuntime: 'Runtime executable',
+  xcodeOpenPanel: 'Open panel',
+  xcodeAsk: 'Ask Muse about selection',
+  xcodeExplain: 'Explain selection',
+  xcodeFix: 'Fix selection',
+  xcodeTab: 'Insert Tab completion',
+  xcodeApprove: 'Approve buffer edit',
+  xcodeReplacement: 'Proposed replacement (paste code from the panel)',
+  xcodeUnavailable: 'This runtime does not provide this command yet.',
+  xcodeStartFailed:
+    'Could not start the companion panel. Check the runtime and reopen the workspace.',
+  xcodeEditRefused: 'The buffer changed or the selection is invalid. No edit was applied.',
+  xcodeRuntimeNeeded: 'Choose a runtime that supports panel --companion.',
+  xcodeOpenFile: 'Open in Xcode',
+  xcodeWorkspaceRequired: 'Open an Xcode project or workspace folder first.',
+  xcodeChooseRuntime: 'Choose runtime',
+  xcodeDenied: 'Edit denied.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   paidDailyBudgetLine:

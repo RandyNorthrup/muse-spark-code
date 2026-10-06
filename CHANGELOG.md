@@ -54,6 +54,15 @@ happened, not what was planned; superseded entries are kept.
   get a versioned schema export and lock; frozen v1 editor services remain
   unchanged. Runtime and browser implementations remain pending in M104.
 
+- **Xcode native-host prototype (M104X, awaiting integration).** A macOS 14+
+  SwiftUI/WKWebView app and XcodeKit extension, authenticated ephemeral
+  selection callbacks, explicit buffer-edit approval with stale-buffer and
+  selection checks, credential-free runtime launch, and out-of-band Stop.
+  Selected folders/project bundles must exist before launch; invalid startup
+  workspace arguments show the localized error.
+  Shared runtime panel/Tab endpoints and installation qualification remain
+  required; the packaged local build does not claim full feature parity.
+
 ### Fixed
 
 - Source-layout ACP process tests use a fake credential-store binding and

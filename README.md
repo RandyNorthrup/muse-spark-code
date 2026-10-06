@@ -31,6 +31,11 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
+The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
+with Xcode Source Editor commands. Its authenticated container and approved
+buffer-edit path are tested with fakes; the shared runtime panel and Tab
+integration are still required before it can be offered as a supported host.
+
 **Contents:** [What's new](#whats-new-in-0140) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) ·
