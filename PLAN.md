@@ -6844,6 +6844,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115D — Repair schedule delivery review findings (2026-10-06)
+
+Repair every RVM115D P2: admit when-idle fires into the target's own queue
+with Skip surviving unattended admission; share the controller's child-turn
+predicate; treat every non-idle status as busy and interrupt compaction through
+Stop; acquire only current live pooled entries and release by identity;
+retain a parsed, frozen event snapshot before awaits; and compare parsed
+settlements using sorted-key canonical JSON. Use real ModelApiHost/fake
+transport regressions for the backend review scenarios and byte-exact
+restored red drills for every fix in `docs/certification/m115-d.md`.
+No dependency, wire schema, authority, shipping registration or gate change.
+The rig brief reserves aggregate quality for the lead and forbids merges.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the

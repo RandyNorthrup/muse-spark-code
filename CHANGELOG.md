@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Preserve each internal M115 delivery's validated event through asynchronous
+  admission and accept equivalent external settlements regardless of event
+  dictionary key order. Scheduled-prompts v2 remains unshipped on this base.
+
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration
   accepts fractional filesystem times, repeated fake approval requests remain

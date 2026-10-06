@@ -7,7 +7,8 @@ import {
   type ScheduleRunSettlement,
   type ScheduleTargetLease,
 } from '../../src/core/schedules/delivery'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SCHEDULE_EVENT_FIELD_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
+import type { ScheduleEvent } from '../../src/shared/scheduleEvents'
 import type { ScheduleRunContext, ScheduleV2 } from '../../src/shared/scheduleV2'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
 import { FakeScheduleSession } from './helpers/schedules/session'
@@ -83,7 +84,7 @@ function setup(backend: 'museCode' | 'modelApi', overrides: Partial<ScheduleV2> 
     }),
   }
   let isWorkspaceHeld = true
-  const prompt = vi.fn((input: ScheduleV2) =>
+  const prompt = vi.fn((input: ScheduleV2, _event?: ScheduleEvent) =>
     input.action.kind === 'prompt' ? input.action.prompt : 'unexpected report',
   )
   const delivery = new ScheduleDelivery({
@@ -366,6 +367,34 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     expect(rig.runs.run.mock.calls[0]?.[2].grant.paidCapUsd).toBe(0)
   })
 
+  it.each([false, true])(
+    'retains a frozen event snapshot when caller mutation is invalid=%s',
+    async (invalid) => {
+      const rig = setup(backend)
+      const event: ScheduleEvent = {
+        source: 'git',
+        eventKey: 'event-A',
+        kind: 'branchUpdated',
+        fields: { branch: 'main' },
+        observedAt: occurrenceMs,
+      }
+      const expected = structuredClone(event)
+      const lookup = Promise.withResolvers<ScheduleTargetLease | undefined>()
+      rig.targets.find.mockReturnValueOnce(lookup.promise)
+      const pending = rig.delivery.deliver(rig.schedule, rig.context, occurrenceMs, event)
+      event.eventKey = 'event-B'
+      event.fields['branch'] = invalid
+        ? 'x'.repeat(SCHEDULE_EVENT_FIELD_MAX_CHARS + 1)
+        : 'other-branch'
+      lookup.resolve({ session: rig.session, release: rig.release })
+      const result = await settleStarted(rig, pending)
+      expect(rig.prompt.mock.calls[0]?.[1]).toEqual(expected)
+      expect(Object.isFrozen(rig.prompt.mock.calls[0]?.[1])).toBe(true)
+      expect(Object.isFrozen(rig.prompt.mock.calls[0]?.[1]?.fields)).toBe(true)
+      expect(result.event).toEqual(expected)
+    },
+  )
+
   it('refuses a duplicate idle hold without replacing the first run’s skip handle', async () => {
     const rig = setup(backend)
     rig.session.running = true
@@ -550,6 +579,45 @@ describe('board and report bindings', () => {
     await expect(delivery.deliver(rig.schedule, rig.context, occurrenceMs)).rejects.toThrow(
       UI_TEXT.scheduleInvalid,
     )
+  })
+
+  it('accepts identical external event values with reordered field keys', async () => {
+    const rig = setup('modelApi', { target: { kind: 'team', teamId: 'team-1' } })
+    const event: ScheduleEvent = {
+      source: 'git',
+      eventKey: 'merged',
+      kind: 'pullRequestMerged',
+      fields: { status: 'merged', branch: 'main' },
+      observedAt: occurrenceMs,
+    }
+    const board = {
+      deliver: vi.fn(() =>
+        Promise.resolve({
+          ...facts,
+          runId: rig.context.runId,
+          scheduleId: rig.schedule.id,
+          workspaceKey: rig.schedule.workspaceKey,
+          occurrenceMs,
+          observedAtMs: occurrenceMs,
+          target: rig.schedule.target,
+          delivery: rig.schedule.delivery,
+          event: { ...event, fields: { branch: 'main', status: 'merged' } },
+        }),
+      ),
+    }
+    const delivery = new ScheduleDelivery({
+      now: () => occurrenceMs,
+      monotonicNow: () => 1,
+      holds: () => true,
+      targets: rig.targets,
+      runs: rig.runs,
+      prompt: rig.prompt,
+      board,
+    })
+    expect(await delivery.deliver(rig.schedule, rig.context, occurrenceMs, event)).toMatchObject({
+      ...facts,
+      event,
+    })
   })
 
   it('refuses an unbound report without a model submission or reservation', async () => {

@@ -1,6 +1,6 @@
 import { isSteerRefusedError } from '../agent/agentBackend'
 import { UI_TEXT } from '../../shared/constants'
-import type { ScheduleEvent } from '../../shared/scheduleEvents'
+import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
   scheduleFireRecordSchema,
   scheduleRunContextSchema,
@@ -62,6 +62,21 @@ export interface ScheduleDeliveryDeps {
   prompt(schedule: ScheduleV2, event?: ScheduleEvent): string
   readonly board?: ScheduleExternalDelivery
   readonly reports?: ScheduleExternalDelivery
+}
+
+/** Parsed records contain JSON values; sort every object's keys, preserving arrays. */
+function canonicalRecord(record: ScheduleDeliveryResult): string {
+  return JSON.stringify(record, (_key: string, value: unknown): unknown => {
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      const fields: Record<string, unknown> = { ...value }
+      return Object.fromEntries(
+        Object.keys(fields)
+          .toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+          .map((key) => [key, fields[key]]),
+      )
+    }
+    return value
+  })
 }
 
 /** Shared by editors and runtime. S owns claims, catch-up selection and ordering. */
@@ -156,6 +171,12 @@ export class ScheduleDelivery implements ScheduleHostPort {
     occurrenceMs: number,
     event?: ScheduleEvent,
   ): Promise<ScheduleDeliveryResult> {
+    if (event !== undefined) {
+      event = scheduleEventSchema.parse(event)
+      // The schema's only nested object is a dictionary of primitive values.
+      Object.freeze(event.fields)
+      Object.freeze(event)
+    }
     schedule = scheduleV2Schema.parse(schedule)
     context = scheduleRunContextSchema.parse(context)
     this.validate(schedule, context)
@@ -192,8 +213,8 @@ export class ScheduleDelivery implements ScheduleHostPort {
         cost: result.cost,
       })
       if (
-        JSON.stringify({ ...result, observedAtMs: expected.observedAtMs }) !==
-        JSON.stringify(expected)
+        canonicalRecord({ ...result, observedAtMs: expected.observedAtMs }) !==
+        canonicalRecord(expected)
       ) {
         throw new Error(UI_TEXT.scheduleInvalid)
       }
