@@ -1,4 +1,4 @@
-async function captureFailure(work: Promise<void>): Promise<unknown> {
+async function captureFailure(work: Promise<unknown>): Promise<unknown> {
   try {
     await work
   } catch (error) {
@@ -34,6 +34,7 @@ import { fakeMachineServer, makerLimits as limits } from './helpers/fakeMakerMac
 
 function record(endpoint: string, kind: MachineRecord['kind'] = 'moonraker'): MachineRecord {
   return {
+    registrationId: '11111111-1111-4111-8111-111111111111',
     id: 'virtual',
     name: 'Simulator',
     endpoint,
@@ -113,6 +114,73 @@ async function moonrakerTest() {
 }
 
 describe('maker printer status and guarded send', () => {
+  it('looks up the immutable registration credential and refuses a mismatched registration', async () => {
+    const { target, deps, server } = await moonrakerTest()
+    const get = vi.fn((name: string) =>
+      Promise.resolve(name === `maker.machine.${target.registrationId}` ? randomUUID() : undefined),
+    )
+    const transport = new MachineHttp(
+      target,
+      localFakeLan,
+      {
+        get,
+        store: () => Promise.resolve(),
+        delete: () => Promise.resolve(),
+      },
+      { timeoutMs: 1000, maxResponseBytes: 16_000 },
+    )
+    const machine = createMoonrakerMachine(target, transport, deps)
+    await machine.status()
+    expect(get).toHaveBeenCalledWith(`maker.machine.${target.registrationId}`)
+    expect(server.requests.every((request) => request.hasKey)).toBe(true)
+    expect(() =>
+      createMoonrakerMachine({ ...target, registrationId: randomUUID() }, transport, deps),
+    ).toThrow('machineTargetMismatch')
+  })
+  it('reports acknowledged actuation with unrecorded audit and retries accounting without resending', async () => {
+    const { machine, server, append, confirm, notify } = await moonrakerTest()
+    const accepted: string[] = []
+    let isWritable = false
+    append.mockImplementation((entry) => {
+      if (!isWritable && entry.action === 'actuate' && entry.outcome === 'sent')
+        return Promise.reject(new Error('diskFull'))
+      if (entry.action === 'actuate') accepted.push(entry.outcome)
+      return Promise.resolve()
+    })
+    notify.mockRejectedValueOnce(new Error('surfaceClosed'))
+    const result = await machine.send('G91\nG1 X1 F600\nG90')
+    expect(result).toMatchObject({ outcome: 'sentWithUnrecordedAudit', logRecorded: false })
+    expect(accepted).toEqual(['attempt'])
+    expect(append.mock.calls.filter(([entry]) => entry.outcome === 'sent')).toHaveLength(2)
+    expect(notify).toHaveBeenCalledWith('auditUnrecorded')
+    expect(await result.retryAudit()).toBe(false)
+    isWritable = true
+    expect(await Promise.all([result.retryAudit(), result.retryAudit()])).toEqual([true, true])
+    expect(await result.retryAudit()).toBe(true)
+    expect(accepted).toEqual(['attempt', 'sent'])
+    expect(
+      server.requests.filter((request) => request.path === '/printer/gcode/script'),
+    ).toHaveLength(1)
+    expect(confirm).toHaveBeenCalledTimes(1)
+  })
+  it('recovers a transient final audit failure without marking the send failed', async () => {
+    const { machine, server, append, notify } = await moonrakerTest()
+    let isFailed = false
+    append.mockImplementation((entry) => {
+      if (!isFailed && entry.outcome === 'sent') {
+        isFailed = true
+        return Promise.reject(new Error('diskFull'))
+      }
+      return Promise.resolve()
+    })
+    const result = await machine.send('G1 X20')
+    expect(result).toMatchObject({ outcome: 'sent', logRecorded: true })
+    expect(append.mock.calls.some(([entry]) => entry.outcome === 'failed')).toBe(false)
+    expect(notify).not.toHaveBeenCalled()
+    expect(
+      server.requests.filter((request) => request.path === '/printer/gcode/script'),
+    ).toHaveLength(1)
+  })
   it('reads status without confirmation and sends exact approved bytes once', async () => {
     const { machine, confirm, server, append } = await moonrakerTest()
 

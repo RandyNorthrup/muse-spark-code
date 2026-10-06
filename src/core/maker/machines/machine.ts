@@ -16,7 +16,8 @@ import {
 } from '../gcode/tokenizer'
 import { MachineError, machineRecordSchema, type MachineRecord } from '../registry'
 
-export type MachineWarning = 'physicalStopRequired' | 'startupMotion' | 'limitsUnavailable'
+export type MachineWarning =
+  'physicalStopRequired' | 'startupMotion' | 'limitsUnavailable' | 'auditUnrecorded'
 export interface MachineStatus {
   readonly identity: string
   readonly state: string
@@ -68,10 +69,16 @@ export interface MachineDeps {
   readonly policy: MachinePolicy
   readonly log: DeviceLogPort
 }
+export interface MachineSendResult {
+  readonly outcome: 'sent' | 'sentWithUnrecordedAudit'
+  readonly logRecorded: boolean
+  /** Retries accounting only; never actuates or asks for another send. */
+  retryAudit(): Promise<boolean>
+}
 export interface Machine {
   readonly record: MachineRecord
   status(): Promise<MachineStatus>
-  send(payload: string): Promise<void>
+  send(payload: string): Promise<MachineSendResult>
   stop(): Promise<{ readonly warnings: readonly MachineWarning[]; readonly logRecorded: boolean }>
 }
 /** Transport operations are injected and remain private to the protected Machine. */
@@ -273,8 +280,47 @@ export function protectMachine(
           } finally {
             active.delete(controller)
           }
-          await audit(payload, 'sent', approval)
-          return
+          // Acknowledged dispatch is irreversible. Accounting failure must
+          // never reach the failed-send catch or invite replay of relative motion.
+          const sentApproval = approval
+          const auditState: { isRecorded: boolean; pending: Promise<boolean> | undefined } = {
+            isRecorded: false,
+            pending: undefined,
+          }
+          const isAuditRecorded = async (): Promise<boolean> => {
+            if (auditState.isRecorded) return true
+            if (auditState.pending !== undefined) return await auditState.pending
+            auditState.pending = (async () => {
+              try {
+                await audit(payload, 'sent', sentApproval)
+                auditState.isRecorded = true
+                return true
+              } catch {
+                return false
+              }
+            })()
+            try {
+              return await auditState.pending
+            } finally {
+              auditState.pending = undefined
+            }
+          }
+          const isLogRecorded = (await isAuditRecorded()) || (await isAuditRecorded())
+          if (!isLogRecorded) {
+            try {
+              await withMakerDeadline(
+                () => deps.host.notify('auditUnrecorded'),
+                deps.policy.requestDeadlineMs,
+              )
+            } catch {
+              /* The caller still receives the successful dispatch and missing audit. */
+            }
+          }
+          return {
+            outcome: isLogRecorded ? 'sent' : 'sentWithUnrecordedAudit',
+            logRecorded: isLogRecorded,
+            retryAudit: isAuditRecorded,
+          }
         }
         throw new MachineError('machineStateChanged')
       } catch (error) {

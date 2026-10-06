@@ -15160,6 +15160,17 @@ drill in `docs/certification/m103-m.md`. Cross-process registry transactions
 require a host-storage redesign and are tracked as RVM103M-REGISTRY-WRITERS
 in §9; no physical action or live/paid call is authorized by this follow-up.
 
+Round-two follow-up (FIXM103M2): resolve RVM103M2's credential/record race
+with one exclusive cross-process registry lock, revision compare-and-swap,
+and immutable registration-owned secret names. The concrete file store is
+in the per-user data directory; stale locks fail closed for operator recovery.
+Prove two actual Node processes cannot cross-pair credentials. Acknowledged
+sends return a successful outcome with audit status, retry only the audit,
+and never enter the failed-send path. CAD reads a bounded, confined opened
+handle and stages those exact bytes privately for both tools. Each finding
+gets regressions and byte-exact red drills in the lane M certification.
+No live/paid call, hardware use, dependency or shipped surface is added.
+
 - **Goal.** Makers get skills, detection, simulation and offline tools that
   work out of the box, and device and machine access that never moves,
   heats, powers or flashes anything without a person approving exactly what
@@ -15602,7 +15613,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**FIXM103M (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
+**FIXM103M / FIXM103M2 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
 full-suite runs and assigns integration gates to the lead. This fix lane
 runs its four owning test files, red drills and required static/build checks
 directly on the rig. The existing generated Node import inventory is stale;
@@ -16189,15 +16200,17 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **RVM103M-REGISTRY-WRITERS (P2, 2026-10-05):** `MachineRegistry` serializes
-  one instance only. Separate windows/runtimes sharing machine-scoped
-  storage can lose a registration or its pending-removal marker in a
-  read/modify/write race. Fixing this requires a storage transaction/CAS or
-  a cross-process writer lease owned by the host, beyond lane M's storage
-  port and this fix lane. Safe for the current unshipped Maker core and
-  fake-only certification; integration must use one registry writer until
-  that locking is implemented. Follow-up: lanes V/R/W add shared-storage
-  exclusion and a two-runtime regression before enabling machine commands.
+- **RVM103M-REGISTRY-WRITERS (closed by FIXM103M2, 2026-10-05):** the
+  round-two P1 credential cross-pairing supersedes the prior lost-write P2.
+  Every registry mutation now owns the same exclusive cross-process file
+  lock and commits by revision CAS. Records and HTTP lookups use immutable
+  registration UUIDs; cleanup deletes only that UUID's credential. Two real
+  Node processes prove lock exclusion, duplicate refusal, distinct-record
+  retention, removal and replacement ownership. Stale locks fail closed;
+  operator recovery must first ensure the old writer cannot resume. Host
+  adapters must share the same per-user directory and implement the revised
+  snapshot/CAS port; no unlocked writer or legacy id-keyed lookup is allowed.
+  Maker remains unshipped. Receipts: `docs/certification/m103-m.md`.
 - **RVM103M-JOB-MACROS (acceptance 24 deferral, 2026-10-05):** opaque Klipper
   `PAUSE`/`CANCEL_PRINT` and job pause/cancel remain refused before approval;
   their motion cannot be bounded by this analyser. This is conservative

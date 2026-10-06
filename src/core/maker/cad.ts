@@ -1,9 +1,10 @@
 import { withMakerDeadline } from './machines/deadline'
 import { Buffer } from 'node:buffer'
 import { constants } from 'node:fs'
-import { mkdir, open, realpath, mkdtemp, lstat, rm } from 'node:fs/promises'
+import { mkdir, open, realpath, mkdtemp, lstat, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { handleIdentity, sameFile, statIdentity } from '../fs/fileIdentity'
 import { redactSecrets } from '../../shared/redact'
 import { type Bounds, type Point } from './gcode/analyser'
 import { MachineError } from './registry'
@@ -134,13 +135,25 @@ export function inspectStl(data: Uint8Array, policy: StlPolicy): StlSummary {
   }
   return asciiStl(bytes, policy)
 }
-async function boundedFile(file: string, maxBytes: number): Promise<Buffer> {
+async function boundedFile(file: string, maxBytes: number, root?: string): Promise<Buffer> {
   const before = await lstat(file)
   if (!before.isFile() || before.size > maxBytes) throw new MachineError('cadFileSize')
   const handle = await open(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
   try {
     const stat = await handle.stat()
     if (!stat.isFile() || stat.size > maxBytes) throw new MachineError('cadFileSize')
+    if (root !== undefined) {
+      const canonical = await realpath(file)
+      const within = path.relative(root, canonical)
+      if (
+        within === '..' ||
+        within.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(within) ||
+        stat.nlink !== 1 ||
+        !sameFile(await handleIdentity(handle), await statIdentity(canonical))
+      )
+        throw new MachineError('cadSource')
+    }
     const buffer = Buffer.alloc(maxBytes + 1)
     let size = 0
     while (size < buffer.length) {
@@ -228,7 +241,7 @@ export class CadTools {
     private readonly outputDirectory: string,
     private readonly deps: CadDeps,
   ) {}
-  private async source(relative: string, extension: string): Promise<string> {
+  private async source(relative: string, extension: string): Promise<Buffer> {
     const root = await realpath(this.workspace)
     const file = await realpath(path.resolve(root, relative))
     const within = path.relative(root, file)
@@ -239,8 +252,7 @@ export class CadTools {
       path.extname(file) !== extension
     )
       throw new MachineError('cadSource')
-    await boundedFile(file, this.deps.policy.maxSourceBytes)
-    return file
+    return await boundedFile(file, this.deps.policy.maxSourceBytes, root)
   }
   private async run(
     executable: string,
@@ -274,11 +286,14 @@ export class CadTools {
     readonly summary: StlSummary
     readonly png: Buffer | undefined
   }> {
-    const file = await this.source(relative, '.scad')
+    const source = await this.source(relative, '.scad')
     await mkdir(this.outputDirectory, { recursive: true })
     // Unique per invocation: never accept an old success artifact after a failed run.
     const folder = await mkdtemp(path.join(this.outputDirectory, 'render-'))
     try {
+      // The process reads the checked bytes, never reopens the mutable workspace source.
+      const file = path.join(folder, 'source.scad')
+      await writeFile(file, source, { flag: 'wx', mode: constants.S_IRUSR })
       const stlFile = path.join(folder, 'model.stl')
       await this.run(
         this.deps.policy.openscad,
@@ -321,10 +336,12 @@ export class CadTools {
     kind: 'pcb' | 'sch',
     signal: AbortSignal,
   ): Promise<ReturnType<typeof summarizeKicadReport>> {
-    const file = await this.source(relative, kind === 'pcb' ? '.kicad_pcb' : '.kicad_sch')
+    const source = await this.source(relative, kind === 'pcb' ? '.kicad_pcb' : '.kicad_sch')
     await mkdir(this.outputDirectory, { recursive: true })
     const folder = await mkdtemp(path.join(this.outputDirectory, 'check-'))
     try {
+      const file = path.join(folder, kind === 'pcb' ? 'source.kicad_pcb' : 'source.kicad_sch')
+      await writeFile(file, source, { flag: 'wx', mode: constants.S_IRUSR })
       const reportFile = path.join(folder, 'report.json')
       await this.run(
         this.deps.policy.kicad,

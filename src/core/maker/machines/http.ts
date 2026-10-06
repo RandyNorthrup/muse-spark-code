@@ -42,7 +42,8 @@ export class MachineHttp {
     if (
       record.id !== this.record.id ||
       record.endpoint !== this.record.endpoint ||
-      record.kind !== this.record.kind
+      record.kind !== this.record.kind ||
+      record.registrationId !== this.record.registrationId
     )
       throw new MachineError('machineTargetMismatch')
   }
@@ -75,7 +76,7 @@ export class MachineHttp {
     if (this.address !== undefined && target.address !== this.address)
       throw new MachineError('machineAddressChanged')
     this.address = target.address
-    let key = await this.secrets.get(machineSecretName(this.record.id))
+    let key = await this.secrets.get(machineSecretName(this.record.registrationId))
     try {
       const payload = body === undefined ? undefined : JSON.stringify(body)
       const request = target.url.protocol === 'https:' ? httpsRequest : httpRequest

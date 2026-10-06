@@ -1,8 +1,19 @@
 import capture from '../fixtures/maker/kicad-drc.json'
 import ercCapture from '../fixtures/maker/kicad-erc.json'
 import { Buffer } from 'node:buffer'
+import * as fs from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
-import { mkdtemp, mkdir, rm, writeFile, symlink, readdir } from 'node:fs/promises'
+import {
+  mkdtemp,
+  mkdir,
+  rm,
+  writeFile,
+  symlink,
+  readdir,
+  readFile,
+  rename,
+  link,
+} from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -13,6 +24,10 @@ import {
   type CadPolicy,
   type CadRunner,
 } from '../../src/core/maker/cad'
+
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...(await importOriginal<typeof fs>()),
+}))
 
 const stlPolicy = { maxBytes: 10_000, maxTriangles: 100, maxAbsCoordinate: 1000 }
 function binaryTriangle() {
@@ -131,6 +146,103 @@ async function fixture(canViewImages = true) {
   return { tools, run, workspace, output, policy }
 }
 describe('maker CAD and EDA runners', () => {
+  it.each(['scad', 'pcb', 'sch'] as const)(
+    'runs checked source bytes despite a late outside symlink replacement for %s',
+    async (kind) => {
+      const { tools, workspace, output, run, policy } = await fixture(false)
+      const filename = kind === 'scad' ? 'cube.scad' : `board.kicad_${kind}`
+      const original = await readFile(path.join(workspace, filename))
+      const outside = path.join(workspace, '..', `outside-${filename}`)
+      await writeFile(outside, 'x'.repeat(policy.maxSourceBytes + 1))
+      const makeDirectory = fs.mkdir
+      const replacement = vi.spyOn(fs, 'mkdir').mockImplementation(async (directory, options) => {
+        if (directory === output) {
+          await rm(path.join(workspace, filename))
+          await symlink(outside, path.join(workspace, filename))
+        }
+        return await makeDirectory(directory, options)
+      })
+      const execute = run.getMockImplementation()!
+      run.mockImplementation(async (executable, args, options) => {
+        const staged = args.at(-1)!
+        const actual = await readFile(staged)
+        expect(actual.equals(original)).toBe(true)
+        expect(actual.byteLength).toBeLessThanOrEqual(policy.maxSourceBytes)
+        expect(staged.startsWith(output + path.sep)).toBe(true)
+        return await execute(executable, args, options)
+      })
+      try {
+        if (kind === 'scad') await tools.renderOpenScad(filename, new AbortController().signal)
+        else await tools.checkKicad(filename, kind, new AbortController().signal)
+      } finally {
+        replacement.mockRestore()
+      }
+      expect(run).toHaveBeenCalledTimes(1)
+    },
+  )
+  it('refuses an ancestor retargeted outside the workspace before the source handle opens', async () => {
+    const { tools, workspace, run, policy } = await fixture(false)
+    const folder = path.join(workspace, 'design')
+    const outside = path.join(workspace, '..', 'outside')
+    await mkdir(folder)
+    await mkdir(outside)
+    await writeFile(path.join(folder, 'cube.scad'), 'cube(10);')
+    await writeFile(path.join(outside, 'cube.scad'), 'x'.repeat(policy.maxSourceBytes))
+    const open = fs.open
+    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
+      if (file === path.join(folder, 'cube.scad')) {
+        await rename(folder, `${folder}-saved`)
+        await symlink(outside, folder, 'dir')
+      }
+      return await open(file, flags, mode)
+    })
+    try {
+      await expect(
+        tools.renderOpenScad('design/cube.scad', new AbortController().signal),
+      ).rejects.toThrow('cadSource')
+    } finally {
+      replacement.mockRestore()
+    }
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('size-checks the opened source after replacement with a larger regular file', async () => {
+    const { tools, workspace, run, policy } = await fixture(false)
+    const file = path.join(workspace, 'cube.scad')
+    const open = fs.open
+    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      if (target === file) await writeFile(file, 'x'.repeat(policy.maxSourceBytes + 1))
+      return await open(target, flags, mode)
+    })
+    try {
+      await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
+        'cadFileSize',
+      )
+    } finally {
+      replacement.mockRestore()
+    }
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('binds source confinement to the opened handle rather than a replaced pathname', async () => {
+    const { tools, workspace, run } = await fixture(false)
+    const file = path.join(workspace, 'cube.scad')
+    const open = fs.open
+    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
+      const handle = await open(target, flags, mode)
+      if (target === file) {
+        await rename(file, `${file}-saved`)
+        await writeFile(file, 'cube(20);')
+      }
+      return handle
+    })
+    try {
+      await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
+        'cadSource',
+      )
+    } finally {
+      replacement.mockRestore()
+    }
+    expect(run).not.toHaveBeenCalled()
+  })
   it('removes invocation folders after repeated successful renders and EDA checks', async () => {
     const { tools, output } = await fixture()
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -271,6 +383,10 @@ describe('maker CAD and EDA runners', () => {
     await expect(tools.renderOpenScad('linked.scad', new AbortController().signal)).rejects.toThrow(
       'cadSource',
     )
+    await link(path.join(workspace, '..', 'outside.scad'), path.join(workspace, 'hardlink.scad'))
+    await expect(
+      tools.renderOpenScad('hardlink.scad', new AbortController().signal),
+    ).rejects.toThrow('cadSource')
     await mkdir(path.join(workspace, 'folder.scad'))
     await expect(tools.renderOpenScad('folder.scad', new AbortController().signal)).rejects.toThrow(
       'cadFileSize',
