@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Release stale scheduled mode effects and stopped or withdrawn admissions,
+  settle refused queued fires, and validate steer media before claiming the
+  session so later work can proceed.
+
 ### Fixed
 
 - Replace M115's unshipped scheduled-fire authority with one generation-bound

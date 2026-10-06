@@ -17,6 +17,7 @@ interface FireClaim {
   phase: 'admitting' | 'active' | 'failed'
   readonly observedTurns: Set<string>
   startDispatched: boolean
+  hasStopEvidence: boolean
 }
 
 /** Synchronous owner; wire operations execute its tagged effects outside it. */
@@ -24,7 +25,7 @@ export class SessionOwner {
   private generation = 0
   private fire: FireClaim | undefined
   private mode: string | undefined
-  private modePending = false
+  private modePending: SessionEffect | undefined
   private isQuarantined = false
   private restoring = false
   private readonly liveTurns = new Set<string>()
@@ -41,8 +42,9 @@ export class SessionOwner {
     this.fire = undefined
     this.generation += 1
     this.restoring = true
-    this.modePending = true
-    return { type: 'restore', token: this.token(), mode }
+    const effect: SessionEffect = { type: 'restore', token: this.token(), mode }
+    this.modePending = effect
+    return effect
   }
 
   public get currentTurnId(): string | undefined {
@@ -95,6 +97,7 @@ export class SessionOwner {
       phase: 'admitting',
       observedTurns: new Set(),
       startDispatched: false,
+      hasStopEvidence: false,
     }
     return this.token()
   }
@@ -111,14 +114,16 @@ export class SessionOwner {
       (this.fire !== undefined && (this.fire.run !== run || this.fire.phase === 'failed'))
     )
       return undefined
-    this.modePending = true
-    return { type: 'mode', token, mode }
+    const effect: SessionEffect = { type: 'mode', token, mode }
+    this.modePending = effect
+    return effect
   }
 
   public modeApplied(effect: SessionEffect, didSucceed: boolean): boolean {
-    if (!this.matches(effect.token)) return false
-    this.modePending = false
+    if (this.modePending !== effect) return false
+    this.modePending = undefined
     if (effect.type === 'restore') this.restoring = false
+    if (!this.matches(effect.token)) return false
     this.mode = didSucceed ? effect.mode : undefined
     this.isQuarantined = !didSucceed
     return didSucceed
@@ -140,7 +145,10 @@ export class SessionOwner {
       (run !== undefined && (this.liveTurns.size > 0 || this.starts.size > 0 || !run.isActive()))
     )
       return false
-    if (this.fire !== undefined && this.fire.run === run) this.fire.startDispatched = true
+    if (this.fire !== undefined && this.fire.run === run) {
+      this.fire.startDispatched = true
+      this.fire.hasStopEvidence = false
+    }
     this.starts.add(token)
     return true
   }
@@ -177,6 +185,7 @@ export class SessionOwner {
 
   public observedStart(turnId: string): void {
     if (!this.terminalTurns.has(turnId)) this.liveTurns.add(turnId)
+    if (this.fire !== undefined) this.fire.hasStopEvidence = false
     this.observeFireTurn(turnId)
   }
 
@@ -202,7 +211,7 @@ export class SessionOwner {
       return undefined
     this.fire.turnId = turnId
     this.fire.phase = 'active'
-    return this.terminalTurns.has(turnId) ? this.release() : undefined
+    return this.terminalTurns.has(turnId) || this.fire.hasStopEvidence ? this.release() : undefined
   }
 
   public admissionFailed(token: SessionToken): SessionEffect | undefined {
@@ -214,7 +223,26 @@ export class SessionOwner {
       return
     this.fire.turnId ??= [...this.fire.observedTurns].at(-1)
     this.fire.phase = 'failed'
-    return this.fire.turnId !== undefined && this.terminalTurns.has(this.fire.turnId)
+    return this.fire.hasStopEvidence ||
+      (!this.fire.startDispatched && this.fire.turnId === undefined) ||
+      (this.fire.turnId !== undefined && this.terminalTurns.has(this.fire.turnId))
+      ? this.release()
+      : undefined
+  }
+
+  /** Unambiguous session-wide stop evidence also settles an unknown dispatched turn. */
+  public stopped(): SessionEffect | undefined {
+    for (const turnId of this.liveTurns) this.terminalTurns.add(turnId)
+    this.liveTurns.clear()
+    this.starts.clear()
+    if (this.fire === undefined) return undefined
+    this.fire.hasStopEvidence = true
+    return this.fire.phase === 'failed' ? this.release() : undefined
+  }
+
+  /** A local steer removed before adoption never reached the provider. */
+  public withdraw(run: UnattendedRun): SessionEffect | undefined {
+    return this.fire?.run === run && this.fire.phase === 'admitting' && !this.fire.startDispatched
       ? this.release()
       : undefined
   }

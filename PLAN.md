@@ -6875,6 +6875,27 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115U5 — Close RVM115U4's derived-input and owner lifecycle findings (2026-10-06)
+
+Repair its P1 and all five P2 findings inside lane U's existing architecture.
+Every derived entry explicitly certifies a complete input inventory; cached
+repo maps retain source hashes and identities alongside their text. Audit
+memory digests, file indexes, skill catalogues and other cached model material.
+Generation-tag mode effects so stale acknowledgements clear only their own
+pending record. Release failed native admissions on terminal/idle evidence
+or before any start dispatch; retain ambiguous dispatch quarantine. Settle
+owner-refused queued fires honestly and advance the queue. Validate steer
+media before claiming and release withdrawn or failed unadopted claims.
+Canonicalise each fire's workspace root once for both live and cached-source
+confinement without resolving a cached source alias again.
+
+Add backend regressions, extend the owner interleaving model, and red-drill
+each guard with byte-exact restoration in `docs/certification/m115-u.md`.
+No new dependency, wider guard, external wire shape, live/paid call, merge,
+push or rebase. Bounded default-timeout suites and static/build gates run on
+Kubuntu; W/lead owns aggregate quality. Shared core ports serve all editors.
+Time box: 90 minutes. Record every residual explicitly in §9.
+
 ### REDM115U — Replace scheduled authority and provenance (2026-10-06, implemented)
 
 Replace the native session's scattered mode/admission/start fields with one
@@ -18482,6 +18503,11 @@ joined with M57, M58 and PR #49's sign-in
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**FIXM115U5 lane gate allocation (2026-10-06).** The rig brief forbids
+aggregate quality in lane U; W/lead owns `npm run quality`. This lane runs
+complete bounded owning suites with default timeouts and the required
+static/build checks. No threshold, ignore, timeout or rule changes.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning

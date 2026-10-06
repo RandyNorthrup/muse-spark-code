@@ -1009,7 +1009,10 @@ export class MuseSession implements ScheduledAgentSession {
   }
 
   private async applyModeEffect(effect: SessionEffect): Promise<void> {
-    if (!this.owner.matches(effect.token)) throw new Error(UI_TEXT.scheduleBusy)
+    if (!this.owner.matches(effect.token)) {
+      this.owner.modeApplied(effect, false)
+      throw new Error(UI_TEXT.scheduleBusy)
+    }
     try {
       await this.command('session/setApprovalMode', { mode: effect.mode })
       if (!this.owner.modeApplied(effect, true)) throw new Error(UI_TEXT.scheduleBusy)
@@ -1094,6 +1097,11 @@ export class MuseSession implements ScheduledAgentSession {
       else if (event.type === 'approvalRequested' && event.turnId !== undefined)
         this.owner.observeFireTurn(event.turnId)
       else if (event.type === 'approvalModeChanged') this.owner.observeMode(event.mode)
+      else if (
+        event.type === 'sessionStatus' &&
+        (event.status === 'idle' || event.status === 'stopped')
+      )
+        this.restoreScheduleMode(this.owner.stopped())
     }
     let turnId: string | undefined
     if ('turnId' in event) turnId = event.turnId

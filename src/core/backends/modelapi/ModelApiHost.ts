@@ -10509,6 +10509,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (steer === undefined) {
       return undefined
     }
+    if (steer.scheduleRun !== undefined) {
+      const effect = this.owner.withdraw(steer.scheduleRun)
+      if (effect !== undefined) this.owner.modeApplied(effect, true)
+    }
     turn.acceptedTextAttachmentBytes -= textAttachmentBytes(steer.parts)
     return steer.parts
   }
@@ -11051,8 +11055,36 @@ export class ModelApiSession implements ScheduledAgentSession {
       queued.scheduleRun === undefined
         ? this.owner.token()
         : this.owner.claim(this.owner.token(), queued.scheduleRun)
-    if (claim === undefined || !this.owner.start(claim, queued.scheduleRun))
-      throw new Error(UI_TEXT.scheduleBusy)
+    if (claim === undefined || !this.owner.start(claim, queued.scheduleRun)) {
+      const run = queued.scheduleRun
+      const reason =
+        run === undefined
+          ? UI_TEXT.scheduleBusy
+          : run.refuse(
+              {
+                id: queued.turnId,
+                class: 'requiresAsking',
+                tool: 'admission',
+                paths: [],
+                requiresAsking: true,
+                protectedPath: false,
+              },
+              run.isActive() ? UI_TEXT.scheduleBusy : run.modelText.approvalRefused,
+            )
+      if (claim !== undefined) {
+        const effect = this.owner.admissionFailed(claim)
+        if (effect !== undefined) this.owner.modeApplied(effect, true)
+      }
+      this.emit({
+        type: 'turnCompleted',
+        turnId: queued.turnId,
+        terminal: FAILED,
+        reason,
+        durationMs: 0,
+      })
+      this.startNextQueued()
+      return
+    }
     this.owner.startAcknowledged(claim, queued.turnId, true)
     if (queued.scheduleRun !== undefined) this.owner.admitted(claim, queued.turnId)
     const turn: ActiveTurn = {
@@ -11265,6 +11297,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     this.active = undefined
+    const pendingRun = this.owner.run(turn.turnId)
+    if (pendingRun !== undefined && turn.scheduleRun === undefined) {
+      const effect = this.owner.withdraw(pendingRun)
+      if (effect !== undefined) this.owner.modeApplied(effect, true)
+    }
     const restoration = this.owner.terminal(turn.turnId)
     if (restoration !== undefined) this.owner.modeApplied(restoration, true)
     this.status = IDLE
@@ -11919,6 +11956,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     expectedTurnId: string,
     parts: readonly TurnPart[],
     scheduleRun?: UnattendedRun,
+    waiter?: SessionToken,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -11947,6 +11985,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!this.canQueueSteeredMedia(parts)) {
       return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
     }
+    if (
+      scheduleRun !== undefined &&
+      (waiter === undefined || this.owner.claim(waiter, scheduleRun, expectedTurnId) === undefined)
+    )
+      return Promise.reject(new SteerRefusedError(UI_TEXT.scheduleBusy))
     const userMessageId = this.deps.newId()
     this.active.acceptedTextAttachmentBytes += addedTextBytes
     this.active.steered.push({
@@ -12102,9 +12145,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       throw new SteerRefusedError(TURN_NOT_RUNNING)
     if (this.owner.run() !== undefined) return await this.sendScheduledTurn(parts, run)
     if (!this.providerTurns.has(expectedTurnId)) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-    const token = this.owner.claim(waiter, run, expectedTurnId)
-    if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
-    return await this.steerTurn(expectedTurnId, run.parts(parts), run)
+    return await this.steerTurn(expectedTurnId, run.parts(parts), run, waiter)
   }
 
   public sendTurn(

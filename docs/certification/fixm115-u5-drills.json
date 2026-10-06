@@ -1,0 +1,79 @@
+[
+  {
+    "mutation": "stale-mode",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-1: a stale native mode acknowledgement",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "undispatched-admission",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-2: a revoked native fire",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "idle-admission",
+    "path": "src/core/schedules/sessionOwner.ts",
+    "sha256Before": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "sha256Restored": "b9107f592ab0ee0610c0c6c0f7fd1c5af9540e6f0f3227fd33c52c1f5f9c6a6e",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-2: native idle evidence",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "queue-settlement",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-3: an inactive queued fire",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "media-before-claim",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a media refused steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "withdraw-claim",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a withdrawn steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  },
+  {
+    "mutation": "stop-unadopted",
+    "path": "src/core/backends/modelapi/ModelApiHost.ts",
+    "sha256Before": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "sha256Restored": "08aa7790229cd6461d5e1749cdb09fbfa30671c39b3fa72c2d2a3b1f723a634a",
+    "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
+    "test": "RVM115U4 P2-4: a stopped steer",
+    "exitCode": 1,
+    "assertionFailed": true,
+    "byteExact": true
+  }
+]

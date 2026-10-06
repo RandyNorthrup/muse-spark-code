@@ -75,8 +75,10 @@ describe('native session serialized authority', () => {
     if (effect === undefined) throw new Error('Expected mode effect')
     expect(owner.modeApplied(effect, false)).toBe(false)
     expect(owner.start(owner.token(), current.run)).toBe(false)
-    owner.admissionFailed(current.token)
-    expect(owner.isFailed(current.run)).toBe(true)
+    const restore = owner.admissionFailed(current.token)
+    expect(owner.isFailed(current.run)).toBe(false)
+    expect(owner.start(owner.token())).toBe(false)
+    applied(owner, restore)
     expect(owner.canSteer(current.token, 'finished-before-ack', current.run)).toBe(false)
     expect(owner.modeApplied({ ...effect, token }, true)).toBe(false)
   })
@@ -96,6 +98,84 @@ describe('native session serialized authority', () => {
     expect(owner.canSteer(child, 'fire-a', first.run)).toBe(false)
     expect(owner.modeEffect(child, 'allowAll', next.run)).toBeUndefined()
     expect(owner.start(child, first.run)).toBe(false)
+  })
+
+  it('RVM115U4 P2-1: stale and duplicate acknowledgements clear only their own mode record', () => {
+    const owner = new SessionOwner('promptUnmatched')
+    const token = owner.token()
+    owner.start(token)
+    owner.startAcknowledged(token, 'ordinary', true)
+    const stale = owner.modeEffect(owner.token(), 'allowAll')
+    if (stale === undefined) throw new Error('Expected pending mode')
+    owner.terminal('ordinary')
+    expect(owner.modeApplied(stale, true)).toBe(false)
+    const current = owner.modeEffect(owner.token(), 'denyUnmatched')
+    expect(current).toBeDefined()
+    expect(owner.modeApplied(stale, false)).toBe(false)
+    expect(owner.start(owner.token())).toBe(false)
+    applied(owner, current)
+    expect(owner.start(owner.token())).toBe(true)
+  })
+
+  it.each([false, true])(
+    'RVM115U4 P2-2 model: admission failure and idle evidence interleave (dispatch=%s)',
+    (didDispatch) => {
+      for (const order of permutations(['failure', 'idle', 'unrelated'] as const)) {
+        const owner = new SessionOwner('denyUnmatched')
+        const { token, run } = fire(owner)
+        if (didDispatch) expect(owner.start(token, run)).toBe(true)
+        let hasFailed = false
+        let hasStopped = false
+        let isReleased = false
+        for (const action of order) {
+          const effect =
+            action === 'failure'
+              ? owner.admissionFailed(token)
+              : action === 'idle'
+                ? owner.stopped()
+                : owner.terminal('unrelated')
+          hasFailed ||= action === 'failure'
+          hasStopped ||= action === 'idle'
+          const shouldRelease = hasFailed && (!didDispatch || hasStopped)
+          expect(effect !== undefined).toBe(shouldRelease && !isReleased)
+          if (effect !== undefined) {
+            applied(owner, effect)
+            isReleased = true
+          }
+          expect(owner.run() === run).toBe(!isReleased)
+          const next = owner.token()
+          expect(owner.start(next)).toBe(isReleased)
+          if (isReleased) owner.startFailed(next)
+        }
+      }
+    },
+  )
+
+  it('RVM115U4 P2-4 model: withdrawing a local steer preserves ordinary turn evidence in every terminal order', () => {
+    for (const order of permutations(['withdraw', 'terminal', 'unrelated'] as const)) {
+      const owner = new SessionOwner('promptUnmatched')
+      const ordinary = owner.token()
+      owner.start(ordinary)
+      owner.startAcknowledged(ordinary, 'ordinary', true)
+      const { run } = unattendedRun()
+      expect(owner.claim(owner.token(), run, 'ordinary')).toBeDefined()
+      let isWithdrawn = false
+      let hasEnded = false
+      for (const action of order) {
+        const effect =
+          action === 'withdraw'
+            ? owner.withdraw(run)
+            : owner.terminal(action === 'terminal' ? 'ordinary' : 'unrelated')
+        if (effect !== undefined) applied(owner, effect)
+        isWithdrawn ||= action === 'withdraw'
+        hasEnded ||= action === 'terminal'
+        expect(owner.run() === run).toBe(!isWithdrawn)
+        expect(owner.currentTurnId === 'ordinary').toBe(!hasEnded)
+        const next = owner.token()
+        expect(owner.start(next)).toBe(isWithdrawn)
+        if (isWithdrawn) owner.startFailed(next)
+      }
+    }
   })
 
   it('model: every completion order preserves generation, mode, admission and turn evidence', () => {
@@ -138,12 +218,9 @@ describe('native session serialized authority', () => {
               return
             }
             case 'stale': {
-              expect(owner.modeEffect(waiter, 'denyUnmatched') !== undefined).toBe(
-                !isStale && !isFireLive,
-              )
-              // Finish the mode effect, keeping the independent reference idle.
-              const mode = { type: 'mode', token: waiter, mode: 'promptUnmatched' } as const
-              if (!isStale && !isFireLive) applied(owner, mode)
+              const mode = owner.modeEffect(waiter, 'denyUnmatched')
+              expect(mode !== undefined).toBe(!isStale && !isFireLive)
+              if (mode !== undefined) applied(owner, mode)
               return
             }
             case 'terminal': {

@@ -305,6 +305,93 @@ async function heldOrdinaryStart(fixture: Awaited<ReturnType<typeof museBackend>
 }
 
 describe('scheduled Model API dispatch', () => {
+  it('RVM115U4 P2-3: an inactive queued fire settles refused and advances the ordinary queue', async () => {
+    const fixture = await modelBackend()
+    const held = heldReply()
+    fixture.api.script(held.reply, { text: 'next ordinary' })
+    const ordinaryDone = fixture.turnDone()
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    await held.entered.promise
+    let isActive = true
+    const { run } = fixture.run(undefined, { isActive: () => isActive })
+    const fire = await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run)
+    const next = await fixture.session.sendTurn([{ type: 'text', text: 'Next ordinary' }])
+    isActive = false
+    held.held.resolve(undefined)
+    await ordinaryDone
+    await settle()
+    expect(fixture.events).toContainEqual(
+      expect.objectContaining({
+        type: 'turnCompleted',
+        turnId: fire.turnId,
+        terminal: 'failed',
+        reason: run.modelText.approvalRefused,
+      }),
+    )
+    await vi.waitFor(() => {
+      expect(fixture.events).toContainEqual(
+        expect.objectContaining({
+          type: 'turnStarted',
+          turnId: next.turnId,
+        }),
+      )
+    })
+    expect(run.refusedActions).toContainEqual(expect.objectContaining({ tool: 'admission' }))
+    expect(fixture.api.responseBodies()).toHaveLength(2)
+    await fixture.host.close()
+  })
+
+  it.each(['media refused', 'withdrawn', 'stopped'] as const)(
+    'RVM115U4 P2-4: a %s steer releases its unadopted fire claim',
+    async (scenario) => {
+      const fixture = await modelBackend()
+      const held = heldReply()
+      fixture.api.script(held.reply, { text: 'next' })
+      const ordinaryDone = fixture.turnDone()
+      const ordinary = await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+      await held.entered.promise
+      const { run } = fixture.run()
+      if (scenario === 'media refused') {
+        const bytes = pdfFixture(1)
+        const parts = Array.from({ length: 51 }, (_, index) => ({
+          type: 'file' as const,
+          name: `docs/file-${String(index)}.pdf`,
+          mediaType: 'application/pdf',
+          base64Data: Buffer.from(bytes).toString('base64'),
+          sizeBytes: bytes.length,
+          pageCount: 1,
+        }))
+        await expect(
+          fixture.session.steerScheduledTurn(ordinary.turnId, parts, run),
+        ).rejects.toThrow()
+      } else {
+        const steer = await fixture.session.steerScheduledTurn(
+          ordinary.turnId,
+          [{ type: 'text', text: 'Fire' }],
+          run,
+        )
+        expect(fixture.session.getScheduledRun()).toBe(run)
+        if (scenario === 'withdrawn') {
+          expect(
+            await fixture.session.withdrawQueued({ ...steer, userMessageId: steer.userMessageId }),
+          ).toMatchObject({ status: 'withdrawn' })
+        } else {
+          await fixture.session.cancel()
+        }
+      }
+      if (scenario !== 'stopped') expect(fixture.session.getScheduledRun()).toBeUndefined()
+      held.held.resolve(undefined)
+      await ordinaryDone
+      await settle()
+      expect(fixture.session.getScheduledRun()).toBeUndefined()
+      const done = fixture.turnDone()
+      await fixture.session.sendTurn([{ type: 'text', text: 'Next' }])
+      await done
+      expect(fixture.events.at(-2)).toMatchObject({ type: 'turnCompleted', terminal: 'completed' })
+      await fixture.host.close()
+    },
+  )
+
   it('REDM115U: a scheduled steer before the ordinary first dispatch refuses before acceptance and queues honestly', async () => {
     const fixture = await modelBackend()
     const entered = Promise.withResolvers<undefined>()
@@ -1557,6 +1644,77 @@ describe('scheduled Model API dispatch', () => {
 })
 
 describe('scheduled Muse Code dispatch over captured MSP frames', () => {
+  it('RVM115U4 P2-1: a stale native mode acknowledgement clears only its pending effect', async () => {
+    const fixture = await museBackend()
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    fixture.server.silence('session/setApprovalMode')
+    const mode = fixture.session.setApprovalMode('allowAll')
+    const refused = expect(mode).rejects.toThrow()
+    await vi.waitFor(() => {
+      expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(1)
+    })
+    await completeMuseTurn(fixture)
+    answerNative(fixture, 'session/setApprovalMode', 0, modeResult)
+    await refused
+    await expect(fixture.session.sendTurn([{ type: 'text', text: 'Next' }])).resolves.toMatchObject(
+      { disposition: 'started' },
+    )
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P2-2: native idle evidence releases a failed admission with an unknown dispatched turn', async () => {
+    const fixture = await museBackend('denyUnmatched')
+    fixture.server.handle('turn/start', () => {
+      throw new Error('start refused')
+    })
+    const { run } = unattendedRun()
+    await expect(
+      fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),
+    ).rejects.toThrow()
+    expect(fixture.session.getScheduledRun()).toBe(run)
+    fixture.server.notify('session/statusChanged', {
+      sessionId: fixture.session.sessionId,
+      status: 'idle',
+    })
+    await settle()
+    expect(fixture.session.getScheduledRun()).toBeUndefined()
+    expect(fixture.server.requestsFor('session/setApprovalMode').at(-1)?.params?.['mode']).toBe(
+      'denyUnmatched',
+    )
+    await fixture.host.close()
+  })
+
+  it('RVM115U4 P2-2: a revoked native fire before dispatch releases and restores its mode', async () => {
+    const fixture = await museBackend('denyUnmatched')
+    fixture.server.silence('session/setApprovalMode')
+    let isActive = true
+    const { run } = unattendedRun({ isActive: () => isActive })
+    const fire = fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run)
+    const refused = expect(fire).rejects.toThrow()
+    await vi.waitFor(() => {
+      expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(1)
+    })
+    isActive = false
+    fixture.server.handle('session/setApprovalMode', modeResult)
+    answerNative(fixture, 'session/setApprovalMode', 0, modeResult)
+    await refused
+    await vi.waitFor(() => {
+      expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(2)
+    })
+    answerNative(fixture, 'session/setApprovalMode', 1, modeResult)
+    await settle()
+    expect(fixture.session.getScheduledRun()).toBeUndefined()
+    expect(fixture.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(fixture.server.requestsFor('turn/cancel')).toHaveLength(0)
+    expect(fixture.server.requestsFor('session/setApprovalMode').at(-1)?.params?.['mode']).toBe(
+      'denyUnmatched',
+    )
+    await expect(fixture.session.sendTurn([{ type: 'text', text: 'Next' }])).resolves.toMatchObject(
+      { disposition: 'started' },
+    )
+    await fixture.host.close()
+  })
+
   it('RVM115U3 P1-1: a public Bypass waiter cannot mutate the next fire after a held restoration', async () => {
     const fixture = await museBackend()
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'A' }], unattendedRun().run)
