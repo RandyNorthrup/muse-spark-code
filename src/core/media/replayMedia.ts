@@ -94,6 +94,8 @@ function metadataPart(media: StoredMediaPart): Extract<InputContentPart, { type:
 /** Structural host seam: W can bind a lazy adapter without inheriting this implementation. */
 export interface MediaReplayPort {
   readonly beginRequest: ReplayMedia['beginRequest']
+  readonly pending: ReplayMedia['pending']
+  readonly assertPendingFits: ReplayMedia['assertPendingFits']
   readonly content: ReplayMedia['content']
   readonly restore: ReplayMedia['restore']
   readonly prepare: ReplayMedia['prepare']
@@ -159,6 +161,34 @@ export class ReplayMedia {
           part.type === 'input_text'))
       ? 'upload'
       : 'inline'
+  }
+
+  public pending(input: readonly InputItem[]): InputContentPart[] {
+    return this.managed(input).filter((part) => this.parts.get(part)?.delivered !== true)
+  }
+
+  public assertPendingFits(
+    content: readonly InputContentPart[],
+    budget: MediaBudget,
+    queued?: { readonly chars: number; readonly slots: number },
+  ): void {
+    try {
+      budget.assertMessageFits(content, queued)
+    } catch (error) {
+      const names = new Set(
+        content.flatMap((part) => {
+          const media = this.parts.get(part)
+          return media === undefined ? [] : [media.name]
+        }),
+      )
+      throw new Error(
+        [
+          error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge,
+          ...Array.from(names, (name) => fill(UI_TEXT.removeAttachmentNamed, { name })),
+        ].join('\n'),
+        { cause: error },
+      )
+    }
   }
 
   public beginRequest(): void {
@@ -309,7 +339,7 @@ export class ReplayMedia {
   ): readonly InputItem[] {
     if (this.managed(input).length === 0) return input
     const model = this.model(modelId)
-    return input.map((item) => {
+    const projected = input.map((item) => {
       if (item.type !== 'message' || item.role !== 'user') return item
       const hasFreshMedia = item.content.some((part) => {
         const media = this.parts.get(part)
@@ -324,9 +354,17 @@ export class ReplayMedia {
             type: 'input_text',
             text: this.deps.codec.omittedText(media, model, 'modality'),
           }
-        if (model.files !== 'yes' && (media.file !== undefined || (media.files?.length ?? 0) > 0))
-          return { type: 'input_text', text: this.deps.codec.omittedText(media, model, 'files') }
         const file = this.fileFor(media, model)
+        if (file === undefined && (media.file !== undefined || (media.files?.length ?? 0) > 0))
+          return { type: 'input_text', text: this.deps.codec.omittedText(media, model, 'files') }
+        if (file === undefined) {
+          const inlineGate = modalityGate(media.info, model, media.fps, 'inline')
+          if (!inlineGate.ok)
+            return {
+              type: 'input_text',
+              text: this.deps.codec.omittedText(media, model, 'modality'),
+            }
+        }
         const inline = this.inline.get(part) ?? part
         if (file === undefined && inline === part && this.restored.has(part))
           return { type: 'input_text', text: this.deps.codec.omittedText(media, model, 'source') }
@@ -349,9 +387,11 @@ export class ReplayMedia {
         )
         return encoded
       })
-      if (hasFreshMedia) budget.assertMessageFits(content)
+      if (hasFreshMedia) this.assertPendingFits(content, budget)
       return { ...item, content }
     })
+    this.assertPendingFits(this.pending(projected), budget)
+    return projected
   }
 
   /** Preserve canonical media when fitted/model-switched request views are committed. */

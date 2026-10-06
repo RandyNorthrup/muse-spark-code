@@ -5,6 +5,7 @@ import { ReplayMedia, storedMediaPartSchema } from '../../src/core/media/replayM
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import type { StoredReplayItem } from '../../src/core/backends/modelapi/sessionStore'
 import type { UploadSource } from '../../src/core/backends/modelapi/files'
+import type { InputItem } from '../../src/core/backends/modelapi/schemas'
 import {
   mediaModel,
   replayRig,
@@ -17,6 +18,68 @@ import { replayLedgerRig } from './helpers/media/replayLedger'
 const signal = (): AbortSignal => new AbortController().signal
 
 describe('media replay and metadata persistence', () => {
+  it('checks the actual inline limit until an upload-bound attachment has a selected-provider file', async () => {
+    const rig = replayRig(videoMedia(), {
+      capabilities: (id) => {
+        const model = mediaModel(id)
+        return {
+          ...model,
+          modalities: {
+            ...model.modalities,
+            video: { ...model.modalities.video, inlineMaxBytes: 1 },
+          },
+        }
+      },
+    })
+    rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget)
+    expect(rig.encodeInline).not.toHaveBeenCalled()
+    await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    expect(JSON.stringify(rig.replay.project(rig.input, 'muse-spark-1.3', rig.budget))).toContain(
+      'test-upload:',
+    )
+    expect(rig.encodeUploaded).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses cumulative fresh media across pending messages before fitting can omit any attachment', () => {
+    const rig = replayRig()
+    const content = () =>
+      rig.replay.content(
+        { type: 'text', text: 'host-issued-token' },
+        { type: 'input_text', text: 'token' },
+        'muse-spark-1.3',
+        rig.budget,
+      )
+    const input = Array.from({ length: 2 }, (): InputItem => ({
+      type: 'message',
+      role: 'user',
+      content: Array.from({ length: 26 }, content),
+    }))
+    expect(() => rig.replay.project(input, 'muse-spark-1.3', rig.budget)).toThrow()
+  })
+
+  it('refuses cumulative fresh inline characters across pending messages', () => {
+    const rig = replayRig(videoMedia(), {
+      capabilities: (id) => ({ ...mediaModel(id), files: 'no' }),
+    })
+    rig.encodeInline.mockReturnValue({
+      part: { type: 'input_text', text: 'inline-marker' },
+      encodedChars: 6,
+    })
+    const other = rig.replay.content(
+      { type: 'text', text: 'token' },
+      { type: 'input_text', text: 'token' },
+      'muse-spark-1.3',
+      rig.budget,
+    )
+    expect(() =>
+      rig.replay.project(
+        [...rig.input, { type: 'message', role: 'user', content: [other] }],
+        'muse-spark-1.3',
+        new MediaBudget(10),
+      ),
+    ).toThrow('combined media size limit')
+  })
+
   it.each(['image', 'document'] as const)(
     'restores approved inline-only %s bytes and refuses missing sources without encoding metadata',
     async (kind) => {
@@ -26,7 +89,10 @@ describe('media replay and metadata persistence', () => {
         ...videoMedia(),
         name: kind === 'image' ? 'photo.png' : 'report.pdf',
         sha256: createHash('sha256').update(data).digest('hex'),
-        info: { kind, mediaType: kind === 'image' ? 'image/png' : 'application/pdf', sizeBytes: 3 },
+        info:
+          kind === 'image'
+            ? ({ kind, mediaType: 'image/png', sizeBytes: 3 } as const)
+            : ({ kind, mediaType: 'application/pdf', sizeBytes: 3 } as const),
       }
       const rig = replayRig(media, {
         capabilities: (id) => ({ ...mediaModel(id), files: 'no' }),
@@ -186,6 +252,11 @@ describe('media replay and metadata persistence', () => {
       ledger: (provider) => ({ ensure: provider === 'gemini' ? geminiEnsure : metaEnsure }),
     })
     await rig.replay.prepare(rig.input, 'muse-spark-1.3', signal())
+    expect(JSON.stringify(rig.replay.project(rig.input, 'gemini-video', rig.budget))).not.toContain(
+      'file-meta',
+    )
+    expect(rig.encodeInline).not.toHaveBeenCalled()
+    expect(rig.encodeUploaded).not.toHaveBeenCalled()
     await rig.replay.prepare(rig.input, 'gemini-video', signal())
     expect(rig.replay.project(rig.input, 'gemini-video', rig.budget)).toMatchObject([
       { content: [{ text: expect.stringContaining('file-gemini') }] },

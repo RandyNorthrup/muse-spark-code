@@ -5,6 +5,47 @@ import { MODEL_API_MODEL_TEXT } from '../../src/shared/constants'
 import { pdfFixture } from './helpers/pdfFixture'
 
 describe('Model API replay media budget', () => {
+  it('refuses overfull required media instead of fitting it as delivered history', () => {
+    const required = Array.from(
+      { length: 51 },
+      () =>
+        ({
+          type: 'input_image',
+          image_url: 'data:image/png;base64,AQ==',
+          detail: 'auto',
+        }) as const,
+    )
+    const input: readonly InputItem[] = [{ type: 'message', role: 'user', content: required }]
+    expect(() => new MediaBudget().fit(input, required)).toThrow()
+  })
+
+  it.each(['slots', 'chars'])(
+    'reserves %s for undelivered media before fitting later delivered history',
+    (limit) => {
+      const pending = {
+        type: 'input_image',
+        image_url: 'data:image/png;base64,AQ==',
+        detail: 'auto',
+      } as const
+      const delivered = { ...pending, image_url: 'data:image/png;base64,AA==' }
+      const input: readonly InputItem[] = [
+        { type: 'message', role: 'user', content: [pending] },
+        {
+          type: 'message',
+          role: 'user',
+          content: Array.from({ length: limit === 'slots' ? 50 : 1 }, () => delivered),
+        },
+      ]
+      const budget = new MediaBudget(limit === 'chars' ? pending.image_url.length : undefined)
+      const fitted = budget.fit(input, [pending])
+      expect(fitted[0]).toBe(input[0])
+      expect(fitted[1]).toMatchObject({
+        content: expect.arrayContaining([expect.objectContaining({ type: 'input_text' })]),
+      })
+      expect(budget.omitted).toBe(true)
+    },
+  )
+
   it('counts uploaded video in the shared 50-media budget while its bytes consume no inline budget', () => {
     const part = { type: 'input_text', text: 'test-upload:file-clip' } as const
     const budget = new MediaBudget(0)

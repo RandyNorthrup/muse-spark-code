@@ -82,6 +82,120 @@ async function sendMediaTurn(h: Awaited<ReturnType<typeof setup>>): Promise<void
 }
 
 describe('Model API media integration through injected ports', () => {
+  it('preserves restored undelivered media ahead of newer delivered history during host fitting', async () => {
+    const h = await setup()
+    try {
+      await sendMediaTurn(h)
+      const snapshot = h.session.snapshot()
+      const entry = snapshot.replay.find((entry) => entry.media !== undefined)
+      const media = entry?.media?.[0]?.media
+      if (media === undefined || entry?.item.type !== 'message')
+        throw new Error('Expected saved media message')
+      const part = entry.item.content[0]
+      if (part === undefined) throw new Error('Expected saved media content')
+      const { delivered: _delivered, ...pending } = media
+      h.session.adopt({
+        ...snapshot,
+        replay: [
+          { ...entry, turnId: 'pending-old', media: [{ index: 0, media: pending }] },
+          {
+            ...entry,
+            turnId: 'delivered-later',
+            item: {
+              ...entry.item,
+              content: Array.from({ length: 50 }, () => structuredClone(part)),
+            },
+            media: Array.from({ length: 50 }, (_, index) => ({ index, media })),
+          },
+        ],
+      })
+      const done = h.turnDone()
+      await h.session.sendTurn([{ type: 'text', text: 'continue' }])
+      await done
+      const input = h.api.responseBodies().at(-1)?.['input']
+      expect(input).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            content: [{ type: 'input_text', text: expect.stringContaining('test-upload:') }],
+          }),
+        ]),
+      )
+      expect(JSON.stringify(input).match(/test-upload:/gu)).toHaveLength(50)
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+    } finally {
+      await h.host.close()
+    }
+  })
+
+  it('refuses steering that would overfill accepted pending media and delivers every accepted attachment', async () => {
+    const h = await setup()
+    const hold = Promise.withResolvers<undefined>()
+    const requested = Promise.withResolvers<undefined>()
+    h.api.script({
+      hold: hold.promise,
+      onRequest: () => {
+        requested.resolve(undefined)
+      },
+    })
+    try {
+      const done = h.turnDone()
+      const turn = await h.session.sendTurn([{ type: 'text', text: 'hello' }])
+      await requested.promise
+      const parts = Array.from(
+        { length: 26 },
+        () => ({ type: 'text', text: 'opaque-media' }) as const,
+      )
+      expect(await h.session.steer(turn.turnId, parts)).toMatchObject({ disposition: 'steered' })
+      await expect(h.session.steer(turn.turnId, parts)).rejects.toThrow('Remove clip.mp4')
+      expect(await h.session.steer(turn.turnId, parts.slice(0, 24))).toMatchObject({
+        disposition: 'steered',
+      })
+      expect(h.rig.ensure).not.toHaveBeenCalled()
+      hold.resolve(undefined)
+      await done
+      expect(h.api.responseBodies()).toHaveLength(2)
+      expect(JSON.stringify(h.api.responseBodies().at(-1)).match(/test-upload:/gu)).toHaveLength(50)
+      expect(h.session.snapshot().replay.flatMap((entry) => entry.media ?? [])).toHaveLength(50)
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+    } finally {
+      hold.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
+  it('counts initial undelivered media while admitting steering during authorization', async () => {
+    const admission = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const h = await setup({
+      authorize: async () => {
+        entered.resolve(undefined)
+        await admission.promise
+      },
+    })
+    try {
+      const done = h.turnDone()
+      const parts = Array.from(
+        { length: 26 },
+        () => ({ type: 'text', text: 'opaque-media' }) as const,
+      )
+      const turn = await h.session.sendTurn(parts)
+      await entered.promise
+      await expect(h.session.steer(turn.turnId, parts)).rejects.toThrow('Remove clip.mp4')
+      expect(h.api.responseBodies()).toHaveLength(0)
+      expect(h.rig.ensure).not.toHaveBeenCalled()
+      admission.resolve(undefined)
+      await done
+      expect(JSON.stringify(h.api.responseBodies()[0]).match(/test-upload:/gu)).toHaveLength(26)
+    } finally {
+      admission.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
   it.each([true, false])(
     'forks an inline-only image with approved source availability %s honestly',
     async (available) => {
@@ -379,6 +493,7 @@ describe('Model API media integration through injected ports', () => {
       expect(many.rig.ensure).not.toHaveBeenCalled()
       expect(many.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
         terminal: 'failed',
+        reason: expect.stringContaining('Remove clip.mp4'),
       })
     } finally {
       await many.host.close()

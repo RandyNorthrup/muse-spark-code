@@ -124,16 +124,25 @@ export class MediaBudget {
   }
 
   /** Fresh media must fit whole; only older replay can be elided. */
-  public assertMessageFits(content: readonly InputContentPart[]): void {
-    if (
-      content.reduce((total, part) => total + this.weightOf(part), 0) > MODEL_API_MEDIA_PER_REQUEST
-    )
+  public assertMessageFits(
+    content: readonly InputContentPart[],
+    queued?: { readonly chars: number; readonly slots: number },
+  ): void {
+    const usage = this.usage(content)
+    if (usage.slots + (queued?.slots ?? 0) > MODEL_API_MEDIA_PER_REQUEST)
       throw new Error(UI_TEXT.documentsOverBudget)
-    if (
-      content.reduce((total, part) => total + this.encodedChars(part), 0) >
-      this.maxEncodedMediaChars
-    )
+    if (usage.chars + (queued?.chars ?? 0) > this.maxEncodedMediaChars)
       throw new Error(UI_TEXT.mediaTotalTooLarge)
+  }
+
+  public usage(content: readonly InputContentPart[]): {
+    readonly chars: number
+    readonly slots: number
+  } {
+    return {
+      chars: content.reduce((total, part) => total + this.encodedChars(part), 0),
+      slots: content.reduce((total, part) => total + this.weightOf(part), 0),
+    }
   }
 
   /**
@@ -142,10 +151,17 @@ export class MediaBudget {
    * A changed item keeps retained content-part identities so the caller can
    * tell which pending tool-read media actually reached that request.
    */
-  public fit(input: readonly InputItem[]): readonly InputItem[] {
-    let left = MODEL_API_MEDIA_PER_REQUEST
-    let encodedLeft = this.maxEncodedMediaChars
+  public fit(
+    input: readonly InputItem[],
+    required: readonly InputContentPart[] = [],
+  ): readonly InputItem[] {
+    this.assertMessageFits(required)
+    const reserved = this.usage(required)
+    const protectedParts = new Set(required)
+    let left = MODEL_API_MEDIA_PER_REQUEST - reserved.slots
+    let encodedLeft = this.maxEncodedMediaChars - reserved.chars
     const canRetain = (part: InputContentPart): boolean => {
+      if (protectedParts.has(part)) return true
       const weight = this.weightOf(part)
       if (weight === 0) {
         return true

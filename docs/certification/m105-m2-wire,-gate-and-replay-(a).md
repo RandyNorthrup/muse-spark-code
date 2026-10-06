@@ -344,3 +344,114 @@ Five byte-exact red controls, each exit 1:
 
 Every control restored `replayMedia.ts` to the same before/after SHA-256:
 `4fe9bdd34af846efc873dbcf6567d09af74b115878d496aee4a0e30a3436822e`.
+
+### P2 cumulative pending-media admission and fitting
+
+The host counts managed undelivered replay and host-issued media tokens in
+queued steering, alongside pending tool media. Managed read-file parts are
+counted once. A candidate steer is checked against the whole pending turn
+before admission; refusal preserves accepted input and names attachments to
+remove using existing localized `removeAttachmentNamed` templates.
+Projection also checks all fresh media across messages, including actual
+inline encoded characters. Fitting reserves required undelivered media first;
+only delivered history competes for the remaining slots/characters.
+
+The two-steer regression holds the first fake response, admits 26 videos,
+refuses another 26, then admits 24 and proves all **50 accepted attachments**
+reach the next request. A second host test holds initial authorization and
+proves its initial 26 pending videos count before accepting steering. Core
+tests cover two fresh messages exceeding slots/characters, overfull required
+parts, and reserving older undelivered input ahead of newer delivered history.
+The host also exercises that ordering with restored metadata.
+
+Before the fix both cumulative core tests and both steering tests failed
+their refusal assertions. The final positive set is **730 tests**: gate,
+budget and store **44**; replay, host-media and unchanged no-media goldens
+**71**; the complete host file **615**. Every run used default timeouts and
+at most three complete files with `--maxWorkers=3`.
+
+Seven red controls, each exit 1 and restored byte-exact:
+
+| Mutation                                      | Named failure                                                                                                                          | Hash | Scratch log                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | ---- | ----------------------------------------- |
+| Remove aggregate projection check             | refuses cumulative fresh media across pending messages before fitting can omit any attachment; cumulative inline characters also fails | R1   | `temp/m105m2-fix-cumulative-red.log`      |
+| Ignore pending canonical replay               | counts initial undelivered media while admitting steering during authorization                                                         | R2   | `temp/m105m2-fix-pending-replay-red.log`  |
+| Ignore token media in queued steers           | refuses steering that would overfill accepted pending media and delivers every accepted attachment                                     | R2   | `temp/m105m2-fix-pending-steers-red.log`  |
+| Remove fitting reservation                    | reserves slots/chars for undelivered media before fitting later delivered history                                                      | R3   | `temp/m105m2-fix-fit-reservation-red.log` |
+| Remove fitting protection                     | reserves slots/chars for undelivered media before fitting later delivered history                                                      | R3   | `temp/m105m2-fix-fit-protection-red.log`  |
+| Remove required-media bound                   | refuses overfull required media instead of fitting it as delivered history                                                             | R3   | `temp/m105m2-fix-fit-required-red.log`    |
+| Stop forwarding pending parts to host fitting | preserves restored undelivered media ahead of newer delivered history during host fitting                                              | R4   | `temp/m105m2-fix-host-fit-red.log`        |
+
+Before/after restoration SHA-256 values:
+
+- **R1** `replayMedia.ts`: `cc1a4b729f797d7a7f9562a6907e3f1b62cc470b33ed6e84cc737679c2fb85c4`
+- **R2** `ModelApiHost.ts`: `369ba30662bd4c9fbc668c655ee166ded08b4ef1e315aeae316939bc98079f65`
+- **R3** `mediaBudget.ts`: `2c2a0ce3197f6a4be120397dfb8f78159b9c2094a69532e91dd583607531f006`
+- **R4** `ModelApiHost.ts`: `84db3f790b32a9061e8960b889e5c4a1b2b93a238a7df1ad6750ee341d3cdc26`
+
+An initial host-ordering fixture reused the same content-part object in
+pending and delivered messages, unlike JSON restore. It failed positive
+verification and that initial control was not certified. Cloning each
+history part fixed the fixture; the full positive file passed, then the host
+control was rerun to the named failure and byte-exact restoration above.
+The first budget reservation assertion also expected a one-part history
+array; it was corrected to check an omission within the preserved array.
+
+### Dispatch route and provider-boundary follow-through
+
+Until a selected-provider upload reference exists, projection checks the
+actual inline allowance too. An uploaded portfolio without a selected-provider
+reference never falls back to inline encoding. This closes the same route and
+metadata-honesty boundary if a provider changes around preparation.
+
+Two additional red controls (exit 1): disabling that inline check failed
+**checks the actual inline limit until an upload-bound attachment has a
+selected-provider file**; restoring the old Files-availability guard failed
+**uses provider-scoped ledgers and keeps both IDs when switching vendors and
+back**. Both restored `replayMedia.ts` byte-exact to
+`a9a11ea3aeb54cb3e2c11118223cf0048f6959db7df7b3c108325273cc156173`.
+Logs: `temp/m105m2-fix-dispatch-route-red.log` and
+`temp/m105m2-fix-provider-ref-red.log`.
+
+All three review findings are fixed; no P1/P2/P3 finding is deferred. **15 new
+red controls fired**. Existing captured codec, M95, private-source, ledger,
+cost/consent and editor bindings remain named integration handoffs, now also
+recorded in PLAN §9. W's lazy adapter must forward `pending` and
+`assertPendingFits`, provide the explicit `source` refusal note, and update
+the shipped docs/reference and generated gate records. These unbound ports
+still make no claim of enabled media or live wire certification.
+
+### Final follow-up checks — Kubuntu
+
+| Command/check                                                                                                                          | Result                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/modalityGate.test.ts test/unit/mediaBudget.test.ts test/unit/sessionStore.test.ts --maxWorkers=3`            | 44 passed, default timeout                                                                                                                          |
+| `npx vitest run test/unit/replayMedia.test.ts test/unit/modelApiMedia.test.ts test/unit/modelApiGoldenRequests.test.ts --maxWorkers=3` | 71 passed, default timeout; goldens unchanged                                                                                                       |
+| `npx vitest run test/unit/modelApiHost.test.ts --maxWorkers=3`                                                                         | 615 passed, default timeout                                                                                                                         |
+| `npm run typecheck`                                                                                                                    | all five projects passed; fixed widened MIME literals in the synthetic inline restore fixture                                                       |
+| ESLint on all ten changed TypeScript files, `--max-warnings=0`                                                                         | passed; preserved the caught budget error as `cause`, kept private methods first, and used an optional queued-usage parameter                       |
+| Prettier on all twelve changed files; `git diff --check`                                                                               | passed                                                                                                                                              |
+| `npm run deadcode`                                                                                                                     | passed; two inherited configuration hints                                                                                                           |
+| `npx jscpd`                                                                                                                            | zero clones                                                                                                                                         |
+| `npm run cycles`                                                                                                                       | no cycles, 565 modules                                                                                                                              |
+| `npm run check:l10n`                                                                                                                   | 14 tables, 164 manifest strings, 603 source files; zero problems                                                                                    |
+| `npm run check:host-api`                                                                                                               | exit 1: W's generated inventory refresh; observed buffer 39→45, child_process 13→14, crypto 46→49, fs 33→34, fs/promises 47→48, os 9→10, path 84→85 |
+| `npm run build`                                                                                                                        | production compilation passed; unchanged deferred browser JS 51.1/50 KiB fails the size gate                                                        |
+| `node scripts/check-bundle-split.mjs`                                                                                                  | exit 1: inherited W registrations for `files.ts` and type-only `codecs/responses.ts`                                                                |
+| `node scripts/check-host-globals.mjs`                                                                                                  | passed, zero Node-bundle `navigator` references                                                                                                     |
+| `node scripts/third-party-notices.mjs`                                                                                                 | passed, 83 bundled packages                                                                                                                         |
+
+Production sizes: extension **443.7/600 KiB**, Model API **453.9/475 KiB**,
+ACP **823.8/850 KiB**, checkpoint store **77.0/225 KiB**, English fallback
+**49.3/125 KiB**, browser startup **899.2/900 KiB**, deferred browser JS
+**51.1/50 KiB**. No budget or gate was raised. The brief reserves full quality,
+integration and cross-platform receipts for the lead; PLAN §7 and §9 name
+the W handoffs. No tool/dependency was installed, no new translation key was
+needed, and no live/paid/provider call, merge, rebase or push was performed.
+
+Changed files from `92b4e157d`: `PLAN.md`, this certification record;
+`src/core/media/modalityGate.ts`, `src/core/media/replayMedia.ts`;
+`src/core/backends/modelapi/ModelApiHost.ts`, `mediaBudget.ts`,
+`codecs/responses.ts`; `test/unit/modalityGate.test.ts`,
+`replayMedia.test.ts`, `modelApiMedia.test.ts`, `mediaBudget.test.ts`,
+and `test/unit/helpers/media/replay.ts`.

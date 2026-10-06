@@ -20075,6 +20075,19 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
+reserves full quality/full-unit and integrated cross-platform certification
+for the lead. Scoped regression files, typecheck, lint/format, dead-code,
+duplication, cycles, localization and production compilation run directly on
+Kubuntu. The enforced W handoffs remain red: deferred browser JS 51.1/50 KiB;
+`files.ts` and `codecs/responses.ts` missing from the backend split lists; and
+the generated host importer inventory (buffer 39→45, crypto 46→49, plus the
+inherited child_process/fs/fs-promises/os/path drift). W must repair them
+before integration. No cap, ignore, timeout or rule is weakened. The Model
+API bundle is 453.9/475 KiB. All three review findings are fixed; §9 records
+the named integration handoffs and why the unbound ports remain safe.
+Receipts: `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`.
+
 **M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
 requires direct focused suites and forbids full quality/full unit runs and
 merging another branch. Full quality and cross-platform gates remain the
@@ -21265,6 +21278,27 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M105-M2-review-and-bindings (RVM105M2, W/V/E1/E2/C/A).** All three P2
+  findings are fixed with regressions and byte-exact red drills in
+  `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`; no review finding
+  is deferred. The existing integration handoffs still require captured
+  provider codecs and capability records, approved private source adapters,
+  provider/account ledgers, and price/Contributor/soundtrack admission across
+  editors. The lazy host adapter must forward `pending` and
+  `assertPendingFits`; the captured codec's new `source` omission must state
+  that the attachment is unavailable and needs reattachment. Inline image/PDF
+  restore checks authorization, size and SHA-256 before encoding; other
+  unavailable inline formats refuse explicitly. Overfull pending turns use
+  existing localized `removeAttachmentNamed` hints. W owns shipped
+  README/CHANGELOG/reference updates because these ports remain unbound here.
+- **M105-M2-W-gate-handoff (W).** The inherited deferred browser JavaScript
+  size overage, generated host API importer counts and backend split-list
+  registration remain W responsibilities. The inline restore adds Node buffer
+  and crypto imports to the portable replay module, which the generated host
+  inventory must include. No gate is weakened, no full quality or live/paid
+  certification is claimed, and these ports remain unavailable without their
+  required bindings. W must repair the gates within their current budgets
+  before integrating or enabling the feature.
 - **M105-M1-resource-monitor-binding (M107/W/E1/E2).** RVM105M1's encoding
   resource finding is fixed by the growing-output watcher, hard RSS watchdog
   and encoding/sample deadlines. On this base M107's process ticket is absent;

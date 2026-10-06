@@ -3145,7 +3145,8 @@ export class ModelApiSession implements AgentSession {
   private body(): CreateResponseBody {
     this.drainChildResults()
     const replay = this.replay.map((entry) => entry.item)
-    const fitted = this.budget.fit(this.media?.project(replay, this.modelId, this.budget) ?? replay)
+    const projected = this.media?.project(replay, this.modelId, this.budget) ?? replay
+    const fitted = this.budget.fit(projected, this.media?.pending(projected))
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
@@ -5240,7 +5241,7 @@ export class ModelApiSession implements AgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
-    if (this.media !== undefined) this.budget.assertMessageFits(content)
+    this.media?.assertPendingFits(content, this.budget)
     return content
   }
 
@@ -5381,8 +5382,11 @@ export class ModelApiSession implements AgentSession {
 
   /** Media awaiting the next request: tool outputs, read files and accepted steering. */
   private queuedMediaUsage(): { readonly chars: number; readonly slots: number } {
-    let chars = 0
-    let slots = 0
+    const pending = this.media?.pending(this.replay.map((entry) => entry.item)) ?? []
+    const managed = new Set(pending)
+    const usage = this.budget.usage(pending)
+    let chars = usage.chars
+    let slots = usage.slots
     for (const file of this.readFiles) {
       chars += turnMediaEncodedChars(file.part)
       slots += turnMediaSlots(file.part)
@@ -5390,6 +5394,7 @@ export class ModelApiSession implements AgentSession {
     for (const replay of this.replay) {
       const pending = this.readFileMessages.get(replay) ?? []
       for (const file of pending) {
+        if (managed.has(file.media)) continue
         chars += file.encodedChars
         slots += file.slots
       }
@@ -5402,6 +5407,12 @@ export class ModelApiSession implements AgentSession {
     }
     const steers = this.active?.steered ?? []
     for (const steer of steers) {
+      if (this.media !== undefined) {
+        const usage = this.budget.usage(this.contentParts(steer.parts))
+        chars += usage.chars
+        slots += usage.slots
+        continue
+      }
       for (const part of steer.parts) {
         if (part.type !== 'image' && part.type !== 'file') {
           continue
@@ -5432,6 +5443,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
+    if (this.media !== undefined) {
+      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      return true
+    }
     let chars = 0
     let slots = 0
     for (const part of parts) {
@@ -11241,8 +11256,14 @@ export class ModelApiSession implements AgentSession {
     if (textBudgetError !== undefined) {
       return Promise.reject(new SteerRefusedError(textBudgetError.message))
     }
-    if (!this.canQueueSteeredMedia(parts)) {
-      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+    try {
+      if (!this.canQueueSteeredMedia(parts)) {
+        return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+      }
+    } catch (error) {
+      return Promise.reject(
+        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge),
+      )
     }
     const userMessageId = this.deps.newId()
     this.active.acceptedTextAttachmentBytes += addedTextBytes
