@@ -2341,6 +2341,8 @@
   "structuredOutputFallback": "構造化された回答を検証できませんでした。テキスト形式の回答を使用します。",
   "outputSchemaInvalid": "出力スキーマが対応する厳密なサブセットの範囲外です: {detail}",
   "outputSchemaMismatch": "最終回答が出力スキーマに一致しません: {detail}",
+  "outputSchemaTooComplex": "出力スキーマが複雑すぎます: 展開されたノード数は {count} です。",
+  "outputSchemaWorkBudget": "出力スキーマ検証の作業上限を超えました: {count} ステップ。",
   "outputSchemaReadFailed": "出力スキーマを読み取れませんでした: {detail}",
   "modelApiStatusLabel": "Meta API の状態",
   "modelApiStatusUnavailable": "状態を取得できません",

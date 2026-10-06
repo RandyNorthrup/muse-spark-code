@@ -2435,6 +2435,8 @@
   "structuredOutputFallback": "A strukturált választ nem sikerült ellenőrizni. A szöveges válasz kerül felhasználásra.",
   "outputSchemaInvalid": "A kimeneti séma kívül esik a támogatott szigorú részhalmazon: {detail}",
   "outputSchemaMismatch": "A végső válasz nem felel meg a kimeneti sémának: {detail}",
+  "outputSchemaTooComplex": "A kimeneti séma túl összetett: {count} kibontott csomópont.",
+  "outputSchemaWorkBudget": "A kimeneti séma ellenőrzése túllépte a munkakeretet: {count} lépés.",
   "outputSchemaReadFailed": "A kimeneti séma nem olvasható: {detail}",
   "modelApiStatusLabel": "A Meta API állapota",
   "modelApiStatusUnavailable": "Az állapot nem érhető el",

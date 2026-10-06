@@ -2341,6 +2341,8 @@
   "structuredOutputFallback": "구조화된 답변을 검증할 수 없습니다. 텍스트 답변을 사용합니다.",
   "outputSchemaInvalid": "출력 스키마가 지원되는 엄격한 하위 집합을 벗어납니다: {detail}",
   "outputSchemaMismatch": "최종 답변이 출력 스키마와 일치하지 않습니다: {detail}",
+  "outputSchemaTooComplex": "출력 스키마가 너무 복잡합니다: 확장된 노드 {count}개.",
+  "outputSchemaWorkBudget": "출력 스키마 검증 작업 한도를 초과했습니다: {count}단계.",
   "outputSchemaReadFailed": "출력 스키마를 읽을 수 없습니다: {detail}",
   "modelApiStatusLabel": "Meta API 상태",
   "modelApiStatusUnavailable": "상태를 확인할 수 없음",

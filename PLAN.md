@@ -19407,6 +19407,23 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**O2 review repair (FIXM106O2, 2026-10-06).** Address all six RVM106O2
+findings within O2 ownership: compile local references once with memoised
+expansion counts and named preflight/answer work budgets; resolve the schema
+and workspace with realpath before reading, requiring an explicit
+`--output-schema-outside` for outside targets; scrub decoded values before
+serialising JSONL messages and final output; use `Number.isInteger`, including
+enums (JSON transport can lose precision beyond 2^53); include `$defs` names
+in the string budget; and request schema-conforming JSON as prompt text when
+the selected capability record offers no schema format or forced tool,
+reporting `output.validation = 'local'` in both the result and human summary.
+The structured result becomes `output: { value, validation }`, with validation
+`'provider'` for a declared wire format and `'local'` for the text fallback.
+Existing schema-free records remain byte-identical. Each finding gets a
+regression and a byte-exact restored red drill in `docs/certification/m106-o2.md`.
+Production CLI/provider/canonical result wiring and public help remain W's
+named handoffs; scoped gates run on this rig, aggregate quality stays with lead.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
@@ -21096,6 +21113,13 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+- **FIXM106O2 / `outputSchema.ts` / `unicorn/prefer-number-is-safe-integer`.**
+  One inline suppression retains `Number.isInteger` because JSON Schema's
+  integer type includes integral numbers outside JavaScript's safe range.
+  The outgoing schema imposes no safe-integer restriction. RVM106O2 P2-4's
+  regression and restored red drill prove both normal integers and integer
+  enums accept 2^53; transport precision limitations are documented.
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

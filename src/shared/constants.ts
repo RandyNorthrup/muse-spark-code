@@ -3037,6 +3037,8 @@ export const EXEC_DEFAULT_MAX_REQUESTS = 30
 export const EXEC_MAX_REQUESTS = 500
 export const EXEC_MAX_BUDGET_USD = 20
 export const EXEC_PROMPT_MAX_BYTES = 262_144
+// Bound synchronous schema expansion and answer validation so Stop can run.
+export const EXEC_OUTPUT_SCHEMA_LIMITS = { expandedNodes: 50_000, validationSteps: 10_000 } as const
 export const EXEC_KEY_MAX_BYTES = 4096
 export const EXEC_UNTRUSTED_FILES_MAX = 8
 export const EXEC_UNTRUSTED_FILE_MAX_BYTES = 1_048_576

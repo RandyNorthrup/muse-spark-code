@@ -2623,6 +2623,8 @@
   "structuredOutputFallback": "Strukturovanou odpověď se nepodařilo ověřit. Použije se textová odpověď.",
   "outputSchemaInvalid": "Výstupní schéma je mimo podporovanou striktní podmnožinu: {detail}",
   "outputSchemaMismatch": "Konečná odpověď neodpovídá výstupnímu schématu: {detail}",
+  "outputSchemaTooComplex": "Výstupní schéma je příliš složité: {count} rozbalených uzlů.",
+  "outputSchemaWorkBudget": "Překročen pracovní limit ověřování výstupního schématu: {count} kroků.",
   "outputSchemaReadFailed": "Výstupní schéma se nepodařilo přečíst: {detail}",
   "modelApiStatusLabel": "Stav API Meta",
   "modelApiStatusUnavailable": "Stav není dostupný",

@@ -2341,6 +2341,8 @@
   "structuredOutputFallback": "無法驗證結構化回答。將使用文字回答。",
   "outputSchemaInvalid": "輸出結構描述不在支援的嚴格子集內：{detail}",
   "outputSchemaMismatch": "最終回答不符合輸出結構描述：{detail}",
+  "outputSchemaTooComplex": "輸出結構描述過於複雜：{count} 個展開節點。",
+  "outputSchemaWorkBudget": "輸出結構描述驗證超出工作預算：{count} 步。",
   "outputSchemaReadFailed": "無法讀取輸出結構描述：{detail}",
   "modelApiStatusLabel": "Meta API 狀態",
   "modelApiStatusUnavailable": "狀態無法取得",

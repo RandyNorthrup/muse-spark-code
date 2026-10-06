@@ -2435,6 +2435,8 @@
   "structuredOutputFallback": "Yapılandırılmış yanıt doğrulanamadı. Metin yanıtı kullanılacak.",
   "outputSchemaInvalid": "Çıktı şeması desteklenen katı alt kümenin dışında: {detail}",
   "outputSchemaMismatch": "Son yanıt çıktı şemasıyla eşleşmiyor: {detail}",
+  "outputSchemaTooComplex": "Çıktı şeması çok karmaşık: {count} genişletilmiş düğüm.",
+  "outputSchemaWorkBudget": "Çıktı şeması doğrulama iş bütçesi aşıldı: {count} adım.",
   "outputSchemaReadFailed": "Çıktı şeması okunamadı: {detail}",
   "modelApiStatusLabel": "Meta API durumu",
   "modelApiStatusUnavailable": "Durum bilgisi alınamıyor",

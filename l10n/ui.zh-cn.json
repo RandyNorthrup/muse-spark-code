@@ -2341,6 +2341,8 @@
   "structuredOutputFallback": "无法验证结构化回答。将使用文本回答。",
   "outputSchemaInvalid": "输出架构不在支持的严格子集内：{detail}",
   "outputSchemaMismatch": "最终回答不符合输出架构：{detail}",
+  "outputSchemaTooComplex": "输出架构过于复杂：{count} 个展开节点。",
+  "outputSchemaWorkBudget": "输出架构验证超出工作预算：{count} 步。",
   "outputSchemaReadFailed": "无法读取输出架构：{detail}",
   "modelApiStatusLabel": "Meta API 状态",
   "modelApiStatusUnavailable": "状态不可用",

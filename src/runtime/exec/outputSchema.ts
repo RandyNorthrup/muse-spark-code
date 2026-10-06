@@ -1,7 +1,12 @@
 import * as z from 'zod/mini'
 import { fingerprint } from '../../core/verify/fingerprint'
-import { EXEC_PROMPT_MAX_BYTES, MCP_SCHEMA_LIMITS, UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import {
+  EXEC_PROMPT_MAX_BYTES,
+  EXEC_OUTPUT_SCHEMA_LIMITS,
+  MCP_SCHEMA_LIMITS,
+  UI_TEXT,
+} from '../../shared/constants'
+import { fill, formatNumber } from '../../shared/l10n/text'
 
 const types = ['object', 'array', 'string', 'number', 'integer', 'boolean', 'null'] as const
 type SchemaType = (typeof types)[number]
@@ -50,11 +55,17 @@ export interface OutputSchema {
   /** Digest of the exact file bytes, including whitespace. No path or schema in the ledger. */
   readonly sha256: string
   readonly schema: Record<string, unknown>
-  parseAnswer(
-    text: string,
-  ):
+  parseAnswer(text: string):
     | { readonly ok: true; readonly value: z.core.util.JSONType }
-    | { readonly ok: false; readonly detail: string }
+    | {
+        readonly ok: false
+        readonly detail: string
+        readonly kind?: 'output_schema_validation_budget'
+      }
+}
+
+function tooComplex(count: number): never {
+  throw new Error(fill(UI_TEXT.outputSchemaTooComplex, { count: formatNumber(count) }))
 }
 
 function invalid(detail: string): never {
@@ -111,25 +122,24 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
     if (definition === undefined) invalid('$ref')
     return definition
   }
-  const checkReferenceCycle = (node: SchemaNode, seen: Set<SchemaNode>): void => {
-    if (node.type !== undefined) return
-    if (seen.has(node) || seen.size > MCP_SCHEMA_LIMITS.depth) invalid('$ref cycle')
-    seen.add(node)
-    if (node.$ref !== undefined) checkReferenceCycle(target(node.$ref), seen)
-    const children = node.anyOf ?? []
-    for (const child of children) checkReferenceCycle(child, new Set(seen))
-  }
+  const references = new Map<SchemaNode, SchemaNode>()
+  const nodes: SchemaNode[] = []
   let propertyCount = 0
   let enumValues = 0
   let stringChars = 0
   const check = (node: SchemaNode, depth: number): void => {
+    nodes.push(node)
     if (depth > MCP_SCHEMA_LIMITS.depth) invalid('depth')
     for (const text of [node.title, node.description, ...(node.enum ?? [])])
       if (typeof text === 'string') stringChars += text.length
     if (stringChars > MCP_SCHEMA_LIMITS.stringChars) invalid('strings')
     if (node.$defs !== undefined) {
       if (node !== root) invalid('$defs')
-      for (const definition of Object.values(node.$defs)) check(definition, depth + 1)
+      for (const [name, definition] of Object.entries(node.$defs)) {
+        stringChars += name.length
+        if (stringChars > MCP_SCHEMA_LIMITS.stringChars) invalid('strings')
+        check(definition, depth + 1)
+      }
     }
     const hasReference = node.$ref !== undefined
     const hasUnion = node.anyOf !== undefined
@@ -193,7 +203,7 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
       )
         invalid('enum strings')
     }
-    if (hasReference || hasUnion) checkReferenceCycle(node, new Set())
+    if (node.$ref !== undefined) references.set(node, target(node.$ref))
     if (node.anyOf === undefined) {
       return
     }
@@ -202,62 +212,88 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
     for (const child of node.anyOf) check(child, depth + 1)
   }
   check(root, 0)
-  const validators = new Map<SchemaNode, z.ZodMiniType>()
-  const compile = (node: SchemaNode): z.ZodMiniType => {
-    const existing = validators.get(node)
-    if (existing !== undefined) return existing
-    // Register before resolving refs so recursive objects are supported.
-    const lazy = z.lazy(() => {
-      let validator: z.ZodMiniType
-      if (node.$ref !== undefined) validator = compile(target(node.$ref))
-      else if (node.anyOf === undefined) {
-        const typed = (type: SchemaType): z.ZodMiniType => {
-          switch (type) {
-            case 'object': {
-              return z.strictObject(
-                Object.fromEntries(
-                  Object.entries(node.properties ?? {}).map(([key, value]) => [
-                    key,
-                    compile(value),
-                  ]),
-                ),
-              )
-            }
-            case 'array': {
-              return z.array(compile(node.items ?? invalid('items')))
-            }
-            case 'string': {
-              return z.string()
-            }
-            case 'number': {
-              return z.number()
-            }
-            case 'integer': {
-              return z.number().check(z.int())
-            }
-            case 'boolean': {
-              return z.boolean()
-            }
-            case 'null': {
-              return z.null()
-            }
-          }
-        }
-        validator = Array.isArray(node.type)
-          ? z.union(node.type.map((type) => typed(type)))
-          : typed(node.type ?? invalid('type'))
-      } else {
-        validator = z.union(node.anyOf.map((child) => compile(child)))
-      }
-      const values = new Set<unknown>(node.enum)
-      return node.enum === undefined
-        ? validator
-        : validator.check(z.refine((value) => values.has(value)))
-    })
-    validators.set(node, lazy)
-    return lazy
+  // Resolve once. The reference/union graph between typed nodes must be a
+  // DAG; typed objects/arrays are recursion boundaries consuming answer depth.
+  const expansions = new Map<SchemaNode, { count: number; depth: number }>()
+  const visiting = new Set<SchemaNode>()
+  const expand = (node: SchemaNode): { count: number; depth: number } => {
+    const cached = expansions.get(node)
+    if (cached !== undefined) return cached
+    if (visiting.has(node)) invalid('$ref cycle')
+    visiting.add(node)
+    let count = 1
+    let depth = 0
+    const reference = references.get(node)
+    const children = reference === undefined ? (node.anyOf ?? []) : [reference]
+    for (const child of children) {
+      const expanded = expand(child)
+      count += expanded.count
+      depth = Math.max(depth, expanded.depth + 1)
+      if (count > EXEC_OUTPUT_SCHEMA_LIMITS.expandedNodes) tooComplex(count)
+      if (depth > MCP_SCHEMA_LIMITS.depth + 1) invalid('$ref depth')
+    }
+    visiting.delete(node)
+    const result = { count, depth }
+    expansions.set(node, result)
+    return result
   }
-  const validator = compile(root)
+  let expandedNodes = 0
+  for (const node of nodes) {
+    expandedNodes += expand(node).count
+    if (expandedNodes > EXEC_OUTPUT_SCHEMA_LIMITS.expandedNodes) tooComplex(expandedNodes)
+  }
+  const compiled = new Map(
+    nodes.map((node) => [
+      node,
+      {
+        reference: references.get(node),
+        types: node.type === undefined ? [] : [node.type].flat(),
+        properties: Object.entries(node.properties ?? {}),
+        values: node.enum === undefined ? undefined : new Set<unknown>(node.enum),
+      },
+    ]),
+  )
+  const isValidAnswer = (answer: z.core.util.JSONType): boolean => {
+    // Primitive values compare by value; JSON containers by identity. Both are
+    // stable for this immutable parse. Count cache hits as work too.
+    const memo = new Map<SchemaNode, Map<z.core.util.JSONType, boolean>>()
+    let steps = 0
+    const spend = (count: number): void => {
+      steps += count
+      if (steps > EXEC_OUTPUT_SCHEMA_LIMITS.validationSteps)
+        throw new Error(fill(UI_TEXT.outputSchemaWorkBudget, { count: formatNumber(steps) }))
+    }
+    const isMatch = (node: SchemaNode, value: z.core.util.JSONType): boolean => {
+      spend(1)
+      const cached = memo.get(node)?.get(value)
+      if (cached !== undefined) return cached
+      let isValid: boolean
+      const spec = compiled.get(node) ?? invalid('node')
+      if (spec.reference !== undefined) isValid = isMatch(spec.reference, value)
+      else if (node.anyOf === undefined) {
+        isValid = spec.types.some((type) => isType(type, value))
+        if (isValid && Array.isArray(value))
+          isValid = value.every((item) => isMatch(node.items ?? invalid('items'), item))
+        else if (isValid && typeof value === 'object' && value !== null && !Array.isArray(value)) {
+          const keys = Object.keys(value)
+          spend(keys.length)
+          isValid =
+            keys.length === spec.properties.length &&
+            spec.properties.every(
+              ([key, child]) => Object.hasOwn(value, key) && isMatch(child, value[key] ?? null),
+            )
+        }
+        if (isValid && spec.values !== undefined) isValid = spec.values.has(value)
+      } else {
+        isValid = node.anyOf.some((child) => isMatch(child, value))
+      }
+      const entries = memo.get(node) ?? new Map<z.core.util.JSONType, boolean>()
+      entries.set(value, isValid)
+      memo.set(node, entries)
+      return isValid
+    }
+    return isMatch(root, answer)
+  }
   return {
     sha256: fingerprint(source),
     schema: z.record(z.string(), z.unknown()).parse(decoded),
@@ -269,17 +305,29 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
         return { ok: false, detail: 'JSON' }
       }
       if (!isBounded(answer)) return { ok: false, detail: 'depth / nodes' }
-      const checked = validator.safeParse(answer)
-      return checked.success
-        ? { ok: true, value: outputJsonSchema.parse(checked.data) }
-        : { ok: false, detail: 'schema' }
+      const json = outputJsonSchema.safeParse(answer)
+      if (!json.success) return { ok: false, detail: 'JSON' }
+      try {
+        return isValidAnswer(json.data)
+          ? { ok: true, value: json.data }
+          : { ok: false, detail: 'schema' }
+      } catch (error: unknown) {
+        return {
+          ok: false,
+          kind: 'output_schema_validation_budget',
+          detail: error instanceof Error ? error.message : UI_TEXT.outputSchemaWorkBudget,
+        }
+      }
     },
   }
 }
 
 function isType(type: SchemaType, value: unknown): boolean {
   if (type === 'null') return value === null
+  if (type === 'object') return typeof value === 'object' && value !== null && !Array.isArray(value)
+  if (type === 'array') return Array.isArray(value)
   return type === 'integer'
-    ? typeof value === 'number' && Number.isSafeInteger(value)
+    ? // eslint-disable-next-line unicorn/prefer-number-is-safe-integer -- JSON Schema integer means integral; transport precision is separate (PLAN §8, RVM106O2 P2-4).
+      typeof value === 'number' && Number.isInteger(value)
     : typeof value === type
 }

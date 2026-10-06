@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
-import { describe, expect, it } from 'vitest'
+import { spawn } from 'node:child_process'
+import { buildSync } from 'esbuild'
+import { beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 
@@ -23,6 +25,65 @@ const sample = () =>
     note: { type: ['string', 'null'] },
     scores: { type: 'array', items: { type: 'integer', enum: [0, 1, 2] } },
   })
+
+// Build once; each hostile synchronous probe runs in an isolated process so a
+// broken guard cannot prevent Vitest's own deadline from firing.
+const probeBundles: string[] = []
+beforeAll(() => {
+  const bundle = buildSync({
+    entryPoints: ['src/runtime/exec/outputSchema.ts'],
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    write: false,
+    logLevel: 'silent',
+  })
+  probeBundles.push(bundle.outputFiles[0]?.text ?? '')
+})
+function probe(script: string): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['-'], { stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    const timer = setTimeout(() => {
+      child.kill()
+      reject(new Error('probe blocked the event loop'))
+    }, 1500)
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk
+    })
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk
+    })
+    child.on('error', reject)
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      if (code === 0) {
+        try {
+          resolve(JSON.parse(stdout))
+        } catch (error: unknown) {
+          reject(error instanceof Error ? error : new Error(String(error)))
+        }
+      } else {
+        reject(new Error(stderr || 'probe failed'))
+      }
+    })
+    child.stdin.end(`${probeBundles.join('')}\n${script}`)
+  })
+}
+const probePrelude = `
+const compile = module.exports.compileOutputSchema;
+const encode = value => new TextEncoder().encode(JSON.stringify(value));
+const closed = properties => ({type:'object',properties,required:Object.keys(properties),additionalProperties:false});
+let timerFired = false;
+setTimeout(() => {timerFired = true}, 20);
+const started = performance.now();
+`
+
+const definitionNameSchema = (size: number) => ({
+  ...closed({ a: { $ref: '#/$defs/' + 'x'.repeat(size) } }),
+  $defs: { ['x'.repeat(size)]: { type: 'boolean' } },
+})
 
 describe('M106 O2 strict output schema', () => {
   it('ships additive v1 schema snapshots preserving every base field and event guard', async () => {
@@ -241,6 +302,58 @@ describe('M106 O2 strict output schema', () => {
     const bom = Uint8Array.from([239, 187, 191, ...a])
     expect(compileOutputSchema(bom).sha256).toBe(createHash('sha256').update(bom).digest('hex'))
     expect(compileOutputSchema(bom).sha256).not.toBe(compileOutputSchema(a).sha256)
+  })
+  it('refuses exponential reference expansion promptly and lets the 20 ms timer fire', async () => {
+    const result = await probe(`${probePrelude}
+const defs = {d0: {type: 'boolean'}};
+for(let i=1;i<=5;i++) defs['d'+i] = {anyOf:Array.from({length:25},()=>({$ref:'#/$defs/d'+(i-1)}))};
+let error;
+try {compile(encode({...closed({answer:{$ref:'#/$defs/d5'}}),$defs:defs}))} catch(e) {error=e.message}
+const elapsed = performance.now()-started;
+setTimeout(()=>process.stdout.write(JSON.stringify({error,elapsed,timerFired})),30);
+`)
+    expect(result).toMatchObject({
+      error: expect.stringMatching(/schema too complex.*[0-9]/u),
+      timerFired: true,
+    })
+    expect(z.object({ elapsed: z.number() }).parse(result).elapsed).toBeLessThan(50)
+  })
+  it('memoises recursive union answers promptly and lets the 20 ms timer fire', async () => {
+    const result = await probe(`${probePrelude}
+const schema=compile(encode(closed({value:{type:'string'},next:{anyOf:[{type:'null'},...Array.from({length:10},()=>({$ref:'#'}))]}})));
+let answer={value:1,next:null};
+for(let i=0;i<8;i++) answer={value:'a',next:answer};
+const result=schema.parseAnswer(JSON.stringify(answer));
+const elapsed=performance.now()-started;
+setTimeout(()=>process.stdout.write(JSON.stringify({result,elapsed,timerFired})),30);
+`)
+    expect(result).toMatchObject({ result: { ok: false, detail: 'schema' }, timerFired: true })
+    expect(z.object({ elapsed: z.number() }).parse(result).elapsed).toBeLessThan(50)
+  })
+  it('fails closed with a named error when answer validation exhausts its work budget', () => {
+    const schema = compileOutputSchema(
+      encode(closed({ a: { type: 'array', items: { type: 'integer' } } })),
+    )
+    expect(schema.parseAnswer(JSON.stringify({ a: integerValues(20_000) }))).toMatchObject({
+      ok: false,
+      kind: 'output_schema_validation_budget',
+      detail: expect.stringContaining('work budget'),
+    })
+  })
+  it('accepts integral JSON numbers beyond the safe-integer range including enums', () => {
+    const value = { n: 9_007_199_254_740_992 }
+    for (const rule of [{ type: 'integer' }, { type: 'integer', enum: [value.n] }]) {
+      const schema = compileOutputSchema(encode(closed({ n: rule })))
+      expect(schema.parseAnswer(JSON.stringify(value))).toEqual({ ok: true, value })
+      expect(schema.parseAnswer('{"n":1.5}').ok).toBe(false)
+    }
+  })
+  it('counts definition names in the schema string-character budget', () => {
+    expect(
+      compileOutputSchema(encode(definitionNameSchema(119_999))).parseAnswer('{"a":true}').ok,
+    ).toBe(true)
+    expect(() => compileOutputSchema(encode(definitionNameSchema(120_000)))).toThrow('strings')
+    expect(() => compileOutputSchema(encode(definitionNameSchema(120_001)))).toThrow('strings')
   })
   it('counts enum values across the whole schema before accepting it', () => {
     expect(compileOutputSchema(encode(enumSchema(500))).parseAnswer('{"a":499,"b":499}').ok).toBe(

@@ -2529,6 +2529,8 @@
   "structuredOutputFallback": "Non è stato possibile convalidare la risposta strutturata. Verrà usata la risposta testuale.",
   "outputSchemaInvalid": "Lo schema di output non rientra nel sottoinsieme rigoroso supportato: {detail}",
   "outputSchemaMismatch": "La risposta finale non corrisponde allo schema di output: {detail}",
+  "outputSchemaTooComplex": "Schema di output troppo complesso: {count} nodi espansi.",
+  "outputSchemaWorkBudget": "Budget di lavoro per la convalida dello schema di output superato: {count} passaggi.",
   "outputSchemaReadFailed": "Impossibile leggere lo schema di output: {detail}",
   "modelApiStatusLabel": "Stato dell’API Meta",
   "modelApiStatusUnavailable": "Stato non disponibile",

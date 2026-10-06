@@ -2623,6 +2623,8 @@
   "structuredOutputFallback": "Nie udało się zweryfikować odpowiedzi strukturalnej. Zostanie użyta odpowiedź tekstowa.",
   "outputSchemaInvalid": "Schemat wyjścia wykracza poza obsługiwany ścisły podzbiór: {detail}",
   "outputSchemaMismatch": "Ostateczna odpowiedź nie pasuje do schematu wyjścia: {detail}",
+  "outputSchemaTooComplex": "Schemat wyjściowy jest zbyt złożony: {count} rozwiniętych węzłów.",
+  "outputSchemaWorkBudget": "Przekroczono limit pracy walidacji schematu wyjściowego: {count} kroków.",
   "outputSchemaReadFailed": "Nie udało się odczytać schematu wyjścia: {detail}",
   "modelApiStatusLabel": "Stan API Meta",
   "modelApiStatusUnavailable": "Stan niedostępny",

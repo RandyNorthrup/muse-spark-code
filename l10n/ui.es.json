@@ -2529,6 +2529,8 @@
   "structuredOutputFallback": "No se pudo validar la respuesta estructurada. Se usará la respuesta de texto.",
   "outputSchemaInvalid": "El esquema de salida queda fuera del subconjunto estricto admitido: {detail}",
   "outputSchemaMismatch": "La respuesta final no coincide con el esquema de salida: {detail}",
+  "outputSchemaTooComplex": "El esquema de salida es demasiado complejo: {count} nodos expandidos.",
+  "outputSchemaWorkBudget": "Se superó el límite de trabajo de validación del esquema de salida: {count} pasos.",
   "outputSchemaReadFailed": "No se pudo leer el esquema de salida: {detail}",
   "modelApiStatusLabel": "Estado de la API de Meta",
   "modelApiStatusUnavailable": "Estado no disponible",

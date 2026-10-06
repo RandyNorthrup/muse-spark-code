@@ -2529,6 +2529,8 @@
   "structuredOutputFallback": "La réponse structurée n’a pas pu être validée. La réponse textuelle sera utilisée.",
   "outputSchemaInvalid": "Le schéma de sortie dépasse le sous-ensemble strict pris en charge : {detail}",
   "outputSchemaMismatch": "La réponse finale ne correspond pas au schéma de sortie : {detail}",
+  "outputSchemaTooComplex": "Schéma de sortie trop complexe : {count} nœuds développés.",
+  "outputSchemaWorkBudget": "Budget de travail de validation du schéma de sortie dépassé : {count} étapes.",
   "outputSchemaReadFailed": "Impossible de lire le schéma de sortie : {detail}",
   "modelApiStatusLabel": "État de l’API Meta",
   "modelApiStatusUnavailable": "État indisponible",
