@@ -721,6 +721,7 @@
   "questionBackToChoices": "返回选项",
   "questionClarified": "已说明",
   "questionOpen": "待回答的问题",
+  "questionNoLongerOpen": "不再开放",
   "questionDeferred": "已暂缓",
   "questionAnsweredLater": "已稍后回答",
   "questionAnsweredOnReask": "再次询问时已回答",

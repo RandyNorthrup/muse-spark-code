@@ -92,7 +92,35 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M112 attention dock and the two views', () => {
-  it('pins waiting questions oldest first, MCP forms next, with one full dock card', () => {
+  it.each(['focus', 'draft'])(
+    'protects a question with %s when a newer waiting question arrives',
+    (protection) => {
+      const actions = group([waitingQuestion()])
+      const { rerender } = render(scene(actions))
+      const input = within(dock()).getByLabelText('Other: Colour')
+      act(() => {
+        input.focus()
+      })
+      if (protection === 'draft') {
+        fireEvent.change(input, { target: { value: 'Teal' } })
+        act(() => {
+          input.blur()
+        })
+      }
+      const newest = waitingQuestion({
+        userInputId: 'q-2',
+        askedAt: 2000,
+        questions: [{ ...questionFixture().questions[0]!, header: 'Newest' }],
+      })
+      rerender(scene({ ...actions, questions: [questionFixture(), newest] }))
+      expect(within(dock()).getByRole('group', { name: 'Colour' })).toBeVisible()
+      expect(within(dock()).queryByRole('group', { name: 'Newest' })).toBeNull()
+      if (protection === 'draft') expect(input).toHaveValue('Teal')
+      else expect(input).toHaveFocus()
+    },
+  )
+
+  it('pins waiting questions newest first, MCP forms next, with one full dock card', () => {
     const older = waitingQuestion({
       userInputId: 'old',
       askedAt: 0,
@@ -104,9 +132,9 @@ describe('M112 attention dock and the two views', () => {
       region
         .getAllByRole('button', { name: /^Open question:/ })
         .map((button) => button.textContent),
-    ).toEqual(['Open question: Oldest', 'Open question: Colour'])
-    expect(region.getByRole('group', { name: 'Oldest' })).toBeVisible()
-    expect(region.queryByRole('group', { name: 'Colour' })).toBeNull()
+    ).toEqual(['Open question: Colour', 'Open question: Oldest'])
+    expect(region.getByRole('group', { name: 'Colour' })).toBeVisible()
+    expect(region.queryByRole('group', { name: 'Oldest' })).toBeNull()
     expect(region.queryByRole('form')).toBeNull()
     expect(dock().style.maxHeight).toBe(`${String(ATTENTION_DOCK_MAX_VIEWPORT_FRACTION * 100)}vh`)
     fireEvent.click(region.getByRole('button', { name: 'Profile' }))

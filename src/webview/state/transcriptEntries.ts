@@ -62,6 +62,8 @@ const pendingQuestionSchema = z.object({
   reminders: z.optional(z.number()),
   /** Answered or cancelled from the card (M25): locked until the host settles it. */
   isSubmitted: z.optional(z.boolean()),
+  /** Local availability only: an authoritative snapshot retired this active card. */
+  isNoLongerOpen: z.optional(z.boolean()),
 })
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>
 

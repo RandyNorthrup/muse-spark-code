@@ -53,6 +53,54 @@ function dock() {
 }
 
 describe('M112 App commands and shared question delivery', () => {
+  it('removes stale open controls and counts when an authoritative snapshot retires the question', () => {
+    const { host, record, post } = app()
+    host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
+    fireEvent.click(screen.getByRole('button', { name: '1 open question' }))
+    fireEvent.change(dock().getByLabelText('Other: Colour'), { target: { value: 'Teal' } })
+    host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [] } })
+    expect(row().getByText('No longer open')).toBeVisible()
+    expect(screen.queryByRole('button', { name: '1 open question' })).toBeNull()
+    expect(row().queryByRole('button', { name: 'Submit' })).toBeNull()
+    expect(document.title).toBe('Choices')
+    expect(post.mock.calls.some(([message]) => message.type === 'answerOpenQuestion')).toBe(false)
+  })
+
+  it('shows the newest waiting question ahead of a past reminder while the composer is typing', () => {
+    const { host, record } = app()
+    host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [record] } })
+    const composer = screen.getByRole('textbox', { name: UI_TEXT.composerLabel })
+    fireEvent.change(composer, { target: { value: 'Keep working' } })
+    act(() => {
+      composer.focus()
+    })
+    const reminded = { ...record, reminders: 1 }
+    host({ type: 'openQuestions', snapshot: { sessionId: 'session-1', questions: [reminded] } })
+    const newest = questionFixture({
+      userInputId: 'q-2',
+      itemId: 'item-2',
+      state: 'waiting',
+      askedAt: 2000,
+      questions: [{ ...record.questions[0]!, header: 'Newest' }],
+    })
+    host({
+      type: 'agentEvent',
+      event: {
+        type: 'questionRequested',
+        itemId: newest.itemId,
+        userInputId: newest.userInputId,
+        questions: newest.questions,
+      },
+    })
+    host({
+      type: 'openQuestions',
+      snapshot: { sessionId: 'session-1', questions: [reminded, newest] },
+    })
+    expect(dock().getByRole('group', { name: 'Newest' })).toBeVisible()
+    expect(dock().queryByRole('group', { name: 'Colour' })).toBeNull()
+    expect(composer).toHaveFocus()
+  })
+
   it.each([false, true])(
     'routes one late answer from either view in an idle/running session (%s)',
     (isRunning) => {

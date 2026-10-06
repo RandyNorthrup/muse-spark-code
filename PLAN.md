@@ -18369,6 +18369,28 @@ joined with M57, M58 and PR #49's sign-in
       byte-exact restoration. Focused certification is appended to
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
+### FIXM112U — RVM112U surface repairs (2026-10-06)
+
+Authority: the rig brief and lead decisions, refining D92/M112 from
+`plan/m105-m107`. No producer, wire contract or paid-call change.
+
+- [x] P2-1: the same-session snapshot owns the open set. An absent active
+      transcript card becomes locally unavailable, retaining any known terminal
+      state. Counts, chip, navigation and delivery use the same derived set.
+- [x] P2-2: one same-session history merge preserves approval outcomes and
+      question cards/outcomes, including retired terminal records.
+- [x] P2-3: approvals first, then newest waiting question; protect a question
+      draft or focused card. Reminders rank only among deferred questions.
+- [ ] P3: separate lazy question renderer/dock region/chip from the small
+      startup draft context and approval shell. Keep a minimal loading card;
+      preserve drafts. Measure startup against the 3 KiB target and allocate the
+      question closure measured size +15%, rounded up to 25 KiB, independently
+      of the unchanged unclassified deferred cap.
+- [ ] Complete-file regressions, red drills with byte-exact restoration,
+      scoped rig gates and hooks-on local commits; record in
+      `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
+      Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
+
 ## 7. Gates
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief

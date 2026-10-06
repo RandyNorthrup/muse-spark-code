@@ -1102,11 +1102,11 @@ export function App({
     card.focus()
   }, [state.questionNavigation])
   useEffect(() => {
-    const count = state.openQuestions.filter((question) => question.state === 'open').length
+    const count = questionsInOrder(state).filter((question) => question.state === 'open').length
     const title = state.title ?? UI_TEXT.untitledConversation
     document.title =
       count === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, count)}`
-  }, [state.title, state.openQuestions])
+  }, [state])
   // All three lock the form until the host settles it (M91 lane M).
   const onAcceptElicitation = useCallback(
     (elicitationId: string, values: Record<string, unknown>) => {

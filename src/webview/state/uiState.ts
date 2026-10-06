@@ -1431,14 +1431,14 @@ function replayHistory(
 ): { readonly entries: readonly TranscriptEntry[]; readonly sequence: number } {
   const entries: TranscriptEntry[] = []
   const knownWorkflows = new Map<string, WorkflowEntry>()
-  // History carries no approval outcomes: a row read again keeps the one the
-  // panel saw (who allowed it, and why).
-  const knownOutcomes = new Map<string, ToolEntry['approvalOutcome']>()
+  // History omits surface decisions: replay keeps both approval outcomes and
+  // question cards/outcomes already observed in this session.
+  const knownTools = new Map<string, ToolEntry>()
   for (const entry of previous) {
     if (entry.kind === WORKFLOW_KIND) {
       knownWorkflows.set(entry.id, entry)
-    } else if (entry.kind === 'tool' && entry.approvalOutcome !== undefined) {
-      knownOutcomes.set(entry.id, entry.approvalOutcome)
+    } else if (entry.kind === 'tool') {
+      knownTools.set(entry.id, entry)
     }
   }
   let next = sequence
@@ -1457,10 +1457,15 @@ function replayHistory(
           item.workflowRunId === undefined ||
           before.workflowRunId === item.workflowRunId)
       const built = isSameRun ? mergeItem(before, item, at) : entryFor(item, at, next)
-      const outcome = knownOutcomes.get(item.itemId)
+      const known = knownTools.get(item.itemId)
       const entry =
-        outcome !== undefined && built.kind === 'tool'
-          ? { ...built, approvalOutcome: outcome }
+        known !== undefined && built.kind === 'tool'
+          ? {
+              ...built,
+              approvalOutcome: known.approvalOutcome,
+              question: known.question,
+              questionOutcome: known.questionOutcome,
+            }
           : built
       entries.push(stampCompletion(entry, next))
     }
@@ -2102,7 +2107,12 @@ function applyAgentEvent(
                 question:
                   settledState === undefined
                     ? undefined
-                    : { ...entry.question, state: settledState, isSubmitted: false },
+                    : {
+                        ...entry.question,
+                        state: settledState,
+                        isSubmitted: false,
+                        isNoLongerOpen: false,
+                      },
                 questionOutcome: {
                   outcome: event.outcome,
                   answers: event.answers,
@@ -2494,6 +2504,11 @@ export function questionsInOrder(state: UiState): readonly PendingQuestion[] {
     )
       continue
     const record = records.get(entry.question.userInputId)
+    if (
+      record === undefined &&
+      (entry.question.state === 'open' || entry.question.isNoLongerOpen === true)
+    )
+      continue
     cards.push(
       record === undefined
         ? entry.question
@@ -2557,12 +2572,15 @@ function withOpenQuestions(
         (question) =>
           question.itemId === entry.id || question.userInputId === entry.question?.userInputId,
       )
-      return record === undefined
-        ? entry
-        : {
-            ...entry,
-            question: { ...record, isSubmitted: submittedQuestions.includes(record.userInputId) },
-          }
+      if (record !== undefined)
+        return {
+          ...entry,
+          question: { ...record, isSubmitted: submittedQuestions.includes(record.userInputId) },
+        }
+      return entry.question !== undefined &&
+        ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
+        ? { ...entry, question: { ...entry.question, isNoLongerOpen: true, isSubmitted: false } }
+        : entry
     }),
   }
   const late = questions.find(

@@ -394,7 +394,9 @@ function ToolRowView({
   const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
-    entry.question !== undefined && ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
+    entry.question !== undefined &&
+    entry.question.isNoLongerOpen !== true &&
+    ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
   const isWaiting = entry.approval !== undefined || isQuestionOpen
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
@@ -481,7 +483,11 @@ function ToolRowView({
       },
     })
   }
-  if (attention !== undefined && entry.question?.state === 'open') {
+  if (
+    attention !== undefined &&
+    entry.question?.state === 'open' &&
+    entry.question.isNoLongerOpen !== true
+  ) {
     const question = entry.question
     items.push({
       id: 'dismiss-question',

@@ -343,7 +343,7 @@ export function QuestionCard({
   }
   const draft = cardDraft.choices
   const state = question.state ?? 'waiting'
-  const isSettled = state !== 'waiting' && state !== 'open'
+  const isSettled = question.isNoLongerOpen === true || (state !== 'waiting' && state !== 'open')
   const [isFocused, setIsFocused] = useState(false)
   const [isExpanded, setIsExpanded] = useState(false)
   const requestKey = `${String(surface?.navigation?.sequence ?? 0)}:${String(isDockCard ? (surface?.dockRequests ?? 0) : 0)}`
@@ -365,7 +365,7 @@ export function QuestionCard({
           isNavigationTarget ||
           (isDockCard && isDockActive))))
   const menu = useRowMenu(
-    state !== 'open' || surface === undefined || !isDockCard
+    isSettled || state !== 'open' || surface === undefined || !isDockCard
       ? []
       : [
           {
@@ -508,13 +508,15 @@ export function QuestionCard({
     >
       <div className="question-summary">
         <span className="question-state-label">
-          <QuestionIcon state={state} />
-          {questionStateLabel(state)}
+          <QuestionIcon state={question.isNoLongerOpen === true ? 'expired' : state} />
+          {question.isNoLongerOpen === true
+            ? UI_TEXT.questionNoLongerOpen
+            : questionStateLabel(state)}
         </span>
         <span className="question-summary-header" dir="auto" title={question.questions[0]?.header}>
           {question.questions[0]?.header}
         </span>
-        {state === 'open' ? (
+        {state === 'open' && !isSettled ? (
           <>
             {isFull ? null : (
               <button

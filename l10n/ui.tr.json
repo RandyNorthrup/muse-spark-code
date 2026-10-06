@@ -741,6 +741,7 @@
   "questionBackToChoices": "Seçeneklere dön",
   "questionClarified": "Açıklandı",
   "questionOpen": "Açık soru",
+  "questionNoLongerOpen": "Artık açık değil",
   "questionDeferred": "Ertelendi",
   "questionAnsweredLater": "Daha sonra yanıtlandı",
   "questionAnsweredOnReask": "Yeniden sorulduğunda yanıtlandı",

@@ -761,6 +761,7 @@
   "questionBackToChoices": "Retour aux choix",
   "questionClarified": "Expliqué",
   "questionOpen": "Question en attente",
+  "questionNoLongerOpen": "N’est plus ouverte",
   "questionDeferred": "Reportée",
   "questionAnsweredLater": "Répondue plus tard",
   "questionAnsweredOnReask": "Répondue lors de la nouvelle demande",

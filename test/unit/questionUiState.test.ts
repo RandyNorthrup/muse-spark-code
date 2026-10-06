@@ -35,6 +35,71 @@ function requested(state = start) {
 }
 
 describe('M112 surface question state', () => {
+  it('retires an absent open transcript card from the authoritative set and every action', () => {
+    const open = snapshot([questionFixture()], requested())
+    const retired = snapshot([], open)
+    expect(retired.openQuestionCounts['session-1']).toBe(0)
+    expect(questionsInOrder(retired).filter((question) => question.state === 'open')).toEqual([])
+    expect(retired.transcript[0]).toMatchObject({ question: { isNoLongerOpen: true } })
+    expect(transcriptEntrySchema.safeParse(retired.transcript[0]).success).toBe(true)
+    expect(uiReducer(retired, { type: 'questionJump', direction: 'next' })).toBe(retired)
+    expect(uiReducer(retired, { type: 'questionSubmitted', userInputId: 'q-1' })).toBe(retired)
+    const terminal = host(
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'questionSettled',
+          userInputId: 'q-1',
+          outcome: 'answeredLater',
+          answers: [],
+        },
+      },
+      retired,
+    )
+    expect(terminal.transcript[0]).toMatchObject({
+      question: {
+        state: 'answeredLater',
+        isNoLongerOpen: false,
+      },
+    })
+  })
+
+  it('preserves retired question cards and outcomes through same-session history refresh only', () => {
+    const settled = host(
+      {
+        type: 'agentEvent',
+        event: {
+          type: 'questionSettled',
+          userInputId: 'q-1',
+          outcome: 'answeredLater',
+          answers: [],
+        },
+      },
+      requested(),
+    )
+    const retired = snapshot([], snapshot([questionFixture({ state: 'answeredLater' })], settled))
+    const history = (sessionId: string) =>
+      host(
+        {
+          type: 'historyLoaded',
+          sessionId,
+          todos: [],
+          items: [
+            { itemId: 'item-1', kind: 'toolCall', status: 'completed', tool: 'request_user_input' },
+          ],
+        },
+        retired,
+      )
+    expect(history('session-1').transcript[0]).toMatchObject({
+      question: { state: 'answeredLater', questions: questionFixture().questions },
+      questionOutcome: { outcome: 'answeredLater' },
+    })
+    expect(history('other').transcript[0]).toMatchObject({
+      question: undefined,
+      questionOutcome: undefined,
+    })
+  })
+
   it('keeps missing-history cards in the dock and ignores a stale session snapshot or jump', () => {
     const state = snapshot()
     expect(questionsInOrder(state)).toHaveLength(1)

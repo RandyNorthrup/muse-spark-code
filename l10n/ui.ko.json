@@ -721,6 +721,7 @@
   "questionBackToChoices": "선택지로 돌아가기",
   "questionClarified": "설명함",
   "questionOpen": "미답변 질문",
+  "questionNoLongerOpen": "더 이상 열려 있지 않음",
   "questionDeferred": "보류됨",
   "questionAnsweredLater": "나중에 답변함",
   "questionAnsweredOnReask": "다시 질문했을 때 답변함",

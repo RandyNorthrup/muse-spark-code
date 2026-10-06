@@ -1264,6 +1264,7 @@ export const EN = {
   questionClarified: 'Explained',
   // M112: the attention dock, durable open questions and late answers.
   questionOpen: 'Open question',
+  questionNoLongerOpen: 'No longer open',
   questionDeferred: 'Deferred',
   questionAnsweredLater: 'Answered later',
   questionAnsweredOnReask: 'Answered when asked again',

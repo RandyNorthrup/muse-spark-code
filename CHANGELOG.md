@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Question snapshots now retire stale open cards and their controls together;
+  known terminal states survive same-session history refreshes. The attention
+  dock prioritizes the newest waiting question over past reminders while
+  preserving a focused or drafted question.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security

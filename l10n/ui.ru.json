@@ -781,6 +781,7 @@
   "questionBackToChoices": "Вернуться к вариантам",
   "questionClarified": "Объяснено",
   "questionOpen": "Открытый вопрос",
+  "questionNoLongerOpen": "Больше не открыт",
   "questionDeferred": "Отложено",
   "questionAnsweredLater": "Ответ получен позже",
   "questionAnsweredOnReask": "Ответ получен при повторном вопросе",

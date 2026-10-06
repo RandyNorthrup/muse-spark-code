@@ -68,7 +68,7 @@ export function AttentionDock({
     ) ?? []
   const waitingQuestions = questions
     .filter((question) => question.state !== 'open')
-    .toSorted((a, b) => (a.askedAt ?? 0) - (b.askedAt ?? 0))
+    .toSorted((a, b) => (b.askedAt ?? 0) - (a.askedAt ?? 0))
   const openQuestions = questions.filter((question) => question.state === 'open')
   const forms = questionGroup?.elicitations ?? []
   const chosen = surface?.dockCard
@@ -79,7 +79,7 @@ export function AttentionDock({
       : forms.some((form) => form.elicitationId === chosen.id))
       ? chosen
       : undefined
-  const reminded = questions.find(
+  const reminded = openQuestions.find(
     (question) => question.userInputId === surface?.navigation?.userInputId,
   )
   const drafted = questions.find((question) => {
@@ -90,12 +90,16 @@ export function AttentionDock({
         Object.values(draft.choices).some((entry) => entry.chosen.length > 0 || entry.other !== ''))
     )
   })
-  const firstQuestion = reminded ?? waitingQuestions[0] ?? drafted
+  const focusedElement = document.activeElement
+  const focusedId =
+    focusedElement?.closest<HTMLElement>('[data-question-id]')?.dataset['questionId']
+  const focused = questions.find((question) => question.userInputId === focusedId)
+  const firstQuestion = focused ?? drafted ?? waitingQuestions[0] ?? reminded
   const firstForm = forms[0]
   const defaultForm =
     firstForm === undefined ? undefined : { kind: 'elicitation', id: firstForm.elicitationId }
   const active =
-    selected ??
+    (selected?.kind === 'elicitation' || waitingQuestions.length === 0 ? selected : undefined) ??
     (firstQuestion === undefined
       ? defaultForm
       : { kind: 'question', id: firstQuestion.userInputId })
