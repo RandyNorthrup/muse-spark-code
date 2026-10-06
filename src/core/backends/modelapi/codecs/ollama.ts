@@ -37,7 +37,7 @@ import {
   OLLAMA_STREAM_MAX_BYTES,
 } from '../../../../shared/constants'
 import { UI_TEXT, fill } from '../../../../shared/l10n/text'
-import { ModelApiError } from '../client'
+import { ModelApiError } from '../transport'
 import type {
   CreateResponseBody,
   FunctionCallItem,

@@ -22,7 +22,7 @@ import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
 import { PROVIDER_MANUAL_THINKING_BUDGET } from '../../../../shared/constants'
 import { UI_TEXT } from '../../../../shared/l10n/text'
 
-import { ModelApiError } from '../client'
+import { ModelApiError } from '../transport'
 import type {
   CreateResponseBody,
   FunctionCallOutputItem,

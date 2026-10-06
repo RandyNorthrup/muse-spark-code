@@ -5331,6 +5331,12 @@ export const OLLAMA_NUM_CTX_OPTIONS: readonly number[] = [32_768, 65_536, 131_07
 // A model id or label a provider lists is untrusted text: control and
 // format characters are stripped and the rest is cut to this.
 export const PROVIDER_MODEL_LABEL_MAX_CHARS = 120
+
+// M95-T: untrusted provider responses are bounded before JSON or codec parsing.
+export const PROVIDER_STREAM_FRAME_MAX_BYTES = 16_777_216
+export const PROVIDER_STREAM_MAX_BYTES = 134_217_728
+export const PROVIDER_STREAM_MAX_FRAMES = 100_000
+export const PROVIDER_HTTP_BODY_MAX_BYTES = 16_777_216
 // The suggestion engine's fallback session (D74: "a stated assumption when
 // there is no history"): the default model's price for a reference session
 // of this size.

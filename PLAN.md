@@ -17412,6 +17412,18 @@ live) and the controller filters its id as well.
 
 ### M95 — Bring-your-own model providers (D74)
 
+**M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
+`--no-ff`, then merge a single sanitized squash of X's net changes on its
+merge-base. Remove the scanner-flagged certification line unseen before
+creating that squash; do not merge X's original history. Move the configured
+provider and ACP/headless callers onto T's shared transport, origin-bound
+auth sources and codec client. Preserve every Meta request golden, existing
+cap, hook and assertion. Re-run T/X/codec and ACP/exec suites, round-four
+failures, static/build/package gates and one final three-worker quality run.
+No live or paid model calls. The brief authorizes these integration moves
+past the ordinary lane line limit, within 150 minutes. Round-five receipts
+and remaining release prerequisites belong in `docs/certification/m95-r3.md`.
+
 #### Capability record v2 (lead decision 2026-10-05)
 
 **FIXM95N review correction (2026-10-05).** Repair all seven RVM95N
@@ -20683,6 +20695,12 @@ assigns full `npm run quality` to the release lead after integration; this
 lane does not run it or weaken any gate. The generic delivery validator's
 ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
+**FIXM95T scoped remediation (2026-10-05).** RVM95T findings 1, 2, 3, 4
+and 6 have focused regression tests and byte-exact restored red drills in
+`docs/certification/m95-t.md`. Finding 5 is the named residual in §9.
+Full quality is reserved for the lead by the lane's common.md. The inherited
+bundle inventory and host-API record failures remain W's integration gates;
+no threshold, timeout, ignore or rule is weakened to obtain a lane commit.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -22274,6 +22292,19 @@ before a repaired one loads (2026-09-30).
   a crash; a frame inside the package can be forged by an error message that
   imitates a stack line, but it can then name only a shipped bundle and two
   numbers.
+- **FIXM95T-R5 — transport still carried by activation (RVM95T finding 5,
+  P2).** The Muse Code image client eagerly imports `transport.ts` through
+  `client.ts`. Actual lazy loading requires W/I's bundle entry/loader and
+  build externalization; a dynamic import alone is still bundled by esbuild.
+  FIXM95T's explicit lane-only edit rule excludes those wiring files. A
+  minimal scope exception was requested, and remains pending. Safe to hold
+  unmerged: the absolute bundle cap is still enforced, no new credential or
+  paid dispatch is introduced, and this residual blocks M95 activation
+  certification. It is not release-ready and does not waive the 3 KiB growth
+  allowance. Follow-up: W/I defer the image client/transport, classify
+  `authSource.ts`, `ndjson.ts`, `providerClient.ts` and `transport.ts`, then
+  prove absence from the activation metafile and run the production gate.
+
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
   the shell-command guard, which scans the command text and does not inspect

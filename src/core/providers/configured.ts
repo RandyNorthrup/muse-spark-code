@@ -24,7 +24,7 @@ import {
   recordPlanUsage,
   metaResolvedModel,
 } from '../../host/backend/providersEntry'
-import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/web/pinnedRequest'
+import { pinnedHttpsRequest, pinnedPostRequest } from '../../host/backend/modelApiEntry'
 import type { PinnedResponse, PinnedTarget } from '../web/webFetch'
 import type { ProviderClient } from '../backends/modelapi/client'
 import type { StreamEvent, Usage } from '../backends/modelapi/schemas'
@@ -32,19 +32,19 @@ import type { ProviderEntry } from './providersFile'
 import type { RegistryModel } from './providerRegistry'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
+import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
+import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
+import { CodecClient, type WireCodec } from '../backends/modelapi/providerClient'
+import { RequestTransport, parseJsonResponse, ModelApiError } from '../backends/modelapi/transport'
 import { withDeadline } from '../timeouts'
 import {
   ADDRESS_FAMILIES,
-  HTTP_SUCCESS_MIN,
-  HTTP_SUCCESS_MAX,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_ITEMS,
-  MODEL_API_MAX_RETRIES,
   MODEL_API_REQUEST_TIMEOUT_MS,
   MODEL_API_STREAM_IDLE_MS,
-  MODEL_API_RETRYABLE_STATUSES,
   PROVIDER_SECRET_PREFIX,
   SUBSCRIPTION_STREAM_MAX_BYTES,
   TOKENS_PER_MILLION,
@@ -87,6 +87,15 @@ const costSchema = z.object({
 const digest = (value: string) => createHash('sha256').update(value).digest('hex')
 const fail = (): never => {
   throw new Error(UI_TEXT.modelsPanelUnavailable)
+}
+
+function ignoreTransportLog(): void {
+  // This adapter reports fixed failures through its caller, without retaining
+  // per-request diagnostics or forwarding arbitrary provider text to a log.
+}
+
+function ignoreProviderCache(): void {
+  // Provider requests do not maintain a page cache.
 }
 
 async function* chunks(response: PinnedResponse) {
@@ -161,96 +170,165 @@ export function createConfiguredProviderServices(
       ? fail()
       : parsed.data.secret
   }
-  const send = async (
-    entry: ProviderEntry,
-    path: string,
-    body: string | undefined,
-    signal: AbortSignal,
-    supplied?: string,
-    extra: Readonly<Record<string, string>> = {},
-    admit?: (keyDigest: string) => void,
-  ) => {
+  const transportFor = (entry: ProviderEntry, supplied?: string) => {
     const preset = presetFor(entry)
+    const base = new URL(entry.address ?? fail())
     if (
-      entry.address === undefined ||
-      (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none')
+      (!preset.wireCapture && entry.preset !== 'custom' && entry.auth !== 'none') ||
+      (preset.origin.kind === 'fixed' && base.origin !== preset.origin.origin)
     )
       return fail()
-    const url = new URL(path, entry.address)
-    if (url.origin !== endpointPolicy.originOf(entry.address)) return fail()
-    if (preset.origin.kind === 'fixed' && url.origin !== preset.origin.origin) return fail()
-    const host = url.hostname.replaceAll(/^\[|\]$/g, '')
-    const answers =
-      isIP(host) === 0
-        ? await (
-            options.resolve ??
-            (async (name) => {
-              const rows = await lookup(name, { all: true })
-              return rows.map((row) => row.address)
-            })
-          )(host)
-        : [host]
-    const verdict = endpointPolicy.checkEndpointUrl(entry.address, answers)
-    if (
-      verdict.kind === 'refused' ||
-      (verdict.kind === 'confirm-private' && entry.privateNetwork !== true)
-    )
-      return fail()
-    const address = answers[0]
-    if (address === undefined) return fail()
-    const key = await credential(entry, supplied)
-    const headers: Record<string, string> = { 'content-type': 'application/json', ...extra }
-    if (key !== undefined)
-      headers[
-        (preset.authHeader ?? 'bearer') === 'bearer'
-          ? 'authorization'
-          : (preset.authHeader ?? 'authorization')
-      ] = (preset.authHeader ?? 'bearer') === 'bearer' ? `Bearer ${key}` : key
-    if (entry.format === 'anthropic') headers['anthropic-version'] = '2023-06-01'
-    const target: PinnedTarget = {
-      url,
-      host,
-      address,
-      family:
-        isIP(address) === ADDRESS_FAMILIES.ipv6 ? ADDRESS_FAMILIES.ipv6 : ADDRESS_FAMILIES.ipv4,
-    }
-    // Resolve and read the key first; then re-read the authored file immediately
-    // before the synchronous admission fence and the pinned request.
-    if (supplied === undefined) {
-      const file = await read()
-      const current = file.providers.find((row) => row.id === entry.id)
-      if (JSON.stringify(current) !== JSON.stringify(entry)) return fail()
-    }
-    signal.throwIfAborted()
-    admit?.(digest(`${url.origin}\n${key ?? ''}`))
-    if (options.send !== undefined) return await options.send(target, body, headers, signal)
-    if (body !== undefined)
-      return await pinnedPostRequest(
-        target,
-        body,
-        headers,
-        signal,
-        () => {
-          /* Provider requests do not maintain a page cache. */
+    const auth =
+      entry.auth === 'none'
+        ? new NoAuthSource(base.origin)
+        : new ApiKeyAuthSource(
+            async () => {
+              const key = await credential(entry, supplied)
+              return { record: { v: 1, auth: 'apiKey', origin: base.origin }, key }
+            },
+            entry.preset === 'custom' && entry.format === 'anthropic'
+              ? 'x-api-key'
+              : (preset.authHeader ?? 'bearer'),
+          )
+    let target: PinnedTarget | undefined
+    return {
+      auth,
+      transport: {
+        sleep: (ms: number) =>
+          new Promise<void>((done) => {
+            setTimeout(done, ms)
+          }),
+        now: Date.now,
+        random: Math.random,
+        log: {
+          trace: ignoreTransportLog,
+          info: ignoreTransportLog,
+          warn: ignoreTransportLog,
+          error: ignoreTransportLog,
         },
-        url.protocol === 'http:' ? httpRequest : undefined,
-        url.protocol !== 'http:',
-      )
-    // GET carries the same origin-bound auth as POST, including free key tests.
-    return await pinnedHttpsRequest(
-      target,
-      signal,
-      () => {
-        /* Provider requests do not maintain a page cache. */
+        fetch: async (url: string | URL | Request, init?: RequestInit): Promise<Response> => {
+          let requestUrl: string
+          if (typeof url === 'string') requestUrl = url
+          else if (url instanceof URL) requestUrl = url.href
+          else requestUrl = url.url
+          if (target?.url.href !== requestUrl || init?.redirect !== 'error') return fail()
+          const signal = init.signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+          const headers = Object.fromEntries(
+            Object.entries(z.record(z.string(), z.string()).parse(init.headers)).map(
+              ([name, value]) => [
+                ['Authorization', 'Content-Type', 'Accept'].includes(name)
+                  ? name.toLowerCase()
+                  : name,
+                value,
+              ],
+            ),
+          )
+          const body = typeof init.body === 'string' ? init.body : undefined
+          let response: PinnedResponse
+          try {
+            if (options.send !== undefined)
+              response = await options.send(target, body, headers, signal)
+            else if (body === undefined) {
+              response = await pinnedHttpsRequest(
+                target,
+                signal,
+                ignoreProviderCache,
+                (requestOptions, callback) => {
+                  const request = target?.url.protocol === 'http:' ? httpRequest : httpsGet
+                  return request(
+                    { ...requestOptions, headers: { host: base.host, ...headers } },
+                    callback,
+                  )
+                },
+                target.url.protocol !== 'http:',
+              )
+            } else {
+              response = await pinnedPostRequest(
+                target,
+                body,
+                headers,
+                signal,
+                ignoreProviderCache,
+                target.url.protocol === 'http:' ? httpRequest : undefined,
+                target.url.protocol !== 'http:',
+              )
+            }
+          } catch {
+            // A pinned send can have reached the provider; retain its liability
+            // and refuse an ambiguous retry, with no echoed diagnostic text.
+            throw new ModelApiError(UI_TEXT.modelsPanelUnavailable, 0, undefined, undefined)
+          }
+          const iterator = chunks(response)[Symbol.asyncIterator]()
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              async pull(controller) {
+                try {
+                  const next = await iterator.next()
+                  if (next.done) controller.close()
+                  else controller.enqueue(next.value)
+                } catch (error: unknown) {
+                  controller.error(error)
+                }
+              },
+              cancel: async () => {
+                response.close()
+                await iterator.return(undefined)
+              },
+            }),
+            {
+              status: response.status,
+              headers: Object.fromEntries(
+                Object.entries(response.headers).filter(
+                  (row): row is [string, string] => row[1] !== undefined,
+                ),
+              ),
+            },
+          )
+        },
       },
-      (requestOptions, callback) => {
-        const request = url.protocol === 'http:' ? httpRequest : undefined
-        return request === undefined
-          ? httpsGet({ ...requestOptions, headers: { host: url.host, ...headers } }, callback)
-          : request({ ...requestOptions, headers: { host: url.host, ...headers } }, callback)
+      verifyEndpoint: async (url: string) => {
+        const parsed = new URL(url)
+        if (parsed.origin !== base.origin) return fail()
+        const host = parsed.hostname.replaceAll(/^\[|\]$/g, '')
+        const answers =
+          isIP(host) === 0
+            ? await (
+                options.resolve ??
+                (async (name) => {
+                  const rows = await lookup(name, { all: true })
+                  return rows.map((row) => row.address)
+                })
+              )(host)
+            : [host]
+        const verdict = endpointPolicy.checkEndpointUrl(entry.address ?? '', answers)
+        if (
+          verdict.kind === 'refused' ||
+          (verdict.kind === 'confirm-private' && entry.privateNetwork !== true)
+        )
+          return fail()
+        const address = answers[0] ?? fail()
+        if (supplied === undefined) {
+          const file = await read()
+          if (
+            JSON.stringify(file.providers.find((row) => row.id === entry.id)) !==
+            JSON.stringify(entry)
+          )
+            return fail()
+        }
+        target = {
+          url: parsed,
+          host,
+          address,
+          family:
+            isIP(address) === ADDRESS_FAMILIES.ipv6 ? ADDRESS_FAMILIES.ipv6 : ADDRESS_FAMILIES.ipv4,
+        }
       },
-      url.protocol !== 'http:',
-    )
+    }
+  }
+  const baseAndPath = (entry: ProviderEntry, path: string) => {
+    const url = new URL(entry.address ?? fail())
+    const prefix = url.pathname.replace(/\/$/, '')
+    return { baseUrl: url.origin, path: prefix + path }
   }
   const scan = async (
     entry: ProviderEntry,
@@ -258,22 +336,24 @@ export function createConfiguredProviderServices(
     signal = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
   ): Promise<readonly NativeModelMetadata[]> => {
     try {
-      const response = await send(
-        entry,
-        presetFor(entry).modelsList.path,
-        undefined,
+      const bound = transportFor(entry, supplied)
+      const address = baseAndPath(entry, presetFor(entry).modelsList.path)
+      const transport = new RequestTransport({
+        ...bound.transport,
+        auth: bound.auth,
+        verifyEndpoint: bound.verifyEndpoint,
+        baseUrl: address.baseUrl,
+      })
+      const result = await transport.request(
+        address.path,
+        {
+          method: 'GET',
+          accept: 'application/json',
+          ...(entry.format === 'anthropic' && { headers: { 'anthropic-version': '2023-06-01' } }),
+        },
         signal,
-        supplied,
       )
-      if (response.status < HTTP_SUCCESS_MIN || response.status > HTTP_SUCCESS_MAX) {
-        response.close()
-        return fail()
-      }
-      const decoder = new TextDecoder('utf-8', { fatal: true })
-      let text = ''
-      for await (const chunk of chunks(response)) text += decoder.decode(chunk, { stream: true })
-      text += decoder.decode()
-      const value: unknown = JSON.parse(text)
+      const value = await parseJsonResponse(result, (json) => json)
       if (entry.format === 'anthropic')
         return anthropic.parseAnthropicModelsList(value).map((row) => row.native ?? fail())
       if (entry.format === 'gemini')
@@ -435,7 +515,12 @@ export function createConfiguredProviderServices(
           return gemini.decodeGeminiStream(bytes, ref)
         }
         case 'ollama': {
-          return ollama.decodeOllamaStream(bytes, {
+          const frames = (async function* () {
+            const encoder = new TextEncoder()
+            for await (const frame of parseNdjson(bytes))
+              yield encoder.encode(JSON.stringify(frame) + '\n')
+          })()
+          return ollama.decodeOllamaStream(frames, {
             model: native,
             status,
             responseId: randomUUID(),
@@ -451,16 +536,36 @@ export function createConfiguredProviderServices(
         }
       }
     }
-    return {
-      ...base,
-      currentKeyDigest: async () =>
-        digest(`${new URL(entry.address ?? '').origin}\n${(await credential(entry)) ?? ''}`),
-      listModels: () => Promise.resolve([ref]),
-      // UTF-8 bytes bound text tokens conservatively and include tool schemas.
-      countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
-      streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
-        if (body.model !== ref) return fail()
-        const format = entry.format ?? preset.format
+    const connection = transportFor(entry)
+    const codec: WireCodec = {
+      format,
+      models: {
+        path: preset.modelsList.path,
+        parse: (value) =>
+          modelMetadata.parseNativeModelsList(value).map((row) => ({
+            id: z.string().parse(row['id']),
+            capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
+            contextWindow: record.limits.contextTokens ?? 0,
+            maxOutputTokens: record.output.maxTokens ?? 0,
+          })),
+      },
+      parseError: (status, value) => {
+        switch (format) {
+          case 'anthropic': {
+            return anthropic.parseAnthropicError(status, value)
+          }
+          case 'gemini': {
+            return gemini.parseGeminiError(status, value)
+          }
+          case 'ollama': {
+            return ollama.parseOllamaError(status, value, '')
+          }
+          default: {
+            return new ModelApiError(UI_TEXT.modelsPanelUnavailable, status, undefined, undefined)
+          }
+        }
+      },
+      encode: (body) => {
         let path = '/v1/responses'
         let wire: unknown
         let extras: Readonly<Record<string, string>> = {}
@@ -517,71 +622,80 @@ export function createConfiguredProviderServices(
               .encodeRequest({ ...body, model: native })
           }
         }
-        const retry = budget ?? { retriesUsed: 0 }
-        for (;;) {
-          let usage: Usage | undefined
-          const attempt = { isDispatched: false }
-          let response: PinnedResponse | undefined
-          try {
-            response = await send(
-              entry,
-              path,
-              JSON.stringify(wire),
-              AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)]),
-              undefined,
-              extras,
-              (keyDigest) => {
-                if (
-                  confirmed !== undefined &&
-                  (!confirmed.isStillAllowed() ||
-                    confirmed.modelId !== ref ||
-                    (confirmed.origin !== undefined &&
-                      confirmed.origin !== new URL(entry.address ?? '').origin) ||
-                    confirmed.keyDigest !== keyDigest)
-                )
-                  throw new Error(UI_TEXT.scheduleConfirmationExpired)
-                admitAttempt?.(keyDigest)
-                admitAttempt?.onRequestStarted?.()
-                confirmed?.onRequestStarted()
-                attempt.isDispatched = true
-              },
-            )
-            if (
-              MODEL_API_RETRYABLE_STATUSES.has(response.status) &&
-              retry.retriesUsed < MODEL_API_MAX_RETRIES
-            ) {
-              response.close()
-              const delayMs = delegate().retryDelayMs(retry.retriesUsed)
-              retry.retriesUsed += 1
-              onRetry?.({
-                attempt: retry.retriesUsed,
-                maxAttempts: MODEL_API_MAX_RETRIES,
-                delayMs,
-                reason: `HTTP ${String(response.status)}`,
-              })
-              await delegate().waitBeforeRetry(delayMs, signal)
-              continue
-            }
-            if (response.status < HTTP_SUCCESS_MIN || response.status > HTTP_SUCCESS_MAX)
-              return fail()
-            const bytes = chunks(response)
-            const events = decode(bytes, response.status)
-            for await (const event of events) {
-              if ('response' in event && event.response.usage != null) usage = event.response.usage
-              if (event.type === 'error' || ('response' in event && event.response.error != null))
-                return fail()
-              yield 'response' in event
-                ? { ...event, response: { ...event.response, model: ref } }
-                : event
-            }
-            return
-          } catch {
-            // Provider errors and schema diagnostics can echo arbitrary keys.
-            // Only fixed product text crosses the client boundary.
+
+        return { path: baseAndPath(entry, path).path, body: wire, headers: extras }
+      },
+      decode: async function* (response) {
+        if (response.body === null) return fail()
+        for await (const event of decode(response.body, response.status)) {
+          if (event.type === 'error' || ('response' in event && event.response.error != null))
             return fail()
-          } finally {
-            response?.close()
-            if (attempt.isDispatched && presets.planKeyPresetById(entry.preset) !== undefined)
+          yield 'response' in event
+            ? { ...event, response: { ...event.response, model: ref } }
+            : event
+        }
+      },
+    }
+    const client = new CodecClient({
+      provider: {
+        id: entry.id,
+        label: preset.label,
+        origin: new URL(entry.address ?? '').origin,
+        format,
+        auth: entry.auth,
+        isLocal: entry.auth === 'none',
+      },
+      baseUrl: new URL(entry.address ?? '').origin,
+      codec,
+      auth: connection.auth,
+      verifyEndpoint: connection.verifyEndpoint,
+      transport: connection.transport,
+      modelFor: () => ({
+        id: ref,
+        capabilities: capabilities.capabilitiesOf({ capabilityRecord: record }),
+        contextWindow: record.limits.contextTokens ?? 0,
+        maxOutputTokens: record.output.maxTokens ?? 0,
+      }),
+    })
+    return {
+      ...base,
+      currentKeyDigest: client.currentKeyDigest,
+      retryDelayMs: client.retryDelayMs,
+      waitBeforeRetry: client.waitBeforeRetry,
+      listModels: () => Promise.resolve([ref]),
+      // UTF-8 bytes bound text tokens conservatively and include tool schemas.
+      countInputTokens: (body) => Promise.resolve(Buffer.byteLength(JSON.stringify(body))),
+      streamResponse: async function* (body, signal, onRetry, budget, admitAttempt, confirmed) {
+        let usage: Usage | undefined
+        const dispatch = { attempts: 0 }
+        const observe = Object.assign(
+          (keyDigest: string | undefined) => admitAttempt?.(keyDigest),
+          {
+            onRequestStarted: () => {
+              dispatch.attempts += 1
+              admitAttempt?.onRequestStarted?.()
+            },
+          },
+        )
+        try {
+          if (body.model !== ref) return fail()
+          const events = client.streamResponse(
+            body,
+            AbortSignal.any([signal, AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)]),
+            onRetry,
+            budget,
+            observe,
+            confirmed === undefined ? undefined : { ...confirmed, providerId: entry.id },
+          )
+          for await (const event of events) {
+            if ('response' in event && event.response.usage != null) usage = event.response.usage
+            yield event
+          }
+        } catch {
+          return fail()
+        } finally {
+          if (presets.planKeyPresetById(entry.preset) !== undefined)
+            for (let index = 0; index < dispatch.attempts; index++)
               plans = recordPlanUsage(plans, {
                 providerId: entry.id,
                 ...(usage !== undefined && {
@@ -592,8 +706,7 @@ export function createConfiguredProviderServices(
                   },
                 }),
               })
-            options.saveUsage?.(plans)
-          }
+          options.saveUsage?.(plans)
         }
       },
     }
@@ -642,7 +755,9 @@ export function createConfiguredProviderServices(
           (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}${entry.id}`)) !== undefined
         )
           return digest(
-            `${endpointPolicy.originOf(entry.address ?? '') ?? fail()}\n${(await credential(entry)) ?? ''}`,
+            entry.auth === 'none'
+              ? (endpointPolicy.originOf(entry.address ?? '') ?? fail())
+              : ((await credential(entry)) ?? fail()),
           )
       }
       return

@@ -244,6 +244,7 @@ import {
   MissingApiKeyError,
   type ProviderClient,
   ModelApiError,
+  isModelApiError,
   type RetryBudget,
   type RetryNotice,
   type ResponseAttemptGuard,
@@ -1242,7 +1243,7 @@ function describe(error: unknown): string {
 function isAuthFailure(error: unknown): boolean {
   return (
     error instanceof MissingApiKeyError ||
-    (error instanceof ModelApiError && error.status === HTTP_UNAUTHORIZED)
+    (isModelApiError(error) && error.status === HTTP_UNAUTHORIZED)
   )
 }
 
@@ -3089,7 +3090,7 @@ export class ModelApiSession implements AgentSession {
     if (reservation !== undefined) {
       reservation.isRefused =
         !reservation.hasStarted &&
-        error instanceof ModelApiError &&
+        isModelApiError(error) &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
     }
   }
@@ -4731,7 +4732,7 @@ export class ModelApiSession implements AgentSession {
       isCountedUsage,
       abortError: () => new AbortedError(),
       isRefused: (error: unknown) =>
-        error instanceof ModelApiError &&
+        isModelApiError(error) &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
       emit: (event: AgentEvent) => {
         this.emit(event)
@@ -4850,7 +4851,7 @@ export class ModelApiSession implements AgentSession {
           isCountedUsage,
           abortError: () => new AbortedError(),
           isRefused: (error) =>
-            error instanceof ModelApiError &&
+            isModelApiError(error) &&
             (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS),
           emit: (event) => {
             this.emit(event)
@@ -5748,7 +5749,7 @@ export class ModelApiSession implements AgentSession {
         return egressRefusal
       }
       isRefused =
-        error instanceof ModelApiError &&
+        isModelApiError(error) &&
         (error.status === HTTP_STATUS.badRequest || error.status === HTTP_TOO_MANY_REQUESTS)
       throw error
     } finally {
@@ -10561,7 +10562,7 @@ export class ModelApiSession implements AgentSession {
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else {
-          if (error instanceof ModelApiError && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND)
+          if (isModelApiError(error) && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND)
             errorKind = CHATGPT_PLAN_LIMIT_ERROR_KIND
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
@@ -10839,8 +10840,7 @@ export class ModelApiSession implements AgentSession {
         }
       }
     } catch (error: unknown) {
-      const status =
-        error instanceof ModelApiError ? `HTTP ${String(error.status)}` : 'request failed'
+      const status = isModelApiError(error) ? `HTTP ${String(error.status)}` : 'request failed'
       this.deps.log.warn(`The compacted context could not be counted: ${status}`)
     }
     return { status: ACCEPTED, reason: undefined }

@@ -7,37 +7,46 @@
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
 
-import { createHash } from 'node:crypto'
+import {
+  RequestTransport,
+  ignoreClosingError,
+  ModelApiError,
+  parseJsonResponse,
+  redactModelApiError,
+  type ConfirmedModelRequest,
+  type ResponseAttemptGuard,
+  type RetryBudget,
+  type RetryNotice,
+} from './transport'
+export {
+  MissingApiKeyError,
+  ModelApiError,
+  isModelApiError,
+  isMissingApiKeyError,
+  retryAfterMs,
+  type ConfirmedModelRequest,
+  type ResponseAttemptGuard,
+  type RetryBudget,
+  type RetryNotice,
+} from './transport'
+import type { ProviderClient as TransportProviderClient } from './providerClient'
+import type { PlanUsageRow } from '../../../shared/usage'
+import type { ModelResolver } from './modelPolicy'
 import type { PaidFeature } from '../../../shared/constants'
 import type { SessionBudgetClaim } from './sessionBudget'
+import { estimateCostUsd } from '../../usage/insights'
 
 import {
-  MODEL_API_MAX_RETRIES,
-  HTTP_TOO_MANY_REQUESTS,
-  HTTP_STATUS,
   IMAGE_REQUEST_TIMEOUT_MS,
-  MODEL_API_RETRY_BASE_MS,
-  MODEL_API_RETRY_JITTER_MS,
-  MODEL_API_RETRY_MAX_MS,
-  MODEL_API_RETRYABLE_STATUSES,
   MODEL_API_REQUEST_TIMEOUT_MS,
-  MODEL_API_STREAM_IDLE_MS,
-  MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
-import { fill } from '../../../shared/l10n/text'
-import { DeadlineError, withDeadline } from '../../timeouts'
 import type { CoreLogger } from '../../logging'
-import {
-  describeNetworkFailure,
-  type NetworkAdvice,
-  networkFailureMessage,
-} from '../../networkFailure'
+import type { NetworkAdvice } from '../../networkFailure'
 import {
   type CreateImageBody,
   type EditImageBody,
   type CreateResponseBody,
-  errorBodySchema,
   eventTypeSchema,
   type ImagesResponse,
   imagesResponseSchema,
@@ -47,12 +56,12 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd } from '../../usage/insights'
-import type { PlanUsageRow } from '../../../shared/usage'
-import type { ModelResolver } from './modelPolicy'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
-export type ProviderClient = Pick<ModelApiClient, keyof ModelApiClient> & {
+export type ProviderClient = Pick<
+  ModelApiClient,
+  Exclude<keyof ModelApiClient, 'provider' | 'capabilities'>
+> & {
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
@@ -86,365 +95,30 @@ export interface ModelApiClientDeps {
   readonly networkAdvice?: NetworkAdvice
 }
 
-export class ModelApiError extends Error {
-  public constructor(
-    message: string,
-    /** HTTP status, or 0 when the request never got a response. */
-    public readonly status: number,
-    /** The envelope's `error.type` (`rate_limit_error`, …), when any. */
-    public readonly kind: string | undefined,
-    /** The envelope's `error.code` (`invalid_api_key`, …), when any. */
-    public readonly code: string | undefined,
-  ) {
-    super(message)
-    this.name = 'ModelApiError'
-  }
-}
-
-/** Thrown when the key is absent: the caller decides how to prompt. */
-export class MissingApiKeyError extends Error {
-  public constructor() {
-    super('No Model API key is stored')
-    this.name = 'MissingApiKeyError'
-  }
-}
-
-/**
- * Whether `error` is a `ModelApiError`, by name and fields rather than
- * `instanceof`: Tab's bundle crosses a bundle boundary where `instanceof`
- * fails (M94, PLAN.md D73).
- */
-export function isModelApiError(error: unknown): error is ModelApiError {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'ModelApiError' &&
-    'status' in error &&
-    typeof error.status === 'number' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  )
-}
-
-/**
- * Whether `error` is a `MissingApiKeyError`, by name rather than
- * `instanceof` (see above).
- */
-export function isMissingApiKeyError(error: unknown): error is MissingApiKeyError {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'name' in error &&
-    error.name === 'MissingApiKeyError' &&
-    'message' in error &&
-    typeof error.message === 'string'
-  )
-}
-
 const JSON_MEDIA_TYPE = 'application/json'
 const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
-const RETRY_AFTER_HEADER = 'retry-after'
-const NETWORK_FAILURE_STATUS = 0
 const SSE_DONE_SENTINEL = '[DONE]'
 
-/** Closing a parser that already failed rejects with that failure, which the stream reported. */
-function ignoreClosingError(): void {
-  // Nothing to add: the stream's own error already went to its caller.
-}
-
-/** The documented error envelope, or the status text when the body is not one. */
-async function describeFailure(response: Response): Promise<ModelApiError> {
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
-    body = undefined
-  }
-  const parsed = errorBodySchema.safeParse(body)
-  if (!parsed.success) {
-    return new ModelApiError(
-      `HTTP ${String(response.status)} ${response.statusText}`.trim(),
-      response.status,
-      undefined,
-      undefined,
-    )
-  }
-  const { error } = parsed.data
-  return new ModelApiError(
-    error.message,
-    response.status,
-    error.type ?? undefined,
-    error.code ?? undefined,
-  )
-}
-
-/**
- * `Retry-After` in milliseconds: a delay in seconds, or an HTTP date (RFC
- * 9110 §10.2.3 allows both; PLAN.md D25), measured from `now`.
- */
-export function retryAfterMs(header: string | null, now: number): number | undefined {
-  if (header === null || header.trim() === '') {
-    return undefined
-  }
-  const seconds = Number(header)
-  if (Number.isFinite(seconds)) {
-    return seconds >= 0 ? seconds * MILLISECONDS_PER_SECOND : undefined
-  }
-  const at = Date.parse(header)
-  return Number.isNaN(at) ? undefined : Math.max(at - now, 0)
-}
-
-/** One retry the client is about to make, for the transcript's notice. */
-export interface RetryNotice {
-  readonly attempt: number
-  readonly maxAttempts: number
-  readonly delayMs: number
-  readonly reason: string
-}
-
-/**
- * The retries one model call has used (the review of PR #28): a stream sent
- * again whole and the HTTP retries inside each of its requests draw on the
- * same MODEL_API_MAX_RETRIES.
- */
-export interface RetryBudget {
-  retriesUsed: number
-}
-
-/** In-memory identity of an explicitly confirmed scheduled Model API run. */
-export interface ConfirmedModelRequest {
-  readonly providerId?: string | undefined
-  readonly origin?: string | undefined
-
-  readonly modelId: string
-  readonly keyDigest: string
-  /** The paid gate and session model must still match before every HTTP try. */
-  readonly isStillAllowed: () => boolean
-  /** Only after identity and gate checks, immediately before the first HTTP try. */
-  readonly onRequestStarted: () => void
-}
-
-/** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
-export interface ResponseAttemptGuard {
-  readonly paidFeature?: PaidFeature
-  readonly paidEstimatedInputTokens?: number
-  (keyDigest: string | undefined): void
-  /** After every final fence and request build, adjacent to the actual fetch call. */
-  readonly onRequestStarted?: () => void
-}
-
-function isAborted(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true
-}
-
-/** Rejects as soon as `signal` aborts, instead of sleeping the retry delay out. */
-function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; dispose(): void } {
-  let onAbort: (() => void) | undefined
-  const promise = new Promise<never>((_resolve, reject) => {
-    onAbort = () => {
-      reject(new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined))
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-  return {
-    promise,
-    dispose: () => {
-      if (onAbort !== undefined) {
-        signal.removeEventListener('abort', onAbort)
-      }
-    },
-  }
-}
-
-export class ModelApiClient {
-  /** Stream event types already logged as ignored (M39). */
+export class ModelApiClient implements TransportProviderClient {
   private readonly ignoredEventTypes = new Set<string>()
-
-  public constructor(private readonly deps: ModelApiClientDeps) {}
-
-  /** The retry delay, cut short by the turn's Stop. */
-  private async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
-    if (signal === undefined) {
-      await this.deps.sleep(ms)
-      return
-    }
-    if (signal.aborted) {
-      throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-    }
-    const aborted = whenAborted(signal)
-    try {
-      await Promise.race([this.deps.sleep(ms), aborted.promise])
-    } finally {
-      aborted.dispose()
-    }
-  }
-
-  private async headers(): Promise<{
-    readonly values: Record<string, string>
-    readonly keyDigest: string
-  }> {
-    const key = await this.deps.apiKey()
-    if (key === undefined) {
-      throw new MissingApiKeyError()
-    }
-    return {
-      values: { Authorization: `Bearer ${key}`, 'Content-Type': JSON_MEDIA_TYPE },
-      keyDigest: createHash('sha256').update(key).digest('hex'),
-    }
-  }
-
-  private backoffMs(attempt: number, suggestedMs: number | undefined): number {
-    const exponential = Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS)
-    const jitter = Math.floor(this.deps.random() * MODEL_API_RETRY_JITTER_MS)
-    return Math.min((suggestedMs ?? exponential) + jitter, MODEL_API_RETRY_MAX_MS)
-  }
-
-  /**
-   * One request with the documented retry policy. The response is handed
-   * back unread on success; a non-2xx status becomes a `ModelApiError`.
-   */
-  private async request(
-    path: string,
-    init: {
-      readonly method: 'GET' | 'POST'
-      readonly body?: unknown
-      readonly accept: string
-      /**
-       * `rateLimitOnly` for a request that bills per call (M34, the review
-       * of PR #27): a 429 was refused before any work and is retried; a
-       * lost connection or a server error may have been done and billed,
-       * so it is not.
-       */
-      readonly retries?: 'all' | 'rateLimitOnly'
-      readonly paid?: {
-        readonly claim: SessionBudgetClaim
-        isSent: boolean
-      }
-    },
-    signal: AbortSignal | undefined,
-    onRetry?: (notice: RetryNotice) => void,
-    budget?: RetryBudget,
-    admitAttempt?: ResponseAttemptGuard,
-    confirmed?: ConfirmedModelRequest,
-  ): Promise<Response> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
-    const fixedHeaders =
-      admitAttempt === undefined && confirmed === undefined ? await this.headers() : undefined
-    const url = `${this.deps.baseUrl}${path}`
-    const retry = async (attempt: number, delay: number, reason: string) => {
-      if (budget !== undefined) {
-        budget.retriesUsed = attempt + 1
-      }
-      onRetry?.({
-        attempt: attempt + 1,
-        maxAttempts: MODEL_API_MAX_RETRIES + 1,
-        delayMs: delay,
-        reason,
-      })
-      await this.pause(delay, signal)
-    }
-    // How long the answer took, retries included, at trace level (M39).
-    const startedAt = this.deps.now()
-    for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
-      let credentials: Awaited<ReturnType<ModelApiClient['headers']>>
-      try {
-        credentials = fixedHeaders ?? (await this.headers())
-      } catch (error: unknown) {
-        if (isAborted(signal)) {
-          throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        if (error instanceof MissingApiKeyError) {
-          admitAttempt?.(undefined)
-        }
-        throw error
-      }
-      if (isAborted(signal)) {
-        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-      }
-      if (
-        confirmed !== undefined &&
-        (credentials.keyDigest !== confirmed.keyDigest || !confirmed.isStillAllowed())
-      ) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
-      }
-      // Local consent refusal is outside the transport retry catch: it never
-      // becomes another billable attempt.
-      if (init.paid !== undefined) {
-        if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        init.paid.claim.check(0)
-      }
-      admitAttempt?.(credentials.keyDigest)
-      if (isAborted(signal)) {
-        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-      }
-      if (confirmed !== undefined && !confirmed.isStillAllowed()) {
-        throw new Error(UI_TEXT.scheduleConfirmationExpired)
-      }
-      const headers = { ...credentials.values, Accept: init.accept }
-      const requestInit: RequestInit = {
-        method: init.method,
-        headers,
-        ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
-        ...(signal !== undefined && { signal }),
-      }
-      confirmed?.onRequestStarted()
-      admitAttempt?.onRequestStarted?.()
-      if (init.paid !== undefined) init.paid.isSent = true
-      let response: Response
-      try {
-        response = await this.deps.fetch(url, requestInit)
-      } catch (error: unknown) {
-        if (error instanceof ModelApiError || signal?.aborted === true) {
-          throw error instanceof ModelApiError
-            ? error
-            : new ModelApiError(
-                error instanceof Error ? error.message : String(error),
-                NETWORK_FAILURE_STATUS,
-                undefined,
-                undefined,
-              )
-        }
-        // Never reached the server: its causes say why, and the message
-        // names the setting or store to check (M56, PLAN.md D43).
-        const reason = networkFailureMessage(error, this.deps.networkAdvice)
-        if (isRateLimitOnly || attempt >= MODEL_API_MAX_RETRIES) {
-          throw new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        const delay = this.backoffMs(attempt, undefined)
-        this.deps.log.warn(
-          `Model API request failed to send (${describeNetworkFailure(error).detail}); retrying in ${String(delay)} ms`,
-        )
-        await retry(attempt, delay, reason)
-        continue
-      }
-      if (response.ok) {
-        this.deps.log.trace(
-          `Model API ${init.method} ${path} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
-        )
-        return response
-      }
-      const failure = await describeFailure(response)
-      if (
-        init.paid !== undefined &&
-        (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
-      )
-        init.paid.isSent = false
-      const isRetryable = isRateLimitOnly
-        ? response.status === HTTP_TOO_MANY_REQUESTS
-        : MODEL_API_RETRYABLE_STATUSES.has(response.status)
-      if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
-        throw failure
-      }
-      const delay = this.backoffMs(
-        attempt,
-        retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()),
-      )
-      this.deps.log.warn(
-        `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
-      )
-      await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
-    }
+  private readonly transport: RequestTransport
+  public readonly provider
+  public readonly capabilities = () => ({
+    toolCalling: true,
+    vision: true,
+    reasoning: true,
+    parallelToolCalls: true,
+  })
+  public constructor(private readonly deps: ModelApiClientDeps) {
+    this.transport = new RequestTransport(deps)
+    this.provider = {
+      id: 'meta',
+      label: 'Meta',
+      origin: new URL(deps.baseUrl).origin,
+      format: 'responses',
+      auth: 'apiKey',
+      isLocal: false,
+    } as const
   }
 
   /** A billed image request: only a 429 is retried, with a deadline of its own. */
@@ -458,7 +132,7 @@ export class ModelApiClient {
     const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      const response = await this.request(
+      const result = await this.transport.request(
         path,
         {
           method: 'POST',
@@ -472,12 +146,16 @@ export class ModelApiClient {
         undefined,
         admitAttempt,
       )
-      const result = imagesResponseSchema.parse(await response.json())
-      // The request asks for exactly one image; retain its flat fee on any ambiguous result.
-      if (claim !== undefined) await claim.settle(result.data.length === 0 ? 0 : claim.reservedUsd)
-      return result
+      const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
+      // The request asks for one image; ambiguous results retain their flat fee.
+      if (claim !== undefined) {
+        await claim.settle(parsed.data.length === 0 ? 0 : claim.reservedUsd)
+      }
+      return parsed
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (paid?.isSent === false) {
+        await paid.claim.settle(0)
+      }
     }
   }
 
@@ -488,40 +166,39 @@ export class ModelApiClient {
 
   /** Bind a one-use child consent to the stored key without retaining it. */
   public async currentKeyDigest(): Promise<string> {
-    const credentials = await this.headers()
-    return credentials.keyDigest
+    return await this.transport.currentKeyDigest()
   }
 
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
-    return this.backoffMs(attempt, undefined)
+    return this.transport.backoffMs(attempt, undefined)
   }
 
   /** Waits `ms`, or rejects as soon as the turn's Stop aborts `signal`. */
   public async waitBeforeRetry(ms: number, signal: AbortSignal): Promise<void> {
-    await this.pause(ms, signal)
+    await this.transport.pause(ms, signal)
   }
 
   /** The chat model ids the key can use, as the catalogue lists them. */
   public async listModels(): Promise<readonly string[]> {
     // No turn to stop it: a deadline instead, so a panel never waits for ever (D25).
-    const response = await this.request(
+    const result = await this.transport.request(
       '/models',
       { method: 'GET', accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    const parsed = modelListSchema.parse(await response.json())
-    return parsed.data.map((model) => model.id)
+    const parsed = await parseJsonResponse(result, (json) => modelListSchema.parse(json))
+    return parsed.data.map((model) => result.redact(model.id))
   }
 
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
   public async countInputTokens(body: Omit<CreateResponseBody, 'stream'>): Promise<number> {
-    const response = await this.request(
+    const result = await this.transport.request(
       '/responses/input_tokens',
       { method: 'POST', body, accept: JSON_MEDIA_TYPE },
       AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
     )
-    return inputTokensSchema.parse(await response.json()).input_tokens
+    return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
   }
 
   /**
@@ -565,28 +242,13 @@ export class ModelApiClient {
     ) {
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
-    // Nothing from the server for this long, headers or a frame, ends the
-    // turn (M39); the request is aborted too, which frees the connection.
-    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
-    const stalled = fill(UI_TEXT.modelApiStalled, {
-      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
-    })
-    const stall = new AbortController()
-    const within = async <T>(waiting: Promise<T>): Promise<T> => {
-      try {
-        return await withDeadline(waiting, idleMs, stalled)
-      } catch (error: unknown) {
-        if (error instanceof DeadlineError) {
-          stall.abort()
-          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
-        }
-        throw error
-      }
-    }
     let feature = admitAttempt?.paidFeature
-    if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
-    if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
+    if (feature === undefined && confirmed !== undefined) {
+      feature = 'scheduledPrompts'
+    }
+    if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search')) {
       feature = 'webSearch'
+    }
     const claim =
       feature === undefined
         ? undefined
@@ -598,21 +260,15 @@ export class ModelApiClient {
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
-      const response = await within(
-        this.request(
-          '/responses',
-          {
-            method: 'POST',
-            body,
-            accept: EVENT_STREAM_MEDIA_TYPE,
-            ...(paid !== undefined && { paid }),
-          },
-          AbortSignal.any([signal, stall.signal]),
-          onRetry,
-          budget,
-          admitAttempt,
-          confirmed,
-        ),
+      const { response, redact, eventParsed } = await this.transport.streamRequest(
+        '/responses',
+        { body, accept: EVENT_STREAM_MEDIA_TYPE, ...(paid !== undefined && { paid }) },
+        signal,
+        onRetry,
+        budget,
+        admitAttempt,
+        confirmed,
+        this.deps.streamIdleMs,
       )
       if (response.body === null) {
         throw new ModelApiError('The response had no body', response.status, undefined, undefined)
@@ -620,7 +276,7 @@ export class ModelApiClient {
       const frames = parseSse(response.body)[Symbol.asyncIterator]()
       try {
         for (;;) {
-          const next = await within(frames.next())
+          const next = await frames.next()
           if (next.done === true) {
             return
           }
@@ -643,8 +299,12 @@ export class ModelApiClient {
               undefined,
             )
           }
+          json = JSON.parse(JSON.stringify(json), (_key, value: unknown) =>
+            typeof value === 'string' ? redact(value) : value,
+          )
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
+            eventParsed()
             if (
               claim !== undefined &&
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
@@ -694,8 +354,12 @@ export class ModelApiClient {
             continue
           }
           this.ignoredEventTypes.add(typed.data.type)
-          this.deps.log.info(`Model API stream events of type ${typed.data.type} are ignored`)
+          this.deps.log.info(
+            `Model API stream events of type ${redact(typed.data.type)} are ignored`,
+          )
         }
+      } catch (error: unknown) {
+        throw redactModelApiError(error, redact, response.status)
       } finally {
         // An early end (a malformed frame, a stall, the caller stopping)
         // closes the parser, which releases the response body (the review of
@@ -703,7 +367,9 @@ export class ModelApiClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (paid?.isSent === false) {
+        await paid.claim.settle(0)
+      }
     }
   }
 }

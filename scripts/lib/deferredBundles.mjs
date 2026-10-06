@@ -17,6 +17,8 @@ export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
   'src/core/providers/subscriptions/registry.ts',
 ]
+export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
+export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
@@ -236,6 +238,20 @@ export const ON_FIRST_USE = [
 /** The same parent exclusions and destination requirements used by the CLI. */
 export function checkDeferredBundles(inputsOf) {
   const problems = []
+  for (const [names, owner] of [
+    [CONFIGURED_TRANSPORT_ONLY, BUNDLES.configured],
+    [SHARED_TRANSPORT_ONLY, BUNDLES.modelApi],
+  ]) {
+    for (const name of names) {
+      const source = `${MODEL_API_DIR}/${name}`
+      if (!inputsOf(owner).has(source)) problems.push(`${owner.output} no longer carries ${source}`)
+      for (const parent of Object.values(BUNDLES)) {
+        if (parent === owner) continue
+        if (inputsOf(parent).has(source))
+          problems.push(`${parent.output} carries ${source}, which loads only in ${owner.output}`)
+      }
+    }
+  }
   if (!inputsOf(BUNDLES.configured).has('src/core/providers/configured.ts'))
     problems.push('dist/configuredProviders.js no longer carries src/core/providers/configured.ts')
   for (const source of SUBSCRIPTION_ONLY) {
@@ -364,6 +380,20 @@ const DEFERRED_OUTFILES = new Map([
 export const deferredCohort = {
   name: 'deferred-cohort',
   setup(build) {
+    // The shared request/framing implementations stay in the existing backend
+    // bundle; providers and ACP require its exported API only when used.
+    build.onResolve({ filter: /\/(?:transport|sse|ndjson|modelApiEntry)(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      if (
+        (['transport.ts', 'sse.ts', 'ndjson.ts'].every(
+          (name) => source !== path.resolve(`src/core/backends/modelapi/${name}`),
+        ) &&
+          source !== path.resolve('src/host/backend/modelApiEntry.ts')) ||
+        path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+      )
+        return
+      return { path: './modelApi.js', external: true }
+    })
     build.onResolve(
       {
         filter:

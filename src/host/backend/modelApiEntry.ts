@@ -8,6 +8,19 @@
 // available when this backend is loaded outside the extension.
 
 import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
+// T's one request loop and framing API are shared by the lazy provider adapters.
+export {
+  RequestTransport,
+  ModelApiError,
+  parseJsonResponse,
+  redactModelApiError,
+  ignoreClosingError,
+  redactSecrets,
+} from '../../core/backends/modelapi/transport'
+export { parseSse, boundedChunks, streamLimitError } from '../../core/backends/modelapi/sse'
+export { parseNdjson } from '../../core/backends/modelapi/ndjson'
+export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
+export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
 import {
   type HookDefinition,

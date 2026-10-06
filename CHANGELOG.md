@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Join the configured providers to the shared request transport: origin-bound
+  credentials, redirect refusal, bounded framing, parser redaction and event
+  progress deadlines. Meta's request bytes remain unchanged.
+
 - Include the lazy subscription and configured-provider bundles in the VSIX
   allowlist and keep crash-report frames aligned with the packaged files.
 - Preserve normalized Gemini model IDs when joining free model scans to
