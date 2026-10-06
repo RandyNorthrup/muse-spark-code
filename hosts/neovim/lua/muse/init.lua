@@ -40,6 +40,14 @@ end
 
 function M.open_companion(url)
   if url and url ~= "" then
+    -- ShaDa persists Ex history, including abbreviated, modified and Lua calls.
+    if type(url) == "string" and url:find("#k=", 1, true) then
+      for index = vim.fn.histnr(":"), 1, -1 do
+        if vim.fn.histget(":", index):find(url, 1, true) then
+          vim.fn.histdel(":", index)
+        end
+      end
+    end
     if not M.valid_url(url) then
       error("EPANEL_LAUNCH_URL")
     end
@@ -136,15 +144,6 @@ function M.setup(config)
   options = vim.tbl_extend("force", options, config or {})
   assert(type(options.command) == "table" and #options.command > 0, "EPANEL_COMMAND")
   vim.api.nvim_create_user_command("MusePanel", function(args)
-    -- Interactive Ex history is persisted by ShaDa. Remove only launch commands.
-    if args.args ~= "" then
-      for index = vim.fn.histnr(":"), 1, -1 do
-        local entry = vim.fn.histget(":", index)
-        if entry:match("^%s*MusePanel%s+") then
-          vim.fn.histdel(":", index)
-        end
-      end
-    end
     M.open_companion(args.args)
   end, { nargs = "?" })
   vim.api.nvim_create_user_command("MuseStop", M.stop, {})

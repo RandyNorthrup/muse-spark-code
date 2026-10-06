@@ -16,8 +16,9 @@ require("codecompanion").setup({
 `MusePanel` starts `panel --companion` in Neovim's current workspace. The
 runtime opens the shared panel. `MusePanel URL` opens a **fresh**,
 runtime-issued ACP `/panel` link, preserving its session. The command removes
-URL-bearing MusePanel entries from Ex history before launch so ShaDa does
-not persist the code, including when opening fails. Programmatic callers can
+entries containing that link from Ex history before launch so ShaDa does
+not persist the code, including modified/abbreviated commands, Lua calls
+and opening failures. Programmatic callers can
 use `require("muse").open_companion(url)` without command-line history.
 Do not copy a used link, bearer token or API key into configuration. The page
 exchanges its fragment once, holds its bearer in memory and authenticates

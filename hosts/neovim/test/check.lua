@@ -162,6 +162,34 @@ for index = 1, vim.fn.histnr(":") do
   assert(not vim.fn.histget(":", index):find("#k=", 1, true), "ShaDa contains no launch code")
 end
 print("PASS interactive launch removed from command history and ShaDa")
+vim.api.nvim_feedkeys(
+  vim.api.nvim_replace_termcodes(":silent MusePa " .. url .. "<CR>", true, false, true),
+  "xt",
+  false
+)
+assert(vim.fn.histget(":", -1) == "echo 'unrelated'", "modified abbreviated launch removed from command history")
+print("PASS modified abbreviated launch removed from command history")
+local lua_command = ":lua require('muse').open_companion(" .. string.format("%q", url) .. ")<CR>"
+vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(lua_command, true, false, true), "xt", false)
+assert(vim.fn.histget(":", -1) == "echo 'unrelated'", "Lua launch removed from command history")
+print("PASS Lua launch removed from command history")
+vim.fn.histadd(":", "silent MusePa " .. url)
+local test_system = vim.system
+vim.system = function()
+  error("EPANEL_TEST_LAUNCH")
+end
+rejects(function()
+  muse.open_companion(url)
+end, "failed browser launch refused")
+vim.system = test_system
+assert(vim.fn.histget(":", -1) == "echo 'unrelated'", "failed launch removed from command history")
+print("PASS failed launch removed from command history")
+vim.cmd("wshada! " .. vim.fn.fnameescape(shada))
+vim.fn.histdel(":")
+vim.cmd("rshada! " .. vim.fn.fnameescape(shada))
+for index = 1, vim.fn.histnr(":") do
+  assert(not vim.fn.histget(":", index):find("#k=", 1, true), "all launch forms absent from ShaDa")
+end
 local adapter = muse.acp_adapter()
 assert(adapter.env.M104_API_KEY == "" and adapter.env.OPENAI_KEY == "", "CodeCompanion adapter blanks credentials")
 assert(adapter.env.m104_api_key == "")
