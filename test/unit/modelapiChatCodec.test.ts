@@ -1873,6 +1873,28 @@ function callBody(callId: string, output: string): CreateResponseBody {
 }
 
 describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
+  it('selects Mistral id rules by preset even under provider aliases', () => {
+    const request = encodeChatRequest(callBody('image-1', 'noon'), 'mistral-medium', {
+      ...MISTRAL,
+      providerId: 'work-mistral',
+    })
+    const messages = JSON.stringify(request.body.messages)
+    const ids = Array.from(messages.matchAll(/"id":"([A-Za-z0-9]{9})"/g), (match) => match[1])
+    const resultIds = Array.from(
+      messages.matchAll(/"tool_call_id":"([A-Za-z0-9]{9})"/g),
+      (match) => match[1],
+    )
+    expect(ids).toHaveLength(1)
+    expect(resultIds).toEqual(ids)
+    expect(messages).not.toContain('image-1')
+    const otherPreset = encodeChatRequest(callBody('image-1', 'noon'), 'm', {
+      ...OPENROUTER,
+      providerId: 'mistral',
+    })
+    expect(JSON.stringify(otherPreset.body.messages)).toContain('"id":"image-1"')
+    expect(JSON.stringify(otherPreset.body.messages)).toContain('"tool_call_id":"image-1"')
+  })
+
   it('rewrites hostile ids per target format, pairing calls with results (BYO item 3)', () => {
     const mistral = encodeChatRequest(callBody('image-1', 'noon'), 'mistral-medium', MISTRAL)
     const mistralText = JSON.stringify(mistral.body.messages)

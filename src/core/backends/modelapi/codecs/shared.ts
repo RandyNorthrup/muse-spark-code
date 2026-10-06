@@ -62,7 +62,14 @@ export function cleanJsonStrings(value: unknown): unknown {
   }
   const cleaned: Record<string, unknown> = {}
   for (const [key, entry] of Object.entries(value)) {
-    cleaned[key] = cleanJsonStrings(entry)
+    // Assignment would invoke Object.prototype's __proto__ setter. Define
+    // every structural key as own data, including legitimate __proto__ keys.
+    Object.defineProperty(cleaned, key, {
+      value: cleanJsonStrings(entry),
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    })
   }
   return cleaned
 }

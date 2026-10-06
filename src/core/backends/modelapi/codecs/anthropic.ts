@@ -397,15 +397,11 @@ function toolUseBlock(
   // every later request (Pi `transform-messages.ts`).
   let parsed: unknown
   try {
-    parsed = JSON.parse(cleanWireText(call.arguments))
+    parsed = cleanJsonStrings(JSON.parse(cleanWireText(call.arguments)))
   } catch {
     parsed = {}
   }
-  const record = isRecord(parsed) ? parsed : {}
-  const cleaned: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(record)) {
-    cleaned[key] = cleanJsonStrings(value)
-  }
+  const cleaned = isRecord(parsed) ? parsed : {}
   const extras = toolExtras?.[call.call_id]
   return {
     type: 'tool_use',

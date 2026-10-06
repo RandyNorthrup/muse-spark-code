@@ -8,6 +8,7 @@ import {
   cleanJsonStrings,
   cleanWireText,
   isBlankWireText,
+  isRecord,
   nativeCallId,
 } from '../../src/core/backends/modelapi/codecs/shared'
 
@@ -39,6 +40,21 @@ describe('isBlankWireText (BYO 1)', () => {
 })
 
 describe('cleanJsonStrings (BYO 13)', () => {
+  it('preserves own __proto__ keys at every depth without creating inherited payload fields', () => {
+    const cleaned = cleanJsonStrings(
+      JSON.parse(
+        String.raw`{"__proto__":{"name":"a\ud800b"},"normal":"ok","nested":[{"__proto__":{"value":"x\udc00"}}]}`,
+      ),
+    )
+    if (!isRecord(cleaned)) throw new TypeError('expected a cleaned object')
+    expect(Object.hasOwn(cleaned, '__proto__')).toBe(true)
+    expect(Object.keys(cleaned)).toEqual(['__proto__', 'normal', 'nested'])
+    expect(cleaned['name']).toBeUndefined()
+    expect(JSON.stringify(cleaned)).toBe(
+      '{"__proto__":{"name":"a�b"},"normal":"ok","nested":[{"__proto__":{"value":"x�"}}]}',
+    )
+  })
+
   it('cleans nested string values and keeps the shape', () => {
     expect(
       cleanJsonStrings({ path: 'a\u{D800}b', nested: { list: ['x\u{DC00}', 1, null] } }),

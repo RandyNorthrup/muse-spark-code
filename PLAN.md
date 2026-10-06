@@ -15719,6 +15719,10 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   cited provider contracts. Meta request fixtures stay byte-identical.
   Rig rules require local hooked commits and focused direct tests; no
   push, integration merge, new dependency, live/paid call or gate change.
+  All nine review findings are now repaired with regressions and twelve red
+  drills; no assigned P1/P2/P3 residual remains. Existing integration
+  follow-ups remain named in §9. Final rig verification is recorded in the
+  certification; the combined quality/platform receipt remains lead-owned.
 - **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
   16; item 24's per-model strict schemas and the llama.cpp grammar check).
   Retry classification moves into `FormatQuirks`; price cards read long
@@ -16422,16 +16426,14 @@ before a repaired one loads (2026-09-30).
 - **FIXM95P-HOST-API — closed by M95INT:** the regenerated combined import
   inventory passes the unchanged host API gate; see §7 and
   `docs/certification/m95-int.md`. No portable-boundary exception was added.
-- **M95-G tool-result image replay (FIXM95G / RVM95A 11).** The existing
-  Gemini captures and research §1.6 do not establish a multimedia
-  `functionResponse` representation. The codec explicitly refuses the whole
-  request with `gemini_tool_result_image_unsupported`, including mixed
-  text/image results, so it cannot send a silently incomplete result. User
-  message images still encode as captured/documented `inlineData`. Follow-up:
-  capture a tool-returned image in Gemini's supported native representation,
-  then add replay and exact-byte regressions before enabling it. The review
-  finding is fixed by the lead-approved explicit-refusal option; the media
-  capability remains unavailable, with no new live/paid calls in this lane.
+- **M95-G tool-result image replay (FIXM95G / RVM95A 11), superseded
+  by M101 P1 / FIXM101P1.** The original M95 encoder refused tool-result
+  images explicitly while its captures did not establish a representation.
+  The lead approved Gemini 3's documented multimodal result contract for
+  M101: images now nest in `functionResponse.parts`, with the vision gate
+  applied first and the pre-3 refusal retained for vision-capable models.
+  No new native-image live receipt is claimed; the existing capture
+  provenance and fake-only contract tests are in `m101-p1.md`.
 - **M95 / RVM95AO-4-SSE — upstream Anthropic SSE buffering (FIXM95A,
   2026-10-05).** The Anthropic decoder caps complete-frame bytes, argument
   bytes, item bytes/count, stream bytes and frame count. Its input seam is

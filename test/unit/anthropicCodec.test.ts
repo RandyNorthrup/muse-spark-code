@@ -769,6 +769,30 @@ describe('breakpoints and effort', () => {
 })
 
 describe('encode guards', () => {
+  it('preserves own __proto__ tool argument keys through Anthropic encoding', () => {
+    const native = encodeAnthropicRequest(
+      canonicalBody({
+        instructions: '',
+        input: [
+          {
+            type: 'function_call',
+            call_id: 'toolu_01b',
+            name: 'get_time',
+            arguments: String.raw`{"__proto__":{"name":"a\ud800b"},"normal":"ok"}`,
+          },
+        ],
+      }),
+      BASE_OPTIONS,
+    )
+    const content = native.body.messages[0]?.content
+    if (content === undefined || typeof content === 'string') throw new Error('expected blocks')
+    const block = content.find((part) => part.type === 'tool_use')
+    if (block?.type !== 'tool_use') throw new Error('expected tool arguments')
+    expect(Object.hasOwn(block.input, '__proto__')).toBe(true)
+    expect(block.input['name']).toBeUndefined()
+    expect(JSON.stringify(block.input)).toBe('{"__proto__":{"name":"a�b"},"normal":"ok"}')
+  })
+
   it('sends non-JSON tool arguments as an empty object (BYO item 1)', () => {
     for (const args of ['{broken', '"just-a-string"', '[1,2]']) {
       const native = encodeAnthropicRequest(

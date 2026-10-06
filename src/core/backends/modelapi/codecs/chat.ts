@@ -343,7 +343,7 @@ function toolOutputText(output: string | readonly FunctionOutputPart[]): string 
 
 /** M101 lane P1 (BYO 3): Mistral's 9-alphanumeric ids, every other preset's chat rule. */
 function callIdFormat(quirks: ChatPresetQuirks): CallIdFormat {
-  return (quirks.providerId ?? quirks.presetId) === 'mistral' ? 'mistral' : 'chat'
+  return quirks.presetId === 'mistral' ? 'mistral' : 'chat'
 }
 
 interface PendingCalls {

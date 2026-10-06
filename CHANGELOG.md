@@ -15,7 +15,8 @@ happened, not what was planned; superseded entries are kept.
   documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
   and images for a model without image input ride as an
   image-omitted placeholder. Tool-call ids are mapped per target format
-  (Anthropic charset, chat length, Mistral 9-alphanumeric) with unique
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
   per-response Gemini fallback ids. Responses replays send the call `id`
   only for the same model with an `fc_` prefix. Gemini replays thought
   signatures on text parts (empty ones included), counts omitted usage as
@@ -27,7 +28,9 @@ happened, not what was planned; superseded entries are kept.
   through `allOf`. The Anthropic decoder tolerates
   proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
   requests `display: summarized` so newer models stream thinking text.
-  Lone surrogates are removed from every BYO encoder. Fakes only; no live
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
   or paid model call.
 
 - M95 integration shares the Node validation runtime and the provider-setup
