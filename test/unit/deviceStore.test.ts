@@ -8,6 +8,7 @@ import {
   symlink,
   readdir,
   open,
+  realpath,
 } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
@@ -25,7 +26,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 const fixture = { parent: '' }
 const stores: DeviceStore[] = []
 beforeEach(async () => {
-  fixture.parent = await mkdtemp(path.join(tmpdir(), 'm100-p-store-'))
+  fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-p-store-')))
 })
 afterEach(async () => {
   await removeDeviceFixture(stores, fixture.parent)

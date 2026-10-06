@@ -18625,6 +18625,16 @@ Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
 are in `docs/certification/m100-0.md`. The lead retains the full quality,
 coverage, packaged-host and security gates.
 
+**FIXM100P pairing/storage review repair (2026-10-06).** The rig brief
+requires direct owning-file tests and byte-exact red/restored drills, normal
+hooks and no merges or aggregate quality. All RVM100P findings (two P2s,
+one P3) are repaired with no deferred review finding. Scoped static/build
+receipts are in `docs/certification/m100-p.md`. P's inherited generated host
+API record and `DEVICE_MODEL_TEXT` split registration remain I-owned;
+neither guard is weakened or bypassed. The lead must regenerate/review the
+joined host record, register the actual lazy bundle readers and pass full
+quality/coverage before proposing a product commit or release.
+
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
 300 consecutive checkpoint-copy file passes. It explicitly requires full

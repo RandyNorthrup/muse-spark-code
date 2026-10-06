@@ -53,12 +53,11 @@ export class DevicePairing {
   }
   private readonly revoked = new Set<string>()
   private readonly blocked = new Set<string>()
+  // A later Pause survives older mutations clearing their temporary blocks.
+  private readonly pauseRequests = new Map<string, { pending: boolean }>()
   private queue = Promise.resolve()
   public constructor(private readonly deps: DevicePairingDeps) {}
-  private async perform(input: unknown): Promise<Setup> {
-    const parsed = parseDeviceWebviewRequest(input)
-    if (!parsed.ok) throw new DevicePairingError('invalid-frame')
-    const request = parsed.message
+  private async perform(request: DeviceWebviewRequest): Promise<Setup> {
     const setup: Setup = { requestId: request.requestId }
     try {
       assertLocalDeviceHost(this.deps.host)
@@ -252,21 +251,40 @@ export class DevicePairing {
     return row
   }
   private async pause(pairId: string): Promise<void> {
-    this.blocked.add(pairId)
-    this.deps.disconnectPair(pairId)
     await this.deps.store.update((state) => {
       this.row(state, pairId).paused = true
       return state
     })
   }
-  public async handle(input: unknown): Promise<Setup> {
+  private async ordered<T>(work: () => Promise<T>): Promise<T> {
     const previous = this.queue
-    const operation = (async () => {
+    const execute = async (): Promise<T> => {
       await previous
-      return await this.perform(input)
-    })()
+      return await work()
+    }
+    const operation = execute()
     this.queue = settled(operation)
     return await operation
+  }
+  public async handle(input: unknown): Promise<Setup> {
+    const parsed = parseDeviceWebviewRequest(input)
+    if (!parsed.ok) throw new DevicePairingError('invalid-frame')
+    const request = parsed.message
+    try {
+      assertLocalDeviceHost(this.deps.host)
+      if (request.action.kind === 'pauseOffers') {
+        // Pause closes admission before waiting for an earlier queued secret read.
+        this.pauseRequests.set(request.action.pairId, { pending: true })
+        this.blocked.add(request.action.pairId)
+        this.deps.disconnectPair(request.action.pairId)
+      }
+    } catch (error) {
+      return parseSetup({
+        requestId: request.requestId,
+        failure: error instanceof DevicePairingError ? error.reason : 'storage',
+      })
+    }
+    return await this.ordered(async () => await this.perform(request))
   }
   /** T calls at handshake and per frame; E still checks local trust/consent. */
   public async material(pairId: string, peerPin: string | undefined, requiresOffer = true) {
@@ -276,6 +294,7 @@ export class DevicePairing {
     if (
       requiresOffer &&
       (this.blocked.has(pairId) ||
+        this.pauseRequests.get(pairId)?.pending === true ||
         row.paused ||
         row.grants.every(
           (grant) => grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId,
@@ -291,6 +310,7 @@ export class DevicePairing {
       current.pair.peer.fingerprint !== row.pair.peer.fingerprint ||
       (requiresOffer &&
         (this.blocked.has(pairId) ||
+          this.pauseRequests.get(pairId)?.pending === true ||
           current.paused ||
           current.grants.every(
             (grant) => grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId,
@@ -309,31 +329,42 @@ export class DevicePairing {
   }
   public async grant(candidate: DeviceGrant): Promise<void> {
     const grant = deviceGrantSchema.parse(candidate)
-    await this.material(grant.pairId, undefined, false)
-    this.blocked.add(grant.pairId)
-    this.deps.disconnectPair(grant.pairId)
-    await this.deps.store.update((state) => {
-      const row = this.row(state, grant.pairId)
-      if (
-        grant.offer.deviceId !== state.deviceId ||
-        grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId
-      )
-        throw new DevicePairingError('grant')
-      const previous = row.grants.find((item) => item.offer.grantId === grant.offer.grantId)
-      if (previous !== undefined && grant.offer.grantRevision <= previous.offer.grantRevision)
-        throw new DevicePairingError('grant')
-      row.grants = [
-        ...row.grants.filter(
-          (item) =>
-            item.offer.repositoryId !== grant.offer.repositoryId &&
-            item.offer.grantId !== grant.offer.grantId,
-        ),
-        grant,
-      ]
-      row.paused = false
-      return state
+    const pause = this.pauseRequests.get(grant.pairId)
+    await this.ordered(async () => {
+      assertLocalDeviceHost(this.deps.host)
+      const before = this.row(await this.deps.store.read(), grant.pairId)
+      const wasBlocked = this.blocked.has(grant.pairId)
+      await this.material(grant.pairId, undefined, false)
+      await this.deps.store.update((state) => {
+        const row = this.row(state, grant.pairId)
+        if (
+          row.paused !== before.paused ||
+          this.blocked.has(grant.pairId) !== wasBlocked ||
+          this.pauseRequests.get(grant.pairId) !== pause ||
+          JSON.stringify(row.grants) !== JSON.stringify(before.grants) ||
+          grant.offer.deviceId !== state.deviceId ||
+          grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId
+        )
+          throw new DevicePairingError('grant')
+        const previous = row.grants.find((item) => item.offer.grantId === grant.offer.grantId)
+        if (previous !== undefined && grant.offer.grantRevision <= previous.offer.grantRevision)
+          throw new DevicePairingError('grant')
+        this.blocked.add(grant.pairId)
+        this.deps.disconnectPair(grant.pairId)
+        row.grants = [
+          ...row.grants.filter(
+            (item) =>
+              item.offer.repositoryId !== grant.offer.repositoryId &&
+              item.offer.grantId !== grant.offer.grantId,
+          ),
+          grant,
+        ]
+        row.paused = false
+        return state
+      })
+      this.blocked.delete(grant.pairId)
+      if (pause !== undefined) pause.pending = false
     })
-    this.blocked.delete(grant.pairId)
   }
   public async authorize(peerPin: string, request: DeviceDispatch) {
     if (request.identity.receiverIncarnationId !== this.deps.receiverIncarnationId)

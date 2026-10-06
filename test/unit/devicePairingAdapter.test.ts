@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile, open, rename } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, open, rename, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import type * as FileSystem from 'node:fs/promises'
@@ -30,7 +30,7 @@ const localHost: DeviceExecutionHost = {
 const fixture = { parent: '' }
 const stores: DeviceStore[] = []
 beforeEach(async () => {
-  fixture.parent = await mkdtemp(path.join(tmpdir(), 'm100-p-adapter-'))
+  fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-p-adapter-')))
 })
 afterEach(async () => {
   await removeDeviceFixture(stores, fixture.parent)
@@ -136,6 +136,32 @@ async function offeredPair() {
   return { a, paired, grant }
 }
 
+function holdSecret(host: Awaited<ReturnType<typeof harness>>) {
+  const entered = Promise.withResolvers<boolean>()
+  const keyRead = Promise.withResolvers<boolean>()
+  host.secretStore.get.mockImplementationOnce(async (key) => {
+    entered.resolve(true)
+    await keyRead.promise
+    return host.values.get(key)
+  })
+  return {
+    entered: entered.promise,
+    release: () => {
+      keyRead.resolve(true)
+    },
+  }
+}
+
+async function expectBlockedBeforeSecret(
+  host: Awaited<ReturnType<typeof harness>>,
+  pairId: string,
+  peerPin: string,
+) {
+  host.secretStore.get.mockClear()
+  await expect(host.adapter.material(pairId, peerPin)).rejects.toThrow('grant')
+  expect(host.secretStore.get).not.toHaveBeenCalled()
+}
+
 describe('explicit local pairing adapter and SecretStorage', () => {
   it('does no work at construction; pairs without activating offers, opening sockets or granting execution', async () => {
     const a = await harness('a')
@@ -149,11 +175,7 @@ describe('explicit local pairing adapter and SecretStorage', () => {
     expect(state.pairs[0]?.paused).toBe(true)
     expect(state.pairs[0]?.grants).toEqual([])
     expect(state.usedInvitationIds).toEqual([paired.local.invitationId, paired.peer.invitationId])
-    a.secretStore.get.mockClear()
-    await expect(a.adapter.material(paired.pairId, paired.peer.fingerprint)).rejects.toThrow(
-      'grant',
-    )
-    expect(a.secretStore.get).not.toHaveBeenCalled()
+    await expectBlockedBeforeSecret(a, paired.pairId, paired.peer.fingerprint)
     const observed6 = await a.adapter.material(paired.pairId, paired.peer.fingerprint, false)
     expect(observed6.key.type).toBe('private')
     expect(await readFile(path.join(a.directory, 'pairs.json'), 'utf8')).not.toContain(
@@ -560,6 +582,152 @@ it('rechecks pause after an asynchronous key read before permitting any frame', 
   await a.act({ kind: 'pauseOffers', pairId: paired.pairId })
   keyRead.resolve(saved)
   await refused
+})
+it.each(['offered', 'paused'] as const)(
+  'a later Pause refuses a pending grant secret read for an already %s pair',
+  async (initial) => {
+    const { a, paired, grant } = await offeredPair()
+    if (initial === 'paused')
+      expect(await a.act({ kind: 'pauseOffers', pairId: paired.pairId })).not.toHaveProperty(
+        'failure',
+      )
+    const revised = structuredClone(grant)
+    revised.offer.grantRevision = 2
+    const keyRead = holdSecret(a)
+    const granting = Promise.allSettled([a.adapter.grant(revised)])
+    await keyRead.entered
+    const pausing = a.act({ kind: 'pauseOffers', pairId: paired.pairId })
+    keyRead.release()
+    const [result] = await granting
+    expect(await pausing).not.toHaveProperty('failure')
+    const state = await a.store.read()
+    let canAuthorize = true
+    try {
+      await a.adapter.authorize(paired.peer.fingerprint, deviceCheck(revised))
+    } catch {
+      canAuthorize = false
+    }
+    expect({ stillPaused: state.pairs[0]?.paused, canAuthorize }).toEqual({
+      stillPaused: true,
+      canAuthorize: false,
+    })
+    expect(result).toMatchObject({ status: 'rejected', reason: new Error('grant') })
+    expect(state.pairs[0]?.grants).toEqual([grant])
+  },
+)
+
+it('queues a grant behind an earlier UI mutation instead of starting a second secret read', async () => {
+  const { a, paired, grant } = await offeredPair()
+  a.secretStore.get.mockClear()
+  const keyRead = holdSecret(a)
+  const changing = a.act({
+    kind: 'setAddress',
+    pairId: paired.pairId,
+    endpoint: { address: '127.0.0.1', port: 34_568 },
+  })
+  await keyRead.entered
+  const revised = structuredClone(grant)
+  revised.offer.grantRevision = 2
+  const granting = expect(a.adapter.grant(revised)).resolves.toBeUndefined()
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    expect(a.secretStore.get).toHaveBeenCalledOnce()
+  } finally {
+    keyRead.release()
+    await Promise.allSettled([changing, granting])
+  }
+  expect(await changing).not.toHaveProperty('failure')
+  await granting
+  expect(await a.adapter.authorize(paired.peer.fingerprint, deviceCheck(revised))).toEqual(
+    revised.offer.caps,
+  )
+})
+
+it.each(['pause', 'revision'] as const)(
+  'refuses a grant when durable %s state changes during its secret read',
+  async (kind) => {
+    const { a, grant } = await offeredPair()
+    const revised = structuredClone(grant)
+    revised.offer.grantRevision = 3
+    const keyRead = holdSecret(a)
+    const granting = Promise.allSettled([a.adapter.grant(revised)])
+    await keyRead.entered
+    await a.store.update((state) => {
+      const row = state.pairs[0]!
+      if (kind === 'pause') row.paused = true
+      else row.grants[0]!.offer.grantRevision = 2
+      return state
+    })
+    const before = await readFile(path.join(a.directory, 'pairs.json'))
+    keyRead.release()
+    const [result] = await granting
+    expect(result).toMatchObject({ status: 'rejected', reason: new Error('grant') })
+    expect(await readFile(path.join(a.directory, 'pairs.json'))).toEqual(before)
+    expect(await a.store.read()).toMatchObject({ deviceId: 'a'.repeat(32) })
+  },
+)
+
+it.each(['new frame', 'pending secret read'] as const)(
+  'keeps a later Pause blocking a %s when an older grant finishes persistence',
+  async (kind) => {
+    const { a, paired, grant } = await offeredPair()
+    let keyRead: ReturnType<typeof holdSecret> | undefined
+    let material: ReturnType<DevicePairing['material']> | undefined
+    if (kind === 'pending secret read') {
+      keyRead = holdSecret(a)
+      material = a.adapter.material(paired.pairId, paired.peer.fingerprint)
+      await keyRead.entered
+    }
+    const refused = material === undefined ? undefined : expect(material).rejects.toThrow('grant')
+    const persist = a.store.update.bind(a.store)
+    const grantPersisted = Promise.withResolvers<boolean>()
+    const releaseGrant = Promise.withResolvers<boolean>()
+    const pauseEntered = Promise.withResolvers<boolean>()
+    const releasePause = Promise.withResolvers<boolean>()
+    const update = vi
+      .spyOn(a.store, 'update')
+      .mockImplementationOnce(async (change) => {
+        await persist(change)
+        grantPersisted.resolve(true)
+        await releaseGrant.promise
+      })
+      .mockImplementationOnce(async (change) => {
+        pauseEntered.resolve(true)
+        await releasePause.promise
+        await persist(change)
+      })
+    const revised = structuredClone(grant)
+    revised.offer.grantRevision = 2
+    const granting = expect(a.adapter.grant(revised)).resolves.toBeUndefined()
+    await grantPersisted.promise
+    const pausing = a.act({ kind: 'pauseOffers', pairId: paired.pairId })
+    releaseGrant.resolve(true)
+    await granting
+    await pauseEntered.promise
+    try {
+      keyRead?.release()
+      if (refused === undefined) {
+        await expectBlockedBeforeSecret(a, paired.pairId, paired.peer.fingerprint)
+      } else await refused
+    } finally {
+      keyRead?.release()
+      releasePause.resolve(true)
+      await Promise.allSettled([pausing, refused])
+      update.mockRestore()
+    }
+    expect(await pausing).not.toHaveProperty('failure')
+  },
+)
+
+it('allows a fresh explicit grant after a completed Pause to resume this pair', async () => {
+  const { a, paired, grant } = await offeredPair()
+  expect(await a.act({ kind: 'pauseOffers', pairId: paired.pairId })).not.toHaveProperty('failure')
+  const revised = structuredClone(grant)
+  revised.offer.grantRevision = 2
+  await a.adapter.grant(revised)
+  expect(await a.adapter.authorize(paired.peer.fingerprint, deviceCheck(revised))).toEqual(
+    revised.offer.caps,
+  )
 })
 it('disconnects and blocks a requested pair even when damaged metadata prevents key cleanup', async () => {
   const a = await harness('a')
