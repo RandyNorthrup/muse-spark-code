@@ -74,7 +74,7 @@ import {
 import { pluginContainment } from './host/backend/pluginContainment'
 import { EditorContextTracker } from './host/editor/editorContextTracker'
 import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
+import { createVerifyEditor } from './host/vscode/editor/verifyEditor'
 import { verifyGuidance } from './core/verify/checkCommands'
 import { IdeMcpServer } from './host/ide/ideMcpServer'
 import { createRulesFile } from './host/commands/createRulesFile'
@@ -98,18 +98,18 @@ import { loadToolImage } from './core/toolImages'
 import { modelApiClientLoader } from './host/backend/modelApiBundle'
 import { ideImageTools } from './host/ide/imageTools'
 import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
-import { isWebFetchAllowed } from './host/web/webFetchConfirm'
+import { isWebFetchAllowed } from './host/vscode/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { BrowserChecks } from './host/browser/browserChecks'
-import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
-import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
-import { runtimeConsent } from './host/browser/runtimeConsent'
+import { isBrowserCheckAllowed } from './host/vscode/browser/browserCheckConfirm'
+import { downloadBrowserRuntime } from './host/vscode/browser/runtimeCommand'
+import { runtimeConsent } from './host/vscode/browser/runtimeConsent'
 import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
 import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
-import { vscodeLanguageServices } from './host/codeIntel/languageServices'
+import { vscodeLanguageServices } from './host/vscode/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
@@ -120,8 +120,8 @@ import {
   createTabActivation,
   tabTextChangeEvent,
   deferredRefresh,
-} from './host/tab/tabBundle'
-import { createCliFeatures } from './host/cliFeatures'
+} from './host/vscode/tab/tabBundle'
+import { createCliFeatures } from './host/vscode/cliFeatures'
 import {
   bundledSkillsLoader,
   createBundledSkillsOffer,
@@ -130,8 +130,8 @@ import {
   type BundledSkillsCommandDeps,
 } from './host/skills/bundledSkills'
 import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
-import { createSessionTransferFiles } from './host/conversation/transferDialogs'
-import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { createSessionTransferFiles } from './host/vscode/conversation/transferDialogs'
+import { createWorktreeFeatures } from './host/vscode/worktreeFeatures'
 import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
 import {
   conversationGitFactory,
@@ -143,12 +143,12 @@ import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
 import { lazyReview } from './host/review/reviewBundle'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
 import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
-import { createMemoryFeatures } from './host/memoryFeatures'
+import { createMemoryFeatures } from './host/vscode/memoryFeatures'
 import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
-import { showPickOne } from './host/quickPick'
+import { showPickOne } from './host/vscode/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
 import {
   createCheckpointPort,
@@ -163,7 +163,7 @@ import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/
 import { isProcessAlive } from './host/checkpoints/windowPresence'
 import { ReportRecorder } from './host/support/reportRecorder'
 import type * as RecorderBundle from './host/support/recorderEntry'
-import { vscodeReportEditorIo } from './host/support/reportEditorIo'
+import { vscodeReportEditorIo } from './host/vscode/support/reportEditorIo'
 import {
   changedSettingNames,
   extensionReportFacts,
@@ -178,23 +178,23 @@ import {
   readProxySettings,
 } from './host/networkPosture'
 import { OutputDocumentStore } from './host/outputDocuments'
-import { loggedPopups } from './host/popups'
-import { pickMentionFile } from './host/mention/mentionQuickPick'
+import { loggedPopups } from './host/vscode/popups'
+import { pickMentionFile } from './host/vscode/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
 import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
-import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
-import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
-import { TasksPanel } from './host/views/tasksPanel'
-import { SurfaceRegistry } from './host/views/surfaceRegistry'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/vscode/views/ChatViewProvider'
+import { openChatPanel, restoreChatPanel } from './host/vscode/views/chatPanel'
+import { TasksPanel } from './host/vscode/views/tasksPanel'
+import { SurfaceRegistry } from './host/vscode/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
-import type { WebviewHostContext } from './host/views/webviewSetup'
+import type { WebviewHostContext } from './host/vscode/views/webviewSetup'
 import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
+import { createDictationSetup, createMuseVoiceSetup } from './host/vscode/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
-import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+import { createPaidFeatures } from './host/vscode/paid/paidHost'
+import { createPaidDailyBudget } from './host/vscode/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
   BACKEND_SETTING,

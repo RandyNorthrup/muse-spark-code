@@ -11,7 +11,7 @@ import { EN } from '../../../src/shared/l10n/en'
 import { BASE_LOCALE } from '../../../src/shared/l10n/text'
 import type { HostToWebviewMessage, SettingsSnapshot } from '../../../src/shared/protocol'
 import type { ChatSurface } from '../../../src/host/views/chatSurface'
-import type { WebviewHostContext } from '../../../src/host/views/webviewSetup'
+import type { WebviewHostContext } from '../../../src/host/vscode/views/webviewSetup'
 import { EventEmitter, FakeUri, Position, Range, Uri } from '../mocks/vscode'
 
 function acceptMessage(_message: unknown): Thenable<boolean> {

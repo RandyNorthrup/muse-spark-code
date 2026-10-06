@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { openChatPanel, restoreChatPanel } from '../../src/host/views/chatPanel'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import { openChatPanel, restoreChatPanel } from '../../src/host/vscode/views/chatPanel'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
 import { UI_TEXT } from '../../src/shared/constants'
 import { FakeWebviewPanel, fakeHostContext, fakeSurface } from './helpers/fakes'
 // Same module instance the production code receives through the `vscode`

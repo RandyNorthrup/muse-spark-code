@@ -1,6 +1,6 @@
 // What the code intelligence tools ask of VS Code's language services (M67,
 // PLAN.md D49), as plain data: the host adapter
-// (src/host/codeIntel/languageServices.ts) runs VS Code's `vscode.execute…`
+// (src/host/vscode/codeIntel/languageServices.ts) runs VS Code's `vscode.execute…`
 // commands and converts their results; the unit tests hand in a fake. Paths
 // are absolute file-system paths; a result that is not a file on disk (a
 // virtual document) has no path and is counted as outside the workspace.

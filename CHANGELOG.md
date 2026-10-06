@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- VS Code adapter modules now live under `src/host/vscode/`; the host API
+  gate enforces this boundary while preserving the existing panel behavior.
+
 - Standalone session controller registry now owns ACP adoption, reload stop
   barriers and host-exit cleanup; the existing ACP wire behavior is preserved.
   Embedding runtimes can supply the registry and discover those ACP sessions.

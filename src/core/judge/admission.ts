@@ -5,7 +5,7 @@
 // import: the durable daily ledger arrives as an injected JudgeDailyLedger,
 // and this module keeps no store, lock or journal of its own.
 //
-// The seam for D78's `src/host/paid/paidDailyBudget.ts`: that ledger must
+// The seam for D78's `src/host/vscode/paid/paidDailyBudget.ts`: that ledger must
 // meet D77's entry criteria (one canonical namespace for VS Code windows and
 // standalone clients; a durable reservation committed before dispatch; crash
 // recovery that keeps a sent-or-possibly-sent claim as uncertain liability;

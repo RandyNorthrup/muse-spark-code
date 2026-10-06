@@ -7,7 +7,10 @@ import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { Dictation } from '../../src/core/voice/dictation'
 import { locateCaptureHelper } from '../../src/core/voice/helperLocation'
-import { createDictationSetup, createMuseVoiceSetup } from '../../src/host/voice/dictationHost'
+import {
+  createDictationSetup,
+  createMuseVoiceSetup,
+} from '../../src/host/vscode/voice/dictationHost'
 import type { VoiceBundle } from '../../src/host/voice/voiceBundle'
 import * as voiceEntry from '../../src/host/voice/voiceEntry'
 import { type HelperProcess, spawnHelper } from '../../src/host/voice/voiceProcesses'

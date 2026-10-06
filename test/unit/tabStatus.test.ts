@@ -10,9 +10,13 @@ import {
   type TabStatusDeps,
   type TabStatusHandle,
   type TabSnoozeStore,
-} from '../../src/host/tab/tabBundle'
-import { showTabMenu, snoozeTabCommand, tabLanguagesCommand } from '../../src/host/tab/tabStatus'
-import { createTabSnooze, createTabStatusItem } from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
+import {
+  showTabMenu,
+  snoozeTabCommand,
+  tabLanguagesCommand,
+} from '../../src/host/vscode/tab/tabStatus'
+import { createTabSnooze, createTabStatusItem } from '../../src/host/vscode/tab/tabBundle'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill, formatUsd } from '../../src/shared/l10n/text'
 import { FakeStatusBarItem } from './mocks/vscode'

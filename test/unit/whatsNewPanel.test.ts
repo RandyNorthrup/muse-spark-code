@@ -6,7 +6,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { WhatsNewContent } from '../../src/core/whatsNew/whatsNewContent'
-import { createWhatsNewPagesFor } from '../../src/host/whatsNew/whatsNewPanel'
+import { createWhatsNewPagesFor } from '../../src/host/vscode/whatsNew/whatsNewPanel'
 import {
   UI_TEXT,
   WHATS_NEW_CHANGELOG_URL,

@@ -19193,6 +19193,17 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**Lane A implementation (2026-10-05).** The required release/0.14.1 merge
+brings the current activation and 30 host modules importing `vscode`
+(the planning count was 24). Move all 30 with history into `src/host/vscode/`.
+Extract the full conversation dependency composition into `src/host/compose/`
+using frozen `HostServices` and explicit backend, feature and editor-state
+ports. VS Code invokes the same factory the runtime panel will use. Sync
+editor/trust/document snapshots remain explicit ports: MHP requests are async.
+No runtime panel command or adapter is implemented in A. The release sections
+of CHANGELOG remain byte-identical to release/0.14.1. The lane brief reserves
+aggregate quality for the lead; A runs scoped tests and all specified gates.
+
 Lane B partial implementation (2026-10-05): the runtime registry now owns
 ACP session lifecycle and can be supplied by an embedding runtime. Bounded,
 atomic settings/storage records share the existing setting schemas. They are

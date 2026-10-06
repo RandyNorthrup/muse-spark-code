@@ -115,8 +115,8 @@ export const ON_FIRST_USE = [
     use: 'the first Tab request or menu',
     files: [
       'src/host/tab/tabEntry.ts',
-      'src/host/tab/tabProvider.ts',
-      'src/host/tab/tabStatus.ts',
+      'src/host/vscode/tab/tabProvider.ts',
+      'src/host/vscode/tab/tabStatus.ts',
       'src/host/tab/tabLedger.ts',
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
@@ -216,7 +216,7 @@ export const ON_FIRST_USE = [
     use: 'the first What’s New page or notice',
     files: [
       'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/vscode/whatsNew/whatsNewPanel.ts',
       'src/host/whatsNew/whatsNewHtml.ts',
       'src/core/whatsNew/whatsNewContent.ts',
       'src/shared/whatsNewMessages.ts',

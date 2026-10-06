@@ -10,7 +10,7 @@ import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
   type GitWindowFeatures,
-} from './gitWindow'
+} from '../vscode/git/gitWindow'
 
 /** `errorTypes` only for a test's window from another module copy; the bundle's own otherwise. */
 export function createConversationGit(

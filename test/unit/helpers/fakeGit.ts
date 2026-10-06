@@ -1,5 +1,5 @@
 // A fake of VS Code's git extension API (the part M71 calls,
-// src/host/git/gitExtension.ts) and a GitWindow over it and the fake
+// src/host/vscode/git/gitExtension.ts) and a GitWindow over it and the fake
 // GitHub, for the M71 tests. Every call the extension makes is recorded;
 // `push` records exactly the arguments it was given, so a fourth (a force
 // mode) would show.
@@ -17,7 +17,7 @@ import type {
   GitCommit,
   GitRemote,
   GitRepository,
-} from '../../../src/host/git/gitExtension'
+} from '../../../src/host/vscode/git/gitExtension'
 import { PullRequestLinks } from '../../../src/host/git/pullRequestLinks'
 import { FAKE_GITHUB_BASE, FAKE_GITHUB_TOKEN, type FakeGitHub, fakeGitHub } from './fakeGitHub'
 import { FakeLogOutputChannel } from './fakes'

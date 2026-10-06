@@ -31,7 +31,7 @@ import {
   type TabReportedUsage,
   type TabReservation,
   type TabTextChangeEvent,
-} from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
 import {
   TabIgnoreCache,
   chooseTabMode,
@@ -42,7 +42,7 @@ import {
   isTabForbiddenName,
   tabAcceptArgsOf,
   type TabFileCandidate,
-} from '../../src/host/tab/tabProvider'
+} from '../../src/host/vscode/tab/tabProvider'
 import { tabUserText } from '../../src/core/tab/tabRequest'
 import {
   REDACTED_MARK,
@@ -177,7 +177,7 @@ describe('isTabForbiddenName', () => {
   })
 
   it('allows ordinary source files', () => {
-    expect(isTabForbiddenName('src/host/tab/tabProvider.ts')).toBe(false)
+    expect(isTabForbiddenName('src/host/vscode/tab/tabProvider.ts')).toBe(false)
   })
 })
 

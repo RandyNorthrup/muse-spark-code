@@ -6,8 +6,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as vscode from 'vscode'
 import type { BrowserChecks } from '../../src/host/browser/browserChecks'
-import { downloadBrowserRuntime } from '../../src/host/browser/runtimeCommand'
-import { runtimeConsent } from '../../src/host/browser/runtimeConsent'
+import { downloadBrowserRuntime } from '../../src/host/vscode/browser/runtimeCommand'
+import { runtimeConsent } from '../../src/host/vscode/browser/runtimeConsent'
 import { UI_TEXT } from '../../src/shared/constants'
 
 const showInformation = vi.mocked(vscode.window.showInformationMessage)

@@ -72,7 +72,7 @@ import {
   type CaptureGitOwner,
   type GitChange,
   type GitRepository,
-} from './gitExtension'
+} from '../vscode/git/gitExtension'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
 /** Preserve activation's error identities when this adapter is built into its own bundle. */

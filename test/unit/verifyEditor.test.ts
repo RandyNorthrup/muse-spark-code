@@ -18,7 +18,7 @@ import {
   window,
   workspace,
 } from './mocks/vscode'
-import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
+import { createVerifyEditor, type VerifyEditor } from '../../src/host/vscode/editor/verifyEditor'
 import { fingerprint } from '../../src/core/verify/fingerprint'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { logLines } from './helpers/logText'

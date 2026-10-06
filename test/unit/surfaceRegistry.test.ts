@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
 import { fakeSurface } from './helpers/fakes'
 
 describe('SurfaceRegistry', () => {

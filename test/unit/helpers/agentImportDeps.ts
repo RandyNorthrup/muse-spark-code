@@ -3,7 +3,7 @@
 // lease runs its work at once and the bundle is the real entry.
 
 import { importFromAgents, runAgentImport } from '../../../src/host/agentImportEntry'
-import type { CliFeatureDeps } from '../../../src/host/cliFeatures'
+import type { CliFeatureDeps } from '../../../src/host/vscode/cliFeatures'
 
 export function inertAgentImport(root?: string): CliFeatureDeps['agentImport'] {
   return {

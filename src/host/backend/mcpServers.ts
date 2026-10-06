@@ -9,7 +9,7 @@ import type { McpPoolDeps } from '../../core/backends/modelapi/mcp/pool'
 import { environmentValue } from '../../core/backends/musecode/launch'
 import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
 import { UI_TEXT } from '../../shared/constants'
-import { readTextIfPresent } from '../cliFeatures'
+import { readTextIfPresent } from '../vscode/cliFeatures'
 import type { Logger } from '../logger'
 import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
 

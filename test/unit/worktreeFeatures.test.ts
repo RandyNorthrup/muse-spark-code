@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { commands, Uri, window, workspace } from 'vscode'
 import { WorktreeRegistry } from '../../src/host/git/worktreeRegistry'
-import { createWorktreeFeatures } from '../../src/host/worktreeFeatures'
+import { createWorktreeFeatures } from '../../src/host/vscode/worktreeFeatures'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { memoryMemento } from './helpers/fakeGit'
 import { confirmModal as confirm, inform, pickOne } from './helpers/vscodeViews'

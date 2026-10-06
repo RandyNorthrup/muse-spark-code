@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as vscode from 'vscode'
-import { vscodeLanguageServices } from '../../src/host/codeIntel/languageServices'
+import { vscodeLanguageServices } from '../../src/host/vscode/codeIntel/languageServices'
 import { VSCODE_COMMANDS } from '../../src/shared/constants'
 import { extensions as mockExtensions } from './mocks/vscode'
 

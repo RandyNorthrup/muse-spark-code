@@ -19,7 +19,7 @@ import {
   createCheckpointPort,
   withCheckpointEditAt,
 } from '../../src/host/checkpoints/checkpointHost'
-import { createMemoryFeatures } from '../../src/host/memoryFeatures'
+import { createMemoryFeatures } from '../../src/host/vscode/memoryFeatures'
 import { CHECKPOINT_ACTIVITY_PREFIX, type MemoryScope, UI_TEXT } from '../../src/shared/constants'
 import {
   changedFileTurn,

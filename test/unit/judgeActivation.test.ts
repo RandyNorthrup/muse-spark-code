@@ -5,7 +5,7 @@ import { build } from 'esbuild'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type * as vscode from 'vscode'
 import { isJudgeEngineOn } from '../../src/core/judge/engine'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
+import { createPaidFeatures } from '../../src/host/vscode/paid/paidHost'
 import {
   PAID_FEATURE_SETTINGS,
   SETTING_DEFAULTS,

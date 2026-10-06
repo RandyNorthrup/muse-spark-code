@@ -520,7 +520,7 @@ for (const file of REVIEW_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
-  'src/host/agentImportHost.ts',
+  'src/host/vscode/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -568,9 +568,9 @@ for (const prefix of IMPORT_ONLY) {
 const GIT_ONLY = [
   'src/host/git/conversationGit.ts',
   'src/host/git/conversationGitEntry.ts',
-  'src/host/git/gitWindow.ts',
-  'src/host/git/gitExtension.ts',
-  'src/host/git/githubSession.ts',
+  'src/host/vscode/git/gitWindow.ts',
+  'src/host/vscode/git/gitExtension.ts',
+  'src/host/vscode/git/githubSession.ts',
   'src/host/git/heldCheckout.ts',
   'src/host/git/pullRequestCheckout.ts',
   'src/host/git/pullRequestLinks.ts',

@@ -20,7 +20,7 @@ import {
   createTabActivation,
   tabTextChangeEvent,
   type TabAcceptedEdit,
-} from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
 import {
   REDACTED_MARK,
   SETTING_DEFAULTS,

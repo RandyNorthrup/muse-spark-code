@@ -3,7 +3,7 @@ import {
   type MentionPickItem,
   type MentionQuickPick,
   pickMentionFile,
-} from '../../src/host/mention/mentionQuickPick'
+} from '../../src/host/vscode/mention/mentionQuickPick'
 import { EventEmitter } from './mocks/vscode'
 
 class FakeQuickPick implements MentionQuickPick {
