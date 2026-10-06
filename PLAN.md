@@ -238,6 +238,19 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**TRAIN15C continuation scope (2026-10-05, kubuntu).** The lead authorizes
+recovering the 26-byte original deferred overflow without raising that cap,
+then ordered `--no-ff` merges of `m96/int3d`, `m96/ifix-win4` and `m97/sr`.
+The metafile attributes the largest changed deferred module to UsageDialog
+(12,328 contributed bytes); its added provider tallies are used only when a
+nonempty provider report is shown. Extract those rows into a lazy provider-usage
+surface at that condition, keeping shared facts charged to the original cohort.
+Give only the new closure D6's measured + 15%, rounded-up-to-25-KiB budget.
+Preserve features, translations, released changelog sections and every existing
+cap. Measure the production build and universal-helper VSIX after each step;
+run scoped checks and inherited owning tests. Full quality waits for M95/M102
+under the integration brief; no live/paid calls, push or extra merges.
+
 **VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing
 language-major translation matrix and all three lazy English regions at Brotli
 quality 11; a separate solid archive holds exact lazy CommonJS sources so
@@ -287,6 +300,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
 | `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
+| Webview provider-usage import closure | ≤ 25 KiB (TRAIN15C: provider tallies only for a nonempty report; 1,683 bytes measured + 15%, rounded up to 25 KiB; original 50 KiB cap unchanged)                                                                                                                                                                                                                                                      |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |

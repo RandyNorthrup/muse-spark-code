@@ -8,7 +8,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { Fragment, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -39,7 +39,6 @@ import {
   formatWindowLength,
   planLabel,
   type AccountFacts,
-  type ProviderUsageRow,
   type SubscriptionUsage,
   type UsageInsights,
 } from '../../shared/usage'
@@ -49,6 +48,12 @@ import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
 import { formatDurationMs } from '../agentFormat'
 import { Modal } from './Modal'
+import { FactRows } from './FactRows'
+
+const ProviderUsageSection = lazy(async () => {
+  const module = await import('./ProviderUsageSection')
+  return { default: module.ProviderUsageSection }
+})
 
 export interface UsageDialogProps {
   /** undefined while the host has not answered `readUsage`. */
@@ -73,18 +78,6 @@ export interface UsageDialogProps {
 const ROW_META_CLASS = 'usage-row-meta'
 
 type InsightWindow = 'day' | 'week'
-
-/** Repeated definition-list markup shares one renderer within the deferred surface. */
-function FactRows({ rows }: { readonly rows: readonly (readonly [string, string | undefined])[] }) {
-  return rows.map(([label, value], index) =>
-    value === undefined ? null : (
-      <Fragment key={index}>
-        <dt>{label}</dt>
-        <dd>{value}</dd>
-      </Fragment>
-    ),
-  )
-}
 
 function percentLabel(usedPercent: number): string {
   return fill(UI_TEXT.usagePercentUsed, { percent: formatPercent(usedPercent) })
@@ -470,84 +463,6 @@ function planFor(report: UsageReport): string {
   return report.backend === 'modelApi' ? UI_TEXT.usagePlanPayAsYouGo : UI_TEXT.usagePlanUnknown
 }
 
-/**
- * How a provider row's cost reads: settled dollars, `unpriced`, `local`,
- * `plan`, or nothing yet for a priced model the host has not settled (M95).
- */
-function providerCost(row: ProviderUsageRow): string | undefined {
-  if (row.costUsd !== undefined) {
-    return formatUsd(row.costUsd)
-  }
-  switch (row.pricing) {
-    case 'priced': {
-      return undefined
-    }
-    case 'unpriced': {
-      return UI_TEXT.modelUnpriced
-    }
-    case 'local': {
-      // A local model shows cost 0 (M95 acceptance 10).
-      return formatUsd(0)
-    }
-    case 'plan': {
-      return UI_TEXT.modelPlan
-    }
-  }
-}
-
-/**
- * This window's tallies per BYO provider (M95): tokens with their settled
- * cost, and an account-connected key's own usage, limit and remainder where
- * the provider reports them (today only OpenRouter's `/key`, in USD). Each
- * metric is its own row, so no language's word order is assumed.
- */
-function ProvidersSection({ providers }: { readonly providers: readonly ProviderUsageRow[] }) {
-  return (
-    <>
-      <h3 className="usage-heading">{UI_TEXT.providersSectionTitle}</h3>
-      <dl className="usage-facts">
-        {providers.map((row) => {
-          const cost = providerCost(row)
-          const tokens = `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
-          return (
-            <div key={row.providerId}>
-              <dt>{row.providerLabel}</dt>
-              <dd>{cost === undefined ? tokens : `${tokens} · ${cost}`}</dd>
-              {row.keyUsage === undefined ? null : (
-                <>
-                  <dt>{UI_TEXT.usageKeyUsage}</dt>
-                  <dd>
-                    <dl className="usage-facts">
-                      <FactRows
-                        rows={[
-                          [UI_TEXT.usageToday, formatUsd(row.keyUsage.todayUsd)],
-                          [UI_TEXT.usageThisMonth, formatUsd(row.keyUsage.monthUsd)],
-                          [
-                            UI_TEXT.usageLimit,
-                            row.keyUsage.limitUsd === undefined
-                              ? undefined
-                              : formatUsd(row.keyUsage.limitUsd),
-                          ],
-                          [
-                            UI_TEXT.usageRemaining,
-                            row.keyUsage.remainingUsd === undefined
-                              ? undefined
-                              : formatUsd(row.keyUsage.remainingUsd),
-                          ],
-                        ]}
-                      />
-                    </dl>
-                  </dd>
-                </>
-              )}
-            </div>
-          )
-        })}
-      </dl>
-    </>
-  )
-}
-
 function AccountSection({
   report,
   modelId,
@@ -720,7 +635,9 @@ export function UsageDialog({
           pricing={modelPricing}
         />
         {report.providers !== undefined && report.providers.length > 0 ? (
-          <ProvidersSection providers={report.providers} />
+          <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
+            <ProviderUsageSection providers={report.providers} />
+          </Suspense>
         ) : null}
         {paidFeatures.length > 0 ? (
           <>

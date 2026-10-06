@@ -54,6 +54,26 @@ describe('webview import budgets', () => {
     })
   })
 
+  it('charges only the new provider closure separately and retains shared legacy helpers', () => {
+    const meta = metafile()
+    const provider = 'dist/webview/chunks/providers.js'
+    meta.outputs[HISTORY].imports.push(edge(provider, 'dynamic-import'))
+    meta.outputs[provider] = output(
+      [edge(CORE), edge(SHARED)],
+      'src/webview/components/ProviderUsageSection.tsx',
+    )
+    const groups = webviewDeferredBudgetGroups(meta)
+    expect(groups.find(({ name }) => name === 'provider usage')).toMatchObject({
+      budgetKiB: 25,
+      outputs: [provider, SHARED],
+    })
+    expect(groups.find(({ name }) => name === 'deferred JS').outputs).toEqual([
+      HISTORY,
+      SHARED,
+      UNKNOWN,
+    ])
+  })
+
   it('charges a statically re-imported lazy module and its dependencies to startup', () => {
     const meta = metafile()
     meta.outputs[MAIN].imports.push(edge(HIGHLIGHT))

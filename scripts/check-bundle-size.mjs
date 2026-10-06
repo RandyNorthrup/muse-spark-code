@@ -189,6 +189,9 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
+// TRAIN15C: provider usage loads only for a nonempty provider report; its
+// new closure is 1,683 bytes + 15%, rounded up to 25 KiB (PLAN.md D6);
+// scripts/lib/webviewBundles.mjs records and enforces that independent cap.
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))

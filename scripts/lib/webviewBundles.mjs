@@ -45,6 +45,11 @@ export function webviewEntryMetafile(meta, entry) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    name: 'provider usage',
+    entries: ['src/webview/components/ProviderUsageSection.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

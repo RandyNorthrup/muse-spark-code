@@ -14,9 +14,9 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15B): VSIX recovered; the unchanged original
-deferred cap remains 26 bytes over. Remaining merges are held; the batch is
-not release-certified.**
+**Current disposition (TRAIN15C): the deferred cap is recovered at its
+original allowance; the three ordered input merges continue below. Full
+release certification waits for M95/M102 and the lead’s aggregate gate.**
 
 **First-run disposition:** budget stop after M101. The original receipt follows;
 the resumed measurements and bounded stop are appended below.
@@ -324,3 +324,44 @@ model attempt, credential access, installation, cap/threshold change, hook
 change, push, rebase or full quality run occurs. Hooks remain installed and
 active. Further raw-size recovery and the held ordered merges need a new
 continuation; full aggregate/native-platform/hosted proof remains the lead's gate.
+
+## TRAIN15C — Stage 4: provider usage split
+
+Continue `a2bf65c5c` on Kubuntu under the lead's renewed decision. The current
+metafile has seven original deferred outputs and no other library in that
+cohort. UsageDialog is the largest changed module: **12,328 contributed
+bytes**, **12,950 bytes** including its chunk/import boilerplate. The M101
+merge added provider-tally and key-usage rendering inside that existing module;
+that section is needed only for a nonempty provider report, not on every
+original deferred path.
+
+Move that section to `src/webview/components/ProviderUsageSection.tsx`, loaded
+by UsageDialog's nested dynamic import only at the original nonempty-report
+condition. Its Suspense status stays inside the existing modal, keeping Close
+and the rest of the account/usage controls available. Share the existing
+FactRows markup in a small common deferred module; the original allowance
+continues to count it. No feature, wire shape, translation or price changes.
+This shared React path applies to the existing webview hosts; ACP has no
+browser surface and its bundle is byte-identical.
+
+The new closure is **1,683 bytes**, including shared facts not already eager.
+D6's new-artifact rule grants **25 KiB** (measured + 15%, rounded up to 25 KiB),
+recorded in the size gate, its shared budget records and PLAN's table.
+Original deferred JS is **50,538 / 51,200**, **662 bytes headroom**. Every
+existing cap is unchanged. Production build/split/readership/globals and
+universal packaging pass, including **37 native import/require module checks**,
+exact-stage localization and static badges. VSIX is **2,214,704 / 2,252,800**.
+
+Five-project typecheck, scoped ESLint/Prettier, localization (14 tables, zero
+problems) and host API pass. Four owning complete files pass **74 distinct
+tests**: UsageDialog, webviewBundle, bundleSize and webviewBundles. The two
+new budget/loading assertions fail before the split. Two deliberate drills
+exit 1: remove the provider budget; replace the nested dynamic import with a
+static import. Both source files restore byte-exact by SHA-256; all three
+owning gate suites pass **30 tests** again. The receipt JSON retains checksums,
+exact commands and all raw artifact sizes. No paid/live model call, install,
+extra merge, push, rebase, hook change or full quality run occurs.
+
+| Stage                          | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX | VSIX headroom |
+| ------------------------------ | -----------: | ----------: | -----------: | ------: | -------------: | ------------: |
+| Stage 4 / provider usage split |      456,846 |     486,338 |      797,449 | 843,696 |      2,214,704 |        38,096 |

@@ -634,19 +634,19 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated paid total$0.0400')
   })
 
-  it('lists this window’s tallies per provider with settled costs (M95)', () => {
+  it('lists this window’s tallies per provider with settled costs (M95)', async () => {
     renderDialog(providersReport())
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Providers')
+    expect(await screen.findByRole('heading', { name: 'Providers' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent('OpenRouter1.2K / 300 · $0.0010')
     expect(dialog).toHaveTextContent('Ollama800 / 100 · $0.00')
     expect(dialog).toHaveTextContent('Mystery50 / 5 · unpriced')
   })
 
-  it('shows an account-connected key’s usage, limit and remainder (M95)', () => {
+  it('shows an account-connected key’s usage, limit and remainder (M95)', async () => {
     renderDialog(providersReport())
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('API key usage')
+    expect(await screen.findByText('API key usage')).toBeInTheDocument()
     expect(dialog).toHaveTextContent('Today$0.40')
     expect(dialog).toHaveTextContent('This month$2.10')
     expect(dialog).toHaveTextContent('Limit$10.00')

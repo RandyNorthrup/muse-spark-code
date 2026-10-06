@@ -107,6 +107,23 @@ describe('the production webview chunks (FIX78W)', () => {
     )
   })
 
+  it('loads provider usage from the usage dialog only through a nested dynamic import', () => {
+    const source = 'src/webview/components/ProviderUsageSection.tsx'
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners).toHaveLength(1)
+    const [[file, output]] = owners
+    expect(output.entryPoint).toBe(source)
+    expect(initialOutputs().has(file)).toBe(false)
+    const usage = Object.values(built.outputs).find(
+      (output) => output.entryPoint === 'src/webview/components/UsageDialog.tsx',
+    )
+    expect(usage.imports).toContainEqual(
+      expect.objectContaining({ path: file, kind: 'dynamic-import' }),
+    )
+  })
+
   it.each([
     'src/shared/l10n/en.ts',
     'src/shared/l10n/text.ts',

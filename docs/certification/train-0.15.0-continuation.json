@@ -1,0 +1,104 @@
+{
+  "rig": "kubuntu",
+  "startingHead": "a2bf65c5c",
+  "stages": [
+    {
+      "stage": "split",
+      "extension": 456846,
+      "modelApi": 486338,
+      "startup": 797449,
+      "acp": 843696,
+      "vsix": 2214704,
+      "models": 418077,
+      "whatsNew": 1351,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 50538,
+          "cap": 51200
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 95393,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1402,
+          "cap": 25600
+        }
+      ],
+      "node": {
+        "acp.js": 843696,
+        "agentImport.js": 119416,
+        "browserCheck.js": 43694,
+        "browserRuntime.js": 19762,
+        "bundledSkills.js": 17096,
+        "checkpointStore.js": 79793,
+        "codeIntel.js": 41034,
+        "conversation.js": 201166,
+        "conversationGit.js": 76869,
+        "extension.js": 456846,
+        "extensionHooks.js": 37692,
+        "foreignHooks.js": 71923,
+        "hookRuntime.js": 45055,
+        "imageResizeWorker.js": 60060,
+        "judge.js": 50161,
+        "modelApi.js": 486338,
+        "modelsPanel.js": 55017,
+        "museCodeReviewer.js": 23777,
+        "pageWorker.js": 193171,
+        "planMarkdown.js": 147608,
+        "pluginHooks.js": 35691,
+        "providerCatalog.js": 514771,
+        "providers.js": 111871,
+        "recorder.js": 26857,
+        "report.js": 24212,
+        "review.js": 29875,
+        "reviewer.js": 23437,
+        "searchWorker.js": 5184,
+        "sessionBoard.js": 48985,
+        "tab.js": 52781,
+        "uiText.js": 54121,
+        "uiTextHooks.js": 4746,
+        "uiTextRuntime.js": 3638,
+        "uiTextSurfaces.js": 2510,
+        "validation.js": 40823,
+        "voice.js": 20428,
+        "webFetch.js": 40271,
+        "whatsNew.js": 19421,
+        "wire.js": 42401
+      }
+    }
+  ],
+  "drills": [
+    {
+      "name": "drill-provider-budget",
+      "file": "scripts/lib/webviewBundles.mjs",
+      "tests": ["test/unit/bundleSize.test.mjs", "test/unit/webviewBundles.test.mjs"],
+      "exit": 1,
+      "sha256Before": "4a1235236d79ebc4d21020b428ea0a056a9ce5bcd8438ffda499d71e87204c29",
+      "sha256After": "4a1235236d79ebc4d21020b428ea0a056a9ce5bcd8438ffda499d71e87204c29"
+    },
+    {
+      "name": "drill-provider-static-import",
+      "file": "src/webview/components/UsageDialog.tsx",
+      "tests": ["test/unit/webviewBundle.test.mjs"],
+      "exit": 1,
+      "sha256Before": "8194733557e4a547134c61251c5ee924d4425d22bd3dc993357888fd54cbc4e0",
+      "sha256After": "8194733557e4a547134c61251c5ee924d4425d22bd3dc993357888fd54cbc4e0"
+    }
+  ],
+  "modelAttempts": 0,
+  "paidCalls": 0
+}

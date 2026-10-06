@@ -54,6 +54,9 @@ with Your Own Model` wizard (in-memory draft; Save writes
 
 ### Changed
 
+- Account & usage loads provider tallies in their own chunk when a nonempty
+  provider report is shown, keeping the original deferred bundle allowance.
+
 - Chat, Models and What's New share one browser splitting build; common React,
   validation, bridge and localization code ship once. The exact provider
   catalogue uses the verified lazy runtime archive, reducing the VSIX while
