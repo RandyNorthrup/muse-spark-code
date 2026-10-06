@@ -31,6 +31,27 @@ const recordSchema = z.object({
 })
 export type HardwareLeaseRecord = z.infer<typeof recordSchema>
 
+type StopOutcome =
+  | { readonly party: 'holder'; readonly status: 'stopped' }
+  | { readonly party: 'holder'; readonly status: 'failed'; readonly reason: 'lease-stop-failed' }
+  | { readonly party: 'contender'; readonly status: 'cancelled' }
+  | {
+      readonly party: 'contender'
+      readonly status: 'failed'
+      readonly reason: 'lease-contender-cancel-failed'
+    }
+  | {
+      readonly party: 'unknown'
+      readonly status: 'failed'
+      readonly reason:
+        'lease-stop-timeout' | 'lease-stop-unavailable' | 'lease-stop-invalid-response'
+    }
+
+export interface HardwareLeaseStopResult {
+  readonly stopped: boolean
+  readonly sessions: readonly (StopOutcome & { readonly record: HardwareLeaseRecord })[]
+}
+
 export interface LeaseDependencies {
   readonly directory: string
   readonly platform: NodeJS.Platform
@@ -273,15 +294,19 @@ async function listenOwnerSocket(
         // Track the reply before invoking a host callback that may throw synchronously.
         await Promise.resolve()
         try {
-          let hasStopped: boolean
+          let reply: { stopped: boolean } | { cancelled: boolean }
           try {
             await stop()
-            hasStopped = true
-          } catch {
-            hasStopped = false
+            reply = { stopped: true }
+          } catch (error: unknown) {
+            if (error instanceof Error && error.message === 'lease-contender-cancelled')
+              reply = { cancelled: true }
+            else if (error instanceof Error && error.message === 'lease-contender-cancel-failed')
+              reply = { cancelled: false }
+            else reply = { stopped: false }
           }
           await new Promise<void>((resolve) => {
-            socket.end(`${JSON.stringify({ stopped: hasStopped })}\n`, () => {
+            socket.end(`${JSON.stringify(reply)}\n`, () => {
               resolve()
             })
           })
@@ -331,6 +356,7 @@ export async function claimHardwareLease(
   stop: () => Promise<void>,
 ): Promise<
   | { readonly status: 'busy'; readonly holder?: HardwareLeaseRecord }
+  | { readonly status: 'cancelled' }
   | {
       readonly status: 'acquired'
       readonly record: HardwareLeaseRecord
@@ -359,7 +385,25 @@ export async function claimHardwareLease(
   let hasOwnFile = false
   let hasOwnStop = false
   let hasOwnStopTemporary = false
-  let isPublished = false
+  const state = { isPublished: false, isCancelled: false }
+  const isCancelled = () => state.isCancelled
+  let publishing: Promise<void> | undefined
+  const stopSession = async () => {
+    state.isCancelled = true
+    try {
+      await publishing
+    } catch {
+      // Failed publication leaves this generation a contender.
+    }
+    try {
+      await stop()
+    } catch (error: unknown) {
+      throw new Error(state.isPublished ? 'lease-stop-failed' : 'lease-contender-cancel-failed', {
+        cause: error,
+      })
+    }
+    if (!state.isPublished) throw new Error('lease-contender-cancelled')
+  }
   try {
     const text = JSON.stringify(record)
     if (Buffer.byteLength(text) > deps.maxRecordBytes) throw new Error('lease-record-oversize')
@@ -369,8 +413,8 @@ export async function claimHardwareLease(
     await writeCompleteRecord(handle, text)
     if (deps.platform === 'win32') {
       if (deps.listenOwnerPipe === undefined) throw new Error('lease-owner-pipe-unavailable')
-      close = await deps.listenOwnerPipe(record.endpoint, id, stop)
-    } else close = await listenOwnerSocket(record.endpoint, id, stop, deps)
+      close = await deps.listenOwnerPipe(record.endpoint, id, stopSession)
+    } else close = await listenOwnerSocket(record.endpoint, id, stopSession, deps)
     // Independent inode: corruption of a claim file cannot corrupt Stop discovery.
     const stopHandle = await open(stopTemporary, 'wx', OWNER_FILE_MODE)
     hasOwnStopTemporary = true
@@ -382,20 +426,25 @@ export async function claimHardwareLease(
     let slot = path.join(directory, `claim-v1.${resourceKey(resource)}.head.claim`)
     const visited = new Set<string>()
     for (;;) {
+      if (isCancelled()) return { status: 'cancelled' }
       if (visited.has(slot)) return { status: 'busy' }
       visited.add(slot)
       const previous = await readRecord(slot, deps.maxRecordBytes)
+      if (isCancelled()) return { status: 'cancelled' }
       if (previous === null) return { status: 'busy' }
       if (previous === undefined) {
         // The sole linearization point. No fallible work follows successful publication.
         try {
-          await link(file, slot)
+          publishing = (async () => {
+            await link(file, slot)
+            state.isPublished = true
+          })()
+          await publishing
         } catch (error: unknown) {
           if (!hasCode(error, 'EEXIST')) throw error
           visited.delete(slot)
           continue
         }
-        isPublished = true
         const closeEndpoint = close
         let closing: Promise<void> | undefined
         let isReleased = false
@@ -430,7 +479,9 @@ export async function claimHardwareLease(
           (live !== undefined && JSON.stringify(live) !== JSON.stringify(previous))
         )
           return { status: 'busy' }
-        if (await isSameHolder(previous, deps))
+        const isLive = await isSameHolder(previous, deps)
+        if (isCancelled()) return { status: 'cancelled' }
+        if (isLive)
           return live === undefined ? { status: 'busy' } : { status: 'busy', holder: previous }
         await retireGeneration(deps, previous, slot)
         // Never unlink a reusable slot. All cleaners address the old unique generation.
@@ -440,7 +491,7 @@ export async function claimHardwareLease(
       slot = path.join(directory, `claim-v1.${resourceKey(resource)}.${previous.generation}.claim`)
     }
   } finally {
-    if (!isPublished) {
+    if (!state.isPublished) {
       try {
         await close?.()
       } finally {
@@ -452,14 +503,23 @@ export async function claimHardwareLease(
   }
 }
 
-/** Out-of-band session discovery: Stop never consults admission/claim records. */
+/** Compatibility predicate: only a settled holder acknowledgement counts. */
 export async function didStopHardwareLease(
   deps: LeaseDependencies,
   resource: string,
 ): Promise<boolean> {
+  const result = await stopHardwareLease(deps, resource)
+  return result.stopped
+}
+
+/** Out-of-band session discovery: Stop never consults admission/claim records. */
+export async function stopHardwareLease(
+  deps: LeaseDependencies,
+  resource: string,
+): Promise<HardwareLeaseStopResult> {
   await privateDirectory(deps)
   const directory = deps.directory
-  const pending: Promise<boolean>[] = []
+  const pending: Promise<HardwareLeaseStopResult['sessions'][number]>[] = []
   const entries = await readdir(directory)
   for (const entry of entries) {
     if (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) || !entry.endsWith('.json')) continue
@@ -472,35 +532,38 @@ export async function didStopHardwareLease(
       !isBoundRecord(record, deps, resource)
     )
       continue
-    pending.push(didStopRecord(deps, record))
+    pending.push(stopRecord(deps, record))
   }
-  try {
-    return await Promise.any(
-      pending.map(async (stopping) => {
-        if (!(await stopping)) throw new Error('lease-stop-unavailable')
-        return true
-      }),
-    )
-  } catch {
-    return false
+  const sessions = await Promise.all(pending)
+  return {
+    stopped:
+      sessions.some((session) => session.party === 'holder' && session.status === 'stopped') &&
+      sessions.every((session) => session.party === 'contender' || session.status !== 'failed'),
+    sessions,
   }
 }
 
-async function didStopRecord(
+const stopReplySchema = z.union([
+  z.strictObject({ stopped: z.boolean() }),
+  z.strictObject({ cancelled: z.boolean() }),
+  z.strictObject({ timedOut: z.literal(true) }),
+])
+
+async function stopRecord(
   deps: LeaseDependencies,
   record: HardwareLeaseRecord,
-): Promise<boolean> {
-  return await new Promise<boolean>((resolve) => {
+): Promise<HardwareLeaseStopResult['sessions'][number]> {
+  return await new Promise((resolve) => {
     const socket = net.connect(record.endpoint)
-    const finish = (hasStopped: boolean) => {
+    const finish = (outcome: StopOutcome) => {
       socket.destroy()
-      resolve(hasStopped)
+      resolve({ ...outcome, record })
     }
     socket.setTimeout(deps.timeoutMs, () => {
-      finish(false)
+      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-timeout' })
     })
     socket.on('error', () => {
-      finish(false)
+      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-unavailable' })
     })
     socket.once('connect', () =>
       socket.write(`${JSON.stringify({ command: 'stop', id: record.id })}\n`),
@@ -509,18 +572,39 @@ async function didStopRecord(
     socket.on('data', (chunk: Buffer) => {
       input += chunk.toString('utf8')
       if (Buffer.byteLength(input) > deps.maxRecordBytes) {
-        finish(false)
+        finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-invalid-response' })
         return
       }
       if (!input.endsWith('\n')) return
       try {
-        finish(z.strictObject({ stopped: z.boolean() }).parse(JSON.parse(input)).stopped)
+        const reply = stopReplySchema.parse(JSON.parse(input))
+        if ('stopped' in reply)
+          finish(
+            reply.stopped
+              ? { party: 'holder', status: 'stopped' }
+              : {
+                  party: 'holder',
+                  status: 'failed',
+                  reason: 'lease-stop-failed',
+                },
+          )
+        else if ('cancelled' in reply)
+          finish(
+            reply.cancelled
+              ? { party: 'contender', status: 'cancelled' }
+              : {
+                  party: 'contender',
+                  status: 'failed',
+                  reason: 'lease-contender-cancel-failed',
+                },
+          )
+        else finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-timeout' })
       } catch {
-        finish(false)
+        finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-invalid-response' })
       }
     })
     socket.once('end', () => {
-      finish(false)
+      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-unavailable' })
     })
   })
 }

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   claimHardwareLease,
   didStopHardwareLease,
+  stopHardwareLease,
   serialLeaseResource,
 } from '../../src/core/maker/lease'
 import {
@@ -91,10 +92,99 @@ async function fixture() {
     log,
     signal: abort.signal,
   }
-  return { deps, input, confirm, identityNow, open, log, write, close, abort, capture }
+  return { deps, input, confirm, identityNow, open, log, write, close, abort, capture, transport }
 }
 
 describe('host-only serial approval', () => {
+  it.each([false, true])(
+    "reports only the active holder's settled Stop while a contender prepares (failure: %s)",
+    async (failsStop) => {
+      const f = await fixture()
+      const active = enteredSignal()
+      const querying = enteredSignal()
+      const closing = enteredSignal()
+      const identityQuery = Promise.withResolvers<undefined>()
+      const holderStop = Promise.withResolvers<undefined>()
+      const captured = Promise.withResolvers<SerialCapture>()
+      f.open.mockResolvedValue({ ...f.transport, result: captured.promise })
+      f.write.mockImplementation(() => {
+        active.entered.abort()
+        return Promise.resolve()
+      })
+      f.close.mockImplementationOnce(async () => {
+        closing.entered.abort()
+        await holderStop.promise
+        if (failsStop) throw new Error('test-holder-stop-failed')
+        captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      })
+      const running = runSerialAction(f.input, f.deps)
+      await active.waiting
+      let queries = 0
+      const confirm = vi.fn((request: SerialApprovalRequest) => Promise.resolve(allow(request)))
+      const open = vi
+        .fn<SerialSessionDependencies['open']>()
+        .mockRejectedValue(new Error('test-contender-open'))
+      const contender = runSerialAction(f.input, {
+        ...f.deps,
+        holder: 'contender',
+        confirm,
+        open,
+        lease: {
+          ...f.deps.lease,
+          processStartTime: async (pid) => {
+            queries += 1
+            if (queries === 2) {
+              querying.entered.abort()
+              await identityQuery.promise
+            }
+            return await f.deps.lease.processStartTime(pid)
+          },
+        },
+      })
+      let stopping: ReturnType<typeof stopHardwareLease> | undefined
+      try {
+        await querying.waiting
+        let hasSettled = false
+        stopping = stopHardwareLease(
+          f.deps.lease,
+          await serialLeaseResource(f.input.identity, process.platform),
+        )
+        void stopping.then(() => {
+          hasSettled = true
+        })
+        await closing.waiting
+        await delay(100)
+        expect(hasSettled).toBe(false)
+        holderStop.resolve(undefined)
+        expect(await stopping).toMatchObject({
+          stopped: !failsStop,
+          sessions: expect.arrayContaining([
+            {
+              record: expect.objectContaining({ holder: 'conversation' }),
+              party: 'holder',
+              status: failsStop ? 'failed' : 'stopped',
+              ...(failsStop && { reason: 'lease-stop-failed' }),
+            },
+            {
+              record: expect.objectContaining({ holder: 'contender' }),
+              party: 'contender',
+              status: 'cancelled',
+            },
+          ]),
+        })
+        identityQuery.resolve(undefined)
+        expect(await contender).toEqual({ status: 'refused', reason: 'context' })
+        expect(confirm).not.toHaveBeenCalled()
+        expect(open).not.toHaveBeenCalled()
+      } finally {
+        holderStop.resolve(undefined)
+        identityQuery.resolve(undefined)
+        captured.resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
+        await Promise.allSettled([running, contender, stopping])
+      }
+    },
+  )
+
   it('stops the active process with a corrupt lease and keeps cleanup failure out of Stop', async () => {
     const f = await fixture()
     const { entered, waiting } = enteredSignal()

@@ -24,6 +24,9 @@ happened, not what was planned; superseded entries are kept.
   stay immutable so delayed cleanup cannot erase a replacement. Windows port
   identity uses the registry's PortName, falling back only to a final COM
   suffix in the friendly name.
+  Stop now waits for the active holder and reports its success or failure
+  separately from cancellation of a preparing contender. A contender cannot
+  acknowledge hardware Stop or acquire the lease after cancellation.
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and
   0.13.0 shipped with the README still headed "What's new in 0.12.0". It now

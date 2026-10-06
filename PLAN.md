@@ -15131,6 +15131,21 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103P3 / RVM103P6 scope (2026-10-06).** Fix the confirmed P2 before
+integration: Stop's endpoint classifies its own generation after any in-flight
+publication settles. Only an acquired holder can acknowledge hardware Stop;
+a preparing contender is cancelled and cannot publish afterward. Stop returns
+each indexed party's outcome separately, including a stable failure reason,
+and waits for the holder rather than accepting a contender's acknowledgement.
+`stopHardwareLease` supplies these outcomes; `didStopHardwareLease` retains
+its boolean contract and counts only the holder's settled acknowledgement.
+Discovery remains independent of the claim chain, mutexes, approvals and
+hardware enablement (D83.5). Qualify the preparing-contender/active-stream
+failure interleaving and publication races with whole-file regressions and
+byte-exact red drills in `docs/certification/m103-p.md`. The portable core and
+native pipe use the same outcomes for every editor/runtime; W owns their
+eventual surfaces. No dependency, command, setting or guard relaxation.
+
 **REDM103P serial lease redesign (2026-10-05, lead authorized).** Replace
 mutex-dependent admission with one exclusive hard-link publication of a fully
 written, fsynced generation record. Immutable per-resource claim slots route to
@@ -15639,7 +15654,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**FIXM103P / FIXM103P2 / REDM103P rig deferral (2026-10-05):** the rig/shared brief prohibits the
+**FIXM103P / FIXM103P2 / REDM103P / FIXM103P3 rig deferral (2026-10-06):** the rig/shared brief prohibits the
 full `quality` command in a lane. Focused P suites and the listed local gates
 run instead. The pre-existing stale host API file-count record is W-owned;
 W must regenerate and review it with the maker entry/package, then run full
@@ -16248,6 +16263,12 @@ before a repaired one loads (2026-09-30).
   PortName board captures and the new lease interleavings on real POSIX rigs
   remain part of the same platform qualification. All three RVM103P4 review
   findings are fixed; no P2/P3 review finding is intentionally deferred.
+  FIXM103P3 (2026-10-06) also fixes RVM103P6's single P2: only the acquired
+  generation acknowledges hardware Stop; preparing contenders are cancelled
+  and their outcomes cannot mask a holder failure. The holder, cancellation
+  and publication races are qualified on Win11 with named regressions and
+  seven red drills; POSIX reruns of these outcomes remain W's platform work.
+  No RVM103P6 finding remains. Evidence: `docs/certification/m103-p.md`.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

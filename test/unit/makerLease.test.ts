@@ -23,6 +23,7 @@ import {
   claimHardwareLease as claimLease,
   serialLeaseResource,
   didStopHardwareLease,
+  stopHardwareLease,
   type HardwareLeaseRecord,
 } from '../../src/core/maker/lease'
 import {
@@ -89,7 +90,83 @@ async function claim(deps: Awaited<ReturnType<typeof fixture>>, resource = 'port
   return result
 }
 
+function claimBarrier() {
+  return {
+    entered: Promise.withResolvers<undefined>(),
+    resume: Promise.withResolvers<undefined>(),
+  }
+}
+
 describe('hardware lease', () => {
+  it('cancels a preparing contender before it can publish an empty claim slot', async () => {
+    const deps = await fixture()
+    const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const { entered, resume } = claimBarrier()
+    vi.mocked(lstat).mockImplementation(async (file) => {
+      if (String(file).endsWith('.head.claim')) {
+        entered.resolve(undefined)
+        await resume.promise
+      }
+      return await fs.lstat(file)
+    })
+    const stop = vi.fn(() => Promise.resolve())
+    const preparing = claimHardwareLease(deps, 'port:test', 'contender', stop)
+    try {
+      await entered.promise
+      expect(await stopHardwareLease(deps, 'port:test')).toMatchObject({
+        stopped: false,
+        sessions: [{ party: 'contender', status: 'cancelled' }],
+      })
+      expect(stop).toHaveBeenCalledTimes(1)
+      resume.resolve(undefined)
+      expect(await preparing).toEqual({ status: 'cancelled' })
+      const entries = await readdir(deps.directory)
+      expect(entries.some((entry) => entry.endsWith('.claim'))).toBe(false)
+      const retry = await claim(deps)
+      await retry.release()
+    } finally {
+      resume.resolve(undefined)
+      await preparing
+    }
+  })
+
+  it('waits for in-flight publication before classifying Stop as holder or contender', async () => {
+    const deps = await fixture()
+    const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    const { entered, resume } = claimBarrier()
+    vi.mocked(link).mockImplementation(async (source, target) => {
+      await fs.link(source, target)
+      if (!String(target).endsWith('.head.claim')) return
+      entered.resolve(undefined)
+      await resume.promise
+    })
+    const stop = vi.fn(() => Promise.resolve())
+    const publishing = claimHardwareLease(deps, 'port:test', 'holder', stop)
+    let stopping: ReturnType<typeof stopHardwareLease> | undefined
+    try {
+      await entered.promise
+      let hasSettled = false
+      stopping = stopHardwareLease(deps, 'port:test')
+      void stopping.then(() => {
+        hasSettled = true
+      })
+      await delay(100)
+      expect(hasSettled).toBe(false)
+      resume.resolve(undefined)
+      const acquired = await publishing
+      expect(acquired.status).toBe('acquired')
+      expect(await stopping).toMatchObject({
+        stopped: true,
+        sessions: [{ party: 'holder', status: 'stopped' }],
+      })
+      expect(stop).toHaveBeenCalledTimes(1)
+    } finally {
+      resume.resolve(undefined)
+      await publishing
+      await stopping
+    }
+  })
+
   it('publishes one complete fsynced record and never calls a failing advisory mutex', async () => {
     const deps = await fixture()
     const exclusive = vi.fn(() => Promise.reject(new Error('test-cleanup-mutex-unavailable')))
@@ -860,7 +937,10 @@ socket.once('end', () => process.exit(0));`,
     expect(first.status).toBe('acquired')
     expect(second.status).toBe('acquired')
     try {
-      expect(await didStopHardwareLease(deps, 'port:first')).toBe(false)
+      expect(await stopHardwareLease(deps, 'port:first')).toMatchObject({
+        stopped: false,
+        sessions: [{ party: 'holder', status: 'failed', reason: 'lease-stop-failed' }],
+      })
     } finally {
       if (first.status === 'acquired') await first.release()
       if (second.status === 'acquired') await second.release()

@@ -192,6 +192,7 @@ export async function runSerialAction(
     deps.holder,
     stop,
   )
+  if (claimed.status === 'cancelled') return { status: 'refused', reason: 'context' }
   if (claimed.status === 'busy')
     return { status: 'busy', ...(claimed.holder !== undefined && { holder: claimed.holder }) }
   const canProceed = () => stopping === undefined && !deps.signal.aborted && deps.canUseHardware()
