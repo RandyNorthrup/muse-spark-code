@@ -23,6 +23,7 @@ import { buildWebviewHtml, createNonce } from '../html'
 import type { WebviewHostContext } from '../views/webviewSetup'
 import { parseReportRequest } from './reportRequest'
 import { relativeTime } from '../../shared/sessions'
+import { scrubFields } from '../../core/reporting/render/redaction'
 
 type HistoryEntry = NonNullable<ReportingHostMessage['history']>[number]
 // Newest instant first; saved id breaks ties by code unit, never locale or insertion order.
@@ -56,6 +57,7 @@ export class ReportPanel implements vscode.Disposable {
   private document: ReportDocument | undefined
   private options: ReportOptions | undefined
   private ready = false
+  private nonce = ''
   private state: ReportingHostMessage = {
     type: 'reportingState',
     busy: false,
@@ -91,6 +93,7 @@ export class ReportPanel implements vscode.Disposable {
       },
     )
     this.panel = panel
+    this.nonce = createNonce()
     panel.webview.html = buildWebviewHtml({
       scriptUri: panel.webview
         .asWebviewUri(vscode.Uri.joinPath(bundleRoot, 'reportingPage.js'))
@@ -99,7 +102,7 @@ export class ReportPanel implements vscode.Disposable {
         .asWebviewUri(vscode.Uri.joinPath(bundleRoot, 'reportingPage.css'))
         .toString(),
       cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
+      nonce: this.nonce,
       l10n: this.deps.context.l10n,
     })
     const receive = panel.webview.onDidReceiveMessage((raw: unknown) => {
@@ -120,14 +123,21 @@ export class ReportPanel implements vscode.Disposable {
 
       this.panel = undefined
       this.ready = false
-      this.state = { ...this.state, busy: false }
+      this.state = { ...this.state, busy: false, header: null, html: '', history: null, diff: null }
+      this.document = undefined
+      this.options = undefined
     })
   }
 
   private display(document: ReportDocument): void {
     const engine = this.deps.engine()
     const verified = engine.verify(document)
-    const html = engine.render.html(verified, this.deps.context.l10n.locale, this.deps.theme())
+    // The srcDoc inherits the shell's CSP. Only R's trusted style gets its nonce;
+    // the empty iframe sandbox and the shell's policy remain in force.
+    const html = engine.render
+      .html(verified, this.deps.context.l10n.locale, this.deps.theme())
+      .replace("style-src 'unsafe-inline'", () => `style-src 'nonce-${this.nonce}'`)
+      .replace('<style>', () => `<style nonce="${this.nonce}">`)
     this.document = verified
     this.post({
       header: verified.header,
@@ -173,46 +183,67 @@ export class ReportPanel implements vscode.Disposable {
 
   /** Every kind is listed, including unavailable kinds whose engine returns an explicit failure. */
   private async pick(): Promise<void> {
-    const engine = this.deps.engine()
-    const choices = []
-    for (const kind of REPORT_KINDS) {
-      const result = reportsMethods['reports/history'].result.parse(
-        await engine.reports.history({ workspaceKey: this.deps.workspaceKey, kind }),
-      )
-      const newest =
-        result.status === 'listed' ? result.entries.toSorted(newestFirst)[0] : undefined
-      let description = UI_TEXT.reportUi.generationFailed
-      if (result.status === 'listed') {
-        description =
-          newest === undefined
-            ? UI_TEXT.reportUi.noHistory
-            : fill(UI_TEXT.reportUi.lastReport, {
-                age: relativeTime(newest.header.asOf, Date.parse(this.deps.now())),
-              })
+    const target = this.panel
+    if (target === undefined) return
+    const cancellation = new vscode.CancellationTokenSource()
+    const lifetime = target.onDidDispose(() => {
+      cancellation.cancel()
+    })
+    try {
+      const engine = this.deps.engine()
+      const choices = []
+      for (const kind of REPORT_KINDS) {
+        const result = reportsMethods['reports/history'].result.parse(
+          await engine.reports.history({ workspaceKey: this.deps.workspaceKey, kind }),
+        )
+        if (this.panel !== target) return
+        const newest =
+          result.status === 'listed' ? result.entries.toSorted(newestFirst)[0] : undefined
+        let description = UI_TEXT.reportUi.generationFailed
+        if (result.status === 'listed') {
+          description =
+            newest === undefined
+              ? UI_TEXT.reportUi.noHistory
+              : fill(UI_TEXT.reportUi.lastReport, {
+                  age: relativeTime(newest.header.asOf, Date.parse(this.deps.now())),
+                })
+        }
+        choices.push({
+          label: UI_TEXT.reportKinds[kind],
+          description,
+          argumentsText: kind,
+        })
       }
       choices.push({
-        label: UI_TEXT.reportKinds[kind],
-        description,
-        argumentsText: kind,
+        label: UI_TEXT.reportUi.problem,
+        description: UI_TEXT.reportDescriptionWarning,
+        argumentsText: 'problem',
       })
+      const choice = await vscode.window.showQuickPick(
+        choices,
+        { title: UI_TEXT.reportUi.show },
+        cancellation.token,
+      )
+      if (choice === undefined || this.panel !== target) return
+      let argumentsText = choice.argumentsText
+      if (argumentsText === 'milestone' || argumentsText === 'release') {
+        const scope = await vscode.window.showInputBox(
+          {
+            title: UI_TEXT.reportKinds[argumentsText],
+            prompt: UI_TEXT.reportUi.scope,
+          },
+          cancellation.token,
+        )
+        if (scope === undefined || this.panel !== target) return
+        argumentsText += ` ${scope}`
+      }
+      const request = parseReportRequest(argumentsText, this.deps.now())
+      if (request.action === 'problem') await this.deps.openProblem()
+      else if (request.action === 'run') await this.generate(request.options)
+    } finally {
+      lifetime.dispose()
+      cancellation.dispose()
     }
-    choices.push({
-      label: UI_TEXT.reportUi.problem,
-      description: UI_TEXT.reportDescriptionWarning,
-      argumentsText: 'problem',
-    })
-    const choice = await vscode.window.showQuickPick(choices, { title: UI_TEXT.reportUi.show })
-    if (choice === undefined) return
-    let argumentsText = choice.argumentsText
-    if (argumentsText === 'milestone' || argumentsText === 'release') {
-      const scope = await vscode.window.showInputBox({
-        title: UI_TEXT.reportKinds[argumentsText],
-        prompt: UI_TEXT.reportUi.scope,
-      })
-      if (scope === undefined) return
-      argumentsText += ` ${scope}`
-    }
-    await this.open(argumentsText)
   }
 
   private async work(
@@ -293,7 +324,8 @@ export class ReportPanel implements vscode.Disposable {
     )
       throw new Error(UI_TEXT.reportUi.generationFailed)
     // H's normalized diff is scrubbed again before the page receives any source text.
-    const clean: unknown = JSON.parse(engine.scrub(JSON.stringify(compared.diff.sections)))
+    const clean = structuredClone(compared.diff.sections)
+    scrubFields(clean, engine.scrub)
     this.post({
       history: null,
       diff: reportDiffSchema.parse({ from: before.header, to: current.header, sections: clean }),
@@ -301,22 +333,16 @@ export class ReportPanel implements vscode.Disposable {
   }
 
   private async act(message: ReportingWebviewMessage): Promise<void> {
-    if (message.type === 'reportingAction' && message.action === 'pick') {
-      if (!this.state.busy) {
-        try {
-          await this.pick()
-        } catch {
-          this.post({ status: UI_TEXT.reportUi.generationFailed, isError: true })
-        }
-      }
-      return
-    }
     const action = message.type === 'reportingAction' ? message.action : message.type
     const target = this.panel
     let failure = UI_TEXT.reportUi.generationFailed
     if (action === 'copy') failure = UI_TEXT.reportUi.copyFailed
     else if (action === 'reportingSave') failure = UI_TEXT.reportUi.saveFailed
     await this.work(async () => {
+      if (action === 'pick') {
+        await this.pick()
+        return
+      }
       if (message.type === 'reportingOpen') {
         if (!this.state.history?.some((entry) => entry.id === message.id))
           throw new Error(UI_TEXT.reportUi.generationFailed)
@@ -394,17 +420,14 @@ export class ReportPanel implements vscode.Disposable {
   public async open(argumentsText = ''): Promise<void> {
     if (this.state.busy) throw new Error(UI_TEXT.reportUi.generationFailed)
     const request = parseReportRequest(argumentsText, this.deps.now())
-    if (request.action === 'pick') {
-      await this.pick()
-      return
-    }
     if (request.action === 'problem') {
       await this.deps.openProblem()
       return
     }
     this.show()
     await this.work(async () => {
-      if (request.action === 'history') await this.listHistory()
+      if (request.action === 'pick') await this.pick()
+      else if (request.action === 'history') await this.listHistory()
       else await this.generate(request.options)
     })
   }

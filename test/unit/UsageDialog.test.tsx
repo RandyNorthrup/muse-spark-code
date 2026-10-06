@@ -5,6 +5,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
+import UsageReportAction from '../../src/webview/reporting/UsageReportAction'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -81,7 +82,7 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
 describe('UsageDialog', () => {
   it('opens the local usage report through the injected host action', () => {
     const onUsageReport = vi.fn()
-    renderDialog({ onUsageReport })
+    renderDialog({ reportAction: <UsageReportAction onUsageReport={onUsageReport} /> })
     fireEvent.click(screen.getByRole('button', { name: EN.reportUsageAction }))
     expect(onUsageReport).toHaveBeenCalledOnce()
   })

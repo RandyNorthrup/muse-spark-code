@@ -44,7 +44,7 @@ export function reportScrubber(options: ReportRedaction = {}): (text: string) =>
 }
 
 /** Clone preserves the normalized contract; every string value is scrubbed in place. */
-function scrubFields(value: unknown, scrub: (text: string) => string): void {
+export function scrubFields(value: unknown, scrub: (text: string) => string): void {
   if (typeof value !== 'object' || value === null) return
   for (const key of Object.keys(value)) {
     const field: unknown = Reflect.get(value, key)

@@ -8,7 +8,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -64,8 +64,8 @@ export interface UsageDialogProps {
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
   readonly onClose: () => void
-  /** M113 W binds this to the shared host's local `report usage` operation. */
-  readonly onUsageReport?: () => void
+  /** W supplies the lazy reporting action without adding it to this dialog's chunk. */
+  readonly reportAction?: ReactNode
 }
 
 type InsightWindow = 'day' | 'week'
@@ -618,7 +618,7 @@ export function UsageDialog({
   now,
   onOpenExternal,
   onClose,
-  onUsageReport,
+  reportAction,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
   const [, setCountdownTick] = useState(0)
@@ -638,10 +638,7 @@ export function UsageDialog({
     cachedTokens !== undefined &&
     modelId !== undefined &&
     report?.backend === 'modelApi'
-      ? estimateCostUsd(
-          { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens },
-          modelId,
-        )
+      ? estimateCostUsd({ ...usage, cachedTokens }, modelId)
       : undefined
   const paidFeatures = listedPaidFeatures(
     usablePaidFeatures(report?.backend, paid.isKeyStored),
@@ -697,11 +694,7 @@ export function UsageDialog({
   }
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
-      {onUsageReport === undefined ? null : (
-        <button type="button" className="button-secondary" onClick={onUsageReport}>
-          {UI_TEXT.reportUsageAction}
-        </button>
-      )}
+      {reportAction}
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">

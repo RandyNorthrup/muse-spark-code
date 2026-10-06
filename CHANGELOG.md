@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Report tabs authorize their sandboxed document styles under the production
+  webview policy, preserve valid redacted diff rows, and cancel picker work
+  when its tab closes.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 
@@ -27,6 +31,9 @@ happened, not what was planned; superseded entries are kept.
   stdio checks include the localized Help reference hint.
 
 ### Performance
+
+- The Usage report action lives in the lazy reporting surface; Account & usage
+  receives it through a slot without growing the legacy deferred bundle.
 
 - Reference tests share unchanged setup and keyboard analysis, keeping
   catalogue mutation checks within the normal test timeout.

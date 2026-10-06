@@ -1,6 +1,6 @@
 {
   "sizes": {
-    "reportingPanelKiB": 74.353515625,
+    "reportingPanelKiB": 99.5478515625,
     "reportingPageKiB": 453.30859375,
     "reportingCssKiB": 1.265625
   },
@@ -15,7 +15,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -27,7 +33,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -39,7 +51,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -51,7 +69,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -63,7 +87,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -75,7 +105,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -87,7 +123,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "light",
@@ -99,7 +141,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(31, 31, 31)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -111,7 +159,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -123,7 +177,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -135,7 +195,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -147,7 +213,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -159,7 +231,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -171,7 +249,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -183,7 +267,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "dark",
@@ -195,7 +285,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(204, 204, 204)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -207,7 +303,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -219,7 +321,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -231,7 +339,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -243,7 +357,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -255,7 +375,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -267,7 +393,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -279,7 +411,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-dark",
@@ -291,7 +429,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(255, 255, 255)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -303,7 +447,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -315,7 +465,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -327,7 +483,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -339,7 +501,13 @@
       "keyboardFocus": true,
       "innerIncomplete": [],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -351,7 +519,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -363,7 +537,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -375,7 +555,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     },
     {
       "theme": "hc-light",
@@ -387,7 +573,13 @@
       "keyboardFocus": true,
       "innerIncomplete": ["color-contrast"],
       "errors": [],
-      "overflow": false
+      "overflow": false,
+      "appliedStyle": {
+        "overflowX": "auto",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 10,
+        "overflow": false
+      }
     }
   ]
 }

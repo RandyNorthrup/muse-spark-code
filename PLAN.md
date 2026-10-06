@@ -27544,6 +27544,15 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane V review corrections (RVM113V, 2026-10-06).** Fix all three P2s and
+the P3 within the VS Code surface lane: authorize the trusted iframe style
+with the production shell's nonce, scrub decoded diff fields with R's
+structured helper, admit picker work through the panel's busy and lifetime
+guards, and move the usage report action into the lazy reporting surface.
+Each correction has a regression and byte-exact red drill in
+`docs/certification/m113-v-vs-code-surfaces.md`. W retains shipping build,
+catalogue, host inventory and editor integration ownership; no gate is widened.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -28711,6 +28720,17 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-V-RVM113V bounded rig certification (2026-10-06).** The lane/shared
+brief prohibits aggregate quality and merges; the lead runs integrated
+quality after W's wiring. Run complete owning tests with default timeouts,
+typecheck, changed-file lint/format, deadcode, duplication, localization,
+reference, host API and production build directly on Windows 11. Record
+the unchanged unbound manifest/reference/inventory/entry failures as W's
+integration handoffs, with concrete receipts in V's certification. No rule,
+ignore, threshold or timeout is weakened. All three P2s and the P3 have
+named regressions and byte-exact red drills; the browser uses the compiled
+host's real production CSP.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -30079,6 +30099,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-V-review-RVM113V (2026-10-06).** All three P2s and the P3 are
+  fixed; no finding is deferred. Report iframe styles use the production
+  shell's nonce, with the empty sandbox and parent CSP preserved. Diff
+  re-scrubbing walks decoded strings and keys through R's `scrubFields`
+  helper; the only change to R's file is exporting its existing helper,
+  matching R's reviewed correction. Picker work has busy admission,
+  original-panel checks and canceled editor dialogs. The Usage report
+  button lives in the lazy reporting surface, supplied through
+  `UsageDialog.reportAction`; W must bind that slot through its reporting
+  lazy boundary and register the reporting chunks' measured budgets.
+  Existing W build/catalogue/manifest/inventory and X/editor handoffs stay
+  open as named in `docs/certification/m113-v-vs-code-surfaces.md`; this
+  lane does not claim shipping integration or editor parity. Scoped gates
+  and byte-exact failure drills are recorded there.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

@@ -11,11 +11,33 @@ import { finalizeReport, verifyReport } from '../../src/core/reporting/render/ca
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { ReportsHostPort } from '../../src/shared/hostApi/reports'
-import type { ReportDocument } from '../../src/shared/reportSchema'
+import type { ReportDocument, ReportRow } from '../../src/shared/reportSchema'
 import { reportingHostMessageSchema } from '../../src/webview/reporting/protocol'
 import { REPORT_THEME, RENDERERS, renderFixture } from './reportRenderFixtures'
 import { FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
 import { window as fakeWindow, env, workspace, Uri } from './mocks/vscode'
+import type * as VscodeMock from './mocks/vscode'
+
+vi.mock('vscode', async (importOriginal) => {
+  const original = await importOriginal<typeof VscodeMock>()
+  return {
+    ...original,
+    CancellationTokenSource: class {
+      private readonly canceled = new original.EventEmitter<void>()
+      public readonly token = {
+        isCancellationRequested: false,
+        onCancellationRequested: this.canceled.event,
+      }
+      public cancel(): void {
+        this.token.isCancellationRequested = true
+        this.canceled.fire()
+      }
+      public dispose(): void {
+        this.canceled.dispose()
+      }
+    },
+  }
+})
 
 function panel() {
   const result: unknown = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
@@ -139,6 +161,171 @@ describe('M113 VS Code report tab', () => {
     expect(t.attachMarkdown).toHaveBeenCalledWith(expected)
     expect(t.state().status).toBe(EN.reportUi.attached)
     expect(t.reports.run).toHaveBeenCalledOnce()
+  })
+
+  it('authorizes the iframe stylesheet with the actual production shell nonce', async () => {
+    const t = setup()
+    await t.ready()
+    const nonce = /style-src [^;]+ 'nonce-([^']+)'/.exec(t.panel().webview.html)?.[1]
+    expect(nonce).toBeTruthy()
+    if (nonce === undefined) throw new Error('Production shell nonce is missing')
+    expect(t.state().html).toContain(`<style nonce="${nonce}">`)
+    expect(t.state().html).toContain(`style-src 'nonce-${nonce}'`)
+    expect(t.state().html).not.toContain('unsafe-inline')
+    expect(t.panel().webview.html).not.toContain('unsafe-inline')
+  })
+
+  it('does not carry a document with an old style nonce into a canceled reopened picker', async () => {
+    const t = setup()
+    await t.ready()
+    t.ui.dispose()
+    await t.ui.open()
+    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    expect(t.state().header).toBeNull()
+    expect(t.state().html).toBe('')
+  })
+
+  it('scrubs decoded diff strings and keys while preserving already redacted rows', async () => {
+    const t = setup()
+    const older = finalizeReport({ ...olderReport(t.document), sections: [] })
+    const rows: ReportRow[] = [
+      'api_key = "[redacted]"',
+      'password: "[redacted]"',
+      'META_API_KEY=[redacted]',
+      '"api_key": "report-diff-private-canary"',
+    ].map((value, index) => ({
+      key: `row-${String(index)}`,
+      cells: { detail: { type: 'text', value } },
+      sourceIds: ['plan'],
+    }))
+    rows.push({
+      key: 'structured',
+      cells: {
+        'source-key-canary': {
+          type: 'textList',
+          value: ['"api_key": "report-list-private-canary"'],
+        },
+      },
+      sourceIds: ['plan'],
+    })
+    const scrub = t.engine.scrub
+    vi.spyOn(t.engine, 'scrub').mockImplementation((text) =>
+      text === 'source-key-canary' ? 'safe-key' : scrub(text),
+    )
+    t.reports.history.mockResolvedValue({
+      status: 'listed',
+      entries: [
+        { id: 'current', header: t.document.header },
+        { id: 'older', header: older.header },
+      ],
+    })
+    t.reports.get.mockResolvedValue({ status: 'retrieved', document: older })
+    const compared: Awaited<ReturnType<ReportsHostPort['compare']>> = {
+      status: 'compared',
+      diff: {
+        from: older.header,
+        to: t.document.header,
+        sections: [
+          {
+            id: 'changes',
+            label: 'changelog',
+            added: rows,
+            removed: [],
+            changed: [],
+            unchangedRows: 0,
+          },
+        ],
+      },
+    }
+    t.reports.compare.mockResolvedValue(compared)
+    await t.ready()
+    await t.act({ type: 'reportingAction', action: 'diff' })
+    expect(t.state().isError).toBe(false)
+    expect(t.state().diff?.sections[0]?.added).toHaveLength(rows.length)
+    const displayed = JSON.stringify(t.state().diff)
+    expect(displayed).toContain('[redacted]')
+    expect(displayed).not.toContain('report-diff-private-canary')
+    expect(rows.at(-2)?.cells['detail']).toEqual({
+      type: 'text',
+      value: '"api_key": "report-diff-private-canary"',
+    })
+    expect(displayed).not.toContain('report-list-private-canary')
+    expect(displayed).not.toContain('source-key-canary')
+    expect(t.state().diff?.sections[0]?.added.at(-1)?.cells).toHaveProperty('safe-key')
+  })
+
+  it('admits picker work as busy and keeps a stale history failure out of a reopened tab', async () => {
+    const t = setup()
+    await t.ready()
+    const history = Promise.withResolvers<Awaited<ReturnType<ReportsHostPort['history']>>>()
+    t.reports.history.mockReturnValueOnce(history.promise)
+    t.panel().webview.messages.fire({ type: 'reportingAction', action: 'pick' })
+    expect(t.state().busy).toBe(true)
+    t.panel().webview.messages.fire({ type: 'reportingAction', action: 'pick' })
+    t.panel().webview.messages.fire({ type: 'reportingAction', action: 'copy' })
+    expect(t.reports.history).toHaveBeenCalledOnce()
+    expect(env.clipboard.writeText).not.toHaveBeenCalled()
+    t.ui.dispose()
+    await t.ready()
+    history.reject(new Error('private stale history failure'))
+    await vi.waitFor(() => {
+      expect(t.context.log.warn).toHaveBeenCalled()
+    })
+    expect(t.state().isError).toBe(false)
+    expect(t.state().status).toBe('')
+    expect(fakeWindow.showQuickPick).not.toHaveBeenCalled()
+  })
+
+  it.each(['history', 'selection', 'scope'] as const)(
+    'cancels picker %s work when its panel closes without reopening it',
+    async (stage) => {
+      const t = setup()
+      await t.ready()
+      const history = Promise.withResolvers<Awaited<ReturnType<ReportsHostPort['history']>>>()
+      const selection = Promise.withResolvers<{ label: string; argumentsText: string }>()
+      const scope = Promise.withResolvers<string>()
+      if (stage === 'history') t.reports.history.mockReturnValueOnce(history.promise)
+      else if (stage === 'selection')
+        fakeWindow.showQuickPick.mockReturnValueOnce(selection.promise)
+      else {
+        const choice = {
+          label: 'Milestone',
+          argumentsText: 'milestone',
+        }
+        fakeWindow.showQuickPick.mockResolvedValueOnce(choice)
+        fakeWindow.showInputBox.mockReturnValueOnce(scope.promise)
+      }
+      const picking = t.ui.open()
+      if (stage !== 'history')
+        await vi.waitFor(() => {
+          expect(
+            stage === 'selection' ? fakeWindow.showQuickPick : fakeWindow.showInputBox,
+          ).toHaveBeenCalledOnce()
+        })
+      const token =
+        stage === 'selection'
+          ? fakeWindow.showQuickPick.mock.calls[0]?.[2]
+          : fakeWindow.showInputBox.mock.calls[0]?.[1]
+      t.ui.dispose()
+      if (stage !== 'history') expect(token?.isCancellationRequested).toBe(true)
+      if (stage === 'history') history.resolve({ status: 'listed', entries: [] })
+      else if (stage === 'selection')
+        selection.resolve({ label: 'Project', argumentsText: 'project' })
+      else scope.resolve('113')
+      await picking
+      if (stage === 'history') expect(t.reports.history).toHaveBeenCalledOnce()
+      expect(t.reports.run).toHaveBeenCalledOnce()
+      expect(fakeWindow.createWebviewPanel).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('runs the selected picker kind inside its existing admission', async () => {
+    const t = setup()
+    const choice = { label: 'Project', argumentsText: 'project' }
+    fakeWindow.showQuickPick.mockResolvedValueOnce(choice)
+    await t.ui.open()
+    expect(t.reports.run).toHaveBeenCalledOnce()
+    expect(fakeWindow.createWebviewPanel).toHaveBeenCalledOnce()
   })
 
   it('saves all four formats only to the dialog URI and writes nothing on cancel', async () => {

@@ -6,19 +6,29 @@ import { chromium } from 'playwright-core'
 import { findChrome } from '../../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 import { sharedUiText } from '../../../scripts/lib/deferredBundles.mjs'
+import { createRequire } from 'node:module'
+import { webcrypto } from 'node:crypto'
+import vm from 'node:vm'
+import { Buffer } from 'node:buffer'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const scratch = path.join(root, 'temp/m113-v')
 mkdirSync(scratch, { recursive: true })
 await build({
-  entryPoints: ['test/unit/reportRenderFixtures.ts'],
+  stdin: {
+    contents: `export * from './test/unit/reportRenderFixtures';
+      export { EN } from './src/shared/l10n/en';
+      export { verifyReport } from './src/core/reporting/render/canonical';`,
+    resolveDir: root,
+    loader: 'ts',
+  },
   outfile: 'temp/m113-v/fixtures.mjs',
   bundle: true,
   platform: 'node',
   format: 'esm',
   target: 'node20.18',
 })
-const { renderFixture, RENDERERS, REPORT_THEMES } = await import(
+const { renderFixture, RENDERERS, REPORT_THEMES, EN, verifyReport } = await import(
   pathToFileURL(path.join(scratch, 'fixtures.mjs')).href
 )
 const fixtureDocument = renderFixture()
@@ -90,6 +100,76 @@ const sizes = {
 }
 process.stdout.write(`${JSON.stringify(sizes)}\n`)
 const { server, port } = await serveRepo(path.resolve(root))
+// Exercise the compiled host adapter, including its HTML builder and iframe
+// nonce authorization. The browser loads the exact production shell it emits.
+const panels = { current: undefined }
+const require = createRequire(import.meta.url)
+const exported = { exports: {} }
+const fakeVscode = {
+  ViewColumn: { Beside: 2 },
+  Uri: { joinPath: (_base, ...parts) => parts.join('/') },
+  window: {
+    createWebviewPanel: () => {
+      const webview = {
+        cspSource: `http://127.0.0.1:${port}`,
+        asWebviewUri: (file) => ({
+          toString: () => `http://127.0.0.1:${port}/temp/m113-v/${path.basename(file)}`,
+        }),
+        onDidReceiveMessage: (receive) => {
+          webview.receive = receive
+          return { dispose: () => false }
+        },
+        postMessage: (state) => {
+          webview.state = state
+        },
+      }
+      panels.current = { webview, onDidDispose: () => ({ dispose: () => false }) }
+      return panels.current
+    },
+  },
+}
+vm.runInNewContext(readFileSync(path.join(scratch, 'reportingPanel.cjs'), 'utf8'), {
+  module: exported,
+  exports: exported.exports,
+  Buffer,
+  crypto: webcrypto,
+  require: (name) => {
+    const provided = { vscode: fakeVscode, './uiText.js': { EN } }
+    return provided[name] ?? require(name)
+  },
+})
+const productionShells = {}
+for (const [index, theme] of ['light', 'dark', 'hc-dark', 'hc-light'].entries()) {
+  const tab = exported.exports.createReportPanel(
+    {
+      context: { extensionUri: '', l10n: { locale: 'en', table: EN }, log: { warn: () => false } },
+      workspaceKey: 'fixture',
+      engine: () => ({
+        reports: { run: async () => ({ status: 'generated', document: fixtureDocument }) },
+        verify: verifyReport,
+        render: RENDERERS,
+      }),
+      now: () => fixtureDocument.header.asOf,
+      theme: () => REPORT_THEMES[index],
+    },
+    EN,
+    'en',
+  )
+  await tab.open('project')
+  panels.current.webview.receive({ type: 'reportingReady' })
+  scenes[theme] = panels.current.webview.state
+  const nonce = /style-src [^;]+ 'nonce-([^']+)'/.exec(panels.current.webview.html)?.[1]
+  const palette = JSON.parse(
+    readFileSync(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
+  )
+  const variables = Object.entries(palette.variables)
+    .map(([name, value]) => `${name}:${value}`)
+    .join(';')
+  productionShells[theme] = panels.current.webview.html
+    .replace('</head>', () => `<style nonce="${nonce}">:root{${variables}}</style></head>`)
+    .replace('<body>', () => `<body class="${palette.bodyClass}">`)
+  writeFileSync(path.join(scratch, `production-${theme}.html`), productionShells[theme])
+}
 const browser = await chromium.launch({
   executablePath: findChrome(),
   headless: true,
@@ -102,14 +182,54 @@ try {
     for (const width of [690, 320]) {
       for (const scene of ['report', 'history', 'diff', 'error']) {
         const page = await browser.newPage({ viewport: { width, height: 960 } })
+        // Ordinary browsers request a favicon; VS Code's webview does not.
+        await page.route('**/favicon.ico', (route) => route.fulfill({ status: 204, body: '' }))
         const errors = []
         page.on('pageerror', (error) => {
           errors.push(error.message)
         })
-        await page.goto(
-          `http://127.0.0.1:${port}/test/harness/reporting/index.html?theme=${theme}&scene=${scene}`,
-        )
+        page.on('console', (message) => {
+          if (message.type() === 'error') errors.push(message.text())
+        })
+        const state = {
+          ...globalThis.structuredClone(scenes[theme]),
+          ...{
+            history: { history: [{ id: 'saved', header: scenes[theme].header }] },
+            diff: { diff: scenes.diff },
+            error: { status: EN.reportUi.generationFailed, isError: true },
+          }[scene],
+        }
+        await page.addInitScript((initial) => {
+          Reflect.set(globalThis, 'acquireVsCodeApi', () => ({
+            postMessage: (message) => {
+              if (message.type === 'reportingReady')
+                globalThis.dispatchEvent(new globalThis.MessageEvent('message', { data: initial }))
+            },
+            getState: () => null,
+            setState: () => null,
+          }))
+        }, state)
+        await page.goto(`http://127.0.0.1:${port}/temp/m113-v/production-${theme}.html`)
         await page.locator('.reporting-document').waitFor()
+        const inner = page.frameLocator('.reporting-document')
+        const appliedStyle = await inner
+          .locator('.table')
+          .first()
+          .evaluate((table) => ({
+            overflowX: globalThis.getComputedStyle(table).overflowX,
+            foreground: globalThis.getComputedStyle(globalThis.document.body).color,
+            cssRules: [...globalThis.document.styleSheets].reduce(
+              (total, sheet) => total + sheet.cssRules.length,
+              0,
+            ),
+            overflow: globalThis.document.documentElement.scrollWidth > globalThis.innerWidth,
+          }))
+        if (
+          appliedStyle.overflowX !== 'auto' ||
+          appliedStyle.cssRules === 0 ||
+          appliedStyle.overflow
+        )
+          errors.push(`Production iframe style/width regression: ${JSON.stringify(appliedStyle)}`)
         await page.keyboard.press('Tab')
         const keyboardFocus = await page
           .locator('.reporting-actions button')
@@ -117,7 +237,7 @@ try {
           .evaluate((button) => button === globalThis.document.activeElement)
         if (!keyboardFocus) throw new Error('Report picker did not receive keyboard focus')
         if (scene === 'diff') await page.locator('.reporting-diff').waitFor()
-        await page.addScriptTag({ path: path.join(root, 'node_modules/axe-core/axe.min.js') })
+        await page.evaluate(axeSource)
         const result = await page.evaluate(async () => {
           const axe = globalThis.axe
           return await axe.run(globalThis.document, {
@@ -136,7 +256,15 @@ try {
         )
         // Check the exact static document on its own, since an empty sandbox prevents axe's frame handshake.
         const rendered = await browser.newPage({ viewport: { width, height: 960 } })
-        await rendered.setContent(scenes[theme].html)
+        // Standalone export still has its own style authorization; the iframe
+        // above is the production CSP regression, and is measured directly.
+        await rendered.setContent(
+          RENDERERS.html(
+            fixtureDocument,
+            'en',
+            REPORT_THEMES[['light', 'dark', 'hc-dark', 'hc-light'].indexOf(theme)],
+          ),
+        )
         const innerResult = await rendered.evaluate(
           axeSource +
             '; axe.run(globalThis.document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa", "best-practice"] } })',
@@ -154,6 +282,7 @@ try {
           innerIncomplete: innerResult.incomplete.map(({ id }) => id),
           errors,
           overflow,
+          appliedStyle,
         })
         process.stdout.write(
           `${theme} ${width} ${scene}: ${violations.length} violations, overflow=${overflow}\n`,
