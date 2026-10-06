@@ -19008,7 +19008,7 @@ quality/coverage and reserves integration-owned registrations for I. Run the
 four owning UI/bridge/contract suites with repository-default timeouts,
 scoped static checks and native/axe checks; the lead runs aggregate quality.
 The unchanged production build still refuses the unregistered Devices lazy
-closure: **75.773/50 KiB** deferred JS, of which **26.076 KiB** belongs to
+closure: **76.045/50 KiB** deferred JS, of which **26.348 KiB** belongs to
 `src/webview/models/sections/agents/DevicesApp.tsx`; registering that measured
 closure leaves **49.697/50 KiB**. No budget or split guard is widened. I must
 also register lane 0's `DEVICE_MODEL_TEXT` readers and refresh the generated
@@ -19638,7 +19638,9 @@ before a repaired one loads (2026-09-30).
   states and action replies for that document's lifetime. Never reuse a
   revision for changed state or reset it on receiver reconnect. A UI timeout
   or newer observation releases only its local wait, never an attempt owner,
-  occupancy or spending liability. Safe for the present unshipped, explicitly
+  occupancy or spending liability. Retry restores current-control focus rather
+  than replaying a saved Resume, Unlink or fingerprint-confirmation choice.
+  Safe for the present unshipped, explicitly
   opened UI against injected ports: mount sends no request and ordinary chat
   stays unchanged. Follow-up: I binds the counter and lazy entry, carries the
   revised UI behavior into README/CHANGELOG/help reference, refreshes the

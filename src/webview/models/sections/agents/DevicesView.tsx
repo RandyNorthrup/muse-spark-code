@@ -40,7 +40,9 @@ export function DevicesView({
   const latestRevision = useRef(message.revision)
   const [snapshot, setSnapshot] = useState(message)
   const [setupTarget, setSetupTarget] = useState<{ requestId: string; pairId: string }>()
-  const [retryAction, setRetryAction] = useState<DeviceAction>()
+  const retryOpener = useRef<HTMLElement | null>(null)
+  const view = useRef<HTMLElement>(null)
+  const [canRetry, setRetry] = useState(false)
   const [busy, setBusy] = useState(false)
   const [isInvalid, setInvalid] = useState(false)
   const incoming = parseDeviceHostMessage(message)
@@ -85,7 +87,13 @@ export function DevicesView({
     }
     const isCurrentWait = () => activeRequest.current?.id === requestId
     activeRequest.current = { id: requestId, revision: latestRevision.current, action }
-    setRetryAction(action)
+    // Retry returns to this control; only its current handler may submit again.
+    // Replaying saved actions could bypass a changed comparison/Resume choice.
+    retryOpener.current =
+      document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null
+    setRetry(true)
     setBusy(true)
     setInvalid(false)
     let timeout: number | undefined
@@ -123,7 +131,7 @@ export function DevicesView({
     }
   }
   return (
-    <section className="devices-view" aria-label={UI_TEXT.devices.title}>
+    <section ref={view} tabIndex={-1} className="devices-view" aria-label={UI_TEXT.devices.title}>
       <h1>{UI_TEXT.devices.title}</h1>
       {!state.enabled && <p role="status">{UI_TEXT.devices.offHelp}</p>}
       <p>{UI_TEXT.devices.costOwnership}</p>
@@ -139,12 +147,16 @@ export function DevicesView({
       {isInvalid && (
         <div>
           <p role="alert">{UI_TEXT.devices.invalidMessage}</p>
-          {retryAction !== undefined && (
+          {canRetry && (
             <button
               type="button"
               disabled={busy}
               onClick={() => {
-                void send(retryAction)
+                setInvalid(false)
+                setRetry(false)
+                const opener = retryOpener.current
+                if (opener?.isConnected && !opener.matches(':disabled')) opener.focus()
+                else view.current?.focus()
               }}
             >
               {UI_TEXT.devices.retry}

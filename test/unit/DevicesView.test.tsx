@@ -84,6 +84,12 @@ function offerForm(): HTMLFormElement {
   if (form === null) throw new Error('missing offer form')
   return form
 }
+function importInvitationText(text: string): void {
+  fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: text } })
+  fireEvent.submit(
+    screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
+  )
+}
 function importConfirmationText(text: string): void {
   fireEvent.change(screen.getByLabelText(EN.devices.scan), { target: { value: text } })
   fireEvent.click(screen.getByRole('button', { name: EN.devices.importConfirmation }))
@@ -94,6 +100,83 @@ afterEach(() => {
 })
 
 describe('M100 U shared Devices view', () => {
+  it('Retry restores action focus and requires a fresh guarded choice', async () => {
+    const port = uiPort()
+    port.request.mockRejectedValue(new Error('fixture failure'))
+    render(<LiveView port={port} />)
+    const pair = screen.getByRole('button', { name: EN.devices.pair })
+    pair.focus()
+    fireEvent.click(pair)
+    await screen.findByText(EN.devices.invalidMessage)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+    expect(document.activeElement).toBe(pair)
+    expect(port.request).toHaveBeenCalledOnce()
+    fireEvent.click(pair)
+    expect(port.request).toHaveBeenCalledTimes(2)
+  })
+  it('Retry never replays Resume after uncertainty disables its original control', async () => {
+    const port = uiPort()
+    port.request.mockRejectedValue(new Error('fixture failure'))
+    const props = {
+      port,
+      onState: vi.fn(),
+      explicitSetup: true,
+      boards: [{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: true }],
+    }
+    const { rerender } = render(<DevicesView {...props} message={uiMessage()} />)
+    const resume = screen.getByRole('button', { name: /Resume queue/ })
+    resume.focus()
+    fireEvent.click(resume)
+    await screen.findByText(EN.devices.invalidMessage)
+    rerender(
+      <DevicesView
+        {...props}
+        message={{
+          ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
+          revision: 2,
+        }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+    expect(resume).toBeDisabled()
+    expect(port.request).toHaveBeenCalledOnce()
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: EN.devices.title }))
+    expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+  })
+  it('Retry never replays Unlink after Cancel withdraws its confirmation', async () => {
+    const port = uiPort()
+    port.request.mockRejectedValue(new Error('fixture failure'))
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.unlink }))
+    const confirm = screen.getByRole('button', { name: EN.devices.confirmUnlink })
+    confirm.focus()
+    fireEvent.click(confirm)
+    await screen.findByText(EN.devices.invalidMessage)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.cancel }))
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+    expect(port.request).toHaveBeenCalledOnce()
+    expect(screen.queryByText(EN.devices.unlinkHelp)).toBeNull()
+    expect(document.activeElement).toBe(screen.getByRole('region', { name: EN.devices.title }))
+  })
+  it('Retry never replays fingerprint confirmation after comparison is unchecked', async () => {
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+    })
+    render(<LiveView port={port} />)
+    importInvitationText(JSON.stringify(uiInvitation))
+    const confirm = await screen.findByRole('button', { name: EN.devices.confirmFingerprint })
+    const compared = screen.getByLabelText(EN.devices.fingerprintMatches)
+    fireEvent.click(compared)
+    port.request.mockRejectedValueOnce(new Error('fixture failure'))
+    confirm.focus()
+    fireEvent.click(confirm)
+    await screen.findByText(EN.devices.invalidMessage)
+    fireEvent.click(compared)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+    expect(confirm).toBeDisabled()
+    expect(port.request).toHaveBeenCalledTimes(2)
+  })
   it('does not publish an older correlated action snapshot from an embedded view', async () => {
     const message = {
       ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
@@ -150,6 +233,7 @@ describe('M100 U shared Devices view', () => {
       expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
       expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
       fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
       await act(() =>
         resolveDeviceUiReply(first, port.request.mock.calls[0]?.[0], {
           ...uiMessage(),
@@ -175,12 +259,7 @@ describe('M100 U shared Devices view', () => {
     render(<LiveView initial={uiMessage({ offers: [] })} port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     await screen.findByLabelText(EN.devices.copyInvitation)
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
-      target: { value: JSON.stringify(invitation) },
-    })
-    fireEvent.submit(
-      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
-    )
+    importInvitationText(JSON.stringify(invitation))
     const peerHeading = await screen.findByRole('heading', { name: EN.devices.peerFingerprint })
     const grouped = '0123 4567 89ab cdef '.repeat(4).trim()
     expect(peerHeading).toHaveAccessibleDescription(grouped)
@@ -278,12 +357,7 @@ describe('M100 U shared Devices view', () => {
     expect(field.labels[0]?.textContent).toBe(EN.devices.copyInvitation)
     fireEvent.focus(field)
     expect(deviceInvitationSchema.parse(JSON.parse(field.value))).toEqual(uiInvitation)
-    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
-      target: { value: JSON.stringify(peer) },
-    })
-    fireEvent.submit(
-      screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
-    )
+    importInvitationText(JSON.stringify(peer))
     const confirm = await screen.findByRole('button', { name: EN.devices.confirmFingerprint })
     expect(confirm).toBeDisabled()
     expect(document.activeElement).toBe(

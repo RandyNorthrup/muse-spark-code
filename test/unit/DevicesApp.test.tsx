@@ -103,6 +103,7 @@ describe('M100 U explicit webview bridge', () => {
     const retry = screen.getByRole('button', { name: EN.devices.retry })
     expect(retry).toBeEnabled()
     fireEvent.click(retry)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
     deliver({
       ...uiMessage({ status: 'offline', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
       revision: 3,
@@ -122,6 +123,7 @@ describe('M100 U explicit webview bridge', () => {
     await act(expireDeviceUiWait)
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     deliver({ ...uiMessage(), revision: 2, setup: { requestId: oldId } })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
     const newId = postMessage.mock.calls[1]?.[0].requestId
@@ -131,6 +133,10 @@ describe('M100 U explicit webview bridge', () => {
     })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
     unmount()
+    // jsdom queues focus/selection work at zero delay; UI deadlines must be gone.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
     expect(vi.getTimerCount()).toBe(0)
   })
   it('contains render failures with a localized recovery message and Reload', () => {

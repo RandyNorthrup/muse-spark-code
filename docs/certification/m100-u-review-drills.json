@@ -13,32 +13,6 @@
     }
   },
   {
-    "drill": "P2-1-view-freshness",
-    "expectedFailure": "orders embedded snapshots and late action replies by revision, preserving Uncertain/$3",
-    "failedTests": [
-      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > orders embedded snapshots and late action replies by revision, preserving Uncertain/$3"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 4.37,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
-    }
-  },
-  {
-    "drill": "P2-1-action-freshness",
-    "expectedFailure": "does not publish an older correlated action snapshot from an embedded view",
-    "failedTests": [
-      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not publish an older correlated action snapshot from an embedded view"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 4.21,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
-    }
-  },
-  {
     "drill": "P2-1-required-revision",
     "expectedFailure": "requires an ordered snapshot revision, including off observations and action replies",
     "failedTests": [
@@ -62,35 +36,6 @@
     "elapsedSeconds": 3.99,
     "byteExactRestoredSha256": {
       "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2"
-    }
-  },
-  {
-    "drill": "P2-2-new-observation-release",
-    "expectedFailure": "only a newer observation containing the requested pair releases its UI wait",
-    "failedTests": [
-      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > only a newer observation containing the requested pair releases its UI wait",
-      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > rejects a malformed matching reply, shows Retry and recovers on a newer observation"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 4.72,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
-    }
-  },
-  {
-    "drill": "P2-2-pair-binding",
-    "expectedFailure": "only a newer observation containing the requested pair releases its UI wait",
-    "failedTests": [
-      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > only a newer observation containing the requested pair releases its UI wait"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 2.68,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
     }
   },
   {
@@ -185,34 +130,6 @@
     }
   },
   {
-    "drill": "P2-2-reply-deadline",
-    "expectedFailure": "bounds a lost reply and removes the bridge wait before accepting Retry",
-    "failedTests": [
-      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > bounds a lost reply and removes the bridge wait before accepting Retry",
-      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps a retry busy after deadline releases its previous wait"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx test/unit/DevicesView.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 7.66,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
-    }
-  },
-  {
-    "drill": "P2-2-retry-ownership",
-    "expectedFailure": "keeps a retry busy after new observation releases its previous wait",
-    "failedTests": [
-      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps a retry busy after new observation releases its previous wait"
-    ],
-    "exitCode": 1,
-    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
-    "elapsedSeconds": 5.4,
-    "byteExactRestoredSha256": {
-      "src/webview/models/sections/agents/DevicesView.tsx": "1bfa9a4b277420e291a472a189632699334404661eb60e2c223bef39c5d282b2"
-    }
-  },
-  {
     "drill": "P2-5-decision-row",
     "expectedFailure": "Devices decision buttons share one equal-width row at 320px",
     "exitCode": 1,
@@ -230,6 +147,128 @@
     "width": 320,
     "byteExactRestoredSha256": {
       "src/webview/models/sections/agents/devices.css": "8c83fb8abec0d350f2d975bf11c10b741e2b8737839dc90a81ea6f6b7a210dc9"
+    }
+  },
+  {
+    "drill": "P2-1-view-freshness",
+    "expectedFailure": "orders embedded snapshots and late action replies by revision, preserving Uncertain/$3",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > orders embedded snapshots and late action replies by revision, preserving Uncertain/$3"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.49,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-1-action-freshness",
+    "expectedFailure": "does not publish an older correlated action snapshot from an embedded view",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > does not publish an older correlated action snapshot from an embedded view"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.43,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-reply-deadline",
+    "expectedFailure": "bounds a lost reply and removes the bridge wait before accepting Retry",
+    "failedTests": [
+      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > bounds a lost reply and removes the bridge wait before accepting Retry",
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps a retry busy after deadline releases its previous wait"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.5,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-new-observation-release",
+    "expectedFailure": "only a newer observation containing the requested pair releases its UI wait",
+    "failedTests": [
+      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > only a newer observation containing the requested pair releases its UI wait",
+      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > rejects a malformed matching reply, shows Retry and recovers on a newer observation"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.47,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-pair-binding",
+    "expectedFailure": "only a newer observation containing the requested pair releases its UI wait",
+    "failedTests": [
+      " FAIL  test/unit/DevicesApp.test.tsx > M100 U explicit webview bridge > only a newer observation containing the requested pair releases its UI wait"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesApp.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 3.81,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesApp.tsx": "8e6e082ee90ce5752f9b3ad45cc97cd5eccec206ed147d2411f6031b9a5074f2",
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-retry-ownership",
+    "expectedFailure": "keeps a retry busy after new observation releases its previous wait",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > keeps a retry busy after new observation releases its previous wait"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 5.99,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-retry-requires-choice",
+    "expectedFailure": "Retry restores action focus and requires a fresh guarded choice",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > Retry restores action focus and requires a fresh guarded choice"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 5.04,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-retry-disabled-focus",
+    "expectedFailure": "Retry never replays Resume after uncertainty disables its original control",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > Retry never replays Resume after uncertainty disables its original control"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.62,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
+    }
+  },
+  {
+    "drill": "P2-2-retry-disconnected-focus",
+    "expectedFailure": "Retry never replays Unlink after Cancel withdraws its confirmation",
+    "failedTests": [
+      " FAIL  test/unit/DevicesView.test.tsx > M100 U shared Devices view > Retry never replays Unlink after Cancel withdraws its confirmation"
+    ],
+    "exitCode": 1,
+    "command": "npx --no-install vitest run test/unit/DevicesView.test.tsx --maxWorkers=3",
+    "elapsedSeconds": 4.6,
+    "byteExactRestoredSha256": {
+      "src/webview/models/sections/agents/DevicesView.tsx": "83446ccb5b276b5a9b6ddce1dd24e11feffba7b511a6e1061581b4c256079b7c"
     }
   }
 ]
