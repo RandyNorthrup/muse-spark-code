@@ -1,0 +1,2100 @@
+[
+  {
+    "guard": "role ceiling",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "089be86041415e1960970165bd77c8338cfc92f0984e5ed5523a845151ac12a2",
+    "exitCode": 1,
+    "failedTests": ["vault policy never and ceilings deny despite a standing grant"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!isCeilingCovered(ceiling, item.handle))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "Never and hidden first-party policy",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "0cf35b55d933658a1e461d93e887338fa2cd81267efc9daed66472216d71ce74",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy never and ceilings deny despite a standing grant",
+      "vault policy hidden first-party and expired items remain unavailable despite an Always grant"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (item.hidden || item.firstParty || item.policy.mode === 'never')",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "target binding",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "b1d72920ce83180a3c0cba98a457b45c51a065e89f0406e776746f6b1754eb7e",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy item bindings refuse a widened environment target even when a grant exists"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (item.bindings.every((binding) => !isBindingCovered(binding, use)))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "disclosure opt-in",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "05eb82d10fd56acb2dd3ef58f896efc7e9a80884e78145e677010b58cc1a12a2",
+    "exitCode": 1,
+    "failedTests": ["vault policy disclosure is separately enabled and always asks"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (use.kind === 'disclosure' && !item.policy.allowDisclosure)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "presence is never unattended",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "0f915b33b991c880257b16c185fef2a86c40e5ffd4eeaf09a43d1e7d67a56097",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy unattended needs both flags and a matching grant; taint and presence fail closed"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (requester.unattended && item.requirePresence)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "unattended taint",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "112e299fae38fd7d2f42d9aa7da491278ca93cabba8f6b974a93d3c12f13a081",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy unattended needs both flags and a matching grant; taint and presence fail closed"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (requester.unattended && taint.tainted)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "taint asks over standing grants",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "b4daf0b22754357809617d5ba370b0fcbb2c41483362bbe1020dee49e7755603",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy taint forces an ask over Always and never inherits a session answer"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (taint.tainted || use.kind === 'disclosure' || requester.deviceId !== null)",
+        "after": "if (use.kind === 'disclosure' || requester.deviceId !== null)"
+      }
+    ]
+  },
+  {
+    "guard": "Ask every time",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "c4d333962725de8112adef6b616f00f7d1bcc71a9f1d139dce8359ec89053117",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy all modes preserve ask and exact session scope; Always requires a grant"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (item.policy.mode === 'askEveryTime')",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "session scope",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "3545ffdebda41d8a7992206841cef7b067e1b5e39577750a755b213b5caf769f",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy all modes preserve ask and exact session scope; Always requires a grant"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "requester.sessionId !== null && sessionDigests.has(vaultUseDigest(use))",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant role",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "87bc9993e88da1d2be8802afd1c5f38511222c559485f7b04fe3283d76a62ce0",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant roles scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.roles === 'any' ||\n      grant.roles.some((role) => JSON.stringify(role) === JSON.stringify(requester.role)))",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant workspace",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "7abd4112b3b90816bbfd729e8aa957e1565d05b6a0b9d312430df66cb00773e9",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant workspaces scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.workspaces === 'any' ||\n      (requester.workspaceId !== null && grant.workspaces.includes(requester.workspaceId)))",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant session",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "71c1724fd65ae81434680185dec3d34a88f6ebaab43801101e0430da1328634e",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant sessionId scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.sessionId === null || grant.sessionId === requester.sessionId)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant task",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "473be163ba5d721bbc77f47019a8ffe9de327053846a642cfe1bd311efadb22e",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant taskId scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.taskId === null || grant.taskId === requester.taskId)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant count",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "842c65de4d1869b23352ee00215d2a7068ecad769587f8a088aa18d2804eb6c8",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant maxUses scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.maxUses === null || grant.uses < grant.maxUses)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant expiry",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "2f0eb6131276d6c1b9f8d87abddab147dd931a639d91f6a40caf31d669279108",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant expiresAt scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.expiresAt === null || now < grant.expiresAt)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant ceiling",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "acb4f9bde117c7bcc4778e7337cfc512f94c46bf08edefe748afc9e254f5d501",
+    "exitCode": 1,
+    "failedTests": ["vault policy enforces the grant ceiling scope"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "isCeilingCovered(grant.ceiling, item.handle)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "answer digest",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "4e19ce200fb5178c9a8a2fc61e4d929566bd19f6a1df9e3ffa47671c09be9a22",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals checks the answer digest and only the authenticated host UI can answer"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (answer.digest !== request.digest)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "answer single use",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "80454c130652eeb6c2439c66d891876f7070b4dcc852aece533d6b1fbd5cc551",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals checks the answer digest and only the authenticated host UI can answer",
+      "broker-owned approvals denial consumes the id and expiry denies without a usable ticket"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "this.pending.delete(request.id)",
+        "after": "void request.id"
+      }
+    ]
+  },
+  {
+    "guard": "actual use digest",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "0aa60f83689799b791413f3a519898bc55a26ee06f1985903471faebfeacc6e7",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals actual use, nonce, requester, epoch, deadline and replay are checked at redemption",
+      "broker-owned approvals caller and returned-card mutation cannot widen the broker snapshot"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (vaultUseDigest(actual) !== ticket.digest)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "ticket single use",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "c56747fab8eebd0bb9f6ecfed44a0120768d5245f4124e1e462e32644a39384e",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals actual use, nonce, requester, epoch, deadline and replay are checked at redemption"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "this.tickets.delete(ticket.id)",
+        "after": "void ticket.id"
+      }
+    ]
+  },
+  {
+    "guard": "presence per use",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "7be1d5f971c2a19a2c83da2cb4ca769f97848b9afc5f8b86ed4f6bae9755472b",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation lock during fresh per-use presence denies late approval and ends the lifetime",
+      "vault broker lifetime and isolation presence prompts are fresh for every use and denial never dispatches"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (current.requirePresence && !(await this.deps.unlock.presence(current.id, id(), actual)))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "first-party-only fallback",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "e70b9a9ad669b216c377ff77b5e248abd941ff92244af5059aa46e758b6952d1",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation fallback preserves only origin-bound first-party reads; agents never use it"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.deps.firstPartyOnly) return await denial('firstPartyOnly')",
+        "after": "if (false) return await denial('firstPartyOnly')"
+      }
+    ]
+  },
+  {
+    "guard": "held key erasure on lock",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "b54a7ea92742a4f275d729018d7027680ec3cf9930b794b966f6d3e94b80c1ea",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation idle lock zeroes both source and held unpooled key buffers",
+      "vault broker lifetime and isolation manual, external epoch, screen lock and exit invalidate tickets and keys"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "this.key?.fill(0)",
+        "after": "void this.key"
+      }
+    ]
+  },
+  {
+    "guard": "item expiry",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "6e8aa033a9ced330cb2667134b41ad66ba7de2f0804dbc107c28ec87959d82a1",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy hidden first-party and expired items remain unavailable despite an Always grant"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (item.dates.expiresAt !== null && now >= item.dates.expiresAt)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "unattended item opt-in",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "30e09d1980be77b38f81ee5afb243ca67a73426b831bc5016712aa5f0b312cd6",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy hooks require a standing environment grant and never prompt; devices cannot receive environment material"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (requester.unattended && (!item.policy.unattendedAllowed || use.kind === 'disclosure'))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "remote environment refusal",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "b416207aad7e0673ae8c0c70ca14664beb73937b8dc6d034719308da3afba3bd",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy hooks require a standing environment grant and never prompt; devices cannot receive environment material"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (requester.deviceId !== null && !['ssh', 'totp'].includes(use.kind))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "hook taint refusal",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "d1d53f294b455da4eba9dd566b07605b625fd3cdbf321bbdbd37ab17d5275651",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy hooks require a standing environment grant and never prompt; devices cannot receive environment material"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (requester.role.kind === 'hook' && taint.tainted)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "hook standing environment scope",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "5c992d8f5d8615975c11ca590390dc189364e44ed01236a7be99ffe78f75292d",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy hooks require a standing environment grant and never prompt; devices cannot receive environment material"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "grant?.sessionId === null && use.kind === 'environment'",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant item identity",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "3bd46492248044e8d942a0d8c20e459bcc60fcf77be372c7bd8ee02819d93a29",
+    "exitCode": 1,
+    "failedTests": ["vault policy grant item identity and local day and hour bounds narrow access"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "grant.itemId === item.id",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "grant local time window",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "06e341641d711dd413fcb6ba819c92093ff9c14bb246063dcf7a20c6714e6477",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy enforces the grant window scope",
+      "vault policy grant item identity and local day and hour bounds narrow access"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(grant.window === null ||\n      (grant.window.days.includes(local.getDay()) &&\n        local.getHours() >= grant.window.startHour &&\n        local.getHours() < grant.window.endHour))",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "SSH host fingerprint",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "bc0dcde324a7378153fc14786aa5c5474919a85cfa2fa56e724817e1d3d33968",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy SSH destination and forwarding and exact OAuth issuer/resource cannot widen"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "use.hostKeyFingerprint === binding.hostKeyFingerprint",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "SSH forwarding",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "7fb7cfb1cd94cccb0651eae33da280f6cc8db1720d8c62dd2a88122588460e33",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy SSH destination and forwarding and exact OAuth issuer/resource cannot widen"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "(!use.forwarding || binding.forwarding)",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "sudo executable path",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "6f8672c9ecdda9b3b363f671f3a675c1e6ca2f60a0ea115aa98c1bba9b582f48",
+    "exitCode": 1,
+    "failedTests": ["vault policy sudo bindings include exact executable argv cwd and sudo path"],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "use.sudoPath === binding.sudoPath",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "MCP server scope",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "8591a869574d890d8c31b325d6a70e9bca843b984f30006c4d66f74cf67d4022",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy MCP server names, git paths, origins and command input bindings stay exact"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "use.server === binding.server",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "git path scope",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "031672a89078662857c200b7cacc17ade07eba5445dc5a8736de876a93a836f3",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy MCP server names, git paths, origins and command input bindings stay exact"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "use.path === binding.path",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "origin binding",
+    "file": "src/core/vault/broker/policy.ts",
+    "sourceSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "mutatedSha256": "fe862e44f54f7b32c86e1be14976de9e523cd89ac8b92723fd5c5a2a495d7aa9",
+    "exitCode": 1,
+    "failedTests": [
+      "vault policy MCP server names, git paths, origins and command input bindings stay exact"
+    ],
+    "restoredSha256": "1a999673f0b8d046543e0f2387f361843ac15d35991f6e3fa6275250c95af176",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "use.origin === binding.origin",
+        "after": "true"
+      }
+    ]
+  },
+  {
+    "guard": "atomic grant admission",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "6bfd140a531135545ac8b5eb7a114852d13e37ae3b127083b611c57b80d390e2",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation standing grant uses are spent atomically and cannot exceed the count",
+      "vault broker lifetime and isolation a rejected atomic use reservation is an audited denial"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n      authority.kind === 'grant' &&\n      !(await this.deps.repository.consumeGrant(authority.grantId, this.clock.now()))\n    )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "authenticated UI answer",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "dd080a4c02873d9d2d0ae7cd0ba491e588c96a40036773db27aeca79666f85e5",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals checks the answer digest and only the authenticated host UI can answer"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        !peer.ui ||\n        peer.hostId !== request.requester.hostId ||\n        !(await this.deps.identity.verifyHost(peer))\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "answer deadline",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "083a507cf3992a73f698f5696e76cd52aae800fd8e6bb15bbb3c4c110bf90c3b",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals denial consumes the id and expiry denies without a usable ticket",
+      "broker-owned approvals unanswered approvals expire as audited denials"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "if (this.clock.now() >= request.expiresAt)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "ticket snapshot nonce",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "8ddd5adf96ca0b1ddadaad44badcc2731f63311ddd28ff981f82a7b06fbe2d3a",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals actual use, nonce, requester, epoch, deadline and replay are checked at redemption"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        requesterId !== operation.ticket.requesterId ||\n        JSON.stringify(ticket) !== JSON.stringify(operation.ticket)\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "session answer eligibility",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "f346668a7ea352a6b0ac0612e79c43d281d8a0626460815280e6479a351f8698",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals prompt cannot make Always or remember disclosure/taint"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n          item.policy.mode !== 'askOncePerSession' ||\n          request.requester.sessionId === null ||\n          request.taint.tainted ||\n          request.use.kind === 'disclosure'\n        )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "first-party origin and hidden binding",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "8da81c588f3818cee5aca460d9b2eda02605fb094bb8057595f92694e8a966a8",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation fallback preserves only origin-bound first-party reads; agents never use it",
+      "native authenticated broker channel blocked launch has a concrete first-party-only fallback"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        !item.metadata.firstParty ||\n        !item.metadata.hidden ||\n        item.material.kind !== 'apiKey' ||\n        item.material.origin !== request.origin ||\n        item.metadata.bindings.every(\n          (binding) => !(binding.kind === 'origin' && binding.origin === request.origin),\n        )\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "grant recheck at redemption",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "df8a772cae0918cb4bece2cce114eb232362737917e05011e6eb560efe8d7a40",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material rechecks grant expiry, target and revocation at redemption"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n          !grant ||\n          !isGrantCovered(\n            { ...grant, uses: Math.max(0, grant.uses - 1) },\n            current,\n            operation.request.requester,\n            actual,\n            this.clock.now(),\n          )\n        )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "approved material requester",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "601b9fed5b214ef6d87c738b2f1486596294c201bf729e981c947b8c9d5f72e1",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material only the actual requester and digest may receive a single material release, erased after use"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "entry?.operation.request.requester.id !== requesterId",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "approved material digest",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "f392c8e5e853e0744664e6e7263dce3f71c0abbff216695ad8c4fe59a39d96a8",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material only the actual requester and digest may receive a single material release, erased after use"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "vaultUseDigest(actual) !== entry.operation.request.digest",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "single material release",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "69fad60b1a7776fdff9e9855fb18ebf7d3a2146be10c33c2e959297a7021ac46",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material only the actual requester and digest may receive a single material release, erased after use"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "entry.released\n",
+        "after": "false\n"
+      }
+    ]
+  },
+  {
+    "guard": "material release deadline",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "76d55149710b72f17fa42035aade385b7b6361422e59b4f62e459d75b113fa26",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material callback failure and an expired admitted ticket never leave reusable material"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.clock.now() >= entry.operation.ticket.expiresAt)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "material metadata recheck",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "011256a5a39071b225fa8472c1f4688a60b02bfe0db5e474f2cff9c7425090fa",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material metadata changed after admission is refused before a destination sees material"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "JSON.stringify(item.metadata) !== JSON.stringify(entry.operation.request.item)",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "material erasure after destination",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "59e323c53ae7a27e740877d3904671ff77ae4dbe6e1ddb7c1737df492ccd2d81",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material only the actual requester and digest may receive a single material release, erased after use",
+      "broker-owned approved material callback failure and an expired admitted ticket never leave reusable material"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "eraseMaterial(item)",
+        "after": "void item"
+      }
+    ]
+  },
+  {
+    "guard": "material erasure while destination waits",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "32408a5b0ff7ed3c5be9939b6640cf512698d14da32e4c2888d3b396c24450b5",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material lock during a destination call erases material immediately and rejects its late completion",
+      "broker-owned approved material grant during a destination call erases material immediately and rejects its late completion",
+      "broker-owned approved material item during a destination call erases material immediately and rejects its late completion"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "eraseMaterial(entry.material)",
+        "after": "void entry.material"
+      }
+    ]
+  },
+  {
+    "guard": "shared grant revocation notification",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "b98e15fefbc739cb6ad17395207eafff020a20100963fd78f1078ff89c4dfe10",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material grant during a destination call erases material immediately and rejects its late completion"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await this.invalidateGrant(change.id)",
+        "after": "void change.id"
+      }
+    ]
+  },
+  {
+    "guard": "shared item policy notification",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "399a12acce9a2f10f4920c53fe9e106914ec4b941591ec07a0edc6cc065f7d5e",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approved material item during a destination call erases material immediately and rejects its late completion"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await this.policyChanged(change.id)",
+        "after": "void change.id"
+      }
+    ]
+  },
+  {
+    "guard": "fresh first-party presence",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "a2584b8472b632313d1224c3a92b44f6872cad998d1caf43ae254e2dea6f05e8",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation first-party presence is fresh and denies a late answer from before a lock",
+      "vault broker lifetime and isolation lock erases pending first-party material before presence returns",
+      "vault broker lifetime and isolation item erases pending first-party material before presence returns"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        item.metadata.requirePresence &&\n        !(await this.deps.unlock.presence(item.metadata.id, id(), request))\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "first-party lock epoch after presence",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "f6d04f67535c01721dd72fbc1932444a4356aee0a13c48cf6c9e844c84c5c40f",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation first-party presence is fresh and denies a late answer from before a lock",
+      "vault broker lifetime and isolation item erases pending first-party material before presence returns",
+      "vault broker lifetime and isolation lock during the final first-party metadata check rejects without returning erased material"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)\n        throw new Error(UI_TEXT.vault.locked)",
+        "after": "if (false) throw new Error(UI_TEXT.vault.locked)"
+      }
+    ]
+  },
+  {
+    "guard": "audited unknown handle denial",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "1c9347d2c80b01a7c1d2e3594f678e03c0a8a565164ea2c9c4a810d25ffed44d",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation unknown handles and unregistered identities are explicit audited denials; slot failures fail closed"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.key)\n          await this.record",
+        "after": "if (false)\n          await this.record"
+      }
+    ]
+  },
+  {
+    "guard": "lock closes inactive requester sockets",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "ba0b9d9a263796cedcffd460880d6cf2e7a6432ac2eaa904ebdceed29ef3ad6b",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel lock closes requester sockets even before their first approved use"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "for (const listener of this.invalidations) listener(null)",
+        "after": "for (const listener of this.invalidations) void listener"
+      }
+    ]
+  },
+  {
+    "guard": "end closes inactive requester sockets",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "62c4eb93b3c6d113309aa6a886424273676b50949c0e34532f6398ba0c683583",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel end closes requester sockets even before their first approved use"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "for (const listener of this.invalidations) listener(requesterId)",
+        "after": "for (const listener of this.invalidations) void listener"
+      }
+    ]
+  },
+  {
+    "guard": "late card and ticket epoch check",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "6d09b5d41373805fed92fbbdc2cb737aac594daad200697a5df9d72991db90d4",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals a lock while the ask audit is pending cannot mint a late card or ticket",
+      "broker-owned approvals a lock while the allow audit is pending cannot mint a late card or ticket"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')",
+        "after": "if (false) return deny('locked')"
+      }
+    ]
+  },
+  {
+    "guard": "late requester ticket check",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "10d4b031f909d11a04d056c3a023681b867a4d0f184dd4c840d343fc563c45c8",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals ending a requester while its ticket audit waits prevents late authority"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "if (!this.registered(request.requester)) return deny('peer')",
+        "after": "if (false) return deny('peer')"
+      }
+    ]
+  },
+  {
+    "guard": "bounded queued frame bytes",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "a013fd816e318c9eb00cefc0ca18fb16effebf461c52e9e47d87e2c0cb1f5208",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel an oversized frame closes without dispatch or private diagnostics"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (queuedBytes > VAULT_LIMITS.frameBytes)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "strict frame schema and version",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "35638e778d6c33c902590e02699de53d5a2e12668d41106e6cee7773f390b37a",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel refuses version before dispatch",
+      "native authenticated broker channel refuses unknown before dispatch"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "vaultChannelRequestSchema.parse(JSON.parse(line.toString('utf8')))",
+        "after": "JSON.parse(line.toString('utf8'))"
+      }
+    ]
+  },
+  {
+    "guard": "frame sequence monotonicity",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "ced28f45ddfc853f088c9b0e639ca406cc9c313a75af49d414dd39531f69fe35",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel a repeated sequence after hello closes even for a valid status request"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (message.sequence !== sequence)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "hello boot token authentication",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "409c25ce81c22ecf44462e3ddc3708f8650a6e10618d141d551a2d6fd91ea06b",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel refuses token before dispatch",
+      "native authenticated broker channel the client refuses a discovery token mismatch"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "!isVaultBootTokenMatch(this.deps.bootToken, request.bootToken)",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "single versioned hello",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "b7f30d187cd6542607817ef736915b9e5380d18e73d4e26b30ca52039dc5c01e",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel refuses token before dispatch",
+      "native authenticated broker channel duplicate hello and repeated sequence close the connection",
+      "native authenticated broker channel the client refuses a discovery token mismatch"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n          identity ||\n          message.sequence !== 0 ||\n          !isVaultBootTokenMatch(this.deps.bootToken, request.bootToken)\n        )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "OS peer and launcher registry agreement",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "5c5d4b311690f9262415811d55468170fa23d945fd4f5fbca4f4f0bd8539a1a1",
+    "exitCode": 1,
+    "failedTests": ["native authenticated broker channel refuses identity before dispatch"],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n          verified.peer.hostId !== request.hostId ||\n          verified.peer.processId !== peer.processId ||\n          verified.peer.userId !== peer.userId\n        )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "requester management refusal",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "c48d3a6e4751dceb1021fd05e696ee3103d440267da0fea0e948fe033c4458c2",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel worker sockets cannot claim management, private reads, answers or another requester"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!identity.manage) return denied",
+        "after": "if (false) return denied"
+      }
+    ]
+  },
+  {
+    "guard": "first-party connection segregation",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "74f9bff3e72b4100a422961502656435c4794f62ba1f58f6e8b02258da6c9a87",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel a conversation connection in the trusted host process cannot read first-party material"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!identity.firstParty || identity.requester !== null)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "trusted sticky taint",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "097853a05666fffab9412229bd6da1761c020d8e6ffbf5197c73082282ce63be",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel trusted session taint cannot be cleared by a clean request frame"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await this.deps.taint(requester)",
+        "after": "request.proposal.taint"
+      }
+    ]
+  },
+  {
+    "guard": "scrub oracle restricted to host",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "16ef560f0004e68e4ee1216ceeeac5b0f0e844e355abc0c85b50cc62cc93d7a2",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel worker sockets cannot claim management, private reads, answers or another requester"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "return identity.manage\n",
+        "after": "return true\n"
+      }
+    ]
+  },
+  {
+    "guard": "channel lifetime cannot restart",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "2ce3b0bb28e24f697de2db3456dd11272467c44745c0f15dd1b751de249306c2",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel a listening or closed channel cannot be started again"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.isClosed || this.server || this.securedClose)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "Unix OS user identity",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "fd9a27566f2ee0f3e4bdec3decd4f113a40cc8f6488fd644bc16ab4a9e083991",
+    "exitCode": 1,
+    "failedTests": [
+      "native Unix foreign-user rejection owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (result.uid !== globalThis.process.getuid?.())",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "Unix pid and uid from process port",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "65a7a6ae41d5e78d05f254b644de27b8545eca79690cdd171a95712c5ffff0de",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel Unix native identity rejects a bad user from the process port"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (identity.processId !== result.pid || identity.userId !== String(result.uid))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "Windows owner SID",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "d234601b5b8852f6353b3d5da039898476f03ebb42c3a84a7d6cdad1ca8cd65b",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows named-pipe peer seam refuses sid and never accepts a token instead of OS identity"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "identity.userId !== this.ownerSid",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "Windows owner DACL",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "6cbc71ddcd21e093ba4974a7fb8a309732e5ad93edeb35b817cba1b388c854af",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows named-pipe peer seam refuses dacl and never accepts a token instead of OS identity"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "!identity.ownerOnlyDacl",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "Windows remote refusal",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "7cd5ba24ffa47826e423a6e2d2920bc09acd5e4b787ffad42ae17507a8ea1797",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows named-pipe peer seam refuses remote and never accepts a token instead of OS identity"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "identity.remote ||",
+        "after": "false ||"
+      }
+    ]
+  },
+  {
+    "guard": "Windows process boundary schema",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "1e07c5cba111e9007e530faedd0d0a77e9d84e92502086135f785a132ae25aaa",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows named-pipe peer seam refuses pid and never accepts a token instead of OS identity",
+      "Windows named-pipe peer seam refuses start and never accepts a token instead of OS identity",
+      "Windows named-pipe peer seam refuses image and never accepts a token instead of OS identity"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "pipeSchema.parse(await this.port.inspect(socket))",
+        "after": "await this.port.inspect(socket)"
+      }
+    ]
+  },
+  {
+    "guard": "Unix process boundary schema",
+    "file": "src/core/vault/broker/peer.ts",
+    "sourceSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "mutatedSha256": "93da82f2bb5b503cf21e972b608772f002e7cadd4c7f25cb974386536a4608f0",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel Unix native identity rejects a bad image from the process port"
+    ],
+    "restoredSha256": "bc899d085156624fd72c72b6daec2ffb52391acb8e7c06b10df58f02f147684e",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "processSchema.parse(await this.processIdentity(result.pid))",
+        "after": "await this.processIdentity(result.pid)"
+      }
+    ]
+  },
+  {
+    "guard": "nonblocking inherited descriptor",
+    "file": "src/core/vault/broker/peer.c",
+    "sourceSha256": "ee9d11491ff3f603f1f56a224a06f80d106ec9c507d3a3b85e4ff59db2cd50d2",
+    "mutatedSha256": "46bf7340c9f3efee0d63444bf09c4bafd116cc09bd397e4c683ad005951e8657",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel getpeereid and LOCAL_PEERPID authenticate both endpoints; versioned hello checks boot and broker identity",
+      "native authenticated broker channel worker sockets cannot claim management, private reads, answers or another requester",
+      "native authenticated broker channel lock closes requester sockets even before their first approved use",
+      "native authenticated broker channel end closes requester sockets even before their first approved use",
+      "native authenticated broker channel duplicate hello and repeated sequence close the connection",
+      "native authenticated broker channel a repeated sequence after hello closes even for a valid status request",
+      "native authenticated broker channel a conversation connection in the trusted host process cannot read first-party material",
+      "native authenticated broker channel an oversized frame closes without dispatch or private diagnostics",
+      "native authenticated broker channel trusted session taint cannot be cleared by a clean request frame",
+      "native authenticated broker channel the secured named-pipe listener seam authenticates before dispatch and owns shutdown"
+    ],
+    "restoredSha256": "ee9d11491ff3f603f1f56a224a06f80d106ec9c507d3a3b85e4ff59db2cd50d2",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "fcntl(3, F_SETFL, flags | O_NONBLOCK) != 0",
+        "after": "0"
+      }
+    ]
+  },
+  {
+    "guard": "client pins broker process and start",
+    "file": "src/core/vault/broker/client.ts",
+    "sourceSha256": "f21fdbfa0a2c8b3c0c51aeb2d4ee8f5fa98691161dc71c4e4eddd3631324f551",
+    "mutatedSha256": "a91d9df23666665c73b79ff14e25d3600548d0fd5eb0d9c644c03e32146a6e02",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel the client refuses a discovery pid mismatch",
+      "native authenticated broker channel the client refuses a discovery start mismatch"
+    ],
+    "restoredSha256": "f21fdbfa0a2c8b3c0c51aeb2d4ee8f5fa98691161dc71c4e4eddd3631324f551",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        identity.processId !== location.lock.processId ||\n        identity.startedAt !== location.lock.startedAt\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "client pins broker boot identity",
+    "file": "src/core/vault/broker/client.ts",
+    "sourceSha256": "f21fdbfa0a2c8b3c0c51aeb2d4ee8f5fa98691161dc71c4e4eddd3631324f551",
+    "mutatedSha256": "50c234bc8847d9243f072d5d52c5234c3d5f89eedae66bfb3f948b7b5f18f39f",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel the client refuses a discovery brokerId mismatch"
+    ],
+    "restoredSha256": "f21fdbfa0a2c8b3c0c51aeb2d4ee8f5fa98691161dc71c4e4eddd3631324f551",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (hello.kind !== 'hello' || hello.brokerId !== location.lock.brokerId)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "discovery process start identity",
+    "file": "src/core/vault/broker/discovery.ts",
+    "sourceSha256": "998933b7cc99428e5a8584fed0820d3a1549467d98967c46fc50b9df0a5e6966",
+    "mutatedSha256": "4413d497db0fa9f1334bc325f914d37f8ce0b2a459e3042db3fe79521ab8ff21",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel discovery pins process start and owner-only files; only one claimant wins"
+    ],
+    "restoredSha256": "998933b7cc99428e5a8584fed0820d3a1549467d98967c46fc50b9df0a5e6966",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (process.processId !== lock.processId || process.startedAt !== lock.startedAt)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "shared epoch overflow",
+    "file": "src/core/vault/broker/epoch.ts",
+    "sourceSha256": "5a510dd0aa5f62d047b7ebde1ef2c9d0f6255426416f90a251d0e4d2450cf38b",
+    "mutatedSha256": "37c8835200e8276521d00a53ec027fbaaa1b4c2af53c40d34e8eeacf63df3a6d",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel an occupied epoch writer and counter overflow fail closed"
+    ],
+    "restoredSha256": "5a510dd0aa5f62d047b7ebde1ef2c9d0f6255426416f90a251d0e4d2450cf38b",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!Number.isSafeInteger(epoch))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "audit JSONL delimiter",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "9c42392aecde2332223eac91aba7cf8a5841f90df653054c18066618197a3288",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit detects format against the authenticated slot anchor"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (bytes.length > 0 && (!text.endsWith('\\n') || text.includes('\\n\\n')))",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "audit chain hash and MAC",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "095a35654319161eca61816c76e9fab98c2371e49feeaef13207938d364a7b72",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit detects edit against the authenticated slot anchor",
+      "authenticated vault audit detects wrongKey against the authenticated slot anchor",
+      "authenticated vault audit detects edits made after unlock before read or another append"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n        record.generation !== generation + 1 ||\n        record.previousHash !== previousHash ||\n        record.hash !== hashed(unsigned(record)) ||\n        record.mac !== this.mac(record.hash)\n      )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "audit authenticated head checkpoint",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "12762dbb6dc5d10ffe7b3aa60001ce3c7446fd5bd994f9d3f56ebf62ddb17038",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit detects truncate against the authenticated slot anchor",
+      "authenticated vault audit detects missing against the authenticated slot anchor",
+      "authenticated vault audit rotation retains an authenticated checkpoint and refuses truncation of the retained segment",
+      "authenticated vault audit anchor write failure fails closed until a verified repair"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (generation !== anchor.generation || previousHash !== anchor.hash)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "audit revalidation after unlock",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "b84dfd84e1714399ba306046c11473ead9f2836f8edbc5453e85186ab75ae1a3",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit persists owner-only strict value-free records and authenticates the head",
+      "authenticated vault audit anchor write failure fails closed until a verified repair",
+      "authenticated vault audit detects edits made after unlock before read or another append",
+      "authenticated vault audit two broker versions serialize append against the current authenticated head"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await this.verify()\n      return structuredClone(this.records)",
+        "after": "return structuredClone(this.records)"
+      }
+    ]
+  },
+  {
+    "guard": "audit strict input ownership",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "2f35f73ca8c9de119b78512850ca318377b89ee0a8285b0dc0e54ab060ad9478",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit callers cannot override broker-owned audit identity or generation"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "inputSchema.parse(input)",
+        "after": "structuredClone(input)"
+      }
+    ]
+  },
+  {
+    "guard": "audit key and cap validation",
+    "file": "src/core/vault/broker/audit.ts",
+    "sourceSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "mutatedSha256": "561ad53f4b5000ec248da1bd083f8895ec90ac94816f1c0e7b5346332f0b96a6",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit refuses hard links, unsafe directories, invalid caps and wrong key lengths"
+    ],
+    "restoredSha256": "6827d2165e559d4c05351a606809824527645d109fb968c66c565d85b05486b1",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n      vaultKey.byteLength !== VAULT_KEY_BYTES ||\n      !Number.isSafeInteger(this.maxBytes) ||\n      this.maxBytes <= 0 ||\n      this.maxBytes > VAULT_AUDIT_MAX_BYTES\n    )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "owner-only file permissions",
+    "file": "src/core/vault/broker/files.ts",
+    "sourceSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "mutatedSha256": "47eb572ebe2a75507b50267216a8b5ce2d0d87de4005d5fe78188295d323cc73",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit refuses world-readable files and symlinks",
+      "authenticated vault audit refuses hard links, unsafe directories, invalid caps and wrong key lengths"
+    ],
+    "restoredSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n    (mode & (constants.S_IRWXG | constants.S_IRWXO)) !== 0 ||\n    (process.getuid && uid !== process.getuid())\n  )",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "no symlink file reads",
+    "file": "src/core/vault/broker/files.ts",
+    "sourceSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "mutatedSha256": "369c2c5b1c28fe30f4f79498ceb3b56cb940cfd557a0b91d15f1f4de198002e8",
+    "exitCode": 1,
+    "failedTests": ["authenticated vault audit refuses world-readable files and symlinks"],
+    "restoredSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK",
+        "after": "constants.O_RDONLY | constants.O_NONBLOCK"
+      }
+    ]
+  },
+  {
+    "guard": "hard link refusal",
+    "file": "src/core/vault/broker/files.ts",
+    "sourceSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "mutatedSha256": "e6e8a332d9e0d9ecbaf1bf9cb29056b0b0289a7d6dd929fb9436bc01eeec19fd",
+    "exitCode": 1,
+    "failedTests": [
+      "authenticated vault audit refuses hard links, unsafe directories, invalid caps and wrong key lengths"
+    ],
+    "restoredSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "sample.nlink !== 1 || sample.size > maxBytes",
+        "after": "sample.size > maxBytes"
+      }
+    ]
+  },
+  {
+    "guard": "single exclusive epoch writer",
+    "file": "src/core/vault/broker/files.ts",
+    "sourceSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "mutatedSha256": "9fa779dabadcf2635d8437f0e2bb11038cb4f4c8a14825674526e18521623fd8",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel discovery pins process start and owner-only files; only one claimant wins",
+      "native authenticated broker channel an occupied epoch writer and counter overflow fail closed"
+    ],
+    "restoredSha256": "efb9457db6b740f27d17cf4094ccbb55df0ee1d85b3cced45d187277e8c29491",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "constants.O_EXCL | constants.O_NOFOLLOW",
+        "after": "constants.O_NOFOLLOW"
+      }
+    ]
+  },
+  {
+    "guard": "first-party-only inline fallback check",
+    "file": "src/core/vault/broker/firstParty.ts",
+    "sourceSha256": "0652c683c85edf9f53dd28ba68580f50eee230f0db3eea6171935ba018b9ddde",
+    "mutatedSha256": "0ffb934433740d4de2a4c76546b044e314248cab8c40466c3baee1cc83774494",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel blocked launch has a concrete first-party-only fallback"
+    ],
+    "restoredSha256": "0652c683c85edf9f53dd28ba68580f50eee230f0db3eea6171935ba018b9ddde",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (status.state !== 'firstPartyOnly')",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "transient credential buffers erased",
+    "file": "src/host/vault/brokerClient.ts",
+    "sourceSha256": "0e0c5fd5cad8f20516dc5c336c5e8581dc70d78fd30e3d3fe293004b303bd5a4",
+    "mutatedSha256": "5d44d71c5842db298c7fe48f1947398b564981447f52dc23f496e82fc35269fb",
+    "exitCode": 1,
+    "failedTests": [
+      "first-party credential adapter reads per request and erases the broker buffer after conversion",
+      "first-party credential adapter existing entry flow erases transient write bytes even on failure false",
+      "first-party credential adapter existing entry flow erases transient write bytes even on failure true"
+    ],
+    "restoredSha256": "0e0c5fd5cad8f20516dc5c336c5e8581dc70d78fd30e3d3fe293004b303bd5a4",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "bytes.fill(0)",
+        "after": "void bytes"
+      }
+    ]
+  },
+  {
+    "guard": "ready child requires a discovery record",
+    "file": "src/host/vault/brokerProcess.ts",
+    "sourceSha256": "b5911750b0487eb44c0545ff60290d0c5d547e601c81f8f3e06038c89fa09e28",
+    "mutatedSha256": "a4634aa738f2c067564b1cbe3cd7585af643f83e6f0908d24cc38c83209c9ef6",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel a child reporting ready without its authenticated discovery record is stopped"
+    ],
+    "restoredSha256": "b5911750b0487eb44c0545ff60290d0c5d547e601c81f8f3e06038c89fa09e28",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!location) throw new Error(UI_TEXT.vault.brokerBlocked)",
+        "after": "if (false) throw new Error(UI_TEXT.vault.brokerBlocked)"
+      }
+    ]
+  },
+  {
+    "guard": "ordered broker transactions",
+    "file": "src/core/vault/broker/queue.ts",
+    "sourceSha256": "71786b2cb5d02cebee57d7e27cb9a350e8da486ce0e5cf882b5a916920db078a",
+    "mutatedSha256": "5da58fdf74b9c0fc93d24139fead36862e187b3b4d001f9dee16ff763c4a8da3",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation standing grant uses are spent atomically and cannot exceed the count"
+    ],
+    "restoredSha256": "71786b2cb5d02cebee57d7e27cb9a350e8da486ce0e5cf882b5a916920db078a",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await previous",
+        "after": "void previous"
+      }
+    ]
+  },
+  {
+    "guard": "management grant authenticates UI and host",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "e7f66140c17aedd5971024e8acef393c7a520a04b218875a2743d9170ff97ad7",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation a grant needs trusted management UI, zero initial count and a fresh id"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!peer.ui || !(await this.deps.identity.verifyHost(peer)) || !(await this.current()))\n      throw new Error(UI_TEXT.vault.noAccess)\n    const grant",
+        "after": "if (!(await this.current()))\n      throw new Error(UI_TEXT.vault.noAccess)\n    const grant"
+      }
+    ]
+  },
+  {
+    "guard": "management grant starts with zero count",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "0fd894287ff74def4302893a0aa7c8b0f7d7db686be48a298b2fb09cd9391745",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation a grant needs trusted management UI, zero initial count and a fresh id"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "grant.uses !== 0 ||",
+        "after": "false ||"
+      }
+    ]
+  },
+  {
+    "guard": "management grant cannot overwrite an existing id",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "fd31a8f8f56839518a1bdf67818600d91abc72d4d8cf2b9ef8a23b04e8a35174",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation a grant needs trusted management UI, zero initial count and a fresh id"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "existingGrants.some((existing) => existing.id === grant.id)",
+        "after": "existingGrants.some(() => false)"
+      }
+    ]
+  },
+  {
+    "guard": "first-party held material erased immediately on lock",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "52ff04ddd7a09dc44e0103e42a182cc5f3357006b0d2f280c35eaea98ea46c18",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation lock erases pending first-party material before presence returns"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "for (const item of this.privateReads) eraseMaterial(item)",
+        "after": "for (const item of this.privateReads) void item"
+      }
+    ]
+  },
+  {
+    "guard": "changed private item erased before presence completes",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "41e69b2684f63e1598a9ca0727962bc01b82d31093df42c85977667299cca6de",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation item erases pending first-party material before presence returns"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "eraseMaterial(item)\n        this.privateReads.delete(item)",
+        "after": "void item\n        this.privateReads.delete(item)"
+      }
+    ]
+  },
+  {
+    "guard": "invalidated private read cannot return after presence",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "1501819df849a0e791826b1e63787aeac60e80b399b14245c4a4c28d9e1a2552",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation item erases pending first-party material before presence returns"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": true,
+    "mutations": [
+      {
+        "before": "!this.privateReads.has(item) || ",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "guard": "private item invalidation stays scoped to the changed id",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "f06b3284ee3b176b059addf65a695f8fb53b50b91f2ec44833b2342fe10252a0",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation lock erases pending first-party material before presence returns",
+      "vault broker lifetime and isolation item erases pending first-party material before presence returns"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (item.metadata.id === itemId) {",
+        "after": "if (itemId) {"
+      }
+    ]
+  },
+  {
+    "guard": "late private read cannot start a presence prompt after lock",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "6f2d22f956e902e8057fc78d6c34d95be8f1c14b6932f65b0b2949742e45966b",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation a lock during first-party reading erases the late buffer before any presence prompt"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (!(await this.current()) || epoch !== this.epoch) throw new Error(UI_TEXT.vault.locked)\n      if (\n        !item.metadata.firstParty",
+        "after": "if (\n        !item.metadata.firstParty"
+      }
+    ]
+  },
+  {
+    "guard": "late session answer checks cancellation after metadata wait",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "3f9e90f6f4296c6926716824832a72138cdc33761568f6f43ba558fff3dc57ad",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals a late session answer cannot rebuild approval state after item",
+      "broker-owned approvals a late session answer cannot rebuild approval state after end"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "this.pending.get(request.id) !== request ||\n        ",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "guard": "late session answer cannot rebuild state across a lock",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "84880f7d519e1c8c7bde5a7195062deda7b1ae3eceba63bdbda4b263104b0169",
+    "exitCode": 1,
+    "failedTests": [
+      "broker-owned approvals a late session answer cannot rebuild approval state after lock",
+      "broker-owned approvals a late session answer cannot rebuild approval state after item",
+      "broker-owned approvals a late session answer cannot rebuild approval state after end"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "const item = metadata?.find((item) => item.id === request.item.id)\n      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')",
+        "after": "const item = metadata?.find((item) => item.id === request.item.id)"
+      },
+      {
+        "before": "this.pending.get(request.id) !== request ||\n        ",
+        "after": ""
+      }
+    ]
+  },
+  {
+    "guard": "private read rechecks lifetime after final metadata await",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "edef0dcbc65da5a40e632b089f15fd0097bd849a8b7a0c7b98f726d52eeaa0fb",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation lock during the final first-party metadata check rejects without returning erased material"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "const metadata = await this.store?.list()\n      if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)\n        throw new Error(UI_TEXT.vault.locked)",
+        "after": "const metadata = await this.store?.list()"
+      }
+    ]
+  },
+  {
+    "guard": "failed grant admission audited",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "3bdb652e252c1c76e86eb5dc800b19062ca8d5b135a48bbf70f677653ab6263d",
+    "exitCode": 1,
+    "failedTests": [
+      "vault broker lifetime and isolation a rejected atomic use reservation is an audited denial"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "await this.record(request, 'deny', 'failClosed', authority.grantId, 'denied')",
+        "after": "void request"
+      }
+    ]
+  },
+  {
+    "guard": "ticket resource cap",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "d1ca485e5375fc37f6be7f49637a2ce6e3a93f3bbd9773f5056b339db93845c5",
+    "exitCode": 1,
+    "failedTests": [
+      "broker resource boundaries a full ticket queue denies and audits the next request"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.tickets.size >= VAULT_LIMITS.items)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "pending approval resource cap",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "c4c171c4cf4d5c6db9b1d765f0ab141442383554cc53d61955675bc3a006d72c",
+    "exitCode": 1,
+    "failedTests": [
+      "broker resource boundaries a full approval queue denies and audits the next request"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.pending.size >= VAULT_LIMITS.items)",
+        "after": "if (false)"
+      }
+    ]
+  },
+  {
+    "guard": "requester registration resource cap",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "ed1a69566d6b12ed0c0256d06d215783c49d0170e8ba4b1862cd0d1b2da3ecfb",
+    "exitCode": 1,
+    "failedTests": [
+      "broker resource boundaries the requester cap refuses a further trusted registration"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "this.registrations.size >= VAULT_LIMITS.items",
+        "after": "false"
+      }
+    ]
+  },
+  {
+    "guard": "full ticket queue denial audited",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "45338ffdf37b22f0075e6184dc8d701839e321d60656d3dc50482e949e82db10",
+    "exitCode": 1,
+    "failedTests": [
+      "broker resource boundaries a full ticket queue denies and audits the next request"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.tickets.size >= VAULT_LIMITS.items) {\n      await this.record(request, 'deny', 'failClosed', null, 'denied')",
+        "after": "if (this.tickets.size >= VAULT_LIMITS.items) {\n      void request"
+      }
+    ]
+  },
+  {
+    "guard": "full approval queue denial audited",
+    "file": "src/core/vault/broker/broker.ts",
+    "sourceSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "mutatedSha256": "5acec593d38296267672e67a952ce17b3b5d3bcb4ff2ed062b51b39c5213c60f",
+    "exitCode": 1,
+    "failedTests": [
+      "broker resource boundaries a full approval queue denies and audits the next request"
+    ],
+    "restoredSha256": "5d64f914b0dad2c4afc68110fc73c254425d99c579a32a700494d46dac2d26fe",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (this.pending.size >= VAULT_LIMITS.items) {\n        await this.record(request, 'deny', 'failClosed', null, 'denied')",
+        "after": "if (this.pending.size >= VAULT_LIMITS.items) {\n        void request"
+      }
+    ]
+  },
+  {
+    "guard": "audit response pagination respects wire bounds",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "4ab0c4645efafbb260f0b98e0dfa3c3fb81ba7703dbc98f015340bb265e9b88d",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel audit pages stay under the frame limit and resume at the last generation"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (records.length >= VAULT_LIMITS.items || bytes + size > VAULT_LIMITS.frameBytes) break",
+        "after": "if (false) break"
+      }
+    ]
+  },
+  {
+    "guard": "audit generation item and requester filtering",
+    "file": "src/core/vault/broker/channel.ts",
+    "sourceSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "mutatedSha256": "b97d069dc9f2d80c0a7ace18dd84b3d91fd6057f7e628668d685eed115a19c3d",
+    "exitCode": 1,
+    "failedTests": [
+      "native authenticated broker channel audit pages stay under the frame limit and resume at the last generation",
+      "native authenticated broker channel audit item and requester filters return only matching records"
+    ],
+    "restoredSha256": "698bc0f1fe54c8e388b3ab7263b38903a45ae143ef5afdbecd128c239bafb3f5",
+    "allOccurrences": false,
+    "mutations": [
+      {
+        "before": "if (\n            record.generation <= request.afterGeneration ||\n            (request.item !== null && record.handle !== request.item) ||\n            (request.requesterId !== null && record.requester.id !== request.requesterId)\n          )",
+        "after": "if (false)"
+      }
+    ]
+  }
+]

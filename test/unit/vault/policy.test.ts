@@ -234,4 +234,99 @@ describe('vault policy', () => {
     expect(isBindingCovered(oauth, oauth)).toBe(true)
     expect(isBindingCovered(oauth, { ...oauth, issuer: `${oauth.issuer}/` })).toBe(false)
   })
+  it('hidden first-party and expired items remain unavailable despite an Always grant', () => {
+    const { item, who, actual, standing } = context()
+    item.hidden = true
+    expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'policy',
+    })
+    item.hidden = false
+    item.firstParty = true
+    expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'policy',
+    })
+    item.firstParty = false
+    item.dates.expiresAt = 1
+    expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'expired',
+    })
+  })
+  it('hooks require a standing environment grant and never prompt; devices cannot receive environment material', () => {
+    const { item, who, actual, standing } = context()
+    who.role = { kind: 'hook', name: 'check' }
+    standing.roles = [who.role]
+    expect(evaluateVaultPolicy(item, who, actual, taint, [], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'policy',
+    })
+    expect(
+      evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set()).kind,
+    ).toBe('allow')
+    const hookTaint = { tainted: true, reasons: [] }
+    expect(
+      evaluateVaultPolicy(item, who, actual, hookTaint, [standing], 'ask', 1, new Set()),
+    ).toEqual({ kind: 'denied', reason: 'tainted' })
+    who.role = { kind: 'orchestrator' }
+    who.deviceId = 'device'
+    expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'remoteUse',
+    })
+    who.deviceId = null
+    who.unattended = true
+    standing.roles = [who.role]
+    standing.unattendedAllowed = true
+    expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
+      kind: 'denied',
+      reason: 'unattended',
+    })
+  })
+  it('grant item identity and local day and hour bounds narrow access', () => {
+    const { item, who, actual, standing } = context()
+    const local = new Date(2026, 9, 5, 12),
+      now = local.getTime()
+    standing.itemId = 'other'
+    expect(isGrantCovered(standing, item, who, actual, now)).toBe(false)
+    standing.itemId = item.id
+    standing.window = { days: [local.getDay()], startHour: 12, endHour: 13 }
+    expect(isGrantCovered(standing, item, who, actual, now)).toBe(true)
+    standing.window.startHour = 13
+    expect(isGrantCovered(standing, item, who, actual, now)).toBe(false)
+    standing.window.startHour = 0
+    standing.window.days = []
+    expect(isGrantCovered(standing, item, who, actual, now)).toBe(false)
+  })
+  it('MCP server names, git paths, origins and command input bindings stay exact', () => {
+    const command = use().command,
+      commandDigest = vaultCommandDigest(command)
+    const mcp: VaultBinding = { kind: 'mcp', server: 'one', commandDigest, names: ['TOKEN'] }
+    const mcpUse: VaultUse = { kind: 'mcp', server: 'one', command, names: ['TOKEN'] }
+    expect(isBindingCovered(mcp, mcpUse)).toBe(true)
+    expect(isBindingCovered(mcp, { ...mcpUse, server: 'two' })).toBe(false)
+    const git: VaultBinding = { kind: 'git', protocol: 'https', host: 'example.test', path: 'one' }
+    expect(isBindingCovered(git, { ...git, command })).toBe(true)
+    expect(isBindingCovered(git, { ...git, path: 'two', command })).toBe(false)
+    const origin: VaultBinding = { kind: 'origin', origin: 'https://example.test' }
+    expect(
+      isBindingCovered(origin, {
+        kind: 'header',
+        origin: origin.origin,
+        headerName: 'Authorization',
+      }),
+    ).toBe(true)
+    expect(
+      isBindingCovered(origin, {
+        kind: 'header',
+        origin: 'https://other.test',
+        headerName: 'Authorization',
+      }),
+    ).toBe(false)
+    expect(isBindingCovered({ kind: 'stdin', commandDigest }, { kind: 'stdin', command })).toBe(
+      true,
+    )
+    expect(isBindingCovered({ kind: 'totp', commandDigest }, { kind: 'totp', command })).toBe(true)
+  })
 })

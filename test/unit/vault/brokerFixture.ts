@@ -1,5 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { vi } from 'vitest'
+import * as z from 'zod/mini'
+import { type VaultSocketDescriptorPort } from '../../../src/core/vault/broker/peer'
 import { VaultBroker } from '../../../src/core/vault/broker/broker'
 import { vaultCommandDigest } from '../../../src/core/vault/broker/policy'
 import { type VaultBrokerDeps, type VaultAuditPort } from '../../../src/core/vault/broker/ports'
@@ -26,6 +28,7 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
   const slot = await new FakeVaultSlot('osStore').wrap(randomBytes(32))
   let epoch = 0
   const listeners = new Set<(value: number) => void>()
+  const changes = new Set<(change: { kind: 'item' | 'grant'; id: string }) => void>()
   const records: Parameters<VaultAuditPort['append']>[0][] = []
   const releasedKeys: Uint8Array[] = []
   const heldKeys: Uint8Array[] = []
@@ -53,6 +56,12 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
       removeGrant: (id) => {
         grants.delete(id)
         return Promise.resolve()
+      },
+      subscribe: (listener) => {
+        changes.add(listener)
+        return () => {
+          changes.delete(listener)
+        }
       },
       consumeGrant: (id) => {
         const entry = grants.get(id)
@@ -139,6 +148,33 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
     items.set(stored.metadata.id, stored)
     await store.write(stored)
   }
+  async function firstParty(isPresenceRequired = false, bytes = randomBytes(32)) {
+    const metadata: VaultItemMetadata = {
+      ...stored.metadata,
+      kind: 'apiKey',
+      firstParty: true,
+      hidden: true,
+      requirePresence: isPresenceRequired,
+      policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
+      bindings: [{ kind: 'origin', origin: 'https://example.test' }],
+    }
+    const value: VaultItem = {
+      metadata,
+      material: { kind: 'apiKey', value: bytes, auth: 'bearer', origin: 'https://example.test' },
+    }
+    items.set(metadata.id, value)
+    await store.write(value)
+    return {
+      bytes,
+      request: {
+        v: 1,
+        kind: 'firstPartyRead',
+        itemId: metadata.id,
+        origin: 'https://example.test',
+        client: 'model',
+      } as const,
+    }
+  }
   return {
     broker,
     deps,
@@ -153,6 +189,10 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
     releasedKeys,
     standing,
     change,
+    firstParty,
+    notify: (kind: 'item' | 'grant', id: string) => {
+      for (const listener of changes) listener({ kind, id })
+    },
     screenLock: () => {
       for (const listener of screen) listener()
     },
@@ -163,3 +203,41 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
   }
 }
 export const cleanTaint = { tainted: false, reasons: [] }
+/** Hold a snapshot across an await to exercise lock/invalidation races at the store boundary. */
+export async function delayListing(fixture: Awaited<ReturnType<typeof brokerFixture>>) {
+  const waiting = Promise.withResolvers<undefined>(),
+    entered = Promise.withResolvers<undefined>(),
+    open = fixture.deps.repository.open
+  let isHolding = false
+  fixture.deps.repository.open = async (key) => {
+    const store = await open(key),
+      list = store.list.bind(store)
+    store.list = async () => {
+      const metadata = await list()
+      if (isHolding) {
+        entered.resolve(undefined)
+        await waiting.promise
+      }
+      return metadata
+    }
+    return store
+  }
+  await fixture.broker.lock()
+  await fixture.broker.unlock()
+  return {
+    entered: entered.promise,
+    begin: () => {
+      isHolding = true
+    },
+    release: () => {
+      isHolding = false
+      waiting.resolve(undefined)
+    },
+  }
+}
+/** Test-only Node reflection; the production native listener supplies its owned descriptor. */
+export const socketDescriptors: VaultSocketDescriptorPort = {
+  descriptor: (socket) =>
+    z.object({ fd: z.number().check(z.int(), z.positive()) }).parse(Reflect.get(socket, '_handle'))
+      .fd,
+}

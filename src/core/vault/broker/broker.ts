@@ -1,3 +1,5 @@
+import { VaultBrokerQueue } from './queue'
+import * as z from 'zod/mini'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import {
   VAULT_APPROVAL_TTL_MS,
@@ -12,6 +14,8 @@ import {
   vaultGrantSchema,
   vaultItemMetadataSchema,
   vaultItemSchema,
+  vaultSlotRecordSchema,
+  type VaultItem,
   vaultRequesterSchema,
   vaultTaintSchema,
   vaultTicketSchema,
@@ -35,7 +39,7 @@ import {
   type VaultStatus,
 } from '../../../shared/vaultProtocol'
 import { vaultUseDigest } from '../useDigest'
-import { isCeilingCovered, evaluateVaultPolicy, type VaultCeiling } from './policy'
+import { isCeilingCovered, evaluateVaultPolicy, isGrantCovered, type VaultCeiling } from './policy'
 import {
   type VaultBrokerDeps,
   type VaultRequesterRegistration,
@@ -44,7 +48,12 @@ import {
 
 type Denial = Extract<VaultApprovalResult, { kind: 'denied' }>
 type Authorized = Extract<VaultApprovalResult, { kind: 'ticket' }>
+const changeSchema = z.strictObject({
+  kind: z.enum(['item', 'grant']),
+  id: z.string().check(z.regex(/^[a-f0-9]{32}$/u)),
+})
 interface Operation {
+  ticket: VaultTicket
   request: VaultApprovalRequest
   authority: Authorized['authority']
 }
@@ -79,16 +88,39 @@ export class VaultBroker implements VaultBrokerPort {
   private locking = false
   private readonly timer: ReturnType<typeof setInterval>
   private readonly registrations = new Map<string, VaultRequesterRegistration>()
+  private readonly invalidations = new Set<(requesterId: string | null) => void>()
   private readonly pending = new Map<string, VaultApprovalRequest>()
-  private readonly tickets = new Map<string, Operation & { ticket: VaultTicket }>()
+  private readonly tickets = new Map<string, Operation>()
   private readonly sessions = new Map<string, Set<string>>()
-  private readonly active = new Map<string, { operation: Operation; lifetime: VaultUseLifetime }>()
-  private tail: Promise<unknown> = Promise.resolve()
+  private readonly privateReads = new Set<VaultItem>()
+  private readonly active = new Map<
+    string,
+    {
+      operation: Operation
+      lifetime: VaultUseLifetime
+      material: VaultItem | null
+      released: boolean
+    }
+  >()
+  private readonly queue = new VaultBrokerQueue()
   private readonly unsubscribers: (() => void)[] = []
   readonly clock
 
   constructor(private readonly deps: VaultBrokerDeps) {
     this.clock = deps.clock
+    this.unsubscribers.push(
+      deps.repository.subscribe((input) => {
+        void (async () => {
+          try {
+            const change = changeSchema.parse(input)
+            if (change.kind === 'item') await this.policyChanged(change.id)
+            else await this.invalidateGrant(change.id)
+          } catch {
+            this.erase() /* Invalid repository events fail closed without forwarding their text. */
+          }
+        })()
+      }),
+    )
     this.timer = setInterval(() => {
       void this.tick().catch(() => {
         this.erase()
@@ -112,20 +144,17 @@ export class VaultBroker implements VaultBrokerPort {
         }),
       )
   }
-  private async serial<T>(run: () => Promise<T>): Promise<T> {
-    const previous = this.tail
-    const next = (async () => {
-      try {
-        await previous
-      } catch {
-        /* Its caller received the failure; keep the next operation live. */
-      }
-      return await run()
-    })()
-    this.tail = next
-    return await next
-  }
   private erase(): void {
+    for (const item of this.privateReads) eraseMaterial(item)
+    this.privateReads.clear()
+    for (const entry of this.active.values()) {
+      if (entry.material) eraseMaterial(entry.material)
+      entry.lifetime.close()
+      void entry.lifetime.terminate().catch(() => {
+        /* The closed feeder channel is authoritative; unavailable process termination cannot restore access. */
+      })
+    }
+    this.active.clear()
     this.key?.fill(0)
     this.key = null
     this.store?.lock()
@@ -135,6 +164,7 @@ export class VaultBroker implements VaultBrokerPort {
     this.tickets.clear()
     this.sessions.clear()
     this.deps.audit.close()
+    for (const listener of this.invalidations) listener(null)
   }
   private isStopped(): boolean {
     return this.disposed || this.locking
@@ -153,7 +183,9 @@ export class VaultBroker implements VaultBrokerPort {
       : undefined
   }
   private async record(
-    request: VaultApprovalRequest,
+    request: Pick<VaultApprovalRequest, 'requester' | 'use' | 'digest'> & {
+      item: Pick<VaultItemMetadata, 'handle'>
+    },
     decision: 'allow' | 'deny' | 'ask',
     authority: 'mode' | 'grant' | 'user' | 'taint' | 'failClosed' | 'presence',
     grantId: string | null,
@@ -208,13 +240,19 @@ export class VaultBroker implements VaultBrokerPort {
     authority: Authorized['authority'],
   ): Promise<VaultApprovalResult> {
     if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
+    if (!this.registered(request.requester)) return deny('peer')
     if (this.clock.now() >= request.expiresAt) return deny('expired')
-    if (this.tickets.size >= VAULT_LIMITS.items) return deny('policy')
+    if (this.tickets.size >= VAULT_LIMITS.items) {
+      await this.record(request, 'deny', 'failClosed', null, 'denied')
+      return deny('policy')
+    }
     if (
       authority.kind === 'grant' &&
       !(await this.deps.repository.consumeGrant(authority.grantId, this.clock.now()))
-    )
+    ) {
+      await this.record(request, 'deny', 'failClosed', authority.grantId, 'denied')
       return deny('scope')
+    }
     await this.record(
       request,
       'allow',
@@ -222,7 +260,8 @@ export class VaultBroker implements VaultBrokerPort {
       authority.kind === 'grant' ? authority.grantId : null,
       'pending',
     )
-    if (!(await this.current())) return deny('locked')
+    if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
+    if (!this.registered(request.requester)) return deny('peer')
     const ticket = vaultTicketSchema.parse({
       id: id(),
       requestId: request.id,
@@ -251,6 +290,7 @@ export class VaultBroker implements VaultBrokerPort {
       key.set(unlocked.key)
       if (before !== (await this.deps.epoch.current()) || this.isStopped())
         throw new Error(UI_TEXT.vault.locked)
+      const slot = vaultSlotRecordSchema.parse(unlocked.slot)
       const store = await this.deps.repository.open(key)
       try {
         await this.deps.audit.open(key)
@@ -264,7 +304,7 @@ export class VaultBroker implements VaultBrokerPort {
       }
       this.store = store
       this.key = key
-      this.slot = unlocked.slot
+      this.slot = slot
       this.epoch = before
       this.lastUse = this.clock.now()
     } catch (error: unknown) {
@@ -282,7 +322,12 @@ export class VaultBroker implements VaultBrokerPort {
     const entries = Array.from(this.active.values(), (entry) => ({ ...entry }))
     this.active.clear()
     // Close immediately, before asynchronous process termination or audit I/O.
-    for (const entry of entries) entry.lifetime.close()
+    for (const item of this.privateReads) eraseMaterial(item)
+    this.privateReads.clear()
+    for (const entry of entries) {
+      if (entry.material) eraseMaterial(entry.material)
+      entry.lifetime.close()
+    }
     this.pending.clear()
     this.tickets.clear()
     this.sessions.clear()
@@ -292,6 +337,7 @@ export class VaultBroker implements VaultBrokerPort {
     this.store?.lock()
     this.store = null
     this.slot = null
+    for (const listener of this.invalidations) listener(null)
     try {
       for (const entry of entries) {
         const isEnded = await entry.lifetime.terminate()
@@ -310,11 +356,28 @@ export class VaultBroker implements VaultBrokerPort {
       this.deps.onLocked(this.epoch)
     }
   }
+  private async invalidateGrant(grantId: string): Promise<void> {
+    const affected = new Set<string>()
+    for (const entry of [
+      ...this.tickets.values(),
+      ...Array.from(this.active.values(), (active) => active.operation),
+    ])
+      if (entry.authority.kind === 'grant' && entry.authority.grantId === grantId)
+        affected.add(entry.request.requester.id)
+    for (const requesterId of affected) await this.endRequester(requesterId, grantId)
+  }
   async unlock(slotId: string | null = null): Promise<void> {
-    await this.serial(async () => {
+    await this.queue.run(async () => {
       if (await this.current()) return
       await this.unlockOutsideQueue(slotId)
     })
+  }
+  /** The local channel closes worker sockets immediately; hosts still receive their UI callbacks. */
+  subscribeInvalidation(listener: (requesterId: string | null) => void): () => void {
+    this.invalidations.add(listener)
+    return () => {
+      this.invalidations.delete(listener)
+    }
   }
   async tick(): Promise<void> {
     if (!(await this.current())) return
@@ -389,17 +452,34 @@ export class VaultBroker implements VaultBrokerPort {
     const use = vaultUseSchema.parse(input)
     const taint = vaultTaintSchema.parse(inputTaint)
     const identity = vaultRequesterSchema.parse(requester)
-    return await this.serial(async () => {
-      if (this.deps.firstPartyOnly) return deny('firstPartyOnly')
+    return await this.queue.run(async () => {
+      const denial = async (reason: Denial['reason']): Promise<Denial> => {
+        if (this.key)
+          await this.record(
+            { requester: identity, item: { handle }, use, digest: vaultUseDigest(use) },
+            'deny',
+            'failClosed',
+            null,
+            'denied',
+          )
+        return deny(reason)
+      }
+      if (this.deps.firstPartyOnly) return await denial('firstPartyOnly')
       const registration = this.registered(identity)
-      if (!registration) return deny('peer')
-      if (!(await this.current())) await this.unlockOutsideQueue()
+      if (!registration) return await denial('peer')
+      if (!(await this.current())) {
+        try {
+          await this.unlockOutsideQueue()
+        } catch {
+          return await denial('locked')
+        }
+      }
       if (!this.store) return deny('locked')
       const metadata = await this.store.list()
       const item = metadata
         .map((item) => vaultItemMetadataSchema.parse(item))
         .find((item) => item.handle === handle)
-      if (!item) return deny('scope')
+      if (!item) return await denial('scope')
       const request = this.mint(identity, item, use, taint)
       const heldGrants = await this.deps.repository.grants()
       const grants = heldGrants.map((grant) => vaultGrantSchema.parse(grant))
@@ -422,8 +502,13 @@ export class VaultBroker implements VaultBrokerPort {
           request,
           decision.grant ? { kind: 'grant', grantId: decision.grant.id } : { kind: 'mode' },
         )
-      if (this.pending.size >= VAULT_LIMITS.items) return deny('policy')
+      if (this.pending.size >= VAULT_LIMITS.items) {
+        await this.record(request, 'deny', 'failClosed', null, 'denied')
+        return deny('policy')
+      }
       await this.record(request, 'ask', taint.tainted ? 'taint' : 'user', null, 'pending')
+      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
+      if (!this.registered(identity)) return deny('peer')
       this.pending.set(request.id, request)
       this.deps.onApproval(structuredClone(request))
       return { kind: 'approval', request: structuredClone(request) }
@@ -434,7 +519,7 @@ export class VaultBroker implements VaultBrokerPort {
     input: VaultApprovalAnswer,
   ): Promise<VaultApprovalResult> {
     const answer = vaultApprovalAnswerSchema.parse(input)
-    return await this.serial(async () => {
+    return await this.queue.run(async () => {
       const request = this.pending.get(answer.requestId)
       if (!request) return deny('replay')
       if (
@@ -450,20 +535,30 @@ export class VaultBroker implements VaultBrokerPort {
         await this.record(request, 'deny', 'failClosed', null, 'denied')
         return deny('digest')
       }
-      this.pending.delete(request.id)
       if (this.clock.now() >= request.expiresAt) {
+        this.pending.delete(request.id)
         await this.record(request, 'deny', 'failClosed', null, 'expired')
         return deny('expired')
       }
       if (answer.decision === 'deny') {
+        this.pending.delete(request.id)
         await this.record(request, 'deny', 'user', null, 'denied')
         return deny('policy')
       }
       const registration = this.registrations.get(request.requester.id)
       const metadata = await this.store?.list()
       const item = metadata?.find((item) => item.id === request.item.id)
-      if (!registration || !item || JSON.stringify(item) !== JSON.stringify(request.item))
+      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
+      if (
+        !registration ||
+        !item ||
+        this.pending.get(request.id) !== request ||
+        JSON.stringify(item) !== JSON.stringify(request.item)
+      ) {
+        this.pending.delete(request.id)
         return deny('policy')
+      }
+      this.pending.delete(request.id)
       if (answer.decision === 'allowSession') {
         if (
           item.policy.mode !== 'askOncePerSession' ||
@@ -488,7 +583,7 @@ export class VaultBroker implements VaultBrokerPort {
   ): Promise<VaultApprovalResult> {
     const ticket = vaultTicketSchema.parse(input)
     const actual = vaultUseSchema.parse(actualInput)
-    return await this.serial(async () => {
+    return await this.queue.run(async () => {
       const operation = this.tickets.get(ticket.id)
       if (!operation) return deny('replay')
       if (
@@ -514,7 +609,25 @@ export class VaultBroker implements VaultBrokerPort {
         !this.registrations.has(requesterId)
       )
         return deny('policy')
-      this.active.set(ticket.id, { operation, lifetime })
+      if (operation.authority.kind === 'grant') {
+        const grants = await this.deps.repository.grants()
+        const grantId = operation.authority.grantId
+        const grant = grants.find((entry) => entry.id === grantId)
+        if (
+          !grant ||
+          !isGrantCovered(
+            { ...grant, uses: Math.max(0, grant.uses - 1) },
+            current,
+            operation.request.requester,
+            actual,
+            this.clock.now(),
+          )
+        ) {
+          await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
+          return deny('scope')
+        }
+      }
+      this.active.set(ticket.id, { operation, lifetime, material: null, released: false })
       if (current.requirePresence && !(await this.deps.unlock.presence(current.id, id(), actual))) {
         await this.record(operation.request, 'deny', 'presence', null, 'denied')
         this.active.delete(ticket.id)
@@ -534,17 +647,56 @@ export class VaultBroker implements VaultBrokerPort {
         'allow',
         operation.authority.kind,
         operation.authority.kind === 'grant' ? operation.authority.grantId : null,
-        'succeeded',
+        'pending',
       )
       if (!(await this.current())) return deny('locked')
       this.lastUse = this.clock.now()
       return { kind: 'ticket', ticket: structuredClone(ticket), authority: operation.authority }
     })
   }
+  /** S/X/L/O execute inside the broker; only their approved destination may receive selected bytes. */
+  async withApprovedMaterial(
+    ticketId: string,
+    requesterId: string,
+    actualInput: VaultUse,
+    run: (item: VaultItem) => Promise<void>,
+  ): Promise<void> {
+    const actual = vaultUseSchema.parse(actualInput)
+    const entry = this.active.get(ticketId)
+    if (
+      entry?.operation.request.requester.id !== requesterId ||
+      vaultUseDigest(actual) !== entry.operation.request.digest ||
+      entry.released
+    )
+      throw new Error(UI_TEXT.vault.noAccess)
+    entry.released = true
+    if (this.clock.now() >= entry.operation.ticket.expiresAt)
+      throw new Error(UI_TEXT.vault.noAccess)
+    if (!(await this.current())) throw new Error(UI_TEXT.vault.locked)
+    const epoch = this.epoch
+    const item = vaultItemSchema.parse(await this.store?.read(entry.operation.request.item.id))
+    try {
+      if (
+        !(await this.current()) ||
+        epoch !== this.epoch ||
+        !this.active.has(ticketId) ||
+        JSON.stringify(item.metadata) !== JSON.stringify(entry.operation.request.item)
+      )
+        throw new Error(UI_TEXT.vault.noAccess)
+      entry.material = item
+      await run(item)
+      if (!(await this.current()) || epoch !== this.epoch || !this.active.has(ticketId))
+        throw new Error(UI_TEXT.vault.locked)
+    } finally {
+      eraseMaterial(item)
+      entry.material = null
+    }
+  }
   async finish(ticketId: string, hasSucceeded: boolean): Promise<void> {
     const entry = this.active.get(ticketId)
     if (!entry) return
     this.active.delete(ticketId)
+    if (entry.material) eraseMaterial(entry.material)
     await this.record(
       entry.operation.request,
       'allow',
@@ -558,11 +710,7 @@ export class VaultBroker implements VaultBrokerPort {
       throw new Error(UI_TEXT.vault.noAccess)
     const grant = vaultGrantSchema.parse(input)
     const existingGrants = await this.deps.repository.grants()
-    if (
-      grant.uses !== 0 ||
-      grant.sessionId !== null ||
-      existingGrants.some((existing) => existing.id === grant.id)
-    )
+    if (grant.uses !== 0 || existingGrants.some((existing) => existing.id === grant.id))
       throw new Error(UI_TEXT.vault.noAccess)
     await this.deps.repository.saveGrant(grant)
   }
@@ -584,6 +732,7 @@ export class VaultBroker implements VaultBrokerPort {
   async endRequester(requesterId: string, grantId: string | null = null): Promise<void> {
     const requester = this.registrations.get(requesterId)?.requester
     this.registrations.delete(requesterId)
+    for (const listener of this.invalidations) listener(requesterId)
     for (const [id, request] of this.pending)
       if (request.requester.id === requesterId) this.pending.delete(id)
     for (const [id, operation] of this.tickets)
@@ -596,6 +745,7 @@ export class VaultBroker implements VaultBrokerPort {
       if (entry.operation.request.requester.id === requesterId) {
         this.active.delete(id)
         entry.lifetime.close()
+        if (entry.material) eraseMaterial(entry.material)
         const isEnded = await entry.lifetime.terminate()
         await this.record(
           entry.operation.request,
@@ -608,6 +758,11 @@ export class VaultBroker implements VaultBrokerPort {
     this.deps.onRevoked(requesterId, grantId)
   }
   async policyChanged(itemId: string): Promise<void> {
+    for (const item of this.privateReads)
+      if (item.metadata.id === itemId) {
+        eraseMaterial(item)
+        this.privateReads.delete(item)
+      }
     const affected = new Set<string>()
     for (const entry of [
       ...this.pending.values(),
@@ -626,14 +781,18 @@ export class VaultBroker implements VaultBrokerPort {
     clearInterval(this.timer)
     for (const unsubscribe of this.unsubscribers) unsubscribe()
     await this.lock()
+    this.invalidations.clear()
   }
   async firstPartyRead(peer: VaultAuthenticatedPeer, input: unknown): Promise<Buffer> {
     if (!peer.ui || !(await this.deps.identity.verifyHost(peer)))
       throw new Error(UI_TEXT.vault.noAccess)
     const request = vaultPrivateReadSchema.parse(input)
     if (!(await this.current())) await this.unlock()
+    const epoch = this.epoch
     const item = vaultItemSchema.parse(await this.store?.read(request.itemId))
+    this.privateReads.add(item)
     try {
+      if (!(await this.current()) || epoch !== this.epoch) throw new Error(UI_TEXT.vault.locked)
       if (
         !item.metadata.firstParty ||
         !item.metadata.hidden ||
@@ -644,11 +803,29 @@ export class VaultBroker implements VaultBrokerPort {
         )
       )
         throw new Error(UI_TEXT.vault.noAccess)
+      if (
+        item.metadata.requirePresence &&
+        !(await this.deps.unlock.presence(item.metadata.id, id(), request))
+      )
+        throw new Error(UI_TEXT.vault.noAccess)
+      if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)
+        throw new Error(UI_TEXT.vault.locked)
+      const metadata = await this.store?.list()
+      if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)
+        throw new Error(UI_TEXT.vault.locked)
+      if (
+        JSON.stringify(metadata?.find((candidate) => candidate.id === item.metadata.id)) !==
+          JSON.stringify(item.metadata) ||
+        (item.metadata.dates.expiresAt !== null &&
+          this.clock.now() >= item.metadata.dates.expiresAt)
+      )
+        throw new Error(UI_TEXT.vault.noAccess)
       const owned = Buffer.alloc(item.material.value.byteLength)
       owned.set(item.material.value)
       this.lastUse = this.clock.now()
       return owned
     } finally {
+      this.privateReads.delete(item)
       eraseMaterial(item)
     }
   }

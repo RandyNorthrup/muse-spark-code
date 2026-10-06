@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type VaultBroker } from '../../../src/core/vault/broker/broker'
 import { type VaultApprovalRequest, type VaultTicket } from '../../../src/shared/vault'
-import { brokerFixture, cleanTaint } from './brokerFixture'
+import { brokerFixture, cleanTaint, delayListing } from './brokerFixture'
 import { requester, use } from '../helpers/vault/fixtures'
 
 const brokers: VaultBroker[] = []
@@ -34,6 +34,20 @@ async function allow(
   })
   if (result.kind !== 'ticket') throw new Error('expected ticket')
   return result.ticket
+}
+async function waitForAudit(fixture: Awaited<ReturnType<typeof setup>>) {
+  const waiting = Promise.withResolvers<undefined>()
+  fixture.deps.audit.append = vi.fn(() => waiting.promise)
+  const requested = fixture.broker.request(
+    fixture.identity,
+    fixture.stored.metadata.handle,
+    use(),
+    cleanTaint,
+  )
+  await vi.waitFor(() => {
+    expect(fixture.deps.audit.append).toHaveBeenCalledOnce()
+  })
+  return { waiting, requested }
 }
 const lifetime = () => ({ close: vi.fn(), terminate: vi.fn(() => Promise.resolve(true)) })
 describe('broker-owned approvals', () => {
@@ -247,4 +261,65 @@ describe('broker-owned approvals', () => {
     await fixture.broker.tick()
     expect(fixture.records.at(-1)).toMatchObject({ decision: 'deny', outcome: 'expired' })
   })
+  it.each(['ask', 'allow'] as const)(
+    'a lock while the %s audit is pending cannot mint a late card or ticket',
+    async (mode) => {
+      const fixture = await setup()
+      if (mode === 'allow') {
+        await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+        fixture.standing()
+      }
+      const { waiting, requested } = await waitForAudit(fixture)
+      await fixture.broker.lock()
+      waiting.resolve(undefined)
+      expect(await requested).toEqual({ kind: 'denied', reason: 'locked' })
+      expect(fixture.deps.onApproval).not.toHaveBeenCalled()
+      await fixture.broker.unlock()
+    },
+  )
+  it('ending a requester while its ticket audit waits prevents late authority', async () => {
+    const fixture = await setup()
+    await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+    fixture.standing()
+    const { waiting, requested } = await waitForAudit(fixture)
+    await fixture.broker.endRequester(fixture.identity.id)
+    waiting.resolve(undefined)
+    expect(await requested).toEqual({ kind: 'denied', reason: 'peer' })
+  })
+  it.each(['lock', 'item', 'end'] as const)(
+    'a late session answer cannot rebuild approval state after %s',
+    async (kind) => {
+      const fixture = await setup()
+      await fixture.change({
+        policy: { ...fixture.stored.metadata.policy, mode: 'askOncePerSession' },
+      })
+      const delayed = await delayListing(fixture),
+        request = await ask(fixture)
+      delayed.begin()
+      const result = fixture.broker.answer(fixture.peer, {
+        requestId: request.id,
+        digest: request.digest,
+        decision: 'allowSession',
+      })
+      await delayed.entered
+      if (kind === 'lock') await fixture.broker.lock()
+      else if (kind === 'item') {
+        await fixture.change({
+          policy: { ...fixture.stored.metadata.policy, allowDisclosure: true },
+        })
+        fixture.notify('item', fixture.stored.metadata.id)
+      } else await fixture.broker.endRequester(fixture.identity.id)
+      delayed.release()
+      expect(await result).toMatchObject({ kind: 'denied' })
+      if (kind !== 'lock') await fixture.broker.register(fixture.peer, fixture.identity, 'ask')
+      await fixture.broker.unlock()
+      const next = await fixture.broker.request(
+        fixture.identity,
+        fixture.stored.metadata.handle,
+        use(),
+        cleanTaint,
+      )
+      expect(next.kind).toBe('approval')
+    },
+  )
 })

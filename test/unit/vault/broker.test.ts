@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type VaultBroker } from '../../../src/core/vault/broker/broker'
 import { type VaultUseLifetime } from '../../../src/core/vault/broker/ports'
+import { type VaultItem } from '../../../src/shared/vault'
 import { vaultPrivateReadSchema } from '../../../src/shared/vaultProtocol'
 import { randomBytes } from 'node:crypto'
-import { brokerFixture, cleanTaint } from './brokerFixture'
-import { use, requester } from '../helpers/vault/fixtures'
+import { brokerFixture, cleanTaint, delayListing } from './brokerFixture'
+import { use, requester, grant } from '../helpers/vault/fixtures'
 
 const brokers: VaultBroker[] = []
 afterEach(async () => {
@@ -24,6 +25,24 @@ async function authorized(fixture: Awaited<ReturnType<typeof setup>>, lifetime: 
   )
   if (result.kind !== 'ticket') throw new Error('expected authorized ticket')
   return await fixture.broker.redeem(fixture.identity.id, result.ticket, use(), lifetime)
+}
+async function observeReads(
+  fixture: Awaited<ReturnType<typeof setup>>,
+  observed: (item: VaultItem) => Promise<void>,
+): Promise<void> {
+  const open = fixture.deps.repository.open
+  fixture.deps.repository.open = async (key) => {
+    const store = await open(key)
+    const read = store.read.bind(store)
+    store.read = async (id) => {
+      const item = await read(id)
+      await observed(item)
+      return item
+    }
+    return store
+  }
+  await fixture.broker.lock()
+  await fixture.broker.unlock()
 }
 describe('vault broker lifetime and isolation', () => {
   it('idle lock zeroes both source and held unpooled key buffers', async () => {
@@ -85,6 +104,24 @@ describe('vault broker lifetime and isolation', () => {
     ])
     expect(results.map((result) => result.kind)).toEqual(['ticket', 'approval'])
     expect(grant.uses).toBe(1)
+  })
+  it('a rejected atomic use reservation is an audited denial', async () => {
+    const fixture = await setup()
+    await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+    const grant = fixture.standing()
+    fixture.deps.repository.consumeGrant = () => Promise.resolve(false)
+    const result = await fixture.broker.request(
+      fixture.identity,
+      fixture.stored.metadata.handle,
+      use(),
+      cleanTaint,
+    )
+    expect(result).toEqual({ kind: 'denied', reason: 'scope' })
+    expect(fixture.records.at(-1)).toMatchObject({
+      decision: 'deny',
+      grantId: grant.id,
+      outcome: 'denied',
+    })
   })
   it('revoke closes active connections and terminates pinned processes immediately', async () => {
     const fixture = await setup()
@@ -203,5 +240,153 @@ describe('vault broker lifetime and isolation', () => {
         cleanTaint,
       ),
     ).toEqual({ kind: 'denied', reason: 'peer' })
+  })
+  it('the management UI may create a session-scoped grant, which never covers another session', async () => {
+    const fixture = await setup()
+    await fixture.change({ policy: { ...fixture.stored.metadata.policy, mode: 'alwaysAllow' } })
+    const scoped = {
+      ...grant(),
+      target: fixture.stored.metadata.bindings[0]!,
+      sessionId: fixture.identity.sessionId,
+    }
+    await fixture.broker.grant(fixture.peer, scoped)
+    expect(fixture.grants.get(scoped.id)).toEqual(scoped)
+    const allowed = await fixture.broker.request(
+      fixture.identity,
+      fixture.stored.metadata.handle,
+      use(),
+      cleanTaint,
+    )
+    expect(allowed.kind).toBe('ticket')
+    const other = { ...fixture.identity, id: 'f'.repeat(32), sessionId: '0'.repeat(32) }
+    await fixture.broker.register(fixture.peer, other, 'ask')
+    const asked = await fixture.broker.request(
+      other,
+      fixture.stored.metadata.handle,
+      use(),
+      cleanTaint,
+    )
+    expect(asked.kind).toBe('approval')
+  })
+  it('a grant needs trusted management UI, zero initial count and a fresh id', async () => {
+    const fixture = await setup(),
+      entry = grant()
+    await expect(fixture.broker.grant({ ...fixture.peer, ui: false }, entry)).rejects.toThrow()
+    await expect(fixture.broker.grant(fixture.peer, { ...entry, uses: 1 })).rejects.toThrow()
+    await fixture.broker.grant(fixture.peer, entry)
+    await expect(fixture.broker.grant(fixture.peer, entry)).rejects.toThrow()
+  })
+  it('unknown handles and unregistered identities are explicit audited denials; slot failures fail closed', async () => {
+    const fixture = await setup()
+    expect(
+      await fixture.broker.request(fixture.identity, 'secret://missing', use(), cleanTaint),
+    ).toEqual({ kind: 'denied', reason: 'scope' })
+    expect(fixture.records.at(-1)).toMatchObject({
+      handle: 'secret://missing',
+      decision: 'deny',
+      outcome: 'denied',
+    })
+    expect(
+      await fixture.broker.request(
+        { ...fixture.identity, id: 'f'.repeat(32) },
+        fixture.stored.metadata.handle,
+        use(),
+        cleanTaint,
+      ),
+    ).toEqual({ kind: 'denied', reason: 'peer' })
+    expect(fixture.records.at(-1)).toMatchObject({ decision: 'deny' })
+    await fixture.broker.lock()
+    fixture.deps.unlock.unlock = () => Promise.reject(new Error('test slot unavailable'))
+    expect(
+      await fixture.broker.request(
+        fixture.identity,
+        fixture.stored.metadata.handle,
+        use(),
+        cleanTaint,
+      ),
+    ).toEqual({ kind: 'denied', reason: 'locked' })
+  })
+  it('first-party presence is fresh and denies a late answer from before a lock', async () => {
+    const fixture = await setup(true)
+    const entry = await fixture.firstParty(true)
+    fixture.deps.unlock.presence = vi.fn(() => Promise.resolve(false))
+    await expect(fixture.broker.firstPartyRead(fixture.peer, entry.request)).rejects.toThrow()
+    await expect(fixture.broker.firstPartyRead(fixture.peer, entry.request)).rejects.toThrow()
+    expect(fixture.deps.unlock.presence).toHaveBeenCalledTimes(2)
+    const waiting = Promise.withResolvers<boolean>()
+    fixture.deps.unlock.presence = vi.fn(() => waiting.promise)
+    const read = fixture.broker.firstPartyRead(fixture.peer, entry.request)
+    const observed = expect(read).rejects.toThrow()
+    await vi.waitFor(() => {
+      expect(fixture.deps.unlock.presence).toHaveBeenCalledOnce()
+    })
+    await fixture.broker.lock()
+    await fixture.broker.unlock()
+    waiting.resolve(true)
+    await observed
+  })
+  it.each(['lock', 'item'] as const)(
+    '%s erases pending first-party material before presence returns',
+    async (kind) => {
+      const fixture = await setup(true)
+      const entry = await fixture.firstParty(true)
+      let held: Uint8Array = new Uint8Array()
+      await observeReads(fixture, (item) => {
+        if (item.material.kind === 'apiKey') held = item.material.value
+        return Promise.resolve()
+      })
+      const waiting = Promise.withResolvers<boolean>()
+      fixture.deps.unlock.presence = vi.fn(() => waiting.promise)
+      const result = fixture.broker.firstPartyRead(fixture.peer, entry.request)
+      const observed = expect(result).rejects.toThrow()
+      try {
+        await vi.waitFor(() => {
+          expect(fixture.deps.unlock.presence).toHaveBeenCalledOnce()
+        })
+        fixture.notify('item', 'f'.repeat(32))
+        expect(held.some((byte) => byte !== 0)).toBe(true)
+        if (kind === 'lock') await fixture.broker.lock()
+        else fixture.notify('item', entry.request.itemId)
+        expect(held.byteLength).toBeGreaterThan(0)
+        expect(held.every((byte) => byte === 0)).toBe(true)
+      } finally {
+        waiting.resolve(true)
+        await observed
+      }
+    },
+  )
+  it('a lock during first-party reading erases the late buffer before any presence prompt', async () => {
+    const fixture = await setup(true),
+      entry = await fixture.firstParty(true),
+      waiting = Promise.withResolvers<undefined>()
+    let held: Uint8Array = new Uint8Array()
+    await observeReads(fixture, async (item) => {
+      if (item.material.kind === 'apiKey') held = item.material.value
+      await waiting.promise
+    })
+    const result = fixture.broker.firstPartyRead(fixture.peer, entry.request),
+      observed = expect(result).rejects.toThrow()
+    try {
+      await vi.waitFor(() => {
+        expect(held.some((byte) => byte !== 0)).toBe(true)
+      })
+      await fixture.broker.lock()
+    } finally {
+      waiting.resolve(undefined)
+      await observed
+    }
+    expect(held.every((byte) => byte === 0)).toBe(true)
+    expect(fixture.deps.unlock.presence).not.toHaveBeenCalled()
+  })
+  it('lock during the final first-party metadata check rejects without returning erased material', async () => {
+    const fixture = await setup(true),
+      entry = await fixture.firstParty(),
+      delayed = await delayListing(fixture)
+    delayed.begin()
+    const result = fixture.broker.firstPartyRead(fixture.peer, entry.request)
+    await delayed.entered
+    await fixture.broker.lock()
+    delayed.release()
+    await expect(result).rejects.toThrow()
   })
 })

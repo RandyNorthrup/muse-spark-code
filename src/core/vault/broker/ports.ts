@@ -8,7 +8,10 @@ import {
   type VaultApprovalRequest,
   type VaultAuditRecord,
 } from '../../../shared/vault'
-import { type VaultAuthenticatedPeer } from '../../../shared/vaultProtocol'
+import {
+  type vaultPrivateReadSchema,
+  type VaultAuthenticatedPeer,
+} from '../../../shared/vaultProtocol'
 import { type VaultCeiling } from './policy'
 
 /** C binds open and these transactions to its single-writer/generation mechanism. */
@@ -19,11 +22,17 @@ export interface VaultBrokerRepository {
   removeGrant(id: string): Promise<void>
   /** Atomic across brokers; returns false without spending when exhausted/revoked. */
   consumeGrant(id: string, now: number): Promise<boolean>
+  /** C broadcasts committed revocation/policy changes to every broker version. */
+  subscribe(listener: (change: { kind: 'item' | 'grant'; id: string }) => void): () => void
 }
 export interface VaultUnlockPort {
   unlock(slotId: string | null): Promise<{ key: Uint8Array; slot: VaultSlotRecord }>
   /** P checks fresh OS presence over this challenge and exact use, with no caller cache. */
-  presence(itemId: string, challenge: string, use: VaultUse): Promise<boolean>
+  presence(
+    itemId: string,
+    challenge: string,
+    use: VaultUse | ReturnType<typeof vaultPrivateReadSchema.parse>,
+  ): Promise<boolean>
   onScreenLock(listener: () => void): () => void
 }
 export interface VaultEpochPort {

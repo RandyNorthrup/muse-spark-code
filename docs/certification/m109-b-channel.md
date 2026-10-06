@@ -1,0 +1,140 @@
+# M109 B — channel, lifecycle and integration record
+
+Worktree `/Users/randy/lanes/M109B`; macmini; Node 24.21.0. Zero model
+attempts, paid calls, credential-store reads, network calls and installs.
+This supplements [the lane record](m109-b.md).
+
+## Native proof
+
+The large-response test exposed a native property beyond the earlier stream
+transfer investigation: Node's numeric stdio inheritance switches the shared
+descriptor to blocking mode. A 1 MiB response blocked the single-process test
+before timers could run. Diagnostic runs were interrupted; they are not pass
+receipts. `peer.c` now restores `O_NONBLOCK` before replying and reports its
+observed mode in the owned v1 response. The parser requires that proof. The
+full 1 MiB response passes; removing restoration fails named tests without
+blocking the event loop. No debug instrumentation remains.
+
+[Native capture](m109-b-native-capture.json) records the helper's source hash
+and actual connecting PID/UID comparisons. The owner-only socket returns
+EACCES (13) to another user. On a deliberately relaxed test socket the helper
+reports the foreign UID and connecting PID, and the production verifier
+refuses the UID before consulting its process-identity port. The finite test
+uses the existing `nobody` account via `sudo -n`; only its own temporary
+directory/socket permissions change, then those artifacts are deleted. No
+account, keyring, machine policy or user setting changes.
+
+Actual Windows SID/start/image/remote-refusal/DACL captures remain W/P's rig
+integration work. The Windows verifier and secured-listener lifecycle are
+tested through injected ports here. There is no insecure Node-pipe or POSIX
+file-permission fallback on Windows. POSIX native test files require cc,
+Unix permissions and, for the foreign-user drill, the rig's existing
+passwordless `sudo -n` capability; the integrated Windows gate must supply
+and exercise its corresponding native adapters.
+
+## Message threat model
+
+Every frame is bounded NDJSON, parsed with strict Zod schemas after native
+peer authentication, and ordered by an increasing sequence. OS credentials,
+trusted PID/start/image and the host launch registry are required. A boot
+token alone confers no authority. Errors close the socket without returning
+raw diagnostics.
+
+| Message           | Authority and refusal boundary                                                                                                                                                                                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| hello             | Version, first sequence, single handshake, owner token, OS identity and launch registry agree.                                                                                                                                                                                                    |
+| status            | Authenticated peers receive state/tier/count/epoch; no labels or material.                                                                                                                                                                                                                        |
+| unlock / lock     | Management only. Slot/key and epoch checked around awaits. Lock erases keys/material, cancels cards/tickets and closes worker sockets.                                                                                                                                                            |
+| registerRequester | Trusted host UI and verified launched requester; immutable identity, role/workspace/session/task and ceiling. A conversation connection loses management/private-read authority.                                                                                                                  |
+| endRequester      | Management or the connection's own requester only; socket exit cancels the same authority.                                                                                                                                                                                                        |
+| list              | Registered identity and ceiling; hidden, first-party and internal items never returned.                                                                                                                                                                                                           |
+| requestUse        | Requester is socket-bound. Trusted T provenance overrides frame taint. Canonical digest, modes, every grant scope, ceilings, unattended and device restrictions govern it.                                                                                                                        |
+| answer            | Management/UI of the minting host only; id/digest/deadline/epoch/current metadata, consumed once. A prompt cannot create Always.                                                                                                                                                                  |
+| grant             | Management/UI only; strict scopes, fresh id and zero initial count; C persists it under its writer.                                                                                                                                                                                               |
+| revoke            | Management/UI only. C commits/broadcasts; tickets/material are cancelled and pinned lifetimes close/terminate. Unrecallable outcomes are explicit.                                                                                                                                                |
+| redeem            | Connection requester, complete ticket snapshot/nonce, actual digest, deadline, epoch, current metadata/grant and fresh presence. A trusted route receives one material release; ordinary replies contain no value.                                                                                |
+| audit             | Management only. Bounded owner-only file, authenticated head/chain/MAC verified on every read/append. Strict input cannot override id/generation or add a value. Filtered pages count exact JSON bytes, including the largest sequence envelope; the next page resumes after its last generation. |
+| scrub             | Management only, preventing a worker from using it as a value-guessing oracle. Trusted routes call T directly.                                                                                                                                                                                    |
+| firstPartyRead    | Separate trusted-host connection only: hidden first-party API key, exact origin, fresh presence where required, rechecked epoch/metadata. Owned bytes return only on the private channel.                                                                                                         |
+
+Known unlocked denials, including unknown handles and unregistered
+requesters, are audited through T. Before peer/slot authentication supplies
+an audit key, refusal cannot create a MAC record and does not write an
+unauthenticated log. No raw argv, label, taint text or value is persisted.
+The stored target is its route and canonical digest; H/U show the approved
+target separately from the validated request. Audit kind/outcome filtering
+belongs in H/U over the validated records returned by the lane-0 contract.
+
+The durable append precedes the authenticated slot checkpoint. A crash or
+checkpoint failure in that gap is detected and fails closed; C owns explicit
+verified recovery. Rotation retains the authenticated prefix checkpoint.
+Grant counts are reserved at admission and never refunded for an abandoned
+ticket. Owned byte buffers are erased on exit; JavaScript strings and native
+copies cannot promise memory zeroization.
+
+## Concrete bindings still required
+
+These are injected dependencies, not production fakes. No broker or vault
+feature is activated or shipped on this base; no eager import, file read or
+process start was added to activation.
+
+- **B-C-store:** open/list/read encrypted items; atomic grant count updates;
+  committed item/grant broadcasts through `VaultBrokerRepository.subscribe`.
+- **B-C-audit:** authenticated anchor read/write and shared writer transaction
+  across protocol versions; verified repair after an append/checkpoint gap.
+- **B-P-slot:** unwrap/slot selection, screen-lock signal and fresh native
+  presence over the exact challenge/use, including first-party requests.
+- **B-P-peer/files/listener:** native owned socket descriptor; trusted
+  process start/image; Windows `VaultPrivateFilesPort` owner-DACL checks and
+  `VaultSecuredListenerPort` owner-only remote-refusing pipe creation.
+- **B-P-epoch/lifecycle:** one common epoch directory across editors/versions.
+  A reused/stale PID lock or occupied writer is refused. Bind supervised
+  release or verified crashed-artifact recovery; B never guesses that it can
+  delete a competing lock.
+- **B-T:** real scrub service and trusted sticky session provenance through
+  `VaultChannelDeps.taint`; no identity scrubber is installed.
+- **B-S/X/L/O:** dispatch after redeem; use `withApprovedMaterial` for one
+  exact-use release and `finish` for the actual result. Close the approved
+  destination and terminate its pinned process with a bounded native result;
+  return false when it cannot be recalled.
+- **B-H/U:** trusted launch/UI registry, ceilings, validated cards and notices.
+  The channel itself subscribes to broker invalidation and closes requester
+  sockets, including requesters without an active use.
+- **B-M:** `BrokerSecretStore` implements the existing `SecretStore` accepted
+  by CredentialStore and AuthCommandDeps. Bind encrypted writes and key/id/
+  origin resolution; existing password/stdin entry flows need no rewrite.
+  Host and ACP/runtime aliases share `VaultFirstPartyReader`, including the
+  same engine's first-party-only fallback after launch failure. Each request
+  owns its returned buffer; transient writes are erased on success/failure.
+- **B-M/O/lead-contract:** lane 0's private read serves API-key material.
+  OAuth/internal/pair-material consumers need their typed private contract
+  and bindings; B does not guess a broader wire shape.
+- **B-0-audit-events:** lane 0's audit row requires an agent requester,
+  handle and agent-use kind. It cannot represent a management/transport
+  refusal, a first-party read, or an unknown replay after its correlation
+  state was discarded. Extend the strict authenticated event union before
+  claiming those events in the audit view; B does not fabricate a requester,
+  handle or use kind. Agent-use requests and their decisions are recorded,
+  including failed atomic reservations and full approval/ticket queues.
+- **B-W:** compile/package the native helper and separate lazy broker/client
+  bundles; bind all above before enablement and run the full native/editor
+  matrix. No dependency, global installation or bundle cap change here.
+- **B-W-docs:** README/CHANGELOG/PLAN/public security and editor references,
+  and the feature catalog/generator (absent on this base). B registers no new
+  command, setting, script or public feature. Other lanes' sources and gate
+  configuration were not edited.
+- **B-W-host-api:** `npm run check:host-api` exits 1 only because six Node
+  import totals in the generated W-owned record changed. The exact reviewed
+  [patch](m109-b-host-api.patch) passes `git apply --check`; the actual
+  document remains untouched. W runs `npm run check:host-api -- --write`,
+  reviews the joined-tree diff and reruns the gate. No VS Code API, adapter
+  count or theme-variable change was reported.
+
+The queue implementation is shared by the broker and audit log because the
+zero-duplication gate caught their repeated ordered-transaction logic. Test
+fixtures were similarly consolidated; no ignore or threshold changed.
+
+The capacity suite mocks the exported cap to two in its isolated test
+module. It exercises both sides of the real queue/registration boundary,
+checks that a refused ticket spends no grant use, and requires a denial
+record. Production caps and all gate settings retain their original values.
