@@ -20,6 +20,34 @@ function isSafeRelative(value: string): boolean {
   )
 }
 
+/** Wildcards use bounded scanning, so repeated stars never form a backtracking regex. */
+function isSegmentMatch(pattern: string, name: string): boolean {
+  const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+  const tokens = Array.from(segmenter.segment(pattern), ({ segment }) => segment)
+  const letters = Array.from(segmenter.segment(name), ({ segment }) => segment)
+  let token = 0
+  let letter = 0
+  let star = -1
+  let retry = 0
+  while (letter < letters.length) {
+    if (tokens[token] === '*') {
+      star = token
+      token += 1
+      retry = letter
+    } else if (tokens[token] === '?' || tokens[token] === letters[letter]) {
+      token += 1
+      letter += 1
+    } else if (star === -1) return false
+    else {
+      token = star + 1
+      retry += 1
+      letter = retry
+    }
+  }
+  while (tokens[token] === '*') token += 1
+  return token === tokens.length
+}
+
 function isGlobMatch(glob: string, path: string): boolean {
   const parts = glob.replaceAll('\\', '/').split('/')
   const names = path.replaceAll('\\', '/').split('/')
@@ -31,16 +59,8 @@ function isGlobMatch(glob: string, path: string): boolean {
         for (let index = position; index <= names.length; index += 1) next.add(index)
       }
     } else {
-      const pattern = part
-        .split(/([*?])/)
-        .map((piece) => {
-          if (piece === '*') return '[^/]*'
-          return piece === '?' ? '[^/]' : piece.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
-        })
-        .join('')
-      const expression = new RegExp(`^${pattern}$`, 'u')
       for (const position of positions) {
-        if (position < names.length && expression.test(names[position] ?? ''))
+        if (position < names.length && isSegmentMatch(part, names[position] ?? ''))
           next.add(position + 1)
       }
     }

@@ -12,6 +12,7 @@ export type ScheduleGrantAudit = z.infer<typeof scheduleGrantAuditSchema>
 /** S binds one durable transaction: a stale edit must change neither authority nor audit. */
 export interface ScheduleAuthorityStore {
   read(workspaceKey: string, scheduleId: string): Promise<ScheduleV2 | undefined>
+  /** `created` admits an absent id at revision zero; other mutations use CAS. */
   commit(next: ScheduleV2, audit: ScheduleGrantAudit): Promise<boolean>
   append(audit: ScheduleGrantAudit): Promise<void>
   audit(workspaceKey: string, scheduleId: string): Promise<readonly ScheduleGrantAudit[]>
@@ -23,6 +24,19 @@ export class ScheduleGrantEditor {
     private readonly store: ScheduleAuthorityStore,
     private readonly now: () => number,
   ) {}
+
+  public async create(schedule: ScheduleV2): Promise<boolean> {
+    const next = scheduleV2Schema.parse(schedule)
+    if (next.revision !== 0) return false
+    return await this.store.commit(
+      next,
+      scheduleGrantAuditSchema.parse({
+        scheduleId: next.id,
+        atMs: this.now(),
+        kind: 'created',
+      }),
+    )
+  }
 
   public async change(
     workspaceKey: string,

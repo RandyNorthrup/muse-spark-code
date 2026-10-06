@@ -122,7 +122,9 @@ import {
   WEB_FETCH_SUBJECT_KIND,
 } from '../../../shared/constants'
 import { fill, formatNumber, plural } from '../../../shared/l10n/text'
-import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
+import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
+import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
+import { mspApprovalMode, APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import {
   modelApiPaidTier,
   type PaidUseRequest,
@@ -360,6 +362,7 @@ import {
 import {
   type Citation,
   citationsOf,
+  type CreateImageBody,
   type CreateResponseBody,
   type FunctionCallItem,
   type FunctionOutputPart,
@@ -759,6 +762,8 @@ interface ChildTaskGrant {
 }
 
 interface QueuedTurn {
+  readonly scheduleRun?: UnattendedRun
+
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -787,11 +792,18 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
+  scheduleRun?: UnattendedRun
+  schedulePermissions?: PermissionEngine
+
   readonly turnId: string
   readonly abort: AbortController
-  readonly confirmedRequest?: ConfirmedModelRequest
+  confirmedRequest?: ConfirmedModelRequest
   /** Steered input, appended before the next model call. */
-  readonly steered: { readonly parts: readonly TurnPart[]; readonly userMessageId: string }[]
+  readonly steered: {
+    readonly parts: readonly TurnPart[]
+    readonly userMessageId: string
+    readonly scheduleRun?: UnattendedRun
+  }[]
   /** Named text accepted for this turn, including steers already drained into replay. */
   acceptedTextAttachmentBytes: number
   modelFailure?: unknown
@@ -1892,7 +1904,7 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
-export class ModelApiSession implements AgentSession {
+export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
@@ -1901,7 +1913,7 @@ export class ModelApiSession implements AgentSession {
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
   private readonly outputs = new Map<string, string>()
-  private readonly permissions: PermissionEngine
+  private readonly sessionPermissions: PermissionEngine
   /** The command rules and permission profile as the settings stand (M78). */
   private readonly policies: PolicyCache
   /** The Auto reviewer's circuit breaker, reset by each message the user sends (M78). */
@@ -2159,7 +2171,7 @@ export class ModelApiSession implements AgentSession {
   ) {
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
-    this.permissions = new PermissionEngine(approvalMode)
+    this.sessionPermissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
       deps.platform,
@@ -2200,6 +2212,10 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  private get permissions(): PermissionEngine {
+    return this.active?.schedulePermissions ?? this.sessionPermissions
+  }
+
   private emit(event: AgentEvent): void {
     const safe = redactDiagnosticEvent(event)
     for (const listener of this.listeners) {
@@ -2227,6 +2243,11 @@ export class ModelApiSession implements AgentSession {
       model_provider: 'meta',
       permission_mode: this.permissions.currentMode,
       ...fields,
+      ...(this.active?.scheduleRun !== undefined && {
+        unattended: true,
+        schedule_id: this.active.scheduleRun.context.scheduleId,
+        requester_id: `schedule:${this.active.scheduleRun.context.scheduleId}`,
+      }),
     }
   }
 
@@ -2411,19 +2432,21 @@ export class ModelApiSession implements AgentSession {
           this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
         isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
         allowsHookModelUse: (request) =>
-          this.deps.allowsPaidUse(
-            {
-              feature: 'hookModels',
-              event: request.event,
-              kind: request.kind,
-              modelId: request.modelId,
-              ...(this.deps.hookModelDailyBudget !== undefined && {
-                dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
-              }),
-            },
-            false,
-            this.askingSessionId,
-          ),
+          this.active?.scheduleRun === undefined
+            ? this.deps.allowsPaidUse(
+                {
+                  feature: 'hookModels',
+                  event: request.event,
+                  kind: request.kind,
+                  modelId: request.modelId,
+                  ...(this.deps.hookModelDailyBudget !== undefined && {
+                    dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
+                  }),
+                },
+                false,
+                this.askingSessionId,
+              )
+            : Promise.resolve(false),
         noteHookModelRun: () => {
           this.deps.notePaidUse('hookModels', 1)
         },
@@ -2534,7 +2557,13 @@ export class ModelApiSession implements AgentSession {
     const result = await runtime.dispatchExtensionHooks({
       hooks,
       event,
-      payload: extensionHookPayload(event, this.extensionHookContext(turnId), fields),
+      payload: extensionHookPayload(event, this.extensionHookContext(turnId), {
+        ...fields,
+        ...(this.active?.scheduleRun !== undefined && {
+          unattended: true,
+          schedule_id: this.active.scheduleRun.context.scheduleId,
+        }),
+      }),
       matcherValue,
       // A hook's command is a process the running turn started (M86).
       io:
@@ -3334,7 +3363,7 @@ export class ModelApiSession implements AgentSession {
    * A child task never asks: its grant carries its parent's answer.
    */
   private async webSearchConsent(signal: AbortSignal): Promise<boolean> {
-    if (!this.deps.isPaidFeatureOn('webSearch')) {
+    if (this.active?.scheduleRun !== undefined || !this.deps.isPaidFeatureOn('webSearch')) {
       return false
     }
     if (this.currentBudgetCap() > 0 || this.deps.client.hasPaidDailyBudget) {
@@ -3489,12 +3518,40 @@ export class ModelApiSession implements AgentSession {
     else if (this.active?.confirmedRequest !== undefined) paidFeature ??= 'scheduledPrompts'
     let paidEstimatedInputTokens: number | undefined
     if (
-      this.deps.client.hasPaidDailyBudget &&
+      (this.deps.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
     ) {
       paidEstimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
     }
+    const run = this.active?.scheduleRun
     return Object.assign(guard, {
+      ...(run !== undefined && {
+        reservePaidRequest: async (
+          body: CreateResponseBody | CreateImageBody,
+          feature: PaidFeature,
+          tokens: number | undefined,
+          signal: AbortSignal = new AbortController().signal,
+        ) => {
+          if (!run.allowsPaid(feature) || run.paid === undefined)
+            throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+          try {
+            return await run.paid.reserve(body, tokens, signal)
+          } catch (error: unknown) {
+            run.refuse(
+              {
+                id: this.deps.newId(),
+                class: 'paidExtra',
+                tool: feature,
+                paths: [],
+                requiresAsking: false,
+                protectedPath: false,
+              },
+              run.modelText.paidRefused,
+            )
+            throw error
+          }
+        },
+      }),
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onRequestStarted: () => {
@@ -4418,6 +4475,45 @@ export class ModelApiSession implements AgentSession {
    * calls or asks settled by a rule/profile; they may deny or demand a card.
    * The Auto reviewer may answer only an otherwise unsettled eligible ask.
    */
+  private scheduledAction(
+    itemId: string,
+    call: FunctionCallItem,
+    query: PermissionQuery,
+    requiresAsking: boolean,
+  ): ScheduleApprovalAction {
+    const subject = subjectFor(call, this.deps.platform, query.toolClass === 'mcp')
+    const path = subject.path ?? pick(argumentsOf(call), 'path')
+    let actionClass: ScheduleApprovalAction['class'] = 'mcp'
+    switch (query.toolClass) {
+      case 'shell': {
+        actionClass = 'shell'
+        break
+      }
+      case 'edit': {
+        actionClass = 'edit'
+        break
+      }
+      case 'network': {
+        actionClass = 'webFetch'
+        break
+      }
+      case 'paid': {
+        actionClass = 'paidExtra'
+        break
+      }
+      // No default
+    }
+    return {
+      id: itemId,
+      class: actionClass,
+      tool: call.name,
+      ...(query.command !== undefined && { command: query.command }),
+      paths: path === undefined ? [] : [path],
+      requiresAsking,
+      protectedPath: query.isProtected === true,
+    }
+  }
+
   private async askApproval(
     itemId: string,
     call: FunctionCallItem,
@@ -4459,8 +4555,19 @@ export class ModelApiSession implements AgentSession {
       return { isApproved: false, feedback: undefined }
     }
     if ('paid' in question) {
-      const isAllowed = await this.askPaidUse(call, signal, question.paid, requiresUserApproval)
+      const isAllowed = await this.askPaidUse(
+        call,
+        signal,
+        question.paid,
+        requiresUserApproval || hook.forceApproval,
+      )
       return { isApproved: isAllowed, feedback: undefined }
+    }
+    if (this.active?.scheduleRun !== undefined) {
+      const decision = await this.active.scheduleRun.decide(
+        this.scheduledAction(itemId, call, query, requiresUserApproval || hook.forceApproval),
+      )
+      return { isApproved: decision.allowed, feedback: decision.reason }
     }
     // M92e (PLAN.md D71): a settled secret ask is not an allow a hook may
     // take: the card asks with the value redacted.
@@ -4814,6 +4921,8 @@ export class ModelApiSession implements AgentSession {
     paid: PaidUseRequest,
     requiresUserApproval: boolean,
   ): Promise<boolean> {
+    if (this.active?.scheduleRun !== undefined)
+      return this.active.scheduleRun.allowsPaid(paid.feature, requiresUserApproval)
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
       return await unlessStopped(
@@ -4835,6 +4944,15 @@ export class ModelApiSession implements AgentSession {
       return { output: `Error: ${questions}`, visibleOutput: questions, failureReason: questions }
     }
     const userInputId = this.deps.newId()
+    if (this.active?.scheduleRun !== undefined) {
+      const text = await this.active.scheduleRun.defer({
+        type: 'questionRequested',
+        userInputId,
+        itemId,
+        questions: [...questions],
+      })
+      return { output: text, visibleOutput: UI_TEXT.scheduleV2.messages.deferredQuestions }
+    }
     let reply: QuestionReply
     try {
       // Pending before it is shown, as an approval card is: an answer given
@@ -4888,6 +5006,20 @@ export class ModelApiSession implements AgentSession {
     request: McpElicitationRequest,
   ): Promise<ElicitationOutcome> {
     const { server, params, signal } = request
+    if (this.active?.scheduleRun !== undefined) {
+      this.active.scheduleRun.refuse(
+        {
+          id: itemId,
+          class: 'requiresAsking',
+          tool: server,
+          paths: [],
+          requiresAsking: true,
+          protectedPath: false,
+        },
+        this.active.scheduleRun.modelText.requiresAskingRefused,
+      )
+      return await this.finishElicitation(server, [], 'decline')
+    }
     // Already parsed at the connection's boundary (rule 7); parsed again
     // for use here. A refusal throws to the connection's error answer.
     const forms = await this.hookRuntime()
@@ -8682,6 +8814,36 @@ export class ModelApiSession implements AgentSession {
     if (toolClass === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
+    if (this.active?.scheduleRun !== undefined) {
+      const run = this.active.scheduleRun
+      const safe = await run.decide(
+        this.scheduledAction(itemId, call, { toolName: call.name, toolClass }, shouldForceApproval),
+        false,
+      )
+      const feature = paidFeatureOf(call.name)
+      if (
+        toolClass === 'spawn' ||
+        !safe.allowed ||
+        (feature !== undefined && !run.allowsPaid(feature, shouldForceApproval))
+      ) {
+        return {
+          outcome: refusedOutcome(
+            call,
+            safe.reason ??
+              run.refuse(
+                this.scheduledAction(
+                  itemId,
+                  call,
+                  { toolName: call.name, toolClass },
+                  shouldForceApproval,
+                ),
+                run.modelText.paidRefused,
+              ),
+          ),
+          isRejected: true,
+        }
+      }
+    }
     // The allowlist binds every dispatcher, including memory's specialized
     // path: definitions alone cannot stop a model calling a tool by name.
     if (this.agent?.toolAllowlist !== undefined && !this.agent.toolAllowlist.includes(call.name)) {
@@ -9256,7 +9418,8 @@ export class ModelApiSession implements AgentSession {
       !this.isSubagent &&
       !this.isSideChat &&
       origin?.turnId === turnId &&
-      origin.confirmedRequest === undefined
+      origin.confirmedRequest === undefined &&
+      origin.scheduleRun === undefined
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
@@ -9674,7 +9837,12 @@ export class ModelApiSession implements AgentSession {
   private async drainSteered(turn: ActiveTurn): Promise<void> {
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
-    for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
+    for (const { parts, userMessageId: itemId, scheduleRun } of turn.steered.splice(0)) {
+      if (scheduleRun !== undefined) {
+        turn.scheduleRun = scheduleRun
+        turn.schedulePermissions = new PermissionEngine(mspApprovalMode(scheduleRun.context.mode))
+        turn.confirmedRequest = this.scheduledRequest(scheduleRun)
+      }
       // Admitted user input (M68): the fix loop, rejections and runs start
       // afresh; what the conversation wrote stays until the next message. A
       // subagent's steers come from its parent model, not the user.
@@ -9715,10 +9883,20 @@ export class ModelApiSession implements AgentSession {
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
   private queuedSteered(turn: ActiveTurn): QueuedTurn[] {
-    return turn.steered.splice(0).map(({ parts, userMessageId }) => {
+    return turn.steered.splice(0).map(({ parts, userMessageId, scheduleRun }) => {
       const turnId = this.deps.newId()
       this.emit({ type: 'userMessageTurnChanged', userMessageId, turnId })
-      return { turnId, parts, displayText: undefined, userMessageId, isGoalWake: false }
+      return {
+        turnId,
+        parts,
+        displayText: undefined,
+        userMessageId,
+        isGoalWake: false,
+        ...(scheduleRun !== undefined && {
+          scheduleRun,
+          confirmedRequest: this.scheduledRequest(scheduleRun),
+        }),
+      }
     })
   }
 
@@ -10264,6 +10442,10 @@ export class ModelApiSession implements AgentSession {
   private async runTurn(queued: QueuedTurn): Promise<void> {
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
+      ...(queued.scheduleRun !== undefined && {
+        scheduleRun: queued.scheduleRun,
+        schedulePermissions: new PermissionEngine(mspApprovalMode(queued.scheduleRun.context.mode)),
+      }),
       turnId: queued.turnId,
       abort: new AbortController(),
       steered: [],
@@ -10939,6 +11121,7 @@ export class ModelApiSession implements AgentSession {
     isReview: boolean,
     requestFor?: (turnId: string) => ConfirmedModelRequest,
     isHookContinuation = false,
+    scheduleRun?: UnattendedRun,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -10951,6 +11134,7 @@ export class ModelApiSession implements AgentSession {
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
     const queued: QueuedTurn = {
+      ...(scheduleRun !== undefined && { scheduleRun }),
       turnId,
       parts,
       displayText,
@@ -11059,6 +11243,58 @@ export class ModelApiSession implements AgentSession {
       relativePath,
       undefined,
     )
+  }
+
+  private scheduledRequest(run: UnattendedRun): ConfirmedModelRequest {
+    const paid = run.paid
+    if (paid === undefined || !run.allowsPaid('scheduledPrompts'))
+      throw new Error(UI_TEXT.schedulePaidOff)
+    let hasStarted = false
+    return {
+      modelId: paid.modelId,
+      keyDigest: paid.accountId,
+      isStillAllowed: () =>
+        run.isActive() && run.allowsPaid('scheduledPrompts') && this.modelId === paid.modelId,
+      onRequestStarted: () => {
+        if (hasStarted) {
+          return
+        }
+
+        hasStarted = true
+        this.deps.notePaidUse('scheduledPrompts', 1)
+      },
+    }
+  }
+
+  private steerTurn(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    scheduleRun?: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    if (this.isDisposed) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
+    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
+      return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
+    }
+    const addedTextBytes = textAttachmentBytes(parts)
+    const textBudgetError = textAttachmentBudgetError(
+      this.active.acceptedTextAttachmentBytes + addedTextBytes,
+    )
+    if (textBudgetError !== undefined) {
+      return Promise.reject(new SteerRefusedError(textBudgetError.message))
+    }
+    if (!this.canQueueSteeredMedia(parts)) {
+      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+    }
+    const userMessageId = this.deps.newId()
+    this.active.acceptedTextAttachmentBytes += addedTextBytes
+    this.active.steered.push({
+      parts,
+      userMessageId,
+      ...(scheduleRun !== undefined && { scheduleRun }),
+    })
+    return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
   }
 
   /** A SubagentStop hook's replacement of this child's reply in a turn, if one asked (M91). */
@@ -11170,6 +11406,38 @@ export class ModelApiSession implements AgentSession {
     return this.permissions.currentMode
   }
 
+  public getScheduledRun(turnId?: string): UnattendedRun | undefined {
+    return turnId === undefined || turnId === this.active?.turnId
+      ? this.active?.scheduleRun
+      : undefined
+  }
+
+  public sendScheduledTurn(
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+    displayText?: string,
+  ): Promise<TurnSubmission> {
+    return this.submitTurn(
+      run.parts(parts),
+      displayText,
+      false,
+      () => this.scheduledRequest(run),
+      false,
+      run,
+    )
+  }
+
+  public steerScheduledTurn(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    if (this.active?.scheduleRun !== undefined && this.active.scheduleRun !== run)
+      return Promise.reject(new SteerRefusedError(UI_TEXT.scheduleBusy))
+    this.scheduledRequest(run)
+    return this.steerTurn(expectedTurnId, run.parts(parts), run)
+  }
+
   public sendTurn(
     parts: readonly TurnPart[],
     displayText?: string,
@@ -11192,26 +11460,7 @@ export class ModelApiSession implements AgentSession {
    * `SteerRefusedError`), so the conversation may send it as a new turn.
    */
   public steer(expectedTurnId: string, parts: readonly TurnPart[]): Promise<TurnSubmission> {
-    if (this.isDisposed) {
-      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
-    }
-    if (this.active?.turnId !== expectedTurnId || this.active.abort.signal.aborted) {
-      return Promise.reject(new SteerRefusedError(TURN_NOT_RUNNING))
-    }
-    const addedTextBytes = textAttachmentBytes(parts)
-    const textBudgetError = textAttachmentBudgetError(
-      this.active.acceptedTextAttachmentBytes + addedTextBytes,
-    )
-    if (textBudgetError !== undefined) {
-      return Promise.reject(new SteerRefusedError(textBudgetError.message))
-    }
-    if (!this.canQueueSteeredMedia(parts)) {
-      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
-    }
-    const userMessageId = this.deps.newId()
-    this.active.acceptedTextAttachmentBytes += addedTextBytes
-    this.active.steered.push({ parts, userMessageId })
-    return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
+    return this.steerTurn(expectedTurnId, parts)
   }
 
   /**
@@ -11318,6 +11567,8 @@ export class ModelApiSession implements AgentSession {
   }
 
   public setApprovalMode(mode: string): Promise<void> {
+    if (this.active?.scheduleRun !== undefined)
+      return Promise.reject(new Error(UI_TEXT.scheduleBusy))
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
     }

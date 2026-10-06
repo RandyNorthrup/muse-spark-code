@@ -20,7 +20,8 @@ function authorityStore() {
   const store: ScheduleAuthorityStore = {
     read: () => Promise.resolve(schedule),
     commit: (next, audit) => {
-      if (schedule?.revision !== next.revision) return Promise.resolve(false)
+      if (audit.kind === 'created' ? schedule !== undefined : schedule?.revision !== next.revision)
+        return Promise.resolve(false)
       schedule = { ...next, revision: next.revision + 1 }
       entries.push(audit)
       return Promise.resolve(true)
@@ -41,6 +42,19 @@ function authorityStore() {
 }
 
 describe('schedule grant editor and audit', () => {
+  it('creates authority and its audit atomically, refusing nonzero revisions and duplicate ids', async () => {
+    const { store, get, remove } = authorityStore()
+    const editor = new ScheduleGrantEditor(store, () => 1)
+    remove()
+    expect(await editor.create(fakeSchedule({ revision: 1 }))).toBe(false)
+    expect(get()).toBeUndefined()
+    expect(await editor.create(fakeSchedule())).toBe(true)
+    expect(await editor.create(fakeSchedule())).toBe(false)
+    const audit = await editor.audit('workspace-1', 'schedule-1')
+    expect(audit.filter((entry) => entry.atMs === 1)).toEqual([
+      { scheduleId: 'schedule-1', atMs: 1, kind: 'created' },
+    ])
+  })
   it('changes only displayed authority, invalidates paid consent and preserves the other schedule fields', async () => {
     const { store, get } = authorityStore()
     const editor = new ScheduleGrantEditor(store, () => 1)

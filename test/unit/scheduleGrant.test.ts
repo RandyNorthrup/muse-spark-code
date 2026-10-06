@@ -46,6 +46,19 @@ describe('schedule grant matching', () => {
       ),
     ).toBeUndefined()
   })
+  it('matches literal and Unicode segments without regex backtracking for repeated wildcards', () => {
+    const action = new FakeScheduleApprovalStream('modelApi').request('edit')
+    const own = {
+      ...grant,
+      rules: [{ id: 'one', kind: 'path', glob: 'src/?.(ts)', access: 'edit' }],
+    } satisfies Parameters<ScheduleGrants['matches']>[0]
+    expect(matcher.matches(own, { ...action, paths: ['src/🦋.(ts)'] })?.id).toBe('one')
+    expect(matcher.matches(own, { ...action, paths: ['src/aa.(ts)'] })).toBeUndefined()
+    const rule = own.rules[0]
+    if (rule === undefined) throw new Error('Missing test rule')
+    rule.glob = `src/${'*a'.repeat(100)}b`
+    expect(matcher.matches(own, { ...action, paths: [`src/${'a'.repeat(100)}`] })).toBeUndefined()
+  })
   it('never grants physical, protected, asking or paid actions through broad tools or paths', () => {
     const stream = new FakeScheduleApprovalStream('museCode')
     for (const kind of ['physical', 'protectedPath', 'requiresAsking', 'paidExtra'] as const) {

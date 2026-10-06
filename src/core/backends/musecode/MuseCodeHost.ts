@@ -6,6 +6,9 @@
 // The process boundary (`MspHost`) is injected so unit tests drive the class
 // through a fake in-memory transport.
 
+import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
+import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
+import { mspApprovalMode } from '../../../shared/permissionModes'
 import { Buffer } from 'node:buffer'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
@@ -55,7 +58,6 @@ import {
 } from '../../../shared/usage'
 import type {
   AgentHost,
-  AgentSession,
   ApprovalDecision,
   CompactOutcome,
   GoalCommand,
@@ -633,7 +635,7 @@ export function describeExit(
       }
 }
 
-export class MuseSession implements AgentSession {
+export class MuseSession implements ScheduledAgentSession {
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
@@ -658,6 +660,16 @@ export class MuseSession implements AgentSession {
   private readonly unqueuedTurns = new Set<string>()
   private readonly log: CoreLogger
   private readonly timeouts: CommandTimeouts
+  private readonly scheduledTurns = new Map<string, UnattendedRun>()
+  private readonly scheduledItems = new Map<string, UnattendedRun>()
+  private readonly scheduledApprovals = new Map<string, UnattendedRun>()
+  private currentTurnId: string | undefined
+  private heldScheduleEvents: AgentEvent[] | undefined
+  private admittingScheduleRun: UnattendedRun | undefined
+  private failedAdmissionRun: UnattendedRun | undefined
+  private currentApprovalMode: string | undefined
+  private previousScheduleMode: string | undefined
+  private restoringScheduleMode: Promise<void> = Promise.resolve()
 
   public constructor(
     public readonly sessionId: string,
@@ -666,12 +678,120 @@ export class MuseSession implements AgentSession {
     private readonly onDispose: () => void,
     /** The host granted `userShell` at the handshake (M46): `!` commands may run. */
     private readonly canRunUserShell: boolean,
+    initialApprovalMode?: string,
   ) {
+    this.currentApprovalMode = initialApprovalMode
     this.log = channel.log
     this.timeouts = channel.timeouts
   }
 
   /** One MSP command against this session with a freshly minted commandId. */
+  private async decideScheduledApproval(
+    event: Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>,
+    run: UnattendedRun,
+  ): Promise<void> {
+    const subject = event.subject
+    const isKnown = ['shell', 'fileAccess', 'fileWrite', 'network', 'tool'].includes(subject.kind)
+    let actionClass: ScheduleApprovalAction['class'] = 'mcp'
+    switch (subject.kind) {
+      case 'shell': {
+        actionClass = 'shell'
+        break
+      }
+      case 'fileWrite':
+      case 'fileAccess': {
+        actionClass = 'edit'
+        break
+      }
+      case 'network': {
+        actionClass = 'webFetch'
+        break
+      }
+      // No default
+    }
+    const action: ScheduleApprovalAction = {
+      id: event.approvalId,
+      class: actionClass,
+      tool:
+        subject.toolName ?? (event.type === 'approvalRequested' ? event.toolName : subject.kind),
+      ...(subject.command !== undefined && { command: subject.command }),
+      paths: subject.path === undefined ? [] : [subject.path],
+      requiresAsking: !isKnown || (event.type === 'approvalRequested' && event.isJudgeEscalated),
+      protectedPath: event.type === 'approvalRequested' && event.isProtectedWrite,
+    }
+    let isAllowed = false
+    let reason: string | undefined
+    try {
+      const decision =
+        this.failedAdmissionRun === run
+          ? { allowed: false, reason: run.refuse(action, run.modelText.approvalRefused) }
+          : await run.decide(action)
+      isAllowed = decision.allowed
+      reason = decision.reason
+    } catch {
+      reason = run.refuse(action, run.modelText.approvalRefused)
+    }
+    const choice = event.availableChoices.find((candidate) =>
+      isAllowed
+        ? candidate.decision === 'approved' && candidate.scope === 'once'
+        : candidate.decision === 'abort',
+    )
+    if (choice === undefined) throw new Error('No safe scheduled approval choice')
+    await this.decideApproval({
+      approvalId: event.approvalId,
+      requirementId: event.requirementId,
+      choiceId: choice.choiceId,
+      ...(reason !== undefined && { feedback: reason }),
+    })
+  }
+
+  private async admitScheduled(
+    run: UnattendedRun,
+    send: () => Promise<TurnSubmission>,
+  ): Promise<TurnSubmission> {
+    await this.restoringScheduleMode
+    if (this.heldScheduleEvents !== undefined) throw new Error(UI_TEXT.scheduleBusy)
+    if (this.currentApprovalMode === undefined) throw new Error(UI_TEXT.scheduleBusy)
+    this.previousScheduleMode = this.currentApprovalMode
+    this.heldScheduleEvents = []
+    this.admittingScheduleRun = run
+    try {
+      const result = await send()
+      this.scheduledTurns.set(result.turnId, run)
+      return result
+    } catch (error: unknown) {
+      this.failedAdmissionRun = run
+      // A failed ack does not erase captured evidence that the turn started.
+      for (const event of this.heldScheduleEvents) {
+        if (event.type !== 'turnStarted' && event.type !== 'approvalRequested') continue
+        const id = event.turnId ?? this.currentTurnId
+        if (id !== undefined) this.scheduledTurns.set(id, run)
+      }
+      try {
+        await this.command('turn/cancel', {})
+      } catch {
+        this.log.warn('Scheduled admission failed; the turn could not be stopped')
+      }
+      if (this.scheduledTurns.size === 0) this.restoreScheduleMode()
+      throw error
+    } finally {
+      const events = this.heldScheduleEvents
+      this.heldScheduleEvents = undefined
+      this.admittingScheduleRun = undefined
+      for (const event of events) this.emit(event)
+    }
+  }
+
+  private restoreScheduleMode(): void {
+    const mode = this.previousScheduleMode
+    this.previousScheduleMode = undefined
+    if (mode === undefined) return
+    this.restoringScheduleMode = this.changeApprovalMode(mode)
+    void this.restoringScheduleMode.catch(() => {
+      this.log.warn('Scheduled mode could not be restored; new turns are refused')
+    })
+  }
+
   private async command(method: string, params: Record<string, unknown>): Promise<unknown> {
     try {
       return await commandWithin(this.channel, method, { sessionId: this.sessionId, ...params })
@@ -875,6 +995,15 @@ export class MuseSession implements AgentSession {
     return error
   }
 
+  private async changeApprovalMode(mode: string): Promise<void> {
+    try {
+      await this.command('session/setApprovalMode', { mode })
+      this.currentApprovalMode = mode
+    } catch (error: unknown) {
+      throw ceilingOr(error)
+    }
+  }
+
   /** Muse Code reported this session's event log failed (`noteLogFault`). */
   public onLogDamaged(listener: () => void): () => void {
     this.logDamagedListeners.add(listener)
@@ -898,6 +1027,14 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
+      if (
+        ((event.type === 'approvalRequested' || event.type === 'approvalUpdated') &&
+          this.scheduledApprovals.has(event.approvalId)) ||
+        (event.type === 'questionRequested' &&
+          (this.scheduledItems.has(event.itemId) ||
+            this.scheduledTurns.has(this.currentTurnId ?? '')))
+      )
+        continue
       listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
     }
     return () => {
@@ -922,9 +1059,85 @@ export class MuseSession implements AgentSession {
     if (this.isDisposed) {
       return
     }
+    if (this.heldScheduleEvents !== undefined) {
+      this.heldScheduleEvents.push(event)
+      return
+    }
+    if (event.type === 'approvalModeChanged') this.currentApprovalMode = event.mode
+    else if (event.type === 'turnStarted') this.currentTurnId = event.turnId
+    else if (event.type === 'itemStarted' && event.item.turnId !== undefined) {
+      const run = this.scheduledTurns.get(event.item.turnId)
+      if (run !== undefined) this.scheduledItems.set(event.item.itemId, run)
+    }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
       return
+    }
+    switch (admitted.type) {
+      case 'approvalRequested':
+      case 'approvalUpdated': {
+        const run =
+          admitted.type === 'approvalRequested'
+            ? (this.scheduledTurns.get(admitted.turnId ?? this.currentTurnId ?? '') ??
+              this.scheduledItems.get(admitted.itemId) ??
+              this.failedAdmissionRun)
+            : this.scheduledApprovals.get(admitted.approvalId)
+        if (run !== undefined) {
+          this.scheduledApprovals.set(admitted.approvalId, run)
+          void this.decideScheduledApproval(admitted, run).catch(() => {
+            this.log.warn('Scheduled approval failed; the turn is stopped')
+            void this.cancel().catch(() => {
+              this.log.warn('Scheduled turn could not be stopped')
+            })
+          })
+          return
+        }
+
+        break
+      }
+      case 'questionRequested': {
+        const run =
+          this.scheduledItems.get(admitted.itemId) ??
+          this.scheduledTurns.get(this.currentTurnId ?? '') ??
+          this.failedAdmissionRun
+        if (run !== undefined) {
+          void run
+            .defer(admitted)
+            .then(async (text) => {
+              await this.clarifyQuestions(admitted.userInputId, text)
+              this.prompts.admit({
+                type: 'questionSettled',
+                userInputId: admitted.userInputId,
+                outcome: 'clarified',
+                answers: [],
+              })
+            })
+            .catch(() => {
+              this.log.warn('Scheduled question could not be deferred; the turn is stopped')
+              void this.cancel().catch(() => {
+                this.log.warn('Scheduled turn could not be stopped')
+              })
+            })
+          return
+        }
+
+        break
+      }
+      case 'turnCompleted':
+      case 'turnWithdrawn': {
+        const run = this.scheduledTurns.get(admitted.turnId) ?? this.failedAdmissionRun
+        this.failedAdmissionRun = undefined
+        this.scheduledTurns.delete(admitted.turnId)
+        for (const [id, owner] of this.scheduledItems)
+          if (owner === run) this.scheduledItems.delete(id)
+        for (const [id, owner] of this.scheduledApprovals)
+          if (owner === run) this.scheduledApprovals.delete(id)
+        if (this.currentTurnId === admitted.turnId) this.currentTurnId = undefined
+        if (run !== undefined && this.scheduledTurns.size === 0) this.restoreScheduleMode()
+
+        break
+      }
+      // No default
     }
     if (this.early !== undefined) {
       this.early.push(admitted)
@@ -935,6 +1148,59 @@ export class MuseSession implements AgentSession {
     }
   }
 
+  public getScheduledRun(turnId?: string): UnattendedRun | undefined {
+    return turnId === undefined
+      ? (this.admittingScheduleRun ??
+          this.failedAdmissionRun ??
+          this.scheduledTurns.get(this.currentTurnId ?? '') ??
+          this.scheduledTurns.values().next().value)
+      : this.scheduledTurns.get(turnId)
+  }
+
+  /** Context is host-owned; MSP input stays in its captured ordinary shape. */
+  public async sendScheduledTurn(
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+    displayText?: string,
+  ): Promise<TurnSubmission> {
+    if (
+      !run.isActive() ||
+      this.heldScheduleEvents !== undefined ||
+      this.failedAdmissionRun !== undefined
+    )
+      throw new Error(UI_TEXT.scheduleBusy)
+    // D sets the mode only at an idle delivery boundary. Changing a queued
+    // turn's mode now would alter the user's currently running turn.
+    if (this.currentTurnId !== undefined || this.scheduledTurns.size > 0)
+      throw new Error(UI_TEXT.scheduleBusy)
+    return await this.admitScheduled(run, async () => {
+      await this.changeApprovalMode(mspApprovalMode(run.context.mode))
+      if (!run.isActive()) throw new Error(UI_TEXT.scheduleBusy)
+      return await this.sendTurn(run.parts(parts), displayText)
+    })
+  }
+
+  public async steerScheduledTurn(
+    expectedTurnId: string,
+    parts: readonly TurnPart[],
+    run: UnattendedRun,
+  ): Promise<TurnSubmission> {
+    if (
+      !run.isActive() ||
+      this.heldScheduleEvents !== undefined ||
+      this.failedAdmissionRun !== undefined
+    )
+      throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    const existing = this.scheduledTurns.get(expectedTurnId)
+    if (existing !== undefined && existing !== run)
+      throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    return await this.admitScheduled(run, async () => {
+      await this.changeApprovalMode(mspApprovalMode(run.context.mode))
+      if (!run.isActive()) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+      return await this.steer(expectedTurnId, run.parts(parts))
+    })
+  }
+
   /** Submit one user turn; queued behind a running turn by host default. */
   /**
    * Submit a turn. `displayText` is the transcript's presentation form of the
@@ -942,6 +1208,8 @@ export class MuseSession implements AgentSession {
    * more than the user typed (editor context, M5).
    */
   public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
+    await this.restoringScheduleMode
+    if (this.failedAdmissionRun !== undefined) throw new Error(UI_TEXT.scheduleBusy)
     let ack: unknown
     try {
       ack = await this.command('turn/start', {
@@ -1030,11 +1298,14 @@ export class MuseSession implements AgentSession {
 
   /** Select one of the host's preconfigured approval modes. */
   public async setApprovalMode(mode: string): Promise<void> {
-    try {
-      await this.command('session/setApprovalMode', { mode })
-    } catch (error: unknown) {
-      throw ceilingOr(error)
-    }
+    if (
+      this.scheduledTurns.size > 0 ||
+      this.heldScheduleEvents !== undefined ||
+      this.failedAdmissionRun !== undefined
+    )
+      throw new Error(UI_TEXT.scheduleBusy)
+    await this.restoringScheduleMode
+    await this.changeApprovalMode(mode)
   }
 
   /** Summarise older context; `status` is `noop` with a reason when nothing to do. */
@@ -1513,7 +1784,11 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** Registers the handle for a session this connection now holds. */
-  private track(record: { readonly sessionId: string }, modelId: string): MuseSession {
+  private track(
+    record: { readonly sessionId: string },
+    modelId: string,
+    initialApprovalMode?: string,
+  ): MuseSession {
     const existing = this.sessions.get(record.sessionId)
     if (existing !== undefined) {
       // A second surface on the same session: closing one must not deafen the other.
@@ -1528,6 +1803,7 @@ export class MuseCodeHost implements AgentHost {
         this.sessions.delete(record.sessionId)
       },
       this.info.grantedCapabilities.includes(MSP_USER_SHELL_CAPABILITY),
+      initialApprovalMode,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []
@@ -1800,7 +2076,7 @@ export class MuseCodeHost implements AgentHost {
         throw ceilingOr(error)
       }
       const { session } = sessionStartResultSchema.parse(result)
-      return this.track(session, session.modelId ?? options.modelId)
+      return this.track(session, session.modelId ?? options.modelId, options.approvalMode)
     })
   }
 

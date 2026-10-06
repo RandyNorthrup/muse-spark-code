@@ -215,6 +215,8 @@ export interface ConfirmedModelRequest {
 /** Owned synchronous admission and attempt observation; no fields cross the HTTP wire. */
 export interface ResponseAttemptGuard {
   readonly paidFeature?: PaidFeature
+  /** A schedule's dual hard-cap ledger replaces interactive paid admission. */
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
@@ -442,7 +444,8 @@ export class ModelApiClient {
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
+    const reservePaid = admitAttempt?.reservePaidRequest ?? this.deps.reservePaidRequest
+    const claim = await reservePaid?.(body, 'imageGeneration', undefined, active)
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
       const response = await this.request(
@@ -574,15 +577,11 @@ export class ModelApiClient {
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
+    const reservePaid = admitAttempt?.reservePaidRequest ?? this.deps.reservePaidRequest
     const claim =
       feature === undefined
         ? undefined
-        : await this.deps.reservePaidRequest?.(
-            body,
-            feature,
-            admitAttempt?.paidEstimatedInputTokens,
-            signal,
-          )
+        : await reservePaid?.(body, feature, admitAttempt?.paidEstimatedInputTokens, signal)
     const paid = claim === undefined ? undefined : { claim, isSent: false }
     try {
       const response = await within(

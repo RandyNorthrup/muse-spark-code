@@ -129,14 +129,18 @@ export class UnattendedRun {
     if (rule === undefined || captured === undefined || !this.isActive()) {
       return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
     }
-    await this.deps.audit({
-      scheduleId: this.context.scheduleId,
-      atMs: this.deps.now(),
-      kind: 'used',
-      runId: this.context.runId,
-      ruleId: rule.id,
-      actionClass: action.class,
-    })
+    try {
+      await this.deps.audit({
+        scheduleId: this.context.scheduleId,
+        atMs: this.deps.now(),
+        kind: 'used',
+        runId: this.context.runId,
+        ruleId: rule.id,
+        actionClass: action.class,
+      })
+    } catch {
+      return { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
+    }
     return this.isActive()
       ? { allowed: true }
       : { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
@@ -152,6 +156,8 @@ export class UnattendedRun {
 
 /** D/X use these entry points; ordinary AgentSession methods keep their existing behavior. */
 export interface ScheduledAgentSession extends AgentSession {
+  /** W binds host-owned IDE tools/hooks to the same run safety and paid scope. */
+  getScheduledRun(turnId?: string): UnattendedRun | undefined
   sendScheduledTurn(
     parts: readonly TurnPart[],
     run: UnattendedRun,

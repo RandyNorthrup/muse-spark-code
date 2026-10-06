@@ -476,10 +476,9 @@ export interface ConversationDeps {
    * running here (M46): the keybinding's context key follows.
    */
   readonly onForegroundTasksChanged: () => void
-  /**
-   * A separate yes for each due Model API turn, naming prompt and token price
-   * (M52): the paid-use popup (M58).
-   */
+  /** W binds the v2 scheduler: consent is collected at creation, never per fire. */
+  readonly runScheduledOccurrence?: (id: string, occurrenceMs: number) => Promise<void>
+  /** M52 compatibility, removed when W binds all entry points to v2. */
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
@@ -7015,6 +7014,10 @@ export class ConversationController {
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
+      if (this.deps.runScheduledOccurrence !== undefined) {
+        await this.deps.runScheduledOccurrence(id, occurrenceMs)
+        return
+      }
       const session = await this.scheduleSession()
       if (!this.isCurrentSessionAction(session, generation) || session.schedules === undefined) {
         return

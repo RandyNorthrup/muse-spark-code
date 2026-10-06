@@ -68,6 +68,42 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
       expect(decision.allowed).toBe(false)
     }
   })
+  it('refuses physical and person-required actions even when the mode allows, and binds requester safety', async () => {
+    const stream = new FakeScheduleApprovalStream(backend)
+    const { run } = unattendedRun()
+    for (const kind of ['physical', 'requiresAsking', 'protectedPath'] as const) {
+      const decision = await run.decide(stream.request(kind), false)
+      expect(decision.allowed).toBe(false)
+    }
+    const context = fakeRunContext()
+    context.grant.rules = [{ id: 'mcp', kind: 'tool', name: 'mcp' }]
+    let requester: string | undefined
+    const guarded = unattendedRun({
+      context,
+      safety: (_action, id) => {
+        requester = id
+        return 'Vault refused.'
+      },
+    }).run
+    const denied = await guarded.decide(stream.request('mcp'), false)
+    expect(denied.allowed).toBe(false)
+    expect(requester).toBe(`schedule:${context.scheduleId}`)
+  })
+  it('cannot widen captured authority through a newer grant and refuses a revoked live grant', async () => {
+    const context = fakeRunContext()
+    const rule = { id: 'npm', kind: 'command', prefix: 'npm test' } as const
+    const stream = new FakeScheduleApprovalStream(backend)
+    const widened = unattendedRun({
+      context,
+      readGrant: () => Promise.resolve({ ...context.grant, rules: [rule] }),
+    }).run
+    const wideDecision = await widened.decide(stream.request('shell'))
+    expect(wideDecision.allowed).toBe(false)
+    context.grant.rules = [rule]
+    const revoked = unattendedRun({ context, readGrant: () => Promise.resolve(undefined) }).run
+    const revokedDecision = await revoked.decide(stream.request('shell'))
+    expect(revokedDecision.allowed).toBe(false)
+  })
   it('defers immediately through the open-question registry port and keeps the original question', async () => {
     const { run, deferQuestions } = unattendedRun()
     const event = {
@@ -104,7 +140,9 @@ describe.each(['modelApi', 'museCode'] as const)('unattended %s', (backend) => {
       context,
       audit: () => Promise.reject(new Error('audit unavailable')),
     }).run
-    await expect(failed.decide(action)).rejects.toThrow('audit unavailable')
+    const failedDecision = await failed.decide(action)
+    expect(failedDecision.allowed).toBe(false)
+    expect(failed.refusedActions).toHaveLength(1)
     let isActive = true
     const revoked = unattendedRun({
       context,
