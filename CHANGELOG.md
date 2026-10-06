@@ -19,6 +19,15 @@ happened, not what was planned; superseded entries are kept.
 - Resource sampler probes prevent libuv from filling missing Windows
   environment variables from the parent; Linux resource-tree paths retain
   POSIX semantics when their complete fixtures run on Windows.
+
+- Resource actuators release controls for members explicitly proved exited,
+  including zombies, so the living tree can recover and retire. Unavailable
+  Linux cgroup controls retry opening on later scans with bounded backoff,
+  preserving usable handles and their original policy snapshots.
+- Resource actuators keep unconfirmed irreversible writes unknown during
+  recovery and retirement, verify confirmed policy again, and require a fresh
+  prior-state reading before attempting another irreversible change.
+
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
   process in a reused group. Ticket retirement also invalidates pending reads

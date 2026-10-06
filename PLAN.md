@@ -19632,6 +19632,18 @@ W retains final manifest, budgets, packaging and delivery. C2/A/R/U/H/J stay
 outside this lane. Run scoped suites and static/build checks, no full quality
 or paid/live calls. Certification: `docs/certification/m107-c1.md`.
 
+**Lane A review repair (FIXM107A, 2026-10-05).** Fix all three RVM107A
+P2s within the actuator modules and owning suites: release per-member controls
+only on explicit exited state, keeping absent/unknown membership conservative;
+retry unavailable Linux control opens on later scans with bounded backoff;
+and distinguish a pending mutation from OS-confirmed application, including
+irreversible recovery and renewed dispatch. Lane T2's exited/zombie state is
+not on this base: consume its registered identity-bound state through an
+explicit injected port, with no guessed PID/disappearance fallback. Document
+that binding for integration. Every finding gets a before-fix failing test
+and a byte-exact red drill in `docs/certification/m107-a.md`. No dependency,
+guard widening, other-lane code edit, merge or full quality run is authorized.
+
 **Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
 RVM107T within the tree readers and their owning suites: freshly revalidate
 the root or an existing orphan witness before committing POSIX witnesses;
@@ -20085,6 +20097,13 @@ coverage and the remaining platform/editor receipts. No gate or cap changes.
 The generated host API is updated here, closing the S/T/G snapshot handoff;
 their original drift records below remain historical. See
 `docs/certification/m107-c1.md` for actual outcomes and lane handoffs.
+
+**FIXM107A bounded-lane certification (2026-10-05).** The rig brief and
+shared rules delegate aggregate quality/coverage to the lead. Hook-on local
+commits require complete owning suites, deliberate guard-break drills,
+typecheck, scoped lint/format and the required static/build checks. The
+existing W-owned host-API record and native/editor/integrated-governor receipts
+remain integration handoffs; no gate is weakened.
 
 **FIXM107T bounded-lane certification (2026-10-05).** The rig brief/shared
 rules prohibit aggregate `npm run quality` and full tests in this worktree.
@@ -21297,6 +21316,31 @@ before a repaired one loads (2026-09-30).
   holder failure retains unknown work rather than claiming disappearance.
   No UI status/priority/relocation is implemented by C1. The unconfigured
   runtime shim stays dormant until H configures it. See `m107-c1.md`.
+
+- **M107-A-T2-member-state-binding (FIXM107A integration handoff).**
+  The controller now drops per-member controls only after the injected
+  `ResourceMemberStatePort.state(ticket, identity)` reports `exited`
+  (including zombies). T2's state API is absent on this base; W/T2 must bind
+  its registered birth-identity state as the controller's third argument.
+  Until that binding lands, missing members retain their controls and can
+  block live-tree retirement; independent complete-tree proof can still
+  release them. Safe for this unmerged, unwired lane: absence/failure never
+  becomes exit proof, no unproven PID is mutated, and no completion fallback
+  claims success. Follow-up: adapt T2's exact exit-state API, rerun the new
+  exited/zombie/unknown/close-failure suites and certify live member churn in
+  the combined G/C lifecycle on all rigs. The three review findings have
+  controller/adapter fixes and regressions; this remaining binding is named,
+  not claimed as a production receipt.
+
+- **M107-A-native-and-integrated-gates (existing handoff, FIXM107A).**
+  Real Windows/macOS policy mutation/readback/restoration, M96 K's native
+  identity-bound ports, the W-owned generated host-API record, lazy governor
+  wiring/budgets and full quality/coverage remain with the integration lead.
+  Safe for now: no shipped entry reaches these unmerged actuators, existing
+  identity/ownership/cgroup confinement gates are unchanged, and failing
+  controls report unknown. Follow-up: bind and certify the integrated
+  governor in every editor and on Win11/Mac/Kubuntu, then run the unchanged
+  full gate. Detailed scoped receipts are in `docs/certification/m107-a.md`.
 
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,
