@@ -13695,13 +13695,8 @@ describe('ModelApiSession: the user’s own shell at its real entry (M72)', () =
     const t = setup({ io: held })
     const { session } = await startSession(t)
     session.dispose()
-    await session.runUserShell('ls')
-    await vi.waitFor(() => {
-      expect(session.history().items.find((item) => item.kind === 'userShell')).toMatchObject({
-        status: 'failed',
-        visibleOutput: UI_TEXT.userShellFailed,
-      })
-    })
+    await expect(session.runUserShell('ls')).rejects.toThrow(UI_TEXT.turnStoppedByRestart)
+    expect(session.history().items.some((item) => item.kind === 'userShell')).toBe(false)
     expect(held.shellCalls).toHaveLength(0)
   })
 
