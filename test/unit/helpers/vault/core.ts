@@ -15,6 +15,7 @@ import {
 } from '../../../../src/shared/vault'
 import {
   type VaultAuthenticatedPeer,
+  type VaultChannelPort,
   type VaultBrokerPort,
   type VaultStatus,
 } from '../../../../src/shared/vaultProtocol'
@@ -206,5 +207,19 @@ export class FakeVaultBroker implements VaultBrokerPort {
     this.pending.clear()
     this.store.lock()
     return Promise.resolve()
+  }
+}
+
+/** Scripted authenticated transport; it does not replace native peer verification. */
+export class FakeVaultChannel implements VaultChannelPort {
+  private isClosed = false
+  constructor(private readonly peer: VaultAuthenticatedPeer) {}
+  authenticate(): Promise<VaultAuthenticatedPeer> {
+    return this.isClosed
+      ? Promise.reject(new Error('fake channel: closed'))
+      : Promise.resolve(structuredClone(this.peer))
+  }
+  close(): void {
+    this.isClosed = true
   }
 }

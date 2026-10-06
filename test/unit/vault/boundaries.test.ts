@@ -5,7 +5,15 @@ import { vaultPanelStateSchema } from '../../../src/shared/modelsPanel'
 import { vaultClientMessageSchema } from '../../../src/shared/hostApi/vaultMessages'
 import { VAULT_LIMITS } from '../../../src/shared/constants'
 import { FakeVaultSlot } from '../helpers/vault/core'
-import { audit, grant, metadata, panel, requester, use } from '../helpers/vault/fixtures'
+import {
+  approval as approvalFixture,
+  audit,
+  grant,
+  metadata,
+  panel,
+  requester,
+  use,
+} from '../helpers/vault/fixtures'
 
 const longText = 'x'.repeat(VAULT_LIMITS.text + 1)
 const many = Array.from({ length: VAULT_LIMITS.items + 1 }, () => metadata())
@@ -349,18 +357,7 @@ describe('M109 boundary limits', () => {
   })
 
   it('rejects oversized panel lists and ambient paths', () => {
-    const approval = {
-      id: 'a'.repeat(32),
-      requester: requester(),
-      item: metadata(),
-      use: use(),
-      digest: 'b'.repeat(64),
-      nonce: 'c'.repeat(32),
-      createdAt: 0,
-      expiresAt: 1000,
-      lockEpoch: 0,
-      taint: { tainted: false, reasons: [] },
-    }
+    const approval = approvalFixture()
     const entries = Object.entries({
       items: metadata(),
       grants: grant(),

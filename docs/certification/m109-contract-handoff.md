@@ -71,3 +71,13 @@ subcommands (`status`, `unlock`, `lock`, `list`, `add`, `remove`, `grant`,
 `m109-model-text.json` supplies the English tool/policy text for T's lazy tool bundle. It is an integration artifact, not a runtime lookup. W must register its declared
 bundle readers in the split check together with T's `VAULT_MODEL_TEXT` block;
 no unused block or activation-bundle placeholder is added on this base.
+
+## W host API record handoff
+
+`npm run check:host-api` fails solely on `node:crypto` imports 46 → 47,
+from the canonical digest. The 332 VS Code APIs, 31 adapter files, 25
+built-ins and 61 theme variables are unchanged. W owns the generated
+`docs/ide-compatibility/host-api.md`; lane 0 leaves it untouched under the
+brief's file-ownership rule. W regenerates with
+`npm run check:host-api -- --write`, reviews the full integrated diff and
+reruns the check. No gate ignore or alternative hash implementation is added.

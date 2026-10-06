@@ -18,12 +18,13 @@ const handle = z.string().check(z.regex(/^secret:\/\/[a-z][a-z0-9-]{0,47}$/u))
 const bytes = z
   .instanceof(Uint8Array)
   .check(z.refine((v) => v.byteLength > 0 && v.byteLength <= VAULT_LIMITS.valueBytes))
-const encoded = z.string().check(
+export const vaultEncodedSchema = z.string().check(
   z.minLength(1),
   z.maxLength(VAULT_LIMITS.frameBytes, { abort: true }),
   z.regex(/^[A-Za-z0-9+/]*={0,2}$/u),
   z.refine((v) => v.length % VAULT_BASE64_GROUP_CHARS === 0),
 )
+const encoded = vaultEncodedSchema
 const absolutePath = text.check(
   z.refine(
     (v) => v.startsWith('/') || /^[A-Za-z]:[\\/]/u.test(v) || /^\\\\[^\\]+\\[^\\]+/u.test(v),

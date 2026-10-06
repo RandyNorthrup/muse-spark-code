@@ -1,9 +1,10 @@
 import * as z from 'zod/mini'
-import { VAULT_BASE64_GROUP_CHARS, VAULT_LIMITS, VAULT_PROTOCOL_VERSION } from './constants'
+import { VAULT_LIMITS, VAULT_PROTOCOL_VERSION } from './constants'
 import {
   vaultApprovalAnswerSchema,
   vaultApprovalRequestSchema,
   vaultAuditRecordSchema,
+  vaultEncodedSchema,
   vaultGrantSchema,
   vaultItemMetadataSchema,
   vaultRequesterSchema,
@@ -168,12 +169,7 @@ export const vaultPrivateMaterialSchema = z.strictObject({
   kind: z.literal('material'),
   requestId: id,
   encoding: z.literal('base64'),
-  bytes: z.string().check(
-    z.minLength(1),
-    z.maxLength(VAULT_LIMITS.frameBytes, { abort: true }),
-    z.regex(/^[A-Za-z0-9+/]*={0,2}$/u),
-    z.refine((v) => v.length % VAULT_BASE64_GROUP_CHARS === 0),
-  ),
+  bytes: vaultEncodedSchema,
 })
 
 /** Remote transport cannot express environment, password, items, grants or approvals. */

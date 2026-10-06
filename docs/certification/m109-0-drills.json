@@ -1262,6 +1262,165 @@
         "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
       ],
       "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "closed authenticated channel refuses reuse",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > authenticated channel copies its peer and refuses use after close"
+      ],
+      "sha256": "e25315ad23bc31eed6af4e60c100a570515c9d740ffca7138196395652a3b878"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "authenticated peer copy ownership",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > authenticated channel copies its peer and refuses use after close"
+      ],
+      "sha256": "e25315ad23bc31eed6af4e60c100a570515c9d740ffca7138196395652a3b878"
+    },
+    {
+      "file": "src/shared/vault.ts",
+      "guard": "shared encoded schema rejects malformed and oversized private bytes",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty SSH session",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large SSH session",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects bad SSH encoding",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects partial base64 group",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects partial private group",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects empty private encoding",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > rejects large private encoding",
+        "test/unit/vault/boundaries.test.ts > M109 boundary limits > requires slot encryption metadata and pinned KDF parameters"
+      ],
+      "sha256": "2550a673695dadc296ad5427f0e87c58b44526b77d81e8149fcaa8e14898bdb7"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "store locked guard",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > owns private byte copies and returns metadata only"
+      ],
+      "sha256": "e25315ad23bc31eed6af4e60c100a570515c9d740ffca7138196395652a3b878"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "broker hidden-item filter",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > broker fake hides private items and refuses absent handles"
+      ],
+      "sha256": "e25315ad23bc31eed6af4e60c100a570515c9d740ffca7138196395652a3b878"
+    },
+    {
+      "file": "test/unit/helpers/vault/core.ts",
+      "guard": "broker unavailable-item refusal",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > broker fake hides private items and refuses absent handles"
+      ],
+      "sha256": "e25315ad23bc31eed6af4e60c100a570515c9d740ffca7138196395652a3b878"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH identities payload must be empty",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH extension name and rebind refusal",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RFC 9987 pair supports identities and signing with and without session-bind",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH bound host, algorithm, lengths and signature",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH forwarding boolean validation",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH signing key, length and flags",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH string length boundary (inverted)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RFC 9987 pair supports identities and signing with and without session-bind",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH framing handles split and coalesced frames and refuses oversized frames",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH string payload boundary (inverted)",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RFC 9987 pair supports identities and signing with and without session-bind",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses corrupted binding signatures and ungranted forwarding",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH framing handles split and coalesced frames and refuses oversized frames",
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH fake refuses malformed fields, flags and identity requests"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/sshPair.ts",
+      "guard": "SSH frame minimum length",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > SSH framing handles split and coalesced frames and refuses oversized frames"
+      ],
+      "sha256": "82bf9a4d1c64b0e1ab04ddd33b81cabb7f03dead184015d602c93413dcf2a0c7"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP HTTPS live destination",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
+    },
+    {
+      "file": "test/unit/helpers/vault/routes.ts",
+      "guard": "CDP forbids password read-back",
+      "exit": 1,
+      "failedTests": [
+        "test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V14: CDP fake refuses changed live facts and never reads back a password"
+      ],
+      "sha256": "289996655ddfc8fe505294e9248a62a4c5b7a4d16d4356ccb65bb9212286593e"
     }
   ]
 }

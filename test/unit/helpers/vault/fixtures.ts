@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto'
 import {
+  type VaultApprovalRequest,
   type VaultAuditRecord,
+  type VaultBinding,
   type VaultGrant,
   type VaultItem,
   type VaultItemMetadata,
@@ -51,13 +53,32 @@ export function use(): Extract<VaultUse, { kind: 'environment' }> {
     names: ['SERVICE_TOKEN'],
   }
 }
+export function approval(): VaultApprovalRequest {
+  return {
+    id: 'a'.repeat(32),
+    requester: requester(),
+    item: metadata(),
+    use: use(),
+    digest: 'b'.repeat(64),
+    nonce: 'c'.repeat(32),
+    createdAt: 0,
+    expiresAt: 120_000,
+    lockEpoch: 0,
+    taint: { tainted: false, reasons: [] },
+  }
+}
 export function grant(): VaultGrant {
+  const target: VaultBinding = {
+    kind: 'environment',
+    commandDigest: 'f'.repeat(64),
+    names: ['SERVICE_TOKEN'],
+  }
   return {
     id: 'e'.repeat(32),
     itemId: metadata().id,
     roles: [{ kind: 'orchestrator' }],
     workspaces: ['workspace'],
-    target: { kind: 'environment', commandDigest: 'f'.repeat(64), names: ['SERVICE_TOKEN'] },
+    target,
     maxUses: 2,
     uses: 0,
     expiresAt: null,

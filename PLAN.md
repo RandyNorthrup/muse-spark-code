@@ -7367,14 +7367,14 @@ It builds on:
    - **Keyslots.** The vault key is wrapped in one or more slots, like a LUKS
      header. Any slot unlocks, and adding one needs an unlocked vault.
 
-     | Slot          | Windows                                                                                                                                                                              | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
-     | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                              | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
-     | Presence      | A Platform Crypto Provider key made with forced high protection (the OS prompt, cached per broker process), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
-     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                          | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
-     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                    | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
-     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                  | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
-     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                               | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Slot          | Windows                                                                                                                                                                                        | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
+     | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                                        | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
+     | Presence      | A Platform Crypto Provider key made with forced high protection (OS prompt; per-use cache behavior must be captured), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
+     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                                    | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
+     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                              | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                            | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                                         | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
 
    - **Defaults** (`museSpark.vault.protection: auto`): the hardware slot
      where it works, plus the OS-store slot, so a reset TPM or a replaced
@@ -7383,6 +7383,11 @@ It builds on:
      use, which a key the extension reads per request (the Model API key)
      cannot bear. The add dialog recommends it for sudo, SSH keys and web
      logins.
+   - **Presence correction (lane 0, 2026-10-05).** The CNG research's
+     once-per-process cache quote is about `NCRYPT_PIN_PROPERTY`; it does not
+     prove forced-high-protection PCP cache behavior. `requirePresence` must
+     still obtain fresh per-use presence, using the captured mechanism or a
+     fresh Hello challenge, never assuming a cached prompt satisfies it.
    - **What each tier stops** (research §5). Every slot stops other users;
      hardware, passphrase and recovery slots stop a copied disk; only presence
      and the passphrase stop a process running as the user, which can ask
@@ -7393,15 +7398,17 @@ It builds on:
    - **Rollback.** The slot records hold the last generation. A vault file
      older than that is refused, and the panel says so.
    - **Platform limits, said plainly:**
-     - The Secure Enclave holds only P-256 keys and imports none, so
-       passwords and Ed25519 keys are vault items under an SE-wrapped vault
-       key, never SE keys.
-     - Keychain items with SE-backed access control or biometry need the
-       data protection keychain, whose entitlement must come from a
-       provisioning profile and is "not for command-line tools" (TN3137). They
-       wait for Q-M109.
-     - Windows Hello only signs, with randomized RSA-PSS, so it is a gate in
-       the broker, never a key.
+     - This slot uses the documented P-256 signing/key-agreement API, which
+       imports no raw private key. Passwords and Ed25519 keys are vault items
+       under an SE-wrapped vault key, never imported SE keys. This does not
+       claim every modern CryptoKit SecureEnclave type is P-256.
+     - Apple's data-protection keychain sample needs provisioning and an
+       app-like arrangement (TN3137 permits a wrapped command-line tool).
+       A CryptoKit file-blob helper's actual creation, reload and presence
+       behavior remain Q-M109 captures; the sample is not proof for it.
+     - Windows Hello signs; the API reference says RSA-PSS while its guide
+       sample verifies PKCS#1. Capture the actual padding. It is a fresh
+       presence gate in the broker, never input for a deterministic wrap key.
      - The Secret Service isolates nothing within a session.
      - Windows elevation is UAC on the secure desktop, which no program can
        answer.
@@ -20937,7 +20944,14 @@ V1–V16 runtime proof owners are recorded in
 `docs/certification/m109-threat-model.md`; focused validation and deliberate
 failures are in `docs/certification/m109-0.md`. Manifest registration, bundle
 readers and the feature reference stay with their owning integration lanes.
-The full M109 checklist remains open until those lanes and captures pass.
+Lane 0 records 91 focused tests and 144 byte-exact red drills, all fifteen
+changed TypeScript files lint clean, and the typecheck, localization,
+deadcode, duplication, cycles and production build checks pass. The host
+API check is a named W deferral: its generated record needs node:crypto
+imports 46 → 47 for useDigest.ts, with no new host API or built-in. W owns
+that file; lane 0 leaves it untouched and records the regeneration command
+in its certification. The full M109 checklist remains open until those
+lanes and captures pass.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

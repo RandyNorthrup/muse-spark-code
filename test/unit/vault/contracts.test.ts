@@ -7,7 +7,16 @@ import {
   vaultClientMessageSchema,
   vaultHostMessageSchema,
 } from '../../../src/shared/hostApi/vaultMessages'
-import { audit, grant, item, metadata, panel, requester, use } from '../helpers/vault/fixtures'
+import {
+  approval as approvalFixture,
+  audit,
+  grant,
+  item,
+  metadata,
+  panel,
+  requester,
+  use,
+} from '../helpers/vault/fixtures'
 import { FakeVaultSlot } from '../helpers/vault/core'
 import * as constants from '../../../src/shared/constants'
 
@@ -339,18 +348,7 @@ describe('M109 strict contracts', () => {
   })
 
   it('V11 V13: approvals and tickets require digest, nonce, requester, epoch and future expiry', () => {
-    const approval = {
-      id: 'a'.repeat(32),
-      requester: requester(),
-      item: metadata(),
-      use: use(),
-      digest: 'b'.repeat(64),
-      nonce: 'c'.repeat(32),
-      createdAt: 0,
-      expiresAt: 120_000,
-      lockEpoch: 0,
-      taint: { tainted: false, reasons: [] },
-    }
+    const approval = approvalFixture()
     expect(vault.vaultApprovalRequestSchema.safeParse(approval).success).toBe(true)
     expect(vault.vaultApprovalRequestSchema.safeParse({ ...approval, expiresAt: 0 }).success).toBe(
       false,
@@ -367,7 +365,7 @@ describe('M109 strict contracts', () => {
     expect(
       vault.vaultApprovalAnswerSchema.safeParse({ ...answer, decision: 'alwaysAllow' }).success,
     ).toBe(false)
-    const ticket = {
+    const ticket: vault.VaultTicket = {
       id: approval.id,
       requestId: approval.id,
       requesterId: requester().id,
@@ -386,6 +384,7 @@ describe('M109 strict contracts', () => {
   })
 
   it('V4 V5 V13: public protocol is versioned and proposals cannot claim identity or approval', () => {
+    const request: protocol.VaultBrokerRequest = { v: 1, sequence: 0, request: { kind: 'status' } }
     expect(
       protocol.vaultBrokerRequestSchema.safeParse({
         v: 2,
@@ -393,10 +392,7 @@ describe('M109 strict contracts', () => {
         request: { kind: 'status' },
       }).success,
     ).toBe(false)
-    expect(
-      protocol.vaultBrokerRequestSchema.parse({ v: 1, sequence: 0, request: { kind: 'status' } })
-        .request.kind,
-    ).toBe('status')
+    expect(protocol.vaultBrokerRequestSchema.parse(request).request.kind).toBe('status')
     expect(
       protocol.vaultUseProposalSchema.safeParse({
         handle: metadata().handle,
@@ -435,7 +431,11 @@ describe('M109 strict contracts', () => {
   })
 
   it('V1 V9: public lists never admit hidden or first-party records or secret fields', () => {
-    const response = { v: 1, sequence: 0, response: { kind: 'items', items: [metadata()] } }
+    const response: protocol.VaultBrokerResponse = {
+      v: 1,
+      sequence: 0,
+      response: { kind: 'items', items: [metadata()] },
+    }
     expect(protocol.vaultBrokerResponseSchema.safeParse(response).success).toBe(true)
     for (const extra of [
       { hidden: true },

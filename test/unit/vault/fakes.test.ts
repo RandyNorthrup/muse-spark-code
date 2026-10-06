@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import {
   FakeVaultBroker,
+  FakeVaultChannel,
   FakeVaultClock,
   FakeVaultSlot,
   InMemoryVault,
@@ -51,6 +52,12 @@ describe('vault test doubles (not runtime certification)', () => {
     await expect(denied.unwrap(await denied.wrap(key), 'denied use')).rejects.toThrow(
       'presence denied',
     )
+    await expect(
+      new FakeVaultSlot('hardware').unwrap(
+        await new FakeVaultSlot('recovery').wrap(key),
+        'wrong tier',
+      ),
+    ).rejects.toThrow('unavailable')
   })
 
   it('slots own copies at wrap and return a fresh buffer for every unwrap', async () => {
@@ -101,6 +108,27 @@ describe('vault test doubles (not runtime certification)', () => {
     }).toThrow('invalid')
   })
 
+  it('authenticated channel copies its peer and refuses use after close', async () => {
+    const peer = { hostId: requester().hostId, processId: 100, userId: 'test-user', ui: true }
+    const channel = new FakeVaultChannel(peer)
+    expect(await channel.authenticate()).toEqual(peer)
+    expect(await channel.authenticate()).not.toBe(peer)
+    channel.close()
+    await expect(channel.authenticate()).rejects.toThrow('closed')
+  })
+
+  it('broker fake hides private items and refuses absent handles', async () => {
+    const store = new InMemoryVault()
+    const hidden = item()
+    hidden.metadata.hidden = true
+    await store.write(hidden)
+    const broker = new FakeVaultBroker(store, new FakeVaultClock())
+    expect(await broker.list(requester())).toEqual([])
+    await expect(
+      broker.request(requester(), hidden.metadata.handle, use(), { tainted: false, reasons: [] }),
+    ).rejects.toThrow('unavailable')
+  })
+
   it('RFC 9987 pair supports identities and signing with and without session-bind', () => {
     const server = new FakeSshServer()
     const client = new FakeSshClient(server)
@@ -134,6 +162,49 @@ describe('vault test doubles (not runtime certification)', () => {
     expect(() => new FakeSshServer().receive(Buffer.from([255, 255, 255, 255]))).toThrow(
       'invalid frame',
     )
+    expect(() => new FakeSshServer().receive(Buffer.alloc(4))).toThrow('invalid frame')
+  })
+
+  it('SSH fake refuses malformed fields, flags and identity requests', () => {
+    function packet(type: number, payload: Buffer): Buffer {
+      const bytes = Buffer.concat([Buffer.from([type]), payload])
+      const length = Buffer.alloc(4)
+      length.writeUInt32BE(bytes.length)
+      return Buffer.concat([length, bytes])
+    }
+    const session = randomBytes(32)
+    const server = new FakeSshServer()
+    const binding = server.bindFrame(session)
+    const extensionEnd = 9 + binding.readUInt32BE(5)
+    const hostEnd = extensionEnd + 4 + binding.readUInt32BE(extensionEnd)
+    const sessionEnd = hostEnd + 4 + binding.readUInt32BE(hostEnd)
+    const signatureStart = sessionEnd + 4
+    const variants = [
+      packet(11, Buffer.from([0])),
+      packet(27, Buffer.from([0])),
+      packet(27, Buffer.from([0, 0, 0, 100, 1])),
+      packet(99, Buffer.alloc(0)),
+    ]
+    for (const offset of [9, extensionEnd + 4, signatureStart + 4, binding.length - 1]) {
+      const changed = Buffer.from(binding)
+      changed[offset] = 2
+      variants.push(changed)
+    }
+    variants.push(packet(27, Buffer.concat([binding.subarray(5), Buffer.from([0])])))
+    for (const malformed of variants) expect(server.receive(malformed)[0]?.[4]).toBe(5)
+
+    const signer = new FakeSshServer(true)
+    const key = signer.publicBlob
+    const keyLength = Buffer.alloc(4)
+    keyLength.writeUInt32BE(key.length)
+    const signPayload = Buffer.concat([keyLength, key, Buffer.alloc(4), Buffer.alloc(4)])
+    expect(signer.receive(packet(13, signPayload))[0]?.[4]).toBe(14)
+    const wrongKey = Buffer.from(signPayload)
+    wrongKey[4] = 2
+    const wrongFlags = Buffer.from(signPayload)
+    wrongFlags.writeUInt32BE(1, wrongFlags.length - 4)
+    for (const malformed of [wrongKey, wrongFlags, Buffer.concat([signPayload, Buffer.from([0])])])
+      expect(signer.receive(packet(13, malformed))[0]?.[4]).toBe(5)
   })
 
   it('V15: sudo fake records exact -S -k argv and refuses swaps', () => {
@@ -197,5 +268,11 @@ describe('vault test doubles (not runtime certification)', () => {
       expect(() => {
         target.insert(use, randomBytes(32))
       }).toThrow('changed')
+    const insecureOrigin = new URL(use.origin)
+    insecureOrigin.protocol = 'http:'
+    const insecure = { ...use, origin: insecureOrigin.origin, frameOrigin: insecureOrigin.origin }
+    expect(() => {
+      new FakeCdpTarget(insecure.origin).insert(insecure, randomBytes(32))
+    }).toThrow('changed')
   })
 })
