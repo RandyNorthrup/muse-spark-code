@@ -122,8 +122,10 @@ export function replayRig(
       encodeInline,
       encodeUploaded,
       metadataText: (value) => `Media: ${value.name}`,
-      omittedText: (value, model) =>
-        `${value.name} was left out: ${model.modelName} does not take ${value.info.kind}.`,
+      omittedText: (value, model, reason) =>
+        reason === 'source'
+          ? `Attachment ${value.name} not available — reattach.`
+          : `${value.name} was left out: ${model.modelName} does not take ${value.info.kind}.`,
       isMissingFile: (error) => error === 'missing-file',
     },
     ledger: () => ({ ensure }),

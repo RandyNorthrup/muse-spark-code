@@ -8,10 +8,11 @@ import type { UploadedMediaRef } from '../../../../shared/media'
 export interface ResponsesMediaCodec {
   /** English model-facing templates from the codec's declared MODEL_TEXT block. */
   metadataText(media: StoredMediaPart): string
+  /** A source omission explicitly says the attachment is unavailable and must be reattached. */
   omittedText(
     media: StoredMediaPart,
     model: MediaModelCapabilities,
-    reason: 'modality' | 'files',
+    reason: 'modality' | 'files' | 'source',
   ): string
   /** Validate the captured output shape. Uploaded parts encode only file_id, never inline bytes. */
   encodeInline(

@@ -1,10 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import {
   ModelApiHost,
   ModelApiSession,
   type ModelApiHostDeps,
 } from '../../src/core/backends/modelapi/ModelApiHost'
-import { ReplayMedia, type StoredMediaPart } from '../../src/core/media/replayMedia'
+import {
+  ReplayMedia,
+  type ReplayMediaDeps,
+  type StoredMediaPart,
+} from '../../src/core/media/replayMedia'
 import { parseStoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
@@ -32,6 +37,7 @@ async function setup(
     model?: (id: string) => MediaModelCapabilities
     authorize?: () => Promise<void>
     media?: StoredMediaPart
+    source?: ReplayMediaDeps['source']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -54,6 +60,7 @@ async function setup(
             : undefined,
         capabilities: options.model ?? mediaModel,
         ...(options.authorize !== undefined && { authorize: options.authorize }),
+        ...(options.source !== undefined && { source: options.source }),
       }),
   }
   const host = new ModelApiHost(deps)
@@ -75,6 +82,63 @@ async function sendMediaTurn(h: Awaited<ReturnType<typeof setup>>): Promise<void
 }
 
 describe('Model API media integration through injected ports', () => {
+  it.each([true, false])(
+    'forks an inline-only image with approved source availability %s honestly',
+    async (available) => {
+      const data = new Uint8Array([1, 2, 3])
+      const chunk = Promise.resolve(data)
+      const media = {
+        ...videoMedia(),
+        name: 'photo.png',
+        sha256: createHash('sha256').update(data).digest('hex'),
+        info: { kind: 'image', mediaType: 'image/png', sizeBytes: 3 },
+      } as const
+      const source = vi.fn(() =>
+        Promise.resolve(
+          available
+            ? {
+                name: media.name,
+                mime: media.info.mediaType,
+                bytes: media.info.sizeBytes,
+                open: async function* () {
+                  yield await chunk
+                },
+              }
+            : undefined,
+        ),
+      )
+      const h = await setup({
+        media,
+        source,
+        model: (id) => ({ ...mediaModel(id), files: 'no' }),
+      })
+      try {
+        const done = h.turnDone()
+        await h.session.sendTurn([
+          { type: 'image', base64Data: 'AQID', mediaType: 'image/png', width: 1, height: 1 },
+        ])
+        await done
+        expect(JSON.stringify(h.api.responseBodies()[0])).toContain('base64,AQID')
+        expect(source).not.toHaveBeenCalled()
+        const fork = await h.host.forkSession(h.session.sessionId, 'muse-spark-1.3')
+        const watched = watchSessionTurns(fork.session)
+        const forkDone = watched.turnDone()
+        await fork.session.sendTurn([{ type: 'text', text: 'describe the attached image' }])
+        await forkDone
+        const request = JSON.stringify(h.api.responseBodies().at(-1))
+        expect(request).toContain(available ? 'base64,AQID' : 'not available — reattach')
+        if (!available) expect(request).not.toContain('base64')
+        expect(source).toHaveBeenCalled()
+        expect(h.rig.ensure).not.toHaveBeenCalled()
+        expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'completed',
+        })
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
+
   it.each([2, MEDIA_FILE_ID_MIN_BYTES + 1])(
     'applies the actual encoding-route limit to an image of %i bytes',
     async (sizeBytes) => {

@@ -310,3 +310,37 @@ Scratch log: `temp/m105m2-fix-route-red.log`.
 
 The inline restore and cumulative pending-media findings are the remaining
 authorized corrections in this lane; their completion records follow below.
+
+### P2 inline-only attachment restore
+
+Restored metadata is marked separately from transient input. After the
+required authorization, image/PDF replay on an inline-only model opens the
+approved private source, validates its metadata, bounds the stream to the
+retained size and verifies SHA-256. Only those recovered bytes reach the
+existing inline encoder. They remain transient and snapshots still scrub them.
+An unavailable source produces the codec's explicit `source` refusal part;
+the codec contract requires it to say the attachment is unavailable and must
+be reattached. Revoked authorization refuses before opening any source.
+Other restored inline-only modalities also refuse explicitly until a captured
+source codec can reattach them; metadata never enters their inline encoder.
+
+Tests: **restores approved inline-only image/document bytes and refuses
+missing sources without encoding metadata**, **forks an inline-only image
+with approved source availability true/false honestly**, and three
+**refuses changed inline restore bytes … before the encoder** cases. The
+replay/host-media/no-media-golden batch passed **65 tests**, default timeouts;
+no golden was regenerated. The new source refusal reason and model-facing
+English note belong to the existing required captured-codec W/V binding.
+
+Five byte-exact red controls, each exit 1:
+
+| Mutation                                | Named failure                                                                  | Scratch log                                |
+| --------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------ |
+| Stop recognizing restored text metadata | both inline restore cases and both fork source cases                           | `temp/m105m2-fix-restore-red.log`          |
+| Remove unavailable-source refusal       | both inline restore cases and the absent-source fork                           | `temp/m105m2-fix-restore-refusal-red.log`  |
+| Remove digest check                     | changed bytes `[4,5,6]`                                                        | `temp/m105m2-fix-restore-digest-red.log`   |
+| Remove final size check                 | short source `[1,2]`, with its matching digest but retained size 3             | `temp/m105m2-fix-restore-length-red.log`   |
+| Remove growing-stream bound             | oversized source `[1,2,3,4]` continued reading instead of stopping immediately | `temp/m105m2-fix-restore-overflow-red.log` |
+
+Every control restored `replayMedia.ts` to the same before/after SHA-256:
+`4fe9bdd34af846efc873dbcf6567d09af74b115878d496aee4a0e30a3436822e`.

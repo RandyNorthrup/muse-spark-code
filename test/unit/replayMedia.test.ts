@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
 import { ReplayMedia, storedMediaPartSchema } from '../../src/core/media/replayMedia'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
@@ -16,6 +17,97 @@ import { replayLedgerRig } from './helpers/media/replayLedger'
 const signal = (): AbortSignal => new AbortController().signal
 
 describe('media replay and metadata persistence', () => {
+  it.each(['image', 'document'] as const)(
+    'restores approved inline-only %s bytes and refuses missing sources without encoding metadata',
+    async (kind) => {
+      const data = new Uint8Array([1, 2, 3])
+      const chunk = Promise.resolve(data)
+      const media = {
+        ...videoMedia(),
+        name: kind === 'image' ? 'photo.png' : 'report.pdf',
+        sha256: createHash('sha256').update(data).digest('hex'),
+        info: { kind, mediaType: kind === 'image' ? 'image/png' : 'application/pdf', sizeBytes: 3 },
+      }
+      const rig = replayRig(media, {
+        capabilities: (id) => ({ ...mediaModel(id), files: 'no' }),
+      })
+      const saved = rig.replay.snapshot(rig.entries)
+      const input = saved.map((entry) => entry.item)
+      const restored = new ReplayMedia('restored', rig.deps)
+      restored.restore(saved)
+      const opened = vi.fn()
+      rig.source.mockResolvedValue({
+        name: media.name,
+        mime: media.info.mediaType,
+        bytes: data.byteLength,
+        open: async function* () {
+          opened()
+          yield await chunk
+        },
+      })
+      await restored.prepare(input, 'muse-spark-1.3', signal())
+      const encoded = restored.project(input, 'muse-spark-1.3', rig.budget)
+      expect(JSON.stringify(encoded)).toContain(`data:${media.info.mediaType};base64,AQID`)
+      expect(rig.ensure).not.toHaveBeenCalled()
+      expect(rig.authorize.mock.invocationCallOrder[0]).toBeLessThan(
+        rig.source.mock.invocationCallOrder[0]!,
+      )
+      expect(opened).toHaveBeenCalledTimes(1)
+      expect(JSON.stringify(restored.snapshot(saved))).not.toContain('AQID')
+      const source = vi.spyOn(rig.deps, 'source').mockClear().mockResolvedValue(undefined)
+      await restored.prepare(input, 'muse-spark-1.3', signal())
+      const absent = restored.project(input, 'muse-spark-1.3', rig.budget)
+      expect(JSON.stringify(absent)).toContain('not available — reattach')
+      expect(JSON.stringify(absent)).not.toContain('base64')
+      expect(rig.encodeInline).toHaveBeenCalledTimes(1)
+      vi.spyOn(rig.deps, 'authorize').mockRejectedValue(new Error('Consent revoked'))
+      await expect(restored.prepare(input, 'muse-spark-1.3', signal())).rejects.toThrow(
+        'Consent revoked',
+      )
+      expect(source).toHaveBeenCalledTimes(1)
+    },
+  )
+
+  it.each([new Uint8Array([4, 5, 6]), new Uint8Array([1, 2]), new Uint8Array([1, 2, 3, 4])])(
+    'refuses changed inline restore bytes %j before the encoder',
+    async (changed) => {
+      const original = new Uint8Array([1, 2, 3])
+      const chunk = Promise.resolve(changed)
+      const media = {
+        ...videoMedia(),
+        name: 'photo.png',
+        sha256: createHash('sha256')
+          .update(changed.byteLength < original.byteLength ? changed : original)
+          .digest('hex'),
+        info: { kind: 'image', mediaType: 'image/png', sizeBytes: 3 },
+      } as const
+      const rig = replayRig(media, {
+        capabilities: (id) => ({ ...mediaModel(id), files: 'no' }),
+      })
+      const saved = rig.replay.snapshot(rig.entries)
+      rig.replay.restore(saved)
+      const continued = vi.fn()
+      rig.source.mockResolvedValue({
+        name: media.name,
+        mime: media.info.mediaType,
+        bytes: media.info.sizeBytes,
+        open: async function* () {
+          yield await chunk
+          continued()
+        },
+      })
+      await expect(
+        rig.replay.prepare(
+          saved.map((entry) => entry.item),
+          'muse-spark-1.3',
+          signal(),
+        ),
+      ).rejects.toThrow('changed since upload')
+      expect(rig.encodeInline).not.toHaveBeenCalled()
+      if (changed.byteLength > original.byteLength) expect(continued).not.toHaveBeenCalled()
+    },
+  )
+
   it('checks the upload limit after promoting a delivered small inline image', async () => {
     const media = {
       ...videoMedia(),

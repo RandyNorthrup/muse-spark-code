@@ -1,6 +1,8 @@
 // Durable metadata and per-request projections. Bytes/approved sources stay
 // transient; a model switch never overwrites the original upload reference.
 import * as z from 'zod/mini'
+import { Buffer } from 'node:buffer'
+import { createHash } from 'node:crypto'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_NAME_MAX_CHARS,
@@ -109,6 +111,8 @@ export interface MediaReplayPort {
 
 export class ReplayMedia {
   private readonly parts = new WeakMap<InputContentPart, StoredMediaPart>()
+  private readonly restored = new WeakSet<InputContentPart>()
+  private readonly inline = new WeakMap<InputContentPart, InputContentPart>()
   private readonly replacements = new Set<string>()
   public constructor(
     private readonly sessionId: string,
@@ -200,6 +204,7 @@ export class ReplayMedia {
         const part = entry.item.content[index]
         if (part === undefined) throw new Error('Invalid media replay index')
         this.parts.set(part, storedMediaPartSchema.parse(media))
+        if (part.type === 'input_text') this.restored.add(part)
       }
     }
   }
@@ -221,11 +226,13 @@ export class ReplayMedia {
       if (!gate.ok) continue
       if (model.files !== 'yes' && (media.file !== undefined || (media.files?.length ?? 0) > 0))
         continue
+      this.inline.delete(part)
       await this.deps.authorize(media, model, gate, signal)
       signal.throwIfAborted()
-      if (route === 'inline') continue
+      if (route === 'inline' && !this.restored.has(part)) continue
       const approved = await this.deps.source(media, signal)
       signal.throwIfAborted()
+      if (approved === undefined && route === 'inline') continue
       if (approved === undefined && previousFile === undefined)
         throw new Error(fill(UI_TEXT.media.uploadExpired, { name: media.name }))
       const available: UploadSource = approved ?? {
@@ -250,6 +257,31 @@ export class ReplayMedia {
         source.bytes !== media.info.sizeBytes
       )
         throw new Error(fill(UI_TEXT.media.sourceChanged, { name: media.name }))
+      if (route === 'inline') {
+        if (media.info.kind !== 'image' && media.info.kind !== 'document') continue
+        const chunks: Uint8Array[] = []
+        const hash = createHash('sha256')
+        let size = 0
+        for await (const chunk of source.open(signal)) {
+          signal.throwIfAborted()
+          size += chunk.byteLength
+          if (size > media.info.sizeBytes)
+            throw new Error(fill(UI_TEXT.media.sourceChanged, { name: media.name }))
+          chunks.push(chunk)
+          hash.update(chunk)
+        }
+        signal.throwIfAborted()
+        if (size !== media.info.sizeBytes || hash.digest('hex') !== media.sha256)
+          throw new Error(fill(UI_TEXT.media.sourceChanged, { name: media.name }))
+        const data = `data:${media.info.mediaType};base64,${Buffer.concat(chunks).toString('base64')}`
+        this.inline.set(
+          part,
+          media.info.kind === 'image'
+            ? { type: 'input_image', image_url: data, detail: 'auto' }
+            : { type: 'input_file', filename: media.name, file_data: data },
+        )
+        continue
+      }
       const file = await this.deps
         .ledger(model.provider)
         .ensure(this.sessionId, media.sha256, source, signal)
@@ -295,9 +327,12 @@ export class ReplayMedia {
         if (model.files !== 'yes' && (media.file !== undefined || (media.files?.length ?? 0) > 0))
           return { type: 'input_text', text: this.deps.codec.omittedText(media, model, 'files') }
         const file = this.fileFor(media, model)
+        const inline = this.inline.get(part) ?? part
+        if (file === undefined && inline === part && this.restored.has(part))
+          return { type: 'input_text', text: this.deps.codec.omittedText(media, model, 'source') }
         const encodedMedia =
           file === undefined
-            ? this.deps.codec.encodeInline(media, part, model)
+            ? this.deps.codec.encodeInline(media, inline, model)
             : {
                 part: this.deps.codec.encodeUploaded({ ...media, file }, model),
                 encodedChars: 0,
