@@ -1,5 +1,5 @@
 {
-  "status": "full-quality red; audit repaired; scoped cases, targeted accessibility and cap gates pass; full final accessibility pending",
+  "status": "uncertified: single full-quality invocation exited 1; all repaired scoped cases, final standalone gates and packages pass; fresh full-profile and REDWINI96 Windows proof remain",
   "rig": "macmini",
   "base": "30105e49",
   "wMerge": "9dcd95cc",
@@ -204,6 +204,16 @@
         "test/unit/diffTally.test.ts",
         "test/unit/reportProblemDialog.test.tsx"
       ]
+    },
+    {
+      "name": "final-source-proof",
+      "passed": 92,
+      "failed": 0,
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/teamWorkerCertification.test.ts"
+      ]
     }
   ],
   "drills": [
@@ -289,13 +299,30 @@
       "undecided": 0,
       "missingResults": 0,
       "exempt": 0
-    }
+    },
+    "finalUnitTypecheck": 0,
+    "finalA11yComplete": {
+      "exit": 0,
+      "pages": 652,
+      "scenarios": 163,
+      "themes": 4,
+      "violations": 0,
+      "undecided": 0,
+      "exempt": 0,
+      "missingResults": 0
+    },
+    "finalSourceSast": 0,
+    "finalSourceL10N": 0,
+    "finalSourceAudit": 0,
+    "finalSastRules": 529,
+    "finalSastFiles": 1471,
+    "finalSastFindings": 0
   },
   "packages": {
     "helperless": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/helperless-muse-spark-code-0.14.0.vsix",
-      "bytes": 2121944,
-      "sha256": "9e680043277dab41d6ed4500b52e6725b262f6a329d20d1ec734d2a15afced77",
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2122220,
+      "sha256": "29cbe36d5709d7cc316c23afa337579be010d0782229a8aca976169d1d31ec25",
       "requiredFiles": {
         "dist/team.js": true,
         "dist/teamScheduler.js": true,
@@ -307,12 +334,12 @@
       "macHelperPresent": false,
       "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
       "capBytes": 2252800,
-      "headroomBytes": 130856
+      "headroomBytes": 130580
     },
     "universal": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/universal-muse-spark-code-0.14.0.vsix",
-      "bytes": 2204763,
-      "sha256": "3655a71d955707a2e5bffdae0700ec0f37be01a5a2f6be5556654005507b75a3",
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2205039,
+      "sha256": "cf165bf4e90b755ad2fe579677d5b95535516df0649276e499a704d61f7a1650",
       "requiredFiles": {
         "dist/team.js": true,
         "dist/teamScheduler.js": true,
@@ -324,10 +351,10 @@
       "macHelperPresent": true,
       "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
       "capBytes": 2252800,
-      "headroomBytes": 48037
+      "headroomBytes": 47761
     },
     "acp": {
-      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/acp-muse-spark-code-acp-0.14.0.tgz",
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/acp-muse-spark-code-acp-0.14.0.tgz",
       "bytes": 1088802,
       "sha256": "642d4a32e6eb4dacd8b3afecc86327bdbf1ba15b44c314cbbcb303a7d40bae89"
     }
@@ -349,18 +376,18 @@
       "failed": 0
     }
   },
-  "sourceCommit": "42fb18e20cf519b2727927aa2095ac34444df46e",
+  "sourceCommit": "f084b2b0d4f77da44e762860b0d655d88b6dbe62",
   "historySecrets": {
     "head": {
       "exit": 0
     },
-    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q1ipi4h9/integration.bundle",
-    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q1ipi4h9/integration.git",
+    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q0iyfs5_/integration.bundle",
+    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q0iyfs5_/integration.git",
     "sharedRefsChanged": false,
     "default-own": {
       "exit": 0
     },
-    "commitsScanned": 1093,
+    "commitsScanned": 1095,
     "findingsOwnHistory": 0,
     "sharedDefault": {
       "exit": 1,
@@ -385,7 +412,7 @@
       "permission": "shared-ref removal request pending; no refs removed",
       "commitsScanned": 1585
     },
-    "testedHead": "42fb18e20cf519b2727927aa2095ac34444df46e"
+    "testedHead": "f084b2b0d4f77da44e762860b0d655d88b6dbe62"
   },
   "fullQuality": {
     "command": "VITEST_MAX_WORKERS=3 npm run quality",
@@ -521,5 +548,66 @@
       "exit": 0,
       "seconds": 17.64
     }
-  }
+  },
+  "postRepairPackageHistory": {
+    "42fb18e2": {
+      "helperless": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/helperless-muse-spark-code-0.14.0.vsix",
+        "bytes": 2121944,
+        "sha256": "9e680043277dab41d6ed4500b52e6725b262f6a329d20d1ec734d2a15afced77",
+        "requiredFiles": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true
+        },
+        "macHelperPresent": false,
+        "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+        "capBytes": 2252800,
+        "headroomBytes": 130856
+      },
+      "universal": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/universal-muse-spark-code-0.14.0.vsix",
+        "bytes": 2204763,
+        "sha256": "3655a71d955707a2e5bffdae0700ec0f37be01a5a2f6be5556654005507b75a3",
+        "requiredFiles": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true
+        },
+        "macHelperPresent": true,
+        "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+        "capBytes": 2252800,
+        "headroomBytes": 48037
+      },
+      "acp": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/acp-muse-spark-code-acp-0.14.0.tgz",
+        "bytes": 1088802,
+        "sha256": "642d4a32e6eb4dacd8b3afecc86327bdbf1ba15b44c314cbbcb303a7d40bae89"
+      }
+    }
+  },
+  "standaloneFinalSourceGates": {
+    "sast": {
+      "command": "npm run security:sast",
+      "exit": 0,
+      "seconds": 84.92
+    },
+    "l10n": {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 3.03
+    },
+    "audit": {
+      "command": "npm run security:audit",
+      "exit": 0,
+      "seconds": 2.99
+    }
+  },
+  "receiptCommitChanges": "Only PLAN and certification records follow source f084b2b0; they are excluded from shipped packages. Final receipt HEAD scans are reported after committing."
 }

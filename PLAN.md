@@ -26295,6 +26295,13 @@ and resolution of the shared archived-ref history blocker; round 3c's
 single invocation is never relabelled green. Windows proof belongs to
 REDWINI96/round 3d. No live/paid attempts.
 
+The later standalone audit is repaired by pinning the existing dev-only
+source-map-js leaf to 1.2.2; private script-free leaf/full-lock installs and
+the unchanged audit pass. The shared worktree tooling stays at 1.2.1 under
+the lane rule. Refresh an isolated development install to the committed
+lock before the next full-profile run. Final complete accessibility,
+SAST and localization pass; their receipts do not replace that full run.
+
 ## 8. Escape hatches register
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |

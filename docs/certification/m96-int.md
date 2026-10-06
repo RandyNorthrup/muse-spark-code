@@ -816,3 +816,33 @@ all 16 theme pages without violations, undecided checks or missing results.
 A deliberate low-contrast color fails two elements; byte-exact CSS restoration
 passes all four pages. The final complete accessibility receipt follows in
 the results JSON. No exemption, scan rule or wait is changed.
+
+Final round 3c source is `f084b2b0`. Browser startup is
+875,986/921,600 B, team UI 16,088/25,600 B, ordinary deferred UI
+51,098/51,200 B. Final helperless VSIX is 2,122,220 B and universal
+2,205,039 B against 2,252,800 B, with 47,761 B universal headroom;
+ACP is 1,088,802 B. Both packages retain the complete team/runner inventory,
+and actual native import/require checks pass 37 VSIX and 18 ACP modules.
+All archives are outside the worktree. The final request/browser/source-hash
+batch passes 92, including every one of the 69 golden cases and the browser
+cap drill. The final complete accessibility gate passes 652 pages (163
+scenarios × four themes), zero violations, undecided checks, exemptions
+or pages without a result. The source's 1,095-commit own history is clean
+under both default and HEAD gitleaks forms; shared rt archives remain
+unmodified with seven findings outside HEAD.
+
+This lane remains uncertified: the only authorized full-quality invocation
+exited 1 on `2622fb44`, before these late repairs. Its default-profile
+coverage timing needs a fresh owner-authorized run against the repaired
+source and refreshed tooling install. All passing scoped and standalone
+receipts are explicitly separate. Windows proof still belongs to
+REDWINI96/round 3d; the inherited M95 shell/binding prerequisites remain
+in the earlier integration record. No thresholds, rules, timeouts, skips,
+ignore lists, shared refs, remotes or global settings were changed. No paid,
+live model, push, rebase or main merge was performed.
+
+Final standalone checks on `f084b2b0` also pass: SAST runs 529 rules over
+1,471 files with zero findings; localization reports 14 tables, 165 manifest
+strings, 693 source files and zero problems; the dependency audit retains
+its existing reviewed braces exception and one nonblocking low advisory.
+Final receipt-only changes are excluded from the shipped artifacts.
