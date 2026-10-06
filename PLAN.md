@@ -9494,6 +9494,600 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
   and a pair with another person's device should keep D89.13's stricter
   rule.
 
+### D91 — Muse Desktop: the host edition's own shell (M111, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "for our host version i want it to just be our interface nothing more so
+  for the os we need to design all of the gui items custom and matching our
+  theme so that means the entire ux and ui from the bottom up so that means a
+  menu bar with wifi controller, bluetooth for bluetooth network
+  connections,cellular connection stuff when applicable etc we need custom
+  mouse pointe and cursor etc custom login screen with optional gui interface
+  with our branding, the iterface should have a similar feel to vscode but we
+  will have our chat stuff on the left and on the right will be a collapsable
+  sidebar that icons that open different sections in the sidebar ie file
+  explorer, git, connections, roles, settings etc and the center section will
+  be tabbed code/text editor with minimap, and tabs and preview tabs will open
+  here as a browser prieview there can be multiple desktops as workspaces but
+  the open windows should snap and fill the space automatically like hyprland
+  and you should not be able to quit the interface we should make a spolight
+  style trigger to bring up an overlay in the center of the screen with an app
+  launcher/selector"
+- "same theme and a light and dark mode and all of the same i18n and a11y and
+  011y" (decisions 19–22: hard requirements for every M111 component and for
+  M110's web UI and TUI)
+- "i want web development to be a pleaent experience with popular view modes
+  that web developers commonly enjoy with live preview support etc"
+  (decision 23)
+- "we need a custom gui installer and it needs to have all of the steps fully
+  automated the user plugs in the flash drive boots into the image and
+  chooses live boot or install. chossing install should have a gui fully
+  polished that matches our theme with each step easy and automated with
+  advanced options available for power users, they should choose their
+  username here and password and the orchistration agent will need
+  passwordless sudo or some type of key to have full admin access, the user
+  should bbe able to connect to the internet in the installer for the
+  questionaire so the downloads and installs can happen all streamlined with
+  the install including updates" (decisions 24 and 25)
+- "the installer should have screenshots and tips in a auto rotating gallery
+  with info" (decision 24)
+- And, through the lead the same evening: the desktop's onboarding hosts
+  M110t's first-run questionnaire, with each pack's size, progress with
+  cancel, re-runnable from **Settings › Toolchains** (decision 17).
+
+This is a plan, not a shipped capability: nothing here is implemented. The
+research, with a source and a date for every outside fact, is
+`docs/research/muse-desktop-2026-10-05.md`; its §14 has the session and
+process tree. "Muse Desktop" is the working name (decision 29).
+
+1. **What it is.** The graphical edition of Muse Node OS (D90.24): the same
+   signed, read-only Debian 13 image with a `desktop` profile, booting
+   straight into our interface and nothing else. The runtime underneath is
+   the node (D90.1); the desktop is **one more surface over it** (D84), as
+   VS Code, the companion page and the TUI are. Every pixel a person sees
+   is ours: the boot menu, splash, greeter, bar, launcher, notifications,
+   dialogs, cursor, icons and the app. There is no other desktop, no app
+   store and no foreign dialog.
+2. **Builds on and amends.** Builds on D84 (MHP, the companion, the feature
+   registry), D90 (the node, its OS, its web UI pages and TUI, decision 27's
+   packs), D83 (makers), D85 (screen recordings), D87 (the governor), D88,
+   D89 (the vault and broker), D82 (usage) and D75 (roles).
+   - **D84:** the feature registry gains a **Desk** column; every registry
+     feature is W on the desktop through its own `HostBridge`, with the same
+     evidence rule.
+   - **D89.6:** the agent's admin item defaults to **Always allow** on the
+     owner's own box (decision 25), a deliberate exception to "sudo is never
+     open-ended", bounded by decision 25's rules. D89.7's taint rule is not
+     amended.
+   - **D90.24:** a `desktop` profile beside the headless one; the trial boot
+     is marked good only when the desktop is ready too (decision 7); a
+     graphical installer on the medium (decision 24) whose daemon and pages
+     the headless installer ISO also uses.
+   - **D90.26:** on the desktop edition the local screen is the desktop, not
+     `cage` with Chrome; Chrome stays the default browser.
+   - **M104 lane D:** its planned `--muse-*` names (not yet built) become
+     the one `--ms-*` prefix (decision 19).
+3. **The compositor is Hyprland, pinned, behind our port** (research §2).
+   - **Why:** it is the behaviour the owner named (dwindle and master
+     layouts that fill the screen as windows open, workspaces, gestures, the
+     strongest animation system of the candidates); BSD-3-Clause; packaged
+     for amd64 and arm64 in Debian 13's backports (0.55.2 on 2026-10-05),
+     which OS1's snapshot pinning freezes; and its 0.55 Layout API takes our
+     own layouts in configuration. niri (GPL-3.0) scrolls instead of
+     filling; Sway has neither animations nor automatic fill; an own Smithay
+     compositor is the long-term option, at thousands of lane-hours.
+   - **How we use it:** one version per image; a Lua configuration
+     generated from our settings and tokens, verified in CI, never edited on
+     a box; its own UI off (logo, splash, update news, donation nag, the ANR
+     dialog, which our shell replaces); `ecosystem:enforce_permissions` on,
+     with screencopy granted only to our shell and its portal and plugins
+     only from our read-only path; XWayland off by default (decision 18).
+   - **Its gaps, closed by us:** no `org.freedesktop.a11y.KeyboardMonitor`
+     for Orca (decision 21); a fast-moving configuration (every bump passes
+     the compositor gate first).
+   - **The `CompositorPort`** (Rust, mirrored in TypeScript): workspaces,
+     windows, layouts, monitors, input, events and health. Nothing above it
+     names Hyprland, so a later compositor replaces one adapter.
+   - **The Pi:** the Pi 4 (OpenGL ES 3.1, Vulkan 1.2) and Pi 5 (OpenGL ES
+     3.1, Vulkan 1.3) clear Hyprland's GLES 3.0 floor; a light profile (no
+     blur or shadows, shorter animations) is chosen by GPU class, and lane HW
+     measures it.
+4. **The shell's own surfaces are GTK 4 in Rust** (research §3). The bar,
+   launcher, notifications, OSD, lock screen and greeter must be layer-shell
+   or session-lock surfaces, which Electron cannot make. gtk4-rs,
+   gtk4-layer-shell and gtk4-session-lock are MIT; GTK is the toolkit Orca
+   is built against; GTK CSS reads our token CSS. Lane 0's spike S2 checks
+   Orca on a gtk4-layer-shell popup and a Quickshell window under the pinned
+   Hyprland; only if GTK fails and Quickshell (LGPL-3.0, QML) passes does
+   M111 switch before lanes SH1 and SH2 start.
+5. **One system bridge, `muse-sysd`** (research §7). A Rust user service on
+   zbus, the only code that speaks to NetworkManager (with the session's one
+   secret agent), BlueZ (with its one pairing agent), ModemManager, UPower,
+   power-profiles-daemon, logind, PipeWire, locale1, timedate1, hostname1,
+   udisks2, CUPS, fwupd and polkit (the session's one authentication agent,
+   so an administrator's prompt is ours). Its API is versioned JSON-RPC on an
+   owner-only socket, written once in zod (rule 7) and generated to JSON
+   Schema and Rust types, so the shell and the app validate every frame.
+6. **Session, greeter, sign-in and lock** (research §6).
+   - **greetd** with our GTK greeter, running under Hyprland's greeter
+     profile: user picker, password, PIN, FIDO2 security key (`pam_u2f`),
+     fingerprint where a reader exists, accessibility (Orca, large text, high
+     contrast, on-screen keyboard), language and keyboard pickers, and a power
+     menu (shut down, restart, sleep, **Recovery** with an administrator's
+     credentials).
+   - **The optional interface** is a text greeter: the M110 TUI's Ink code on
+     tty1, speaking the same greetd IPC, for a box without a GPU, a recovery
+     boot, or a person who prefers it.
+   - **Kiosk nodes** sign in once at boot (`initial_session`), with no lock
+     and no sign-out.
+   - **At the OS login, "passkey" means a FIDO2 key or a TPM PIN.** The
+     node's WebAuthn passkeys (D90.11) are the web sign-in; PAM has no hybrid
+     transport for a phone.
+   - **The lock screen** is ext-session-lock-v1 (gtk4-session-lock), with
+     Hyprland's `allow_session_lock_restore` so a crashed locker restarts
+     while the screen stays locked. It locks on idle (5 minutes by default,
+     the display off at 10), on lid close, on Super+L and before sleep (a
+     logind delay inhibitor). Notifications show a count only.
+   - **The Secret Service is oo7-daemon** (MIT, Fedora 45's default),
+     unlocked at login by its PAM module, for Chrome's passwords and
+     Electron's `safeStorage`; gnome-keyring would stay locked after a FIDO2
+     or fingerprint sign-in. M109's vault uses it only as its labelled
+     OS-store slot, beside its TPM slot (D89.2), so the session's sign-in is
+     what unlocks the vault, as the owner asked.
+   - **One person per box at first** (the owner), plus a kiosk account;
+     several people wait for M110h's per-person sandboxes and vault
+     namespaces.
+7. **The interface cannot be quit, and a broken box can always recover.**
+   - **Supervised:** systemd user units under `muse-desktop.target`, each
+     `Restart=always` with a start limit. A crashed bar, app or portal comes
+     back by itself.
+   - **No way out to a bare system:** no binding or menu calls Hyprland's
+     `exit`; its sockets are the person's only, and the tools' user cannot
+     reach them; no getty on any VT (`NAutoVTs=0`, `ReserveVT=0`) and the
+     VT-switch chords swallowed; SysRq limited to sync, remount and reboot.
+     **Sign out** returns to our greeter.
+   - **Safe session:** three session failures in five minutes start it
+     (default configuration, no user layouts, software rendering if the GPU
+     is suspected), with a banner saying why.
+   - **Recovery:** two more failures, Esc or Shift held at boot, two failed
+     trial boots, or the greeter's **Recovery** boot `recovery.target`: our
+     Ink console, opened only with an administrator's credentials or OS4's
+     recovery key. It rolls back to the other slot, resets the desktop's
+     configuration, repairs the network, exports a diagnostics bundle,
+     opens an audited administrator shell, or factory-resets after a typed
+     confirmation.
+   - **Updates never brick a box:** OS2's trial boot is marked good only when
+     the node's `/readyz` passes **and** the desktop is ready (compositor,
+     shell and app healthy, or the greeter painted on a box nobody has
+     signed in to). Otherwise it rolls back by itself.
+8. **The menu bar** (top, a layer-shell surface with an exclusive zone):
+   - **Left:** our mark (opens the launcher), the workspaces, the active
+     app's name and its window menu.
+   - **Centre:** the clock and date (the calendar and the notification
+     centre open from it).
+   - **Right:** node and orchestrator status (D90; paired nodes, Live peek
+     viewers), running agents (M96), the resource meter (M107's level,
+     CPU, memory and GPU; its popover is M107's), privacy indicators
+     (microphone, camera, screen sharing), the keyboard layout or input
+     method, network, Bluetooth, sound, battery and power, notifications
+     (with Do Not Disturb), and the user and power menu.
+   - **Quick settings** gather the toggles: Wi-Fi, Bluetooth, cellular data,
+     VPN, airplane mode, Do Not Disturb, night light, dark mode, brightness,
+     volume, the power profile and **Stop everything**.
+   - **Network:** Wi-Fi (WPA2 and WPA3 personal, 802.1X enterprise with
+     certificates, hidden networks, forget, metered, hotspot), Ethernet,
+     captive portals (detected by NetworkManager's connectivity check and
+     opened in a sandboxed view), VPN (WireGuard; OpenVPN and IPsec through
+     their NetworkManager plugins; M110's overlay routes).
+   - **Bluetooth:** discovery, pairing with passkey confirmation, audio
+     devices and their profiles, input devices, battery levels, and
+     **Bluetooth PAN tethering** through NetworkManager.
+   - **Cellular, when a modem exists:** SIM PIN and PUK, APN (from the
+     provider database, or manual), signal and access technology, roaming,
+     data on and off. eSIM and SMS are not in scope.
+   - **Sound:** devices in and out, per-device and per-app volume, mute.
+   - **Power:** battery and time left, profiles, lid and button actions,
+     suspend, and hibernate only where swap and encryption allow it.
+9. **The launcher overlay.** Super (a tap) or Super+Space opens a centred
+   layer-shell overlay with exclusive keyboard focus. One fuzzy search over
+   apps (ours and Chrome), windows, workspaces, commands (the palette's,
+   from the feature registry), files (the workspace index, then recent
+   files), settings pages, conversations, agents and roles (start a task
+   with a role, jump to a running agent, **Peek**), and a calculator with
+   unit conversion (our own parser, no `eval`, no network). An emoji and
+   special-character picker is one of its modes. Web search is not a
+   result; "Search the web in Chrome" is. Keyboard first; results announced
+   to the screen reader.
+10. **Notifications, OSD, capture and clipboard.**
+    - **Notifications:** our shell is the `org.freedesktop.Notifications`
+      server: toasts, grouping per app, actions, Do Not Disturb and its
+      schedule, and the history in the centre. Agents' events (a turn
+      finished, an approval waiting) appear there. **A notification never
+      answers an approval** (D83.3, D89.7): its only action opens the card in
+      the app.
+    - **OSD** for volume, brightness, microphone mute and the keyboard
+      layout.
+    - **Screenshots and screen recording:** region, window or screen, from
+      the bar, the launcher and Print. Recording uses the ScreenCast portal
+      and PipeWire, so it is M105's Linux path (D85.10): a user action only,
+      its bounds and preview first, then **Attach to chat**.
+    - **Clipboard history** is opt-in, in memory by default, and never keeps
+      an entry marked secret (the `x-kde-passwordManagerHint` type password
+      managers set), an entry from the vault, or one M93's scrubber flags.
+11. **Pointer, icons, fonts, wallpapers and splash** (lane AR), all from our
+    SVG sources and the tokens:
+    - **The pointer theme** in hyprcursor (SVG, scaling, animated busy
+      shapes) and Xcursor (24, 32, 48, 64 and 96 px), every CSS cursor shape,
+      with large and high-contrast sets; the text caret and terminal cursor
+      styled by the same tokens.
+    - **An icon theme** to the freedesktop specification: apps, status
+      (network, Bluetooth, battery and volume levels), places and file types.
+    - **Fonts** under the OFL: a UI face and a monospace face chosen in lane
+      AR, Noto Sans CJK and Noto Color Emoji, so every table renders.
+    - **Wallpapers** (light and dark) and the **Plymouth** splash with the
+      squiggle "m" (two humps, the second smaller, a flick, no loops, bright
+      blue; never a four-point sparkle), which also asks for OS4's disk
+      passphrase where there is no TPM.
+12. **The main app runs on Electron** (research §4).
+    - **Why:** it carries Chromium, the engine of the Chrome default, of VS
+      Code's webviews and of the companion page in Chrome, so every surface
+      renders alike; it has been Wayland-native by default since Electron
+      38; `WebContentsView` gives real browser views for preview tabs and
+      `setDevToolsWebContents` docks DevTools. Tauri's WebKitGTK is another
+      engine with poor Linux performance; Chrome in `--app` mode is missing
+      until the user accepts Google's terms and cannot embed previews.
+    - **A thin main process:** an MHP client of the node over the
+      owner-only socket (D90.13's), a window and preview-view manager, and a
+      sysd client. No model client, credential or tool runs in it.
+    - **The same React app** as VS Code's panel and the companion page,
+      through a fourth `HostBridge`, `src/webview/bridges/desktop.ts`.
+    - **Hardened:** sandboxed renderers, context isolation, no Node in any
+      renderer, the webview's CSP, `@electron/fuses` (no `RunAsNode`, no
+      `NODE_OPTIONS`, no inspector flags, ASAR-only with integrity), a
+      permission handler that refuses camera, microphone, location,
+      notifications and HID unless our UI asked, and app windows that never
+      navigate.
+    - **Kept current:** Electron ships a major every eight weeks with three
+      supported; the desktop's image follows its security releases (OS2's
+      channel).
+13. **The workbench feels like VS Code, arranged as the owner said.**
+    - **Left: our chat and agents panel,** the existing panel unchanged, with
+      the Agent map and board.
+    - **Centre: the editor group,** tabbed (pinned, preview and dirty tabs as
+      VS Code shows them), split right or down, with breadcrumbs, the
+      minimap, and preview tabs (decision 14).
+    - **Right: a collapsible sidebar with an icon rail.** Sections:
+      Explorer, Search, Git, Connections (nodes, paired devices, M100 and
+      M110), Roles and team (M96), Usage (M102), Accounts and vault (M108,
+      M109), Makers and devices (M103), Extensions and MCP (M31, M50),
+      Settings, and Help (`/help`'s reference). Each is the page that
+      already exists for the node's web UI or the companion, mounted in the
+      rail.
+    - **Bottom panel:** Terminal (M110's xterm.js page on the tool host's
+      PTY), Problems, Output (dev servers' logs among them) and **Live peek**
+      (M110's K).
+    - **A status strip** at the foot of the workbench (D84's `StatusStrip`).
+    - **VS Code's keymap** for the editor and workbench, M38's palette,
+      quick open, and a layout that persists per workspace.
+14. **The editor is CodeMirror 6, as on the node** (D90.12; research §5),
+    one editor on every surface. The minimap is `@replit/codemirror-minimap`
+    (MIT), pinned and forked into our tree if it stops matching CodeMirror's
+    releases; diffs are `@codemirror/merge`; code intelligence comes from the
+    LSP broker in M110g. Monaco has a built-in minimap but a 4.2 MB main
+    chunk, workers, and no phone support; two editors would mean two of
+    everything. **Preview tabs** open in the editor group as browser views
+    (decision 23), beside or below the code.
+15. **Windows tile, and workspaces are desktops.**
+    - **Every window fills the space by itself:** dwindle by default, master
+      and scrolling offered, our own Lua layouts later; gaps and ratios from
+      the tokens.
+    - **Floating exceptions:** dialogs with a parent, the portal's file
+      chooser, picture-in-picture, the launcher and every shell surface.
+    - **Workspaces** per monitor, Super+1–9, three-finger swipes, an
+      overview with window thumbnails (Hyprland's toplevel export), Alt+Tab,
+      and a key that moves focus into the bar.
+    - **A workspace can be bound to a project,** so the app's window on it
+      opens that folder.
+    - **Monitors:** arrangement, fractional scaling, refresh, rotation,
+      mirroring and ICC profiles from the settings app, applied live through
+      the port and persisted; workspaces return to a monitor that comes back.
+16. **The system settings app is ours** (React in Electron, over sysd):
+    Appearance, Displays, Sound, Network, Bluetooth, Cellular, Power and
+    sleep, Keyboard (layouts, repeat, shortcuts), Input methods (fcitx5),
+    Mouse and touchpad, Accessibility, Users and sign-in (password, PIN,
+    FIDO2 keys, fingerprint, auto sign-in for kiosks), Updates (OS2's
+    channel, A/B state, roll back, schedule), Date and time, Language and
+    region, Privacy (indicators, per-app camera, microphone and screen
+    access through the portals, clipboard history, the diagnostics export),
+    Storage, Printers, Default apps, Notifications, Workspaces and windows,
+    **Toolchains** (decision 17), **Admin access** (decision 25), Node (D90's
+    settings), and About (versions, slots, licences, SBOM).
+17. **First boot and onboarding** (with M110t's owner; M110t's packs are
+    not re-planned here).
+    - **First boot happens on the screen,** before any account exists:
+      OS3's setup pages, shown locally by the app in a setup mode under the
+      greeter profile, for language, keyboard, accessibility, network, the
+      owner's account and factors, time zone, Google Chrome's terms (OS7)
+      and the update channel. A box installed by our installer (decision 24)
+      has answered most of these already, and first boot asks only what is
+      left.
+    - **After the first sign-in, onboarding** hosts M110t's questionnaire
+      (TQ's pages, the same React components): the twelve use areas
+      (several may be chosen), experience level and strictness; then the
+      pack list, each pack with its tools, versions, licences, download and
+      disk size, and source; nothing installs before **Install**.
+    - **Progress with Cancel:** per pack and overall (bytes, time left,
+      "waiting: machine busy" under M107), and a cancel that leaves no layer
+      half-installed, because each pack is one atomic layer (D90.27).
+    - **Settings › Toolchains:** the installed packs with versions and
+      sizes, updates from the signed index, **Update**, **Remove**, the
+      offline cache's size, the security-update switch D90.27 describes, and
+      **Set up for my work again** (M110t's re-run).
+    - Then a short tour: the launcher, the panels, how agents ask for
+      approval.
+18. **Platform integration** (research §8).
+    - **Portals:** Hyprland's portal for ScreenCast, Screenshot and
+      GlobalShortcuts; our `xdg-desktop-portal-muse` for FileChooser,
+      AppChooser, Settings (color-scheme, contrast, accent, reduced motion),
+      Account, Access, Print, Inhibit and Notification, so every dialog an
+      app opens is ours.
+    - **Default apps:** web links to Chrome (or Chromium, D90.26); text,
+      source, folders, images and PDFs to our app.
+    - **No third-party apps at first:** no Flatpak and no app store (the
+      owner's "just our interface"); toolchains live in sandboxes as packs.
+      XWayland is off by default, a switch turns it on for a legacy tool,
+      and the bar shows when an X11 window is open.
+    - **Printing** through CUPS with driverless IPP Everywhere; no
+      cups-browsed (CVE-2024-47176).
+    - **Removable media** mounted `nosuid,nodev,noexec`, never auto-run;
+      drag and drop between windows; Wayland's clipboard.
+19. **Theme: one token source for everything** (the owner's hard
+    requirement; research §13).
+    - **One file,** `design/tokens/muse.tokens.json` (the W3C Design Tokens
+      format): the semantic names under one `--ms-*` prefix (layout, colour,
+      type, motion, elevation, focus), the Muse palette for hosts without a
+      theme of their own (light, dark, high-contrast dark and light), and the
+      mapping onto VS Code's variables, so VS Code keeps following the user's
+      VS Code theme.
+    - **Generated for every consumer** by `scripts/build-tokens.mjs`: the
+      webview's `tokens.css`, the desktop's and the node's palette CSS, GTK
+      CSS, Rust constants, the Hyprland theme (borders, gaps, rounding,
+      animation curves), the TUI's Ink colours, xterm.js and CodeMirror
+      themes, the pointer and icon builds, Plymouth, the GRUB theme and the
+      wallpapers.
+    - **Light, dark and high contrast** follow the system's choice (the
+      portal's `org.freedesktop.appearance`), with a manual override in
+      Appearance; the node's web UI and the TUI follow it too.
+    - `check:tokens` fails a stale output or any pair below WCAG 2.2 AA in
+      any mode.
+20. **Languages: the same fifteen, the same gate** (the owner's hard
+    requirement; research §10).
+    - Every string of every component (greeter, bar, launcher, settings,
+      notifications, lock screen, installer, app, node web UI, TUI) is a key
+      in `en.ts` and the fourteen tables, read at run time; native Rust code
+      reads the same generated tables through one `ui_text!` macro, and
+      `check:l10n` scans it too, with 0 problems.
+    - Dates, numbers and units through `Intl` (web) and ICU4X (Rust) from the
+      same locale.
+    - **Input methods:** fcitx5 with Pinyin, Chewing, Mozc and Hangul, on
+      input-method-v2 and text-input-v3 (Electron with
+      `--enable-wayland-ime`).
+    - **No right-to-left language is planned** (none of the fifteen is), but
+      every layout is RTL-ready (CSS logical properties, GTK's direction, the
+      bar and workbench mirrored by the locale) and a pseudo-RTL table is
+      screenshot-tested. Adding Arabic or Hebrew is the owner's call
+      (Q-M111).
+    - A font-coverage gate shapes every string with HarfBuzz and fails a
+      missing glyph.
+21. **Accessibility: WCAG 2.2 AA everywhere, enforced** (the owner's hard
+    requirement; research §9).
+    - **Web surfaces** under the existing axe gate (`test:a11y`), in the
+      desktop's light, dark and high-contrast modes and VS Code's four
+      themes, at 320 px and 1920 px.
+    - **Native surfaces** under a new AT-SPI gate: every focusable element
+      has a name, a role and its states; every action is reachable by
+      keyboard; focus is visible; a scripted Orca run speaks the expected
+      lines through a logging speech module.
+    - **Orca's keyboard on Wayland:** lane AX implements
+      `org.freedesktop.a11y.KeyboardMonitor` for Hyprland as an upstream pull
+      request and ships it as our pinned plugin until a release carries it;
+      it is served only while the screen reader is on, and only to Orca.
+    - **Also:** full keyboard operation, reduced motion from one setting
+      (CSS, GTK and Hyprland's animations), contrast, text scaling to 200%,
+      the pointer's size, Hyprland's zoom as the magnifier, sticky, slow and
+      bounce keys, colour filters (a screen shader), an on-screen keyboard,
+      and Orca's key chord from the boot menu on.
+22. **Observability, kept on the box** (the owner's hard requirement;
+    research §11).
+    - **OpenTelemetry metrics, logs and traces** from the shell, the
+      compositor's health (IPC latency, frame pacing, restarts), the app
+      runtime and the node's services.
+    - **Local by default:** an OTLP receiver in the node service on an
+      owner-only socket, with bounded ring files and rollups; an on-box
+      **Diagnostics** page in the app and the node's web UI; export to the
+      user's own collector only after they set it, over TLS. Nothing leaves
+      the machine unless the user opts in (D90.19).
+    - **Crashes stay local:** systemd-coredump with caps, Electron's crash
+      reporter with no upload, Rust panic records; each scrubbed (M93's
+      second scrub) before it is shown.
+    - **Health and readiness:** `/livez` and `/readyz` gain the desktop's
+      components (decision 7).
+    - **Diagnostics bundle:** M93's **Report a problem**, which the user
+      reviews file by file before sharing.
+23. **Web development is a pleasure** (the owner; research §12). One CDP
+    engine (`src/core/webdev/**`) drives every preview target; the toolbars
+    are the same React components everywhere.
+    - **Live preview.** The project's dev server is detected (Vite, Next.js,
+      Astro, SvelteKit, Angular, Nuxt, React Router, Storybook, Ladle, or
+      plain static files) and started on the user's click (or an agent's,
+      under the mode's approvals) as background work in the tool host, on a
+      free port, its log in Output. HMR is the framework's own; plain static
+      files get our server with live reload.
+    - **Preview tabs in the centre,** split beside or below the editor, with
+      address, back, forward, reload, **Open in Chrome**, and links to other
+      sites sent to Chrome.
+    - **View modes:** device presets (phone, tablet, laptop, desktop,
+      custom), rotate, zoom, device-pixel ratio, touch; a **multi-viewport
+      grid** of several sizes at once, with scrolling, navigation and
+      clicks kept in step.
+    - **Inspection:** Chrome DevTools in the preview (Electron's own, docked;
+      elsewhere `chrome-devtools-frontend` pinned to Chrome for Testing's
+      revision, served locally); **inspect an element to jump to its
+      source** (framework dev metadata, CSS source maps, then a text search),
+      hover highlights, and **Add element to chat**.
+    - **Checks:** emulation of `prefers-color-scheme`, reduced motion,
+      forced colours, contrast preference, vision deficiencies, locale, time
+      zone, network and CPU throttling; **axe** and **Lighthouse** from the
+      toolbar and by agents; screenshots (viewport, area, full page), a
+      visual diff against a baseline, a colour picker and a contrast
+      checker.
+    - **Components:** Storybook and Ladle detected and their stories listed;
+      a component playground (React on Vite first) for projects without
+      either.
+    - **Sharing:** a QR to open the preview on a phone on the LAN through
+      the node's authenticated proxy (the dev server stays on loopback; no
+      port opens), and a remote-review link only through M110d's routes and
+      M110e's certificates, with expiry, revocation, a viewer count and the
+      audit. Never a third-party tunnel by default.
+    - **Agents use the same tools** (preview, DevTools over CDP, audits,
+      screenshots) to see and check their own UI work, always in Chrome for
+      Testing in the sandbox with a fresh profile (D90.26, M81). They never
+      drive the user's preview tab or the user's Chrome. Lighthouse always
+      runs in a fresh Chrome for Testing, for clean scores.
+    - **The preview never shares an origin with our UI;** in the node's web
+      UI and the companion, a proxied dev server has its own origin and a
+      sandboxed frame.
+    - **Every editor:** the desktop through `WebContentsView`; JetBrains
+      through JCEF and Visual Studio through WebView2 (both Chromium, with
+      CDP); the node's web UI, the companion page and the VS Code family
+      through a Chrome for Testing screencast with input forwarded. VS
+      Code's own integrated browser (experimental since 1.109) has no
+      documented extension API; lane WD0 records what VS Code can and cannot
+      embed, and the registry's rows say so.
+24. **The installer is ours, and it does everything** (the owner; research
+    §18).
+    - **The medium:** one image per target (x86-64 and ARM64 UEFI ISOs,
+      hybrid for flash drives; the Pi 4 and 5 images), live and installer in
+      one. GRUB's gfxmenu draws our themed boot menu (systemd-boot has no
+      themes): **Try Muse Desktop (live)**, **Install Muse Desktop**, **Safe
+      graphics**, **Recovery**, **Firmware settings**; ARM64 firmware that
+      cannot draw it gets the same entries as text. The Pi, which has no
+      firmware menu, boots into our graphical chooser.
+    - **The flow,** a React app on the live session, each step easy by
+      default with an **Advanced** panel: language; keyboard;
+      accessibility; network (Ethernet, Wi-Fi, cellular, captive portals);
+      disk (the whole disk by default, manual partitioning in Advanced, other
+      systems detected and named, BitLocker and FileVault warned about, never
+      resized); encryption (TPM-sealed by default, a passphrase otherwise, or
+      none by explicit choice); the account (full name, user name, a password
+      with a strength meter and a local breached-password check; FIDO2 keys
+      and passkeys after first boot); host name; time zone; M110t's
+      questionnaire with pack sizes; optional orchestrator pairing (M110a);
+      admin access for agents (decision 25); a summary; progress; reboot.
+    - **The gallery** on the progress step: real screenshots (chat, the
+      editor with a preview, the Agent map and Live peek, Connections, the
+      usage page, Help) with captions, and tips; a new slide every 8 seconds,
+      paused on hover or focus, previous, next and dots, a polite live
+      caption that never takes focus, a cut instead of a crossfade under
+      reduced motion; in all fifteen languages and both themes; generated by
+      the screenshot harness, with a test that fails on a missing or stale
+      shot. The same component serves M110os's first-boot web setup.
+    - **The backend, `muse-installd`** (Rust, root, D-Bus, live medium
+      only): systemd-repart with OS1's layouts, OS2's RAUC slots, the boot
+      path (EFI entries, or the Pi's `autoboot.txt`), OS4's encryption, and
+      the first-boot configuration (the account as a yescrypt hash, host
+      name, time zone, the network joined in the installer, `profile.json`,
+      the packs, the update channel, the admin mode).
+    - **Downloads during the install:** the chosen packs and the newest OS
+      bundle, in parallel with the disk work, resumable, each verified by
+      signature and digest, paused on a metered link unless the user says
+      go; first boot then needs no download. An offline install still
+      finishes, and first boot offers what is missing.
+    - **Rollback:** nothing on a disk changes before the summary is
+      confirmed; afterwards each step is journalled, and a failure restores
+      the saved partition table or marks the disk "incomplete install" with
+      **Try again** and **Recovery**, never a half-booting system.
+    - **Automation:** an optional unattended file (YAML or JSON, versioned,
+      signed with the user's own key, no plaintext password) for power users
+      and fleets; PXE and HTTP boot later.
+    - **The headless installer ISO** (D90.24) uses the same daemon and pages,
+      over the LAN in the browser.
+25. **Admin access for the orchestration agent** (the owner: "passwordless
+    sudo or some type of key"; research §19).
+    - **`muse-agent`,** a system account with no password, no login shell and
+      no SSH, whose only privilege is calling **`muse-admind`**, a root D-Bus
+      helper with a typed action catalogue (network, firewall, services,
+      users, mounts, time, add-ons, packs, updates and rollback, power, logs,
+      and `run`: a root argv with a working folder and a timeout). The node
+      service starts the agent's admin client as `muse-agent`; no sandbox,
+      tool or terminal can.
+    - **M109's modes govern it:** **Always allow** by default (the owner's
+      choice), or Ask every time, an allowlist (actions and argv digests),
+      or Off. Every request carries the broker's binding (D89.7), signed by
+      an Ed25519 key held in the vault's hardware slot (TPM-backed), which
+      the helper verifies.
+    - **In every mode:** a tainted request asks (D89.7: the prompt-injection
+      path to root); the **never-allowed list** is refused (wiping or
+      repartitioning a disk outside the installer; disabling or truncating
+      the audit; changing the helper, its policy, polkit, sudoers or PAM;
+      removing the recovery entry, a slot or the update keys; Secure Boot
+      keys or the TPM policy; turning off the screen lock, Stop or Lock
+      admin; reading the vault's or the Secret Service's files; granting
+      admin to any account; opening the firewall on a public interface); and
+      the **rate limits** hold (`ADMIN_ACTIONS_PER_MINUTE` 20,
+      `ADMIN_ACTIONS_PER_HOUR` 200, fewer for service stops and user
+      changes), beyond which it asks.
+    - **Audited and revocable:** an append-only, hash-chained audit written
+      by the helper, mirrored to a paired device of the owner's, shown in
+      **Settings › Admin access** and on the Agent map; **Stop everything**
+      ends running admin actions; **Lock admin** (bar, lock screen, Settings,
+      and from another paired device) revokes the mode until the owner's
+      factor turns it back on.
+    - **Plain NOPASSWD sudo** is an explicit opt-in under Advanced, after a
+      page that says it removes the never-allowed list, the rate limits, the
+      binding and the taint ask, and that root can erase sudo's log.
+    - **Bounded by the image:** `/usr` is read-only under dm-verity and
+      changes only by signed bundles, so root's lasting changes are in `/etc`
+      and `/var`, which roll back and reset.
+    - Lane 0's threat model has the full table (research §19): prompt
+      injection, a sandbox reaching the helper, forged or replayed requests,
+      persistence, hidden tracks, a lost box.
+26. **Security.**
+    - Apps are sandboxed (Electron's renderer sandbox, Chrome's own; preview
+      views in their own partition with no preload privileges); AppArmor
+      profiles for the app and Chrome; every unit under the `systemd-analyze
+security` threshold where its job allows.
+    - The vault unlocks with the session (decision 6) and its presence items
+      ask in our own prompt; the screen locks on idle; no telemetry; updates
+      signed (OS2, OS7, the packs' index).
+    - Every socket is owner-only and checked by the peer's credentials;
+      polkit actions name the change; Hyprland's permissions keep screen
+      capture, new keyboards and plugins to our own processes.
+    - Threat-model rows of lane 0: a person at the keyboard (lock bypass, VT
+      switch, recovery abuse), hostile web content in a preview, a spoofed
+      shell surface or prompt, screen and clipboard snooping, the keyboard
+      monitor as a keylogger, crash dumps holding secrets, telemetry leaving,
+      the installer's medium and unattended file, and the agent's root.
+27. **Physical safety** (D83) when devices are attached: **Stop machine** is
+    in the bar, on the lock screen and in the greeter, and needs no
+    sign-in; machine approvals appear only in the app's own cards, never in
+    a notification or the launcher; D83.8's unattended refusals hold for
+    `muse-agent`'s admin actions too.
+28. **Performance targets** (measured in lanes QA and HW before shipping;
+    M111's performance section has the figures): boot to greeter, greeter
+    to a usable workbench, the session's memory on a 4 GB Pi 4 (the
+    smallest supported desktop; a 2 GB Pi 4 is a headless node only),
+    animation frame rates, launcher latency, and the installer's time on
+    each matrix machine.
+29. **Name, and what waits.**
+    - **Name:** "Muse Desktop" in the docs; in public "Muse Node OS
+      (Unofficial), desktop edition" (rule 11), until the owner names it
+      (Q-M111).
+    - **Waits:** several people per box (M110h); third-party apps and
+      Flatpak (Q-M111); right-to-left languages (Q-M111); our own
+      compositor; PXE and HTTP boot; eSIM and SMS.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
@@ -9552,6 +10146,30 @@ D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
   8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
      "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
      the images.
+
+- **Q-M111 — What Muse Desktop needs from the owner (2026-10-05).** Every lane
+  builds and certifies on fakes, QEMU and the rigs meanwhile; nothing here
+  blocks lane 0.
+  1. **Admin access for agents.** **Default:** Always allow, as he asked,
+     with D89.7's taint rule kept (a request that followed a web page, an
+     outside MCP result or another author's issue still asks), the
+     never-allowed list, the rate limits and Lock admin (D91.25). Plain
+     NOPASSWD sudo is offered only as an explicit choice. He may confirm or
+     drop the taint ask for admin actions.
+  2. **The name.** **Default:** "Muse Desktop" in the docs and "Muse Node OS
+     (Unofficial), desktop edition" in public.
+  3. **Right-to-left languages.** None of the fifteen is. **Default:** none
+     added; every layout RTL-ready and tested in a pseudo-RTL table.
+  4. **Third-party apps.** **Default:** none at first: no Flatpak, no app
+     store; XWayland off by default with a switch.
+  5. **Hardware for the desktop matrix,** beyond Q-M110 item 5's: a laptop
+     (battery, lid, backlight, Wi-Fi, Bluetooth, touchpad), a USB or M.2 LTE
+     modem with a SIM, a FIDO2 security key, a touch screen, a HiDPI monitor
+     and a second monitor. **Default:** QEMU and the rigs, each missing
+     machine named as waiting.
+  6. **The mockups.** **Default:** the lead's design artifact, shown to him
+     before lanes SH1, SH2, WB and ST start; his changes land in lane 0's
+     component contracts.
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
@@ -22644,6 +23262,16 @@ model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses
 it: D80's security exception to the enhancements-on ruling, applied again.
 
+**Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
+graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
+(accessibility) and OB (observability) also cover this milestone's web UI
+and TUI, as the owner's hard requirements (D91.19–D91.22): the one token
+source with light, dark and high contrast; the fifteen tables under
+`check:l10n`; WCAG 2.2 AA under the axe gate, and the TUI's screen-reader
+mode; OpenTelemetry kept on the box. M111's web-development tools (D91.23)
+serve the node's web UI, its gallery (D91.24) serves OS3's first-boot page,
+and the headless installer ISO uses M111i's daemon and pages.
+
 - **Goal.** A person installs a node on a PC at home, in a container, a VM, a
   Proxmox LXC, a Kubernetes cluster, a rented server or a Pi, or boots Muse
   Node OS on bare x86-64 or ARM64. It works alone, as a worker for their
@@ -23112,6 +23740,477 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         and a rented server qualified, or named as waiting
   - [ ] Research §4.10's terms checks done and dated before each train
   - [ ] Editor rows recorded; budgets measured; the full gate green; no
+        live or paid call without CLAUDE.md's count first
+
+### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-10-05: planned, documentation only.** Nothing is implemented,
+and no lane is launched by this record. The research is
+`docs/research/muse-desktop-2026-10-05.md`. Lane 0's threat model is reviewed
+and accepted by Codex and Claude before any greeter, lock-screen, portal,
+admin-helper, installer or preview-sharing code is written. No model call is
+needed anywhere in this milestone; the tests run on fakes, QEMU and the rigs.
+
+- **Goal.** A person writes Muse Desktop to a flash drive, boots it, tries it
+  live or installs it with a themed installer that also fetches their
+  toolchains and the newest updates, and from then on the machine boots
+  straight into our interface: a branded greeter, a menu bar that runs the
+  machine's Wi-Fi, Bluetooth, cellular, sound and power, a launcher overlay,
+  tiling workspaces, and a VS Code-like workbench with our chat on the left,
+  tabbed editors and live web previews in the centre, and a collapsible
+  sidebar on the right. Nothing in it can be quit to a bare system, a broken
+  update rolls back by itself, and every part is themed, translated,
+  accessible and observable on the box.
+- **Depends on** (each phase's row in the roadmap names its own):
+  - **M110a0 (D90.23):** the node service and tool host (lane N), the web
+    pages for files, editor, git, terminal and dashboard (U1, U2), the TUI
+    (T) and the pinned sign-in (A1). M111a and M111b build on fakes until
+    these merge.
+  - **M110os (D90.24):** OS1's mkosi recipes and layouts, OS2's RAUC slots
+    and trial boot, OS3's first-boot pages, OS4's encryption and hardening,
+    OS6's CI and OS7's Chrome step. M111os and M111i start on OS1.
+  - **M110t (D90.27):** TQ's questionnaire pages and TP1's signed pack index,
+    for onboarding (lane ON) and the installer's downloads (lane ID).
+  - **M104a (D84):** lane B's `panel` mode, lane C's companion server and
+    lane D's bridges and fallbacks; MHP v1 frozen. **Hook proposed to M104
+    lane D:** its planned `--muse-*` names become `--ms-*`, generated from
+    lane TH's source (D91.2).
+  - **M81:** the verified Chrome for Testing store, for agents' previews and
+    Lighthouse (lanes WG and WA).
+  - **M109 (D89):** the broker, its modes and the hardware slot, for lane IG;
+    **M93** for the diagnostics bundle; **M105** for screen recordings;
+    **M107** for the meter and governed installs; **M96, M96c, M102, M108,
+    M103, M100** and **M110b's K** for the sidebar's agent sections (SB2).
+- **Scope.** D91 entire, in seven phases; strings in all 14 tables; README
+  ("Muse Desktop"), the user guide under `docs/desktop/`, SECURITY, PRIVACY,
+  CHANGELOG, AGENTS.md, `docs/ide-compatibility/**` (the Desk column and the
+  web-development rows), registry rows, certification.
+- **Configuration.**
+  - `desktop.json` in the person's configuration folder: layout, workspaces
+    bound to projects, bar items, the appearance override. Not secret,
+    zod-validated, written only by the settings app.
+  - System settings live in their own services (NetworkManager, BlueZ,
+    logind and the rest), changed only through `muse-sysd`.
+  - `/etc/muse/admin.json`: the admin mode and allowlist, root-owned,
+    written only by `muse-admind` after the owner's factor.
+  - Constants: `DESKTOP_*`, `ADMIN_*`, `INSTALLER_*` and `WEBDEV_*` in
+    `src/shared/constants.ts`; the Rust crates read the generated copy.
+
+**Roadmap.** Each phase lands on its own integration branch,
+`feature/m111<phase>`, under M87's region rules. Estimates are lane-hours of
+implementation, review and certification at the fleet's usual split (Muse
+implements, Codex reviews by class, the lead integrates). The security lanes
+(SS, PT, IG, ID, WN) go to Codex or Claude.
+
+| Phase                       | Delivers                                                                                                                                                                                                                                     | Lanes                               | Depends on                                                                                                  | Estimate         | Train |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------- | ----- |
+| **M111a0** Foundations      | Contracts, threat model, strings and spikes; the token source and its generators; the shared language, accessibility and observability layers, also for M110's web UI and TUI; the art; the headless test rig                                | 0, TH, IN, AX, OB, AR, QA           | none (M104 lane D's tokens coordinated)                                                                     | 7 × 47 h ≈ 330 h | 2     |
+| **M111a** Session and shell | Hyprland pinned and configured; greetd, the greeter, the lock screen, supervision, safe session and recovery; the bar, quick settings, launcher, notifications, OSD, capture, clipboard; the system bridge; portals and platform integration | CP, SS, SH1, SH2, SY, PT            | lane 0; built and tested on a Debian 13 VM and the rigs before any image                                    | 6 × 54 h ≈ 325 h | 2     |
+| **M111b** Workbench         | The Electron app and desktop bridge; the VS Code-like layout; CodeMirror's editor group with the minimap; the sidebar's core sections; the bottom panel; the settings app; onboarding with M110t's questionnaire                             | WB, ED, SB1, BP, ST1, ST2, ON       | lane 0 on fakes; wired on M104a (B, C, D) and M110a0 (N, U1, U2); ON on M110t's TQ                          | 7 × 43 h ≈ 300 h | 2     |
+| **M111w** Web development   | Dev servers, preview tabs and split views, view modes and the multi-viewport grid, DevTools and inspect-to-source, emulation, audits, screenshots and visual diff, components, phone and remote sharing, the agents' tools, every editor     | WD0, WS, WP, WV, WI, WA, WC, WN, WG | WB and ED's preview manager; M81 (WG, WA's Lighthouse); M104a C (other editors); M110a0 A1 and M110d/e (WN) | 9 × 37 h ≈ 330 h | 3     |
+| **M111i** Installer         | The themed boot menu, the live session's installer flow and its gallery, `muse-installd`, downloads during the install, rollback, the unattended file; the agent's admin access; installer CI                                                | IB, IU, ID, IA, IG, IS, IQ          | M110os OS1, OS2, OS4; M110t TP1 (downloads); M109 (IG); QA's harness (IS)                                   | 7 × 46 h ≈ 320 h | 3     |
+| **M111os** Desktop images   | The `desktop` profile on OS1's recipes for x86-64, ARM64 UEFI and the Pi 4 and 5; Plymouth and the boot path; desktop readiness in OS2's trial boot; the hardware matrix                                                                     | IM, HW                              | M110os OS1, OS2, OS4, OS6, OS7; M111a and M111b                                                             | 2 × 44 h ≈ 90 h  | 3     |
+| **M111c** Agent sections    | Connections, Roles and team, Usage, Accounts and vault, Makers and devices in the sidebar; Live peek in the bottom panel                                                                                                                     | SB2                                 | M96, M96c, M102, M108, M109, M103, M100, M110b (K), each as it merges                                       | 1 × 48 h ≈ 50 h  | 3–4   |
+| Throughout                  | Docs and certification                                                                                                                                                                                                                       | J                                   | —                                                                                                           | ≈ 35 h           | —     |
+
+- **Per lane (hours):** 0 48, TH 40, IN 40, AX 64, OB 48, AR 44, QA 48; CP
+  48, SS 64, SH1 44, SH2 48, SY 72, PT 48; WB 60, ED 52, SB1 40, BP 28, ST1
+  44, ST2 44, ON 32; WD0 16, WS 40, WP 48, WV 36, WI 44, WA 48, WC 36, WN 28,
+  WG 36; IB 32, IU 64, ID 72, IA 28, IG 56, IS 24, IQ 44; IM 56, HW 32; SB2
+  48; J 36.
+- **Total:** about 1,780 lane-hours. **Critical path:** lane 0 → M111a and
+  M111b side by side → (M110os OS1 and OS2) → M111os's IM and M111i's ID →
+  lane HW. M110a0 and M110os are M110's own critical path; nothing in M111a
+  or M111b waits for them, since both run as packages on a Debian 13 VM with
+  Hyprland from backports.
+- **Release sequence** (versions stay below 1.0; each phase enters D60's
+  ladder at Preview and moves only on evidence):
+  1. **Train 2, beside M110os:** M111a0, M111a and M111b as packages on Muse
+     Node OS's images, Preview: the desktop on a machine M110os's installer
+     set up.
+  2. **Train 3:** M111os's desktop images, M111i's installer, M111w, and the
+     agent sections that have merged.
+  3. **Later trains:** the remaining agent sections as their milestones
+     merge; an own compositor or PXE only on a new plan.
+
+**Waves.** The owner wants to build in parallel waves right after planning:
+
+1. **Wave 0 (days 0–2):** lane 0 and its spikes, by the lead.
+2. **Wave 1 (as soon as lane 0's contracts freeze):** TH, IN, AX, OB, AR,
+   QA, CP, SY, WB, ED (ten lanes; nothing waits for M110).
+3. **Wave 2 (as wave 1's tokens, harness and port land):** SS, SH1, SH2, PT,
+   SB1, BP, ST1, ST2, WD0, WS, WV, IU, IS, IA.
+4. **Wave 3 (as dependencies merge):** ON (M110t's TQ), WP, WI, WA, WC (on
+   WB and ED), WG (M81), WN (M110a0's A1, then M110d and e), IB, ID, IG and
+   IQ (M110os OS1, OS2 and OS4; M109 for IG), IM, HW, SB2.
+
+**Things the owner may be missing** (research §16 has thirty, with reasons;
+these change the plan most):
+
+- A screen reader on Wayland needs the compositor's help, and Hyprland has
+  none for Orca's keys (lane AX).
+- Chrome's saved passwords need a Secret Service that a FIDO2 or fingerprint
+  sign-in can unlock (oo7, lane PT).
+- A crash loop or a bad update must never brick the box: the safe session,
+  the recovery console, and a trial boot that waits for the desktop (lanes
+  SS and IM).
+- Captive portals, enterprise Wi-Fi and metered links (lane SY).
+- Administrator prompts must be ours (the polkit agent, lane SH2).
+- First boot happens on the screen, before any account exists, and a blind
+  user needs Orca from the boot menu on (lanes ON, IB and AX).
+- **Stop machine** must work from the lock screen when a maker device is
+  attached, and no notification may answer an approval (D83, lane SH2).
+- Dual boot: BitLocker asks for its recovery key after the boot order
+  changes, so the installer warns first and never resizes it (lane ID).
+- Root for an agent is the plan's largest single risk; the taint ask, the
+  never-allowed list, the audit and Lock admin keep "Always allow" bounded
+  (lane IG).
+- Electron ships a major every eight weeks; the desktop's update channel must
+  keep pace (lane IM).
+- A 2 GB Pi 4 cannot hold the desktop; it stays a headless node.
+- Trusted HTTPS on a phone, for the QR preview, needs the node's certificate
+  paired or an ACME certificate (lane WN).
+
+**Lanes and file ownership.** Lane 0 comes first; nothing in another lane
+merges before its contracts freeze.
+
+**M111a0's lanes (foundations):**
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Files it owns                                                                                                                                                                                                                             | Its regions in shared files                                                                                                                                                                                                              | Starts         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 0 Contracts, threat model, strings (lead) | The design spec and the mockup artifact (research §13.5); the design tokens' first version (`design/tokens/muse.tokens.json`: the `--ms-*` names, the four Muse palettes, type, spacing, motion and focus), which TH then generates from; component contracts for every shell surface, workbench part, settings page, installer step and the gallery; the `CompositorPort`, the sysd API, the desktop bridge, the webdev engine, the installer's and the admin helper's D-Bus interfaces, all in zod; MHP's desktop methods; every string; the threat model (D91.26 and research §19), reviewed before code; the fakes (a fake compositor, D-Bus mocks, a fake FIDO2 authenticator, a fake pack index, a fake OS bundle); spikes S1 Hyprland on a Pi 4 and Pi 5 with the light profile, S2 Orca on GTK and Quickshell layer surfaces, S3 Electron's IME under fcitx5, S4 Hyprland headless under llvmpipe in CI, S5 Lighthouse on M81's headless shell | new `src/shared/desktop/**` (`compositor.ts`, `sysd.ts`, `bridge.ts`, `installer.ts`, `admin.ts`), `src/shared/webdev.ts`, `docs/certification/m111-threat-model.md`, `docs/certification/m111-spikes.md`, `test/unit/helpers/desktop/**` | `constants.ts` (`DESKTOP_*`, `ADMIN_*`, `INSTALLER_*`, `WEBDEV_*`); `en.ts` and the 14 `l10n/ui.*.json`; `src/shared/hostApi/**` (desktop methods, with M104 lane 0); `src/shared/hostApi/features.ts` (the Desk column and webdev rows) | day 0          |
+| TH Theme (shared)                         | D91.19: lane 0's token source kept and grown; `build-tokens.mjs` for every consumer (webview `tokens.css`, desktop and node palette CSS, GTK CSS, Rust, Hyprland Lua, Ink, xterm.js, CodeMirror, pointer and icon palettes, Plymouth, GRUB, wallpapers); the light, dark and high-contrast palettes; following the portal's appearance with the override; `--ms-radius`'s two values reconciled; `check:tokens` with the contrast pairs; the node's web UI and the TUI moved onto it (with M110 U1, U2 and T's owners)                                                                                                                                                                                                                                                                                                                                                                                                                                 | new `design/tokens/**`, `scripts/build-tokens.mjs`, `scripts/check-tokens.mjs`, `desktop/crates/tokens/**`                                                                                                                                | `src/webview/tokens.css` (with M104 lane D's owner); `src/webview/styles.css` and `whatsNew.css` (variables only); M110's `src/webview/node/**` styles and `src/runtime/tui/**` colours (with their owners); `package.json` scripts      | after 0        |
+| IN Languages (shared)                     | D91.20: the generated tables for Rust (`ui_text!`), ICU4X formatting; `check:l10n` extended to Rust sources and every new surface; the pseudo-RTL table and mirrored layouts; the stylelint logical-properties rule; the font-coverage gate; fcitx5 and its engines in the image; Electron's IME flags captured; the node's web UI and TUI under the same checks                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | new `desktop/crates/l10n/**`, `scripts/check-font-coverage.mjs`, `test/desktop/l10n/**`                                                                                                                                                   | `scripts/check-l10n.mjs`; `scripts/pseudo-l10n.mjs` (pseudo-RTL); `.stylelintrc*` (the logical-properties rule); `os/desktop/` package list (with IM)                                                                                    | after 0        |
+| AX Accessibility (shared)                 | D91.21: `test:a11y` extended to the desktop's three modes and every new web surface; the AT-SPI walker gate; the Orca smoke run with a logging speech module; the KeyboardMonitor for Hyprland (upstream pull request and the pinned plugin); reduced motion, text scaling, pointer size, magnifier, sticky, slow and bounce keys, colour filters; the on-screen keyboard after S2                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | new `test/desktop/atspi/**`, `scripts/atspi-check.mjs`, `desktop/hyprland-plugin/keyboard-monitor/**`, `desktop/crates/osk/**`                                                                                                            | `scripts/a11y.mjs` (desktop scenes and modes); the harness's scene list; the Hyprland config generator (with CP)                                                                                                                         | after 0        |
+| OB Observability (shared)                 | D91.22: OpenTelemetry wiring for Rust, Electron and the runtime; the local OTLP receiver, ring store and rollups; the Diagnostics page (app and node web UI); opt-in export over TLS; local crash capture and its scrub; the desktop's readiness components; M93's bundle with the desktop's files (with M110 lane O's owner)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | new `src/core/o11y/**`, `src/runtime/o11y/**`, `src/webview/diagnostics/**`, `desktop/crates/otel/**`                                                                                                                                     | `src/runtime/node/health.ts` (with N's owner); M93's recorder policy and report builder (with M93's owner); M110 lane O's exporter (with its owner)                                                                                      | after 0        |
+| AR Art                                    | D91.11: the pointer theme (hyprcursor and Xcursor, every shape and size, large and high-contrast), the icon theme, the fonts and fontconfig, wallpapers, the Plymouth theme, the GRUB theme, the greeter's art; all from SVG sources and the tokens                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | new `design/art/**`, `scripts/build-cursors.mjs`, `scripts/build-icons.mjs`, `os/desktop/plymouth/**`, `os/desktop/grub-theme/**`                                                                                                         | `media/` (the mark's source, read only); the notices script (font licences)                                                                                                                                                              | after 0 and TH |
+| QA Test rig                               | The headless Hyprland harness for CI (aquamarine's headless backend, Mesa llvmpipe, amd64 and arm64 runners); the Rust virtual-input driver; screenshot goldens per mode and language; D-Bus mocks (python-dbusmock, test-only, rule 9); Playwright's Electron driver; QEMU desktop boot and install runners with swtpm and two virtual outputs; desktop harness scenes for the screenshot harness                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | new `test/desktop/harness/**`, `scripts/desktop-harness.mjs`, `scripts/qemu-desktop-test.mjs`, `.github/workflows/desktop.yml`                                                                                                            | `scripts/lib/harnessServer.mjs` (desktop scenes); `scripts/readme-shots.mjs` (desktop shots); `.github/workflows/ci.yml` (the desktop job, with the workflow owner)                                                                      | after 0        |
+
+**M111a's lanes (session and shell):**
+
+| Lane                       | Items                                                                                                                                                                                                                                                                                                                                                                                                  | Files it owns                                                                                                                     | Its regions in shared files                                                                                                         | Starts                   |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| CP Compositor and windows  | D91.3 and 15: the Hyprland pin; the generated Lua config (layouts, gaps, animations from the tokens, rules for floating exceptions, gestures, monitors, permissions, its own UI off, XWayland off); `--verify-config` in CI; the `CompositorPort` and its Hyprland adapter over both sockets; workspaces bound to projects; the overview and Alt+Tab; the light profile                                | new `desktop/crates/compositor/**`, `os/desktop/hyprland/**`                                                                      | the token generator's Hyprland output (with TH)                                                                                     | after 0                  |
+| SS Session and recovery    | D91.6 and 7: greetd's config; the GTK greeter (users, factors, accessibility, languages, power, Recovery); the text greeter on the TUI's Ink code; PAM stacks (password, PIN, `pam_u2f`, fprintd, oo7's module); the lock screen; idle and sleep inhibitors; the systemd user units and their limits; the session launcher; the safe session; `recovery.target` and its console; VT and SysRq lockdown | new `desktop/crates/{greeter,lock,session}/**`, `os/desktop/{greetd,pam,systemd-user,recovery}/**`, `src/runtime/tui/recovery/**` | `src/runtime/tui/**` (the greeter and recovery views, with T's owner); OS2's trial-boot check (desktop readiness, with OS2's owner) | after 0, TH and CP       |
+| SH1 Bar and quick settings | D91.8: the bar, workspaces, the active app, clock and calendar, every status item and popover (network, Bluetooth, cellular, VPN, sound, power, brightness, meter, node status, agents, privacy indicators, input method), quick settings with **Stop everything**                                                                                                                                     | new `desktop/crates/shell/bar/**`                                                                                                 | the shell's process entry (with SH2)                                                                                                | after 0, TH and SY's API |
+| SH2 Overlays and services  | D91.9 and 10: the launcher and its providers (calculator, emoji); the notification server, toasts and centre; OSD; the polkit agent's prompt; NetworkManager's and BlueZ's prompts (drawn here, owned by SY); screenshots and recording (M105's path); clipboard history; the not-responding sheet                                                                                                     | new `desktop/crates/shell/{launcher,notify,osd,prompts,capture,clipboard}/**`                                                     | M105's Linux recorder (with its owner)                                                                                              | after 0, TH and SY's API |
+| SY System bridge           | D91.5: `muse-sysd` with NetworkManager (and the secret agent), BlueZ (and the pairing agent, PAN), ModemManager, UPower, power-profiles-daemon, logind (brightness, sleep, inhibitors), PipeWire, locale1, timedate1, hostname1, udisks2, CUPS, fwupd, polkit's agent registration, DDC/CI; its socket, schemas and Rust types                                                                         | new `desktop/crates/sysd/**`, `os/desktop/polkit/**`                                                                              | —                                                                                                                                   | after 0                  |
+| PT Portals and platform    | D91.18: `xdg-desktop-portal-muse` (FileChooser, AppChooser, Settings, Account, Access, Print, Inhibit, Notification); `portals.conf`; default apps; oo7-daemon and its prompts; removable media; printing without cups-browsed; the XWayland switch and indicator; AppArmor profiles for the app and Chrome                                                                                            | new `desktop/crates/portal/**`, `os/desktop/{portals,mime,apparmor}/**`                                                           | OS7's default-browser setting (with OS7's owner)                                                                                    | after 0 and SY           |
+
+**M111b's lanes (workbench):**
+
+| Lane                       | Items                                                                                                                                                                                                                                                                                                                                   | Files it owns                                                                                                       | Its regions in shared files                                                                                                                                        | Starts                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
+| WB Workbench shell         | D91.12 and 13: the Electron app (main, preload, fuses, permission handler, window manager, single instance, one window per workspace); `bridges/desktop.ts`; the layout (left panel, centre group, right rail and sidebar, bottom panel, status strip); VS Code's keymap; quick open; layout persistence; the setup mode for first boot | new `desktop/app/**`, `src/webview/desktop/**`, `src/webview/bridges/desktop.ts`, `scripts/package-desktop-app.mjs` | `src/webview/main.tsx` (the `desktop` surface, with M104 lane D's owner); `scripts/build.mjs` (the desktop entries); `scripts/check-bundle-size.mjs` (its budgets) | after 0, on MHP fakes                    |
+| ED Editor group            | D91.14: CodeMirror's editor group shared by the node's web UI and the desktop (tabs, preview tabs, split, breadcrumbs, find and replace, language packs, the minimap, diffs); the preview tab's slot in the group                                                                                                                       | new `src/webview/editor/**` (moved from `src/webview/node/editor/**` with U1's owner)                               | M110 U1's pages (with U1's owner)                                                                                                                                  | after 0                                  |
+| SB1 Sidebar, core sections | D91.13: the icon rail; Explorer, Search, Git, Extensions and MCP (M31, M50's managers), Settings, Help; collapse and widths                                                                                                                                                                                                             | new `src/webview/desktop/sidebar/**`                                                                                | M110 U1's files and git pages (mounted, with U1's owner); M104 lane D's manager pages                                                                              | after WB                                 |
+| BP Bottom panel            | D91.13: Terminal (M110 U2's page), Problems (M68's diagnostics), Output (dev servers' and tasks' logs), the panel's tabs and sizes                                                                                                                                                                                                      | new `src/webview/desktop/panel/**`                                                                                  | M110 U2's terminal page (with U2's owner)                                                                                                                          | after WB                                 |
+| ST1 Settings, system pages | D91.16: Appearance, Displays, Sound, Network, Bluetooth, Cellular, Power and sleep, Printers, Storage, Date and time, Language and region                                                                                                                                                                                               | new `src/webview/settings/system/**`                                                                                | the settings app's shell (with ST2)                                                                                                                                | after 0, WB and SY's API                 |
+| ST2 Settings, the rest     | D91.16: Keyboard, Input methods, Mouse and touchpad, Accessibility, Users and sign-in, Updates, Privacy, Default apps, Notifications, Workspaces and windows, Toolchains, Admin access, Node, About (licences and SBOM)                                                                                                                 | new `src/webview/settings/{account,input,a11y,privacy,toolchains,admin,about}/**`                                   | OS2's update API (with OS2's owner); M110t's pack API (with TP1's owner); IG's admin API                                                                           | after 0, WB and SY's API                 |
+| ON Onboarding              | D91.17: the first-boot setup mode (OS3's pages, locally); onboarding after the first sign-in hosting TQ's questionnaire; the pack list with sizes; progress with Cancel; the tour; **Set up for my work again**                                                                                                                         | new `src/webview/desktop/onboarding/**`                                                                             | M110t TQ's pages (with TQ's owner); OS3's pages (with OS3's owner)                                                                                                 | after WB; wired after M110t's TQ and TP1 |
+
+**M111w's lanes (web development):**
+
+| Lane                       | Items                                                                                                                                                                                                                                                                                                                                          | Files it owns                                                                                       | Its regions in shared files                                                                                          | Starts                                             |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| WD0 Contracts and captures | D91.23: the CDP target abstraction; the preview protocol; the registry rows per editor; captures: VS Code's integrated browser commands and what a webview can embed, JCEF's and WebView2's CDP routes, Electron's `webContents.debugger` beside docked DevTools                                                                               | `src/shared/webdev.ts` (with lane 0), `docs/certification/m111w-captures.md`                        | `src/shared/hostApi/features.ts` (webdev rows)                                                                       | after 0                                            |
+| WS Dev servers             | Detection for every framework in research §12.3; start and stop as background work in the tool host; free ports; announcement parsing and socket checks; HMR through the node's preview proxy; the static server with live reload; logs to Output; governed by M107                                                                            | new `src/runtime/webdev/devServers/**`, `src/core/webdev/detect.ts`                                 | the tool host's background tasks (with N's owner); M46's background work (with its owner)                            | after WD0                                          |
+| WP Preview tabs and split  | The desktop's `WebContentsView` manager (its own partition, no preload privileges, permission handler); split beside and below; the toolbar (address, back, forward, reload, Open in Chrome); the Chrome for Testing screencast preview for the node's web UI, the companion and VS Code; JCEF and WebView2 previews with M104b and c's owners | new `desktop/app/preview/**`, `src/webview/webdev/preview/**`, `src/runtime/webdev/screencast.ts`   | ED's tab slot (with ED's owner); M104 lanes E and F's plugins (with their owners)                                    | after WB, ED and WD0                               |
+| WV View modes              | Device presets, rotate, zoom, DPR, touch; the multi-viewport grid with scrolling, navigation and clicks in step (isolated-world scripts, CDP bindings)                                                                                                                                                                                         | new `src/core/webdev/viewports.ts`, `src/webview/webdev/viewports/**`                               | —                                                                                                                    | after WD0                                          |
+| WI Inspection              | Docked DevTools (Electron's); `chrome-devtools-frontend` pinned and served locally for Chrome for Testing targets; inspect-to-source (framework metadata, CSS source maps, text search); hover highlights; **Add element to chat**                                                                                                             | new `src/core/webdev/inspect.ts`, `src/runtime/webdev/devtools/**`, `src/webview/webdev/inspect/**` | the composer's attachments (with its owner)                                                                          | after WP                                           |
+| WA Checks and design tools | Emulation (colour scheme, reduced motion, forced colours, contrast, vision deficiencies, locale, time zone, network and CPU); axe in the target; Lighthouse in a fresh Chrome for Testing; screenshots and baselines with a visual diff (pixelmatch); the colour picker and contrast checker                                                   | new `src/core/webdev/{emulate,audit,capture,diff}.ts`, `src/webview/webdev/checks/**`               | M81's store (a full Chrome for Testing build if S5 needs it, with M81's owner)                                       | after WP; Lighthouse after M81                     |
+| WC Components              | Storybook and Ladle detection, their story lists, stories in preview tabs; the component playground (React on Vite first, then Vue and Svelte)                                                                                                                                                                                                 | new `src/core/webdev/components/**`, `src/webview/webdev/components/**`                             | —                                                                                                                    | after WS and WP                                    |
+| WN Sharing                 | The phone QR through the node's authenticated preview proxy (its own origin, one-use code to bearer); the remote-review link over M110d's routes and M110e's certificates, with expiry, revocation, viewer count and audit                                                                                                                     | new `src/runtime/webdev/share/**`, `src/webview/webdev/share/**`                                    | `src/runtime/companion/guard.ts` (the preview scope, with M104 lane C's owner); M110's routes (with X's owner)       | after WP and M110a0's A1; remote after M110d and e |
+| WG Agents' tools           | `preview_open`, `preview_screenshot`, `preview_audit`, `preview_inspect`, `preview_console`, `preview_emulate` on M81's Chrome for Testing in the sandbox, with M81's address rules; refusal of the user's preview and Chrome; rows in the transcript                                                                                          | new `src/core/webdev/agentTools.ts`                                                                 | M81's browser-check engine (with M81's owner); the Model API tool table and the `ide` MCP server (with their owners) | after WA and M81                                   |
+
+**M111i's lanes (installer and admin access):**
+
+| Lane                         | Items                                                                                                                                                                                                                                                                                               | Files it owns                                                                                            | Its regions in shared files                                                                                                         | Starts                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| IB Boot menu and live medium | D91.24: GRUB with our gfxmenu theme on the x86-64 and ARM64 ISOs (Live, Install, Safe graphics, Recovery, Firmware settings; the text fallback); the Pi's graphical chooser; the live session's profile (no persistence; the installer in the launcher)                                             | new `os/installer/{grub,live,chooser}/**`                                                                | OS1's ISO recipe (with OS1's owner)                                                                                                 | after OS1 and AR              |
+| IU Installer flow            | D91.24's steps, each with its Advanced panel: language, keyboard, accessibility, network (with captive portals), disk, encryption, account (strength meter, local breached-password list), host name, time zone, M110t's questionnaire with sizes, pairing, admin access, summary, progress, reboot | new `src/webview/installer/**`                                                                           | OS3's pages (shared steps, with OS3's owner); TQ's pages (with TQ's owner)                                                          | after 0 and TH, on ID's fakes |
+| ID Installer daemon          | `muse-installd`: disk probing and other systems; systemd-repart with OS1's layouts; the RAUC slot layout and slot A's image; the boot path; OS4's encryption; the first-boot configuration; parallel, resumable, verified downloads of packs and the OS bundle; the journal and rollback            | new `desktop/crates/installd/**`, `os/installer/repart/**`                                               | OS2's slot definitions and OS4's crypt layout (with their owners); TP1's index client (with TP1's owner)                            | after OS1, OS2 and OS4        |
+| IA Unattended install        | The `install.v1` schema (zod and JSON Schema), its signature with the user's own key, the confirmation rules, `muse-installd key new`; PXE recorded for later                                                                                                                                       | new `docs/schemas/install.v1.json`, `src/shared/installFile.ts`, `desktop/crates/installd/unattended/**` | `docs/schemas/**` (with M80's versioning)                                                                                           | after 0                       |
+| IG Admin access              | D91.25: the `muse-agent` account; `muse-admind` and its catalogue; polkit rules; M109's modes and the binding; the never-allowed list; rate limits; the hash-chained audit and its mirror; Stop and Lock admin; the plain-sudo opt-in; the admin tool for agents; the threat model's rows           | new `desktop/crates/admind/**`, `src/core/admin/**`, `os/desktop/admin/**`                               | M109's broker (the admin item and signing key, with M109's owner); D90's kill switch (with N's owner); the settings page (with ST2) | after 0; wired after M109     |
+| IS Gallery                   | D91.24's gallery: the React component shared with OS3's first-boot page; slides and tips from a manifest; harness-generated shots per theme and language; the freshness test                                                                                                                        | new `src/webview/gallery/**`, `scripts/installer-shots.mjs`, `test/desktop/gallery/**`                   | `scripts/readme-shots.mjs` and the harness's scenes (with QA); OS3's pages (with OS3's owner)                                       | after 0, TH and QA            |
+| IQ Installer CI              | QEMU installs on x86-64 and aarch64 for every image (whole disk, manual, dual-boot fixture, TPM with swtpm, passphrase, offline, metered, failure injection); screenshots and axe per step; unattended runs                                                                                         | new `test/installer/**`, `scripts/qemu-install-test.mjs`                                                 | `.github/workflows/desktop.yml` (with QA)                                                                                           | after IB and ID               |
+
+**M111os's and M111c's lanes:**
+
+| Lane                     | Items                                                                                                                                                                                                                                                   | Files it owns                                        | Its regions in shared files                                                                            | Starts                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------- |
+| IM Desktop images        | The `desktop` profile on OS1's recipes for every target; packages pinned at the snapshot date (Hyprland from backports, Electron's app, GTK, Orca, fcitx5, oo7); Plymouth and the boot path; desktop readiness in OS2's trial boot; the image budgets   | new `os/desktop/**` (profile and package list)       | OS1's recipes and OS6's workflow (with their owners); OS2's readiness check (with OS2's owner)         | after OS1, M111a and M111b      |
+| HW Hardware matrix       | Boot, session, Wi-Fi, Bluetooth, cellular, sound, power, displays, touch and the performance budgets on an x86-64 mini PC, an old desktop, a laptop, a Pi 4 (4 GB and 8 GB), a Pi 5 and an ARM64 UEFI machine, or each named as waiting                 | `docs/certification/m111-hosts.md`                   | —                                                                                                      | after IM                        |
+| SB2 Agent sections       | Connections (M100, M110), Roles and team (M96, M96c), Usage (M102), Accounts and vault (M108, M109), Makers and devices (M103), Live peek in the bottom panel (M110's K): each section the existing page, mounted                                       | new `src/webview/desktop/sidebar/agents/**`          | each page's own module (with its owner)                                                                | each after its milestone merges |
+| J Docs and certification | README's "Muse Desktop"; `docs/desktop/**`; SECURITY, PRIVACY, CHANGELOG; AGENTS.md (layout rows for `desktop/`, `design/`, `os/desktop/`; the Rust toolchain pin; rule 8's rows for `muse-admind` and the admin key); the editor matrix; certification | new `docs/desktop/**`, `docs/certification/m111*.md` | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/ide-compatibility/**`; PLAN (D91 and M111 only) | throughout                      |
+
+- **The Rust workspace** (`desktop/Cargo.toml`) is new to the repository. Lane
+  0 records it under rule 9: the toolchain pinned in `rust-toolchain.toml`,
+  every crate pinned with its lockfile, `cargo deny` for licences and
+  advisories, and the crates' licences listed by the notices gate.
+- **The Electron app** is packaged by `scripts/package-desktop-app.mjs`
+  into the image, never published to npm or the Marketplace.
+
+- **Acceptance** (fakes, QEMU or the rigs unless a host is named; every row
+  has a red drill):
+  1. **Boot and session.**
+     - Every desktop image boots in QEMU (x86-64 with KVM; aarch64 `virt`
+       with AAVMF, emulated) to the greeter, and its screenshot matches the
+       golden.
+     - Password, PIN and a FIDO2 key (a software authenticator) sign in;
+       fingerprint on hardware or named as waiting; a kiosk signs in once at
+       boot.
+     - **Sign out** returns to the greeter. No VT shows a login prompt (a
+       getty unit enabled in the image fails the test), and the VT chords do
+       nothing.
+     - Killing each component brings it back; killing the compositor ends
+       the session and returns to the greeter.
+     - Three session failures start the safe session; two more boot
+       recovery; recovery refuses without an administrator's credentials or
+       the recovery key.
+     - An update whose desktop fails readiness rolls back by itself on EFI
+       and on the Pi's tryboot.
+  2. **Lock.** Idle, lid, Super+L and sleep lock the screen. Killing the
+     locker keeps the screen locked and restarts it. The lock screen shows
+     no notification text. **Stop machine** works from the lock screen and
+     the greeter with no sign-in (a fake machine, D83).
+  3. **Bar and quick settings** against D-Bus mocks, then on hardware:
+     Wi-Fi (WPA2, WPA3, 802.1X with a test certificate, hidden, metered),
+     whose password only our secret agent asks for; a captive portal opened
+     in a sandboxed view; Bluetooth pairing with passkey confirmation, an
+     audio device and PAN tethering; a SIM PIN and APN (a ModemManager mock,
+     then the modem); WireGuard; sound devices and per-app volume; battery,
+     profiles and brightness; the meter's levels; node status.
+  4. **Launcher.** Each result kind is found by fuzzy search; the calculator
+     never evaluates code (typed JavaScript stays text); every action works
+     from the keyboard and is announced.
+  5. **Notifications.** `notify-send` and an app's actions appear; an
+     approval's notification has no answer action, and a crafted one that
+     claims to answer is refused (the drill); Do Not Disturb holds.
+  6. **Capture and clipboard.** Region, window and screen shots; a recording
+     reaches M105's preview and attach; clipboard history refuses an entry
+     with the password-manager hint and a vault canary.
+  7. **Pointer, icons and fonts.** Every CSS cursor shape in both formats at
+     every size; the icon theme's required names; the font-coverage gate
+     passes for all fifteen tables, and a removed CJK font fails it.
+  8. **Workbench.** M104's conformance scenarios pass through the desktop
+     bridge: a conversation, approvals allowed, denied and cancelled, a diff
+     reviewed, settings changed, a session resumed after a restart. The
+     layout, the VS Code keymap and layout persistence work. Playwright finds
+     no Node in a renderer, the fuses set, and a refused navigation.
+  9. **Editor.** Open, edit, save; preview, pinned and dirty tabs; split;
+     the minimap scrolls; diffs; a screen reader reads lines.
+  10. **Windows.** A new window fills its share (asserted through the port's
+      geometry); dialogs float; workspaces switch by keys and swipes; a
+      project-bound workspace opens its folder; a monitor that leaves and
+      returns (two QEMU outputs) gets its workspaces back.
+  11. **Settings.** Each page reads and changes its service through sysd
+      against the mocks; **Toolchains** lists, updates and removes packs (a
+      fake index); **Admin access** shows the mode and the audit.
+  12. **Onboarding.** The questionnaire leads to the pack list with sizes;
+      **Install** shows progress; **Cancel** leaves no layer behind; the
+      re-run from Settings works.
+  13. **Platform.** A GTK app, Electron and Chrome open our file chooser;
+      links open in Chrome; an X11 client does not start until XWayland is
+      switched on; a mounted stick refuses to execute.
+  14. **Theme.** `check:tokens` passes, and a pair below AA fails it. Light,
+      dark and high contrast follow the portal and the override in every
+      component, the node's web UI and the TUI.
+  15. **Languages.** `check:l10n` reports 0 problems across TypeScript and
+      Rust, and a literal string in a Rust surface fails it. The pseudo-RTL
+      screenshots are mirrored. fcitx5 types Chinese, Japanese and Korean in
+      the editor, the launcher and Chrome.
+  16. **Accessibility.** axe passes on every web surface in the three modes
+      and VS Code's four themes at 320 px and 1920 px. The AT-SPI gate passes
+      on every native surface. Orca speaks the bar's items, the launcher's
+      results, a notification, the greeter, the lock screen and each
+      installer step. Orca's own commands work under Hyprland, and fail with
+      the plugin removed (the drill); the monitor refuses a client that is
+      not the screen reader. Reduced motion stops every animation (a
+      frame-difference check); 200% text does not clip.
+  17. **Observability.** Each component's metrics, logs and traces reach the
+      local receiver and the Diagnostics page. A network spy sees nothing
+      leave until an endpoint is set, then TLS to a fake collector. A crash
+      in each component leaves a local, scrubbed record (a canary drill).
+      `/readyz` names the desktop's parts. **Report a problem** builds a
+      bundle the user reviews.
+  18. **Web development.**
+      - Each framework fixture in research §12.3 is detected and started on
+        a free port; an edit updates the preview by HMR; plain files reload.
+      - Split beside and below; presets, rotation, zoom and DPR; a grid of
+        four viewports keeps scrolling and navigation in step.
+      - DevTools dock in the preview; inspect-to-source lands on the line for
+        React, Vue and Svelte fixtures and on the rule through a CSS source
+        map.
+      - Each emulation is confirmed by a page-side `matchMedia` probe; axe
+        and Lighthouse run, and a process spy shows Lighthouse in a fresh
+        Chrome for Testing, never the user's Chrome or the preview.
+      - A changed pixel fails the visual diff; the colour picker and the
+        contrast checker agree with axe on a fixture.
+      - Storybook and Ladle fixtures list their stories; the playground
+        mounts a React component.
+      - The phone QR works once through the proxy on its own origin; a dev
+        page's script cannot read the node's pages or bearer (the drill).
+      - An agent's preview tool runs only in Chrome for Testing; aimed at the
+        user's preview or Chrome, it is refused (the drill).
+      - The registry's webdev rows have a status and evidence for every
+        editor, VS Code's limits included.
+  19. **Installer.**
+      - QEMU installs on x86-64 and aarch64 for every image: whole disk,
+        manual partitioning, a dual-boot fixture (other systems named,
+        BitLocker warned, nothing resized), TPM sealing (swtpm) and a
+        passphrase.
+      - The account is written as a hash; the network joined in the
+        installer is the installed system's; a captive-portal fixture opens.
+      - Packs and the OS bundle download in parallel with the disk work; a
+        cut connection resumes; a tampered artifact is refused; an offline
+        install finishes and first boot offers the rest.
+      - A failure injected after the partition write leaves the stated
+        rollback state, never a half-booting disk.
+      - A signed unattended file installs; an unsigned or wrongly signed one,
+        or one with a plaintext password, is refused.
+      - Screenshots and axe pass per step in each mode; first boot asks only
+        what the installer did not.
+      - **The gallery** rotates every 8 seconds, pauses on hover and focus,
+        moves by keys and dots, announces its caption politely without moving
+        focus, and holds still under reduced motion; a missing or stale shot
+        fails the freshness test; the same component passes on OS3's page.
+  20. **Admin access.**
+      - Under Always allow, each catalogue action runs and is audited; Ask,
+        the allowlist and Off behave as named.
+      - A tainted request asks (the drill); every never-allowed item is
+        refused in every mode but plain sudo (each tried); the rate limits
+        trip on a fake clock.
+      - A sandbox process, a terminal and the tools' user cannot call the
+        helper; a forged, replayed or expired request is refused; the signing
+        key sits in the vault's hardware slot (swtpm).
+      - An edited audit line breaks the chain and is reported; **Stop
+        everything** ends a running `run`; **Lock admin** revokes at once;
+        plain sudo appears only after its warning page.
+  21. **Images and hardware.** Images build for every target with the budget
+      recorded; Chrome installs by the user's click and becomes the default;
+      lane HW's rows pass or are named as waiting.
+  22. **Nothing changes for anyone else.** `dist/extension.js`, the ACP stdio
+      path and the webview's main bundle carry no desktop code (the split
+      gate); single-device request goldens are byte-identical.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m111<phase>-<lane>.md`: vitest for TypeScript,
+  `cargo test` for Rust. UI tests under the compositor in CI: the headless
+  Hyprland harness on Linux amd64 and arm64 runners with Mesa's llvmpipe,
+  driven by the virtual-input driver, with screenshot goldens per mode and a
+  language subset (all fifteen nightly). Playwright's Electron driver for the
+  workbench, the settings app, onboarding and the installer flow. axe on
+  every web surface, the AT-SPI walker on every native one, and the Orca smoke
+  run. D-Bus mocks for every system service. QEMU boot and install tests for
+  every image on both architectures, with swtpm and two virtual outputs.
+  Fault injection: component kills, crash loops, a broken update, a cut
+  download, a failed partition step. **Red drills, at least:** an exit
+  binding in the generated config; Hyprland's logo or ANR dialog visible; a
+  getty on a VT; the session left unlocked when the locker dies; a
+  notification that answers an approval; a secret kept by clipboard history;
+  a renderer with Node; a preview sharing an origin with our UI; an agent
+  tool driving the user's preview; Lighthouse in the user's Chrome; a token
+  pair below AA; a literal UI string in Rust; a missing AT-SPI name; the
+  keyboard monitor served to a non-reader; telemetry leaving without an
+  endpoint; a crash record with a canary; an unsigned unattended file
+  accepted; a tampered pack accepted during install; a half-written disk
+  after a failure; a never-allowed admin action run; a tainted admin request
+  run without asking; a broken audit chain unreported; a stale gallery shot
+  passing.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  `check:editor-matrix` (with the Desk column), D6's budgets and the split
+  gate, `test:a11y` (every new web surface, the three desktop modes, VS Code's
+  four themes, 320 px). New, each with a red drill and a rule 9 record:
+  `check:tokens`; the font-coverage gate; `test:atspi`; `cargo fmt --check`,
+  `cargo clippy -- -D warnings`, `cargo deny` and `cargo audit`; the Electron
+  fuses check on the packaged app; Hyprland's `--verify-config` on the
+  generated config; the desktop screenshot goldens; the QEMU desktop boot and
+  install tests; the gallery's freshness test; the `systemd-analyze security`
+  threshold for `muse-sysd`, `muse-admind` and `muse-installd` where their
+  jobs allow; shellcheck for `os/desktop/**` and `os/installer/**`;
+  `actionlint` for the new workflow. Tools run pinned, by digest or SHA-256,
+  in CI, and CI artifacts carry a retention period.
+- **Security.** Lane 0's threat model (D91.26, research §19), reviewed before
+  the greeter, lock, portal, admin, installer and sharing code, and again
+  before train 3. Rule 8 gains rows for `muse-admind`'s signing key (a
+  first-party vault item in the hardware slot) and the installer (a yescrypt
+  hash only; no password in a file, log or frame). PLAN §9 records the
+  residuals at certification: an untainted but wrong admin action under
+  Always allow runs, shown by the audit and undone by rollback; plain sudo
+  removes every guard but sudo's own log; with Secure Boot off, anyone at
+  the keyboard can boot other media; same-user processes can read the
+  Secret Service (labelled, as D89.2 says); the keyboard monitor is our
+  plugin until Hyprland carries it; Electron's Chromium can trail Chrome's
+  security fixes by days.
+- **Docs.** README's "Muse Desktop" section with tested commands only; the
+  user guide (`docs/desktop/`): writing the medium, live and install (every
+  step and its Advanced panel), the unattended file, first boot and
+  onboarding, the workbench and its keys, workspaces and windows, the bar,
+  the launcher, web development, accessibility (Orca from the boot menu, the
+  keyboard map), languages and input methods, admin access and its risks in
+  plain words, updates and rollback, recovery; SECURITY (admin access, the
+  lock, recovery, preview isolation); PRIVACY (observability on the box, the
+  clipboard, crash records); CHANGELOG per train; AGENTS.md; the editor
+  matrix. None describes a later phase as supported.
+- **Performance and size** (planning targets; lanes QA, HW and IM measure
+  them and record the D6 budgets before shipping):
+  - **boot to the greeter's first frame** from power-on: at most 10 s on an
+    x86-64 NVMe mini PC, 15 s on a Pi 5 with NVMe, 22 s on a Pi 4 with a USB
+    SSD; SD cards measured and reported;
+  - **sign-in to a usable workbench:** at most 4 s on x86-64, 8 s on a Pi 5,
+    12 s on a Pi 4;
+  - **the idle session's memory** (compositor, shell, sysd, portals, oo7,
+    fcitx5 and one workbench window with a project open; the node and Chrome
+    excluded): at most 900 MiB on a 4 GB Pi 4, within it the compositor
+    120 MiB, the shell 120 MiB, sysd 30 MiB and Electron 500 MiB; a 2 GB
+    Pi 4 is a headless node only;
+  - **idle CPU** for the shell and sysd together at most 0.5% of one core,
+    and no compositor redraws while nothing changes;
+  - **animation:** the display's refresh rate on x86-64; at least 50 fps for
+    a workspace switch at 1080p on a Pi 5 with the light profile; on a Pi 4,
+    the light profile shortened until it holds 30 fps;
+  - **launcher:** first frame at most 100 ms on x86-64 and 250 ms on a Pi 4;
+    at most 50 ms per keystroke over 20,000 files;
+  - **editor:** keystroke to paint p95 at most 16 ms on x86-64 and 33 ms on a
+    Pi 4; a 10,000-line file open in at most 300 ms; CodeMirror's chunk
+    within M110's 600 KiB and the minimap within 60 KiB more;
+  - **preview:** at most 100 ms over the same page in Chrome; DevTools open
+    in at most 1.5 s; four grid viewports in step at 30 fps or more on
+    x86-64 and two on a Pi 4; the Chrome for Testing screencast at 20 fps or
+    more at 1280×800 with input-to-frame at most 100 ms on loopback;
+    Lighthouse within 60 s on a fixture page on x86-64;
+  - **installer:** a whole-disk install without downloads within 8 minutes on
+    x86-64 NVMe and 15 minutes on a Pi 5 with NVMe; downloads reported
+    separately; the gallery's images at most 400 KiB each, loaded lazily;
+  - **bundles:** the workbench's chunks lazy and the webview's main bundle
+    (900 KiB) and every existing D6 cap unchanged; the Electron app's
+    package measured plus 15%; each desktop image's size over its headless
+    image recorded as its budget.
+- **Size.** XL: about 1,780 lane-hours over seven phases.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's threat model accepted by Codex and Claude before its code,
+        and again before train 3
+  - [ ] The spikes S1–S5 recorded in `docs/certification/m111-spikes.md`,
+        and the shell toolkit confirmed (GTK, or Quickshell by evidence)
+  - [ ] Every lane's red drills, with byte-exact restored sources
+  - [ ] The token source generating every consumer, the contrast gate
+        green, and the node's web UI and TUI on it
+  - [ ] Strings in all 14 tables with `check:l10n` at 0 problems across
+        TypeScript and Rust; the pseudo-RTL screenshots; fcitx5 in three
+        languages
+  - [ ] axe and the AT-SPI gate green on every surface; the Orca smoke run;
+        the keyboard monitor's upstream pull request filed and linked
+  - [ ] Observability local by default, the export opt-in, crash records
+        scrubbed
+  - [ ] Every image booted to the greeter in QEMU for both architectures;
+        every installer path run in QEMU; the gallery fresh
+  - [ ] Admin access's never-allowed list, taint ask, rate limits, audit
+        chain, Stop and Lock admin drilled
+  - [ ] Web development's fixtures, isolation and agent-tool drills; every
+        editor's webdev row recorded
+  - [ ] The hardware matrix passed or named as waiting; the budgets
+        measured
+  - [ ] Editor rows recorded (the Desk column); the full gate green; no
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
