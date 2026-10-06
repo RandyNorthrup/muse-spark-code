@@ -216,13 +216,16 @@ class VaultAuditWriterSession implements VaultAuditWriter {
   }
   close(): void {
     this.isClosed = true
-    this.writer?.close()
-    this.writer = null
-    this.key?.fill(0)
-    this.key = null
-    this.anchor = null
-    this.records = []
-    this.size = 0
+    try {
+      this.writer?.close()
+    } finally {
+      this.key?.fill(0)
+      this.key = null
+      this.writer = null
+      this.anchor = null
+      this.records = []
+      this.size = 0
+    }
   }
 }
 /** A factory plus the direct-reader facade. Every asynchronous operation captures one isolated session. */
@@ -266,7 +269,10 @@ export class VaultAuditLog implements VaultAuditPort {
     return await writer.read()
   }
   close(): void {
-    this.current?.close()
-    this.current = null
+    try {
+      this.current?.close()
+    } finally {
+      this.current = null
+    }
   }
 }

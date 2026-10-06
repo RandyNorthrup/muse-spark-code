@@ -62,12 +62,15 @@ export class VaultBrokerClient {
       this.close()
     })
     socket.on('close', () => {
-      this.pending?.reject(new Error(UI_TEXT.vault.locked))
-      if (this.pending) clearTimeout(this.pending.timer)
-      this.pending = null
+      this.close()
     })
     socket.on('data', (bytes: Buffer) => {
-      this.buffer = Buffer.concat([this.buffer, bytes])
+      const previous = this.buffer
+      try {
+        this.buffer = Buffer.concat([previous, bytes])
+      } finally {
+        previous.fill(0)
+      }
       if (this.buffer.length > VAULT_LIMITS.frameBytes) {
         this.close()
         return
@@ -120,13 +123,27 @@ export class VaultBrokerClient {
         }, VAULT_APPROVAL_TTL_MS)
         this.pending = { sequence, resolve, reject, timer }
         const bytes = Buffer.from(`${JSON.stringify(frame)}\n`)
-        if (bytes.length > VAULT_LIMITS.frameBytes) {
-          this.close()
-          return
+        try {
+          if (bytes.length > VAULT_LIMITS.frameBytes) {
+            bytes.fill(0)
+            this.close()
+            return
+          }
+          this.socket.write(bytes, (error) => {
+            try {
+              if (error) this.close()
+            } finally {
+              bytes.fill(0)
+            }
+          })
+        } catch (error: unknown) {
+          try {
+            this.close()
+          } finally {
+            bytes.fill(0)
+          }
+          reject(error instanceof Error ? error : new Error(UI_TEXT.vault.noAccess))
         }
-        this.socket.write(bytes, (error) => {
-          if (error) this.close()
-        })
       })
     })()
     this.tail = next
@@ -136,14 +153,26 @@ export class VaultBrokerClient {
     const response = await this.send(vaultPrivateReadSchema.parse(input))
     if (response.kind !== 'material') throw new Error(UI_TEXT.vault.noAccess)
     const decoded = Buffer.from(response.bytes, 'base64')
-    const owned = Buffer.alloc(decoded.length)
-    owned.set(decoded)
-    decoded.fill(0)
-    return owned
+    try {
+      const owned = Buffer.alloc(decoded.length)
+      owned.set(decoded)
+      return owned
+    } finally {
+      decoded.fill(0)
+    }
   }
   close(): void {
-    this.socket.destroy()
-    this.buffer.fill(0)
-    this.buffer = Buffer.alloc(0)
+    try {
+      this.socket.destroy()
+    } finally {
+      this.buffer.fill(0)
+      this.buffer = Buffer.alloc(0)
+      const pending = this.pending
+      this.pending = null
+      if (pending) {
+        clearTimeout(pending.timer)
+        pending.reject(new Error(UI_TEXT.vault.locked))
+      }
+    }
   }
 }

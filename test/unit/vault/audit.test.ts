@@ -1,11 +1,17 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as filesystem from 'node:fs/promises'
 import { randomBytes } from 'node:crypto'
 import { mkdtemp, readFile, rm, writeFile, chmod, symlink, link } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { VaultAuditLog, type VaultAuditAnchorPort } from '../../../src/core/vault/broker/audit'
 import { audit } from '../helpers/vault/fixtures'
-import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
+import { UnixVaultPrivateFiles, readVaultFile } from '../../../src/core/vault/broker/files'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal<typeof filesystem>()
+  return { ...original, open: vi.fn(original.open) }
+})
 
 const directories: string[] = []
 afterEach(async () => {
@@ -60,6 +66,40 @@ async function setup(maxBytes = 8 * 1024 * 1024) {
   }
 }
 describe('authenticated vault audit', () => {
+  it.each(['close', 'overflow'])(
+    'RVM109B5 P1 file %s failure wipes buffers before rejecting their transfer',
+    async (failure) => {
+      const fixture = await setup(),
+        material = randomBytes(32)
+      await writeFile(fixture.file, material, { mode: 0o600 })
+      const file = await filesystem.open(fixture.file, 'r'),
+        reads = vi.spyOn(file, 'read'),
+        close = vi.spyOn(file, 'close')
+      if (failure === 'close') close.mockRejectedValue(new Error('test file close failed'))
+      else
+        reads.mockImplementation((...args: unknown[]) => {
+          const buffer = args[0]
+          if (!(buffer instanceof Buffer)) throw new Error('expected owned read buffer')
+          buffer.fill(1)
+          return Promise.resolve({ bytesRead: buffer.length, buffer })
+        })
+      vi.mocked(filesystem.open).mockResolvedValueOnce(file)
+      try {
+        await expect(readVaultFile(fixture.file)).rejects.toThrow()
+        for (const [bytes] of reads.mock.calls) {
+          if (!(bytes instanceof Uint8Array)) throw new Error('expected owned read buffer')
+          expect(bytes.every((byte) => byte === 0)).toBe(true)
+        }
+        expect(reads).toHaveBeenCalledTimes(2)
+      } finally {
+        close.mockRestore()
+        reads.mockRestore()
+        await file.close()
+        material.fill(0)
+        fixture.log.close()
+      }
+    },
+  )
   it('persists owner-only strict value-free records and authenticates the head', async () => {
     const fixture = await setup()
     await fixture.log.append(fixture.record)

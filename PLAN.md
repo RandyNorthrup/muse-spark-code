@@ -20637,6 +20637,15 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
+make audit-session key erasure and reference clearing unconditional despite
+file-writer close failures, and report cleanup failure to Lock/Dispose callers;
+audit every B-owned key/plaintext byte owner for unconditional cleanup or
+explicit successful ownership transfer. Guard each invalidation subscriber
+independently and always run the revocation notice afterward. Each new guard
+gets a generated/fake regression and named byte-exact red drill. Keep the lane
+boundary, default timeouts and all gates; no dependency, merge or live call.
+
 **FIXM109B5 / RVM109B4 (2026-10-06).** Keep D90's reducer architecture and
 close all five findings: wipe plaintext synchronously in the reducer before
 removing ownership; isolate every runner effect from callback exceptions;
@@ -20992,6 +21001,19 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
+no review residual is accepted. Final restored-source verification passes all
+335 tests in all 19 vault files with default timeouts, at most three files and
+three workers per invocation. Twenty-five named red drills restore byte-exact;
+current production/test hashes match their receipts. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing budgets or gates. The existing
+six Node totals remain the named `B-W-host-api` integration deferral, and the
+existing patch still applies cleanly. Aggregate quality, Windows/editor checks,
+C/P/T/route/W binding, broker bundling and integrated latency remain lead-owned
+under the lane brief. Evidence: `docs/certification/m109-b.md` and
+`m109-b-round5-drills.json`.
 
 **FIXM109B5 / RVM109B4 (2026-10-06, Mac mini).** All five findings are fixed;
 no review residual is accepted. The final restored source passes 313 tests in
@@ -22256,6 +22278,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM109B6 / RVM109B5 (2026-10-06).** Both findings (one P1, one P2)
+  are fixed; none is accepted as residual risk. Audit-session key erasure and
+  reference clearing run in `finally` despite descriptor close failure; facade
+  and Dispose references clear on failure too. Cleanup errors reach Lock/Dispose
+  callers while remaining effects continue. Every B-owned key/plaintext array
+  owner was inventoried for unconditional cleanup or successful ownership
+  transfer. Each invalidation subscriber is guarded independently, followed by
+  the revocation notice, so another subscriber cannot skip channel destruction.
+  Owned-array wiping does not claim immutable-string/native-memory zeroization
+  or OS close success after failure. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-b.md` and `m109-b-round5-drills.json`. Existing
+  C/P/T/route/W bindings, Windows/editor checks, generated host API totals and
+  joined-tree quality remain integration work; no review finding is deferred.
 
 - **FIXM109B5 / RVM109B4 (2026-10-06).** All five findings (one P1, four P2)
   are fixed; none is accepted as residual risk. Plaintext erasure runs inside

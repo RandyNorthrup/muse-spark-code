@@ -270,15 +270,20 @@ export class VaultChannelServer {
     let tail: Promise<unknown> = Promise.resolve()
     const timeout = setTimeout(() => socket.destroy(), VAULT_APPROVAL_TTL_MS)
     const close = (): void => {
-      clearTimeout(timeout)
-      cancellation.abort()
-      socket.destroy()
+      try {
+        clearTimeout(timeout)
+        cancellation.abort()
+        socket.destroy()
+      } finally {
+        buffer.fill(0)
+        buffer = Buffer.alloc(0)
+      }
     }
     const write = async (frame: unknown): Promise<void> => {
       const parsed = vaultChannelResponseSchema.parse(frame)
       const bytes = Buffer.from(`${JSON.stringify(parsed)}\n`)
-      if (bytes.byteLength > VAULT_LIMITS.frameBytes) throw new Error(UI_TEXT.vault.noAccess)
       try {
+        if (bytes.byteLength > VAULT_LIMITS.frameBytes) throw new Error(UI_TEXT.vault.noAccess)
         await new Promise<void>((resolve, reject) =>
           socket.write(bytes, (error) => {
             if (error) reject(error)
@@ -382,6 +387,8 @@ export class VaultChannelServer {
       await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
     }
     socket.once('close', () => {
+      buffer.fill(0)
+      buffer = Buffer.alloc(0)
       cancellation.abort()
       clearTimeout(timeout)
       this.identities.delete(socket)
@@ -395,7 +402,7 @@ export class VaultChannelServer {
       if (!peer) return
       let end = buffer.indexOf('\n')
       while (end >= 0) {
-        const line = buffer.subarray(0, end)
+        const line = buffer.subarray(0, end + 1)
         buffer = buffer.subarray(end + 1)
         let message: z.infer<typeof vaultChannelRequestSchema>
         try {
@@ -403,12 +410,14 @@ export class VaultChannelServer {
         } catch {
           close()
           return /* No frame is decoded before native authentication. */
+        } finally {
+          line.fill(0)
         }
         const previous = tail
         tail = (async () => {
           try {
             await previous
-            queuedBytes -= line.length + 1
+            queuedBytes -= line.length
             if (!socket.destroyed) await authorize(message, peer)
           } catch {
             close() /* Refuse without returning private diagnostics. */
@@ -425,7 +434,12 @@ export class VaultChannelServer {
         close()
         return
       }
-      buffer = Buffer.concat([buffer, bytes])
+      const previous = buffer
+      try {
+        buffer = Buffer.concat([previous, bytes])
+      } finally {
+        previous.fill(0)
+      }
       drain()
     })
     void (async () => {

@@ -64,6 +64,7 @@ export function realAudit() {
   const audit = new VaultAuditLog('test-audit', anchors, undefined, files)
   return {
     audit,
+    files,
     entered: entered.promise,
     hold: () => {
       isHolding = true

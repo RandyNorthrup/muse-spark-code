@@ -40,24 +40,32 @@ export async function readVaultFile(
   maxBytes = VAULT_LIMITS.frameBytes,
 ): Promise<Buffer> {
   const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+  let result: Buffer | undefined
+  const extra = Buffer.alloc(1)
+  let hasTransferred = false
   try {
-    const sample = await file.stat()
-    if (!sample.isFile() || sample.nlink !== 1 || sample.size > maxBytes)
-      throw new Error(UI_TEXT.vault.noAccess)
-    checkOwner(sample.mode, sample.uid)
-    const result = Buffer.alloc(sample.size)
-    let offset = 0
-    while (offset < result.length) {
-      const { bytesRead } = await file.read(result, offset, result.length - offset, offset)
-      if (bytesRead === 0) throw new Error(UI_TEXT.vault.noAccess)
-      offset += bytesRead
+    try {
+      const sample = await file.stat()
+      if (!sample.isFile() || sample.nlink !== 1 || sample.size > maxBytes)
+        throw new Error(UI_TEXT.vault.noAccess)
+      checkOwner(sample.mode, sample.uid)
+      result = Buffer.alloc(sample.size)
+      let offset = 0
+      while (offset < result.length) {
+        const { bytesRead } = await file.read(result, offset, result.length - offset, offset)
+        if (bytesRead === 0) throw new Error(UI_TEXT.vault.noAccess)
+        offset += bytesRead
+      }
+      const overflow = await file.read(extra, 0, 1, offset)
+      if (overflow.bytesRead !== 0) throw new Error(UI_TEXT.vault.noAccess)
+    } finally {
+      await file.close()
     }
-    const extra = Buffer.alloc(1)
-    const overflow = await file.read(extra, 0, 1, offset)
-    if (overflow.bytesRead !== 0) throw new Error(UI_TEXT.vault.noAccess)
+    hasTransferred = true
     return result
   } finally {
-    await file.close()
+    extra.fill(0)
+    if (!hasTransferred) result?.fill(0)
   }
 }
 export async function writeVaultFile(

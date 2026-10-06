@@ -27,10 +27,18 @@ export class VaultFirstPartyReader {
       if (status.state !== 'firstPartyOnly') throw new Error(UI_TEXT.vault.brokerBlocked)
       return await fallback.broker.firstPartyRead(fallback.peer, request)
     }
+    let bytes: Buffer | undefined
+    let hasTransferred = false
     try {
-      return await client.firstPartyRead(request)
+      try {
+        bytes = await client.firstPartyRead(request)
+      } finally {
+        client.close()
+      }
+      hasTransferred = true
+      return bytes
     } finally {
-      client.close()
+      if (!hasTransferred) bytes?.fill(0)
     }
   }
 }

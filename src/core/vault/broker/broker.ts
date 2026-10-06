@@ -58,8 +58,16 @@ const changeSchema = z.strictObject({
 interface Waiter {
   resolve(value: unknown): void
   reject(error: unknown): void
+  cleanupError?: unknown
 }
-const id = (): string => randomBytes(VAULT_LIMITS.idBytes).toString('hex')
+const id = (): string => {
+  const bytes = randomBytes(VAULT_LIMITS.idBytes)
+  try {
+    return bytes.toString('hex')
+  } finally {
+    bytes.fill(0)
+  }
+}
 function erase(resources: Pick<Result, 'item' | 'buffer'>): void {
   resources.buffer?.fill(0)
   if (resources.item)
@@ -149,26 +157,37 @@ export class VaultBroker implements VaultBrokerPort {
     this.state = result.state
     // The reducer has already wiped plaintext. Fallible effects cannot stop one another.
     const run = (effect: Effect): void => {
-      try {
+      this.guardedNotify(() => {
         this.run(effect)
-      } catch {
-        try {
-          this.deps.onAuditFailure()
-        } catch {
-          // A failing host notice must not interrupt the remaining owned effects.
-        }
-      }
+      })
     }
     for (const effect of result.effects)
       if (effect.kind === 'cleanup' || effect.kind === 'closeLifetime') run(effect)
     for (const effect of result.effects)
       if (effect.kind !== 'cleanup' && effect.kind !== 'closeLifetime') run(effect)
   }
+  private guardedNotify(run: () => void): void {
+    try {
+      run()
+    } catch {
+      try {
+        this.deps.onAuditFailure()
+      } catch {
+        // A failing host notice must not interrupt the remaining owned effects or subscribers.
+      }
+    }
+  }
   private run(effect: Effect): void {
     switch (effect.kind) {
       case 'cleanup': {
-        effect.resources.store?.lock()
-        effect.resources.writer?.close()
+        try {
+          effect.resources.store?.lock()
+          effect.resources.writer?.close()
+        } catch (error: unknown) {
+          const waiter = this.waiters.get(effect.owner)
+          if (waiter) waiter.cleanupError = error ?? new Error(UI_TEXT.vault.noAccess)
+          throw error
+        }
         return
       }
       case 'closeLifetime': {
@@ -178,10 +197,11 @@ export class VaultBroker implements VaultBrokerPort {
       case 'settle': {
         const waiter = this.waiters.get(effect.id)
         this.waiters.delete(effect.id)
-        if (effect.error === undefined) {
+        const error = effect.error ?? waiter?.cleanupError
+        if (error === undefined) {
           waiter?.resolve(effect.value)
         } else {
-          waiter?.reject(effect.error)
+          waiter?.reject(error)
         }
         return
       }
@@ -198,8 +218,15 @@ export class VaultBroker implements VaultBrokerPort {
         return
       }
       case 'invalidate': {
-        for (const listener of this.invalidations) listener(effect.requesterId, effect.token)
-        if (effect.requesterId !== null) this.deps.onRevoked(effect.requesterId, effect.grantId)
+        const requesterId = effect.requesterId
+        for (const listener of this.invalidations)
+          this.guardedNotify(() => {
+            listener(requesterId, effect.token)
+          })
+        if (requesterId !== null)
+          this.guardedNotify(() => {
+            this.deps.onRevoked(requesterId, effect.grantId)
+          })
         return
       }
       case 'locked': {
@@ -527,13 +554,22 @@ export class VaultBroker implements VaultBrokerPort {
   }
   async dispose(): Promise<void> {
     clearInterval(this.timer)
-    for (const unsubscribe of this.unsubscribers.splice(0)) unsubscribe()
-    await this.call({ kind: 'dispose' })
-    this.invalidations.clear()
+    for (const unsubscribe of this.unsubscribers.splice(0)) this.guardedNotify(unsubscribe)
+    try {
+      await this.call({ kind: 'dispose' })
+    } finally {
+      this.invalidations.clear()
+    }
   }
 }
 export function isVaultBootTokenMatch(expected: string, actual: string): boolean {
-  const a = Buffer.from(expected, 'hex'),
+  const a = Buffer.from(expected, 'hex')
+  let b: Buffer | undefined
+  try {
     b = Buffer.from(actual, 'hex')
-  return a.length === VAULT_LIMITS.idBytes && b.length === a.length && timingSafeEqual(a, b)
+    return a.length === VAULT_LIMITS.idBytes && b.length === a.length && timingSafeEqual(a, b)
+  } finally {
+    a.fill(0)
+    b?.fill(0)
+  }
 }

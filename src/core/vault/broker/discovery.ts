@@ -41,9 +41,13 @@ export class VaultBrokerDiscovery {
     if (process.processId !== lock.processId || process.startedAt !== lock.startedAt)
       throw new Error(UI_TEXT.vault.noAccess)
     const token = await this.files.read(this.tokenPath)
-    const bootToken = token.toString('ascii')
-    if (!/^[a-f0-9]{32}$/u.test(bootToken)) throw new Error(UI_TEXT.vault.noAccess)
-    return { lock, bootToken }
+    try {
+      const bootToken = token.toString('ascii')
+      if (!/^[a-f0-9]{32}$/u.test(bootToken)) throw new Error(UI_TEXT.vault.noAccess)
+      return { lock, bootToken }
+    } finally {
+      token.fill(0)
+    }
   }
   async claim(
     process: VaultProcessIdentity,
@@ -59,9 +63,12 @@ export class VaultBrokerDiscovery {
       socket,
     })
     const releaseLock = await this.files.claim(this.lockPath, Buffer.from(JSON.stringify(lock)))
+    const token = randomBytes(VAULT_LIMITS.idBytes)
+    let encoded: Buffer | undefined
     try {
-      const bootToken = randomBytes(VAULT_LIMITS.idBytes).toString('hex')
-      const releaseToken = await this.files.claim(this.tokenPath, Buffer.from(bootToken, 'ascii'))
+      const bootToken = token.toString('hex')
+      encoded = Buffer.from(bootToken, 'ascii')
+      const releaseToken = await this.files.claim(this.tokenPath, encoded)
       return {
         location: { lock, bootToken },
         release: async () => {
@@ -72,6 +79,9 @@ export class VaultBrokerDiscovery {
     } catch (error: unknown) {
       await releaseLock()
       throw error
+    } finally {
+      token.fill(0)
+      encoded?.fill(0)
     }
   }
 }

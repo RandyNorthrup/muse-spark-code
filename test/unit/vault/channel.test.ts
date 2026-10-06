@@ -5,9 +5,12 @@ import path from 'node:path'
 import os from 'node:os'
 import { connect, Socket, createServer } from 'node:net'
 import { randomBytes } from 'node:crypto'
+import * as z from 'zod/mini'
 import { once } from 'node:events'
 import { VaultChannelServer, type VaultChannelDeps } from '../../../src/core/vault/broker/channel'
 import { VaultBrokerClient } from '../../../src/core/vault/broker/client'
+import { VaultFirstPartyReader } from '../../../src/core/vault/broker/firstParty'
+import { UnixVaultPrivateFiles } from '../../../src/core/vault/broker/files'
 import {
   UnixVaultPeerVerifier,
   WindowsVaultPeerVerifier,
@@ -64,11 +67,15 @@ const processIdentity: VaultProcessIdentity = {
   executable: process.execPath,
 }
 const identify = (pid: number) => Promise.resolve({ ...processIdentity, processId: pid })
-async function channelSetup() {
+async function channelSetup(isSubscriberThrowing = false) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'm109-b-channel-'))
   directories.push(directory)
   const fixture = await brokerFixture()
   brokers.push(fixture.broker)
+  if (isSubscriberThrowing)
+    fixture.broker.subscribeInvalidation(() => {
+      throw new Error('test subscriber failed')
+    })
   const socket = path.join(directory, 'broker.sock')
   const discovery = new VaultBrokerDiscovery(directory, 'test-session')
   const nativeClaim = await discovery.claim(processIdentity, socket)
@@ -189,6 +196,217 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
   }
 }
 describe('native authenticated broker channel', () => {
+  it.each(['fragment', 'remote', 'throwingDestroy', 'parsed'])(
+    'RVM109B5 P1 channel erases owned input on %s',
+    async (action) => {
+      const fixture = await channelSetup(),
+        socket = new Socket(),
+        waiting = Promise.withResolvers<VaultProcessIdentity>()
+      vi.spyOn(fixture.peers, 'verify').mockReturnValue(waiting.promise)
+      fixture.server.accept(socket)
+      const concat = vi.spyOn(Buffer, 'concat'),
+        destroy = vi.spyOn(socket, 'destroy')
+      try {
+        socket.emit(
+          'data',
+          Buffer.from(
+            action === 'parsed'
+              ? `${JSON.stringify(helloFrame(fixture))}\n`
+              : 'generated partial token',
+          ),
+        )
+        const held = z.instanceof(Buffer).parse(concat.mock.results[0]!.value)
+        switch (action) {
+          case 'parsed': {
+            waiting.resolve(processIdentity)
+            await vi.waitFor(() => {
+              expect(held.every((byte) => byte === 0)).toBe(true)
+            })
+
+            break
+          }
+          case 'fragment': {
+            socket.emit('data', Buffer.from('more'))
+            break
+          }
+          case 'remote': {
+            socket.destroy()
+            await once(socket, 'close')
+
+            break
+          }
+          default: {
+            destroy.mockImplementation(() => {
+              throw new Error('test destroy failed')
+            })
+            expect(() => socket.emit('error', new Error('test channel error'))).toThrow(
+              'test destroy failed',
+            )
+          }
+        }
+        expect(held.every((byte) => byte === 0)).toBe(true)
+      } finally {
+        concat.mockRestore()
+        destroy.mockRestore()
+        socket.destroy()
+        waiting.resolve(processIdentity)
+      }
+    },
+  )
+  it('RVM109B5 P1 successful private transport wipes write and decode temporaries', async () => {
+    const fixture = await channelSetup(),
+      client = await openClient(fixture),
+      socket = z
+        .set(z.instanceof(Socket))
+        .parse(Reflect.get(fixture.server, 'sockets'))
+        .values()
+        .next().value!,
+      value = await fixture.firstParty(),
+      write = vi.spyOn(socket, 'write'),
+      clientWrite = vi.spyOn(z.instanceof(Socket).parse(Reflect.get(client, 'socket')), 'write'),
+      from = vi.spyOn(Buffer, 'from')
+    let owned: Buffer | undefined
+    try {
+      owned = await client.firstPartyRead(vaultPrivateReadSchema.parse(value.request))
+      const decoded = from.mock.calls.flatMap((args: unknown[], index) =>
+        args[1] === 'base64' ? [z.instanceof(Buffer).parse(from.mock.results[index]!.value)] : [],
+      )
+      from.mockRestore()
+      expect(owned.some((byte) => byte !== 0)).toBe(true)
+      expect(decoded.length).toBeGreaterThan(0)
+      expect(decoded.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      await client.send({ kind: 'status' })
+      const writes = [...write.mock.calls, ...clientWrite.mock.calls].flatMap((args: unknown[]) => {
+        const bytes = args[0]
+        return bytes instanceof Buffer ? [bytes] : []
+      })
+      await vi.waitFor(() => {
+        expect(writes.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
+      })
+      expect(writes.length).toBeGreaterThan(0)
+    } finally {
+      from.mockRestore()
+      write.mockRestore()
+      clientWrite.mockRestore()
+      owned?.fill(0)
+      client.close()
+    }
+  })
+  it.each([true, false])(
+    'RVM109B5 P1 discovery wipes tokens (valid=%s) and rejected claims',
+    async (isValid) => {
+      const fixture = await channelSetup(),
+        files = new UnixVaultPrivateFiles(),
+        token = Buffer.from(isValid ? 'a'.repeat(32) : 'invalid generated token'),
+        read = files.read.bind(files),
+        discovery = new VaultBrokerDiscovery(
+          path.dirname(fixture.discovery.directory),
+          'test-session',
+          files,
+        )
+      vi.spyOn(files, 'read').mockImplementation((path) =>
+        path.replaceAll('\\', '/').endsWith('/boot-token') ? Promise.resolve(token) : read(path),
+      )
+      const found = discovery.discover(identify)
+      if (isValid) expect(await found).not.toBeNull()
+      else await expect(found).rejects.toThrow()
+      expect(token.every((byte) => byte === 0)).toBe(true)
+      const encoded: Uint8Array[] = []
+      vi.spyOn(files, 'claim').mockImplementation((path, bytes) => {
+        if (path.replaceAll('\\', '/').endsWith('/boot-token')) {
+          encoded.push(bytes)
+          return Promise.reject(new Error('test claim failed'))
+        }
+        return Promise.resolve(() => Promise.reject(new Error('test release failed')))
+      })
+      await expect(discovery.claim(processIdentity, fixture.socket)).rejects.toThrow(
+        'test release failed',
+      )
+      expect(encoded).toHaveLength(1)
+      expect(encoded[0]!.every((byte) => byte === 0)).toBe(true)
+    },
+  )
+  it('RVM109B5 P2 throwing first subscriber cannot skip channel destruction or onRevoked', async () => {
+    const fixture = await channelSetup(true)
+    workerConnection(fixture)
+    const client = await openClient(fixture),
+      sockets = z.set(z.instanceof(Socket)).parse(Reflect.get(fixture.server, 'sockets')),
+      socket = [...sockets][0]!
+    fixture.brokerDeps.onAuditFailure = vi.fn(() => {
+      throw new Error('test notice failed')
+    })
+    const later = vi.fn()
+    fixture.broker.subscribeInvalidation(later)
+    try {
+      await fixture.broker.endRequester(fixture.identity.id)
+      expect(socket.destroyed).toBe(true)
+      expect(later).toHaveBeenCalledOnce()
+      expect(fixture.brokerDeps.onRevoked).toHaveBeenCalledWith(fixture.identity.id, null)
+    } finally {
+      client.close()
+    }
+  })
+  it.each(['close', 'remote', 'throwingDestroy', 'fragment'])(
+    'RVM109B5 P1 client wipes owned transport bytes on %s',
+    async (action) => {
+      const fixture = await channelSetup(),
+        client = await openClient(fixture),
+        socket = z.instanceof(Socket).parse(Reflect.get(client, 'socket'))
+      socket.emit('data', Buffer.from('generated partial material'))
+      const held = z.instanceof(Buffer).parse(Reflect.get(client, 'buffer'))
+      const destroy = vi.spyOn(socket, 'destroy')
+      try {
+        switch (action) {
+          case 'throwingDestroy': {
+            destroy.mockImplementation(() => {
+              throw new Error('test destroy failed')
+            })
+            expect(() => {
+              client.close()
+            }).toThrow('test destroy failed')
+
+            break
+          }
+          case 'remote': {
+            socket.emit('close')
+            break
+          }
+          case 'fragment': {
+            socket.emit('data', Buffer.from('more'))
+            break
+          }
+          default: {
+            client.close()
+          }
+        }
+        expect(held.every((byte) => byte === 0)).toBe(true)
+        if (action !== 'fragment') expect(Reflect.get(client, 'buffer')).toEqual(Buffer.alloc(0))
+      } finally {
+        destroy.mockRestore()
+        client.close()
+      }
+    },
+  )
+  it('RVM109B5 P1 first-party handoff wipes material if client close prevents its return', async () => {
+    const fixture = await channelSetup(),
+      client = await openClient(fixture),
+      value = await fixture.firstParty(),
+      held = randomBytes(32),
+      reader = new VaultFirstPartyReader(() => Promise.resolve(client))
+    vi.spyOn(client, 'firstPartyRead').mockResolvedValue(held)
+    const close = vi.spyOn(client, 'close').mockImplementation(() => {
+      throw new Error('test client close failed')
+    })
+    try {
+      await expect(reader.read(vaultPrivateReadSchema.parse(value.request))).rejects.toThrow(
+        'test client close failed',
+      )
+      expect(held.every((byte) => byte === 0)).toBe(true)
+    } finally {
+      close.mockRestore()
+      client.close()
+    }
+  })
   it('RVM109B3 P1-1 hello held across cancellation cannot acquire a same-ceiling replacement', async () => {
     const fixture = await channelSetup()
     workerConnection(fixture)

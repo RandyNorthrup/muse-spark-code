@@ -831,7 +831,7 @@ export function step(
     op.generation = state.generation
     op.phase = 'barrier'
     op.resources = { writer }
-    if (state.store || state.key) cleanup('installed', { store: state.store, key: state.key })
+    if (state.store || state.key) cleanup(op.id, { store: state.store, key: state.key })
     state.store = undefined
     state.key = undefined
     state.writer = undefined
