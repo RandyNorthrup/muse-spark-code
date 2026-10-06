@@ -32,7 +32,7 @@ export async function scheduleTools<Call, Prepared, Result>(options: {
   readonly isRead: (call: Call) => boolean
   readonly prepare: (call: Call) => Promise<Prepared>
   readonly canParallel: (prepared: Prepared) => boolean
-  readonly run: (prepared: Prepared) => Promise<Result>
+  readonly run: (prepared: Prepared, isParallelExecution: boolean) => Promise<Result>
   /** False ends the batch; every remaining call still receives its skipped output. */
   readonly settle: (prepared: Prepared, result: PromiseSettledResult<Result>) => Promise<boolean>
   readonly skip: (call: Call, prepared: Prepared | undefined) => void
@@ -65,7 +65,7 @@ export async function scheduleTools<Call, Prepared, Result>(options: {
       const { group, barrier } = await prepareGroup()
       // All executions finish before any settlement; no promise rejection is
       // left unobserved, including when Stop or a post hook ends this batch.
-      const results = await Promise.allSettled(group.map((entry) => options.run(entry)))
+      const results = await Promise.allSettled(group.map((entry) => options.run(entry, true)))
       for (const [index, entry] of group.entries()) {
         const result = results[index]
         if (result === undefined) throw new Error('missing tool result')
@@ -75,7 +75,7 @@ export async function scheduleTools<Call, Prepared, Result>(options: {
         if (!shouldContinue) return { isComplete: false }
       }
       if (barrier === undefined) continue
-      const [result] = await Promise.allSettled([options.run(barrier)])
+      const [result] = await Promise.allSettled([options.run(barrier, false)])
       prepared.delete(settled)
       settled += 1
       const shouldContinue = await options.settle(barrier, result)

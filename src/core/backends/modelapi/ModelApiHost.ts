@@ -1,5 +1,6 @@
 import { redactDiagnosticEvent } from '../../redact'
 import { isParallelRead, scheduleTools } from './toolScheduler'
+import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -526,6 +527,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
   /** Fixed for the session, with an explicit off arm for byte-identical requests. */
   readonly outputContinuation?: () => boolean
+  /** Trusted host proof of an unchanged complete result, never an MCP annotation. */
+  readonly repeatResultWitness?: {
+    readonly observed: (call: FunctionCallItem, outcome: ToolOutcome) => string | undefined
+    readonly current: (call: FunctionCallItem, signal: AbortSignal) => Promise<string | undefined>
+  }
   /**
    * The shell keeps its directory between calls (M91 lane S, PLAN.md D70):
    * `museSpark.modelApiShellKeepsDirectory`, read per shell call. Absent or
@@ -829,9 +835,12 @@ interface PreparedToolCall {
   readonly started: ItemSnapshot
   readonly startedAt: number
   readonly selectionReason: string | undefined
+  seen: string | undefined
 }
 
 interface ExecutedToolCall {
+  readonly isRepeatSuppressed: boolean
+  readonly isRepeatStopped: boolean
   readonly isParallelExecution: boolean
   readonly result: CallResult
   readonly slot: AdmissionSlot
@@ -2075,6 +2084,7 @@ export class ModelApiSession implements AgentSession {
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
   private readonly outputCaps = new Map<string, number>()
+  private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
    * it even where this session does not pack; a packing session's store
@@ -9361,7 +9371,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
-    return { call, effectiveCall, pre, started, startedAt, selectionReason }
+    return { call, effectiveCall, pre, started, startedAt, selectionReason, seen: undefined }
   }
 
   /** A hook's question or refusal is a barrier, even for a read-only name. */
@@ -9379,6 +9389,44 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
+  private canWitnessRead(call: FunctionCallItem): boolean {
+    return (
+      call.name === MODEL_API_TOOLS.readFile &&
+      this.enabledHooks().length === 0 &&
+      this.enabledExtensionHooks().length === 0
+    )
+  }
+
+  /** Text reads have a fresh proof from the exact confined source, without re-running the tool. */
+  private async currentRepeatWitness(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    if (this.deps.repeatResultWitness !== undefined)
+      return await this.deps.repeatResultWitness.current(call, signal)
+    if (!this.canWitnessRead(call)) return undefined
+    const given = pick(argumentsOf(call), 'path')
+    if (given === undefined) return undefined
+    const io = this.toolWrites()?.io ?? this.deps.io
+    const file = await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, io)
+    if (!file.ok || this.policy().files.isDenied([file.relative, file.canonical])) return undefined
+    const raw = await io.readFile(file.checkedAbsolute, file.checkedAbsolute)
+    signal.throwIfAborted()
+    return raw === undefined || this.policy().files.isDenied([file.relative, file.canonical])
+      ? undefined
+      : JSON.stringify([[file.relative, file.canonical], fingerprint(raw)])
+  }
+
+  private observedRepeatWitness(call: FunctionCallItem, outcome: ToolOutcome): string | undefined {
+    if (this.deps.repeatResultWitness !== undefined)
+      return this.deps.repeatResultWitness.observed(call, outcome)
+    const { touched } = outcome
+    const seen = touched?.seen === undefined ? undefined : this.seenFiles.get(touched.seen)
+    return seen !== undefined && outcome.failureReason === undefined && this.canWitnessRead(call)
+      ? JSON.stringify([touched?.names, seen])
+      : undefined
+  }
+
   private async executeCall(
     turnId: string,
     prepared: PreparedToolCall,
@@ -9391,6 +9439,33 @@ export class ModelApiSession implements AgentSession {
     const slot: AdmissionSlot = {}
     let result: CallResult
     try {
+      if (
+        pre.blockedReason === undefined &&
+        !pre.forceApproval &&
+        pre.stopReason === undefined &&
+        this.repeatGuard.needsWitness(effectiveCall)
+      ) {
+        let witness: string | undefined
+        try {
+          witness = await this.currentRepeatWitness(effectiveCall, signal)
+        } catch {
+          signal.throwIfAborted()
+          // Without proof the call runs.
+        }
+        const action = this.repeatGuard.before(effectiveCall, witness)
+        if (action !== 'run') {
+          return {
+            result: {
+              outcome: { output: MODEL_API_MODEL_TEXT.toolRepeatStopped, visibleOutput: '' },
+              isRejected: true,
+            },
+            slot,
+            isParallelExecution,
+            isRepeatSuppressed: true,
+            isRepeatStopped: action === 'stuck',
+          }
+        }
+      }
       result =
         pre.blockedReason === undefined
           ? await this.decideAndRun(
@@ -9412,7 +9487,8 @@ export class ModelApiSession implements AgentSession {
       // about, not the end of the turn.
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
-    return { result, slot, isParallelExecution }
+    prepared.seen = result.outcome.touched?.seen
+    return { result, slot, isParallelExecution, isRepeatSuppressed: false, isRepeatStopped: false }
   }
 
   /** Media admission, replay, packing and PostToolUse settle in call order. */
@@ -9426,6 +9502,7 @@ export class ModelApiSession implements AgentSession {
   ): Promise<HookToolResult> {
     const { call, effectiveCall, pre, started, startedAt, selectionReason } = prepared
     if (executed.status === 'rejected' || (signal.aborted && executed.value.isParallelExecution)) {
+      if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
       this.finishCall(
         turnId,
         started,
@@ -9474,6 +9551,12 @@ export class ModelApiSession implements AgentSession {
       await this.notePermissionDenied(call.name, selectionReason, signal)
     }
     this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
+    let repeatWitness: string | undefined
+    try {
+      repeatWitness = this.observedRepeatWitness(effectiveCall, outcome)
+    } catch {
+      // A failed proof leaves this call eligible to run again.
+    }
     const post = await this.runHooks(
       outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
       turnId,
@@ -9504,6 +9587,18 @@ export class ModelApiSession implements AgentSession {
       post.replacement?.target === 'toolResult'
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
+    }
+    if (!executed.value.isRepeatSuppressed) {
+      this.repeatGuard.observe(
+        effectiveCall,
+        post.replacement?.target === 'toolResult'
+          ? post.replacement.value
+          : (outcome.outputParts ?? outcome.output),
+        post.replacement === undefined ? repeatWitness : undefined,
+      )
+    }
+    if (executed.value.isRepeatStopped) {
+      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
     }
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
@@ -9566,7 +9661,9 @@ export class ModelApiSession implements AgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
+      stopReason: executed.value.isRepeatStopped
+        ? MODEL_API_MODEL_TEXT.toolRepeatStopped
+        : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
     }
   }
 
@@ -9761,6 +9858,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async drainSteered(turn: ActiveTurn): Promise<void> {
+    if (turn.steered.length > 0) this.repeatGuard.reset()
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
     for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
@@ -10095,6 +10193,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
+    this.repeatGuard.reset()
     const { signal } = turn.abort
     let isStopHookActive = false
     let stopContinuations = 0
@@ -10230,6 +10329,11 @@ export class ModelApiSession implements AgentSession {
         }
         continue
       }
+      const counts = new Map<string, number>()
+      for (const call of calls) {
+        const key = toolRepeatKey(call)
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+      }
       let isRoundComplete = false
       const batch: Readonly<Record<string, unknown>>[] = []
       let skipReason: string = MODEL_API_MODEL_TEXT.toolCancelledByStop
@@ -10238,7 +10342,9 @@ export class ModelApiSession implements AgentSession {
           calls,
           parallel: this.parallelReads,
           isRead: (call) =>
-            isParallelRead(call.name) && this.externalTool(call.name)?.kind !== 'mcp',
+            isParallelRead(call.name) &&
+            this.externalTool(call.name)?.kind !== 'mcp' &&
+            counts.get(toolRepeatKey(call)) === 1,
           prepare: async (call) => {
             if (isAbortRequested(signal)) throw new AbortedError()
             const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
@@ -10249,7 +10355,14 @@ export class ModelApiSession implements AgentSession {
             return await this.prepareCall(turn.turnId, call, signal)
           },
           canParallel: (prepared) => this.canParallelCall(prepared),
-          run: (prepared) => this.executeCall(turn.turnId, prepared, signal, goalCommandRevision),
+          run: (prepared, isParallelExecution) =>
+            this.executeCall(
+              turn.turnId,
+              prepared,
+              signal,
+              goalCommandRevision,
+              isParallelExecution,
+            ),
           settle: async (prepared, result) => {
             const finished = await this.settleCall(
               turn.turnId,
@@ -10267,7 +10380,8 @@ export class ModelApiSession implements AgentSession {
           },
           skip: (call, prepared) => {
             if (prepared === undefined) this.skipCalls(turn.turnId, [call], skipReason)
-            else
+            else {
+              if (prepared.seen !== undefined) this.seenFiles.delete(prepared.seen)
               this.finishCall(
                 turn.turnId,
                 prepared.started,
@@ -10275,6 +10389,7 @@ export class ModelApiSession implements AgentSession {
                 toolFailure(skipReason),
                 CANCELLED,
               )
+            }
           },
         })
         isRoundComplete = scheduled.isComplete
