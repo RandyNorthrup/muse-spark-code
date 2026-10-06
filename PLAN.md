@@ -19611,8 +19611,8 @@ before a repaired one loads (2026-09-30).
   state: P/E require per-user 0700 directories, 0600 files (owner-only Windows
   ACLs), ownership/permission and symlink/junction/ancestor checks. T applies
   exact mutual-TLS peer credential checks on loopback; any future local IPC
-  helper also requires OS peer identity/ACL checks. No pair/provider secrets
-  on argv/environment. A same-user process or administrator can replace a
+  helper also requires OS peer identity/ACL checks. No pair keys or stored
+  provider secrets on argv/environment. A same-user process or administrator can replace a
   syntactically valid journal outcome or obtain keys; zod, atomic writes and
   permissions do not prove provenance against it. Safe only under that
   explicit trusted-account assumption; lane 0 has no production listener.

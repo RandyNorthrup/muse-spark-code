@@ -147,6 +147,16 @@ const usage = {
   returnedUsd: 0,
   retainedLiabilityUsd: 1,
 } as const
+const checkReport: DeviceFrame['body'] = {
+  kind: 'checkReport',
+  identity,
+  repositoryId: ID,
+  tree: GIT,
+  checkId: ID,
+  toolchainDigest: HASH,
+  status: 'passed',
+  report: 'Fixture report.',
+}
 function frame(body: DeviceFrame['body']): DeviceFrame {
   return { version: 1, pairId: ID, receiverIncarnationId: ID, requestId: ID, body }
 }
@@ -416,16 +426,7 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
       { kind: 'acknowledge', identity, settlementId: ID, payloadDigest: HASH },
       { kind: 'artifact', manifest: artifact },
       { kind: 'artifactChunk', identity, artifactId: ID, offset: 0, base64: 'AAAA' },
-      {
-        kind: 'checkReport',
-        identity,
-        repositoryId: ID,
-        tree: GIT,
-        checkId: ID,
-        toolchainDigest: HASH,
-        status: 'passed',
-        report: 'Fixture report.',
-      },
+      checkReport,
       ...DEVICE_FAILURES.map((reason) => ({ kind: 'failure', reason }) as const),
       {
         kind: 'tombstone',
@@ -545,16 +546,7 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
       { kind: 'cancel', identity },
       { kind: 'artifact', manifest: artifact },
       { kind: 'artifactChunk', identity, artifactId: ID, offset: 0, base64: 'AAAA' },
-      {
-        kind: 'checkReport',
-        identity,
-        repositoryId: ID,
-        tree: GIT,
-        checkId: ID,
-        toolchainDigest: HASH,
-        status: 'passed',
-        report: 'Fixture report.',
-      },
+      checkReport,
       { kind: 'offers', offers: [offer] },
     ]
     for (const body of activeBodies) {
