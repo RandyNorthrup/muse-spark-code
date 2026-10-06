@@ -10279,6 +10279,63 @@ guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
       commits only, no network/live/paid calls, merge, push or rebase. The lane's
       shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
 
+### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
+
+- [x] Reproduce the release job's strict English fallback check against the
+      installed production ACP tarball, and trace both help strings through
+      the generated runtime region and package copy.
+- [x] Fold the existing translated Setup command into `acpUsage` in English
+      and all 14 translations; remove the separate key and appended write.
+      Both help and argument errors read the complete canonical usage once.
+- [x] Prove exact help/table equality and Setup visibility in process tests,
+      including a translated locale; run the release package steps, localization
+      checks and ACP regressions directly on Kubuntu in bounded batches.
+- [x] Record gate-fire drills, artifact sizes and unavailable platform steps in
+      `docs/certification/cifix14-acp-usage.md`; commit locally with hooks.
+
+The rig brief prohibits pushes, merges, rebases and paid/live calls; shared
+rules prohibit aggregate quality and writes to the existing `node_modules`.
+Use the installed dependency tree and an offline scratch-prefix tarball install.
+The lead retains the integrated full quality and hosted universal-helper checks.
+The existing strict equality check and every budget remain unchanged.
+
+### CIFIX14W2 — Windows short paths in the kept shell directory (2026-10-05)
+
+- [x] Resolve Windows workspace roots and shell-reported directories to the
+      native long form before containment, relative tails and command cwd use.
+      Keep POSIX path handling unchanged and retain link/junction confinement.
+- [x] Reproduce with a real 8.3 directory on the Windows 11 rig; assert the
+      canonical tracked directory, the `sub` tail, root silence and escape reset.
+      Exercise both short/long input directions with injected path functions.
+- [x] Remove canonicalization, observe the complete owning file fail, restore
+      byte-exact and collect the shell suites with default CLI timeouts and
+      three workers. Run the shared lane's static/build checks and commit locally
+      with hooks; no push, merge, rebase or paid/live calls. Time box: 60 minutes.
+
+Evidence belongs in `docs/certification/cifix14-shortpath.md`. Shared lane
+rules reserve the integrated full quality run for the lead; all existing
+gates and timeouts remain unchanged.
+
+### CIFIX14M — macOS hosted CI repair for 0.14.0 (2026-10-05)
+
+- [x] Collect all four CI unit/process-e2e shards on the Mac mini, in the rig
+      brief's batches of at most three files with three workers. Preserve coverage
+      collection and merge the complete map against the unchanged thresholds.
+- [x] Repair the deferred-bundle tests' dependency on pre-existing `dist/`
+      artifacts: build and load every required support bundle from private fixtures,
+      using the production English compression plugin for the exact-value check.
+      Preserve activation's assertions that action bundles remain unloaded.
+- [x] Fix any further macOS failures at their root, prove regression assertions
+      fire, then collect two consecutive green complete runs and per-file receipts.
+- [x] Run typecheck, scoped lint/format and the available static/build gates;
+      commit locally with hooks. No push, merge, rebase or paid/live call. VS Code
+      integration is outside the macOS CI matrix. Time box: 90 minutes.
+
+The explicit lane brief authorizes full shard coverage but shared rules prohibit
+`npm run quality`; the lead retains the integrated full quality gate. No gate,
+timeout, retry or skip policy is changed. Evidence is recorded in
+`docs/certification/cifix14-macos.md`.
+
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
 - [x] Merge origin-main (#121), M91/M91b, M93, Knip constants, DEFLAKE4 and M98 phase 1 in the brief's order, retaining every source head and both split-check speed fixes. Skip unready m94/kw and ci/refresh-badges for the lead.
@@ -20013,6 +20070,19 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**M96INT round 3d (2026-10-05, macmini).** Merge `main-0.14.0`
+(`2d4d72bd`) with `--no-ff`, retaining the release fixes and M96's runtime,
+team UI and package diet. Reconcile generated inventories by their scripts.
+Run all twelve round-3c failing files in prescribed three-file/three-worker
+batches, fix causes without weakened assertions or deadlines, and record
+red/green evidence. Run `VITEST_MAX_WORKERS=3 npm run quality` exactly once
+at the end; repair any failures with only their owning files afterward, with
+a second aggregate run reserved for the lead. Confirm the unchanged default
+history secret scan after shared archived refs have been moved to the
+separate archive repository. Measure startup and VSIX bytes. Windows proof
+remains WINPUB on win11, which the lead merges in the release batch. No push,
+rebase, paid/live calls or other integration merges are authorized.
+
 **M96INT round 3c (2026-10-05, macmini).** Merge W final fixes at
 `71baf294` and package diet at `be00b172` as merge commits. W remains the
 shared Git classifier owner; retain both lanes' admission regressions.
@@ -25299,6 +25369,66 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
+tarball passes the unchanged strict English fallback check and 382 distinct
+scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
+deadcode, duplication, host API and production build gates pass. Shared rules
+prohibit aggregate `npm run quality` and replacing the existing dependency tree;
+fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
+not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
+The exact universal VSIX listing therefore fails only that helper entry; hosted
+artifact operations and full integrated quality remain with the lead. No check
+is weakened. Receipts and deliberate failures are in
+`docs/certification/cifix14-acp-usage.md`.
+
+**CIFIX14W2 short-path certification (2026-10-05).** The explicit rig brief
+requires complete directory-tracking and shell files with default CLI timeouts,
+three workers and a real 8.3 fixture. Shared lane rules prohibit aggregate
+`npm run quality`; focused regressions, static checks and the production build
+run locally with hooks on. The lead retains the integrated full quality gate.
+No threshold, timeout, retry, skip policy or gate is changed; evidence is in
+`docs/certification/cifix14-shortpath.md`.
+
+**CIFIX14M bounded macOS certification (2026-10-05).** The explicit lane brief
+requires all four unit/process-e2e coverage shards and two complete green runs.
+The rig note overrides the shared prohibition on full suites for that work,
+while retaining its three-file/three-worker batches. Shared rules still prohibit
+`npm run quality`; hook-on commits use scoped regressions, typecheck, lint and
+format, with the available static/build checks and merged coverage recorded in
+`docs/certification/cifix14-macos.md`. The lead retains the integrated aggregate
+quality, accessibility and hosted certification. No gate is weakened.
+**CIFIX14W Windows hosted-CI repair (2026-10-05).** Reproduce all four unit
+and process-e2e shards on the Windows 11 rig, in the rig brief's bounded
+three-file batches with V8 coverage, then repeat the complete suite twice
+after repairs. Correct foreign-platform fixtures with explicit path/platform
+semantics and make in-memory bundle tests independent of existing `dist`.
+Check the real PowerShell directory case before deciding whether product
+changes are needed. Run the Windows integration suite using local VS Code
+downloads only; network, live models, timeout increases and gate changes are
+prohibited. Exact receipts and any unavailable checks belong in
+`docs/certification/cifix14-windows.md`.
+The shared rules prohibit the aggregate `quality` command; scoped gates and
+the expressly requested full tests run instead. The rig's Node is 24.21.0,
+not CI's Node 22, and only installed VS Code 1.139.1 is available offline.
+The first full scan also hits the unchanged five-second restore-lease deadline
+in checkpoint restore; that entire file then passes in isolation. These
+limits are recorded, with no green full-run or exact-CI-version claim until
+the required receipts exist.
+The continued scan finds one more foreign-shell fixture:
+`importHookSources.test.ts` starts Bash for a POSIX quoting case on Windows.
+Use each OS's actual shell and generated command, and assert the complete
+literal path and absence of command substitution on both branches.
+The complete scan additionally exposes a missing Bash-name dependency in
+the headless fixture and a POSIX-only missing-chunk error-path assertion.
+Git's installed `sh.exe` on this rig identifies itself as GNU Bash 5.3.15;
+admit that existing binary only after verifying it is Bash, keep executing
+the actual fake-only headless/workflow fixtures, and normalize filesystem
+separators while retaining the missing-file and failed-stat assertions.
+The last shard also exposes four fake-child plugin dispatch cases whose
+POSIX plugin paths are parsed with the real Windows platform. Give those
+fixtures a drive-qualified root on Windows, retaining native-platform
+parsing and all cap, grant-stripping and containment assertions.
 
 **M96INT round 3b preflight and explicit deferrals (2026-10-05, macmini).**
 The six ordered merge commits and the single W-owned Git classifier are

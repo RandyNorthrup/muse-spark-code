@@ -1,0 +1,131 @@
+{
+  "rig": "macmini",
+  "base": "aa6b15a3",
+  "release": "2d4d72bd",
+  "windowsDependency": "WINPUB on win11; lead merges in release batch",
+  "modelAttempts": 0,
+  "paidCalls": 0,
+  "historySecrets": {
+    "command": "gitleaks git --redact --no-banner .",
+    "exit": 0,
+    "commits": 1381,
+    "findings": 0
+  },
+  "focused": [
+    {
+      "run": "focused-1",
+      "passed": 60,
+      "failed": 1,
+      "pending": 33,
+      "files": [
+        {
+          "file": "test/e2e/execStdio.e2e.test.ts",
+          "status": "passed",
+          "maxDurationMs": 17770.674602
+        },
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "status": "failed",
+          "maxDurationMs": 0
+        },
+        {
+          "file": "test/unit/pluginDispatch.test.ts",
+          "status": "failed",
+          "maxDurationMs": 914.459758
+        }
+      ]
+    },
+    {
+      "run": "focused-2",
+      "passed": 41,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/teamLanding.test.ts",
+          "status": "passed",
+          "maxDurationMs": 5283.179662000002
+        },
+        {
+          "file": "test/unit/teamMergeBatchRepository.test.ts",
+          "status": "passed",
+          "maxDurationMs": 8071.631133999999
+        },
+        {
+          "file": "test/unit/teamSchedulerRetire.test.ts",
+          "status": "passed",
+          "maxDurationMs": 5257.1304629999995
+        }
+      ]
+    },
+    {
+      "run": "focused-3",
+      "passed": 60,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/htmlToMarkdown.test.ts",
+          "status": "passed",
+          "maxDurationMs": 389.12907999999993
+        },
+        {
+          "file": "test/unit/sshRunner.test.ts",
+          "status": "passed",
+          "maxDurationMs": 10469.493338
+        },
+        {
+          "file": "test/unit/teamNativeLifetime.test.ts",
+          "status": "passed",
+          "maxDurationMs": 3719.1270019999974
+        }
+      ]
+    },
+    {
+      "run": "focused-4",
+      "passed": 111,
+      "failed": 0,
+      "pending": 0,
+      "files": [
+        {
+          "file": "test/unit/flightRecorder.test.ts",
+          "status": "passed",
+          "maxDurationMs": 178.52343299999984
+        },
+        {
+          "file": "test/unit/paidDailyBudget.test.ts",
+          "status": "passed",
+          "maxDurationMs": 114.86450000000013
+        },
+        {
+          "file": "test/unit/paletteRegistry.test.ts",
+          "status": "passed",
+          "maxDurationMs": 19.263464999999997
+        }
+      ]
+    },
+    {
+      "run": "merge-repairs",
+      "passed": 60,
+      "failed": 0,
+      "pending": 2,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "status": "passed",
+          "maxDurationMs": 62.09587199999987
+        },
+        {
+          "file": "test/unit/pluginDispatch.test.ts",
+          "status": "passed",
+          "maxDurationMs": 2338.6438020000005
+        },
+        {
+          "file": "test/unit/uiTextRegions.test.mjs",
+          "status": "passed",
+          "maxDurationMs": 35.09679200000028
+        }
+      ]
+    }
+  ]
+}

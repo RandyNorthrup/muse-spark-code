@@ -846,3 +846,43 @@ Final standalone checks on `f084b2b0` also pass: SAST runs 529 rules over
 strings, 693 source files and zero problems; the dependency audit retains
 its existing reviewed braces exception and one nonblocking low advisory.
 Final receipt-only changes are excluded from the shipped artifacts.
+
+## M96INT round 3d release integration (2026-10-05, macmini)
+
+Branch `m96/int3d`, base `aa6b15a3`; merge `main-0.14.0` at
+`2d4d72bd` with `--no-ff`. No paid/live model calls, credential reads,
+pushes, rebases or other branch merges. The rig brief authorizes exactly
+one full-quality invocation after focused repairs; subsequent failures are
+verified only in their owning files, with a second aggregate run for the lead.
+
+Conflict resolutions retain both milestones and gate records in PLAN,
+all unreleased changes, and the byte-identical released changelog tail.
+English and all fourteen translations retain the release's complete ACP
+usage, including Setup; the obsolete separate Setup key is removed and
+identical duplicate report keys collapse to one. The production Node English
+codec is shared with private in-memory tests. Keep M96's browser compression,
+shared grammar, team factory, lazy team UI and exact compressed package diet.
+Host API and team tool schema inventories regenerate using their scripts.
+
+The initial merged-tree batch passes execStdio but exposes an absent `outdir`
+on the private three-entry team build and a macOS refusal case accidentally
+using the portable Linux adapter. Add the output directory, explicitly give
+the refusal its Darwin adapter, and retain the five portable real-child
+OpenCode cases without the release's newly overlapping platform skips.
+The repaired batch passes 26 deferred, 28 plugin and six English-region
+assertions, with only the two pre-existing actual Linux/Bun cases gated.
+Across all twelve requested files, **304 distinct assertions pass**.
+This is focused verification, not full-quality certification.
+
+Default `gitleaks git --redact --no-banner .` now exits zero in the shared
+repository: **1,381 commits, 66.54 MB scanned, no leaks**. Archived rig refs
+were moved outside the repository before this lane; this lane changes no
+shared ref, scanner ignore or Git configuration. Windows certification
+remains **WINPUB on win11**, to be merged by the lead in the release batch.
+
+Timing remains visible: the initial real Git batch cases take 7.1–8.1 s,
+landing peaks at 5.3 s, and the detached descendant takes 5.26 s because
+its fixture sleeps five seconds. SSH's combined five-run case takes 10.47 s.
+All deadlines, assertions and coverage gates stay unchanged. Final repairs,
+drills, aggregate gate and package measurements follow below and in
+`m96-int-round3d-results.json`.

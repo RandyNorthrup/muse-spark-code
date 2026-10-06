@@ -5843,7 +5843,13 @@ export class ModelApiSession implements AgentSession {
         ...parsed,
         command: `${command}${shellDirectoryTrailer(this.deps.platform, sideFile, sequence)}`,
       }),
-      cwd: this.keptShellDir ?? this.deps.workspaceRoot,
+      // Use the same native long form as resolveShellDirectory on Windows:
+      // a workspace opened through an 8.3 alias must also start/reset there.
+      cwd:
+        this.keptShellDir ??
+        (this.deps.platform === 'win32'
+          ? await this.deps.io.realPath(this.deps.workspaceRoot)
+          : this.deps.workspaceRoot),
       sideFile,
       sequence,
     }

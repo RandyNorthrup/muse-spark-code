@@ -295,11 +295,14 @@ function host(warnings: string[] = []): PluginHostDeps {
   }
 }
 
-function adapterWith(plugins: PluginHostDeps | undefined): ForeignHookAdapter {
+function adapterWith(
+  plugins: PluginHostDeps | undefined,
+  platform: NodeJS.Platform = 'linux',
+): ForeignHookAdapter {
   return createForeignHookAdapter({
     workspaceRoot: ROOT,
     // Payload/dispatcher proof over the portable Linux transport fixture.
-    platform: 'linux',
+    platform,
     io: { realPath: (absolutePath) => Promise.resolve(absolutePath) },
     homeDir: '/home/u',
     ...(plugins !== undefined && { plugins }),
@@ -575,6 +578,22 @@ describe.runIf(IS_REAL)('plugin dispatch with real children', () => {
     await expectEnded(pid)
     await pending
   })
+
+  it.runIf(process.platform === 'darwin')(
+    'an OpenCode plugin is refused on macOS, where bun cannot be bounded',
+    async () => {
+      const plugin = writePlugin(
+        `export const Quiet = async () => ({ 'tool.execute.before': async () => {} })`,
+      )
+      const result = await dispatch(
+        definitions('PreToolUse', 'opencode', 'tool.execute.before', plugin),
+        'PreToolUse',
+        toolPayload('PreToolUse', 'bash', { command: 'ls' }),
+        adapterWith(host(), 'darwin'),
+      )
+      expect(result.blockedReason).toContain("bun's memory cannot be bounded on darwin")
+    },
+  )
 })
 
 /** The host side for the installed bun: its folder on the allowlisted PATH. */
@@ -620,6 +639,7 @@ describe.runIf(IS_REAL && process.platform === 'linux' && BUN !== undefined)(
 )
 
 describe('plugin dispatch without real children', () => {
+  const pluginRoot = process.platform === 'win32' ? 'C:/plugins' : '/plugins'
   it('runs plugin hooks under the host-wide cap', async () => {
     let running = 0
     let peak = 0
@@ -638,7 +658,7 @@ describe('plugin dispatch without real children', () => {
       answer: () => ({ status: 'failed' }),
     }
     const hooks = Array.from({ length: HOOK_MAX_RUNNING_COMMANDS + 3 }, (_, index) =>
-      definitions('PreToolUse', 'amp', 'tool.call', `/plugins/p${String(index)}.mjs`),
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, `p${String(index)}.mjs`)),
     ).flat()
     await dispatch(
       hooks,
@@ -664,7 +684,7 @@ describe('plugin dispatch without real children', () => {
       answer: () => ({ status: 'failed' }),
     }
     const result = await dispatch(
-      definitions('PreToolUse', 'amp', 'tool.call', '/plugins/p.mjs'),
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, 'p.mjs')),
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapter,
@@ -681,7 +701,7 @@ describe('plugin dispatch without real children', () => {
       now: () => 0,
     }
     const closed = await dispatch(
-      definitions('PreToolUse', 'opencode', 'tool.execute.before', '/plugins/p.mjs'),
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', path.join(pluginRoot, 'p.mjs')),
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapterWith(plugins),
@@ -689,7 +709,7 @@ describe('plugin dispatch without real children', () => {
     expect(closed.blockedReason).toContain('cannot be contained')
     expect(closed.messages).toEqual(['Translated notice'])
     const open = await dispatch(
-      definitions('PreToolUse', 'amp', 'tool.call', '/plugins/p.mjs'),
+      definitions('PreToolUse', 'amp', 'tool.call', path.join(pluginRoot, 'p.mjs')),
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapterWith(plugins),
@@ -700,7 +720,7 @@ describe('plugin dispatch without real children', () => {
 
   it('without the host side, a plugin hook is refused by its rule and never runs natively', async () => {
     const result = await dispatch(
-      definitions('PreToolUse', 'opencode', 'tool.execute.before', '/plugins/p.mjs'),
+      definitions('PreToolUse', 'opencode', 'tool.execute.before', path.join(pluginRoot, 'p.mjs')),
       'PreToolUse',
       toolPayload('PreToolUse', 'bash', { command: 'ls' }),
       adapterWith(undefined),

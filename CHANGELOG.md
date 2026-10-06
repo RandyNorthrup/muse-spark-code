@@ -87,6 +87,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+
 - **Diff counter contrast checks.** The existing sign and count share one
   colored text span, preserving totals and translated order while allowing
   single-digit contrast measurement. The report browser fixture checks its
@@ -1039,6 +1058,7 @@ happened, not what was planned; superseded entries are kept.
   (it wrote `.claude/settings.json` that way in a live check with its
   sandbox off); the extension cannot stop a write it is never asked
   about.
+
 ## [0.12.1] - 2026-10-04
 
 ### Changed
