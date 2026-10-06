@@ -33,6 +33,15 @@ format. Changing any executable, argument, cwd, sudo path, SSH destination,
 host key, remote user/session/forwarding, Git scope, browser/frame/field,
 header name, OAuth resource or disclosure recipient changes the digest.
 
+OAuth `issuer` is an HTTPS identifier URL, distinct from an origin: paths and
+trailing slashes are allowed, but queries, fragments, userinfo, whitespace and
+backslashes are refused. `vaultIssuerSchema` is shared by uses, bindings and
+private token material; it preserves the input string. O/B compare the whole
+identifier exactly (RFC 8414/9207), without URL normalization or origin
+extraction. Case, explicit ports, percent-encoding and a trailing slash remain
+distinct, including in the use digest. The committed boundary is
+`docs/schemas/vault-issuer-v1.schema.json`; the contract suite checks drift.
+
 A digest is not authentication or path resolution. The caller first resolves
 real paths and live destinations. B recomputes the digest and compares actual
 use again at dispatch. Clock is injected; the schema validates relative TTL,

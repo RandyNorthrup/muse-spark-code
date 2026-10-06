@@ -16,6 +16,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M109's preparation contracts now accept complete HTTPS OAuth issuer
+  identifiers, including tenant paths and trailing slashes, while preserving
+  exact issuer identity in grants, token material and use digests.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

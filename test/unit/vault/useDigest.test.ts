@@ -91,6 +91,27 @@ describe('canonical vault uses', () => {
     const invalid = { ...use(), command: { ...use().command, cwd: '.' } }
     expect(() => canonicalVaultUse(invalid)).toThrow()
   })
+  it('RVM109L0 P2 issuer: OAuth digests distinguish tenants and exact issuer spellings', () => {
+    const oauth: Extract<VaultUse, { kind: 'oauth' }> = {
+      kind: 'oauth',
+      origin: 'https://mcp.example.test',
+      issuer: 'https://auth.example.test/realms/team',
+      resource: 'https://mcp.example.test/server',
+    }
+    const issuers = [
+      oauth.issuer,
+      'https://auth.example.test/realms/other',
+      'https://auth.example.test/realms/team/',
+      'https://auth.example.test/realms/%74eam',
+      'https://AUTH.example.test/realms/team',
+      'https://auth.example.test:443/realms/team',
+      'https://auth.example.test',
+      'https://auth.example.test/',
+    ]
+    expect(new Set(issuers.map((issuer) => vaultUseDigest({ ...oauth, issuer }))).size).toBe(
+      issuers.length,
+    )
+  })
   it('covers all brokered routes with different digest domains', () => {
     const command = use().command
     const routes: VaultUse[] = [

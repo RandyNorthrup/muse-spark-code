@@ -1,0 +1,60 @@
+[
+  {
+    "name": "issuer-use-origin",
+    "sourcePath": "src/shared/vault.ts",
+    "sha256Before": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "sha256After": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts test/unit/vault/useDigest.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers",
+      " FAIL  test/unit/vault/useDigest.test.ts > canonical vault uses > RVM109L0 P2 issuer: OAuth digests distinguish tenants and exact issuer spellings"
+    ]
+  },
+  {
+    "name": "issuer-binding-origin",
+    "sourcePath": "src/shared/vault.ts",
+    "sha256Before": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "sha256After": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts test/unit/vault/useDigest.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers"
+    ]
+  },
+  {
+    "name": "issuer-material-origin",
+    "sourcePath": "src/shared/vault.ts",
+    "sha256Before": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "sha256After": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts test/unit/vault/useDigest.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers"
+    ]
+  },
+  {
+    "name": "issuer-url-guard",
+    "sourcePath": "src/shared/vault.ts",
+    "sha256Before": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "sha256After": "e97cfa904468ac6856ec2201e8363c9bbbae65104c80f25c86d5c9ea3e0cdd38",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts test/unit/vault/useDigest.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > V3: origins and OAuth audiences are canonical and bound, not credential-bearing URLs",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: the committed issuer JSON Schema matches its runtime boundary"
+    ]
+  },
+  {
+    "name": "issuer-json-drift",
+    "sourcePath": "docs/schemas/vault-issuer-v1.schema.json",
+    "sha256Before": "6af74ed41f411d127a8db414955330094bc3a988cd1e2794b7a60c84472c1443",
+    "sha256After": "6af74ed41f411d127a8db414955330094bc3a988cd1e2794b7a60c84472c1443",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: the committed issuer JSON Schema matches its runtime boundary"
+    ]
+  }
+]

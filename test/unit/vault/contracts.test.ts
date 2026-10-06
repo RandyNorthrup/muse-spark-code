@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { randomBytes } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import * as vault from '../../../src/shared/vault'
 import * as protocol from '../../../src/shared/vaultProtocol'
 import { vaultPanelStateSchema } from '../../../src/shared/modelsPanel'
@@ -243,6 +245,67 @@ describe('M109 strict contracts', () => {
         headerName: 'X-Test\nInjected',
       }).success,
     ).toBe(false)
+  })
+
+  it('RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers', () => {
+    const oauth = {
+      kind: 'oauth',
+      origin: 'https://mcp.example.test',
+      resource: 'https://mcp.example.test/server',
+    }
+    const privateMaterial = {
+      kind: 'oauth',
+      accessToken: randomBytes(32),
+      refreshToken: null,
+      expiresAt: 1000,
+      resource: oauth.resource,
+    }
+    for (const issuer of [
+      'https://auth.example.test',
+      'https://auth.example.test/',
+      'https://auth.example.test/realms/team',
+      'https://AUTH.example.test:443/realms/%74eam/',
+    ]) {
+      for (const [schema, value] of [
+        [vault.vaultUseSchema, oauth],
+        [vault.vaultBindingSchema, oauth],
+        [vault.vaultMaterialSchema, privateMaterial],
+      ] as const) {
+        const parsed = schema.parse({ ...value, issuer })
+        expect(parsed.kind === 'oauth' && parsed.issuer).toBe(issuer)
+      }
+    }
+    for (const issuer of [
+      new URL('https://auth.example.test').href.replace('https:', 'http:'),
+      'https://auth.example.test/realms/team?audience=mcp',
+      'https://auth.example.test/realms/team?',
+      'https://auth.example.test/realms/team#fragment',
+      'https://auth.example.test/realms/team#',
+      'https://user:password@auth.example.test/realms/team',
+      'https://@auth.example.test/realms/team',
+      'https://auth.example.test/realms/team with space',
+      String.raw`https://auth.example.test\realms\team`,
+      'https:///auth.example.test',
+      'https://[invalid]/realm',
+      '/realms/team',
+    ]) {
+      for (const [schema, value] of [
+        [vault.vaultUseSchema, oauth],
+        [vault.vaultBindingSchema, oauth],
+        [vault.vaultMaterialSchema, privateMaterial],
+      ] as const)
+        expect(schema.safeParse({ ...value, issuer }).success, issuer).toBe(false)
+    }
+  })
+
+  it('RVM109L0 P2 issuer: the committed issuer JSON Schema matches its runtime boundary', () => {
+    const committed: unknown = JSON.parse(
+      readFileSync(
+        new URL('../../../docs/schemas/vault-issuer-v1.schema.json', import.meta.url),
+        'utf8',
+      ),
+    )
+    expect(committed).toEqual({ ...z.toJSONSchema(vault.vaultIssuerSchema), format: 'uri' })
   })
 
   it('V14: fill rejects IDN look-alikes, HTTP, cross-origin frames and invalid certificates', () => {

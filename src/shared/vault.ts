@@ -62,6 +62,10 @@ const resource = text.check(
   }),
 )
 const httpsOrigin = origin.check(z.startsWith('https://'))
+/** RFC 8414/9207 issuer identifiers retain their exact spelling, including the path. */
+export const vaultIssuerSchema = z
+  .url()
+  .check(z.maxLength(VAULT_LIMITS.text), z.regex(/^https:\/\/[^/?#\\\s@]+(?:\/[^?#\\\s\0]*)?$/u))
 const fingerprint = text.check(z.regex(/^SHA256:[A-Za-z0-9+/]{43}$/u))
 const names = z.array(text).check(
   z.minLength(1),
@@ -180,7 +184,7 @@ const headerTarget = z.strictObject({
 const oauthTarget = z.strictObject({
   kind: z.literal('oauth'),
   origin,
-  issuer: httpsOrigin,
+  issuer: vaultIssuerSchema,
   resource,
 })
 const fillTarget = z
@@ -266,7 +270,7 @@ export const vaultBindingSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     kind: z.literal('oauth'),
     origin,
-    issuer: httpsOrigin,
+    issuer: vaultIssuerSchema,
     resource,
   }),
   z.strictObject({ kind: z.literal('disclosure'), recipient: text }),
@@ -380,7 +384,7 @@ export const vaultMaterialSchema = z.union([
     kind: z.literal('oauth'),
     accessToken: bytes,
     refreshToken: z.nullable(bytes),
-    issuer: httpsOrigin,
+    issuer: vaultIssuerSchema,
     expiresAt: time,
     resource,
   }),
