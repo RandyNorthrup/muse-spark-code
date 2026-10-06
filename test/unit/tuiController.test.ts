@@ -35,11 +35,26 @@ function fixture() {
     },
   }
 }
+function focusAsk(controller: TuiController): void {
+  controller.presentAsk(controller.state.asks[0])
+  controller.key('', { tab: true })
+}
 afterEach(() => {
   setUiText(EN, 'en')
 })
 
 describe('M110 T controller and projections', () => {
+  it('single-digit lines are ordinary chat when no ask is pending', () => {
+    const f = fixture()
+    f.controller.key('1')
+    f.controller.key('', { return: true })
+    f.controller.submit('2')
+    expect(f.send.mock.calls).toEqual([
+      [{ type: 'message', text: '1' }],
+      [{ type: 'message', text: '2' }],
+    ])
+    expect(f.controller.input).toBe('')
+  })
   it('streaming text replaces snapshots, merges deltas and stays bounded', () => {
     const { controller } = fixture()
     controller.receive({ type: 'chat', role: 'agent', id: 'm', text: 'hel', delta: false })
@@ -64,6 +79,7 @@ describe('M110 T controller and projections', () => {
   it('never approves Enter, typing, an invalid choice or a repeated choice', () => {
     const { controller, send } = fixture()
     controller.receive({ type: 'ask', ask: toolAsk })
+    focusAsk(controller)
     controller.key('', { return: true })
     controller.key('yes')
     controller.key('9')
@@ -84,11 +100,13 @@ describe('M110 T controller and projections', () => {
   it('does not approve a different ask when the displayed ask expires', () => {
     const f = fixture()
     f.controller.receive({ type: 'ask', ask: toolAsk })
+    focusAsk(f.controller)
     f.controller.receive({ type: 'ask', ask: { ...toolAsk, id: 'later', expiresAt: 9000 } })
     f.time(5000)
     f.controller.key('1')
     expect(f.send).not.toHaveBeenCalled()
     expect(f.controller.state.asks.map((ask) => ask.id)).toEqual(['later'])
+    focusAsk(f.controller)
     f.controller.key('2')
     expect(f.send).toHaveBeenCalledWith(expect.objectContaining({ id: 'later', choice: 'deny' }))
   })
@@ -123,7 +141,8 @@ describe('M110 T controller and projections', () => {
     expect(askLines(ask).join(' ')).toContain('$1.00')
     controller.receive({ type: 'ask', ask })
     expect(line.mock.calls[0]?.[0]).toContain('3. Deny')
-    controller.submit('2')
+    focusAsk(controller)
+    controller.key('2')
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ choice: 'always' }))
     expect(
       tuiEventSchema.safeParse({ type: 'ask', ask: { ...toolAsk, kind: 'paid' } }).success,
@@ -132,7 +151,8 @@ describe('M110 T controller and projections', () => {
   it('vault asks never acquire paid workspace grants; settlement removes only its ask', () => {
     const { controller, send } = fixture()
     controller.receive({ type: 'ask', ask: { ...toolAsk, kind: 'vault' } })
-    controller.submit('2')
+    focusAsk(controller)
+    controller.key('2')
     expect(send).toHaveBeenCalledWith(expect.objectContaining({ choice: 'deny' }))
     controller.receive({ type: 'settled', id: 'unrelated' })
     expect(controller.state.asks).toHaveLength(1)
@@ -250,13 +270,13 @@ describe('M110 T controller and projections', () => {
     expect(f.line.mock.calls.at(-1)?.[0]).toContain('Second request')
     expect(f.line.mock.calls.at(-1)?.[0]).toContain('1. Allow once')
   })
-  it('numeric choices after timer expiry never dispatch a paid model message', () => {
+  it('fresh numeric chat after timer expiry is sent as chat, never approval', () => {
     const f = fixture()
     f.controller.receive({ type: 'ask', ask: toolAsk })
     f.time(5000)
     f.controller.tick()
     f.controller.submit('1')
-    expect(f.send).not.toHaveBeenCalled()
+    expect(f.send).toHaveBeenCalledExactlyOnceWith({ type: 'message', text: '1' })
   })
   it('setup and paid projections reject oversized codes and invalid prices/budgets', () => {
     const fingerprint = 'a'.repeat(64)

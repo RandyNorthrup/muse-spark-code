@@ -20,10 +20,11 @@ export const TUI_LIMITS = {
   statusHeaderRows: 2,
   connectMs: 5000,
   refreshMs: 1000,
+  escapeMs: 100,
+  decisionQuietMs: 100,
+  outputMs: 5000,
   terminalColumns: 80,
   terminalRows: 24,
-  minimumColumns: 20,
-  minimumRows: 8,
   permissionMask: 0o077,
   currencyDigits: 2,
 } as const

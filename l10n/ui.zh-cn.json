@@ -2351,5 +2351,7 @@
   "judgeStatusDeclined": "关闭：已拒绝付费使用",
   "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
   "judgeStatusSubscription": "订阅",
-  "judgeStatusPaid": "付费"
+  "judgeStatusPaid": "付费",
+  "tuiApprovalFocus": "按 Tab 聚焦此请求，然后按对应数字。粘贴的选择会被忽略。",
+  "tuiApprovalTooLarge": "无法完整显示请求。请扩大终端；选项已禁用。"
 }

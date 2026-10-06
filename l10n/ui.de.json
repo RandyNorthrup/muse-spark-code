@@ -2445,5 +2445,7 @@
   "judgeStatusDeclined": "Aus: kostenpflichtige Nutzung abgelehnt",
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Kostenpflichtig"
+  "judgeStatusPaid": "Kostenpflichtig",
+  "tuiApprovalFocus": "Drücken Sie Tab, um diese Anfrage zu fokussieren, und dann ihre Nummer. Eingefügte Auswahl wird ignoriert.",
+  "tuiApprovalTooLarge": "Die vollständige Anfrage passt nicht hinein. Vergrößern Sie das Terminal; die Auswahl ist deaktiviert."
 }

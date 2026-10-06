@@ -2633,5 +2633,7 @@
   "judgeStatusDeclined": "Wyłączony: odmówiono płatnego użycia",
   "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
   "judgeStatusSubscription": "Subskrypcja",
-  "judgeStatusPaid": "Płatne"
+  "judgeStatusPaid": "Płatne",
+  "tuiApprovalFocus": "Naciśnij Tab, aby ustawić fokus na tym żądaniu, a następnie naciśnij jego numer. Wklejone wybory są ignorowane.",
+  "tuiApprovalTooLarge": "Całe żądanie się nie mieści. Powiększ terminal; wybory są wyłączone."
 }

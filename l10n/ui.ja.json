@@ -2351,5 +2351,7 @@
   "judgeStatusDeclined": "オフ：有料利用が拒否されました",
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
-  "judgeStatusPaid": "有料"
+  "judgeStatusPaid": "有料",
+  "tuiApprovalFocus": "Tab キーでこのリクエストにフォーカスし、番号を押してください。貼り付けた選択は無視されます。",
+  "tuiApprovalTooLarge": "リクエスト全体を表示できません。ターミナルを拡大してください。選択肢は無効です。"
 }

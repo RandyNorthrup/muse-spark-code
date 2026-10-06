@@ -2633,5 +2633,7 @@
   "judgeStatusDeclined": "Vypnuto: placené použití odmítnuto",
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
-  "judgeStatusPaid": "Placené"
+  "judgeStatusPaid": "Placené",
+  "tuiApprovalFocus": "Stisknutím Tab zaměřte tento požadavek a pak stiskněte jeho číslo. Vložené volby se ignorují.",
+  "tuiApprovalTooLarge": "Celý požadavek se nevejde. Zvětšete terminál; volby jsou zakázány."
 }

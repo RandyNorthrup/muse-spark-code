@@ -2539,5 +2539,7 @@
   "judgeStatusDeclined": "Désactivé : utilisation payante refusée",
   "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
   "judgeStatusSubscription": "Abonnement",
-  "judgeStatusPaid": "Payant"
+  "judgeStatusPaid": "Payant",
+  "tuiApprovalFocus": "Appuyez sur Tab pour cibler cette demande, puis sur son numéro. Les choix collés sont ignorés.",
+  "tuiApprovalTooLarge": "La demande complète ne tient pas. Agrandissez le terminal ; les choix sont désactivés."
 }

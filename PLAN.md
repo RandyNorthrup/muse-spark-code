@@ -22467,6 +22467,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**Lane T review fixes (FIXM110T, 2026-10-05).** Resolve RVM110T findings
+1–7 within the terminal surface and its owned tests: fresh focused approval
+keys after presentation, buffered/pasted decision rejection, complete approval
+viewports with choices withheld when they cannot fit, escape-sequence decoding
+with a standalone-Esc deadline, setup-time terminal closure, failed-output exit
+status, numeric chat outside asks, and native Windows named-pipe test fixtures
+with POSIX privacy checks exercised through filesystem seams. No socket policy
+is widened. Record each regression and byte-exact red drill in
+`docs/certification/m110-t.md`; the rig brief reserves full quality for the lead.
+
 **Status 2026-10-05: planned, documentation only.** Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
@@ -22896,6 +22906,15 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
+
+**FIXM110T rig qualification (2026-10-05).** The rig/common briefs prohibit
+aggregate `npm run quality`; the lead runs integrated fleet quality. Scoped
+TUI regressions, deliberate failures with SHA-256 restoration, typecheck,
+lint/format, localization, deadcode, duplication and production build are
+required here. `check:host-api` still fails only the existing T-HOST-RECORD
+generated built-in delta documented in `docs/certification/m110-t.md`.
+The record is J's owned file; J/lead regenerates it before integration.
+No test, threshold, ignore or gate is relaxed.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -24069,6 +24088,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M110-T integration qualification (FIXM110T, 2026-10-05).** RVM110T's
+  seven findings are fixed and regression-tested on win11. This base still
+  lacks the real Ink binding, launcher, MHP/node service and feature catalog;
+  T-INK must acknowledge flushed output and leave raw input to the shared
+  decoder, then qualify bracketed-paste mode and actual terminals/assistive
+  technology. T-LAUNCH/T-MHP/T-DOCS remain the named integration owners.
+  Safe for now: this code is not a shipped command and cannot spend or grant
+  permission itself; redirected input cannot answer asks. A terminal cannot
+  prove physical input provenance against a hostile terminal or another
+  process injecting indistinguishable bytes. This qualification does not
+  claim that protection. T-HOST-RECORD remains a stale generated-record gate
+  failure with exactly the previously recorded built-in delta; J/lead must
+  regenerate it before release. No admission guard or gate is weakened.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

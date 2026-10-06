@@ -34,6 +34,9 @@ export const EN = {
   tuiDisconnected: 'The node connection ended or could not be opened.',
   tuiStopRequested: 'Stop everything requested.',
   tuiInputTooLong: 'The message is too long.',
+  tuiApprovalFocus:
+    'Press Tab to focus this request, then press its number. Pasted choices are ignored.',
+  tuiApprovalTooLarge: 'The full request does not fit. Enlarge the terminal; choices are disabled.',
   tuiKeys: 'Esc: Stop all | Tab: views | ↑/↓: scroll | Enter: send | numbers: choose',
   tuiUsage: 'Usage: muse-spark-code-acp tui [--screen-reader] [--no-color]',
   tuiRendererMissing: 'The terminal renderer is not installed.',

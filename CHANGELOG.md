@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The internal M110 terminal surface now requires freshly focused approval
+  keys after complete request presentation, ignores buffered and pasted
+  decisions, and disables choices when the action and paid terms cannot fit.
+  Terminal escape sequences, setup-time EOF, failed output and numeric chat
+  are handled correctly; socket tests now use real Windows named pipes.
+  The node/TUI launcher and Ink integration remain unshipped.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

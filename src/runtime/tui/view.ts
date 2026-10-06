@@ -2,6 +2,7 @@ import { createElement, type ComponentType, type ReactElement, type ReactNode } 
 import { TUI_LIMITS, UI_TEXT } from '../../shared/constants'
 import { formatNumber } from '../../shared/l10n/text'
 import type { TuiController } from './controller'
+import type { TuiAsk } from './protocol'
 import {
   askChoices,
   askLines,
@@ -25,12 +26,13 @@ interface InkBoxProps {
 export interface InkBinding {
   Text: ComponentType<InkTextProps>
   Box: ComponentType<InkBoxProps>
-  useInput(handler: TuiController['key']): void
   render(
     element: ReactElement,
     options: { exitOnCtrlC: false; patchConsole: false },
   ): {
     rerender(element: ReactElement): void
+    /** Resolves only after this renderer's output is flushed to the terminal. */
+    waitUntilRenderFlush(): Promise<void>
     unmount(): void
   }
 }
@@ -92,23 +94,39 @@ function wrapLine(line: TuiLine, width: number): TuiLine[] {
   return lines
 }
 
+/** All action text and paid terms must fit before any choice is presented. */
+export function approvalLines(
+  controller: TuiController,
+  options: { columns: number; rows: number },
+): { lines: TuiLine[]; ask: TuiAsk | undefined } {
+  const ask = controller.state.asks[0]
+  if (ask === undefined) return { lines: [], ask: undefined }
+  const width = Math.max(1, options.columns)
+  const height = Math.max(0, options.rows)
+  const lines = [...askLines(ask), UI_TEXT.tuiApprovalFocus].flatMap((text) =>
+    wrapLine({ text }, width),
+  )
+  if (lines.length <= height) return { lines, ask }
+  const warning = wrapLine({ text: UI_TEXT.tuiApprovalTooLarge }, width).slice(0, height)
+  const action = askLines(ask)
+    .slice(0, -askChoices(ask).length)
+    .flatMap((text) => wrapLine({ text }, width))
+  return {
+    lines: [...action.slice(0, Math.max(0, height - warning.length)), ...warning],
+    ask: undefined,
+  }
+}
+
 /** Approval choices have identical props: no selected/default emphasis. */
 export function tuiView(
   controller: TuiController,
   ink: InkBinding,
   options: { columns: number; rows: number; noColor: boolean },
 ): ReactElement {
-  const width = Math.max(TUI_LIMITS.minimumColumns, options.columns)
-  const height = Math.max(TUI_LIMITS.minimumRows, options.rows)
+  const width = Math.max(1, options.columns)
+  const height = Math.max(0, options.rows)
   const pairing = pairingLines(controller.state).flatMap((text) => wrapLine({ text }, width))
   const ask = controller.state.asks[0]
-  const choices = ask === undefined ? [] : askChoices(ask)
-  const approval =
-    ask === undefined
-      ? []
-      : askLines(ask)
-          .slice(-choices.length)
-          .flatMap((text) => wrapLine({ text }, width))
   const fixed: TuiLine[] = [
     ...statusLines(controller.state)
       .flatMap((text) => wrapLine({ text }, width))
@@ -121,21 +139,17 @@ export function tuiView(
       ? [{ text: `${UI_TEXT.composerLabel}: ${terminalText(controller.input)}` }]
       : []),
   ].flatMap((line) => wrapLine(line, width))
-  const available = Math.max(0, height - fixed.length - footer.length - approval.length)
-  const body = (
-    ask === undefined
-      ? contentLines(controller)
-      : askLines(ask)
-          .slice(0, -choices.length)
-          .map((text) => ({ text }))
-  ).flatMap((line) => wrapLine(line, width))
+  const available = Math.max(0, height - fixed.length - footer.length)
+  const body = contentLines(controller).flatMap((line) => wrapLine(line, width))
   const end = Math.max(0, body.length - controller.scroll)
-  const visible: TuiLine[] = [
-    ...fixed,
-    ...body.slice(Math.max(0, end - available), end),
-    ...approval,
-    ...footer,
-  ]
+  let visible: TuiLine[] = [...fixed, ...body.slice(Math.max(0, end - available), end), ...footer]
+  if (ask === undefined) {
+    controller.presentAsk(undefined)
+  } else {
+    const approval = approvalLines(controller, options)
+    if (approval.ask === undefined) controller.presentAsk(undefined)
+    visible = [...fixed.slice(0, Math.max(0, height - approval.lines.length)), ...approval.lines]
+  }
   return createElement(
     ink.Box,
     { flexDirection: 'column', width, height, overflow: 'hidden' },
@@ -152,7 +166,7 @@ export function tuiView(
   )
 }
 
-/** useInput runs inside a React component, supplied by actual Ink at integration. */
+/** Raw input is decoded by runTui for both surfaces; Ink only renders. */
 export function TuiInputView(props: {
   controller: TuiController
   ink: InkBinding
@@ -160,8 +174,5 @@ export function TuiInputView(props: {
   rows: number
   noColor: boolean
 }): ReactElement {
-  props.ink.useInput((input, key) => {
-    props.controller.key(input, key)
-  })
   return tuiView(props.controller, props.ink, props)
 }

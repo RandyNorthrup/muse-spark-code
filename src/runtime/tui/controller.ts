@@ -1,5 +1,5 @@
 import { TUI_LIMITS, UI_TEXT } from '../../shared/constants'
-import { tuiEventSchema, type TuiAction, type TuiEvent } from './protocol'
+import { tuiEventSchema, type TuiAction, type TuiAsk, type TuiEvent } from './protocol'
 import {
   askChoices,
   askLines,
@@ -17,6 +17,8 @@ const views: readonly TuiView[] = ['chat', 'diff', 'tasks', 'status']
 /** Both surfaces use this controller; it has no model, grant store or timer. */
 export class TuiController {
   private readonly sent = new Set<string>()
+  private presented: TuiAsk | undefined
+  private focused = false
   readonly state = initialTuiState()
   view: TuiView = 'chat'
   input = ''
@@ -33,9 +35,10 @@ export class TuiController {
 
   private answer(index: number): void {
     const displayed = this.state.asks[0]
+    if (displayed === undefined || !this.focused || this.presented !== displayed) return
     this.tick()
     const ask = this.state.asks[0]
-    if (ask === undefined || ask.id !== displayed?.id || this.sent.has(ask.id)) return
+    if (ask !== displayed || this.sent.has(displayed.id)) return
     const item = askChoices(ask)[index]
     if (item === undefined) return
     this.deps.send({
@@ -47,6 +50,17 @@ export class TuiController {
     })
     // Keep the ask visible until authoritative settlement; never reuse a grant.
     this.sent.add(ask.id)
+  }
+
+  /** Presentation and input are separate: a hidden/replaced ask cannot answer. */
+  presentAsk(ask: TuiAsk | undefined): void {
+    const next = ask === this.state.asks[0] ? ask : undefined
+    if (this.presented !== next) this.focused = false
+    this.presented = next
+  }
+
+  blurAsk(): void {
+    this.focused = false
   }
 
   receive(raw: TuiEvent): void {
@@ -66,6 +80,10 @@ export class TuiController {
       if (this.state.asks.every((ask) => ask.id !== id)) this.sent.delete(id)
     }
     const next = this.state.asks[0]
+    if (this.presented !== next) {
+      this.presentAsk(undefined)
+      this.input = ''
+    }
     if (shouldAnnounce && next !== undefined && previous !== next.id)
       this.deps.line(askLines(next).join(' | '))
     this.deps.changed()
@@ -85,6 +103,7 @@ export class TuiController {
       downArrow?: boolean
       pageUp?: boolean
       pageDown?: boolean
+      pasted?: boolean
     } = {},
   ): void {
     if (
@@ -95,18 +114,24 @@ export class TuiController {
     ) {
       this.deps.send({ type: 'stop', scope: 'all' })
       this.input = ''
+      this.blurAsk()
       this.deps.line(UI_TEXT.tuiStopRequested)
       this.deps.changed()
       return
     }
     if (key.tab === true) {
-      this.view = views[(views.indexOf(this.view) + 1) % views.length] ?? 'chat'
-      this.scroll = 0
+      if (this.state.asks.length > 0) {
+        this.focused = key.pasted !== true && this.presented === this.state.asks[0]
+      } else {
+        this.view = views[(views.indexOf(this.view) + 1) % views.length] ?? 'chat'
+        this.scroll = 0
+      }
     } else if (key.upArrow === true || key.pageUp === true) this.scroll += 1
     else if (key.downArrow === true || key.pageDown === true)
       this.scroll = Math.max(0, this.scroll - 1)
     else if (this.state.asks.length > 0) {
-      if (/^[1-9]$/u.test(input)) this.answer(Number(input) - 1)
+      if (key.pasted !== true && key.ctrl !== true && /^[1-9]$/u.test(input))
+        this.answer(Number(input) - 1)
       // Enter has no default; other typing never answers an ask.
     } else if (key.return === true) this.submit(this.input)
     else if (key.backspace === true || key.delete === true)
@@ -127,8 +152,10 @@ export class TuiController {
       const selected = views.find((view) => `/${view}` === command)
       if (selected !== undefined) this.view = selected
       this.deps.changed()
-    } else if (/^[1-9]$/u.test(command)) this.answer(Number(command) - 1)
-    else if (command !== '' && this.state.asks.length === 0) {
+    } else if (this.state.asks.length > 0) {
+      // Decisions come only from focused, individually decoded keys.
+      this.tick()
+    } else if (command !== '' && this.state.asks.length === 0) {
       if (command.length > TUI_LIMITS.inputChars) throw new Error(UI_TEXT.tuiInputTooLong)
       this.deps.send({ type: 'message', text: command })
       this.input = ''

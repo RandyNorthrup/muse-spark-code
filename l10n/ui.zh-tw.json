@@ -2351,5 +2351,7 @@
   "judgeStatusDeclined": "關閉：已拒絕付費使用",
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
-  "judgeStatusPaid": "付費"
+  "judgeStatusPaid": "付費",
+  "tuiApprovalFocus": "按 Tab 聚焦此請求，然後按對應數字。貼上的選擇會被忽略。",
+  "tuiApprovalTooLarge": "無法完整顯示請求。請擴大終端；選項已停用。"
 }

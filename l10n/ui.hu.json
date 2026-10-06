@@ -2445,5 +2445,7 @@
   "judgeStatusDeclined": "Kikapcsolva: a fizetős használat elutasítva",
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
-  "judgeStatusPaid": "Fizetős"
+  "judgeStatusPaid": "Fizetős",
+  "tuiApprovalFocus": "A Tab megnyomásával fókuszáljon erre a kérésre, majd nyomja meg a számát. A beillesztett választások figyelmen kívül maradnak.",
+  "tuiApprovalTooLarge": "A teljes kérés nem fér el. Növelje a terminál méretét; a választások le vannak tiltva."
 }

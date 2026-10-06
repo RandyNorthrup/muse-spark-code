@@ -2539,5 +2539,7 @@
   "judgeStatusDeclined": "Disattivato: uso a pagamento rifiutato",
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
-  "judgeStatusPaid": "A pagamento"
+  "judgeStatusPaid": "A pagamento",
+  "tuiApprovalFocus": "Premi Tab per selezionare questa richiesta, poi premi il suo numero. Le scelte incollate vengono ignorate.",
+  "tuiApprovalTooLarge": "La richiesta completa non entra. Ingrandisci il terminale; le scelte sono disabilitate."
 }

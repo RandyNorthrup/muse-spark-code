@@ -2539,5 +2539,7 @@
   "judgeStatusDeclined": "Desativado: uso pago recusado",
   "judgeStatusSlow": "Desativado por padrão: poucos resultados prontos na decisão do revisor",
   "judgeStatusSubscription": "Assinatura",
-  "judgeStatusPaid": "Pago"
+  "judgeStatusPaid": "Pago",
+  "tuiApprovalFocus": "Pressione Tab para focar esta solicitação e depois pressione seu número. Escolhas coladas são ignoradas.",
+  "tuiApprovalTooLarge": "A solicitação completa não cabe. Aumente o terminal; as opções estão desativadas."
 }

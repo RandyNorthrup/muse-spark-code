@@ -2351,5 +2351,7 @@
   "judgeStatusDeclined": "꺼짐: 유료 사용 거부됨",
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
-  "judgeStatusPaid": "유료"
+  "judgeStatusPaid": "유료",
+  "tuiApprovalFocus": "Tab 키로 이 요청에 초점을 맞춘 다음 번호를 누르세요. 붙여넣은 선택은 무시됩니다.",
+  "tuiApprovalTooLarge": "전체 요청을 표시할 수 없습니다. 터미널을 확대하세요. 선택지가 비활성화되었습니다."
 }

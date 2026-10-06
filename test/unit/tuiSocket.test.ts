@@ -7,9 +7,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
 import process from 'node:process'
-import { chmod, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer, createConnection, Socket, type Server } from 'node:net'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { connectTuiSocket, checkTuiSocket } from '../../src/runtime/tui/socket'
@@ -33,16 +32,41 @@ vi.mock('node:fs/promises', async (importOriginal) => {
 const directories: string[] = []
 const servers: Server[] = []
 const clients: Socket[] = []
+const fixtureUid = process.getuid?.() ?? 1000
+const filesystem = new Map<string, Awaited<ReturnType<typeof lstat>>>()
 // A private fake protocol, explicitly not an MHP fixture.
 const binding: TuiWireBinding = {
   decode: (frame) => tuiEventSchema.parse(frame),
   encode: (action) => tuiActionSchema.parse(action),
 }
 async function socketFixture() {
-  const dir = await mkdtemp(path.join(tmpdir(), 'm110t-'))
+  await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
+  const dir = await mkdtemp(path.join(process.cwd(), 'temp', 'm110t-'))
   directories.push(dir)
   await chmod(dir, 0o700)
   const socketPath = path.join(dir, 'node.sock')
+  const endpoint = process.platform === 'win32' ? `\\\\.\\pipe\\${path.basename(dir)}` : socketPath
+  if (process.platform === 'win32') {
+    // Windows transport is real; POSIX ownership/type checks use explicit seams.
+    await writeFile(socketPath, '')
+    const parent = await lstat(dir)
+    const socket = await lstat(socketPath)
+    parent.uid = fixtureUid
+    parent.mode = 0o4_0700
+    socket.uid = fixtureUid
+    socket.mode = 0o14_0600
+    socket.isSocket = () => true
+    filesystem.set(dir, parent)
+    filesystem.set(socketPath, socket)
+    const realFs = await vi.importActual<typeof Fs>('node:fs/promises')
+    vi.mocked(lstat).mockImplementation(
+      async (file, options) => filesystem.get(String(file)) ?? (await realFs.lstat(file, options)),
+    )
+    const realNet = await vi.importActual<typeof Net>('node:net')
+    vi.mocked(createConnection).mockImplementation(() =>
+      realNet.createConnection({ path: endpoint }),
+    )
+  }
   let peer: Socket | undefined
   const server = createServer((socket) => {
     clients.push(socket)
@@ -51,11 +75,11 @@ async function socketFixture() {
   servers.push(server)
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(socketPath, resolve)
+    server.listen(endpoint, resolve)
   })
-  await chmod(socketPath, 0o600)
+  if (process.platform !== 'win32') await chmod(socketPath, 0o600)
   const start = (receive = vi.fn(), wire = binding, signal = new AbortController().signal) =>
-    connectTuiSocket({ socketPath, uid: process.getuid?.(), binding: wire, receive, signal })
+    connectTuiSocket({ socketPath, uid: fixtureUid, binding: wire, receive, signal })
   return {
     dir,
     socketPath,
@@ -90,6 +114,10 @@ async function expectInvalidClose(pending: Promise<void>, send: () => void): Pro
 afterEach(async () => {
   vi.useRealTimers()
   vi.mocked(createConnection).mockClear()
+  vi.mocked(lstat).mockReset()
+  const realFs = await vi.importActual<typeof Fs>('node:fs/promises')
+  vi.mocked(lstat).mockImplementation(realFs.lstat)
+  filesystem.clear()
   for (const socket of clients.splice(0)) socket.destroy()
   for (const server of servers.splice(0))
     await new Promise<void>((resolve) => {
@@ -101,6 +129,18 @@ afterEach(async () => {
 })
 
 describe('M110 T owner-only local socket', () => {
+  it('uses a native endpoint on every platform without widening POSIX socket admission', async () => {
+    const f = await socketFixture()
+    const address = servers.at(-1)?.address()
+    expect(typeof address).toBe('string')
+    if (process.platform === 'win32') {
+      expect(address).toBe(`\\\\.\\pipe\\${path.basename(f.dir)}`)
+      await expect(checkTuiSocket(f.socketPath, undefined)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    } else expect(address).toBe(f.socketPath)
+    const connection = await f.open()
+    connection.close()
+    await expect(connection.closed).resolves.toBeUndefined()
+  })
   it('streams fragmented/coalesced UTF-8 frames and sends a validated action on the local socket', async () => {
     const f = await socketFixture()
     const receive = vi.fn()
@@ -128,23 +168,24 @@ describe('M110 T owner-only local socket', () => {
   })
   it('refuses exposed directories, exposed sockets, wrong owner, links, regular files and network paths', async () => {
     const f = await socketFixture()
-    const uid = process.getuid?.()
-    await expect(checkTuiSocket(f.socketPath, uid)).resolves.toBeUndefined()
-    await chmod(f.dir, 0o755)
-    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
-    await chmod(f.dir, 0o700)
-    await chmod(f.socketPath, 0o666)
-    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
-    await chmod(f.socketPath, 0o600)
-    await expect(checkTuiSocket(f.socketPath, (uid ?? 0) + 1)).rejects.toThrow(
-      UI_TEXT.tuiUnsafeSocket,
+    const uid = fixtureUid
+    const parent = await lstat(f.dir)
+    const socket = await lstat(f.socketPath)
+    vi.mocked(lstat).mockImplementation((file) =>
+      Promise.resolve(String(file) === f.dir ? parent : socket),
     )
-    const link = path.join(f.dir, 'link.sock')
-    await symlink(f.socketPath, link)
-    await expect(checkTuiSocket(link, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
-    const file = path.join(f.dir, 'file')
-    await writeFile(file, 'not a socket', { mode: 0o600 })
-    await expect(checkTuiSocket(file, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    await expect(checkTuiSocket(f.socketPath, uid)).resolves.toBeUndefined()
+    parent.mode = 0o4_0755
+    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    parent.mode = 0o4_0700
+    socket.mode = 0o14_0666
+    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    socket.mode = 0o14_0600
+    await expect(checkTuiSocket(f.socketPath, uid + 1)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    vi.spyOn(socket, 'isSymbolicLink').mockReturnValueOnce(true)
+    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
+    vi.spyOn(socket, 'isSocket').mockReturnValueOnce(false)
+    await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
     await expect(checkTuiSocket('127.0.0.1:8000', uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
     await expect(checkTuiSocket(f.socketPath, undefined)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
   })
@@ -191,7 +232,7 @@ describe('M110 T owner-only local socket', () => {
     })
     const connection = await connectTuiSocket({
       socketPath: f.socketPath,
-      uid: process.getuid?.(),
+      uid: fixtureUid,
       binding: { ...binding, decode },
       receive: vi.fn(),
       signal: new AbortController().signal,
@@ -205,7 +246,7 @@ describe('M110 T owner-only local socket', () => {
     expect(decode).toHaveBeenCalledWith({})
     const other = await connectTuiSocket({
       socketPath: f.socketPath,
-      uid: process.getuid?.(),
+      uid: fixtureUid,
       binding: { ...binding, encode: () => 'x'.repeat(TUI_LIMITS.frameBytes + 1) },
       receive: vi.fn(),
       signal: new AbortController().signal,
@@ -220,7 +261,7 @@ describe('M110 T owner-only local socket', () => {
     const abort = new AbortController()
     const connection = await connectTuiSocket({
       socketPath: f.socketPath,
-      uid: process.getuid?.(),
+      uid: fixtureUid,
       binding,
       receive: vi.fn(),
       signal: abort.signal,
@@ -234,7 +275,7 @@ describe('M110 T owner-only local socket', () => {
     await expect(
       connectTuiSocket({
         socketPath: f.socketPath,
-        uid: process.getuid?.(),
+        uid: fixtureUid,
         binding,
         receive: vi.fn(),
         signal: abort.signal,
@@ -247,8 +288,8 @@ describe('M110 T owner-only local socket', () => {
   })
   it('the lazy entry runs a complete local fake socket session with streaming output, explicit consent and Stop', async () => {
     const f = await socketFixture()
-    const input = new PassThrough()
-    const output = new PassThrough()
+    const input = Object.assign(new PassThrough(), { isTTY: true, setRawMode: vi.fn() })
+    const output = Object.assign(new PassThrough(), { isTTY: true })
     const signals = new EventEmitter()
     let screen = ''
     output.on('data', (bytes: Buffer) => {
@@ -258,7 +299,7 @@ describe('M110 T owner-only local socket', () => {
       argv: ['--screen-reader'],
       env: { NO_COLOR: '' },
       socketPath: f.socketPath,
-      uid: process.getuid?.(),
+      uid: fixtureUid,
       signal: new AbortController().signal,
       binding,
       ink: undefined,
@@ -282,7 +323,14 @@ describe('M110 T owner-only local socket', () => {
     })
     input.write('\n')
     expect(requests).toEqual([])
-    input.write('3\n')
+    await new Promise((resolve) => {
+      setTimeout(resolve, TUI_LIMITS.decisionQuietMs + 1)
+    })
+    input.write('\t')
+    await new Promise((resolve) => {
+      setTimeout(resolve, TUI_LIMITS.decisionQuietMs + 1)
+    })
+    input.write('3')
     input.write('\u{1B}')
     await vi.waitFor(() => {
       expect(requests).toEqual([
@@ -293,7 +341,9 @@ describe('M110 T owner-only local socket', () => {
     input.end()
     expect(await run).toBe(0)
     expect(screen).toContain('Agent: local reply')
-    expect(screen).not.toContain('\u{1B}')
+    expect(screen.replaceAll('\u{1B}[?2004h', '').replaceAll('\u{1B}[?2004l', '')).not.toContain(
+      '\u{1B}',
+    )
     input.destroy()
     output.destroy()
   })
@@ -302,7 +352,7 @@ describe('M110 T owner-only local socket', () => {
     const receive = vi.fn()
     const connection = await connectTuiSocket({
       socketPath: f.socketPath,
-      uid: process.getuid?.(),
+      uid: fixtureUid,
       binding: {
         ...binding,
         decode: () => ({
@@ -336,7 +386,7 @@ describe('M110 T owner-only local socket', () => {
       try {
         await connectTuiSocket({
           socketPath: f.socketPath,
-          uid: process.getuid?.(),
+          uid: fixtureUid,
           binding,
           receive: vi.fn(),
           signal: new AbortController().signal,
@@ -367,14 +417,14 @@ describe('M110 T owner-only local socket', () => {
   })
   it('socket and directory ownership are checked independently', async () => {
     const f = await socketFixture()
-    const uid = process.getuid?.()
+    const uid = fixtureUid
     const parent = await lstat(f.dir)
     const nodeSocket = await lstat(f.socketPath)
-    nodeSocket.uid = (uid ?? 0) + 1
+    nodeSocket.uid = uid + 1
     vi.mocked(lstat).mockResolvedValueOnce(parent).mockResolvedValueOnce(nodeSocket)
     await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
-    nodeSocket.uid = uid ?? 0
-    parent.uid = (uid ?? 0) + 1
+    nodeSocket.uid = uid
+    parent.uid = uid + 1
     vi.mocked(lstat).mockResolvedValueOnce(parent).mockResolvedValueOnce(nodeSocket)
     await expect(checkTuiSocket(f.socketPath, uid)).rejects.toThrow(UI_TEXT.tuiUnsafeSocket)
   })

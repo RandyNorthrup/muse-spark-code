@@ -2445,5 +2445,7 @@
   "judgeStatusDeclined": "Kapalı: ücretli kullanım reddedildi",
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
-  "judgeStatusPaid": "Ücretli"
+  "judgeStatusPaid": "Ücretli",
+  "tuiApprovalFocus": "Bu isteğe odaklanmak için Tab tuşuna, ardından numarasına basın. Yapıştırılan seçimler yok sayılır.",
+  "tuiApprovalTooLarge": "İsteğin tamamı sığmıyor. Terminali büyütün; seçimler devre dışı."
 }
