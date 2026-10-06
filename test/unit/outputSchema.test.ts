@@ -5,12 +5,18 @@ import * as z from 'zod/mini'
 import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 
 const encode = (schema: unknown) => new TextEncoder().encode(JSON.stringify(schema))
+const integerValues = (count: number) => Array.from({ length: count }, (_, index) => index)
 const closed = (properties: Record<string, unknown>) => ({
   type: 'object',
   properties,
   required: Object.keys(properties),
   additionalProperties: false,
 })
+const enumSchema = (second: number) =>
+  closed({
+    a: { type: 'integer', enum: integerValues(500) },
+    b: { type: 'integer', enum: integerValues(second) },
+  })
 const sample = () =>
   closed({
     ok: { type: 'boolean' },
@@ -235,5 +241,11 @@ describe('M106 O2 strict output schema', () => {
     const bom = Uint8Array.from([239, 187, 191, ...a])
     expect(compileOutputSchema(bom).sha256).toBe(createHash('sha256').update(bom).digest('hex'))
     expect(compileOutputSchema(bom).sha256).not.toBe(compileOutputSchema(a).sha256)
+  })
+  it('counts enum values across the whole schema before accepting it', () => {
+    expect(compileOutputSchema(encode(enumSchema(500))).parseAnswer('{"a":499,"b":499}').ok).toBe(
+      true,
+    )
+    expect(() => compileOutputSchema(encode(enumSchema(501)))).toThrow('enum')
   })
 })

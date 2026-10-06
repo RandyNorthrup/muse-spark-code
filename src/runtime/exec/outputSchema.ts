@@ -120,6 +120,7 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
     for (const child of children) checkReferenceCycle(child, new Set(seen))
   }
   let propertyCount = 0
+  let enumValues = 0
   let stringChars = 0
   const check = (node: SchemaNode, depth: number): void => {
     if (depth > MCP_SCHEMA_LIMITS.depth) invalid('depth')
@@ -173,13 +174,14 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
       check(node.items, depth + 1)
     }
     if (node.enum !== undefined) {
+      enumValues += node.enum.length
       if (
         hasReference ||
         hasUnion ||
         isObject ||
         isArray ||
         node.enum.length === 0 ||
-        node.enum.length > MCP_SCHEMA_LIMITS.enumValues ||
+        enumValues > MCP_SCHEMA_LIMITS.enumValues ||
         new Set(node.enum).size !== node.enum.length ||
         node.enum.some((value) => nodeTypes.every((type) => !isType(type, value)))
       )
