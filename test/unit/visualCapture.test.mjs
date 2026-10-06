@@ -5,7 +5,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { decodePng } from '../../scripts/lib/visualImages.mjs'
 
-const captured = { result: undefined }
+const captured = { result: undefined, busyRows: [], rootWidths: [] }
 // Share fixture compilation/browser setup; each assertion stays under the
 // repository's default timeout. This is the actual formerly closing palette.
 beforeAll(async () => {
@@ -13,7 +13,10 @@ beforeAll(async () => {
   const matrix = JSON.parse(await readFile('test/harness/visual-matrix.json', 'utf8'))
   captured.result = await captureMatrix(
     process.cwd(),
-    { ...audit, scenes: ['board', 'deferred-modal', 'whats-new', 'whats-new-highlights'] },
+    {
+      ...audit,
+      scenes: ['board', 'deferred-modal', 'whats-new', 'whats-new-highlights', 'approval-several'],
+    },
     { ...matrix, themes: ['light'], widths: [320] },
     async (capture, bytes, page) => {
       decodePng(bytes, capture.width, capture.height)
@@ -22,6 +25,15 @@ beforeAll(async () => {
           await page.locator('[role="dialog"]').count(),
           `${capture.state}: dialog remains open`,
         ).toBe(1)
+      else if (capture.scene === 'approval-several')
+        captured.busyRows.push(
+          await page.locator('.composer-input').evaluate((element) => element.rows),
+        )
+      captured.rootWidths.push(
+        await page.evaluate(
+          () => globalThis.document.documentElement.getBoundingClientRect().width,
+        ),
+      )
       expect(
         await page.evaluate(
           () => globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -76,7 +88,13 @@ describe('M114 real visual capture driver', () => {
       for (const directory of directories) await rm(directory, { recursive: true, force: true })
     }
   })
+  it('settles the empty busy composer with its own resize handler at the final width', () => {
+    expect(captured.busyRows).toEqual([1, 1, 1, 1, 1, 1])
+  })
   it('records actual font rasterization and exact narrow viewport dimensions', () => {
+    expect(captured.rootWidths).toEqual(
+      Array.from({ length: captured.result.captures.length }, () => 320),
+    )
     expect(captured.result.rasterization).toMatch(/^[\da-f]{64}$/)
     for (const capture of captured.result.captures)
       expect(capture).toMatchObject({ width: 320, height: 760 })

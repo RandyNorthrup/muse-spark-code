@@ -43,6 +43,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   await page.setViewportSize({ width, height })
   await page.clock.setFixedTime(FIXED_TIME)
   await page.goto(`http://127.0.0.1:${port}/${resource}`)
+  // Scenario timers must start after React's initial layout effects commit;
+  // advancing a frozen clock before mount races the composer's row fitting.
+  if (!fixtureScenes.has(scene) && !scene.startsWith('whats-new'))
+    await page.waitForSelector('#root > *', { state: 'attached' })
   const fixture = JSON.parse(
     await readFile(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )
@@ -90,6 +94,25 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
       })
       await page.clock.runFor(100)
     }
+  }
+  // Let the component's real ResizeObserver refit at the final viewport
+  // after host messages/fonts settle; do not assign textarea rows ourselves.
+  for (const settledWidth of [width + 1, width]) {
+    await page.evaluate(
+      (nextWidth) =>
+        new Promise((resolve) => {
+          const observer = new globalThis.ResizeObserver(() => {
+            observer.disconnect()
+            resolve()
+          })
+          observer.observe(globalThis.document.body)
+          globalThis.document.documentElement.style.width = `${nextWidth}px`
+          globalThis.document.body.style.width = `${nextWidth}px`
+        }),
+      settledWidth,
+    )
+    // Native layout delivers ResizeObserver; the frozen clock runs its RAF.
+    await page.clock.runFor(100)
   }
   if (scene === 'verify') await page.locator('.then-run').scrollIntoViewIfNeeded()
   else if (scene === 'whats-new-footer')

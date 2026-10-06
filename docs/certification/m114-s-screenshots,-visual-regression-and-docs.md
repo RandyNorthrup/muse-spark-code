@@ -413,3 +413,45 @@ and nothing is pushed. Startup-growth compaction remains the integration
 handoff at **12,741 bytes**; its 4 KiB target and all bundle caps stay unchanged.
 
 Complete consecutive comparisons and final scoped checks are recorded below.
+
+## Full-run discovery: settle native composer fitting before capture
+
+The first continuation full check exits 1 at
+`panel/approval-several/default/light/320`: **33,778 changed pixels**, allowance 12. The original candidate was explicitly never repeat-certified. A byte-exact
+`git diff c311144b9 HEAD -- src design test/harness/index.html` is empty;
+this is an inconsistent capture of the same product, not an accepted pixel
+exemption. The failing archive/PNG and its initial receipt remain evidence.
+Actual geometry probes show the empty composer sometimes has one row and
+sometimes two; the difference moves the dock by **19.5 px**. The earlier
+visual inspection's shorter/taller description was reversed: the two-row
+capture has the taller composer. Advancing a frozen clock before the initial
+React mount/host messages settle races the composer's initial placeholder fit.
+
+The renderer now waits for the real harness root to mount and settles a
+1 px width change followed by restoration to the declared width. A native
+ResizeObserver observes each real layout change; the frozen clock flushes
+the component's existing RAF handler. No textarea rows, product state or
+product source are assigned. These are the component's normal responsive
+behaviour and the original captured viewport, with the same final six states.
+The first root-only attempt still failed a repeat by 2,154 pixels. An initial
+extra-screenshot settling implementation made the expanded setup exceed the
+unchanged 10 s hook deadline. Native layout observation removes that redundant
+PNG work. The reusable baseline is captured in beforeAll and each fresh
+candidate in beforeEach, so each actual browser capture fits its default hook
+deadline. The original full scene-prefix coverage is retained, and the new
+approval geometry shares the real-capture suite's setup. No CLI/per-test/global
+timeout or gate threshold is raised, and no test is skipped in the final run.
+
+The gate/capture/repeat files pass **15/15** at default timeouts (8.24 s for
+the final three-file run). The actual capture tests now verify all six busy-composer
+row counts and the final computed root width. Two deliberate failures remove
+width restoration and the native RAF flush; the named actual-geometry/width
+tests fail and the renderer restores SHA-256-exact. Their receipt is
+[layout-drills.json](m114-s-after/layout-drills.json).
+
+The replacement baseline review is named
+`M114-S-mounted-native-layout-and-lead-tolerance-2026-10-06`. Its source is the
+committed capture repair, with byte-identical product code. All original
+candidate receipts remain historical; the new manifest/index and complete
+repeat/reconstruction evidence follow below. Startup compaction is still
+integration-owned.

@@ -27599,6 +27599,20 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   Startup-growth compaction remains assigned to integration. The two-fix
   stop is lifted only for the rendering-noise repair. No model calls.
 
+- **S full-repeat capture repair (2026-10-06):** the first continuation
+  comparison reveals a 33,778-pixel approval/composer geometry difference
+  despite byte-identical product source. The scenario's virtual timers can
+  run before React's initial mount commits, making the empty composer's
+  placeholder fitting depend on render timing. Wait for the actual harness
+  root to mount before advancing scenario time, then settle a 1 px resize
+  and restore the target width so the component's own ResizeObserver refits
+  the final placeholder. Never assign textarea rows or alter product code;
+  retain actual components, clock/state/AA policy and all coverage. The old candidate was never
+  repeat-certified. If its unsettled frames differ, make a named reviewed
+  replacement from the committed capture repair, inspect those views and
+  prove full repeat/reconstruction passes. Retain the old receipt as failed
+  evidence; never make its inconsistent layout a pixel exemption.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
