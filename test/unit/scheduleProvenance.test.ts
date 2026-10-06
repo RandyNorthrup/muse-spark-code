@@ -1,4 +1,4 @@
-import { RecordingScope } from '../../src/core/context/recordingReader'
+import { RecordingScope, recordProjection } from '../../src/core/context/recordingReader'
 import { describe, expect, it } from 'vitest'
 import {
   contentHash,
@@ -13,8 +13,9 @@ const SOURCE: ContentSource = {
 }
 
 function recorded(...bytes: readonly string[]): RecordingScope {
-  return RecordingScope.build((reader) => {
-    for (const input of bytes) reader.read(input, input, SOURCE)
+  return RecordingScope.build(recordProjection, {
+    inputs: bytes.map((input) => ({ bytes: input, source: SOURCE })),
+    project: (inputs) => inputs,
   }).scope
 }
 
@@ -23,21 +24,18 @@ describe('scheduled byte provenance ledger', () => {
     const ledger = new ProvenanceLedger()
     ledger.preFire('allowed leaf', SOURCE)
     ledger.derive('forgotten inventory', undefined, 'incomplete-summary')
-    const complete = RecordingScope.build((reader) => {
-      reader.read('allowed leaf', 'allowed leaf', SOURCE)
-      ledger.derive('open inventory', reader, 'open-summary')
-    })
-    ledger.derive('complete inventory', complete.scope, 'complete-summary')
-    const incomplete = RecordingScope.build((reader) => {
-      reader.read('allowed leaf', 'allowed leaf', SOURCE)
-      reader.unrecordable()
+    const complete = recorded('allowed leaf')
+    ledger.derive('complete inventory', complete, 'complete-summary')
+    const incomplete = RecordingScope.build(recordProjection, {
+      inputs: [{ bytes: 'allowed leaf', source: SOURCE }],
+      project: (inputs) => inputs,
+      isUnrecordable: true,
     })
     ledger.derive('explicitly incomplete inventory', incomplete.scope, 'incomplete-summary')
     expect(ledger.allows('forgotten inventory')).toBe(false)
-    expect(ledger.allows('open inventory')).toBe(false)
     expect(ledger.allows('explicitly incomplete inventory')).toBe(false)
     expect(ledger.allows('complete inventory')).toBe(true)
-    expect(() => complete.scope.read('late', 'late', SOURCE)).toThrow('closed')
+    expect(() => complete.read('late', 'late', SOURCE)).toThrow('closed')
   })
 
   it('RVM115U3 P2-7: equal bytes in different buffers and replay objects retain proof by SHA-256', () => {
@@ -139,9 +137,10 @@ describe('scheduled byte provenance ledger', () => {
         const bytes = `transformation ${String(chain)} ${String(step)}`
         const hash = ledger.derive(
           bytes,
-          RecordingScope.build((reader) => {
-            for (const input of inputs) reader.read(input.bytes, input.bytes, SOURCE)
-            if (!isInputsComplete) reader.unrecordable()
+          RecordingScope.build(recordProjection, {
+            inputs: inputs.map((input) => ({ bytes: input.bytes, source: SOURCE })),
+            project: (reads) => reads,
+            isUnrecordable: !isInputsComplete,
           }).scope,
           'random-transform',
         )

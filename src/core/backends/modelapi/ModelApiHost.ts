@@ -1,5 +1,11 @@
 import type { ModelApiSchedules } from './schedulesEntry'
-import { RecordingReader, RecordingScope, type ContentRead } from '../../context/recordingReader'
+import {
+  RecordingReader,
+  RecordingScope,
+  recordOperation,
+  recordProjection,
+  type ContentRead,
+} from '../../context/recordingReader'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -220,11 +226,11 @@ import {
   type MemoryWrites,
   type MemoryIo,
 } from '../../memory/memoryStore'
+import { repoMapSection } from '../../codeIntel/repoMap'
 import { type CodeIntelDeps, CodeIntelRefusal, bareName } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
 import type { RenamePlanResult } from '../../codeIntel/rename'
-import { repoMapSection } from '../../codeIntel/repoMap'
 import {
   applyRename,
   isProtectedRename,
@@ -2296,7 +2302,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         memory === undefined
           ? undefined
           : async () => {
-              const recorded = await this.contentReads.run(async () => await memory.snapshot())
+              const recorded = await this.contentReads.run(recordOperation, {
+                kind: 'memory',
+                store: memory,
+              })
               for (const snapshot of recorded.value)
                 this.contentOrigins.set(contentHash(JSON.stringify(snapshot)), {
                   source: { kind: 'harness', operation: 'memory-snapshot' },
@@ -2895,32 +2904,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       return
     }
     try {
-      const root = await deps.io.realPath(deps.workspaceRoot)
-      const p = pathModule(deps.platform)
-      const recorded = await this.contentReads.run(
-        async (reader) =>
-          await repoMapSection(
-            {
-              ...deps,
-              service: {
-                ...deps.service,
-                workspaceSymbols: async (name) => {
-                  const symbols = await deps.service.workspaceSymbols(name)
-                  for (const symbol of symbols) {
-                    if (bareName(symbol) !== name || symbol.location.path === undefined) continue
-                    const canonical = await deps.io.realPath(symbol.location.path)
-                    if (!isBelow(p.relative(root, canonical), p)) continue
-                    const captured = reader.sourceFor(canonical)
-                    if (captured === undefined) reader.unrecordable()
-                    else reader.read(symbol, JSON.stringify(symbol), captured)
-                  }
-                  return symbols
-                },
-              },
-            },
-            signal,
-          ),
-      )
+      const recorded = await this.contentReads.run(recordOperation, {
+        kind: 'repoMap',
+        session: this,
+        deps,
+        signal,
+      })
       if (!signal.aborted) {
         this.repoMapTries += 1
         this.repoMapText = recorded.value
@@ -2941,17 +2930,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** Never throws: a describer that fails leaves the section at "no git". */
   private async loadEnvironment(): Promise<EnvironmentFacts> {
     try {
-      const recorded = await this.contentReads.run(
-        async () => await this.deps.describeEnvironment(),
-      )
-      if (recorded.value.git !== undefined) {
-        const bytes = JSON.stringify({ git: recorded.value.git })
+      const value = await this.deps.describeEnvironment()
+      if (value.git !== undefined) {
+        const bytes = JSON.stringify({ git: value.git })
         this.contentOrigins.set(contentHash(bytes), {
           source: { kind: 'harness', operation: 'git-facts' },
-          scope: recorded.value.recording,
+          scope: value.recording,
         })
       }
-      return recorded.value
+      return value
     } catch (error: unknown) {
       this.deps.log.warn(`The environment could not be described: ${describe(error)}`)
       return NO_ENVIRONMENT
@@ -3312,37 +3299,45 @@ export class ModelApiSession implements ScheduledAgentSession {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
-    const recorded = RecordingScope.build((reader) => {
-      reader.read(
-        'instruction-scaffolding',
-        'instruction-scaffolding',
-        { kind: 'harness', operation: 'instructions' },
-        false,
-      )
-      return this.recordedPromptAndTools(reader, today, hasPackedRecall)
-    })
+    const inputs: ContentRead[] = [
+      {
+        bytes: 'instruction-scaffolding',
+        source: { kind: 'harness', operation: 'instructions' },
+        isFullyShown: false,
+      },
+    ]
+    const value = this.recordedPromptAndTools(inputs, today, hasPackedRecall)
+    const recorded = RecordingScope.build(recordProjection, { inputs, project: () => value })
     this.instructionScope = recorded.scope
     return recorded.value
   }
 
   private recordedPromptAndTools(
-    reader: RecordingScope,
+    inputs: ContentRead[],
     today: string,
     hasPackedRecall: boolean,
   ): {
     readonly instructions: string
     readonly tools: readonly ToolDefinition[]
   } {
+    const read = (
+      _value: unknown,
+      bytes: string,
+      source: ContentSource,
+      isFullyShown?: boolean,
+    ): void => {
+      inputs.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
+    }
     const isReview = this.isReviewing()
     const context = this.context.sections(
-      reader,
+      inputs,
       !isReview && this.isAgentCatalogueOffered(),
       !isReview && this.toolFlags().hasMemory,
       !isReview,
     )
     const environment = this.environment ?? NO_ENVIRONMENT
     if (environment.git !== undefined)
-      reader.read(environment, JSON.stringify({ git: environment.git }), {
+      read(environment, JSON.stringify({ git: environment.git }), {
         kind: 'harness',
         operation: 'git-facts',
       })
@@ -3365,24 +3360,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     const { hasShell, hasMemory } = flags
     const goalSection = goalInstructions(this.goal, this.goalSteps)
     if (goalSection !== undefined)
-      reader.read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
+      read(goalSection, goalSection, { kind: 'harness', operation: 'goal-context' })
     const repoMap = this.promptRepoMap()
-    if (repoMap !== undefined)
-      reader.read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
+    if (repoMap !== undefined) read(repoMap, repoMap, { kind: 'harness', operation: 'repo-map' })
     const role = this.agentRole()
     if (role !== undefined)
-      reader.read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
+      read(role, JSON.stringify({ id: role.id, prompt: role.prompt }), {
         kind: 'harness',
         operation: 'agent-role',
       })
     const checks = this.canRunVerifyCommands() ? this.checkCommands() : []
     if (checks.length > 0)
-      reader.read(
-        checks,
-        JSON.stringify(checks),
-        { kind: 'harness', operation: 'verify-settings' },
-        false,
-      )
+      read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
     return {
       instructions: instructionsFor({
         workspaceRoot: this.deps.workspaceRoot,
@@ -3419,16 +3408,16 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private body(): CreateResponseBody {
     this.drainChildResults()
-    const recorded = RecordingScope.build((reader) => {
-      const original = this.replay.map((entry) =>
-        reader.read(entry.item, JSON.stringify(entry.item), {
-          kind: 'harness',
-          operation: 'media-input',
-        }),
-      )
-      const fitted = this.budget.fit(original)
-      // Packing and fitting consume the same exact replay snapshot.
-      return this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+    const original = this.replay.map((entry) => entry.item)
+    const recorded = RecordingScope.build(recordProjection, {
+      inputs: original.map((item) => ({
+        bytes: JSON.stringify(item),
+        source: { kind: 'harness', operation: 'media-input' },
+      })),
+      project: () => {
+        const fitted = this.budget.fit(original)
+        return this.isReviewing() ? fitted : (this.packing?.project(fitted) ?? fitted)
+      },
     })
     this.mediaScope = recorded.scope
     const input = recorded.value
@@ -3481,12 +3470,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (currentIndex === -1) {
         continue
       }
-      const recorded = RecordingScope.build((reader) =>
-        reader.read(entry.item, JSON.stringify(entry.item), {
-          kind: 'harness',
-          operation: 'media-input',
-        }),
-      )
+      const recorded = RecordingScope.build(recordProjection, {
+        inputs: [
+          {
+            bytes: JSON.stringify(entry.item),
+            source: { kind: 'harness', operation: 'media-input' },
+          },
+        ],
+        project: (inputs) => inputs,
+      })
       this.active?.scheduleLedger?.derive(
         JSON.stringify(fitted),
         recorded.scope,
@@ -5701,12 +5693,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.replay.push(replay)
     const run = this.getScheduledRun()
     const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
-    const recorded = RecordingScope.build((reader) => {
-      for (const file of files)
-        reader.read(file.part, JSON.stringify(file.part), {
-          kind: 'harness',
-          operation: 'read-file-part',
-        })
+    const recorded = RecordingScope.build(recordProjection, {
+      inputs: files.map((file) => ({
+        bytes: JSON.stringify(file.part),
+        source: { kind: 'harness', operation: 'read-file-part' },
+      })),
+      project: (inputs) => inputs,
     })
     ledger?.derive(JSON.stringify(replay.item), recorded.scope, 'read-file-media')
     if (pending.length > 0) {
@@ -10121,19 +10113,20 @@ export class ModelApiSession implements ScheduledAgentSession {
     let result: CallResult
     try {
       if (pre.blockedReason === undefined) {
-        const recorded = await this.contentReads.run(
-          async () =>
-            await this.decideAndRun(
-              turnId,
-              itemId,
-              effectiveCall,
-              signal,
-              goalCommandRevision,
-              slot,
-              isInteractiveShell,
-              pre.forceApproval,
-            ),
-        )
+        const recorded = await this.contentReads.run(recordOperation, {
+          kind: 'tool',
+          session: this,
+          args: [
+            turnId,
+            itemId,
+            effectiveCall,
+            signal,
+            goalCommandRevision,
+            slot,
+            isInteractiveShell,
+            pre.forceApproval,
+          ],
+        })
         reads = recorded.scope
         result = recorded.value
       } else {
@@ -10651,6 +10644,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     return await entry.verifyRound(
       {
         getScheduledRun: () => this.getScheduledRun(),
+        verificationRefusal: () =>
+          RecordingScope.build(recordProjection, {
+            inputs: [
+              {
+                bytes: MODEL_API_MODEL_TEXT.verifyAccessRefused,
+                source: { kind: 'harness', operation: 'verification-refusal' },
+              },
+            ],
+            project: (inputs) => String(inputs[0]?.bytes),
+          }),
         deps: this.deps,
         ledger: this.ledger,
         scheduleLedger: turn.scheduleLedger,
@@ -11392,13 +11395,18 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       await this.checkScheduledReplay(run, body)
     }
-    const recorded = RecordingScope.build((reader) => {
-      reader.read(body.instructions, body.instructions, {
-        kind: 'harness',
-        operation: 'compaction-instructions',
-      })
-      for (const item of body.input)
-        reader.read(item, JSON.stringify(item), { kind: 'harness', operation: 'compaction-input' })
+    const recorded = RecordingScope.build(recordProjection, {
+      inputs: [
+        {
+          bytes: body.instructions,
+          source: { kind: 'harness', operation: 'compaction-instructions' },
+        },
+        ...body.input.map((item) => ({
+          bytes: JSON.stringify(item),
+          source: { kind: 'harness' as const, operation: 'compaction-input' },
+        })),
+      ],
+      project: (inputs) => inputs,
     })
     const { text: summary, response } = await this.collectText(body, signal, chargedGoalId)
     const post = await this.runHooks(
@@ -11751,6 +11759,43 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(scheduleRun !== undefined && { scheduleRun }),
     })
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
+  }
+
+  /** Recording adapters use the nominal session, never an arbitrary callback. */
+  public async runRecordedTool(
+    ...args: Parameters<ModelApiSession['decideAndRun']>
+  ): Promise<CallResult> {
+    return await this.decideAndRun(...args)
+  }
+
+  public async readRecordedRepoMap(
+    reader: RecordingScope,
+    deps: CodeIntelDeps,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    const root = await deps.io.realPath(deps.workspaceRoot)
+    const p = pathModule(deps.platform)
+    return await repoMapSection(
+      {
+        ...deps,
+        service: {
+          ...deps.service,
+          workspaceSymbols: async (name) => {
+            const symbols = await deps.service.workspaceSymbols(name)
+            for (const symbol of symbols) {
+              if (bareName(symbol) !== name || symbol.location.path === undefined) continue
+              const canonical = await deps.io.realPath(symbol.location.path)
+              if (!isBelow(p.relative(root, canonical), p)) continue
+              const captured = reader.sourceFor(canonical)
+              if (captured === undefined) reader.unrecordable()
+              else reader.read(symbol, JSON.stringify(symbol), captured)
+            }
+            return symbols
+          },
+        },
+      },
+      signal,
+    )
   }
 
   /** A SubagentStop hook's replacement of this child's reply in a turn, if one asked (M91). */

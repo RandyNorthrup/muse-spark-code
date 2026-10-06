@@ -1,5 +1,10 @@
 // Replay authorization, context loaders and verification load on first use.
-import type { ModelApiHostDeps, ActiveTurn, HookEffects } from './ModelApiHost'
+import type { ModelApiHostDeps, ModelApiSession, ActiveTurn, HookEffects } from './ModelApiHost'
+import type { RuleFileLoad, RulesLoaderDeps } from '../../context/rules'
+import type { SkillsLoad, SkillsLoaderDeps, SkillRoot } from '../../context/skills'
+import type { AgentsLoad, AgentsLoaderDeps, AgentRoot } from '../../context/customAgents'
+import type { MemoryStore, MemoryScopeSnapshot } from '../../memory/memoryStore'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
 import type { AgentEvent, ItemSnapshot } from '../../../shared/agentEvents'
 import type { TurnPart, TurnSubmission } from '../../agent/agentBackend'
 import type { ConfirmedModelRequest } from './client'
@@ -11,7 +16,7 @@ import {
   type ProvenanceEntry,
   type ContentSource,
 } from '../../schedules/provenance'
-import { RecordingScope, type ContentRead } from '../../context/recordingReader'
+import type { RecordingScope, ContentRead } from '../../context/recordingReader'
 import { setUiText } from '../../../shared/l10n/text'
 import type { VerifyLedger, CheckScope } from './verifyLedger'
 import type { CheckRun, VerifyHooks, skippedCheck, checksSection } from './verifyLoop'
@@ -433,6 +438,7 @@ export class ModelApiSchedules {
 
 interface VerificationContext {
   readonly getScheduledRun: () => UnattendedRun | undefined
+  readonly verificationRefusal: () => { readonly value: string; readonly scope: RecordingScope }
   readonly deps: Pick<ModelApiHostDeps, 'verify' | 'isWorkspaceTrusted' | 'log' | 'newId'>
   readonly ledger: VerifyLedger
   readonly checkScope: (check: CheckCommandSetting, files: readonly EditedFile[]) => CheckScope
@@ -500,12 +506,7 @@ export async function verifyRound(
   ) {
     // Language-server/check dependencies cannot be confined or inventoried
     // by the editor port. Refuse before it can disclose protected content.
-    const recorded = RecordingScope.build((reader) =>
-      reader.read(context.text.verifyAccessRefused, context.text.verifyAccessRefused, {
-        kind: 'harness',
-        operation: 'verification-refusal',
-      }),
-    )
+    const recorded = context.verificationRefusal()
     turn.scheduleLedger?.decided(
       recorded.value,
       { kind: 'harness', operation: 'verification-refusal' },
@@ -745,10 +746,84 @@ async function editDiagnostics(
   })
 }
 
-// These builders consume only the caller's guarded recording port. Ordinary
-// loading records their scopes before any later fire needs the inventory.
-export { loadRuleFile } from '../../context/rules'
-export { loadSkills } from '../../context/skills'
-export { loadAgents } from '../../context/customAgents'
-
 export { nextScheduleFire } from './schedules'
+
+export interface RecordedResults {
+  readonly tool: Awaited<ReturnType<ModelApiSession['runRecordedTool']>>
+  readonly rules: RuleFileLoad
+  readonly skills: SkillsLoad
+  readonly agents: AgentsLoad
+  readonly memory: readonly MemoryScopeSnapshot[]
+  readonly repoMap: string | undefined
+}
+
+export type RecordedOperation =
+  | {
+      readonly kind: 'tool'
+      readonly session: ModelApiSession
+      readonly args: Parameters<ModelApiSession['runRecordedTool']>
+    }
+  | {
+      readonly kind: 'rules'
+      readonly deps: RulesLoaderDeps
+      readonly directory: string
+    }
+  | {
+      readonly kind: 'skills'
+      readonly deps: SkillsLoaderDeps
+      readonly roots: readonly SkillRoot[]
+    }
+  | {
+      readonly kind: 'agents'
+      readonly deps: AgentsLoaderDeps
+      readonly roots: readonly AgentRoot[]
+    }
+  | {
+      readonly kind: 'memory'
+      readonly store: MemoryStore
+    }
+  | {
+      readonly kind: 'repoMap'
+      readonly session: ModelApiSession
+      readonly deps: CodeIntelDeps
+      readonly signal: AbortSignal
+    }
+
+/** Adapter operations own ports; registered builders see only the recording reader. */
+export async function loadRecordedOperation(
+  operation: RecordedOperation,
+  reader: RecordingScope,
+): Promise<RecordedResults[keyof RecordedResults]> {
+  switch (operation.kind) {
+    case 'tool': {
+      return await operation.session.runRecordedTool(...operation.args)
+    }
+    case 'rules': {
+      const { loadRuleFile } = await import('../../context/rules.js')
+      return await loadRuleFile(
+        { ...operation.deps, io: reader.context(operation.deps.io) },
+        operation.directory,
+      )
+    }
+    case 'skills': {
+      const { loadSkills } = await import('../../context/skills.js')
+      return await loadSkills(
+        { ...operation.deps, io: reader.context(operation.deps.io) },
+        operation.roots,
+      )
+    }
+    case 'agents': {
+      const { loadAgents } = await import('../../context/customAgents.js')
+      return await loadAgents(
+        { ...operation.deps, io: reader.context(operation.deps.io) },
+        operation.roots,
+      )
+    }
+    case 'memory': {
+      return await operation.store.snapshot()
+    }
+    case 'repoMap': {
+      return await operation.session.readRecordedRepoMap(reader, operation.deps, operation.signal)
+    }
+  }
+}

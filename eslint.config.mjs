@@ -27,6 +27,43 @@ const BUNDLE_SAFE_ERRORS = {
     'A host error may come from the Model API bundle, whose classes are its own copies: use isSessionNotLoadedError, isPromptSettledError, isGoalRefusedError, isMuseCodeFaultError, isDecisionNotAppliedError or isSteerRefusedError (src/core/agent/agentBackend.ts).',
 }
 
+// Dynamic imports and CommonJS must obey the same boundary as static imports.
+const recordingBoundary = {
+  rules: {
+    boundary: {
+      meta: {
+        type: 'problem',
+        schema: [],
+        messages: {
+          port: 'Context builders must read through the recording reader; native I/O, Git and skill stores belong to adapters.',
+        },
+      },
+      create(context) {
+        const check = (node, source) => {
+          const specifier =
+            typeof source?.value === 'string' ? source.value.replaceAll('\\', '/') : undefined
+          if (
+            specifier === undefined ||
+            /^(?:node:)?(?:fs(?:\/|$)|child_process$)|(?:^|\/)(?:host\/(?:backend\/)?(?:git|contextIo|toolIo)(?:\.js)?$|(?:skillStore|skillsStore)(?:\.js)?$|host\/skills\/)/.test(
+              specifier,
+            )
+          )
+            context.report({ node, messageId: 'port' })
+        }
+        return {
+          ImportExpression(node) {
+            check(node, node.source)
+          },
+          CallExpression(node) {
+            if (node.callee.type === 'Identifier' && node.callee.name === 'require')
+              check(node, node.arguments[0])
+          },
+        }
+      },
+    },
+  },
+}
+
 export default tseslint.config(
   js.configs.recommended,
 
@@ -134,7 +171,9 @@ export default tseslint.config(
       'src/core/backends/modelapi/verifyLoop.ts',
       'src/core/backends/modelapi/schedulesEntry.ts',
     ],
+    plugins: { recording: recordingBoundary },
     rules: {
+      'recording/boundary': 'error',
       'no-restricted-imports': [
         'error',
         {
@@ -147,6 +186,11 @@ export default tseslint.config(
                 'fs/**',
                 'node:child_process',
                 'child_process',
+                '**/skillStore',
+                '**/skillStore.js',
+                '**/skillsStore',
+                '**/skillsStore.js',
+                '**/host/skills/**',
                 '**/host/git',
                 '**/host/git.js',
                 '**/host/backend/git',

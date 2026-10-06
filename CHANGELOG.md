@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Limit context recording to fixed reader-only builders, reject unbranded and
+  copied content at the type boundary, and forbid direct or dynamic native
+  filesystem, Git and skill-store imports in builder modules. Sealed scopes
+  cannot produce new content or rerun their adapters.
+
 - Discard late native acknowledgements for turns already observed idle, and
   refuse automatic verification as soon as a scheduled steer claims the
   session, before its input is adopted.

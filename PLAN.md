@@ -6880,7 +6880,8 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 Repair all three confirmed P2s inside lane U. Recording factories accept only
 an allowlist of module-level named builders with exactly one reader parameter;
-recorded content carries a private brand, and builder modules forbid native
+recorded content carries a frozen private-field brand that object spread cannot
+retain, and builder modules forbid native
 filesystem, Git and skill-store imports, including dynamic imports. Enumerate
 all registered builders in a source/type regression. Pure helper functions
 still require code review to ensure their projections depend only on reader
@@ -6892,6 +6893,13 @@ synchronous guard. Each finding gets a failing regression and byte-exact
 restored red drill. Run bounded default-timeout suites and required static/build
 checks on Kubuntu; aggregate quality remains the lead's gate. No dependency,
 wire shape, paid/live call, merge, push or rebase.
+
+Implemented and certified on Kubuntu: 1,435 tests in 34 complete files pass
+with repository-default timeouts; 14 named assertion drills restore source
+byte-exact. Required typecheck, scoped lint/format, dead-code, duplication,
+localization, host-API, cycle and production-build gates pass with unchanged
+budgets. Records: `docs/certification/m115-u.md`,
+`fixm115-u7-drills.json` and `fixm115-u7-verification.json` beside it.
 
 ### FIXM115U6 — Structural inventories and per-turn idle evidence (2026-10-06)
 
@@ -18558,6 +18566,13 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM115U7 gate allocation (2026-10-06).** The final rig lane retains
+FIXM115U6's aggregate-quality prohibition. Complete owning files use the
+repository's default timeouts and at most three files/workers per invocation.
+All static/build gates and restored guard drills run directly on Kubuntu;
+W/lead owns aggregate quality, full coverage and unrun editor/OS integration.
+No gate or timeout is weakened; no command or setting is added.
+
 **FIXM115U6 gate allocation (2026-10-06).** The same rig prohibition on
 aggregate quality applies. The lane runs complete owning files with default
 timeouts, source-boundary lint tests, restored red drills and the required
@@ -19659,6 +19674,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| File                                  | Construct                                              | Reason                                                                                                                                                                                                                          | Added      |
+| ------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/core/context/recordingReader.ts` | `as RecordedResults[K]` in the fixed operation adapter | The `kind: K` request selects a closed result map, but TypeScript cannot correlate generic K with the adapter switch union. The cast is inside the reader, never in a builder; each operation is exercised by its owning suite. | 2026-10-06 |
+
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
@@ -19781,6 +19800,26 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115U7-PURE-HELPERS (named residual).** Recording factories accept
+  only two fixed module-level named functions with one reader parameter;
+  their output must carry the reader's frozen private-field `ReaderContent` brand;
+  ordinary objects and spread copies lose it. Closed scopes cannot mint content
+  or rerun adapters. Memory and tool operations use nominal store/session types. Builder
+  modules cannot import filesystem, Git or skill-store adapters, including
+  dynamic imports and require. Explicit async adapter operations own raw
+  ports; arbitrary callbacks cannot close an inventory. Tool execution is an explicit
+  adapter operation on the nominal session type. TypeScript
+  cannot prove that a pure projection helper uses only its supplied recorded
+  inputs: a helper could close over outside data or perform hidden I/O, then
+  return it through `reader.project`. Review must therefore check each helper
+  and its callees for purity and complete source inventories. This is safe
+  for the current audited helpers (cached prompt assembly, media fitting,
+  Git-fact rendering and inventory projections contain no unrecorded I/O),
+  with the replay fence retained. Follow-up: any new helper must receive the
+  same source/purity review and gate-fire tests; enforce richer effect/taint
+  typing if the project later adopts it. No static purity guarantee is claimed.
+  P2-2/P2-3 are fixed, with no lifecycle residual.
 
 - **FIXM115U6 review repair.** All three RVM115U5 P1s are fixed; that
   report contains no P2/P3. No review residual is accepted. A derivation

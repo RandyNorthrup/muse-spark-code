@@ -6,7 +6,11 @@
 // git reads the repository's own `.git/config`, and `core.fsmonitor` or
 // `core.hooksPath` there would run a program the workspace chose.
 
-import { RecordingScope } from '../../core/context/recordingReader'
+import {
+  RecordingScope,
+  recordProjection,
+  type ContentRead,
+} from '../../core/context/recordingReader'
 import { contentHash } from '../../core/schedules/provenance'
 import type { EnvironmentFacts } from '../../core/backends/modelapi/instructions'
 import { ENVIRONMENT_RECENT_COMMITS, UI_TEXT } from '../../shared/constants'
@@ -46,15 +50,20 @@ export async function describeEnvironment(deps: EnvironmentDeps): Promise<Enviro
   }
   const startedAt = deps.now()
   try {
-    const recorded = await RecordingScope.run(async (reader) => {
+    const inputs: ContentRead[] = []
+    const value = await (async () => {
       const git = await metadataGit(async (args, cwd) => {
         const bytes = await deps.runGit(args, cwd)
-        return reader.read(bytes, bytes, {
-          kind: 'git',
-          root: cwd,
-          args,
-          contentHash: contentHash(bytes),
+        inputs.push({
+          bytes,
+          source: {
+            kind: 'git',
+            root: cwd,
+            args,
+            contentHash: contentHash(bytes),
+          },
         })
+        return bytes
       }, root)
       const run = async (args: readonly string[]) => {
         if (!deps.isWorkspaceTrusted()) {
@@ -74,7 +83,8 @@ export async function describeEnvironment(deps: EnvironmentDeps): Promise<Enviro
         changedFiles: nonEmptyLines(status).length,
         recentCommits: commits,
       }
-    })
+    })()
+    const recorded = RecordingScope.build(recordProjection, { inputs, project: () => value })
     deps.log.trace(`Git facts for the prompt in ${String(deps.now() - startedAt)} ms`)
     return {
       git: recorded.value,

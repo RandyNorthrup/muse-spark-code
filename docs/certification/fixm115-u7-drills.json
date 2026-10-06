@@ -5,8 +5,8 @@
     "test": "RVM115U6 P2-2: a late acknowledgement",
     "command": "npx vitest run test/unit/scheduleSessionOwner.test.ts --maxWorkers=3",
     "exit": 1,
-    "before": "ada8f3f93f02041b6e12060904b87d77b26a643c9a6ee47797867d046713b57c",
-    "restored": "ada8f3f93f02041b6e12060904b87d77b26a643c9a6ee47797867d046713b57c"
+    "before": "ba3ccfcf dce5c419 a36b1b3d 50a7e38c a84da0ae 3810396f ed2d87c9 71906ab7",
+    "restored": "ba3ccfcf dce5c419 a36b1b3d 50a7e38c a84da0ae 3810396f ed2d87c9 71906ab7"
   },
   {
     "drill": "claimed-steer",
@@ -14,7 +14,115 @@
     "test": "RVM115U6 P2-3: a claimed steer",
     "command": "npx vitest run test/unit/unattendedBackends.test.ts --maxWorkers=3",
     "exit": 1,
-    "before": "a29e814c7c54ac584ceb1a9cabfbb912c0058f4c4df4b232520b7874076a4c82",
-    "restored": "a29e814c7c54ac584ceb1a9cabfbb912c0058f4c4df4b232520b7874076a4c82"
+    "before": "42acea94 ff1acdcf d9438b3e ba3ad882 09da2826 50eae408 5354531a 5581b118",
+    "restored": "42acea94 ff1acdcf d9438b3e ba3ad882 09da2826 50eae408 5354531a 5581b118"
+  },
+  {
+    "drill": "sync-allowlist",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: arbitrary callbacks",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "async-allowlist",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: arbitrary callbacks",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "one-reader-parameter",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: every registered builder",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "builder-capture",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: every registered builder",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "reader-brand",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: reader output rejects",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "constructor-authority",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: read content rejects",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "immutable-brand",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: read content rejects",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "closed-minting",
+    "file": "src/core/context/recordingReader.ts",
+    "test": "RVM115U6 P2-1: closed scopes cannot mint",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3",
+    "restored": "38d364b9 507e3229 85b05b88 fb91cea7 737b11a6 20a3f8b6 1d6bbf6a f2a663d3"
+  },
+  {
+    "drill": "nominal-memory-port",
+    "file": "src/core/backends/modelapi/schedulesEntry.ts",
+    "test": "RVM115U6 P2-1: reader output rejects",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "42acea94 ff1acdcf d9438b3e ba3ad882 09da2826 50eae408 5354531a 5581b118",
+    "restored": "42acea94 ff1acdcf d9438b3e ba3ad882 09da2826 50eae408 5354531a 5581b118"
+  },
+  {
+    "drill": "dynamic-import-boundary",
+    "file": "eslint.config.mjs",
+    "test": "RVM115U6 P2-1: dynamic native/skill-store",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707",
+    "restored": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707"
+  },
+  {
+    "drill": "commonjs-boundary",
+    "file": "eslint.config.mjs",
+    "test": "RVM115U6 P2-1: computed/CommonJS",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707",
+    "restored": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707"
+  },
+  {
+    "drill": "static-skill-store-boundary",
+    "file": "eslint.config.mjs",
+    "test": "cannot import ../../host/skills/skillStore directly",
+    "command": "npx vitest run test/unit/recordingReader.test.ts --maxWorkers=3",
+    "exit": 1,
+    "before": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707",
+    "restored": "9f46f00b 78c25823 28a8669d 78c3472c acacb6a7 2c16774a aca44772 8847b707"
   }
 ]

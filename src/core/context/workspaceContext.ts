@@ -1,4 +1,3 @@
-import type * as ContextLoaders from '../backends/modelapi/schedulesEntry'
 // What the Model API backend loads from the workspace for the model (PLAN.md
 // D13): the rules files, the skill catalogue and the memory snapshot (every
 // scope's index and note paths since M49, D41), by Muse Code's conventions,
@@ -8,10 +7,15 @@ import type * as ContextLoaders from '../backends/modelapi/schedulesEntry'
 // the host says their files changed. The memory is read once, as Muse Code
 // takes its snapshot at session start.
 
-import { RecordingReader, RecordingScope } from './recordingReader'
+import {
+  RecordingReader,
+  RecordingScope,
+  recordOperation,
+  recordProjection,
+  type ContentRead,
+} from './recordingReader'
 import type { ContentSource } from '../schedules/provenance'
-import { uiLocale } from '../../shared/l10n/text'
-import { RULES_PREAMBLE, UI_TEXT } from '../../shared/constants'
+import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
 import {
@@ -99,13 +103,7 @@ export class WorkspaceContext {
   private readonly recorder = new RecordingReader()
 
   public constructor(private readonly deps: WorkspaceContextDeps) {
-    this.deps = { ...deps, io: this.recorder.context(deps.io) }
-  }
-
-  private async loaders(): Promise<typeof ContextLoaders> {
-    const entry = await import('../backends/modelapi/schedulesEntry.js')
-    entry.installLanguage(UI_TEXT, uiLocale())
-    return entry
+    // Each fixed loading operation installs its recording port before reading.
   }
 
   private get isTrusted(): boolean {
@@ -179,12 +177,14 @@ export class WorkspaceContext {
       return false
     }
     this.checkedDirectories.add(directory)
-    const recorded = await this.recorder.run(async () => {
-      const loaders = await this.loaders()
-      return await loaders.loadRuleFile(
-        { io: this.deps.io, workspaceRoot: this.deps.workspaceRoot, platform: this.deps.platform },
-        directory,
-      )
+    const recorded = await this.recorder.run(recordOperation, {
+      kind: 'rules',
+      deps: {
+        io: this.deps.io,
+        workspaceRoot: this.deps.workspaceRoot,
+        platform: this.deps.platform,
+      },
+      directory,
     })
     const load = recorded.value
     if (load.warning !== undefined) {
@@ -238,9 +238,10 @@ export class WorkspaceContext {
     const load = await this.guarded(
       'loading the agents',
       async () => {
-        const recorded = await this.recorder.run(async () => {
-          const loaders = await this.loaders()
-          return await loaders.loadAgents({ io: this.deps.io, platform }, roots)
+        const recorded = await this.recorder.run(recordOperation, {
+          kind: 'agents',
+          deps: { io: this.deps.io, platform },
+          roots,
         })
         for (const agent of recorded.value.agents)
           if (agent.source !== 'builtin')
@@ -307,12 +308,10 @@ export class WorkspaceContext {
     const load = await this.guarded(
       'loading the skills',
       async () => {
-        const recorded = await this.recorder.run(async () => {
-          const loaders = await this.loaders()
-          return await loaders.loadSkills(
-            { io: this.deps.io, platform: this.deps.platform },
-            this.skillRoots(),
-          )
+        const recorded = await this.recorder.run(recordOperation, {
+          kind: 'skills',
+          deps: { io: this.deps.io, platform: this.deps.platform },
+          roots: this.skillRoots(),
         })
         for (const skill of recorded.value.skills)
           this.deps.recordDerived?.(
@@ -341,9 +340,9 @@ export class WorkspaceContext {
     source: ContentSource
     isFullyShown?: boolean
   }[] {
-    const recorded = RecordingScope.build((reader) =>
-      this.sections(reader, shouldIncludeAgents, shouldIncludeMemory, shouldIncludeSkills),
-    )
+    const inputs: ContentRead[] = []
+    this.sections(inputs, shouldIncludeAgents, shouldIncludeMemory, shouldIncludeSkills)
+    const recorded = RecordingScope.build(recordProjection, { inputs, project: (reads) => reads })
     return (recorded.scope.inventory() ?? []).map((input) => ({
       ...input,
       bytes: String(input.bytes),
@@ -360,14 +359,24 @@ export class WorkspaceContext {
   }
 
   public sections(
-    reader?: RecordingScope,
+    reader?: RecordingScope | ContentRead[],
     shouldIncludeAgents = true,
     shouldIncludeMemory = true,
     shouldIncludeSkills = true,
   ): ContextSections {
     if (reader !== undefined) {
+      const read = (
+        value: unknown,
+        bytes: string,
+        source: ContentSource,
+        isFullyShown?: boolean,
+      ) => {
+        if (Array.isArray(reader))
+          reader.push({ bytes, source, ...(isFullyShown !== undefined && { isFullyShown }) })
+        else reader.read(value, bytes, source, isFullyShown)
+      }
       for (const rule of this.rules)
-        reader.read(
+        read(
           rule,
           rule.text.trim(),
           rule.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
@@ -375,7 +384,7 @@ export class WorkspaceContext {
         )
       const skills = shouldIncludeSkills ? this.skills : []
       for (const skill of skills)
-        reader.read(
+        read(
           skill,
           JSON.stringify({ id: skill.id, description: skill.description }),
           skill.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
@@ -383,14 +392,14 @@ export class WorkspaceContext {
       const agents = shouldIncludeAgents ? this.agents.agents : []
       for (const agent of agents)
         if (agent.source !== 'builtin')
-          reader.read(
+          read(
             agent,
             JSON.stringify({ id: agent.id, description: agent.description }),
             agent.contentSource ?? UNKNOWN_CONTEXT_SOURCE,
           )
       const memory = shouldIncludeMemory ? this.memory : []
       for (const snapshot of memory)
-        reader.read(snapshot, JSON.stringify(snapshot), {
+        read(snapshot, JSON.stringify(snapshot), {
           kind: 'harness',
           operation: 'memory-snapshot',
         })

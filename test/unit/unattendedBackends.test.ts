@@ -2098,14 +2098,24 @@ describe('scheduled Model API dispatch', () => {
 })
 
 describe('scheduled Muse Code dispatch over captured MSP frames', () => {
-  it('RVM115U6 P2-2: observed start and idle before acknowledgement allow the next fire', async () => {
+  it.each([
+    {
+      name: 'RVM115U6 P2-2: observed start and idle before acknowledgement allow the next fire',
+      hasObservedStart: true,
+    },
+    {
+      name: 'RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode',
+      hasObservedStart: false,
+    },
+  ])('$name', async ({ hasObservedStart }) => {
     const fixture = await museBackend('denyUnmatched')
     const { ordinary } = await heldOrdinaryStart(fixture)
-    fixture.server.notify('turn/started', {
-      sessionId: fixture.session.sessionId,
-      turnId: 'ordinary',
-      viewCursor: '',
-    })
+    if (hasObservedStart)
+      fixture.server.notify('turn/started', {
+        sessionId: fixture.session.sessionId,
+        turnId: 'ordinary',
+        viewCursor: '',
+      })
     fixture.server.notify('session/statusChanged', {
       sessionId: fixture.session.sessionId,
       status: 'idle',
@@ -2119,33 +2129,13 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     await ordinary
     fixture.server.unsilence('turn/start')
     const { run } = unattendedRun()
-    await expect(
-      fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),
-    ).resolves.toMatchObject({ disposition: 'started' })
-    await fixture.host.close()
-  })
-
-  it('RVM115U5 P1-1: idle before an ordinary ack cannot admit a fire or change mode', async () => {
-    const fixture = await museBackend('denyUnmatched')
-    const { ordinary } = await heldOrdinaryStart(fixture)
-    fixture.server.notify('session/statusChanged', {
-      sessionId: fixture.session.sessionId,
-      status: 'idle',
-    })
-    await settle()
-    answerNative(fixture, 'turn/start', 0, () => ({
-      turnId: 'ordinary',
-      disposition: 'started',
-      startedNewTurn: true,
-    }))
-    await ordinary
-    fixture.server.unsilence('turn/start')
-    const { run } = unattendedRun()
-    await expect(
-      fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run),
-    ).rejects.toThrow()
-    expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
-    expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    const fire = fixture.session.sendScheduledTurn([{ type: 'text', text: 'Fire' }], run)
+    if (hasObservedStart) await expect(fire).resolves.toMatchObject({ disposition: 'started' })
+    else {
+      await expect(fire).rejects.toThrow()
+      expect(fixture.server.requestsFor('turn/start')).toHaveLength(1)
+      expect(fixture.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    }
     await fixture.host.close()
   })
 
