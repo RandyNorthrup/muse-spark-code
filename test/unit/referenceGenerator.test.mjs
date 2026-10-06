@@ -120,8 +120,15 @@ const invalidTabLanguageSettings = (config, log) => {
 
 const feature = (id) => build().features.find((entry) => entry.id === id)
 const setting = (suffix) => build().settings.find((entry) => entry.id === `museSpark.${suffix}`)
-const commandText = (key) =>
-  source.EN[build().commands.find((entry) => entry.id === `museSpark.${key}`).text.ui]
+const commandText = (key) => {
+  const model = build()
+  return source.referenceText(
+    model.commands.find((entry) => entry.id === `museSpark.${key}`).text,
+    model,
+    nls,
+    source.EN,
+  )
+}
 
 describe('RVHELPREF truth regressions', () => {
   it('C01 describes every Auto reviewer and its no-card approval path', () => {
@@ -417,7 +424,9 @@ describe('RVHELPREF truth regressions', () => {
       claude: 'resume-claude',
       codex: 'resume-codex',
     })
-    expect(feature('account').details).toContainEqual({ ui: 'referenceSecretPrompt' })
+    expect(feature('account').details).toContainEqual(
+      source.referenceDescription({ ui: 'referenceSecretPrompt' }),
+    )
     expect(source.EN.referencePaidContexts).toContain('forget workspace paid-use grants')
 
     expect(feature('code-intelligence').facts.modelApi.hover).toBe('hover')
@@ -560,6 +569,64 @@ describe('RVHELPREF truth regressions', () => {
 })
 
 describe('RVHELPREF2 runtime truth regressions', () => {
+  it('C06 rejects new conditional sentences in plain descriptions and renders typed conditions', () => {
+    const claims = [
+      'Delegation is enabled in this conversation.',
+      'Delegation is "enabled" in this conversation.',
+      'Delegation is `enabled` in this conversation.',
+      'The new feature is disabled.',
+      'A future feature is on.',
+      'A future feature is off.',
+      'Currently the tool runs freely.',
+      'When delegation is available, it runs freely.',
+    ]
+    for (const claim of claims) {
+      expect(lintReferenceDescription(claim, 'new-condition'), claim).toHaveLength(1)
+      expect(() =>
+        build(manifest, {
+          EN: {
+            ...source.EN,
+            referenceNativeAgents: `${source.EN.referenceNativeAgents} ${claim}`,
+          },
+        }),
+      ).toThrow('Catalogue asserts conditional state: native-agents')
+    }
+    const native = feature('native-agents')
+    const condition = native.details.find((ref) => 'conditions' in ref)
+    expect(condition.conditions).toEqual([
+      { when: 'run.subagent_delegation_mode', text: { ui: 'referenceNativeAgentsConditions' } },
+    ])
+    const model = build()
+    const rendered = source.referenceText(condition, model, nls, source.EN)
+    expect(rendered).toContain('run.subagent_delegation_mode: When')
+    expect(referenceMarkdown(model, source, nls, manifest)).toContain(rendered)
+    const invalid = source
+      .featureCatalog()
+      .map((row) => (row.id === 'native-agents' ? { ...row, details: [{ conditions: [] }] } : row))
+    expect(() => build(manifest, { featureCatalog: () => invalid })).toThrow(
+      'Empty catalogue conditions',
+    )
+  })
+  it('C07 describes hook sources on both backends and the scanner operation', () => {
+    expect(source.EN.hooksItemDetail).toContain('selected backend')
+    expect(source.EN.paletteTips.hooks).toBe(source.EN.hooksItemDetail)
+    const hooks = readFileSync(path.join(root, 'src/host/commands/museConfigCommands.ts'), 'utf8')
+    expect(hooks).toContain(
+      'deps.modelApiHooks === undefined ? UI_TEXT.hooksTitle : UI_TEXT.hooksTitleModelApi',
+    )
+    expect(hooks).toContain('const sparkProject = sparkItem')
+    const scanner = build().cli.find(
+      (row) => row.route === 'scan-secrets' && row.name === 'scan-secrets',
+    )
+    expect(scanner.text).toEqual({ ui: 'referenceScanSecrets' })
+    expect(scanner.description).toContain('UTF-8 patch file')
+    expect(scanner.description).toContain('fail on detection')
+    const scan = readFileSync(path.join(root, 'src/runtime/exec/scanSecrets.ts'), 'utf8')
+    expect(scan).toContain("new TextDecoder('utf-8', { fatal: true })")
+    expect(scan).toContain('countSecretMatches(text, held.key === undefined ? [] : [held.key])')
+    expect(scan).toContain('return count === 0 ? EXEC_EXIT.ok : EXEC_SCAN_EXIT_FOUND')
+    expect(scan).toContain('held.key = undefined')
+  })
   it('C04 preserves every argument slot when Markdown prose is parsed', () => {
     const model = build()
     const prose = { ui: 'referenceCodeOutput' }
@@ -571,6 +638,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       model.commands[0].description =
         '<command-slot>'
     model.settings[0].description = '<setting-slot>'
+    delete model.settings[0].text
     model.settings[0].enumDescriptions = ['<enum-slot>']
     model.shortcuts[0].text = prose
     model.cli[0].description = '<cli-slot>'
@@ -675,9 +743,19 @@ describe('RVHELPREF2 runtime truth regressions', () => {
     ).toBe('invalid')
   })
   it('B04/B05 rejects catalogue claims about current delegation, sandbox and message state', () => {
-    for (const [key, text] of Object.entries(source.EN)) {
-      if (!key.startsWith('reference')) continue
-      expect(lintReferenceDescription(text, key), key).toEqual([])
+    const model = build()
+    const descriptions = [
+      ...model.features.flatMap((row) => [row.summary, row.description, ...row.details]),
+      ...model.commands.map((row) => row.text),
+    ]
+    for (const ref of descriptions) {
+      if ('conditions' in ref) continue
+      expect(
+        lintReferenceDescription(
+          source.referenceText(ref, model, nls, source.EN),
+          JSON.stringify(ref),
+        ),
+      ).toEqual([])
     }
     for (const text of [
       'Delegation is off (its default), so the model has no agent tools in this conversation.',
@@ -685,7 +763,9 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'This message already reached the model.',
     ])
       expect(lintReferenceDescription(text, 'audit')).toHaveLength(1)
-    expect(source.EN.referenceNativeAgents).toContain('When run.subagent_delegation_mode="auto"')
+    expect(source.EN.referenceNativeAgentsConditions).toContain(
+      'When run.subagent_delegation_mode="auto"',
+    )
     expect(source.EN.referenceSandbox).toContain('when this window uses')
     expect(source.EN.referenceSandbox).toContain('shellSandbox="off"')
     const catalogue = source
@@ -884,7 +964,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
     const rows = build().cli
     for (const name of ['untrusted-file', 'model', 'fail-on-denial']) {
       const row = rows.find((entry) => entry.name.startsWith(`exec: --${name}`))
-      expect(row.text).toEqual({ cli: name })
+      expect(row.text).toEqual(source.referenceDescription({ cli: name }))
       expect(row.description).not.toBe(
         source.EN[
           {

@@ -103,5 +103,153 @@
     "sha256Before": "cf60b3fdcc8177a5a0d55b624f925925e6d3dce947c4eca903472bd1a5e04bb5",
     "sha256Restored": "cf60b3fdcc8177a5a0d55b624f925925e6d3dce947c4eca903472bd1a5e04bb5",
     "restoredByteExact": true
+  },
+  {
+    "finding": "C06",
+    "source": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "if (typeof text !== 'string') return []",
+      "after": "if (typeof text !== 'string') return []\n  return []"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C06 rejects new conditional sentences in plain descriptions and renders typed conditions 13ms",
+    "sha256Before": "608651e958a4b805b6851964a377f8c74228156dfbfa025214f7b7004c2189fd",
+    "sha256Restored": "608651e958a4b805b6851964a377f8c74228156dfbfa025214f7b7004c2189fd",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C07",
+    "source": "src/shared/l10n/en.ts",
+    "mutation": {
+      "before": "Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.",
+      "after": "Where Muse Code\u2019s hooks come from."
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C07 describes hook sources on both backends and the scanner operation 7ms",
+    "sha256Before": "cbfb4c41c01b991b3635b5b1584465853b1077e5748381081d4546116ea89b40",
+    "sha256Restored": "cbfb4c41c01b991b3635b5b1584465853b1077e5748381081d4546116ea89b40",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C07",
+    "source": "src/shared/cliCommands.ts",
+    "mutation": {
+      "before": "description: UI_TEXT.referenceScanSecrets,\n      text: { ui: 'referenceScanSecrets' }",
+      "after": "description: UI_TEXT.referenceKeyStdin,\n      text: { ui: 'referenceKeyStdin' }"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C07 describes hook sources on both backends and the scanner operation 310ms",
+    "sha256Before": "6c62718eb6635b13243bf19eb05a7ffa02742ac15ec77c7150e2cd7c0b1fe6bb",
+    "sha256Restored": "6c62718eb6635b13243bf19eb05a7ffa02742ac15ec77c7150e2cd7c0b1fe6bb",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "round-trips the entire compressed reference",
+    "source": "src/shared/reference/reference.generated.ts",
+    "mutation": {
+      "before": "'bestOfNTitle',\n  'referenceBestOfN',",
+      "after": "'referenceBestOfN',\n  'bestOfNTitle',"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 round-trips the entire compressed reference without losing any fact 106ms",
+    "sha256Before": "acaa6a907616733d4a9a3b72401c076be21b5a97afcc0b7d619abd0493645c5a",
+    "sha256Restored": "acaa6a907616733d4a9a3b72401c076be21b5a97afcc0b7d619abd0493645c5a",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C06",
+    "source": "src/shared/reference/text.ts",
+    "mutation": {
+      "before": "`${when}: ${referenceText(text, model, nls, table)}`",
+      "after": "`${referenceText(text, model, nls, table)}`"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C06 prints typed conditions and rejects malformed condition data at the model boundary 25ms",
+    "sha256Before": "162e75c7bbddecb8795bdbdde859f18497f6656c1d5102adb8636df465eacc4e",
+    "sha256Restored": "162e75c7bbddecb8795bdbdde859f18497f6656c1d5102adb8636df465eacc4e",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C06",
+    "source": "src/shared/reference/reference.generated.ts",
+    "mutation": {
+      "before": ".check(z.minLength(1))",
+      "after": ""
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C06 prints typed conditions and rejects malformed condition data at the model boundary 40ms",
+    "sha256Before": "acaa6a907616733d4a9a3b72401c076be21b5a97afcc0b7d619abd0493645c5a",
+    "sha256Restored": "acaa6a907616733d4a9a3b72401c076be21b5a97afcc0b7d619abd0493645c5a",
+    "restoredByteExact": true
+  },
+  {
+    "finding": "C06",
+    "source": "src/shared/reference/text.ts",
+    "mutation": {
+      "before": "`${when}: ${referenceText(text, model, nls, table)}`",
+      "after": "`${referenceText(text, model, nls, table)}`"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/ReferencePage.test.tsx",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "namedFailure": "\u00d7 C06 displays and searches the declared condition with installed text 225ms",
+    "sha256Before": "162e75c7bbddecb8795bdbdde859f18497f6656c1d5102adb8636df465eacc4e",
+    "sha256Restored": "162e75c7bbddecb8795bdbdde859f18497f6656c1d5102adb8636df465eacc4e",
+    "restoredByteExact": true
   }
 ]

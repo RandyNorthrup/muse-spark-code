@@ -14,6 +14,7 @@ export interface ReferenceCommand {
 }
 
 export interface ReferenceSetting {
+  readonly text?: ReferenceText | undefined
   readonly id: string
   readonly name: string
   readonly nameKey?: string | undefined

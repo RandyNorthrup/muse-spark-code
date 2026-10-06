@@ -121,11 +121,15 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
           ...(c.canRun ? [UI_TEXT.referenceRun] : []),
         ),
     )
+    const settingDescription = (s: (typeof model.settings)[number]) =>
+      s.text === undefined
+        ? translated(s.descriptionKey, s.description)
+        : referenceText(s.text, model, nls, UI_TEXT)
     const settingsRows = model.settings.filter((s) =>
       isMatch(
         s.id,
         translated(s.nameKey, s.name),
-        translated(s.descriptionKey, s.description),
+        settingDescription(s),
         jsonText(s.schema),
         valueText(s.default),
         values?.values[s.id] ?? '—',
@@ -329,7 +333,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
               <article key={s.id}>
                 <h4>{translated(s.nameKey, s.name)}</h4>
                 <code>{s.id}</code>
-                <p>{translated(s.descriptionKey, s.description)}</p>
+                <p>{settingDescription(s)}</p>
                 <dl>
                   <dt>{UI_TEXT.referenceCurrent}</dt>
                   <dd>

@@ -149,7 +149,7 @@
     "issue": "Hiba bejelentése.",
     "docs": "A Muse Code dokumentációjának megnyitása.",
     "mcpServers": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra.",
-    "hooks": "Honnan származnak a Muse Code hookjai.",
+    "hooks": "Tekintse meg a projekt, a felhasználó, a felügyelt beállítások és a spark-hooks.json hookforrásait a kiválasztott háttérhez.",
     "paid:imageGeneration": "Fizetős képgenerálás be- vagy kikapcsolása.",
     "paid:voice": "Fizetős Muse Voice be- vagy kikapcsolása.",
     "manageSkills": "A Muse Code képességeinek be- és kikapcsolása.",
@@ -290,7 +290,7 @@
   "mcpItem": "MCP-kiszolgálók…",
   "mcpItemDetail": "Amihez a Muse Code csatlakozik; bejelentkezés egy kiszolgálóra",
   "hooksItem": "Hookok…",
-  "hooksItemDetail": "Honnan származnak a Muse Code hookjai",
+  "hooksItemDetail": "Tekintse meg a projekt, a felhasználó, a felügyelt beállítások és a spark-hooks.json hookforrásait a kiválasztott háttérhez.",
   "mcpTitle": "A Muse Code MCP-kiszolgálói",
   "mcpNoSettings": "A Muse Code-nak még nincs beállításfájlja, így MCP-kiszolgálója sincs. Itt lenne: {path}",
   "mcpUnreadable": "A Muse Code beállításfájlja nem olvasható:",
@@ -2464,7 +2464,7 @@
   "referenceSetup": "A spark-hooks.json init eseményhez tartozó Setup hookjainak futtatása megbízható munkaterületen.",
   "referenceSkills": "SKILL.md. museCode: A Muse Code képességeinek be- és kikapcsolása. modelApi: SKILL.md.",
   "referenceVoice": "Ebben a verzióban a fizetős hang nem érhető el Model API-val. A Muse Code helyi ablakot, tárolt Model API-kulcsot és kifejezett bekapcsolást igényel. Linuxon arecord vagy parec is szükséges.",
-  "referenceNativeAgents": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. A Muse Code ügynökdelegálásának vezérlői.",
   "referenceCodeIntelExtra": "A szerkesztő nyelvi szolgáltatásainak használata definíciókhoz, hivatkozásokhoz, szimbólumokhoz, hívásokhoz és biztonságos átnevezéshez. Súgó Tárolótérkép (mcp__ide__repoMap / repo_map).",
   "referenceResumeAgents": "Befejezetlen Claude Code-munka folytatása ebben a beszélgetésben. Befejezetlen Codex-munka folytatása ebben a beszélgetésben.",
   "referenceBundled": "Mellékelt készségek: project_setup, feature_delivery, quality_retrofit. A muse_gadgets csak Model API-val érhető el.",
@@ -2557,5 +2557,7 @@
   "referenceWindowsSessions": "A Muse Code Windowson nem tud munkameneteket átnevezni vagy elágaztatni (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Ügynökvezérlők; Megszakítás; Leállítás; Folytatás; Ügynök bezárása; Ügynök újbóli megnyitása; Eredmény megjelölése olvasottként; Üzenet küldése; Követő feladat",
   "referenceElicitationTitle": "MCP-űrlapok",
-  "referenceElicitation": "Az MCP-űrlapok a kérést küldő MCP-kiszolgáló számára kérnek adatokat. Az elküldött értékek ehhez a kiszolgálóhoz kerülnek, a modell beszélgetésén és az átiraton kívül. A kiszolgáló későbbi eszközkimenetben visszaadhatja őket. Soha ne adjon meg jelszót vagy kulcsot."
+  "referenceElicitation": "Az MCP-űrlapok a kérést küldő MCP-kiszolgáló számára kérnek adatokat. Az elküldött értékek ehhez a kiszolgálóhoz kerülnek, a modell beszélgetésén és az átiraton kívül. A kiszolgáló későbbi eszközkimenetben visszaadhatja őket. Soha ne adjon meg jelszót vagy kulcsot.",
+  "referenceNativeAgentsConditions": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot."
 }

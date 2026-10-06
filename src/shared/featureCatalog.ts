@@ -1,15 +1,67 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS } from './constants'
+import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
 import type { UiText } from './l10n/en'
 
-export type ReferenceText =
+type PlainReferenceText =
   | { readonly cli: keyof UiText['referenceCliOptions'] }
   | { readonly ui: { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText] }
   | { readonly tip: keyof UiText['paletteTips'] }
   | { readonly setting: string }
   | { readonly command: string }
+
+export type ReferenceText =
+  | PlainReferenceText
+  | {
+      readonly conditions: readonly {
+        /** Technical selector; the description explains each of its states. */
+        readonly when: string
+        readonly text: PlainReferenceText
+      }[]
+    }
+
+// Conditional descriptions must opt into a typed field, never a content heuristic.
+const UI_CONDITIONS: Readonly<
+  Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
+> = {
+  referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  referenceSandbox: 'platform=win32&shellSandbox',
+  referenceBrowser: 'workspaceTrust',
+  referenceBestOfNRequirements: 'bestOfNAdmission',
+  referenceSecretPrompt: 'secretDetected',
+  referenceTabMenu: 'copilotYield',
+  referenceConversationActions: 'turnState',
+  referencePermissionLimits: 'backend&permissionMode&autoReviewer',
+  museCodeReviewerNotice: 'permissionMode=auto&museCodeAutoReviewer=true',
+  gitCommitItemDetail: 'userRequestedMessage',
+}
+const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+  preferredLocation: 'activeConversation',
+  archiveInactiveSessions: 'sessionIdle',
+  cleanupPeriodDays: 'sessionList',
+  sandboxNetwork: 'shellSandbox',
+  browserCheckExtraHosts: 'browserNetworkAdmission',
+  notifyOnBackgroundTurn: 'turnState&windowFocus',
+  modelApiSessionBudgetUsd: 'sessionBudget',
+  modelApiObservationPacking: 'conversationStart',
+  showWhatsNewOnUpdate: 'releaseHighlights',
+  modelApiPermissionProfile: 'permissionProfile',
+  tabLanguages: 'language',
+  tabMultiline: 'multilineMode',
+  tabTrigger: 'tabTrigger',
+}
+
+/** The generator uses these explicit selectors on every description surface. */
+export function referenceDescription(text: ReferenceText): ReferenceText {
+  if ('conditions' in text) return text
+  const settingConditions: Readonly<Partial<Record<string, string>>> = SETTING_CONDITIONS
+  let when: string | undefined
+  if ('ui' in text) when = UI_CONDITIONS[text.ui]
+  else if ('setting' in text) when = settingConditions[text.setting]
+  else if ('cli' in text && text.cli === 'fail-on-denial') when = 'permission=denied'
+  return when === undefined ? text : { conditions: [{ when, text }] }
+}
 
 interface Feature {
   readonly id: string
@@ -629,7 +681,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   permissions: ['referencePermissionLimits'],
-  'native-agents': ['referenceAgentControls'],
+  'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
   'code-intelligence': ['referenceCodeIntelExtra'],
   chat: ['referenceThinking', 'referenceConversationActions'],

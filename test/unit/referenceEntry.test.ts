@@ -30,6 +30,20 @@ function host(): ReferenceHost {
   }
 }
 describe('reference host actions and command line', () => {
+  it('C06 prints typed conditions and rejects malformed condition data at the model boundary', () => {
+    const shown = createReference(EN, 'en').all()
+    expect(shown).toContain(`run.subagent_delegation_mode: ${EN.referenceNativeAgentsConditions}`)
+    for (const conditions of [
+      [],
+      [{ when: 'a new sentence', text: { ui: 'referenceNativeAgentsConditions' } }],
+    ]) {
+      const model = structuredClone(referenceModel())
+      const native = model.features.find((feature) => feature.id === 'native-agents')
+      if (native === undefined) throw new Error('missing native agent reference')
+      const bad = { ...native, details: [{ conditions }] }
+      expect(() => parseReferenceModel({ ...model, features: [bad] })).toThrow()
+    }
+  })
   it('reads every current value, keeps sensitive variables off the bridge and sends a valid model', async () => {
     const bridge = host()
     await createReference(EN, 'en').handle({ type: 'readReference' }, bridge)

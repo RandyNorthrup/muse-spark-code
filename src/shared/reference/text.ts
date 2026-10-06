@@ -8,6 +8,10 @@ export function referenceText(
   nls: Readonly<Record<string, string>>,
   table: UiText,
 ): string {
+  if ('conditions' in ref)
+    return ref.conditions
+      .map(({ when, text }) => `${when}: ${referenceText(text, model, nls, table)}`)
+      .join('\n')
   if ('cli' in ref) return table.referenceCliOptions[ref.cli]
   if ('ui' in ref) return table[ref.ui]
   if ('tip' in ref) return table.paletteTips[ref.tip]

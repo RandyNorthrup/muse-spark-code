@@ -3197,7 +3197,11 @@ searchable reference of features, slash commands, commands, settings, keyboard
 actions and ACP/CLI flags. It shows exact host/backend pairs, paid admission
 rules, current/default values, nested setting schemas, command prerequisites
 and CLI limits. Environment-variable values stay hidden. Load failures show a
-retry action. The page follows the editor’s theme and display language.
+retry action. Auto help names both backend reviewers and their admission rules;
+ordinary model questions and MCP server form replies have separate privacy
+entries. Search matches the displayed JSON text, Markdown retains argument
+placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
+the editor’s theme and display language.
 
 ACP editors can send `/help` for the current installed-skill list and the
 [generated reference](docs/reference.md). ACP locally handles `/help` and
@@ -3213,7 +3217,10 @@ webview keyboard handlers, slash registry, paid tally and paid-use popup share
 typed tables with the generator. Enum defaults retain their value and meaning.
 `npm run check:reference` checks source coverage, reviewed host capabilities and
 admission wiring, option contracts, catalogue descriptions and generated-file
-freshness. Independent tests exercise parser acceptance and keyboard actions.
+freshness. Conditional descriptions use typed `conditions` with technical
+selectors; generic state wording in plain descriptions fails the gate. The
+generator renders these conditions on the page, in Markdown and in terminal
+help. Independent tests exercise parser acceptance and keyboard actions.
 Search includes displayed descriptions and keeps related command links reachable.
 Installed skills are dynamic and are refreshed
 when ACP answers help. Native shared-webview and phone companion integrations

@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Help keeps conditional state in typed descriptions with a rejecting guard
+  for new plain-text claims. Hooks describes both backends, and secret-scanner
+  help explains scanning and in-memory key matching without storage.
+
 - Auto help names both command reviewers, their rule precedence and paid
   admission, and separates ordinary model questions from private MCP form replies.
 

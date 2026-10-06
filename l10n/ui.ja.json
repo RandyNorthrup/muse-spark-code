@@ -149,7 +149,7 @@
     "issue": "問題を報告。",
     "docs": "Muse Code のドキュメントを開きます。",
     "mcpServers": "Muse Code の接続先。サーバーへのサインインもここで行います。",
-    "hooks": "Muse Code のフックの定義元。",
+    "hooks": "選択したバックエンドのプロジェクト、ユーザー、管理設定、spark-hooks.json のフック元を確認します。",
     "paid:imageGeneration": "有料の画像生成をオンまたはオフにします。",
     "paid:voice": "有料の Muse Voice をオンまたはオフにします。",
     "manageSkills": "Muse Code のスキルをオンまたはオフにします。",
@@ -286,7 +286,7 @@
   "mcpItem": "MCP サーバー…",
   "mcpItemDetail": "Muse Code の接続先。サーバーへのサインインもここで行います",
   "hooksItem": "フック…",
-  "hooksItemDetail": "Muse Code のフックの定義元",
+  "hooksItemDetail": "選択したバックエンドのプロジェクト、ユーザー、管理設定、spark-hooks.json のフック元を確認します。",
   "mcpTitle": "Muse Code の MCP サーバー",
   "mcpNoSettings": "Muse Code にはまだ設定ファイルがないため、MCP サーバーはありません。設定ファイルの場所は {path} です",
   "mcpUnreadable": "Muse Code の設定ファイルを読み取れませんでした:",
@@ -2372,7 +2372,7 @@
   "referenceDictation": "Linux では音声入力を使用できません: 音声認識エンジンを同梱しているディストリビューションがなく、この拡張機能はサードパーティのエンジンを追加しません。 リモート ウィンドウ (SSH、WSL、コンテナー、トンネル、Codespace) では音声入力を使用できません: 拡張機能はリモート マシンで実行されるため、このコンピューターのマイクの音声を受け取れません。音声入力を使用するには、ローカル ウィンドウでフォルダーを開いてください。",
   "referenceVoice": "このバージョンでは Model API の有料音声は利用できません。Muse Code にはローカルウィンドウ、保存済み Model API キー、明示的な有効化が必要です。Linux では arecord または parec も必要です。",
   "referenceBestOfN": "ベスト・オブ・N 選択したプレビューをそのまま適用してステージします。コミットは作成せず、無視されたファイルは除外します。",
-  "referenceNativeAgents": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code のエージェント委任の操作。",
   "referenceAttachments": "ファイルを選択またはドロップして添付し、入力欄に画像を貼り付けます。PNG、JPEG、GIF、WebPには画像対応モデルが必要です。PDFにはModel APIが必要です。信頼されたワークスペースの索引付きテキストファイルを添付できますが、保護対象や機密ファイルは拒否されます。送信前に以下の上限が適用されます。",
   "referenceConversationActions": "会話の名前変更、分岐、巻き戻しができます。巻き戻しは記録された編集と履歴を復元できますが、その後変更されたファイルは保持し、シェルによる変更は対象外です。ターン実行中のメッセージは進行を誘導します。Model APIでは次のリクエスト前に取り消せます。Muse Codeでは誘導が即時送信されるため、待機中のメッセージだけ取り消せます。サイドチャットは完了ターンをコピーし、目標を消してPlanを維持します。Muse CodeのファイルツールはPlanでも編集できます。テキストを選択して返信、質問、コメント、コピーができます。",
   "referenceQuestions": "回答を選んで送信する、自分の言葉で説明する、またはキャンセルすることができます。送信した回答と説明は会話内で Muse に渡されます。",
@@ -2463,5 +2463,7 @@
   "referenceWindowsSessions": "Muse Code では、Windows でセッションの名前変更やフォークはできません (meta-models/muse-code-sdk#30, #31)。",
   "referenceAgentControls": "エージェントの操作; 中断; 停止; 再開; エージェントを閉じる; エージェントを再度開く; 結果を既読にする; メッセージを送信; フォローアップ タスク",
   "referenceElicitationTitle": "MCP フォーム",
-  "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。"
+  "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
+  "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。"
 }

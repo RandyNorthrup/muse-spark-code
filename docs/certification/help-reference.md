@@ -458,3 +458,102 @@ including reviewer ALLOW running `npm test` with no card, question answers and
 clarifications reaching the next model request, and MCP answers absent from
 emitted events and logs. These are fake requests, with no paid/live calls.
 All 14 UI and manifest translations contain the corrected descriptions.
+
+### C06 and the complete prose pass
+
+Conditional prose now has a typed `conditions` field containing a technical
+selector and a localized text reference. The generator validates nonempty
+conditions, selector syntax and text references, and renders them in Markdown.
+The shared formatter renders the same conditions for terminal help and the
+webview, including installed translations and search. An explicit typed registry
+marks existing conditional descriptions; no prose heuristic promotes a claim
+into a condition. The plain-description lint rejects generic state wording,
+including newly authored sentences and state words inside quotes or code spans.
+
+The regression rejects new enabled/disabled/on/off/currently/when claims, retains
+the native delegation explanation in its condition, and rejects empty condition
+source data. Separate page and terminal regressions prove installed-language
+rendering/search and the parsed model boundary. This supersedes the earlier
+blanket description-guard claim: typed structure and generic wording are checked;
+arbitrary semantic truth still requires a source audit and owning truth tests.
+
+The [complete prose inventory](help-reference/fixhelpref3-description-audit.md)
+records **334 distinct text references**, with owners and runtime witnesses:
+53 features, 44 commands, 58 settings including enum meanings and nested
+annotations, 26 slash rows, 116 CLI command/option rows and 29 keyboard rows.
+Beyond C01–C06, the pass found and corrected **C07**:
+
+- Hooks previously described only Muse Code. Its handler supports both backends
+  and project, user, managed and `spark-hooks.json` sources; both catalogue
+  strings and all 14 translations now say so.
+- The `scan-secrets` command row previously described only its optional stdin
+  key. It now describes UTF-8 patch scanning, failure on detection, optional
+  exact in-memory key matching and no stored key, against the actual scanner.
+
+The shared-identifier packing needed to preserve the existing hard bundle cap:
+the first condition build correctly failed at **100.9 KiB / 100**. The generated
+model and its validator now share one text-key tuple, avoiding duplicated
+identifiers. The whole-model equality regression and a schema-valid identifier
+swap drill prove that decoded facts and text retain their meaning. The production
+build passes at **99.7 KiB / 100**; no budget or guard changed.
+
+| Finding                         | Status    | Owning regression                               | Deliberate failure                                                               |
+| ------------------------------- | --------- | ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| C01 — Auto reviewers            | Fixed     | Generator C01; fake reviewer runtime suites     | Remove Muse Code reviewed limit                                                  |
+| C02 — Question privacy          | Fixed     | Generator C02; fake question/elicitation suites | Restore false ordinary-question privacy                                          |
+| C03 — Displayed JSON search     | Fixed     | ReferencePage C03                               | Remove JSON indentation                                                          |
+| C04 — Markdown slots            | Fixed     | Generator C04, parsed Markdown AST              | Remove prose escaping                                                            |
+| C05 — Backward modal focus      | Fixed     | Modal C05, handler action and focus movement    | Replace Shift+Tab with F9                                                        |
+| C06 — Structural condition rule | Fixed     | Generator, ReferencePage and referenceEntry C06 | Disable generic lint; remove condition selector display; remove boundary minimum |
+| C07 — Additional prose audit    | Fixed     | Generator C07; hooks/scanner runtime suites     | Revert Hooks text; restore stdin-only scanner row                                |
+| Shared text-key packing         | Preserved | Entire decoded-model equality                   | Swap two schema-valid text identifiers                                           |
+
+The [drill receipt](help-reference/fixhelpref3-drills.json) retains commands,
+mutations, named failures and matching before/restored SHA-256 hashes. All owning
+files run without test-name filters. Every mutation is restored byte-exact in
+`finally`; no skipped test, snapshot acceptance, timeout increase or gate change.
+No C01–C07 finding is deferred. The pre-existing native/phone implementation
+boundary and the lead's integrated quality gate remain explicitly outside this
+scoped source and fake-runtime certification.
+
+### Final scoped validation
+
+All validation ran directly on Kubuntu, with one heavy process at a time.
+Vitest ran at most three owning files per invocation, with
+`--maxWorkers=3 --testTimeout=120000`.
+
+| Owning suites                                       | Distinct tests passed |
+| --------------------------------------------------- | --------------------- |
+| referenceGenerator, referenceEntry, ReferencePage   | 83                    |
+| Modal, museConfigCommands, scanSecrets              | 32                    |
+| modelApiHost, modelApiElicitation, museCodeReviewer | 676                   |
+| acpRuntime                                          | 38                    |
+| **Total (10 files)**                                | **829**               |
+
+There are **12 deliberate red runs**: all six findings, both extra C07 fixes,
+shared text-key preservation, and condition rendering/model-boundary checks.
+The final reference suites pass after every source restoration.
+Five-project typecheck, changed-file ESLint/Prettier, plain knip, zero-clone
+jscpd, localization, reference freshness, host API and production build pass.
+Localization covers 14 tables and 165 manifest strings with zero problems;
+host API reports 332 APIs with zero problems. The configured commit hooks use
+lint-staged/ESLint/Prettier and staged gitleaks; no bypass is authorized.
+
+Build sizes: extension **437.8 KiB / 600**, Model API **446.6 / 475**, Node
+reference **99.7 / 100**, reference page **36.9 / 50**, deferred webview
+JavaScript **49.8 / 50**, ACP **820.0 / 850**. Size, split, model-text,
+host-global and third-party notice checks pass with their original limits.
+
+The production ACP bundle successfully prints `help --all` in English and
+French and `exec --help`, `report --help`, `scan-secrets --help`. These commands
+make no model request. The help harness in English/French at ordinary and narrow
+widths passes **16 pages across four themes**, zero violations, undecided rules,
+exemptions or missing results. As printed by the existing gate, axe cannot
+measure contrast for eight obscured/scrolled-out elements in each language run;
+no new exemption or rule change was made.
+
+[Machine-readable validation](help-reference/fixhelpref3-validation.json)
+retains commands and results. No dependencies or tools were installed, no live
+or paid request or credential read occurred, and no aggregate quality, merge,
+rebase or push was run. The rig brief reserves integration and aggregate quality
+for the lead.

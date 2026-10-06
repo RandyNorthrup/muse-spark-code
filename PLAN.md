@@ -18215,9 +18215,9 @@ the historical-sentence blacklist with a structural conditional-description
 rule and typed conditions rendered on every reference surface. Audit every
 human-written catalogue description against its code path and record corrections.
 
-- [ ] Six regressions and six deliberate red drills, with SHA-256 restoration.
-- [ ] Whole-catalogue truth pass, translated tables and generated reference.
-- [ ] Scoped Kubuntu checks and hook-on local commits; no merge or push.
+- [x] Six regressions and twelve deliberate red drills, with SHA-256 restoration.
+- [x] Whole-catalogue truth pass, translated tables and generated reference.
+- [x] Scoped Kubuntu checks and hook-on local commits; no merge or push.
 
 Evidence: `docs/certification/help-reference.md`. The rig brief prohibits
 aggregate quality; integrated quality remains the lead's gate. No new dependency,
@@ -19492,6 +19492,15 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXHELPREF3 audit outcome.** C01–C06 and the two additional C07 prose
+  corrections have no deferred finding. The structural guard certifies typed
+  conditional descriptions and rejects generic state wording in plain catalogue
+  descriptions; it does not establish arbitrary prose truth by itself. Source
+  witnesses, regressions and twelve byte-exact red drills are recorded in
+  `docs/certification/help-reference.md`. No cap or gate was weakened. The
+  pre-existing native/companion boundary below and the lead’s integrated
+  quality gate remain outside this scoped rig certification.
 
 - **HELPREF-native-companion-integration (pre-existing boundary).** Native
   shared-webview hosts and the phone companion are planned in the IDE

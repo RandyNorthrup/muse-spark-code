@@ -149,7 +149,7 @@
     "issue": "문제 보고.",
     "docs": "Muse Code 설명서를 엽니다.",
     "mcpServers": "Muse Code의 연결 대상, 서버 로그인.",
-    "hooks": "Muse Code 후크의 출처.",
+    "hooks": "선택한 백엔드의 프로젝트, 사용자, 관리 설정 및 spark-hooks.json 후크 소스를 확인합니다.",
     "paid:imageGeneration": "유료 이미지 생성을 켜거나 끕니다.",
     "paid:voice": "유료 Muse Voice를 켜거나 끕니다.",
     "manageSkills": "Muse Code의 스킬 켜기 또는 끄기.",
@@ -286,7 +286,7 @@
   "mcpItem": "MCP 서버…",
   "mcpItemDetail": "Muse Code의 연결 대상, 서버 로그인",
   "hooksItem": "후크…",
-  "hooksItemDetail": "Muse Code 후크의 출처",
+  "hooksItemDetail": "선택한 백엔드의 프로젝트, 사용자, 관리 설정 및 spark-hooks.json 후크 소스를 확인합니다.",
   "mcpTitle": "Muse Code MCP 서버",
   "mcpNoSettings": "Muse Code에 아직 설정 파일이 없으므로 MCP 서버가 없습니다. 설정 파일 위치: {path}",
   "mcpUnreadable": "Muse Code의 설정 파일을 읽을 수 없습니다:",
@@ -2372,7 +2372,7 @@
   "referenceDictation": "Linux에서는 음성 받아쓰기를 사용할 수 없습니다. 음성 인식기를 포함하는 배포판이 없으며, 이 확장은 타사 엔진을 추가하지 않습니다. 원격 창(SSH, WSL, 컨테이너, 터널 또는 Codespace)에서는 음성 받아쓰기를 사용할 수 없습니다. 확장이 원격 컴퓨터에서 실행되므로 이 컴퓨터의 마이크를 들을 수 없습니다. 받아쓰기를 하려면 로컬 창에서 폴더를 여세요.",
   "referenceVoice": "이 버전에서는 Model API 유료 음성을 사용할 수 없습니다. Muse Code는 로컬 창, 저장된 Model API 키, 명시적 활성화가 필요합니다. Linux에서는 arecord 또는 parec도 필요합니다.",
   "referenceBestOfN": "베스트 오브 N 선택한 미리 보기 그대로 적용하고 스테이징합니다. 커밋은 만들지 않으며 무시된 파일은 제외합니다.",
-  "referenceNativeAgents": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code 에이전트 위임 제어.",
   "referenceAttachments": "파일을 선택하거나 끌어 첨부하고 입력창에 이미지를 붙여넣습니다. PNG, JPEG, GIF, WebP에는 이미지 지원 모델이 필요합니다. PDF에는 Model API가 필요합니다. 신뢰하는 작업 공간의 색인된 텍스트 파일을 첨부할 수 있으며 보호되거나 기밀인 파일은 거부됩니다. 전송 전에 아래 한도가 적용됩니다.",
   "referenceConversationActions": "대화 이름 변경, 분기 또는 되감기를 사용할 수 있습니다. 되감기는 기록된 편집과 이력을 복원하지만 이후 변경된 파일과 셸 변경은 처리하지 않습니다. 턴 중 새 메시지는 방향을 수정합니다. Model API는 다음 요청 전까지 철회할 수 있으며 Muse Code는 즉시 전달하므로 대기 메시지만 철회할 수 있습니다. 보조 채팅은 완료된 턴을 복사하고 목표를 지우며 Plan에 머뭅니다. Muse Code 파일 도구는 Plan에서도 편집할 수 있습니다. 텍스트를 선택해 답변, 질문, 댓글 또는 복사를 할 수 있습니다.",
   "referenceQuestions": "답변을 선택해 제출하거나, 자신의 말로 설명하거나, 취소할 수 있습니다. 제출한 답변과 설명은 대화에서 Muse에 전달됩니다.",
@@ -2463,5 +2463,7 @@
   "referenceWindowsSessions": "Muse Code는 Windows에서 세션 이름을 바꾸거나 포크할 수 없습니다(meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "에이전트 제어; 중단; 중지; 재개; 에이전트 닫기; 에이전트 다시 열기; 결과를 읽음으로 표시; 메시지 보내기; 후속 작업",
   "referenceElicitationTitle": "MCP 양식",
-  "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요."
+  "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요.",
+  "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다."
 }

@@ -149,7 +149,7 @@
     "issue": "Sorun bildir.",
     "docs": "Muse Code belgelerini açın.",
     "mcpServers": "Muse Code'un bağlandığı sunucular; bir sunucuda oturum açın.",
-    "hooks": "Muse Code kancalarının nereden geldiği.",
+    "hooks": "Seçilen arka uç için proje, kullanıcı, yönetilen ayarlar ve spark-hooks.json kanca kaynaklarını inceleyin.",
     "paid:imageGeneration": "Ücretli görüntü oluşturmayı açın veya kapatın.",
     "paid:voice": "Ücretli Muse Voice’u açın veya kapatın.",
     "manageSkills": "Muse Code becerilerini açın veya kapatın.",
@@ -290,7 +290,7 @@
   "mcpItem": "MCP sunucuları…",
   "mcpItemDetail": "Muse Code'un bağlandığı sunucular; bir sunucuda oturum açın",
   "hooksItem": "Kancalar…",
-  "hooksItemDetail": "Muse Code kancalarının nereden geldiği",
+  "hooksItemDetail": "Seçilen arka uç için proje, kullanıcı, yönetilen ayarlar ve spark-hooks.json kanca kaynaklarını inceleyin.",
   "mcpTitle": "Muse Code MCP sunucuları",
   "mcpNoSettings": "Muse Code'un henüz bir ayarlar dosyası yok, dolayısıyla MCP sunucusu da yok. Dosyanın konumu şu olurdu: {path}",
   "mcpUnreadable": "Muse Code ayarlar dosyası okunamadı:",
@@ -2466,7 +2466,7 @@
   "referenceDictation": "Sesle dikte Linux'ta kullanılamıyor: hiçbir dağıtım bir konuşma tanıyıcı içermez ve bu uzantı üçüncü taraf bir motor eklemez. Sesle dikte uzak pencerede kullanılamaz (SSH, WSL, kapsayıcı, tünel veya codespace): uzantı uzak makinede çalışır ve bu bilgisayarın mikrofonunu duyamaz. Dikte etmek için klasörü yerel bir pencerede açın.",
   "referenceVoice": "Bu sürümde Model API için ücretli ses kullanılamaz. Muse Code yerel bir pencere, kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir. Linux ayrıca arecord veya parec gerektirir.",
   "referenceBestOfN": "N arasından en iyi Seçilen önizlemeyi aynen uygular ve hazırlama alanına ekler. Commit oluşturmaz; yok sayılan dosyalar dışarıda kalır.",
-  "referenceNativeAgents": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code ajan yetkilendirme denetimleri.",
   "referenceAttachments": "Dosyaları seçerek veya sürükleyerek ekleyin ve görüntüleri yazım alanına yapıştırın. PNG, JPEG, GIF ve WebP için görme destekli model gerekir. PDF için Model API gerekir. Güvenilen çalışma alanının dizinlenmiş metin dosyaları eklenebilir; korunan veya gizli dosyalar reddedilir. Aşağıdaki sınırlar gönderimden önce uygulanır.",
   "referenceConversationActions": "Konuşmayı yeniden adlandırın, dallandırın veya geri sarın. Geri sarma kayıtlı düzenlemeleri ve geçmişi geri yükleyebilir; sonradan değişen dosyalar korunur, kabuk değişiklikleri kapsam dışıdır. Tur sürerken yeni mesajlar yön verir. Model API mesajları sonraki istekten önce geri alınabilir; Muse Code yönlendirmeyi hemen ilettiği için yalnızca kuyruktakiler alınabilir. Yan sohbet tamamlanan turları kopyalar, hedefi temizler ve Plan’da kalır; Muse Code Plan’da da dosya düzenleyebilir. Yanıt, soru, yorum veya kopyalama için metin seçin.",
   "referenceQuestions": "Bir yanıt seçip Gönder’e basın, kendi sözcüklerinizle açıklayın veya İptal’i seçin. Muse gönderilen yanıtları ve açıklamaları konuşmada alır.",
@@ -2557,5 +2557,7 @@
   "referenceWindowsSessions": "Muse Code, Windows'ta oturumları yeniden adlandıramaz veya çatallayamaz (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Aracı denetimleri; Kes; Durdur; Sürdür; Aracıyı kapat; Aracıyı yeniden aç; Sonucu okundu olarak işaretle; Mesaj gönder; Takip görevi",
   "referenceElicitationTitle": "MCP formları",
-  "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin."
+  "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin.",
+  "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz."
 }

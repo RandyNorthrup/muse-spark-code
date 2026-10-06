@@ -75,6 +75,8 @@ export const EN = {
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
   },
+  referenceScanSecrets:
+    'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -119,8 +121,10 @@ export const EN = {
     'Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.',
   referenceBestOfN:
     'Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
-  referenceNativeAgents:
+  referenceNativeAgentsConditions:
     'When run.subagent_delegation_mode="auto", Muse Code can delegate to agents. When it is "off", delegation tools are unavailable. run.workflow_trigger_mode: auto / explicit / off.',
+  referenceNativeAgents:
+    'run.workflow_trigger_mode: auto / explicit / off. Muse Code agent delegation controls.',
   referenceAttachments:
     'Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.',
   referenceConversationActions:
@@ -402,7 +406,8 @@ export const EN = {
     issue: 'Report an issue.',
     docs: 'Open the Muse Code documentation.',
     mcpServers: 'What Muse Code connects to; sign in to a server.',
-    hooks: "Where Muse Code's hooks come from.",
+    hooks:
+      'Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.',
     'paid:imageGeneration': 'Turn paid image generation on or off.',
     'paid:voice': 'Turn paid Muse Voice on or off.',
     manageSkills: "Turn Muse Code's skills on or off.",
@@ -664,7 +669,8 @@ export const EN = {
   mcpItem: 'MCP servers…',
   mcpItemDetail: 'What Muse Code connects to; sign in to a server',
   hooksItem: 'Hooks…',
-  hooksItemDetail: 'Where Muse Code’s hooks come from',
+  hooksItemDetail:
+    'Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.',
   mcpTitle: 'Muse Code MCP servers',
   mcpNoSettings: 'Muse Code has no settings file yet, so no MCP servers. It would be at {path}',
   mcpUnreadable: 'Muse Code’s settings file could not be read:',

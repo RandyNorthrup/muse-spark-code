@@ -149,7 +149,7 @@
     "issue": "Segnala un problema.",
     "docs": "Apri la documentazione di Muse Code.",
     "mcpServers": "A cosa si connette Muse Code; accedi a un server.",
-    "hooks": "Da dove provengono gli hook di Muse Code.",
+    "hooks": "Ispeziona le fonti degli hook di progetto, utente, gestite e di spark-hooks.json per il backend selezionato.",
     "paid:imageGeneration": "Attiva o disattiva la generazione di immagini a pagamento.",
     "paid:voice": "Attiva o disattiva Muse Voice a pagamento.",
     "manageSkills": "Attiva o disattiva le competenze di Muse Code.",
@@ -294,7 +294,7 @@
   "mcpItem": "Server MCP…",
   "mcpItemDetail": "A cosa si connette Muse Code; accedi a un server",
   "hooksItem": "Hook…",
-  "hooksItemDetail": "Da dove provengono gli hook di Muse Code",
+  "hooksItemDetail": "Ispeziona le fonti degli hook di progetto, utente, gestite e di spark-hooks.json per il backend selezionato.",
   "mcpTitle": "Server MCP di Muse Code",
   "mcpNoSettings": "Muse Code non ha ancora un file di impostazioni, quindi nessun server MCP. Si troverebbe in {path}",
   "mcpUnreadable": "Non è stato possibile leggere il file di impostazioni di Muse Code:",
@@ -2560,7 +2560,7 @@
   "referenceDictation": "La dettatura vocale non è disponibile in Linux: nessuna distribuzione include un sistema di riconoscimento vocale e questa estensione non aggiunge motori di terze parti. La dettatura vocale non è disponibile in una finestra remota (SSH, WSL, un contenitore, un tunnel o un codespace): l’estensione viene eseguita sul computer remoto, che non può sentire il microfono di questo computer. Apri la cartella in una finestra locale per dettare.",
   "referenceVoice": "La voce a pagamento non è disponibile con Model API in questa versione. Muse Code richiede una finestra locale, una chiave Model API salvata e l’attivazione esplicita. Linux richiede anche arecord o parec.",
   "referenceBestOfN": "Best-of-N Applica e prepara esattamente l’anteprima selezionata. Non crea commit; esclude i file ignorati.",
-  "referenceNativeAgents": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Controlli di delega degli agenti Muse Code.",
   "referenceAttachments": "Allegare file selezionandoli o trascinandoli e incollare immagini nel compositore. PNG, JPEG, GIF e WebP richiedono un modello con visione. I PDF richiedono Model API. È possibile allegare file di testo indicizzati dell’area di lavoro attendibile; i file protetti o riservati vengono rifiutati. I limiti seguenti valgono prima dell’invio.",
   "referenceConversationActions": "Rinominare, biforcare o riavvolgere una conversazione. Il riavvolgimento può ripristinare modifiche registrate e cronologia; i file cambiati dopo restano intatti e le modifiche della shell sono escluse. I messaggi durante un turno lo orientano. Model API permette il ritiro prima della richiesta successiva; Muse Code solo in coda, perché l’orientamento è consegnato subito. La chat laterale copia i turni completati, cancella l’obiettivo e resta in Plan; Muse Code può ancora modificare file in Plan. Selezionare testo per rispondere, chiedere, commentare o copiare.",
   "referenceQuestions": "Scegli una risposta e premi Invia, spiega con parole tue oppure premi Annulla. Muse riceve le risposte e le spiegazioni inviate nella conversazione.",
@@ -2651,5 +2651,7 @@
   "referenceWindowsSessions": "Muse Code non può rinominare o duplicare sessioni in Windows (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Controlli dell’agente; Interrompi; Arresta; Riprendi; Chiudi agente; Riapri agente; Segna il risultato come letto; Invia messaggio; Attività successiva",
   "referenceElicitationTitle": "Moduli MCP",
-  "referenceElicitation": "I moduli MCP chiedono informazioni per il server MCP richiedente. I valori inviati vanno a quel server, fuori dalla conversazione del modello e dalla trascrizione. Il server può includerli in un successivo risultato di uno strumento. Non inserire mai una password o una chiave."
+  "referenceElicitation": "I moduli MCP chiedono informazioni per il server MCP richiedente. I valori inviati vanno a quel server, fuori dalla conversazione del modello e dalla trascrizione. Il server può includerli in un successivo risultato di uno strumento. Non inserire mai una password o una chiave.",
+  "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata."
 }

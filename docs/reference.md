@@ -10,7 +10,7 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
 
-Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget prevents this workflow until candidate budgets can be shared. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
+bestOfNAdmission: Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget prevents this workflow until candidate budgets can be shared. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
 
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
@@ -66,7 +66,7 @@ Commands: —. Settings: `museSpark.modelApiBestOfN`. [Documentation](https://gi
 
 ### Permission mode
 
-On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.
+permissionMode=auto&museCodeAutoReviewer=true: On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
@@ -74,9 +74,11 @@ Commands: —. Settings: `museSpark.museCodeAutoReviewer`. [Documentation](https
 
 ### /agents
 
-When run.subagent_delegation_mode="auto", Muse Code can delegate to agents. When it is "off", delegation tools are unavailable. run.workflow_trigger_mode: auto / explicit / off.
+run.workflow_trigger_mode: auto / explicit / off. Muse Code agent delegation controls.
 
 Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task
+
+run.subagent_delegation_mode: When run.subagent_delegation_mode="auto", Muse Code can delegate to agents. When it is "off", delegation tools are unavailable. run.workflow_trigger_mode: auto / explicit / off.
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
@@ -181,7 +183,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Conversation
 
-Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
+turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
@@ -384,7 +386,7 @@ Open a new Muse Spark conversation in an editor tab.
 
 Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.
 
-Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
+turnState: Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -400,7 +402,7 @@ Paste a key from dev.meta.ai; it is stored in VS Code secret storage.
 
 The Muse Code CLI hosts conversations for this extension. Install it here, then sign in.
 
-When a prompt contains a detected secret, the transcript redacts it and asks whether to send it anyway or return to editing.
+secretDetected: When a prompt contains a detected secret, the transcript redacts it and asks whether to send it anyway or return to editing.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -410,7 +412,7 @@ Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTer
 
 Choose how Muse asks before it acts.
 
-museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking
+backend&permissionMode&autoReviewer: museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking
 museCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands
 museCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking
 museCode:bypassPermissions: Muse will edit files and run commands without asking
@@ -507,7 +509,7 @@ Commands: `museSpark.mcpServers`. Settings: —. [Documentation](https://github.
 
 ### Hooks…
 
-Where Muse Code’s hooks come from
+Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -616,7 +618,7 @@ Commands: —. Settings: `museSpark.modelApiCommandRules`, `museSpark.modelApiPe
 
 How the browser check gets its browser: Google’s Chrome for Testing headless shell, pinned to this extension version and downloaded from storage.googleapis.com into the extension’s storage (about 100 to 120 MB for each pinned version). Only you can change this, never a repository’s settings.
 
-The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.
+workspaceTrust: The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.
 
 ```json
 {
@@ -1201,14 +1203,14 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 Availability depends on the backend. Installed skills also add their own slash commands.
 
 - `/resume`: museCode: Pick a previous conversation in this workspace; modelApi: Pick a previous conversation in this workspace
-- `/commit`: museCode: Commit the changes in this workspace; a message is written only when you ask; modelApi: Commit the changes in this workspace; a message is written only when you ask
+- `/commit`: museCode: userRequestedMessage: Commit the changes in this workspace; a message is written only when you ask; modelApi: userRequestedMessage: Commit the changes in this workspace; a message is written only when you ask
 - `/push`: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
 - `/pr`: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
 - `/checkout-pr`: museCode: Check a pull request out in its own worktree and window; modelApi: Check a pull request out in its own worktree and window
 - `/model`: museCode: Switch model…; modelApi: Switch model…
 - `/permissions`: museCode: Permission mode; modelApi: Permission mode
 - `/mcp`: museCode: What Muse Code connects to; sign in to a server; modelApi: The servers in Muse Code’s settings, run by this window
-- `/hooks`: museCode: Where Muse Code’s hooks come from; modelApi: Where Muse Code’s hooks come from
+- `/hooks`: museCode: Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.; modelApi: Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.
 - `/memory`: museCode: The notes Muse keeps for later sessions; modelApi: The notes Muse keeps for later sessions
 - `/config`: museCode: Open settings…; modelApi: Open settings…
 - `/hook run <name>`: museCode: Run a Manual hook from spark-hooks.json; modelApi: Run a Manual hook from spark-hooks.json
@@ -1263,7 +1265,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Set Up Shell Sandbox
 
-`museSpark.setUpSandbox` — On Windows, when this window uses the Muse Code shell sandbox, set it up with one administrator approval, then start a new conversation. shellSandbox="off" does not require setup.
+`museSpark.setUpSandbox` — platform=win32&shellSandbox: On Windows, when this window uses the Muse Code shell sandbox, set it up with one administrator approval, then start a new conversation. shellSandbox="off" does not require setup.
 
 Available when: `isWindows || remoteName`.
 
@@ -1337,7 +1339,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Hooks
 
-`museSpark.hooks` — Where Muse Code's hooks come from.
+`museSpark.hooks` — Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.
 
 ### Muse Spark: Run Setup Hooks
 
@@ -1415,7 +1417,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Tab Menu
 
-`museSpark.tabMenu` — Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.
+`museSpark.tabMenu` — copilotYield: Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.
 
 ### Muse Spark: Tab Languages
 
@@ -1435,7 +1437,7 @@ Available when: `workspaceFolderCount > 0`.
 
 ### museSpark.preferredLocation
 
-Where Muse Spark: New Conversation opens a conversation when none is active.
+activeConversation: Where Muse Spark: New Conversation opens a conversation when none is active.
 
 Type: `"string"`. Default: `"panel"`. Scope: `window`.
 
@@ -1479,7 +1481,7 @@ Type: `"string"`. Default: `"manual"`. Scope: `machine`.
 
 ### museSpark.archiveInactiveSessions
 
-Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them).
+sessionIdle: Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them).
 
 Type: `"number"`. Default: `14`. Scope: `window`.
 
@@ -1499,7 +1501,7 @@ Type: `"number"`. Default: `14`. Scope: `window`.
 
 ### museSpark.cleanupPeriodDays
 
-Delete Meta Model API conversations idle for more than this many days when a window lists them; 0 keeps them for ever. Muse Code CLI sessions are kept by the CLI.
+sessionList: Delete Meta Model API conversations idle for more than this many days when a window lists them; 0 keeps them for ever. Muse Code CLI sessions are kept by the CLI.
 
 Type: `"integer"`. Default: `30`. Scope: `window`.
 
@@ -1549,7 +1551,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 
 ### museSpark.sandboxNetwork
 
-The network Muse Code's shell sandbox gives commands. For commands it applies only while the sandbox is on (museSpark.shellSandbox); without the sandbox, commands have your network. Changing it restarts the Muse Code host. At restricted, Muse Code is also not offered the extension's web fetch, sandbox or not; the Model API backend's web fetch follows its permission modes instead.
+shellSandbox: The network Muse Code's shell sandbox gives commands. For commands it applies only while the sandbox is on (museSpark.shellSandbox); without the sandbox, commands have your network. Changing it restarts the Muse Code host. At restricted, Muse Code is also not offered the extension's web fetch, sandbox or not; the Model API backend's web fetch follows its permission modes instead.
 
 Type: `"string"`. Default: `"default"`. Scope: `machine`.
 
@@ -1956,7 +1958,7 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 
 ### museSpark.notifyOnBackgroundTurn
 
-Show a notification when a long turn ends, or a turn waits for your approval or answer, while the VS Code window is unfocused. Nothing is ever shown while the window is focused.
+turnState&windowFocus: Show a notification when a long turn ends, or a turn waits for your approval or answer, while the VS Code window is unfocused. Nothing is ever shown while the window is focused.
 
 Type: `"boolean"`. Default: `true`. Scope: `window`.
 
@@ -1982,7 +1984,7 @@ Type: `"boolean"`. Default: `true`. Scope: `window`.
 
 ### museSpark.modelApiSessionBudgetUsd
 
-Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
+sessionBudget: Spend cap in US dollars for each Model API conversation; 0 means no cap. Shared durable reservations cover ordinary token requests and image fees before sending; a request that cannot fit what is left is not sent, and input estimates may differ from billed usage. Web search is unavailable while capped because its billed query count has no verified limit. Unknown sent requests keep their reservation; automatic retries after ambiguous failures are refused. Requires working session storage. Separate paid consent still applies. Paid Muse Voice is also unavailable with a cap because no billed-duration bound is verified; use system dictation. Child requests are counted when usage is reported, without reserving against the parent cap, and can exceed it.
 
 Type: `"number"`. Default: `0`. Scope: `machine`.
 
@@ -2009,7 +2011,7 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 
 ### museSpark.modelApiObservationPacking
 
-On by default. Packs old long tool outputs after two requests; recall_output reads the originals. The M75 evaluation passed. Read when a conversation starts or resumes.
+conversationStart: On by default. Packs old long tool outputs after two requests; recall_output reads the originals. The M75 evaluation passed. Read when a conversation starts or resumes.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2048,7 +2050,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.showWhatsNewOnUpdate
 
-On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.
+releaseHighlights: On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.
 
 Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
@@ -2157,7 +2159,7 @@ Type: `"object"`. Default: `{}`. Scope: `machine`.
 
 ### museSpark.modelApiPermissionProfile
 
-Model API backend: the permission profile in force, by its name in `museSpark.modelApiPermissionProfiles`; empty for none. While a profile is on, every shell command and MCP tool call asks in Manual, Edit automatically and Auto (Plan refuses shell commands and all but read-only MCP tools; Bypass permissions runs them), since the shell and MCP servers run outside the profile's file rules. User and machine settings only.
+permissionProfile: Model API backend: the permission profile in force, by its name in `museSpark.modelApiPermissionProfiles`; empty for none. While a profile is on, every shell command and MCP tool call asks in Manual, Edit automatically and Auto (Plan refuses shell commands and all but read-only MCP tools; Bypass permissions runs them), since the shell and MCP servers run outside the profile's file rules. User and machine settings only.
 
 Type: `"string"`. Default: `""`. Scope: `machine`.
 
@@ -2272,7 +2274,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.browserCheckExtraHosts
 
-Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.
+browserNetworkAdmission: Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.
 
 Type: `"array"`. Default: `[]`. Scope: `machine`.
 
@@ -2388,7 +2390,7 @@ Type: `"number"`. Default: `1`. Scope: `machine`.
 
 ### museSpark.tabLanguages
 
-The languages Tab suggests in, shaped like GitHub Copilot's github.copilot.enable: every language is on except plaintext, markdown and scminput unless listed otherwise here.
+language: The languages Tab suggests in, shaped like GitHub Copilot's github.copilot.enable: every language is on except plaintext, markdown and scminput unless listed otherwise here.
 
 Type: `"object"`. Default: `{"*":true,"plaintext":false,"markdown":false,"scminput":false}`. Scope: `machine`.
 
@@ -2408,7 +2410,7 @@ Runtime: `values:boolean`.
 
 ### museSpark.tabMultiline
 
-When Tab adds surrounding context for multi-line completions.
+multilineMode: When Tab adds surrounding context for multi-line completions.
 
 Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 
@@ -2426,7 +2428,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 
 ### museSpark.tabTrigger
 
-Whether Tab suggests automatically while you type or only when you invoke it.
+tabTrigger: Whether Tab suggests automatically while you type or only when you invoke it.
 
 Type: `"string"`. Default: `"onInvoke"`. Scope: `machine`.
 
@@ -2519,7 +2521,7 @@ These are defaults; editor customizations take precedence.
 - `auth clear`: Remove the stored Model API key.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
-- `scan-secrets`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
+- `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
   Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
@@ -2619,7 +2621,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`
 - `exec: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"allow-contributor-models"}`
 - `exec: --image-generation`: Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused. `{"type":"boolean","repeatable":false,"default":false,"purpose":"paidFeatures:imageGeneration"}`
-- `exec: --fail-on-denial`: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
+- `exec: --fail-on-denial`: permission=denied: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
 - `exec: --ephemeral`: Keep the session in memory without saving it. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
 - `exec: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"keyFromStdin"}`
 - `exec: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"verbose"}`

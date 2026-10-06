@@ -235,6 +235,15 @@ describe('RVHELPREF page parity and errors', () => {
 })
 
 describe('RVHELPREF2 presentation truth', () => {
+  it('C06 displays and searches the declared condition with installed text', () => {
+    const conditionText = 'Avec la délégation automatique, Muse Code peut déléguer.'
+    setUiText({ ...EN, referenceNativeAgentsConditions: conditionText }, 'fr')
+    page()
+    const shown = `run.subagent_delegation_mode: ${conditionText}`
+    expect(screen.getByText(shown)).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: shown } })
+    expect(screen.getByText(shown)).toBeInTheDocument()
+  })
   it('C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts', () => {
     page()
     const cases = [

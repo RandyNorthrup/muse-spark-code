@@ -68,7 +68,7 @@ export function createReference(table: UiText, locale: string) {
       lines.push('', UI_TEXT.referenceSettings)
       for (const s of REFERENCE.settings)
         lines.push(
-          `${s.id}: ${s.descriptionKey === undefined ? s.description : (nls[s.descriptionKey] ?? s.description)}`,
+          `${s.id}: ${s.text === undefined ? (s.descriptionKey === undefined ? s.description : (nls[s.descriptionKey] ?? s.description)) : referenceText(s.text, REFERENCE, nls, UI_TEXT)}`,
           `${UI_TEXT.referenceDefault}: ${configurationValue(s.default)}; ${JSON.stringify(s.type)}; ${s.scope}`,
           JSON.stringify(referenceSchema(s.schema, nls)),
           ...s.refinements,

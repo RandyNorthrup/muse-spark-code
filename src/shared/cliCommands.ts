@@ -48,8 +48,8 @@ export function cliCommands() {
     {
       route: 'scan-secrets',
       name: 'scan-secrets',
-      description: UI_TEXT.referenceKeyStdin,
-      text: { ui: 'referenceKeyStdin' },
+      description: UI_TEXT.referenceScanSecrets,
+      text: { ui: 'referenceScanSecrets' },
     },
     {
       route: 'report',

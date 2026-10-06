@@ -149,7 +149,7 @@
     "issue": "Zgłoś problem.",
     "docs": "Otwórz dokumentację Muse Code.",
     "mcpServers": "Z czym łączy się Muse Code; zaloguj się do serwera.",
-    "hooks": "Skąd pochodzą hooki Muse Code.",
+    "hooks": "Sprawdź źródła hooków projektu, użytkownika, zarządzane i spark-hooks.json dla wybranego backendu.",
     "paid:imageGeneration": "Włącz lub wyłącz płatne generowanie obrazów.",
     "paid:voice": "Włącz lub wyłącz płatną usługę Muse Voice.",
     "manageSkills": "Włączaj i wyłączaj umiejętności Muse Code.",
@@ -298,7 +298,7 @@
   "mcpItem": "Serwery MCP…",
   "mcpItemDetail": "Z czym łączy się Muse Code; zaloguj się do serwera",
   "hooksItem": "Hooki…",
-  "hooksItemDetail": "Skąd pochodzą hooki Muse Code",
+  "hooksItemDetail": "Sprawdź źródła hooków projektu, użytkownika, zarządzane i spark-hooks.json dla wybranego backendu.",
   "mcpTitle": "Serwery MCP Muse Code",
   "mcpNoSettings": "Muse Code nie ma jeszcze pliku ustawień, więc nie ma też serwerów MCP. Plik znajdowałby się tutaj: {path}",
   "mcpUnreadable": "Nie można odczytać pliku ustawień Muse Code:",
@@ -2654,7 +2654,7 @@
   "referenceDictation": "Dyktowanie głosowe nie jest dostępne w systemie Linux: żadna dystrybucja nie zawiera modułu rozpoznawania mowy, a to rozszerzenie nie dodaje silnika innej firmy. Dyktowanie głosowe nie jest dostępne w oknie zdalnym (SSH, WSL, kontener, tunel lub Codespace): rozszerzenie działa na maszynie zdalnej, która nie słyszy mikrofonu tego komputera. Aby dyktować, otwórz folder w oknie lokalnym.",
   "referenceVoice": "Płatny głos jest niedostępny w Model API w tej wersji. Muse Code wymaga lokalnego okna, zapisanego klucza Model API i jawnego włączenia. Linux wymaga również arecord lub parec.",
   "referenceBestOfN": "Najlepszy z N Stosuje dokładnie wybrany podgląd i dodaje go do indeksu. Nie tworzy commitu; pomija ignorowane pliki.",
-  "referenceNativeAgents": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Sterowanie delegowaniem agentów Muse Code.",
   "referenceAttachments": "Dołączaj pliki przez wybór lub przeciąganie i wklejaj obrazy do pola tekstowego. PNG, JPEG, GIF i WebP wymagają modelu z obsługą obrazów. PDF wymaga Model API. Można dołączać indeksowane pliki tekstowe z zaufanego obszaru roboczego; chronione i poufne pliki są odrzucane. Poniższe limity obowiązują przed wysłaniem.",
   "referenceConversationActions": "Zmień nazwę, rozgałęź lub przewiń rozmowę. Przewijanie może przywrócić zapisane edycje i historię; później zmienione pliki zostają nietknięte, a zmiany powłoki są wyłączone. Wiadomości podczas tury sterują nią. Model API pozwala je wycofać przed kolejnym żądaniem; Muse Code tylko w kolejce, bo sterowanie trafia od razu. Czat poboczny kopiuje zakończone tury, usuwa cel i zostaje w Plan; Muse Code nadal może tam edytować pliki. Zaznacz tekst, aby odpowiedzieć, zapytać, skomentować lub skopiować.",
   "referenceQuestions": "Wybierz odpowiedź i naciśnij Wyślij, wyjaśnij własnymi słowami albo wybierz Anuluj. Muse otrzymuje wysłane odpowiedzi i wyjaśnienia w rozmowie.",
@@ -2745,5 +2745,7 @@
   "referenceWindowsSessions": "Muse Code nie może zmieniać nazw ani rozwidlać sesji w systemie Windows (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Sterowanie agentem; Przerwij; Zatrzymaj; Wznów; Zamknij agenta; Otwórz agenta ponownie; Oznacz wynik jako przeczytany; Wyślij wiadomość; Kolejne zadanie",
   "referenceElicitationTitle": "Formularze MCP",
-  "referenceElicitation": "Formularze MCP proszą o informacje dla żądającego serwera MCP. Wysłane wartości trafiają do tego serwera poza rozmową modelu i zapisem rozmowy. Serwer może umieścić je w późniejszych wynikach narzędzia. Nigdy nie wpisuj hasła ani klucza."
+  "referenceElicitation": "Formularze MCP proszą o informacje dla żądającego serwera MCP. Wysłane wartości trafiają do tego serwera poza rozmową modelu i zapisem rozmowy. Serwer może umieścić je w późniejszych wynikach narzędzia. Nigdy nie wpisuj hasła ani klucza.",
+  "referenceNativeAgentsConditions": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany."
 }

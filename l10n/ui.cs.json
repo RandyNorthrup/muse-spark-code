@@ -149,7 +149,7 @@
     "issue": "Nahlásit problém.",
     "docs": "Otevřít dokumentaci Muse Code.",
     "mcpServers": "K čemu se Muse Code připojuje; přihlášení k serveru.",
-    "hooks": "Odkud pocházejí hooky Muse Code.",
+    "hooks": "Prohlédněte zdroje háků projektu, uživatele, spravované zdroje a spark-hooks.json pro vybraný backend.",
     "paid:imageGeneration": "Zapnout nebo vypnout placené generování obrázků.",
     "paid:voice": "Zapnout nebo vypnout placenou službu Muse Voice.",
     "manageSkills": "Zapnout nebo vypnout dovednosti Muse Code.",
@@ -298,7 +298,7 @@
   "mcpItem": "Servery MCP…",
   "mcpItemDetail": "K čemu se Muse Code připojuje; přihlášení k serveru",
   "hooksItem": "Hooky…",
-  "hooksItemDetail": "Odkud pocházejí hooky Muse Code",
+  "hooksItemDetail": "Prohlédněte zdroje háků projektu, uživatele, spravované zdroje a spark-hooks.json pro vybraný backend.",
   "mcpTitle": "Servery MCP Muse Code",
   "mcpNoSettings": "Muse Code zatím nemá soubor nastavení, a proto ani žádné servery MCP. Soubor by byl v umístění {path}",
   "mcpUnreadable": "Soubor nastavení Muse Code se nepodařilo přečíst:",
@@ -2654,7 +2654,7 @@
   "referenceDictation": "Hlasové diktování není v Linuxu k dispozici: žádná distribuce nedodává rozpoznávač řeči a toto rozšíření nepřidává žádný modul třetí strany. Hlasové diktování není ve vzdáleném okně k dispozici (SSH, WSL, kontejner, tunel nebo codespace): rozšíření běží na vzdáleném počítači, který neslyší mikrofon tohoto počítače. Chcete-li diktovat, otevřete složku v místním okně.",
   "referenceVoice": "Placený hlas není v této verzi dostupný na Model API. Muse Code vyžaduje místní okno, uložený klíč Model API a výslovné zapnutí. Linux navíc vyžaduje arecord nebo parec.",
   "referenceBestOfN": "Nejlepší z N Použije a připraví přesně vybraný náhled. Nevytvoří se commit; ignorované soubory se vynechají.",
-  "referenceNativeAgents": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Ovládání delegování agentů Muse Code.",
   "referenceAttachments": "Připojte soubory výběrem či přetažením a obrázky vložte do editoru zadání. PNG, JPEG, GIF a WebP vyžadují model s podporou obrazu. PDF vyžaduje Model API. Lze připojit důvěryhodné indexované textové soubory pracovního prostoru; chráněné či důvěrné soubory jsou odmítnuty. Níže uvedené limity platí před odesláním.",
   "referenceConversationActions": "Přejmenujte, větvěte nebo vraťte konverzaci. Vrácení může obnovit zaznamenané úpravy i historii; později změněné soubory se ponechají a změny shellu nejsou zahrnuty. Nové zprávy během tahu jej směrují. Model API dovoluje odvolání před dalším požadavkem; Muse Code jen ve frontě, protože směrování doručuje ihned. Vedlejší chat kopíruje dokončené tahy, vymaže cíl a zůstává v Plan; souborové nástroje Muse Code mohou v Plan stále upravovat. Vyberte text přepisu pro odpověď, dotaz, komentář či kopírování.",
   "referenceQuestions": "Vyberte odpověď a odešlete ji tlačítkem Odeslat, vysvětlete ji vlastními slovy nebo zvolte Zrušit. Muse v konverzaci obdrží odeslané odpovědi i vysvětlení.",
@@ -2745,5 +2745,7 @@
   "referenceWindowsSessions": "Muse Code nemůže ve Windows přejmenovávat ani rozvětvovat relace (meta-models/muse-code-sdk#30, #31).",
   "referenceAgentControls": "Ovládání agenta; Přerušit; Zastavit; Pokračovat; Zavřít agenta; Znovu otevřít agenta; Označit výsledek jako přečtený; Odeslat zprávu; Navazující úkol",
   "referenceElicitationTitle": "Formuláře MCP",
-  "referenceElicitation": "Formuláře MCP žádají o informace pro příslušný server MCP. Odeslané hodnoty formuláře jdou tomuto serveru mimo konverzaci modelu a přepis. Server je může zahrnout do pozdějšího výstupu nástroje. Nikdy nezadávejte heslo ani klíč."
+  "referenceElicitation": "Formuláře MCP žádají o informace pro příslušný server MCP. Odeslané hodnoty formuláře jdou tomuto serveru mimo konverzaci modelu a přepis. Server je může zahrnout do pozdějšího výstupu nástroje. Nikdy nezadávejte heslo ani klíč.",
+  "referenceNativeAgentsConditions": "Když je run.subagent_delegation_mode=\"auto\", Muse Code může delegovat agentům. Při \"off\" nejsou nástroje delegování dostupné. run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá."
 }

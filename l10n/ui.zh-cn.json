@@ -149,7 +149,7 @@
     "issue": "报告问题。",
     "docs": "打开 Muse Code 文档。",
     "mcpServers": "Muse Code 连接的对象；登录服务器。",
-    "hooks": "Muse Code 的钩子来自何处。",
+    "hooks": "查看所选后端的项目、用户、托管设置和 spark-hooks.json 钩子来源。",
     "paid:imageGeneration": "开启或关闭付费图片生成。",
     "paid:voice": "开启或关闭付费 Muse Voice。",
     "manageSkills": "打开或关闭 Muse Code 的技能。",
@@ -286,7 +286,7 @@
   "mcpItem": "MCP 服务器…",
   "mcpItemDetail": "Muse Code 连接的对象；登录服务器",
   "hooksItem": "钩子…",
-  "hooksItemDetail": "Muse Code 的钩子来自何处",
+  "hooksItemDetail": "查看所选后端的项目、用户、托管设置和 spark-hooks.json 钩子来源。",
   "mcpTitle": "Muse Code MCP 服务器",
   "mcpNoSettings": "Muse Code 尚无设置文件，因此没有 MCP 服务器。该文件应位于 {path}",
   "mcpUnreadable": "无法读取 Muse Code 的设置文件：",
@@ -2372,7 +2372,7 @@
   "referenceDictation": "Linux 上不支持语音听写：没有任何发行版附带语音识别器，而此扩展不添加第三方引擎。 远程窗口（SSH、WSL、容器、隧道或 codespace）中不支持语音听写：扩展运行在远程计算机上，无法听到这台计算机的麦克风。请在本地窗口中打开该文件夹以进行听写。",
   "referenceVoice": "此版本的 Model API 无法使用付费语音。Muse Code 需要本地窗口、已存储的 Model API 密钥和明确启用。Linux 还需要 arecord 或 parec。",
   "referenceBestOfN": "N 选最优 严格应用并暂存所选预览。不创建提交；忽略的文件不包含在内。",
-  "referenceNativeAgents": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceNativeAgents": "run.workflow_trigger_mode: auto / explicit / off. Muse Code 代理委派控制。",
   "referenceAttachments": "选择或拖放文件以附加，并将图像粘贴到输入框。PNG、JPEG、GIF和WebP需要支持视觉的模型。PDF需要Model API。可附加可信工作区中已索引的文本文件；受保护或机密文件会被拒绝。以下限制在发送前生效。",
   "referenceConversationActions": "重命名、分叉或回退对话。回退可恢复记录的编辑和历史；之后已更改的文件会保留，命令行更改不在范围内。轮次运行时的新消息用于引导。Model API消息可在下次请求前撤回；Muse Code引导会立即送达，因此只能撤回排队的消息。侧聊复制已完成的轮次、清除目标并保持Plan；Muse Code文件工具在Plan中仍可编辑。选择文本可回复、询问、评论或复制。",
   "referenceQuestions": "选择答案并提交、用自己的话解释，或取消。提交的答案和解释会在对话中传给 Muse。",
@@ -2463,5 +2463,7 @@
   "referenceWindowsSessions": "Muse Code 无法在 Windows 上重命名或分叉会话（meta-models/muse-code-sdk#30、#31）。",
   "referenceAgentControls": "代理控制; 中断; 停止; 恢复; 关闭代理; 重新打开代理; 将结果标记为已读; 发送消息; 后续任务",
   "referenceElicitationTitle": "MCP 表单",
-  "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。"
+  "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
+  "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
 }

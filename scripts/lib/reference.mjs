@@ -14,7 +14,7 @@ const JSON_MODEL = 'src/shared/reference/reference.generated.json'
 // asserting the current session's state are not reusable reference descriptions.
 export function lintReferenceDescription(text, identity) {
   if (typeof text !== 'string') return []
-  return /\b(?:delegation is (?:off|disabled)|is off \(its default\)|has no agent tools in this conversation|cannot run shell commands until|this message already reached|this private file cannot|this prompt contains a secret|a secret was detected)/i.test(
+  return /\b(?:when|if|currently|enabled|disabled|already)\b|\b(?:is|are|remains?|stays?)\s+(?:on|off)\b|\bcannot\b[^.!?\n]*\buntil\b|\b(?:this|the current)\b[^.!?\n]*\b(?:cannot|contains a secret)\b|\b(?:was|were)\s+detected\b|\bhas\s+no\b[^.!?\n]*\bin\s+this\b/i.test(
     text,
   )
     ? [`Catalogue asserts conditional state: ${identity}`]
@@ -38,6 +38,24 @@ function lintDescriptionReference(ref) {
     )
     ? [`Failure message used as catalogue description: ${ref.ui}`]
     : []
+}
+
+function plainTexts(ref) {
+  return 'conditions' in ref ? ref.conditions.map((condition) => condition.text) : [ref]
+}
+
+function lintReferenceText(ref, identity, resolve) {
+  if (!('conditions' in ref))
+    return [...lintReferenceDescription(resolve(ref), identity), ...lintDescriptionReference(ref)]
+  const errors = ref.conditions.length === 0 ? [`Empty catalogue conditions: ${identity}`] : []
+  for (const condition of ref.conditions) {
+    if (!/^[\w.=:&|!-]+$/.test(condition.when))
+      errors.push(`Invalid condition selector: ${identity}`)
+    if ('conditions' in condition.text) errors.push(`Nested catalogue conditions: ${identity}`)
+    if (!resolve(condition.text)?.trim()) errors.push(`Missing condition description: ${identity}`)
+    errors.push(...lintDescriptionReference(condition.text))
+  }
+  return errors
 }
 
 export async function referenceSources(root) {
@@ -411,6 +429,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       schema === undefined ? undefined : source.resolveSettingDefault(schema, nls)
     return {
       ...feature,
+      summary: source.referenceDescription(feature.summary),
+      description: source.referenceDescription(feature.description),
+      details: feature.details.map((text) => source.referenceDescription(text)),
       paid: paidId !== undefined,
       facts: {
         ...referenceFacts(source)[feature.id],
@@ -544,6 +565,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     errors.push('Runtime refinement mismatch: valid:host')
 
   const descriptionFor = (ref) => {
+    if ('conditions' in ref)
+      return ref.conditions.map(({ when, text }) => `${when}: ${descriptionFor(text)}`).join('\n')
     if ('cli' in ref) return source.EN.referenceCliOptions[ref.cli]
     if ('ui' in ref) return source.EN[ref.ui]
     if ('tip' in ref) return source.EN.paletteTips[ref.tip]
@@ -556,6 +579,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     return translated(setting?.markdownDescription ?? setting?.description, nls)
   }
   const settings = Object.entries(properties).map(([id, s]) => ({
+    ...('conditions' in source.referenceDescription({ setting: id.slice('museSpark.'.length) }) && {
+      text: source.referenceDescription({ setting: id.slice('museSpark.'.length) }),
+    }),
     id,
     name: translated(s.title, nls) ?? id,
     nameKey: keyOf(s.title),
@@ -598,14 +624,15 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const key = Object.keys(source.COMMAND_IDS).find((k) => source.COMMAND_IDS[k] === c.command)
     const entry = source.COMMAND_REFERENCE[key]
     if (entry === undefined) errors.push(`Command lacks catalogue entry: ${c.command}`)
+    const text = entry === undefined ? undefined : source.referenceDescription(entry.description)
     return {
       id: c.command,
       name: translated(c.title, nls),
       nameKey: keyOf(c.title),
       category: translated(c.category, nls) ?? '',
       categoryKey: keyOf(c.category),
-      description: entry === undefined ? '' : descriptionFor(entry.description),
-      text: entry?.description,
+      description: text === undefined ? '' : descriptionFor(text),
+      text,
       enablement: source.resolveCommandCondition(
         c,
         manifest.contributes.menus?.commandPalette ?? [],
@@ -638,13 +665,18 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         description: c.detail ?? c.tip,
         descriptions: {
           ...old?.descriptions,
-          [backend]: c.reference?.[backend] ?? { ui: 'referenceIntro' },
+          [backend]: source.referenceDescription(
+            c.reference?.[backend] ?? { ui: 'referenceIntro' },
+          ),
         },
         backends: [...(old?.backends ?? []), backend],
       })
     }
   }
-  const cli = source.cliCommands()
+  const cli = source.cliCommands().map((entry) => ({
+    ...entry,
+    ...(entry.text !== undefined && { text: source.referenceDescription(entry.text) }),
+  }))
   const optionFacts = {
     'untrusted-file': {
       maxItems: source.EXEC_UNTRUSTED_FILES_MAX,
@@ -701,6 +733,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         )
       )
         text = { ui: 'referenceExecContract' }
+      text = source.referenceDescription(text)
 
       cli.push({
         route,
@@ -899,13 +932,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     const expectedSurfaces = source.REFERENCE_CAPABILITIES[f.id]
     if (JSON.stringify(f.surfaces) !== JSON.stringify(expectedSurfaces))
       errors.push(`Host capability mismatch: ${f.id}`)
-    for (const text of [f.name, f.summary, f.description, ...f.details]) {
+    for (const text of [f.summary, f.description, ...f.details]) {
       if (!descriptionFor(text)?.trim()) errors.push(`Feature lacks text: ${f.id}`)
-      errors.push(
-        ...lintReferenceDescription(descriptionFor(text), f.id),
-        ...lintDescriptionReference(text),
-      )
+      errors.push(...lintReferenceText(text, f.id, descriptionFor))
     }
+    let name
+    if ('setting' in f.name) {
+      if (Object.hasOwn(properties, `museSpark.${f.name.setting}`))
+        name = `museSpark.${f.name.setting}`
+    } else name = descriptionFor(f.name)
+    if (!name?.trim()) errors.push(`Feature lacks text: ${f.id}`)
+    errors.push(...lintReferenceDescription(name, f.id), ...lintDescriptionReference(f.name))
     for (const id of f.commands)
       if (commands.every((c) => c.id !== id)) errors.push(`Unknown feature command: ${f.id}: ${id}`)
     for (const id of f.settings)
@@ -918,8 +955,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   }
   for (const entry of [...commands, ...settings, ...slash.values(), ...cli]) {
     if (!entry.description?.trim()) errors.push(`Missing description: ${entry.id ?? entry.name}`)
-    errors.push(...lintReferenceDescription(entry.description, entry.id ?? entry.name))
-    if (entry.text !== undefined) errors.push(...lintDescriptionReference(entry.text))
+    if (entry.descriptions === undefined) {
+      if (entry.text === undefined)
+        errors.push(...lintReferenceDescription(entry.description, entry.id ?? entry.name))
+      else errors.push(...lintReferenceText(entry.text, entry.id ?? entry.name, descriptionFor))
+    } else
+      for (const text of Object.values(entry.descriptions))
+        errors.push(...lintReferenceText(text, entry.name, descriptionFor))
   }
   for (const entry of [...commands, ...settings]) {
     const group = 'canRun' in entry ? 'commands' : 'settings'
@@ -954,6 +996,10 @@ function prose(value) {
 
 export function referenceMarkdown(model, source, nls, manifest) {
   const text = (ref) => {
+    if ('conditions' in ref)
+      return ref.conditions
+        .map(({ when, text: condition }) => `${prose(when)}: ${text(condition)}`)
+        .join('\n')
     if ('cli' in ref) return prose(source.EN.referenceCliOptions[ref.cli])
     if ('ui' in ref) return prose(source.EN[ref.ui])
     if ('tip' in ref) return prose(source.EN.paletteTips[ref.tip])
@@ -1003,7 +1049,7 @@ export function referenceMarkdown(model, source, nls, manifest) {
     lines.push(
       `### ${prose(c.category)}: ${prose(c.name)}`,
       '',
-      `\`${c.id}\` — ${prose(c.description)}`,
+      `\`${c.id}\` — ${text(c.text)}`,
       '',
       ...(c.enablement ? [`Available when: \`${c.enablement}\`.`, ''] : []),
     )
@@ -1012,7 +1058,7 @@ export function referenceMarkdown(model, source, nls, manifest) {
     lines.push(
       `### ${s.id}`,
       '',
-      prose(s.description),
+      s.text === undefined ? prose(s.description) : text(s.text),
       '',
       `Type: \`${JSON.stringify(s.type)}\`. Default: \`${JSON.stringify(s.default)}\`. Scope: \`${s.scope}\`.`,
       '',
@@ -1063,39 +1109,29 @@ export async function generateReference(root, isCheck = false) {
     readFileSync(path.join(root, 'src/runtime/cliArgs.ts'), 'utf8'),
     readFileSync(path.join(root, 'README.md'), 'utf8'),
   )
-  const uiKeys = [
-    ...new Set(
-      [
-        ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
-        ...model.commands.map((c) => c.text),
-        ...model.cli.flatMap((c) => (c.text === undefined ? [] : [c.text])),
-        ...model.shortcuts.flatMap((c) => (c.text === undefined ? [] : [c.text])),
-        ...model.slash.flatMap((c) => Object.values(c.descriptions)),
-      ]
-        .filter((t) => 'ui' in t)
-        .map((t) => t.ui),
-    ),
-  ]
-  const tipKeys = [
-    ...new Set(
-      [
-        ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
-        ...model.commands.map((c) => c.text),
-        ...model.cli.flatMap((c) => (c.text === undefined ? [] : [c.text])),
-        ...model.shortcuts.flatMap((c) => (c.text === undefined ? [] : [c.text])),
-        ...model.slash.flatMap((c) => Object.values(c.descriptions)),
-      ]
-        .filter((t) => 'tip' in t)
-        .map((t) => t.tip),
-    ),
-  ]
+  const texts = [
+    ...model.features.flatMap((f) => [f.name, f.summary, f.description, ...f.details]),
+    ...model.commands.map((c) => c.text),
+    ...model.settings.flatMap((s) => (s.text === undefined ? [] : [s.text])),
+    ...model.cli.flatMap((c) => (c.text === undefined ? [] : [c.text])),
+    ...model.shortcuts.flatMap((c) => (c.text === undefined ? [] : [c.text])),
+    ...model.slash.flatMap((c) => Object.values(c.descriptions)),
+  ].flatMap((text) => plainTexts(text))
+  const uiKeys = [...new Set(texts.filter((text) => 'ui' in text).map((text) => text.ui))]
+  const tipKeys = [...new Set(texts.filter((text) => 'tip' in text).map((text) => text.tip))]
+  const cliKeys = Object.keys(source.EN.referenceCliOptions)
+  const textKeys = [...new Set([...uiKeys, ...tipKeys, ...cliKeys])]
+  const textIndices = new Map(textKeys.map((key, index) => [JSON.stringify(key), index]))
+  const keyArray = (keys) =>
+    `[${keys.map((key) => `textKeys[${textKeys.indexOf(key)}]`).join(',')}]`
   const schema = `
-    const textSchema = z.union([z.object({ cli: z.enum(${JSON.stringify(Object.keys(source.EN.referenceCliOptions))}) }), z.object({ ui: z.enum(${JSON.stringify(uiKeys)}) }), z.object({ tip: z.enum(${JSON.stringify(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
+    const plainTextSchema = z.union([z.object({ cli: z.enum(${keyArray(cliKeys)}) }), z.object({ ui: z.enum(${keyArray(uiKeys)}) }), z.object({ tip: z.enum(${keyArray(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
+    const textSchema = z.union([plainTextSchema, z.object({ conditions: z.array(z.object({ when: z.string().check(z.regex(/^[A-Za-z0-9_.=:&|!-]+$/)), text: plainTextSchema })).check(z.minLength(1)) })])
     const strings = z.array(z.string())
     const schema = z.object({ executable: z.string(),
       features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
       commands: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), category: z.string(), categoryKey: z.optional(z.string()), description: z.string(), text: textSchema, enablement: z.optional(z.string()), canRun: z.boolean() })),
-      settings: z.array(z.object({ id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
+      settings: z.array(z.object({ text: z.optional(textSchema), id: z.string(), name: z.string(), nameKey: z.optional(z.string()), description: z.string(), descriptionKey: z.optional(z.string()), type: z.union([z.string(), strings]), default: z.unknown(), enum: z.optional(z.array(z.unknown())), enumDescriptions: z.optional(strings), enumDescriptionKeys: z.optional(z.array(z.nullable(z.string()))), scope: z.string(), refinements: strings, schema: z.record(z.string(), z.unknown()) })),
       slash: z.array(z.object({ name: z.string(), description: z.string(), descriptions: z.record(z.string(), textSchema), backends: strings, syntax: strings })),
       cli: z.array(z.object({ route: z.string(), name: z.string(), description: z.string(), text: z.optional(textSchema), usageKey: z.optional(z.enum(['acpUsage', 'reportUsage'])), usageLine: z.optional(z.number()), contract: z.optional(z.record(z.string(), z.unknown())) })),
       shortcuts: z.array(z.object({ command: z.string(), key: z.string(), mac: z.optional(z.string()), win: z.optional(z.string()), linux: z.optional(z.string()), when: z.optional(z.string()), text: z.optional(textSchema) }))
@@ -1167,15 +1203,24 @@ export async function generateReference(root, isCheck = false) {
       ? JSON.stringify(`~${indices.get(token).toString(source.REFERENCE_POOL_RADIX)}`)
       : token,
   )
+  // Share text identifiers with their boundary enums instead of shipping them twice.
+  const encodeTextKeys = (json) =>
+    json.replaceAll(tokens, (token, offset) => {
+      const index = textIndices.get(token)
+      if (index === undefined) return token
+      const expression = `textKeys[${index}]`
+      return json[offset + token.length] === ':' ? `[${expression}]` : expression
+    })
   const formatting = await resolveConfig(path.join(root, MODULE))
   const module = await format(
     `// Generated by scripts/gen-reference.mjs; do not edit.
 import * as z from 'zod/mini'
 import type { ReferenceModel } from './types'
+const textKeys = ${JSON.stringify(textKeys)} as const
 export function referenceModel(): ReferenceModel {
   const referenceRadix = ${source.REFERENCE_POOL_RADIX}
   const numericPrefix = ${JSON.stringify(numericPrefix)}
-  const pool: readonly unknown[] = ${JSON.stringify(pool.map((fragment) => JSON.parse(fragment)))}
+  const pool: readonly unknown[] = ${encodeTextKeys(JSON.stringify(pool.map((fragment) => JSON.parse(fragment))))}
   const expand = (value: unknown): unknown => {
     if (typeof value === 'string') {
       if (value.startsWith(numericPrefix)) return Number(value.slice(numericPrefix.length))
@@ -1193,7 +1238,7 @@ export function referenceModel(): ReferenceModel {
       return [name, expand(entry)]
     }))
   }
-  return parseReferenceModel(expand(${packed}))
+  return parseReferenceModel(expand(${encodeTextKeys(packed)}))
 }
 ${schema}
 `,
