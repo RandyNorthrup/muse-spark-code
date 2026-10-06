@@ -28,12 +28,12 @@ const ticket: ResourceTicket = {
   sessionId: null,
 }
 function row(pid: number, startTime = '1000', pgid = 710): ProcessSample {
-  return { pid, startTime, pgid, cpuSeconds: 2, residentBytes: 4096 }
+  return { pid, startTime, pgid, parent: 1, exited: false, cpuSeconds: 2, residentBytes: 4096 }
 }
 function stat(sample: ProcessSample, command = 'owned (worker)') {
   const fields = Array.from({ length: 50 }, () => '0')
-  fields[0] = 'S'
-  fields[1] = '1'
+  fields[0] = sample.exited ? 'Z' : 'S'
+  fields[1] = String(sample.parent)
   fields[2] = String(sample.pgid)
   fields[11] = String(sample.cpuSeconds * 100)
   fields[12] = '0'
@@ -68,6 +68,7 @@ describe('numeric process accounting tables', () => {
     expect(parseLinuxStat(stat({ ...row(710), residentBytes: -4096 }), 100, 4096)).toBeNull()
     expect(parseLinuxStat(stat(row(710)), 0, 4096)).toBeNull()
     expect(parseLinuxStat(stat(row(710)), 100, NaN)).toBeNull()
+    expect(parseLinuxStat(stat({ ...row(710), exited: true }), 100, 4096)?.exited).toBe(true)
   })
 
   it('parses Darwin CPU durations and KiB with no process names, rejecting incomplete tables', () => {
@@ -75,13 +76,13 @@ describe('numeric process accounting tables', () => {
     expect(parseCpuTime('2-03:04:05.00')).toBe(183_845)
     expect(parseCpuTime('0:60')).toBeNull()
     expect(parseCpuTime('n/a')).toBeNull()
-    expect(parseMacProcessTable(' 710 710 0:02.00 4\n711 710 1:00.25 8\n')).toEqual([
-      { pid: 710, pgid: 710, cpuSeconds: 2, residentBytes: 4096 },
-      { pid: 711, pgid: 710, cpuSeconds: 60.25, residentBytes: 8192 },
+    expect(parseMacProcessTable(' 710 1 710 S 0:02.00 4\n711 1 710 S 1:00.25 8\n')).toEqual([
+      { pid: 710, pgid: 710, parent: 1, exited: false, cpuSeconds: 2, residentBytes: 4096 },
+      { pid: 711, pgid: 710, parent: 1, exited: false, cpuSeconds: 60.25, residentBytes: 8192 },
     ])
-    expect(parseMacProcessTable('710 710 0:02.00 4\nps: denied')).toBeNull()
+    expect(parseMacProcessTable('710 1 710 S 0:02.00 4\nps: denied')).toBeNull()
     expect(parseMacProcessTable('710 710 0:02.00 -1')).toBeNull()
-    expect(parseMacProcessTable('9007199254740992 710 0:00.00 0')).toBeNull()
+    expect(parseMacProcessTable('9007199254740992 1 710 S 0:00.00 0')).toBeNull()
   })
 
   it('retains the Windows orphan parser and excludes invalid or unsafe process ids', () => {
@@ -338,7 +339,9 @@ describe('POSIX authority during mixed-time scans', () => {
           ? world.reader
           : new MacResourceTreeReader({
               run: () =>
-                Promise.resolve('710 710 0:02.00 4\n711 710 0:02.00 4\n712 710 0:02.00 4\n'),
+                Promise.resolve(
+                  '710 1 710 S 0:02.00 4\n711 1 710 S 0:02.00 4\n712 1 710 S 0:02.00 4\n',
+                ),
               inspect: (pid) => {
                 recycle(pid)
                 const sample = world.samples.get(pid)
@@ -368,6 +371,13 @@ describe('POSIX authority during mixed-time scans', () => {
 })
 
 describe('Linux OS reader', () => {
+  it('treats zombies as exited at the identity and membership boundaries', async () => {
+    const { reader, samples } = linuxWorld()
+    samples.set(711, { ...row(711, '1001'), exited: true })
+    expect(await reader.identity(711)).toBeNull()
+    expect(await reader.members(ticket)).toEqual([ticket.root])
+    expect(await reader.contains(ticket, { pid: 711, startTime: '1001' })).toBe(false)
+  })
   it('queries units only on demand, proves groups and uses delegated cgroup CPU without counting outsiders', async () => {
     const { reader, run, cg } = linuxWorld()
     expect(run).not.toHaveBeenCalled()
@@ -535,7 +545,7 @@ describe('Darwin OS reader with the exact native identity port', () => {
   it('rechecks the native group and exact identity after accounting, refusing reuse before an action', async () => {
     let reads = 0
     const reader = new MacResourceTreeReader({
-      run: () => Promise.resolve('710 710 0:01.00 4\n'),
+      run: () => Promise.resolve('710 1 710 S 0:01.00 4\n'),
       inspect: (pid) =>
         Promise.resolve({ pid, pgid: 710, startTime: ++reads === 1 ? '1000' : '1001' }),
     })
@@ -543,7 +553,7 @@ describe('Darwin OS reader with the exact native identity port', () => {
   })
   it('shares one numerical ps table for concurrent groups and reproves exact identity on each action', async () => {
     const run = vi.fn(() =>
-      Promise.resolve('710 710 0:02.00 4\n711 710 0:01.00 8\n999 999 0:01.00 16\n'),
+      Promise.resolve('710 1 710 S 0:02.00 4\n711 1 710 S 0:01.00 8\n999 1 999 S 0:01.00 16\n'),
     )
     const inspect = vi.fn((pid: number) =>
       Promise.resolve({ pid, pgid: pid === 999 ? 999 : 710, startTime: String(1000 + pid - 710) }),
@@ -561,7 +571,7 @@ describe('Darwin OS reader with the exact native identity port', () => {
       { cpuSeconds: 1, residentBytes: 16_384 },
     ])
     expect(run).toHaveBeenCalledTimes(1)
-    expect(run).toHaveBeenCalledWith('/bin/ps', ['-axo', 'pid=,pgid=,time=,rss='])
+    expect(run).toHaveBeenCalledWith('/bin/ps', ['-axo', 'pid=,ppid=,pgid=,state=,time=,rss='])
     expect(await reader.identity(710)).toEqual(ticket.root)
     expect(await reader.contains(ticket, { pid: 711, startTime: '1001' })).toBe(true)
     inspect.mockImplementation((pid) => Promise.resolve({ pid, pgid: 710, startTime: '2000' }))
@@ -570,7 +580,7 @@ describe('Darwin OS reader with the exact native identity port', () => {
   })
 
   it('refuses a changed native group, missing identity, unavailable probe and malformed data', async () => {
-    const run = vi.fn(() => Promise.resolve('710 710 0:01.00 4\n'))
+    const run = vi.fn(() => Promise.resolve('710 1 710 S 0:01.00 4\n'))
     const inspect = vi.fn(() => Promise.resolve({ pid: 710, pgid: 999, startTime: '1000' }))
     const reader = new MacResourceTreeReader({ run, inspect })
     expect(await reader.usage(ticket)).toBeNull()

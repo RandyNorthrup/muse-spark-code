@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resource trees use the shipped macOS helper's kernel microsecond identities
+  and classify zombie processes as exited instead of live members.
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
   process in a reused group. Ticket retirement also invalidates pending reads

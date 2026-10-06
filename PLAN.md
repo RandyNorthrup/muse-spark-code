@@ -19617,6 +19617,26 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**Lane T2 process authority (2026-10-05).** Before M104 LSP supervision
+resumes, add registered, freshly identity-verified `signal` and snapshot-based
+`kill` to the tree registry. These are Stop/cancel services, never governor
+actions (D87.9). POSIX actions re-read exact birth identity immediately before
+the synchronous signal; Windows proves creation, live state and job membership
+and terminates through the same retained process handle. Preserve honest done,
+gone, identity-changed and refused results, including retirement during awaits.
+Enroll observed descendants by exact ancestry and retain their birth identities
+after reparenting/group changes; zombies are exited. Unobserved double forks
+remain unavailable without kernel containment, never guessed from a PID.
+Extend the already shipped/ad-hoc-signed Darwin Swift helper with read-only
+`proc-identity <pid…>` before any audio/privacy setup; bind `proc_pidinfo`'s
+microsecond start, parent, group and state in the portable Mac reader. No new
+dependency or binary/package route. T2 owns the action seam; lane A's priority
+and CPU controls remain separate. All editor/runtime callers share these APIs.
+Native macOS lifecycle receipts, Linux/Windows seams and guard-break drills
+go in `docs/certification/m107-t2.md`; native Linux/Windows reruns and integrated
+full quality remain the lead's qualification. The rig brief forbids branch
+merges and aggregate quality and authorizes the larger tree/native change.
+
 **Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
 RVM107T within the tree readers and their owning suites: freshly revalidate
 the root or an existing orphan witness before committing POSIX witnesses;

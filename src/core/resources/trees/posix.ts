@@ -53,6 +53,7 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
       .parse(snapshot.rows)
       .filter(
         (row) =>
+          !row.exited &&
           row.pid !== process.pid &&
           (ticket.scope.type !== 'group' || row.pgid === ticket.scope.pgid),
       )

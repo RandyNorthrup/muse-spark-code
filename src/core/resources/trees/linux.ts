@@ -123,7 +123,7 @@ class LinuxTreeSource implements PosixTreeSource {
     if (!resourceProcessIdentitySchema.safeParse({ pid, startTime: '0' }).success) return null
     try {
       const row = await this.stat(pid)
-      return row === null ? null : { pid: row.pid, startTime: row.startTime }
+      return row === null || row.exited ? null : { pid: row.pid, startTime: row.startTime }
     } catch {
       return null
     }
@@ -132,7 +132,7 @@ class LinuxTreeSource implements PosixTreeSource {
   async containsNow(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean> {
     try {
       const current = await this.stat(identity.pid)
-      if (current?.startTime !== identity.startTime) return false
+      if (current?.exited !== false || current.startTime !== identity.startTime) return false
       if (ticket.scope.type === 'group') return current.pgid === ticket.scope.pgid
       const scope = await this.cgroup(ticket)
       const isMember = scope !== null && (await this.inCgroup(identity.pid, scope))
