@@ -18,7 +18,13 @@ vi.mock('vscode', async (importOriginal) => {
   const actual = await importOriginal<typeof VSCode>()
   return {
     ...actual,
-    workspace: { ...actual.workspace, getConfiguration: () => ({ get: () => syncControl.isOn }) },
+    workspace: {
+      ...actual.workspace,
+      getConfiguration: () => ({
+        get: () => true,
+        inspect: () => ({ globalValue: syncControl.isOn, workspaceValue: true }),
+      }),
+    },
   }
 })
 const roots: string[] = []
@@ -41,7 +47,7 @@ async function rig() {
     state: { get: read, update },
     chat: {
       active: () => undefined,
-      open: () => Promise.resolve(),
+      open: () => Promise.resolve('opened'),
       isReady: () => false,
       observe,
     },

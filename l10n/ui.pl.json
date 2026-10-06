@@ -2644,6 +2644,8 @@
   "shareCancelled": "Udostępnianie anulowane",
   "promptLimits": "Prompt przekracza limit rozmiaru lub w tym zakresie jest zbyt wiele promptów.",
   "promptWorkspaceRequired": "Otwórz obszar roboczy, aby zapisać w nim prompty.",
+  "promptScopeDamaged": "{scope}: Magazyn promptów jest nieczytelny lub uszkodzony. Pliki zachowano bez zmian.",
+  "promptImportConfirmScope": "Zapisz zaimportowany prompt w {scope}",
   "promptStoreDamaged": "Magazyn promptów jest nieczytelny lub uszkodzony. Pliki pozostały bez zmian.",
   "promptStoreBusy": "Magazyn promptów jest zajęty lub zmieniony. Spróbuj ponownie.",
   "promptSecretsNote": "Prompty są zapisywane jako zwykły tekst. Nie zapisuj haseł ani kluczy.",

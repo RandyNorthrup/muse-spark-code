@@ -37,15 +37,36 @@ export class PromptLibrary {
     private readonly sync?: PromptSyncPort,
   ) {}
 
-  private async mirror(): Promise<void> {
-    if (this.sync?.isOn() === true) await this.sync.write(await this.store.list('user'))
+  private async mirror(removedId?: string): Promise<void> {
+    await this.synchronise(removedId)
   }
 
-  public async list(hasWorkspace = true): Promise<SavedPrompt[]> {
-    return mergePromptScopes(
-      await this.store.list('user'),
-      hasWorkspace ? await this.store.list('workspace') : [],
-    )
+  public async list(hasWorkspace = true): Promise<{
+    prompts: SavedPrompt[]
+    scopes: { scope: SavedPrompt['scope']; prompts: readonly SavedPrompt[]; damaged: boolean }[]
+  }> {
+    const scopes: {
+      scope: SavedPrompt['scope']
+      prompts: readonly SavedPrompt[]
+      damaged: boolean
+    }[] = []
+    const scopesToRead: readonly SavedPrompt['scope'][] = hasWorkspace
+      ? ['user', 'workspace']
+      : ['user']
+    for (const scope of scopesToRead) {
+      try {
+        scopes.push({ scope, prompts: await this.store.list(scope), damaged: false })
+      } catch {
+        scopes.push({ scope, prompts: [], damaged: true })
+      }
+    }
+    return {
+      prompts: mergePromptScopes(
+        scopes.find((result) => result.scope === 'user')?.prompts ?? [],
+        scopes.find((result) => result.scope === 'workspace')?.prompts ?? [],
+      ),
+      scopes,
+    }
   }
 
   /** Prepare ephemeral shares without storing the message or composer text. */
@@ -76,7 +97,7 @@ export class PromptLibrary {
   public async save(draft: PromptDraft, existing?: SavedPrompt): Promise<SavedPrompt> {
     const prompt = this.prepare(draft, existing)
     await this.store.write(prompt)
-    await this.mirror()
+    if (prompt.scope === 'user') await this.mirror()
     return prompt
   }
 
@@ -90,27 +111,29 @@ export class PromptLibrary {
       updatedAt: this.identity.now(),
     })
     await this.store.write(copy)
-    await this.mirror()
+    if (copy.scope === 'user') await this.mirror()
     return copy
   }
 
   public async remove(prompt: SavedPrompt): Promise<void> {
     await this.store.remove(prompt.scope, prompt.id)
-    await this.mirror()
+    if (prompt.scope === 'user') await this.mirror(prompt.id)
   }
 
   public async import(prompt: SavedPrompt): Promise<SavedPrompt> {
     // Imported ids must not overwrite an existing library entry, even across origins.
     const imported = validatePrompt({ ...prompt, id: this.identity.id(), untrusted: true })
     await this.store.write(imported)
-    await this.mirror()
+    if (imported.scope === 'user') await this.mirror()
     return imported
   }
 
   /** Validate the entire mirror before modifying any file; newest per id wins. */
-  public async synchronise(): Promise<void> {
+  public async synchronise(removedId?: string): Promise<void> {
     if (this.sync?.isOn() !== true) return
-    const remote = syncSchema.parse(this.sync.read())
+    const parsed = syncSchema.safeParse(this.sync.read())
+    if (!parsed.success) throw new Error(UI_TEXT.promptStoreDamaged)
+    const remote = parsed.data
     const seen = new Set<string>()
     for (const prompt of remote) {
       validatePrompt(prompt)
@@ -121,6 +144,8 @@ export class PromptLibrary {
     const local = await this.store.list('user')
     const merged = new Map(local.map((entry) => [entry.id, entry]))
     for (const prompt of remote) {
+      // An explicit local deletion excludes only that id; all other remote edits merge.
+      if (prompt.id === removedId && !merged.has(prompt.id)) continue
       const previous = merged.get(prompt.id)
       const winner =
         previous === undefined || Date.parse(prompt.updatedAt) > Date.parse(previous.updatedAt)
@@ -132,8 +157,9 @@ export class PromptLibrary {
       })
     }
     if (merged.size > PROMPT_LIMITS.perScope) throw new Error(UI_TEXT.promptLimits)
-    for (const prompt of merged.values()) await this.store.write(prompt)
-    await this.mirror()
+    for (const prompt of merged.values()) await this.store.write(prompt, true)
+    // Read back any revision another window saved before our lock was acquired.
+    if (this.sync.isOn()) await this.sync.write(await this.store.list('user'))
   }
 }
 

@@ -2362,6 +2362,8 @@
   "shareCancelled": "공유 취소됨",
   "promptLimits": "프롬프트가 크기 제한을 초과했거나 이 범위의 프롬프트가 너무 많습니다.",
   "promptWorkspaceRequired": "작업 공간 프롬프트를 저장하려면 작업 공간을 여세요.",
+  "promptScopeDamaged": "{scope}: 프롬프트 저장소를 읽을 수 없거나 손상되었습니다. 파일은 변경되지 않고 보존되었습니다.",
+  "promptImportConfirmScope": "가져온 프롬프트를 {scope}에 저장",
   "promptStoreDamaged": "프롬프트 저장소를 읽을 수 없거나 손상되었습니다. 파일은 변경되지 않았습니다.",
   "promptStoreBusy": "프롬프트 저장소가 사용 중이거나 변경되었습니다. 다시 시도하세요.",
   "promptSecretsNote": "프롬프트는 일반 텍스트로 저장됩니다. 암호나 키를 저장하지 마세요.",

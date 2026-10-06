@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { UI_TEXT } from '../../src/shared/constants'
 import {
   promptContextText,
   PromptCommands,
@@ -32,6 +33,8 @@ function commandRig(choices: readonly string[], isConfirmed = true) {
     preview: vi.fn(() => Promise.resolve(isConfirmed)),
     confirm: vi.fn(() => Promise.resolve(isConfirmed)),
     input: vi.fn(() => Promise.resolve('https://example.org/p.muse-prompt.md')),
+    chooseScope: vi.fn<PromptUiPort['chooseScope']>(() => Promise.resolve('user')),
+    report: vi.fn(() => Promise.resolve()),
   }
   const read = vi.fn(() => Promise.resolve(serialisePromptFile(fixture)))
   const insert = vi.fn(() => Promise.resolve())
@@ -61,6 +64,17 @@ function commandRig(choices: readonly string[], isConfirmed = true) {
 }
 
 describe('prompt menus and commands', () => {
+  it('reports the damaged scope and offers healthy prompts for insert', async () => {
+    const rig = commandRig(['0'])
+    rig.store.list.mockImplementation((scope?: string) =>
+      scope === 'workspace' ? Promise.reject(new Error('damaged')) : Promise.resolve([fixture]),
+    )
+    await rig.commands.use()
+    expect(rig.ui.report).toHaveBeenCalledWith(
+      expect.stringContaining(UI_TEXT.promptScopeWorkspace),
+    )
+    expect(rig.insert).toHaveBeenCalledOnce()
+  })
   it('accepts exact composer/own-message text and refuses assistant/system/tool sources', () => {
     expect(
       promptContextText({ 'museSpark.promptSource': 'composer', 'museSpark.promptText': 'exact' }),
@@ -176,6 +190,47 @@ function surface(id: string): ChatSurface {
   }
 }
 describe('loads in any chat without sending', () => {
+  it('binds an opening load to its returned id despite an unrelated ready chat', async () => {
+    const requested = surface('requested'),
+      unrelated = surface('unrelated')
+    const opening = Promise.withResolvers<string>()
+    const insertion = new PromptInsertion({
+      active: () => undefined,
+      open: () => opening.promise,
+    })
+    const pending = insertion.insert('requested only')
+    insertion.surfaceReady(unrelated)
+    expect(unrelated.post).not.toHaveBeenCalled()
+    opening.resolve(requested.id)
+    await pending
+    insertion.surfaceReady(unrelated)
+    expect(unrelated.post).not.toHaveBeenCalled()
+    insertion.surfaceReady(requested)
+    expect(requested.post).toHaveBeenCalledWith({ type: 'insertText', text: 'requested only' })
+    expect(requested.post).toHaveBeenCalledTimes(2)
+    expect(unrelated.post).not.toHaveBeenCalled()
+  })
+  it('delivers an early-ready requested surface after open resolves, dropping an early-closed one', async () => {
+    const requested = surface('early')
+    let opening = Promise.withResolvers<string>()
+    const insertion = new PromptInsertion({
+      active: () => undefined,
+      open: () => opening.promise,
+    })
+    const pending = insertion.insert('early text')
+    insertion.surfaceReady(requested)
+    opening.resolve(requested.id)
+    await pending
+    expect(requested.post).toHaveBeenCalledWith({ type: 'insertText', text: 'early text' })
+    const closed = surface('closed')
+    opening = Promise.withResolvers<string>()
+    const closing = insertion.insert('discard')
+    insertion.surfaceClosed(closed)
+    opening.resolve(closed.id)
+    await closing
+    insertion.surfaceReady(closed)
+    expect(closed.post).not.toHaveBeenCalled()
+  })
   it('holds a load until a new surface is ready, then inserts once', async () => {
     let active: ChatSurface | undefined
     const opened = surface('new')
@@ -183,7 +238,7 @@ describe('loads in any chat without sending', () => {
       active: () => active,
       open: () => {
         active = opened
-        return Promise.resolve()
+        return Promise.resolve(opened.id)
       },
     })
     await insertion.insert('reviewed')
@@ -198,7 +253,10 @@ describe('loads in any chat without sending', () => {
     const a = surface('a'),
       b = surface('b')
     let active = a
-    const insertion = new PromptInsertion({ active: () => active, open: () => Promise.resolve() })
+    const insertion = new PromptInsertion({
+      active: () => active,
+      open: () => Promise.resolve(a.id),
+    })
     await insertion.insert('a only')
     active = b
     insertion.surfaceReady(b)

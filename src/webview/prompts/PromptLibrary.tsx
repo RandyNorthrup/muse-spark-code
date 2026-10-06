@@ -8,7 +8,7 @@ import { Modal } from '../components/Modal'
 
 /** M118-P-REACT-BRIDGE: W/native hosts bind these actions to validated messages. */
 export interface PromptLibraryPort {
-  save(draft: PromptDraft, previous?: SavedPrompt): void
+  save(draft: PromptDraft, previous?: SavedPrompt): Promise<SavedPrompt>
   remove(prompt: SavedPrompt): void
   duplicate(prompt: SavedPrompt, scope: SavedPrompt['scope']): void
   insert(prompt: SavedPrompt): void
@@ -49,6 +49,8 @@ export function PromptLibrary(props: PromptLibraryProps) {
   const [query, setQuery] = useState('')
   const [tag, setTag] = useState('')
   const [edit, setEdit] = useState<Edit>()
+  const [isSaving, setSaving] = useState(false)
+  const [saveFailed, setSaveFailed] = useState(false)
   const [deleting, setDeleting] = useState<SavedPrompt>()
   const rows = filterPrompts(props.prompts, query, tag === '' ? undefined : tag)
   const tags = [...new Set(props.prompts.flatMap((prompt) => prompt.tags))].toSorted(
@@ -58,6 +60,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
     search.current?.focus()
   }, [])
   const startEdit = (prompt?: SavedPrompt) => {
+    setSaveFailed(false)
     setDeleting(undefined)
     setEdit({
       ...(prompt !== undefined && { previous: prompt }),
@@ -66,6 +69,30 @@ export function PromptLibrary(props: PromptLibraryProps) {
       tags: prompt?.tags.join(', ') ?? '',
       scope: prompt?.scope ?? 'user',
     })
+  }
+  const saveDraft = async () => {
+    if (edit === undefined || isSaving) return
+    setSaving(true)
+    setSaveFailed(false)
+    try {
+      const saved = await props.port.save(
+        {
+          title: edit.title,
+          body: edit.body,
+          tags: edit.tags
+            .split(',')
+            .map((value) => value.trim())
+            .filter(Boolean),
+          scope: edit.scope,
+        },
+        edit.previous,
+      )
+      setEdit((current) => (current === edit ? { ...current, previous: saved } : current))
+    } catch {
+      setSaveFailed(true)
+    } finally {
+      setSaving(false)
+    }
   }
   const preview = props.importPreview
   return (
@@ -78,6 +105,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
       <div className="prompt-library">
         <p>{UI_TEXT.promptSecretsNote}</p>
         {props.error === undefined ? null : <p role="alert">{props.error}</p>}
+        {saveFailed ? <p role="alert">{UI_TEXT.promptFileInvalid}</p> : null}
         {preview === undefined ? null : (
           <section aria-label={UI_TEXT.sharePreview}>
             <p>{UI_TEXT.promptUntrusted}</p>
@@ -142,6 +170,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
         <div className="prompt-library-actions">
           <button
             type="button"
+            disabled={isSaving}
             onClick={() => {
               startEdit()
             }}
@@ -171,25 +200,14 @@ export function PromptLibrary(props: PromptLibraryProps) {
           <form
             onSubmit={(event) => {
               event.preventDefault()
-              props.port.save(
-                {
-                  title: edit.title,
-                  body: edit.body,
-                  tags: edit.tags
-                    .split(',')
-                    .map((value) => value.trim())
-                    .filter(Boolean),
-                  scope: edit.scope,
-                },
-                edit.previous,
-              )
-              // Keep the draft available if the host reports a failed save.
+              void saveDraft()
             }}
           >
             <label>
               {UI_TEXT.promptTitle}
               <input
                 required
+                disabled={isSaving}
                 maxLength={PROMPT_LIMITS.title}
                 value={edit.title}
                 onChange={(event) => {
@@ -201,6 +219,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
               {UI_TEXT.promptBody}
               <textarea
                 required
+                disabled={isSaving}
                 maxLength={PROMPT_LIMITS.body}
                 value={edit.body}
                 onChange={(event) => {
@@ -211,6 +230,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
             <label>
               {UI_TEXT.promptTags}
               <input
+                disabled={isSaving}
                 value={edit.tags}
                 onChange={(event) => {
                   setEdit({ ...edit, tags: event.target.value })
@@ -219,6 +239,7 @@ export function PromptLibrary(props: PromptLibraryProps) {
             </label>
             {edit.previous === undefined && props.hasWorkspace ? (
               <select
+                disabled={isSaving}
                 aria-label={UI_TEXT.promptScopeWorkspace}
                 value={edit.scope}
                 onChange={(event) => {
@@ -229,7 +250,9 @@ export function PromptLibrary(props: PromptLibraryProps) {
                 <option value="workspace">{UI_TEXT.promptScopeWorkspace}</option>
               </select>
             ) : null}
-            <button type="submit">{UI_TEXT.promptSave}</button>
+            <button type="submit" disabled={isSaving}>
+              {UI_TEXT.promptSave}
+            </button>
             <button
               type="button"
               onClick={() => {

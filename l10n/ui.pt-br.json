@@ -2550,6 +2550,8 @@
   "shareCancelled": "Compartilhamento cancelado",
   "promptLimits": "O prompt excede o limite de tamanho ou este escopo tem prompts demais.",
   "promptWorkspaceRequired": "Abra um espaço de trabalho para salvar os prompts dele.",
+  "promptScopeDamaged": "{scope}: O armazenamento de prompts está ilegível ou danificado. Os arquivos foram mantidos inalterados.",
+  "promptImportConfirmScope": "Salvar o prompt importado em {scope}",
   "promptStoreDamaged": "O armazenamento de prompts está ilegível ou danificado. Os arquivos foram mantidos sem alterações.",
   "promptStoreBusy": "O armazenamento de prompts está ocupado ou mudou. Tente novamente.",
   "promptSecretsNote": "Os prompts são armazenados como texto simples. Não salve senhas nem chaves.",

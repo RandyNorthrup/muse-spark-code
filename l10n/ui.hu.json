@@ -2456,6 +2456,8 @@
   "shareCancelled": "Megosztás megszakítva",
   "promptLimits": "A prompt túllépi a méretkorlátot, vagy ebben a hatókörben túl sok prompt van.",
   "promptWorkspaceRequired": "Nyisson meg egy munkaterületet a munkaterületi promptok mentéséhez.",
+  "promptScopeDamaged": "{scope}: A prompttároló olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
+  "promptImportConfirmScope": "Importált prompt mentése ide: {scope}",
   "promptStoreDamaged": "A prompttár olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
   "promptStoreBusy": "A prompttár foglalt vagy megváltozott. Próbálja újra.",
   "promptSecretsNote": "A promptok egyszerű szövegként tárolódnak. Ne mentsen jelszavakat vagy kulcsokat.",

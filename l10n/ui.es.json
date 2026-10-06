@@ -2550,6 +2550,8 @@
   "shareCancelled": "Uso compartido cancelado",
   "promptLimits": "El prompt supera el límite de tamaño o este ámbito tiene demasiados prompts.",
   "promptWorkspaceRequired": "Abra un espacio de trabajo para guardar sus prompts.",
+  "promptScopeDamaged": "{scope}: El almacén de prompts no se puede leer o está dañado. Sus archivos se conservaron sin cambios.",
+  "promptImportConfirmScope": "Guardar el prompt importado en {scope}",
   "promptStoreDamaged": "El almacén de prompts no se puede leer o está dañado. Sus archivos no se modificaron.",
   "promptStoreBusy": "El almacén de prompts está ocupado o cambió. Inténtelo de nuevo.",
   "promptSecretsNote": "Los prompts se guardan como texto sin formato. No guarde contraseñas ni claves.",

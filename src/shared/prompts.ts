@@ -81,7 +81,7 @@ export function importPromptFile(file: string, scope: SavedPrompt['scope']) {
  */
 export interface PromptStoragePort {
   list(scope: SavedPrompt['scope']): Promise<readonly SavedPrompt[]>
-  write(prompt: SavedPrompt): Promise<void>
+  write(prompt: SavedPrompt, shouldKeepNewer?: boolean): Promise<void>
   remove(scope: SavedPrompt['scope'], id: string): Promise<void>
 }
 

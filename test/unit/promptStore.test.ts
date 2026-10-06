@@ -26,6 +26,65 @@ afterEach(async () => {
 const identity = { id: () => crypto.randomUUID(), now: () => '2026-10-05T12:00:00Z' }
 
 describe('portable prompt store and library', () => {
+  it('keeps the healthy scope usable and reports damaged scopes with their files retained', async () => {
+    const { store, a, data } = await rig()
+    await store.write(fixture)
+    await store.write({ ...fixture, scope: 'workspace' })
+    const damaged = path.join(a, '.muse', 'prompts', 'broken.md')
+    await writeFile(damaged, 'invalid front matter')
+    const library = new PromptLibrary(store, identity)
+    const result = await library.list(true)
+    expect(result.prompts).toEqual([fixture])
+    expect(result.scopes).toEqual([
+      { scope: 'user', prompts: [fixture], damaged: false },
+      { scope: 'workspace', prompts: [], damaged: true },
+    ])
+    await library.save({ title: 'Healthy edit', body: 'Plain', tags: [], scope: 'user' }, fixture)
+    expect(await readFile(damaged, 'utf8')).toBe('invalid front matter')
+    await rm(damaged)
+    const damagedUser = path.join(data, 'prompts', 'broken.md')
+    await writeFile(damagedUser, 'bad user file')
+    const reversed = await library.list(true)
+    expect(reversed.prompts).toEqual([{ ...fixture, scope: 'workspace' }])
+    expect(reversed.scopes[0]).toEqual({ scope: 'user', prompts: [], damaged: true })
+    await library.save(
+      { title: 'Healthy workspace', body: 'Plain', tags: [], scope: 'workspace' },
+      { ...fixture, scope: 'workspace' },
+    )
+    expect(await readFile(damagedUser, 'utf8')).toBe('bad user file')
+  })
+  it('rechecks the chosen sync revision under the lock after another window saves', async () => {
+    const { store, data, a } = await rig()
+    await store.write(fixture)
+    const remote = {
+      ...fixture,
+      body: 'Remote at noon',
+      variables: [],
+      updatedAt: '2026-10-05T12:00:00Z',
+    }
+    const later = { ...remote, body: 'Other window at one', updatedAt: '2026-10-05T13:00:00Z' }
+    const other = new PromptStore(data, a)
+    const original = store.write.bind(store)
+    let hasInterleaved = false
+    vi.spyOn(store, 'write').mockImplementation(async (prompt, shouldKeepNewer) => {
+      if (!hasInterleaved) {
+        hasInterleaved = true
+        await other.write(later)
+      }
+      await original(prompt, shouldKeepNewer)
+    })
+    const write = vi.fn(() => Promise.resolve())
+    await new PromptLibrary(store, identity, {
+      isOn: () => true,
+      read: () => [remote],
+      write,
+    }).synchronise()
+    expect(await store.list('user')).toEqual([later])
+    expect(write).toHaveBeenCalledWith([later])
+    // Older imported snapshots still cannot upgrade trust on a newer revision.
+    await store.write({ ...remote, untrusted: true }, true)
+    expect(await store.list('user')).toEqual([{ ...later, untrusted: true }])
+  })
   it('validates editable fields and strips caller-owned trust and identities', async () => {
     const { store } = await rig()
     const library = new PromptLibrary(store, identity)
@@ -149,9 +208,24 @@ describe('portable prompt store and library', () => {
       read: off,
     }).synchronise()
     expect(off).not.toHaveBeenCalled()
+    mirror = [newer]
     const imported = await library.import(fixture)
     expect(imported.id).not.toBe(fixture.id)
     expect(imported.untrusted).toBe(true)
+  })
+  it('merges unrelated remote edits while keeping an explicitly removed prompt deleted', async () => {
+    const { store } = await rig()
+    await store.write(fixture)
+    const remote = { ...fixture, id: 'other-machine' }
+    const write = vi.fn(() => Promise.resolve())
+    const library = new PromptLibrary(store, identity, {
+      isOn: () => true,
+      read: () => [fixture, remote],
+      write,
+    })
+    await library.remove(fixture)
+    expect(await store.list('user')).toEqual([remote])
+    expect(write).toHaveBeenCalledWith([remote])
   })
 })
 

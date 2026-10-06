@@ -6844,6 +6844,20 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM118P — RVM118P correction lane (2026-10-06)
+
+The rig brief authorizes the seven reviewed corrections within P: machine-only
+sync consent; one explicit destination chooser for native imports, saves and
+copies (workspace first under confidential/unknown policy); merge before every
+mirror write; recheck newest revisions under the disk lock; bind queued loads
+to the id returned by opening the requested surface; successful draft saves
+return the persisted prompt and continue as edits; and per-scope list results
+that report damage while preserving the healthy picker. Each receives a
+regression and byte-exact deliberate-failure receipt in `m118-p.md`.
+No dependencies, paid/live calls, caps, guard widening, merges or pushes.
+The shared core and React ports carry the corrections to W/X's editor bindings.
+Bounded local checks run here; the lead owns full integrated quality.
+
 ### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
 
 The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
@@ -18405,6 +18419,16 @@ joined with M57, M58 and PR #49's sign-in
 
 ## 7. Gates
 
+**FIXM118P bounded rig certification (2026-10-06).** Follow the rig/shared
+rules: complete owning test files (at most three per invocation), byte-exact
+red controls, typecheck, changed-file ESLint/Prettier, localization, deadcode,
+duplication, host API and build directly on macmini. Do not run aggregate
+quality or merge/push. W owns full integrated quality, its stale host inventory,
+prompt bundle packaging, deferred-surface registration and size recovery;
+record actual failures in `docs/certification/m118-p.md` rather than weaken
+any threshold. W also owns the integrated CHANGELOG, README and help reference
+(the catalog/generator are absent here).
+
 **M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
 aggregate quality, merges and pushes. Run the owning contracts, typecheck,
 scoped lint/format, localization, deadcode, duplication, host API and build
@@ -19619,6 +19643,21 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM118P-P3-BUDGET (W).** RVM118P measures deferred JS at 56,193/51,200 B
+  and activation at 450,126 B versus base 448,930 B (+1,196/1,024 B).
+  W must classify the existing 5,303 B PromptLibrary/promptSearch chunk in
+  the 25 KiB action-dialog group and its split guard (sketch: legacy
+  50,890/51,200 B, dialogs 14,663/25,600 B), then move credential/policy/chat
+  adapters into dist/prompts.js using raw host ports. The sketch saves 140 B
+  and still needs 32 B; sync-key registration is another lazy candidate.
+  Safe for now: the failing gates prohibit release; no cap changes or
+  shipped-size acceptance are claimed. Follow-up: W remeasures real wiring
+  after integrating the repairs and closes both targets.
+- **FIXM118P-ROW-SAVE (W, owner requirement).** Message/history right-click
+  Save prompt still needs App.tsx callback binding and GooeyMenu.tsx
+  contextmenu handling. Safe for now: installed-editor acceptance remains
+  explicitly unclaimed. Follow-up: W wires and certifies both real menus.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

@@ -1,6 +1,6 @@
 import { mountPromptHarness } from './helpers/promptHarness'
 /** @vitest-environment jsdom */
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PromptLibrary, type PromptLibraryPort } from '../../src/webview/prompts/PromptLibrary'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -8,7 +8,7 @@ import { savedPromptFixture as fixture } from './helpers/sharingFixtures'
 
 function rig() {
   const port: PromptLibraryPort = {
-    save: vi.fn(),
+    save: vi.fn(() => Promise.resolve(fixture)),
     remove: vi.fn(),
     duplicate: vi.fn(),
     insert: vi.fn(),
@@ -25,6 +25,67 @@ function rig() {
 afterEach(cleanup)
 
 describe('shared prompt library', () => {
+  it('associates a created draft with its saved id so the next save edits it', async () => {
+    const { port, onClose } = rig()
+    const saved = {
+      ...fixture,
+      id: 'created-id',
+      title: 'New',
+      body: 'First',
+      tags: [],
+      variables: [],
+    }
+    vi.mocked(port.save).mockResolvedValue(saved)
+    const view = render(
+      <PromptLibrary prompts={[]} port={port} onClose={onClose} hasWorkspace canImportLinks />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptSave }))
+    fireEvent.change(screen.getByLabelText(UI_TEXT.promptTitle), { target: { value: 'New' } })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.promptBody), { target: { value: 'First' } })
+    fireEvent.submit(screen.getByLabelText(UI_TEXT.promptTitle).closest('form')!)
+    await waitFor(() => {
+      expect(screen.queryByRole('combobox', { name: UI_TEXT.promptScopeWorkspace })).toBeNull()
+    })
+    view.rerender(
+      <PromptLibrary prompts={[saved]} port={port} onClose={onClose} hasWorkspace canImportLinks />,
+    )
+    fireEvent.change(screen.getByLabelText(UI_TEXT.promptBody), { target: { value: 'Second' } })
+    await act(async () => {
+      fireEvent.submit(screen.getByLabelText(UI_TEXT.promptTitle).closest('form')!)
+      await Promise.resolve()
+    })
+    expect(port.save).toHaveBeenNthCalledWith(2, expect.objectContaining({ body: 'Second' }), saved)
+  })
+  it('retains a failed draft for retry and blocks duplicate in-flight saves', async () => {
+    const { port, onClose } = rig()
+    const saveResult = Promise.withResolvers<typeof fixture>()
+    vi.mocked(port.save).mockReturnValueOnce(saveResult.promise)
+    render(<PromptLibrary prompts={[]} port={port} onClose={onClose} hasWorkspace canImportLinks />)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptSave }))
+    fireEvent.change(screen.getByLabelText(UI_TEXT.promptTitle), { target: { value: 'Keep me' } })
+    fireEvent.change(screen.getByLabelText(UI_TEXT.promptBody), {
+      target: { value: 'Exact draft' },
+    })
+    const form = screen.getByLabelText(UI_TEXT.promptTitle).closest('form')!
+    fireEvent.submit(form)
+    fireEvent.submit(form)
+    expect(port.save).toHaveBeenCalledOnce()
+    await act(async () => {
+      saveResult.reject(new Error('/private/path'))
+      await Promise.resolve()
+    })
+    expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.promptFileInvalid)
+    expect(screen.getByLabelText(UI_TEXT.promptBody)).toHaveProperty('value', 'Exact draft')
+    await act(async () => {
+      fireEvent.submit(form)
+      await Promise.resolve()
+    })
+    expect(port.save).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ title: 'Keep me', body: 'Exact draft' }),
+      undefined,
+    )
+  })
   it('mounts the screenshot harness over the shared component', () => {
     const element = document.createElement('div')
     document.body.append(element)

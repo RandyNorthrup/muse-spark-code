@@ -137,7 +137,7 @@ export class PromptStore implements PromptStoragePort {
     }
   }
 
-  public async write(input: SavedPrompt): Promise<void> {
+  public async write(input: SavedPrompt, shouldKeepNewer = false): Promise<void> {
     const prompt = validatePrompt(input)
     await this.mutate(prompt.scope, async (directory) => {
       const rows = await this.scan(prompt.scope)
@@ -145,7 +145,19 @@ export class PromptStore implements PromptStoragePort {
       if (existing === undefined && rows.length >= PROMPT_LIMITS.perScope)
         throw new Error(UI_TEXT.promptLimits)
       // Trust cannot be upgraded by an edit or synchronization.
-      const next = { ...prompt, untrusted: prompt.untrusted || existing?.prompt.untrusted === true }
+      // Sync's snapshot may be stale: choose the revision again under this same lock.
+      const winner =
+        shouldKeepNewer &&
+        existing !== undefined &&
+        Date.parse(existing.prompt.updatedAt) >= Date.parse(prompt.updatedAt)
+          ? existing.prompt
+          : prompt
+      const next = { ...winner, untrusted: prompt.untrusted || existing?.prompt.untrusted === true }
+      if (
+        existing !== undefined &&
+        serialisePromptFile(next) === serialisePromptFile(existing.prompt)
+      )
+        return
       const digest = createHash('sha256').update(prompt.id).digest('hex')
       const target = existing?.file ?? path.join(directory, `${digest}.md`)
       const temp = path.join(directory, `.${randomUUID()}.tmp`)

@@ -18,6 +18,28 @@ const contributionSchema = z.object({
 })
 
 describe('M118 integration artifacts', () => {
+  it('requires sync consent on each machine and forbids workspace overrides', async () => {
+    const schema = z.object({
+      contributes: z.object({
+        configuration: z.object({
+          properties: z.record(
+            z.string(),
+            z.object({ scope: z.optional(z.string()), default: z.optional(z.unknown()) }),
+          ),
+        }),
+      }),
+    })
+    const manifest = schema.parse(JSON.parse(await readFile('package.json', 'utf8')))
+    const setting =
+      manifest.contributes.configuration.properties['museSpark.syncPromptsAndBookmarks']
+    expect(setting?.scope).toBe('machine')
+    expect(setting?.default).toBe(false)
+    for (const file of ['src/extension.ts', 'src/host/prompts/promptEntry.ts']) {
+      const source = await readFile(file, 'utf8')
+      expect(source).toMatch(/inspect<boolean>\(PROMPT_SYNC_SETTING\)\s*\?\.globalValue/)
+      expect(source).not.toContain('get<boolean>(PROMPT_SYNC_SETTING)')
+    }
+  })
   it('keeps all portable JSON schemas in sync with the production boundaries', async () => {
     const { stdout } = await run(process.execPath, ['scripts/exec-schema.mjs', '--check'])
     expect(stdout).toContain('Exec schemas match.')

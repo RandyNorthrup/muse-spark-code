@@ -2456,6 +2456,8 @@
   "shareCancelled": "Teilen abgebrochen",
   "promptLimits": "Der Prompt überschreitet die Größenbegrenzung oder dieser Bereich enthält zu viele Prompts.",
   "promptWorkspaceRequired": "Öffnen Sie einen Arbeitsbereich, um dort Prompts zu speichern.",
+  "promptScopeDamaged": "{scope}: Der Prompt-Speicher ist unlesbar oder beschädigt. Seine Dateien bleiben unverändert.",
+  "promptImportConfirmScope": "Importierten Prompt in {scope} speichern",
   "promptStoreDamaged": "Der Prompt-Speicher ist unlesbar oder beschädigt. Die Dateien bleiben unverändert.",
   "promptStoreBusy": "Der Prompt-Speicher ist belegt oder wurde geändert. Versuchen Sie es erneut.",
   "promptSecretsNote": "Prompts werden als Klartext gespeichert. Speichern Sie keine Passwörter oder Schlüssel.",

@@ -16,11 +16,12 @@ import {
   SETTINGS_SECTION,
   UI_TEXT,
 } from '../../shared/constants'
-import { setUiText } from '../../shared/l10n/text'
+import { fill, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { PromptCommands, type PromptUiPort } from './promptCommands'
 
-export type PromptCommandName = 'save' | 'use' | 'library' | 'copyToUser' | 'sharePrompt'
+export type PromptCommandName =
+  'save' | 'use' | 'library' | 'copyToUser' | 'sharePrompt' | 'synchronise'
 export interface PromptHostDeps {
   readonly workspaceRoot: string | undefined
   readonly home?: string
@@ -31,7 +32,7 @@ export interface PromptHostDeps {
   }
   readonly chat: {
     active(): ChatSurface | undefined
-    open(): Promise<void>
+    open(): Promise<string>
     isReady(surface: ChatSurface): boolean
     observe(events: { ready(surface: ChatSurface): void; closed(surface: ChatSurface): void }): void
   }
@@ -53,8 +54,25 @@ const nativePreview: PromptUiPort['preview'] = async (title, text, accept) => {
   return true
 }
 
-function nativeUi(hasWorkspace: boolean): PromptUiPort {
+function nativeUi(
+  hasWorkspace: boolean,
+  isConfidentialWorkspace: () => boolean | undefined,
+): PromptUiPort {
+  const chooseScope: PromptUiPort['chooseScope'] = async () => {
+    if (!hasWorkspace) return 'user'
+    const user = { id: 'user' as const, label: UI_TEXT.promptScopeUser }
+    const workspace = { id: 'workspace' as const, label: UI_TEXT.promptScopeWorkspace }
+    const choice = await vscode.window.showQuickPick(
+      isConfidentialWorkspace() === false ? [user, workspace] : [workspace, user],
+      { title: UI_TEXT.promptScopeWorkspace },
+    )
+    return choice?.id
+  }
   return {
+    chooseScope,
+    report: async (message) => {
+      await vscode.window.showWarningMessage(message)
+    },
     pick: async (title, items) => {
       const selected = await vscode.window.showQuickPick([...items], {
         title,
@@ -86,12 +104,9 @@ function nativeUi(hasWorkspace: boolean): PromptUiPort {
       if (tags === undefined) return undefined
       let scope = draft.scope
       if (isNew && hasWorkspace) {
-        const choice = await vscode.window.showQuickPick([
-          { id: 'user' as const, label: UI_TEXT.promptScopeUser },
-          { id: 'workspace' as const, label: UI_TEXT.promptScopeWorkspace },
-        ])
+        const choice = await chooseScope()
         if (choice === undefined) return undefined
-        scope = choice.id
+        scope = choice
       }
       const document = await vscode.workspace.openTextDocument({
         language: 'markdown',
@@ -132,14 +147,19 @@ async function commandsFor(deps: PromptHostDeps): Promise<PromptCommands> {
     { id: randomUUID, now: () => new Date().toISOString() },
     {
       isOn: () =>
-        vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>(PROMPT_SYNC_SETTING) ===
-        true,
+        vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
+          ?.globalValue === true,
       read: () => deps.state.get(PROMPT_SYNC_KEY) ?? [],
       write: (prompts) => Promise.resolve(deps.state.update(PROMPT_SYNC_KEY, [...prompts])),
     },
   )
-  await library.synchronise()
-  const ui = nativeUi(deps.workspaceRoot !== undefined)
+  const ui = nativeUi(deps.workspaceRoot !== undefined, deps.isConfidentialWorkspace)
+  try {
+    await library.synchronise()
+  } catch (error: unknown) {
+    if (!(error instanceof Error && error.message === UI_TEXT.promptStoreDamaged)) throw error
+    await ui.report(fill(UI_TEXT.promptScopeDamaged, { scope: UI_TEXT.promptScopeUser }))
+  }
   const insertion = new PromptInsertion(deps.chat)
   const active = deps.chat.active()
   if (active !== undefined && deps.chat.isReady(active)) insertion.surfaceReady(active)
@@ -285,6 +305,10 @@ export async function runPromptCommand(
     const commands = await pending
     hasStarted = true
     switch (command) {
+      case 'synchronise': {
+        await commands.synchronise()
+        break
+      }
       case 'save': {
         await commands.save(
           input instanceof vscode.Uri &&

@@ -2362,6 +2362,8 @@
   "shareCancelled": "已取消分享",
   "promptLimits": "提示词超过大小上限，或此范围中的提示词过多。",
   "promptWorkspaceRequired": "请打开工作区以保存工作区提示词。",
+  "promptScopeDamaged": "{scope}：提示词存储无法读取或已损坏。文件保持不变。",
+  "promptImportConfirmScope": "将导入的提示词保存到{scope}",
   "promptStoreDamaged": "提示词存储无法读取或已损坏。文件保持不变。",
   "promptStoreBusy": "提示词存储正忙或已更改。请重试。",
   "promptSecretsNote": "提示词以明文存储。请勿保存密码或密钥。",

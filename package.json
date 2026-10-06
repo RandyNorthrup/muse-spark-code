@@ -1181,6 +1181,7 @@
         },
         "museSpark.syncPromptsAndBookmarks": {
           "type": "boolean",
+          "scope": "machine",
           "default": false,
           "description": "%config.syncPromptsAndBookmarks.description%"
         }

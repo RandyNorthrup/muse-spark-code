@@ -9,6 +9,7 @@ import type {
 import { PROMPT_LIMITS, UI_TEXT } from '../../shared/constants'
 import type { SavedPrompt } from '../../shared/prompts'
 import * as z from 'zod/mini'
+import { fill } from '../../shared/l10n/text'
 
 /** Also implemented by shared React/native hosts over their validated bridge. */
 export interface PromptUiPort {
@@ -20,6 +21,8 @@ export interface PromptUiPort {
   preview(title: string, text: string, accept: string): Promise<boolean>
   confirm(title: string): Promise<boolean>
   input(title: string, value?: string): Promise<string | undefined>
+  chooseScope(): Promise<SavedPrompt['scope'] | undefined>
+  report(message: string): Promise<void>
 }
 
 const sourceSchema = z.object({
@@ -59,7 +62,15 @@ export class PromptCommands {
   public constructor(private readonly deps: PromptCommandDeps) {}
 
   private async pickPrompt(): Promise<SavedPrompt | undefined> {
-    const prompts = await this.deps.library.list(this.deps.hasWorkspace())
+    const { prompts, scopes } = await this.deps.library.list(this.deps.hasWorkspace())
+    for (const result of scopes) {
+      if (result.damaged)
+        await this.deps.ui.report(
+          fill(UI_TEXT.promptScopeDamaged, {
+            scope: result.scope === 'user' ? UI_TEXT.promptScopeUser : UI_TEXT.promptScopeWorkspace,
+          }),
+        )
+    }
     const selected = await this.deps.ui.pick(
       UI_TEXT.promptSearch,
       prompts.map((prompt, index) => ({
@@ -108,10 +119,19 @@ export class PromptCommands {
     if (location === undefined) return
     // The file adapter opens its chooser on this explicit Import click.
     const source = { kind, location: location === '' ? 'picker' : location }
-    const preview = await this.deps.importer.preview(source, 'user')
+    const scope = await this.deps.ui.chooseScope()
+    if (scope === undefined) return
+    const scopeLabel = scope === 'user' ? UI_TEXT.promptScopeUser : UI_TEXT.promptScopeWorkspace
+    const preview = await this.deps.importer.preview(source, scope)
     try {
       const text = `${UI_TEXT.promptUntrusted}\n\n${preview.prompt.title}\n\n${preview.prompt.body}\n\n${UI_TEXT.promptVariables}: ${preview.variables.map((variable) => variable.name).join(', ')}`
-      if (await this.deps.ui.preview(UI_TEXT.sharePreview, text, UI_TEXT.promptImportConfirm)) {
+      if (
+        await this.deps.ui.preview(
+          UI_TEXT.sharePreview,
+          `${scopeLabel}\n\n${text}`,
+          fill(UI_TEXT.promptImportConfirmScope, { scope: scopeLabel }),
+        )
+      ) {
         await this.deps.library.import(this.deps.importer.accept(preview.id))
       }
     } finally {
@@ -133,8 +153,10 @@ export class PromptCommands {
 
   public async copyToUser(): Promise<void> {
     const prompt = await this.pickPrompt()
-    if (prompt?.scope === 'workspace') await this.deps.library.duplicate(prompt, 'user')
-    else if (prompt !== undefined) throw new Error(UI_TEXT.promptFileInvalid)
+    if (prompt?.scope === 'workspace') {
+      const scope = await this.deps.ui.chooseScope()
+      if (scope !== undefined) await this.deps.library.duplicate(prompt, scope)
+    } else if (prompt !== undefined) throw new Error(UI_TEXT.promptFileInvalid)
   }
 
   public async share(input?: unknown): Promise<void> {
@@ -196,7 +218,8 @@ export class PromptCommands {
       }
       case 'duplicate':
       case 'copy': {
-        await this.deps.library.duplicate(prompt, action === 'copy' ? 'user' : prompt.scope)
+        const scope = action === 'copy' ? await this.deps.ui.chooseScope() : prompt.scope
+        if (scope !== undefined) await this.deps.library.duplicate(prompt, scope)
         break
       }
       case 'insert':
@@ -212,5 +235,9 @@ export class PromptCommands {
         break
       }
     }
+  }
+
+  public synchronise(): Promise<void> {
+    return this.deps.library.synchronise()
   }
 }

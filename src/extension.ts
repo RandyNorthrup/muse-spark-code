@@ -697,11 +697,13 @@ async function activateWindow(
   // A page seen on one machine is not shown again on another (Settings Sync).
   const refreshPromptSync = () => {
     const isOn =
-      vscode.workspace.getConfiguration(SETTINGS_SECTION).get<boolean>(PROMPT_SYNC_SETTING) === true
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
+        ?.globalValue === true
     context.globalState.setKeysForSync([
       GLOBAL_STATE_KEYS.whatsNewLastSeenVersion,
       ...(isOn ? [PROMPT_SYNC_KEY] : []),
     ])
+    return isOn
   }
   refreshPromptSync()
   // M16 stored an account-agnostic usage snapshot. Remove it before any
@@ -3218,7 +3220,16 @@ async function activateWindow(
     },
     chat: {
       active: () => registry.active,
-      open: openConversation,
+      open: async () => {
+        if (currentSettings().preferredLocation === 'sidebar') {
+          await openSidebar()
+          return SIDEBAR_SURFACE_ID
+        }
+        openChatPanel(hostContext, registry)
+        const surface = registry.active
+        if (surface === undefined) throw new Error(UI_TEXT.promptFileInvalid)
+        return surface.id
+      },
       isReady: (surface) => readyPromptSurfaces.has(surface.id),
       observe: (events) => {
         promptSurfaceEvents = events
@@ -3380,8 +3391,13 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
-      if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))
+      if (
+        event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`) &&
         refreshPromptSync()
+      )
+        void loadPrompts()
+          .runPromptCommand('synchronise', undefined, promptDeps, UI_TEXT, uiLocale())
+          .catch(logRejection(log, 'prompt sync'))
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),

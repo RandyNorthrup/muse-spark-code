@@ -19,6 +19,9 @@ export const EN = {
   // M118: prompt library and local sharing; read UI_TEXT at use time.
   promptLimits: 'The prompt exceeds the size limit, or this scope has too many prompts.',
   promptWorkspaceRequired: 'Open a workspace to save workspace prompts.',
+  promptScopeDamaged:
+    '{scope}: The prompt store is unreadable or damaged. Its files were kept unchanged.',
+  promptImportConfirmScope: 'Save imported prompt in {scope}',
   promptStoreDamaged: 'The prompt store is unreadable or damaged. Its files were kept unchanged.',
   promptStoreBusy: 'The prompt store is busy or changed. Try again.',
   promptSecretsNote: 'Prompts are stored as plain text. Do not save passwords or keys.',

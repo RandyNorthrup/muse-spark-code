@@ -2550,6 +2550,8 @@
   "shareCancelled": "Partage annulé",
   "promptLimits": "Le prompt dépasse la taille limite ou cette portée contient trop de prompts.",
   "promptWorkspaceRequired": "Ouvrez un espace de travail pour y enregistrer des prompts.",
+  "promptScopeDamaged": "{scope} : Le stockage des prompts est illisible ou endommagé. Les fichiers sont restés inchangés.",
+  "promptImportConfirmScope": "Enregistrer le prompt importé dans {scope}",
   "promptStoreDamaged": "Le stockage des prompts est illisible ou endommagé. Les fichiers sont restés inchangés.",
   "promptStoreBusy": "Le stockage des prompts est occupé ou a changé. Réessayez.",
   "promptSecretsNote": "Les prompts sont stockés en texte brut. Ne stockez ni mots de passe ni clés.",

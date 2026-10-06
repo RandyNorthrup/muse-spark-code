@@ -50,6 +50,13 @@ function PromptHarness({ scenario }: { readonly scenario: string }) {
               untrusted: previous?.untrusted ?? false,
             },
           ])
+          return Promise.resolve({
+            ...savedPromptFixture,
+            ...draft,
+            tags: [...draft.tags],
+            id: previous?.id ?? 'new',
+            untrusted: previous?.untrusted ?? false,
+          })
         },
         remove: (prompt) => {
           setPrompts((rows) => rows.filter((row) => row !== prompt))

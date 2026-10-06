@@ -2550,6 +2550,8 @@
   "shareCancelled": "Condivisione annullata",
   "promptLimits": "Il prompt supera il limite di dimensione oppure questo ambito contiene troppi prompt.",
   "promptWorkspaceRequired": "Apri uno spazio di lavoro per salvarvi i prompt.",
+  "promptScopeDamaged": "{scope}: L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
+  "promptImportConfirmScope": "Salva il prompt importato in {scope}",
   "promptStoreDamaged": "L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
   "promptStoreBusy": "L’archivio dei prompt è occupato o è cambiato. Riprova.",
   "promptSecretsNote": "I prompt sono salvati come testo semplice. Non salvare password o chiavi.",

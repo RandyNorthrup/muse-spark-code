@@ -2362,6 +2362,8 @@
   "shareCancelled": "共有をキャンセルしました",
   "promptLimits": "プロンプトがサイズ上限を超えているか、この範囲のプロンプトが多すぎます。",
   "promptWorkspaceRequired": "ワークスペース用プロンプトを保存するにはワークスペースを開いてください。",
+  "promptScopeDamaged": "{scope}: プロンプトストアを読み取れないか、破損しています。ファイルは変更されずに保持されています。",
+  "promptImportConfirmScope": "インポートしたプロンプトを{scope}に保存",
   "promptStoreDamaged": "プロンプトの保存先が読み取れないか破損しています。ファイルは変更していません。",
   "promptStoreBusy": "プロンプトの保存先が使用中か変更されました。もう一度お試しください。",
   "promptSecretsNote": "プロンプトは平文で保存されます。パスワードやキーを保存しないでください。",

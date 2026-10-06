@@ -2456,6 +2456,8 @@
   "shareCancelled": "Paylaşım iptal edildi",
   "promptLimits": "İstem boyut sınırını aşıyor veya bu kapsamda çok fazla istem var.",
   "promptWorkspaceRequired": "Çalışma alanı istemlerini kaydetmek için bir çalışma alanı açın.",
+  "promptScopeDamaged": "{scope}: İstem deposu okunamıyor veya hasarlı. Dosyaları değiştirilmeden korundu.",
+  "promptImportConfirmScope": "İçe aktarılan istemi {scope} içinde kaydet",
   "promptStoreDamaged": "İstem deposu okunamıyor veya bozuk. Dosyalar değiştirilmedi.",
   "promptStoreBusy": "İstem deposu meşgul veya değişti. Tekrar deneyin.",
   "promptSecretsNote": "İstemler düz metin olarak saklanır. Parola veya anahtar kaydetmeyin.",
