@@ -15,6 +15,8 @@ import { isProtectedPath } from '../protectedPaths'
 import type { ScheduleGrantAudit } from './grantAudit'
 import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 import type { ModelApiClientDeps } from '../backends/modelapi/client'
+import nodePath from 'node:path'
+import type { ContentSource } from './provenance'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
 
 /** W supplies SCHEDULE_MODEL_TEXT from its declared lazy bundle readers. */
@@ -99,26 +101,10 @@ export class UnattendedRun {
   public constructor(private readonly deps: ScheduleRunDeps) {
     this.context = scheduleRunContextSchema.parse(deps.context)
   }
-  public get modelText(): ScheduleModelText {
-    return this.deps.modelText
-  }
-  public get paid(): ScheduleRunDeps['paid'] {
-    return this.deps.paid
-  }
-  public isActive(): boolean {
-    return this.deps.isActive()
-  }
-  public parts(parts: readonly TurnPart[]): readonly TurnPart[] {
-    return [...parts, { type: 'text', text: this.modelText.unattendedNote }]
-  }
-  public refuse(action: ScheduleApprovalAction, reason: string): string {
-    this.refusedActions.push({ actionClass: action.class, tool: action.tool, reason })
-    this.deps.row(fill(UI_TEXT.scheduleV2.messages.unattendedRefusal, { action: action.tool }))
-    return reason
-  }
-  public async decide(
+  private async decideAction(
     action: ScheduleApprovalAction,
-    requiresApproval = !(this.context.mode === 'acceptEdits' && action.class === 'edit'),
+    requiresApproval: boolean,
+    capturedPath?: string,
   ): Promise<{ allowed: boolean; reason?: string }> {
     action = scheduleApprovalActionSchema.parse(action)
     let reason: string | undefined
@@ -131,12 +117,28 @@ export class UnattendedRun {
     const canonical: string[] = []
     if (reason === undefined) {
       for (const path of action.paths) {
-        const confined = await confineWorkspacePath(
-          this.deps.workspaceRoot,
-          path,
-          this.deps.platform,
-          this.deps.io,
-        )
+        const p = this.deps.platform === 'win32' ? nodePath.win32 : nodePath.posix
+        const relative =
+          capturedPath === undefined
+            ? undefined
+            : p.relative(this.deps.workspaceRoot, capturedPath).replaceAll('\\', '/')
+        const confined =
+          capturedPath === undefined
+            ? await confineWorkspacePath(
+                this.deps.workspaceRoot,
+                path,
+                this.deps.platform,
+                this.deps.io,
+              )
+            : {
+                ok:
+                  relative !== undefined &&
+                  !relative.startsWith('../') &&
+                  relative !== '..' &&
+                  !p.isAbsolute(relative),
+                relative: relative ?? '',
+                canonical: capturedPath,
+              }
         if (
           !confined.ok ||
           isProtectedPath(confined.relative) ||
@@ -174,6 +176,50 @@ export class UnattendedRun {
       ? { allowed: true }
       : { allowed: false, reason: this.refuse(action, this.modelText.approvalRefused) }
   }
+  public get modelText(): ScheduleModelText {
+    return this.deps.modelText
+  }
+  public get paid(): ScheduleRunDeps['paid'] {
+    return this.deps.paid
+  }
+  public isActive(): boolean {
+    return this.deps.isActive()
+  }
+  public parts(parts: readonly TurnPart[]): readonly TurnPart[] {
+    return [...parts, { type: 'text', text: this.modelText.unattendedNote }]
+  }
+  public refuse(action: ScheduleApprovalAction, reason: string): string {
+    this.refusedActions.push({ actionClass: action.class, tool: action.tool, reason })
+    this.deps.row(fill(UI_TEXT.scheduleV2.messages.unattendedRefusal, { action: action.tool }))
+    return reason
+  }
+  public async decide(
+    action: ScheduleApprovalAction,
+    requiresApproval = !(this.context.mode === 'acceptEdits' && action.class === 'edit'),
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    return await this.decideAction(action, requiresApproval)
+  }
+
+  /** Cached bytes are authorized against the source captured when read. */
+  public async decideSource(
+    source: ContentSource,
+    id: string,
+  ): Promise<{ allowed: boolean; reason?: string }> {
+    if (source.kind !== 'file' && source.kind !== 'skill') return { allowed: false }
+    return await this.decideAction(
+      {
+        id,
+        class: 'mcp',
+        tool: 'cached-context',
+        paths: [source.file.path],
+        requiresAsking: false,
+        protectedPath: false,
+      },
+      false,
+      source.file.path,
+    )
+  }
+
   public async defer(event: Extract<AgentEvent, { type: 'questionRequested' }>): Promise<string> {
     await this.deps.deferQuestions(event, this.context)
     return this.modelText.questionsDeferred

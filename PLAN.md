@@ -6459,7 +6459,7 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
-### D95 — Unattended authority amendment (FIXM115U2, 2026-10-06)
+### D95 — Unattended authority amendment (REDM115U, 2026-10-06)
 
 The lead's second review fixes these boundaries for every editor/runtime:
 
@@ -6472,11 +6472,21 @@ The lead's second review fixes these boundaries for every editor/runtime:
 - All model workspace I/O uses one guarded port during a fire: canonicalise,
   `run.decide`, then access. Memory, skills, context, tools and checkpoint
   adapters share that boundary, including cached content before use.
-- History already sent to the same provider in this conversation before the
-  fire began may replay. Content added during the fire (including tools,
-  attachments and reads) records its decision provenance; send-time checks
-  refuse anything lacking that provenance. Prior interactive authority does
-  not authorize a new read during the fire.
+- Each native session has one synchronous authority owner. Actions and
+  asynchronous waiters carry its generation and claimed turn identity; stale
+  actions cannot change mode, claim admission, steer or cancel. Start and
+  terminal evidence are keyed by turn, including acknowledgments.
+- A per-fire SHA-256 ledger admits the exact bytes already delivered to this
+  provider/conversation before the fire, bytes decided in this fire, and
+  trusted derivations whose every input is allowed. Sources retain canonical
+  paths and read-time file identity; cached skills retain their actual source,
+  version and raw-byte hash. Checks never infer source authority from replay
+  object identity, a current alias, or a reconstructed skill pathname.
+- Opaque output has no source decision provenance. It can replay only as the
+  output of a tool call explicitly decided in this fire. Media fitting,
+  verification, compaction and refreshed instruction scaffolding register
+  derivations; a changed date uses the same unchanged source bytes. Prior
+  interactive authority does not authorize a new read during the fire.
 - Steering during finalization refuses before acknowledgment, so delivery
   can send a new turn and never silently lose an accepted fire.
 
@@ -6864,6 +6874,41 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### REDM115U — Replace scheduled authority and provenance (2026-10-06, implemented)
+
+Replace the native session's scattered mode/admission/start fields with one
+synchronous owner and tagged effects; generation/turn tokens bind waiters,
+mode changes, admission, steering and cancellation. Replace WeakMap replay
+proof, the scheduled output fence and replay path rechecks with a per-fire
+content-addressed ledger. Cache original source identities at read time for
+both user and vendored skills; derived bytes retain all input hashes.
+
+Preserve synchronous claim, guarded workspace I/O, honest finalizing-steer
+refusal, bounded paid authority/child admission and SoL-Pi request bytes.
+An ordinary first request whose dispatch is still pending refuses scheduled
+steering before acceptance (delivery may queue a separate fire). If a claimed
+fire invalidates an ordinary HTTP retry, preserve its accepted steer and
+adopt the fire before building the next attempt; never dispatch unproved
+pending-fire context or strand its admitting owner.
+Add all eight round-three probes, a model-based permutation suite, random
+transformation chains and three byte-exact restored red drills. Round-one
+and round-two named regressions remain mandatory. Shared core ports cover
+all editors/runtime; existing integration handoffs remain explicit. No new
+dependency/wire shape, live/paid call, merge, push or rebase. W/lead owns
+aggregate quality; bounded suites use default timeouts and three workers.
+Record static gates, coverage and unchanged bundle caps in
+`docs/certification/m115-u.md`. Time box: 180 minutes.
+
+Implemented by the shared SessionOwner and ProvenanceLedger, original-source
+context/file ports and all three review rounds' backend regressions. Kubuntu
+certifies 1,258 unique passing tests in 31 files (two existing Windows-only
+exclusions), 720 completion orders, 10,000 transformation nodes, seven
+byte-exact restored guard drills, unchanged focused coverage thresholds and
+Model API 468.6/475 KiB plus ACP 839.7/850 KiB. The generated host API record
+adds AsyncLocalStorage; no product command/setting or help reference changed.
+See `docs/certification/redm115-u-{drills,verification}.json`. W/lead's
+aggregate quality and existing editor/runtime shipping handoffs remain.
 
 ### FIXM115U2 — Close the second review's authority routes (2026-10-06)
 

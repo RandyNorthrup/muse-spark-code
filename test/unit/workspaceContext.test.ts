@@ -89,6 +89,22 @@ describe('WorkspaceContext', () => {
     expect(t.warnings).toEqual([])
   })
 
+  it('retains independent agent and memory source bytes when no skill catalogue is loaded', async () => {
+    const t = setup({ '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting') })
+    await t.context.load()
+    expect(t.context.instructionMaterial(false, false)).toEqual([])
+    const material = t.context.instructionMaterial()
+    expect(material).toHaveLength(2)
+    expect(material[0]).toMatchObject({
+      bytes: JSON.stringify({ id: 'scout', description: 'Scouting' }),
+      source: { kind: 'file', file: { path: `${ROOT}/.agents/agents/scout/AGENT.md` } },
+    })
+    expect(material[1]).toEqual({
+      bytes: JSON.stringify(MEMORY[0]),
+      source: { kind: 'tool', callId: 'context-memory:project' },
+    })
+  })
+
   it('reads no agent directory for a child, which cannot spawn (M76)', async () => {
     const files = memoryTree(
       { '.agents/agents/scout/AGENT.md': agentFile('scout', 'Scouting') },

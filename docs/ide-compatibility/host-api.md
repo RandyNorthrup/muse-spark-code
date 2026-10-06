@@ -423,13 +423,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`                                                                                                                                                                                                                                                                                              |
 
-## Node built-ins the host imports (25)
+## Node built-ins the host imports (26)
 
 | Module                 | Files |
 | ---------------------- | ----- |
+| `node:async_hooks`     | 1     |
 | `node:buffer`          | 39    |
 | `node:child_process`   | 13    |
-| `node:crypto`          | 46    |
+| `node:crypto`          | 47    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
@@ -440,7 +441,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:module`          | 1     |
 | `node:net`             | 7     |
 | `node:os`              | 9     |
-| `node:path`            | 84    |
+| `node:path`            | 85    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

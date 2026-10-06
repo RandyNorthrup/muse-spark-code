@@ -20,6 +20,7 @@
 // same id. Their bodies name `${SKILL_ROOT}` paths, so each reaches the model
 // after one line saying which folder that is.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import {
   BUNDLED_SKILLS_DIR,
@@ -46,6 +47,7 @@ import {
 export type SkillSource = (typeof SKILL_SOURCES)[number]
 
 export interface SkillDefinition {
+  readonly contentSource?: Extract<ContentSource, { kind: 'skill' }>
   /** The directory name: the selector a `/id` invocation and `read_skill` use. */
   readonly id: string
   readonly name: string
@@ -224,6 +226,14 @@ export async function loadSkills(
         id: entry.id,
         source: entry.source,
         ...entry.entry,
+        ...(entry.contentSource !== undefined && {
+          contentSource: {
+            ...entry.contentSource,
+            kind: 'skill',
+            id: entry.id,
+            version: entry.contentSource.contentHash,
+          },
+        }),
         ...(packageRoot !== undefined && { packageRoot }),
       }
     }),

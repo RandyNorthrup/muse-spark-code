@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -123,6 +124,13 @@ import {
 } from '../../../shared/constants'
 import { fill, formatNumber, plural } from '../../../shared/l10n/text'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
+import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
+import {
+  ProvenanceLedger,
+  contentHash,
+  type ContentSource,
+  type ProvenanceEntry,
+} from '../../schedules/provenance'
 import type { ScheduleApprovalAction } from '../../../shared/scheduleV2'
 import { mspApprovalMode, APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
 import {
@@ -220,6 +228,7 @@ import {
   IndexLineStoppedError,
   type MemoryStore,
   type MemoryWrites,
+  type MemoryIo,
 } from '../../memory/memoryStore'
 import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
@@ -656,18 +665,22 @@ const NO_PERMISSION_SETTINGS: PermissionSettings = {
 /** A request before its prompt-cache fields are added (M56). */
 type UnkeyedBody = Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>
 
+interface ContentRead {
+  readonly bytes: string | Uint8Array
+  readonly source: ContentSource
+}
+interface ContentOrigin {
+  readonly source: ContentSource
+  readonly inputs: readonly ContentRead[]
+  readonly derivedFrom?: readonly string[]
+}
+
 interface ReplayItem {
   readonly turnId: string
   readonly item: InputItem
   readonly userMessageId?: string
   /** The background task whose terminal context this note carries (M46). */
   readonly backgroundTaskId?: string
-}
-
-function attachmentPaths(parts: readonly TurnPart[]): string[] {
-  return parts.flatMap((part) =>
-    part.type === 'file' || part.type === 'textFile' ? [part.name] : [],
-  )
 }
 
 /** A tool-read file until a completed model request has actually carried its media part. */
@@ -756,7 +769,11 @@ interface ChildRecord {
 /** One consented child task; only in memory, never in the session snapshot. */
 interface ChildTaskGrant {
   /** Captured at task admission; never replaced by a later session's authority. */
-  readonly scheduleRun?: UnattendedRun
+  readonly scheduleAuthority?: {
+    readonly owner: SessionOwner
+    readonly token: SessionToken
+    readonly run: UnattendedRun
+  }
   /** The model the child runs on: a custom agent's own, else the session's. */
   readonly modelId: string
   /** The session's model when the grant was approved; a later switch ends the task. */
@@ -805,9 +822,8 @@ const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 
 interface ActiveTurn {
   scheduleRun?: UnattendedRun
   /** Immutable evidence of content already sent before this fire took authority. */
-  scheduleHistory?: ReadonlySet<string>
-  scheduleUndelivered?: ReadonlySet<ReplayItem>
-  scheduleInstructions?: ReadonlySet<string>
+  scheduleLedger?: ProvenanceLedger
+  scheduleToken?: SessionToken
   schedulePermissions?: PermissionEngine
 
   readonly turnId: string
@@ -946,6 +962,7 @@ interface Admission {
  */
 interface AdmissionSlot {
   admission?: Admission
+  scheduleDecision?: string
 }
 
 /** A memory call's live policy fence: what admitted it, and every name its notes go by. */
@@ -1924,21 +1941,13 @@ export class ModelApiSession implements ScheduledAgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
-  private readonly sentReplay = new Set<string>()
-  private readonly sentInstructions = new Set<string>()
-  private readonly contextSourcePaths = new Set<string>()
+  private readonly providerTurns = new Set<string>()
+  private readonly sentContent = new Map<string, ProvenanceEntry>()
+  private readonly contentOrigins = new Map<string, ContentOrigin>()
+  private readonly contentReads = new AsyncLocalStorage<ContentRead[]>()
+  private readonly memoryMaterial = new Map<string, ContentSource>()
+  private readonly editContent = new Map<string, string>()
   private isLoadingContextMemory = false
-  /** Fire-owned, in-memory provenance; never persisted with replay or credentials. */
-  private readonly replayDecisions = new WeakMap<
-    ReplayItem,
-    {
-      readonly run: UnattendedRun | undefined
-      readonly requiresAsking: boolean
-      readonly digest: string
-      readonly paths: readonly string[]
-    }
-  >()
-  private readonly readFileDecisions = new WeakMap<VisibleFile, UnattendedRun | undefined>()
   private readonly withheldChildResults = new WeakSet<UnattendedRun>()
   private readonly transcript: TranscriptItem[] = []
   private readonly turnIds: string[] = []
@@ -1946,6 +1955,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private compactedThroughTurnId: string | undefined
   private readonly outputs = new Map<string, string>()
   private readonly sessionPermissions: PermissionEngine
+  private readonly owner: SessionOwner
   /** The command rules and permission profile as the settings stand (M78). */
   private readonly policies: PolicyCache
   /** The Auto reviewer's circuit breaker, reset by each message the user sends (M78). */
@@ -2210,11 +2220,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       io: this.scheduledIo(deps.io),
       contextIo: {
         ...deps.contextIo,
-        readFile: this.guardWorkspaceIo(async (...args: Parameters<ContextIo['readFile']>) => {
-          const bytes = await deps.contextIo.readFile(...args)
-          if (bytes !== undefined) this.contextSourcePaths.add(args[0])
-          return bytes
-        }, 'mcp'),
+        ...(deps.contextIo.readSource !== undefined && {
+          readSource: this.guardWorkspaceIo(deps.contextIo.readSource.bind(deps.contextIo), 'mcp'),
+        }),
+        readFile: this.guardWorkspaceIo(deps.contextIo.readFile.bind(deps.contextIo), 'mcp'),
         listDirectory: this.guardWorkspaceIo(
           deps.contextIo.listDirectory.bind(deps.contextIo),
           'mcp',
@@ -2223,15 +2232,39 @@ export class ModelApiSession implements ScheduledAgentSession {
       memory: deps.memory?.withIo((io) => ({
         ...io,
         ...this.guardedMemoryWrites(io),
-        readFile: this.guardWorkspaceIo(async (path: string) => {
-          const text = await io.readFile(path)
-          if (text !== undefined && this.isLoadingContextMemory) this.contextSourcePaths.add(path)
-          return text
-        }, 'mcp'),
+        readFile: this.guardWorkspaceIo(
+          async (path: string, observe?: Parameters<MemoryIo['readFile']>[1]) => {
+            const canonical = await io.realPath(path)
+            let source: ContentSource | undefined
+            const text = await io.readFile(path, (captured) => {
+              source = captured
+              observe?.(captured)
+            })
+            if (text !== undefined && this.isLoadingContextMemory) {
+              this.memoryMaterial.set(
+                text,
+                source ?? {
+                  kind: 'file',
+                  contentHash: contentHash(text),
+                  file: {
+                    path: canonical.replaceAll('\\', '/'),
+                    dev: '0',
+                    ino: '0',
+                    size: Buffer.byteLength(text),
+                    mtime: '0',
+                  },
+                },
+              )
+            }
+            return text
+          },
+          'mcp',
+        ),
         listEntries: this.guardWorkspaceIo(io.listEntries.bind(io), 'mcp'),
       })),
     }
-    this.scheduledClient = deps.client.withScheduleAuthority(() => this.active?.scheduleRun)
+    this.owner = new SessionOwner(approvalMode)
+    this.scheduledClient = deps.client.withScheduleAuthority(() => this.getScheduledRun())
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
     this.sessionPermissions = new PermissionEngine(approvalMode)
@@ -2286,7 +2319,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private get client(): ModelApiClient {
-    return this.active?.scheduleRun === undefined ? this.deps.client : this.scheduledClient
+    return this.getScheduledRun() === undefined ? this.deps.client : this.scheduledClient
   }
 
   private get permissions(): PermissionEngine {
@@ -3331,6 +3364,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (currentIndex === -1) {
         continue
       }
+      this.active?.scheduleLedger?.derive(
+        JSON.stringify(fitted),
+        [contentHash(JSON.stringify(entry.item))],
+        'durable-media-fit',
+      )
       this.replay[currentIndex] = { ...entry, item: fitted }
       // Any tracked media not sent was replaced by budget text, so it has no
       // bytes left for a later Stop to scrub from this replay entry.
@@ -3548,8 +3586,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     body: CreateResponseBody,
     directBudget?: DirectResponseBudget,
   ): ResponseAttemptGuard {
+    const token = this.owner.token()
+    const instructionMaterial = this.instructionMaterial()
     const reservation = directBudget === undefined ? this.openReservation : undefined
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      if (!this.owner.matches(token)) throw new AbortedError()
       if (this.isHostClosing() || this.isDisposed) {
         this.active?.abort.abort()
         this.compacting?.abort()
@@ -3648,13 +3689,25 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Packing counts the conversation's request only once it is really
           // sent (M73); a direct review's body is not the conversation's.
           this.packing?.noteSent(body.input)
-          for (const item of body.input) this.sentReplay.add(fingerprint(JSON.stringify(item)))
-          this.sentInstructions.add(fingerprint(body.instructions))
+          if (token.turnId !== undefined) this.providerTurns.add(token.turnId)
+          for (const item of body.input) this.noteSent(JSON.stringify(item))
+          this.noteSent(body.instructions)
+          for (const material of instructionMaterial) this.noteSent(material.bytes, material.source)
         } else {
           directBudget.isSent = true
         }
         this.deps.admitResponseAttempt?.onRequestStarted?.()
       },
+    })
+  }
+
+  private noteSent(bytes: string, source?: ContentSource): void {
+    const hash = contentHash(bytes)
+    this.sentContent.set(hash, {
+      hash,
+      source: this.contentOrigins.get(hash)?.source ??
+        source ?? { kind: 'harness', operation: 'provider-delivery' },
+      class: 'pre-fire',
     })
   }
 
@@ -3714,7 +3767,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       item: { type: 'message', role: 'user', content: this.contentParts(parts) },
     }
     this.replay.push(entry)
-    this.recordReplayDecision(entry, run, attachmentPaths(parts))
+    this.recordContent(entry, run, { kind: 'harness', operation: 'admitted-input' })
     const text = displayText ?? typedText(parts)
     this.firstPrompt ??= text
     const attachments = attachmentsOf(parts)
@@ -4268,54 +4321,118 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
   }
 
-  private recordReplayDecision(
+  private recordContent(
     entry: ReplayItem,
     run: UnattendedRun | undefined,
-    paths: readonly string[],
-    requiresAsking = false,
+    source: ContentSource,
+    isOpaque = false,
+    inputs: readonly ContentRead[] = [],
+    decisionId?: string,
   ): void {
-    this.replayDecisions.set(entry, {
-      run,
-      paths,
-      requiresAsking,
-      digest: fingerprint(JSON.stringify(entry.item)),
-    })
+    const bytes = JSON.stringify(entry.item)
+    this.contentOrigins.set(contentHash(bytes), { source, inputs })
+    const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
+    if (isOpaque) ledger?.opaque(bytes, source.kind === 'tool' ? source.callId : undefined)
+    else ledger?.decided(bytes, source, decisionId ?? entry.turnId)
   }
 
-  /** Only pre-fire delivery or this fire's exact decided bytes may leave. */
+  private instructionMaterial(): readonly { bytes: string; source: ContentSource }[] {
+    return [
+      ...this.context.instructionMaterial(
+        this.isAgentCatalogueOffered(),
+        this.toolFlags().hasMemory,
+      ),
+      ...(this.toolFlags().hasMemory
+        ? [...this.memoryMaterial].map(([bytes, source]) => ({ bytes, source }))
+        : []),
+    ]
+  }
+
+  /** Checks exact replay/request bytes; cached sources never resolve a new alias. */
   private async checkScheduledReplay(run: UnattendedRun, body: CreateResponseBody): Promise<void> {
     const turn = this.active
-    if (turn?.scheduleRun !== run || !run.isActive()) throw new AbortedError()
-    if (!turn.scheduleInstructions?.has(fingerprint(body.instructions))) {
-      for (const path of this.contextSourcePaths) await this.workspaceAccess(path, 'mcp')
+    const ledger = turn?.scheduleLedger
+    if (
+      ledger === undefined ||
+      turn?.scheduleRun !== run ||
+      turn.scheduleToken === undefined ||
+      !this.owner.matches(turn.scheduleToken) ||
+      !run.isActive()
+    )
+      throw new AbortedError()
+    const refuse = (): never => {
+      throw new Error(
+        run.refuse(
+          {
+            id: this.deps.newId(),
+            class: 'requiresAsking',
+            tool: 'replay',
+            paths: [],
+            requiresAsking: true,
+            protectedPath: false,
+          },
+          run.modelText.requiresAskingRefused,
+        ),
+      )
     }
+    const material = this.instructionMaterial()
+    for (const input of material) {
+      if (ledger.allows(input.bytes)) continue
+      const id = this.deps.newId()
+      const decision = await run.decideSource(input.source, id)
+      if (!decision.allowed) refuse()
+      ledger.decided(input.bytes, input.source, id)
+    }
+    // Dynamic dates/goal/tool scaffolding are generated by the trusted harness;
+    // every cached context input retains its independent original-byte evidence.
+    const scaffold = ledger.decided(
+      'instruction-scaffolding',
+      { kind: 'harness', operation: 'instructions' },
+      turn.turnId,
+    )
+    ledger.derive(
+      body.instructions,
+      [scaffold, ...material.map((input) => contentHash(input.bytes))],
+      'instruction-refresh',
+    )
     for (const entry of this.replay) {
-      const digest = fingerprint(JSON.stringify(entry.item))
-      if (turn.scheduleHistory?.has(digest)) continue
-      const provenance = this.replayDecisions.get(entry)
-      if (
-        provenance?.digest !== digest ||
-        provenance.requiresAsking ||
-        (provenance.run !== run && !turn.scheduleUndelivered?.has(entry))
-      ) {
-        throw new Error(
-          run.refuse(
-            {
-              id: this.deps.newId(),
-              class: 'requiresAsking',
-              tool: 'replay',
-              paths: [],
-              requiresAsking: true,
-              protectedPath: false,
-            },
-            run.modelText.requiresAskingRefused,
-          ),
-        )
+      const bytes = JSON.stringify(entry.item)
+      if (ledger.allows(bytes)) continue
+      const origin = this.contentOrigins.get(contentHash(bytes))
+      if (origin === undefined) return refuse()
+      if (origin.derivedFrom !== undefined) {
+        ledger.derive(bytes, origin.derivedFrom, 'cached-compaction')
+        if (!ledger.allows(bytes)) return refuse()
+        continue
       }
-      for (const path of provenance.paths) await this.workspaceAccess(path, 'mcp')
-      if (provenance.run !== run) this.recordReplayDecision(entry, run, provenance.paths)
+      if (origin.inputs.length === 0) return refuse()
+      for (const input of origin.inputs) {
+        if (ledger.allows(input.bytes)) continue
+        const id = this.deps.newId()
+        const decision = await run.decideSource(input.source, id)
+        if (!decision.allowed) return refuse()
+        ledger.decided(input.bytes, input.source, id)
+      }
+      ledger.derive(
+        bytes,
+        origin.inputs.map((input) => contentHash(input.bytes)),
+        'cached-tool-output',
+      )
     }
-    if (this.active !== turn || turn.scheduleRun !== run || !run.isActive())
+    // Fitting/packing are projections of these exact replay bytes. A transform
+    // of an unproved source never becomes allowed just because it is new.
+    for (const [index, item] of body.input.entries()) {
+      const original = this.replay[index]
+      const bytes = JSON.stringify(item)
+      if (original === undefined) {
+        if (ledger.allows(bytes)) continue
+        return refuse()
+      }
+      if (bytes !== JSON.stringify(original.item))
+        ledger.derive(bytes, [contentHash(JSON.stringify(original.item))], 'media-fit/packing')
+      if (!ledger.allows(bytes)) refuse()
+    }
+    if (!ledger.allows(body.instructions) || this.active !== turn || !run.isActive())
       throw new AbortedError()
   }
 
@@ -4328,6 +4445,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
+    const pending = this.owner.run(turnId)
+    if (pending !== undefined && this.active !== undefined && this.active.scheduleRun !== pending)
+      await this.drainSteered(this.active)
     const requestId = this.deps.newId()
     const run = this.active?.scheduleRun
     if (run !== undefined) await this.checkScheduledReplay(run, this.body())
@@ -4397,8 +4517,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       const outputStart = this.replay.length
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
       for (const entry of this.replay.slice(outputStart)) {
-        this.sentReplay.add(fingerprint(JSON.stringify(entry.item)))
-        this.recordReplayDecision(entry, run, [])
+        this.noteSent(JSON.stringify(entry.item), { kind: 'harness', operation: 'provider-output' })
+        this.recordContent(entry, run, { kind: 'harness', operation: 'provider-output' })
       }
     } catch (error: unknown) {
       this.noteRequestRefusal(reservation, error)
@@ -5522,16 +5642,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
     this.replay.push(replay)
     const run = this.getScheduledRun()
-    if (
-      files.every(
-        (file) => this.readFileDecisions.has(file) && this.readFileDecisions.get(file) === run,
-      )
+    const ledger = run === this.active?.scheduleRun ? this.active?.scheduleLedger : undefined
+    ledger?.derive(
+      JSON.stringify(replay.item),
+      files.map((file) => contentHash(JSON.stringify(file.part))),
+      'read-file-media',
     )
-      this.recordReplayDecision(
-        replay,
-        run,
-        files.flatMap((file) => attachmentPaths([file.part])),
-      )
     if (pending.length > 0) {
       this.readFileMessages.set(replay, pending)
     }
@@ -5722,19 +5838,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (skill === undefined) {
       return toolFailure(`${MODEL_API_MODEL_TEXT.skillNotFound} ${parsed.data.id}`)
     }
-    if (this.getScheduledRun() !== undefined) {
-      let root = skill.packageRoot
-      if (skill.source === PROJECT_SKILL_SOURCE)
-        root = pathModule(this.deps.platform).join(
-          this.deps.workspaceRoot,
-          ...PROJECT_SKILLS_DIR_SEGMENTS,
-        )
-      else if (skill.source === 'user') root = this.deps.personalSkillsRoot
-      if (root === undefined) throw new AbortedError()
-      await this.workspaceAccess(
-        pathModule(this.deps.platform).join(root, skill.id, SKILL_FILE_NAME),
-        'mcp',
-      )
+    const run = this.getScheduledRun()
+    if (run !== undefined) {
+      const source = skill.contentSource
+      const decision =
+        source === undefined ? { allowed: false } : await run.decideSource(source, call.call_id)
+      if (!decision.allowed) return toolFailure(decision.reason ?? run.modelText.protectedRefused)
+      if (this.getScheduledRun() !== run) throw new AbortedError()
     }
     const loaded: ToolOutcome = {
       output: `Skill ${skill.id}: ${skill.description}\n\n${skillBodyForModel(skill)}`,
@@ -6304,6 +6414,7 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   /** The single canonical decision boundary for all session workspace ports. */
   private async workspaceAccess(path: string, actionClass: 'edit' | 'mcp'): Promise<void> {
+    const token = this.owner.token()
     const run = this.getScheduledRun()
     if (run === undefined) return
     const safe = await run.decide(
@@ -6318,7 +6429,38 @@ export class ModelApiSession implements ScheduledAgentSession {
       false,
     )
     if (!safe.allowed) throw new Error(safe.reason ?? run.modelText.protectedRefused)
-    if (this.getScheduledRun() !== run) throw new AbortedError()
+    if (!this.owner.matches(token) || this.getScheduledRun() !== run) throw new AbortedError()
+  }
+
+  private async captureWorkspaceRead<Result extends string | Uint8Array | undefined>(
+    operation: (
+      observe: (source: Extract<ContentSource, { kind: 'file' }>) => void,
+    ) => Promise<Result>,
+    path: string,
+    expected?: string,
+  ): Promise<Result> {
+    await this.workspaceAccess(path, 'mcp')
+    const canonical = expected ?? (await this.deps.io.realPath(path))
+    let source: ContentSource | undefined
+    const bytes = await operation((captured) => {
+      source = captured
+    })
+    if (bytes !== undefined)
+      this.contentReads.getStore()?.push({
+        bytes: typeof bytes === 'string' ? bytes : Buffer.from(bytes),
+        source: source ?? {
+          kind: 'file',
+          contentHash: contentHash(bytes),
+          file: {
+            path: canonical.replaceAll('\\', '/'),
+            dev: '0',
+            ino: '0',
+            size: typeof bytes === 'string' ? Buffer.byteLength(bytes) : bytes.length,
+            mtime: '0',
+          },
+        },
+      })
+    return bytes
   }
 
   private guardWorkspaceIo<Args extends [string, ...unknown[]], Result>(
@@ -6350,14 +6492,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...io,
       runShell: (...args) => io.runShell(...args),
       realPath: (path) => io.realPath(path),
-      readFile: this.guardWorkspaceIo(
-        (...args: Parameters<ToolIo['readFile']>) => io.readFile(...args),
-        'mcp',
-      ),
-      readBytes: this.guardWorkspaceIo(
-        (...args: Parameters<ToolIo['readBytes']>) => io.readBytes(...args),
-        'mcp',
-      ),
+      readFile: (path, expected, observe) =>
+        this.captureWorkspaceRead(
+          (note) =>
+            io.readFile(path, expected, (source) => {
+              note(source)
+              observe?.(source)
+            }),
+          path,
+          expected,
+        ),
+      readBytes: (path, maxBytes, expected, observe) =>
+        this.captureWorkspaceRead(
+          (note) =>
+            io.readBytes(path, maxBytes, expected, (source) => {
+              note(source)
+              observe?.(source)
+            }),
+          path,
+          expected,
+        ),
       writeFile: this.guardWorkspaceIo(
         (...args: Parameters<ToolIo['writeFile']>) => io.writeFile(...args),
         'edit',
@@ -6984,8 +7138,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** All child admission routes read the originating task, then its live caller. */
   private unattendedChildAuthority(grant?: ChildTaskGrant): UnattendedRun | undefined {
     return (
-      grant?.scheduleRun ??
-      this.active?.scheduleRun ??
+      grant?.scheduleAuthority?.run ??
+      this.getScheduledRun() ??
       (this.isSubagent ? this.parentSession?.getScheduledRun() : undefined)
     )
   }
@@ -7041,7 +7195,13 @@ export class ModelApiSession implements ScheduledAgentSession {
       modelId,
       parentModelId,
       keyDigest: await this.client.currentKeyDigest(),
-      ...(scheduleRun !== undefined && { scheduleRun }),
+      ...(scheduleRun !== undefined && {
+        scheduleAuthority: {
+          owner: this.owner,
+          token: this.owner.token(),
+          run: scheduleRun,
+        },
+      }),
       goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
@@ -9176,8 +9336,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active?.scheduleRun !== undefined) {
       const run = this.active.scheduleRun
       const safe = await run.decide(
-        this.scheduledAction(itemId, call, { toolName: call.name, toolClass }, shouldForceApproval),
-        false,
+        this.scheduledAction(
+          itemId,
+          call,
+          { toolName: call.name, toolClass },
+          shouldForceApproval ||
+            call.name === MODEL_API_SUBAGENT_TOOLS.readResult ||
+            call.name === MODEL_API_SUBAGENT_TOOLS.wait,
+        ),
+        external !== undefined,
       )
       const feature = paidFeatureOf(call.name)
       if (
@@ -9202,6 +9369,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           isRejected: true,
         }
       }
+      slot.scheduleDecision = itemId
     }
     // The allowlist binds every dispatcher, including memory's specialized
     // path: definitions alone cannot stop a model calling a tool by name.
@@ -9641,7 +9809,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     outcome: ToolOutcome,
     status: string,
     run?: UnattendedRun,
-    paths: readonly string[] = [],
+    decisionId?: string,
+    inputs: readonly ContentRead[] = [],
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -9672,21 +9841,34 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
     }
     this.replay.push(replay)
-    this.recordReplayDecision(
-      replay,
-      run,
-      paths,
-      run === undefined &&
-        outcome.failureReason === undefined &&
-        outcome.touched?.complete !== true,
-    )
+    const source: ContentSource =
+      decisionId === undefined && outcome.failureReason !== undefined
+        ? { kind: 'harness', operation: 'tool-refusal' }
+        : { kind: 'tool', callId: call.call_id }
+    const isOpaque =
+      source.kind === 'tool' &&
+      (outcome.touched?.complete !== true || outcome.touched.names.length === 0)
+    if (decisionId !== undefined) this.active?.scheduleLedger?.decideTool(call.call_id)
+    this.recordContent(replay, run, source, isOpaque, inputs, decisionId)
+    const touchedNames = outcome.touched?.names ?? []
+    if (outcome.failureReason === undefined)
+      for (const name of touchedNames)
+        this.editContent.set(
+          pathModule(this.deps.platform)
+            .resolve(this.deps.workspaceRoot, name)
+            .replaceAll('\\', '/'),
+          contentHash(JSON.stringify(replay.item)),
+        )
     const outputImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
     if (outputImages.length > 0) {
       this.pendingOutputMedia.set(replay, outputImages)
     }
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
-      this.readFileDecisions.set(outcome.visibleFile, run)
+      const bytes = JSON.stringify(outcome.visibleFile.part)
+      this.contentOrigins.set(contentHash(bytes), { source, inputs })
+      if (decisionId !== undefined && run === this.active?.scheduleRun)
+        this.active?.scheduleLedger?.decided(bytes, source, decisionId)
     }
     return replay
   }
@@ -9850,19 +10032,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.recordTranscript(turnId, started)
     this.emit({ type: 'itemStarted', item: started })
     const slot: AdmissionSlot = {}
+    const reads: ContentRead[] = []
     let result: CallResult
     try {
       result =
         pre.blockedReason === undefined
-          ? await this.decideAndRun(
-              turnId,
-              itemId,
-              effectiveCall,
-              signal,
-              goalCommandRevision,
-              slot,
-              isInteractiveShell,
-              pre.forceApproval,
+          ? await this.contentReads.run(reads, () =>
+              this.decideAndRun(
+                turnId,
+                itemId,
+                effectiveCall,
+                signal,
+                goalCommandRevision,
+                slot,
+                isInteractiveShell,
+                pre.forceApproval,
+              ),
             )
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
     } catch (error: unknown) {
@@ -9890,25 +10075,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     // Every outcome crosses this fence before entering replay. A rejection
     // brought nothing back and keeps its own words.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
-    let replayPaths: readonly string[] = outcome.touched?.names ?? []
-    if (originRun !== undefined && outcome.failureReason === undefined) {
-      replayPaths = outcome.touched?.names ?? []
-      const decision = await originRun.decide(
-        {
-          id: itemId,
-          class: 'mcp',
-          tool: effectiveCall.name,
-          paths: [...replayPaths],
-          requiresAsking: isSubagentTool(effectiveCall.name) && outcome.touched?.complete !== true,
-          protectedPath: false,
-        },
-        false,
-      )
-      if (!decision.allowed) {
-        outcome = toolFailure(decision.reason ?? originRun.modelText.approvalRefused)
-        replayPaths = []
-      }
-    }
     let attemptReplay: ReplayItem | undefined
     if (running === undefined) {
       if (!this.canQueueToolMedia(outcome)) {
@@ -9929,7 +10095,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         outcome,
         status,
         originRun,
-        replayPaths,
+        slot.scheduleDecision,
+        reads,
       )
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
@@ -10237,10 +10404,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.settleNotes(turn.turnId)
     for (const { parts, userMessageId: itemId, scheduleRun } of turn.steered.splice(0)) {
       if (scheduleRun !== undefined) {
+        if (this.owner.run(turn.turnId) !== scheduleRun) throw new AbortedError()
+        const token = this.owner.token()
+        this.owner.admitted(token, turn.turnId)
         turn.scheduleRun = scheduleRun
-        turn.scheduleHistory = new Set(this.sentReplay)
-        turn.scheduleUndelivered = new Set(this.replay)
-        turn.scheduleInstructions = new Set(this.sentInstructions)
+        turn.scheduleToken = this.owner.token()
+        turn.scheduleLedger = new ProvenanceLedger(this.sentContent.values())
         turn.schedulePermissions = new PermissionEngine(mspApprovalMode(scheduleRun.context.mode))
         turn.confirmedRequest = this.scheduledRequest(scheduleRun)
       }
@@ -10268,7 +10437,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       this.replay.push(entry)
       if (turn.scheduleRun !== undefined)
-        this.recordReplayDecision(entry, turn.scheduleRun, attachmentPaths(parts))
+        this.recordContent(entry, turn.scheduleRun, {
+          kind: 'harness',
+          operation: 'admitted-steer',
+        })
       const attachments = attachmentsOf(parts)
       this.recordTranscript(turn.turnId, {
         itemId,
@@ -10418,6 +10590,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       return undefined
     }
+    for (const file of edited) await this.workspaceAccess(file.absolute, 'mcp')
     const paths = edited.map((file) => file.relative)
     const parts = (isDiagnosticsOn ? 1 : 0) + selectedChecks.length
     const share = Math.floor(VERIFY_NOTE_MAX_CHARS / Math.max(parts, 1))
@@ -10504,10 +10677,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.ledger.judgeRound()) {
       this.noteFixLoopStopped(turn.turnId, sections)
     } else {
-      this.replay.push({
-        turnId: turn.turnId,
-        item: noteItem([MODEL_API_MODEL_TEXT.verifyLead, ...sections].join('\n\n')),
-      })
+      this.appendVerificationNote(
+        turn.turnId,
+        [MODEL_API_MODEL_TEXT.verifyLead, ...sections].join('\n\n'),
+        edited.map((file) => file.absolute),
+      )
     }
     // The model has the reads now: they become the baseline of the next check.
     pending?.commit()
@@ -10520,15 +10694,32 @@ export class ModelApiSession implements ScheduledAgentSession {
     const stopped = fill(MODEL_API_MODEL_TEXT.checksStopped, {
       count: String(CHECK_FIX_MAX_ROUNDS),
     })
-    this.replay.push({
+    this.appendVerificationNote(
       turnId,
-      item: noteItem([MODEL_API_MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n')),
-    })
+      [MODEL_API_MODEL_TEXT.verifyLead, ...sections, stopped].join('\n\n'),
+      [...this.editContent].map(([file]) => file),
+    )
     this.emit({
       type: 'backendNotice',
       level: 'warning',
       text: plural(UI_TEXT.checksStoppedNotice, CHECK_FIX_MAX_ROUNDS),
     })
+  }
+
+  private appendVerificationNote(turnId: string, text: string, paths: readonly string[]): void {
+    const entry: ReplayItem = { turnId, item: noteItem(text) }
+    const inputs = paths.map((path) => this.editContent.get(path.replaceAll('\\', '/')) ?? '')
+    const ledger = this.active?.scheduleLedger
+    if (inputs.length === 0)
+      inputs.push(
+        ledger?.decided(
+          MODEL_API_MODEL_TEXT.verifyLead,
+          { kind: 'harness', operation: 'verification-control' },
+          turnId,
+        ) ?? '',
+      )
+    ledger?.derive(JSON.stringify(entry.item), inputs, 'verification-note')
+    this.replay.push(entry)
   }
 
   /** What the checks' hooks added, after the verify note: their contexts, then their reasons. */
@@ -10608,6 +10799,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       try {
         streamed = await this.streamOnce(turn.turnId, signal, round, turn.confirmedRequest)
       } catch (error: unknown) {
+        const pending = this.owner.run(turn.turnId)
+        if (
+          pending !== undefined &&
+          turn.scheduleRun === undefined &&
+          error instanceof AbortedError &&
+          !isAbortRequested(signal) &&
+          turn.steered.some((steer) => steer.scheduleRun === pending)
+        )
+          continue
         if (!isAbortRequested(signal)) {
           turn.modelFailure = error
         }
@@ -10847,12 +11047,19 @@ export class ModelApiSession implements ScheduledAgentSession {
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
     this.mediaNoticeSent = false
+    const claim =
+      queued.scheduleRun === undefined
+        ? this.owner.token()
+        : this.owner.claim(this.owner.token(), queued.scheduleRun)
+    if (claim === undefined || !this.owner.start(claim, queued.scheduleRun))
+      throw new Error(UI_TEXT.scheduleBusy)
+    this.owner.startAcknowledged(claim, queued.turnId, true)
+    if (queued.scheduleRun !== undefined) this.owner.admitted(claim, queued.turnId)
     const turn: ActiveTurn = {
       ...(queued.scheduleRun !== undefined && {
         scheduleRun: queued.scheduleRun,
-        scheduleHistory: new Set(this.sentReplay),
-        scheduleUndelivered: new Set(this.replay),
-        scheduleInstructions: new Set(this.sentInstructions),
+        scheduleToken: this.owner.token(),
+        scheduleLedger: new ProvenanceLedger(this.sentContent.values()),
         schedulePermissions: new PermissionEngine(mspApprovalMode(queued.scheduleRun.context.mode)),
       }),
       turnId: queued.turnId,
@@ -11058,6 +11265,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     this.active = undefined
+    const restoration = this.owner.terminal(turn.turnId)
+    if (restoration !== undefined) this.owner.modeApplied(restoration, true)
     this.status = IDLE
     this.turnCount += 1
     // The turn's cost against the cap, said once afterwards (M82).
@@ -11200,19 +11409,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     await this.refreshBudgetSpend()
     // The compaction is a request like any other: the session budget
     // reserves it too, and refuses it when it cannot fit (M82).
+    const prompt: InputItem = {
+      type: 'message',
+      role: 'user',
+      content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
+    }
     const compactionBody = (): CreateResponseBody =>
       this.budgeted(
         this.keyed({
           ...this.body(),
           // Within Meta's image budget too (M54): a conversation past it can still be compacted.
-          input: this.budget.fit([
-            ...this.replay.map((entry) => entry.item),
-            {
-              type: 'message',
-              role: 'user',
-              content: [{ type: 'input_text', text: MODEL_API_MODEL_TEXT.compactionPrompt }],
-            },
-          ]),
+          input: this.budget.fit([...this.replay.map((entry) => entry.item), prompt]),
           tools: [],
           include: ['reasoning.encrypted_content'],
         }),
@@ -11223,6 +11430,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     const chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     await this.refreshBudgetSpend()
     const body = compactionBody()
+    const run = this.getScheduledRun()
+    if (run !== undefined) {
+      this.active?.scheduleLedger?.decided(
+        JSON.stringify(prompt),
+        { kind: 'harness', operation: 'compaction-prompt' },
+        turnId,
+      )
+      await this.checkScheduledReplay(run, body)
+    }
+    const inputs = body.input.map((item) => contentHash(JSON.stringify(item)))
     const { text: summary, response } = await this.collectText(body, signal, chargedGoalId)
     const post = await this.runHooks(
       'PostLLMCall',
@@ -11245,6 +11462,16 @@ export class ModelApiSession implements ScheduledAgentSession {
         ],
       },
     })
+    const summaryEntry = this.replay[0]
+    if (summaryEntry !== undefined) {
+      const bytes = JSON.stringify(summaryEntry.item)
+      this.contentOrigins.set(contentHash(bytes), {
+        source: { kind: 'harness', operation: 'compaction' },
+        inputs: [],
+        derivedFrom: inputs,
+      })
+      this.active?.scheduleLedger?.derive(bytes, inputs, 'compaction')
+    }
     // The packed originals left with the replay; the ledger stays, a
     // session total like the token counts.
     this.packing?.reset()
@@ -11839,12 +12066,6 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.permissions.currentMode
   }
 
-  public getScheduledRun(turnId?: string): UnattendedRun | undefined {
-    return turnId === undefined || turnId === this.active?.turnId
-      ? this.active?.scheduleRun
-      : undefined
-  }
-
   public async sendScheduledTurn(
     parts: readonly TurnPart[],
     run: UnattendedRun,
@@ -11861,11 +12082,16 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
   }
 
+  public getScheduledRun(turnId?: string): UnattendedRun | undefined {
+    return this.owner.run(turnId)
+  }
+
   public async steerScheduledTurn(
     expectedTurnId: string,
     parts: readonly TurnPart[],
     run: UnattendedRun,
   ): Promise<TurnSubmission> {
+    const waiter = this.owner.token()
     await run.checkParts(parts)
     this.scheduledRequest(run)
     if (
@@ -11874,10 +12100,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.active.isFinalizing === true
     )
       throw new SteerRefusedError(TURN_NOT_RUNNING)
-    return this.active.scheduleRun !== undefined ||
-      this.active.steered.some((steer) => steer.scheduleRun !== undefined)
-      ? await this.sendScheduledTurn(parts, run)
-      : await this.steerTurn(expectedTurnId, run.parts(parts), run)
+    if (this.owner.run() !== undefined) return await this.sendScheduledTurn(parts, run)
+    if (!this.providerTurns.has(expectedTurnId)) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    const token = this.owner.claim(waiter, run, expectedTurnId)
+    if (token === undefined) throw new SteerRefusedError(UI_TEXT.scheduleBusy)
+    return await this.steerTurn(expectedTurnId, run.parts(parts), run)
   }
 
   public sendTurn(
@@ -12009,8 +12236,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   public setApprovalMode(mode: string): Promise<void> {
-    if (this.active?.scheduleRun !== undefined)
-      return Promise.reject(new Error(UI_TEXT.scheduleBusy))
+    if (this.owner.run() !== undefined) return Promise.reject(new Error(UI_TEXT.scheduleBusy))
     if (mode !== 'denyUnmatched' && this.isSideChat) {
       return Promise.reject(new Error(UI_TEXT.sideChatPlanOnly))
     }
@@ -12018,6 +12244,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (approvalMode === undefined) {
       return Promise.reject(new Error(`unknown approval mode ${mode}`))
     }
+    const effect = this.owner.modeEffect(this.owner.token(), approvalMode)
+    if (effect === undefined) return Promise.reject(new Error(UI_TEXT.scheduleBusy))
+    this.owner.modeApplied(effect, true)
     this.deps.judge?.discardSession(this.sessionId)
     // A custom agent's ceiling survives a session mode switch (M76 review):
     // the child re-narrows instead of running wider than its definition.

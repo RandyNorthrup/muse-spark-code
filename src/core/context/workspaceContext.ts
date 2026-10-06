@@ -7,6 +7,7 @@
 // the host says their files changed. The memory is read once, as Muse Code
 // takes its snapshot at session start.
 
+import type { ContentSource } from '../schedules/provenance'
 import { RULES_PREAMBLE } from '../../shared/constants'
 import type { MemoryScopeSnapshot } from '../memory/memoryStore'
 import type { ContextIo } from './contextFiles'
@@ -282,6 +283,45 @@ export class WorkspaceContext {
     const isChanged = catalogueKey(load.skills) !== catalogueKey(this.skills)
     this.skills = load.skills
     return isChanged
+  }
+
+  /** Exact cached material, independent of dynamic instruction scaffolding. */
+  public instructionMaterial(
+    shouldIncludeAgents = true,
+    shouldIncludeMemory = true,
+  ): readonly {
+    bytes: string
+    source: ContentSource
+  }[] {
+    return [
+      ...this.rules.flatMap((rule) =>
+        rule.contentSource === undefined ? [] : [{ bytes: rule.text, source: rule.contentSource }],
+      ),
+      ...this.skills.flatMap((skill) =>
+        skill.contentSource === undefined
+          ? []
+          : [
+              {
+                bytes: JSON.stringify({ id: skill.id, description: skill.description }),
+                source: skill.contentSource,
+              },
+            ],
+      ),
+      ...(shouldIncludeAgents ? this.agents.agents : []).flatMap((agent) =>
+        agent.contentSource === undefined
+          ? []
+          : [
+              {
+                bytes: JSON.stringify({ id: agent.id, description: agent.description }),
+                source: agent.contentSource,
+              },
+            ],
+      ),
+      ...(shouldIncludeMemory ? this.memory : []).map((snapshot) => ({
+        bytes: JSON.stringify(snapshot),
+        source: { kind: 'tool', callId: `context-memory:${snapshot.scope}` } as const,
+      })),
+    ]
   }
 
   public skill(id: string): SkillDefinition | undefined {

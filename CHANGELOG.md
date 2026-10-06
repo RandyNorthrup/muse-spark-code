@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Replace M115's unshipped scheduled-fire authority with one generation-bound
+  session owner and a SHA-256 content ledger. Stale mode waiters cannot change
+  a later fire, and unrelated completions cannot erase a live ordinary turn.
+  Cached skills retain their original read source; opaque output requires its
+  own decided tool call. Verification notes, fitted media, compaction and date
+  refreshes retain the proof of every input instead of losing it on replay.
+
 - Close M115's native admission race after attachment validation: competing
   fires cannot replace a running grant or change an ordinary turn's mode.
   A scheduled steer during checkpoint finalization refuses before acceptance,

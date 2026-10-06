@@ -25,6 +25,7 @@
 // YAML list, an indented value, a repeated key) is refused rather than
 // guessed at, because what it cannot read could have been a narrowing.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
@@ -65,6 +66,7 @@ import {
 import type { PersonalSkillsRootInput } from './skills'
 
 export interface AgentDefinition {
+  readonly contentSource?: Extract<ContentSource, { kind: 'file' }>
   /** The directory name (or built-in id): the selector `subagent_spawn` takes as `agent`. */
   readonly id: string
   readonly name: string
@@ -346,6 +348,7 @@ export async function loadAgents(
     id: entry.id,
     source: entry.source,
     ...entry.entry,
+    ...(entry.contentSource !== undefined && { contentSource: entry.contentSource }),
   }))
   const keptBuiltins = builtinAgents().filter((builtin) => {
     const file = files.find((agent) => agent.id === builtin.id)
