@@ -13420,6 +13420,14 @@ No live/paid call, network request, dependency, hook change or publication.
 Record failures, byte-exact red drills, counts and gate receipts in
 `docs/certification/rel0143-ci.md`. Local commits use the existing hooks.
 
+Completed: repair commit `e9e0e055e`. All 532 Vitest files ran in 178 default-
+timeout batches: 11,430 passes, zero failures, 72 existing skips. Four deliberate
+failures were restored byte-exact. Five-project typecheck, full lint/format,
+reference, localization, host API, plain Knip, zero-clone duplication, production
+build and package pass. The real VSIX's 39 fixed JavaScript members exactly
+match both the manifest and report frame allowlist, including questionNotes.js.
+No additional merge failure, cap change or timeout override was needed.
+
 ### FIXM112Q — Durable-question review corrections (2026-10-06, Q complete)
 
 Scope: all six findings in `RVM112Q.report.md`, within Q's existing files.
@@ -29259,6 +29267,17 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
+Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
+tests, 72 existing platform/live skips). Required static checks, production build
+and VSIX package all exit 0. Four intentional failures have byte-exact restoration
+receipts; the shipped fixed JavaScript inventory is exact. The rig/shared rules
+prohibit aggregate `npm run quality` and public network: that aggregate, hosted
+Windows/macOS, remote badges, native macOS helper and live/editor release receipts
+remain with the lead. Packaging uses the existing named offline badge option,
+which CI refuses. No gate, hook, skip, timeout or budget was weakened. Evidence:
+`docs/certification/rel0143-ci.md`.
 
 **M112 integration closure (2026-10-06, Windows 11 rig).** The listed U
 and A merges close the frozen Q/runtime, History and build-reader handoffs.
