@@ -206,15 +206,15 @@ describe('schedule-scoped paid consent and reservations', () => {
     })
     expect(scope.allows('imageGeneration')).toBe(true)
     expect(scope.allows('voice')).toBe(false)
+    await expect(
+      scope.reserve({ ...body, model: 'changed' }, 100, new AbortController().signal),
+    ).rejects.toThrow()
     const claim = await scope.reserve(body, 100, new AbortController().signal)
     expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
     isOn = false
     expect(scope.allows('imageGeneration')).toBe(false)
     expect(() => claim.check(0)).toThrow()
     isOn = true
-    await expect(
-      scope.reserve({ ...body, model: 'changed' }, 100, new AbortController().signal),
-    ).rejects.toThrow()
     isCurrent = false
     expect(() => claim.check(0)).toThrow()
     await expect(scope.reserve(body, 100, new AbortController().signal)).rejects.toThrow()
@@ -261,6 +261,31 @@ describe('schedule-scoped paid consent and reservations', () => {
     })
     await expect(unpriced.reserve(body, 100, new AbortController().signal)).rejects.toThrow()
     expect(unpricedReserve).not.toHaveBeenCalled()
+  })
+  it('keeps a disabled extra off while the scheduled prompt gate stays on', async () => {
+    const reserve = vi.fn()
+    const scope = createSchedulePaidScope({
+      backend: 'modelApi',
+      schedule: schedule(),
+      identity,
+      currentIdentity: () => identity,
+      isCurrent: () => true,
+      isOn: (feature) => feature === 'scheduledPrompts',
+      estimate: () => 0.6,
+      reserve,
+    })
+    expect(scope.allows('scheduledPrompts')).toBe(true)
+    expect(scope.allows('imageGeneration')).toBe(false)
+    const image: CreateImageBody = {
+      model: 'muse-image',
+      prompt: 'test',
+      n: 1,
+      size: 'auto',
+      response_format: 'b64_json',
+      output_format: 'png',
+    }
+    await expect(scope.reserve(image, undefined, new AbortController().signal)).rejects.toThrow()
+    expect(reserve).not.toHaveBeenCalled()
   })
   it('enforces a schedule cap across independent processes before HTTP without a budget dialog', async () => {
     const { first, second } = await ledgers()

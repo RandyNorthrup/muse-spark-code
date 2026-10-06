@@ -2033,6 +2033,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly diagnosticsHistory = new DiagnosticsHistory()
   /** The verify loop's record since the user's last input (M68; `verifyLedger.ts`). */
   private readonly ledger = new VerifyLedger()
+  private readonly scheduledRenamePaths = new WeakMap<FunctionCallItem, readonly string[]>()
   /** Rename plans made for a call's PreToolUse hooks, which the call then writes (M67). */
   private readonly hookRenamePlans = new WeakMap<FunctionCallItem, Promise<RenamePlanResult>>()
   /** The imported hooks' adapters, loaded on first use (M91 lane W). */
@@ -4508,7 +4509,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       class: actionClass,
       tool: call.name,
       ...(query.command !== undefined && { command: query.command }),
-      paths: path === undefined ? [] : [path],
+      paths: [...(this.scheduledRenamePaths.get(call) ?? (path === undefined ? [] : [path]))],
       requiresAsking,
       protectedPath: query.isProtected === true,
     }
@@ -4559,7 +4560,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         call,
         signal,
         question.paid,
-        requiresUserApproval || hook.forceApproval,
+        requiresUserApproval,
+        hook.forceApproval,
       )
       return { isApproved: isAllowed, feedback: undefined }
     }
@@ -4920,9 +4922,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     signal: AbortSignal,
     paid: PaidUseRequest,
     requiresUserApproval: boolean,
+    shouldForceApproval = false,
   ): Promise<boolean> {
     if (this.active?.scheduleRun !== undefined)
-      return this.active.scheduleRun.allowsPaid(paid.feature, requiresUserApproval)
+      return this.active.scheduleRun.allowsPaid(
+        paid.feature,
+        requiresUserApproval || shouldForceApproval,
+      )
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
       return await unlessStopped(
@@ -7410,6 +7416,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const mode = this.permissions.currentMode
     const wasTrusted = this.deps.isWorkspaceTrusted()
     return (canRunDetached = false) =>
+      active?.scheduleRun?.isActive() !== false &&
       (canRunDetached || (!signal.aborted && this.active === active)) &&
       !this.isDisposed &&
       !this.isHostClosing() &&
@@ -8710,6 +8717,22 @@ export class ModelApiSession implements ScheduledAgentSession {
       toolName: call.name,
       toolClass: 'edit',
       isProtected: isProtectedRename(plan),
+    }
+    const run = this.active?.scheduleRun
+    if (run !== undefined) {
+      this.scheduledRenamePaths.set(
+        call,
+        plan.files.map((file) => file.canonical),
+      )
+      const safe = await run.decide(
+        this.scheduledAction(itemId, call, query, shouldForceApproval),
+        false,
+      )
+      if (!safe.allowed)
+        return {
+          outcome: refusedOutcome(call, safe.reason ?? run.modelText.approvalRefused),
+          isRejected: true,
+        }
     }
     const refusal = await this.judge(
       itemId,

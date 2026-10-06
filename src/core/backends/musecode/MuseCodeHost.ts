@@ -663,6 +663,7 @@ export class MuseSession implements ScheduledAgentSession {
   private readonly scheduledTurns = new Map<string, UnattendedRun>()
   private readonly scheduledItems = new Map<string, UnattendedRun>()
   private readonly scheduledApprovals = new Map<string, UnattendedRun>()
+  private readonly scheduledQuestions = new Set<string>()
   private currentTurnId: string | undefined
   private heldScheduleEvents: AgentEvent[] | undefined
   private admittingScheduleRun: UnattendedRun | undefined
@@ -789,6 +790,13 @@ export class MuseSession implements ScheduledAgentSession {
     this.restoringScheduleMode = this.changeApprovalMode(mode)
     void this.restoringScheduleMode.catch(() => {
       this.log.warn('Scheduled mode could not be restored; new turns are refused')
+    })
+  }
+
+  private stopScheduledRun(run: UnattendedRun): void {
+    if (this.getScheduledRun() !== run) return
+    void this.cancel().catch(() => {
+      this.log.warn('Scheduled turn could not be stopped')
     })
   }
 
@@ -1030,9 +1038,7 @@ export class MuseSession implements ScheduledAgentSession {
       if (
         ((event.type === 'approvalRequested' || event.type === 'approvalUpdated') &&
           this.scheduledApprovals.has(event.approvalId)) ||
-        (event.type === 'questionRequested' &&
-          (this.scheduledItems.has(event.itemId) ||
-            this.scheduledTurns.has(this.currentTurnId ?? '')))
+        (event.type === 'questionRequested' && this.scheduledQuestions.has(event.userInputId))
       )
         continue
       listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
@@ -1084,12 +1090,15 @@ export class MuseSession implements ScheduledAgentSession {
             : this.scheduledApprovals.get(admitted.approvalId)
         if (run !== undefined) {
           this.scheduledApprovals.set(admitted.approvalId, run)
-          void this.decideScheduledApproval(admitted, run).catch(() => {
-            this.log.warn('Scheduled approval failed; the turn is stopped')
-            void this.cancel().catch(() => {
-              this.log.warn('Scheduled turn could not be stopped')
+          void this.decideScheduledApproval(admitted, run)
+            .catch(() => {
+              this.log.warn('Scheduled approval failed')
+              this.stopScheduledRun(run)
             })
-          })
+            .finally(() => {
+              if (this.prompts.pending(admitted.approvalId) === undefined)
+                this.scheduledApprovals.delete(admitted.approvalId)
+            })
           return
         }
 
@@ -1101,6 +1110,7 @@ export class MuseSession implements ScheduledAgentSession {
           this.scheduledTurns.get(this.currentTurnId ?? '') ??
           this.failedAdmissionRun
         if (run !== undefined) {
+          this.scheduledQuestions.add(admitted.userInputId)
           void run
             .defer(admitted)
             .then(async (text) => {
@@ -1111,16 +1121,23 @@ export class MuseSession implements ScheduledAgentSession {
                 outcome: 'clarified',
                 answers: [],
               })
+              this.scheduledQuestions.delete(admitted.userInputId)
             })
             .catch(() => {
-              this.log.warn('Scheduled question could not be deferred; the turn is stopped')
-              void this.cancel().catch(() => {
-                this.log.warn('Scheduled turn could not be stopped')
-              })
+              this.log.warn('Scheduled question could not be deferred')
+              this.stopScheduledRun(run)
             })
           return
         }
 
+        break
+      }
+      case 'approvalResolved': {
+        this.scheduledApprovals.delete(admitted.approvalId)
+        break
+      }
+      case 'questionSettled': {
+        this.scheduledQuestions.delete(admitted.userInputId)
         break
       }
       case 'turnCompleted':
@@ -1130,8 +1147,6 @@ export class MuseSession implements ScheduledAgentSession {
         this.scheduledTurns.delete(admitted.turnId)
         for (const [id, owner] of this.scheduledItems)
           if (owner === run) this.scheduledItems.delete(id)
-        for (const [id, owner] of this.scheduledApprovals)
-          if (owner === run) this.scheduledApprovals.delete(id)
         if (this.currentTurnId === admitted.turnId) this.currentTurnId = undefined
         if (run !== undefined && this.scheduledTurns.size === 0) this.restoreScheduleMode()
 

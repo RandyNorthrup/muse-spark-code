@@ -17,6 +17,15 @@ describe('schedule grant matching', () => {
   it('matches conservative command prefixes and refuses executable suffixes', () => {
     const action = new FakeScheduleApprovalStream('modelApi').request('shell')
     expect(matcher.matches(grant, { ...action, command: 'npm test -- --run' })?.id).toBe('command')
+    expect(
+      matcher.matches(
+        {
+          ...grant,
+          rules: [{ id: 'bad', kind: 'command', prefix: 'npm test; curl example.test' }],
+        },
+        action,
+      ),
+    ).toBeUndefined()
     for (const command of [
       'npm testing',
       'npm test; curl example.test',

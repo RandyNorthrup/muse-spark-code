@@ -1,19 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MuseCodeHost, MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
-import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
+import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MODEL_API_TOOLS } from '../../src/shared/constants'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { fakeMspHost, settle } from './helpers/fakeMsp'
 import { raceRequested, RACE_APPROVAL_ID } from './helpers/stageRaceCapture'
 import { fakeModelApi, fakeModelApiClient, FAKE_MODEL_API_ACCOUNT_ID } from './helpers/fakeModelApi'
 import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
+import { fakeLanguageService, renamed } from './helpers/fakeLanguageService'
 import { memoryToolIo } from './helpers/fakeToolIo'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { startWatchedSession } from './helpers/sessionTurns'
+import type { ScheduleRunDeps, UnattendedRun } from '../../src/core/schedules/unattended'
+import { fakeMcpSource } from './helpers/fakeMcpSource'
 import { unattendedRun } from './helpers/schedules/unattended'
 import { fakeRunContext } from './helpers/schedules/fixtures'
 
-async function modelBackend() {
+async function modelBackend(overrides: Partial<ModelApiHostDeps> = {}) {
   const api = fakeModelApi()
   const log = new FakeLogOutputChannel()
   const io = memoryToolIo({ 'src/read.txt': 'inside workspace' }, '/workspace')
@@ -27,10 +30,12 @@ async function modelBackend() {
     }),
     isPaidFeatureOn: () => true,
     allowsPaidUse: popup,
+    ...overrides,
   })
   const watched = await startWatchedSession(host, '/workspace', 'promptUnmatched')
   watched.session.onEvent((event) => {
-    if (event.type === 'approvalRequested') void watched.session.cancel()
+    if (['approvalRequested', 'elicitationRequested', 'questionRequested'].includes(event.type))
+      void watched.session.cancel()
   })
   const reserve = vi.fn().mockResolvedValue({
     claimId: 'paid-claim',
@@ -38,7 +43,7 @@ async function modelBackend() {
     check: () => ({ spentUsd: 1, hasUnknownHistoricalFees: false }),
     settle: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
   })
-  const run = (context = fakeRunContext()) =>
+  const run = (context = fakeRunContext(), overrides: Partial<ScheduleRunDeps> = {}) =>
     unattendedRun({
       context,
       io,
@@ -48,8 +53,19 @@ async function modelBackend() {
         allows: (feature) => feature === 'scheduledPrompts',
         reserve,
       },
+      ...overrides,
     })
   return { api, io, popup, host, ...watched, run, reserve }
+}
+
+function commandContext() {
+  const context = fakeRunContext()
+  context.grant.rules = [{ id: 'npm', kind: 'command', prefix: 'npm test' }]
+  return context
+}
+
+function scriptShell(api: ReturnType<typeof fakeModelApi>) {
+  api.script({ calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }] }, { text: 'done' })
 }
 
 const ack = (params: Record<string, unknown>) => ({
@@ -58,7 +74,15 @@ const ack = (params: Record<string, unknown>) => ({
 })
 const DEFAULT_SUBJECT = { kind: 'shell', command: 'npm test' }
 
-async function museBackend() {
+function museEvents(session: MuseSession) {
+  const events: AgentEvent[] = []
+  session.onEvent((event) => {
+    events.push(event)
+  })
+  return events
+}
+
+async function museBackend(approvalMode = 'promptUnmatched') {
   const wire = fakeMspHost()
   wire.server.handle('session/start', () => ({
     session: { sessionId: 'schedule-session', modelId: 'muse-spark-1.3', status: 'idle' },
@@ -81,15 +105,12 @@ async function museBackend() {
   wire.server.handle('userInput/clarify', ack)
   const host = new MuseCodeHost(wire.host, new FakeLogOutputChannel())
   const session = await host.startSession({
-    approvalMode: 'promptUnmatched',
+    approvalMode,
     modelId: 'muse-spark-1.3',
     workspaceRoot: '/workspace',
   })
   if (!(session instanceof MuseSession)) throw new Error('Expected Muse session')
-  const events: AgentEvent[] = []
-  session.onEvent((event) => {
-    events.push(event)
-  })
+  const events = museEvents(session)
   const notifyApproval = (
     tool = 'powershell',
     subject: { kind: string; command: string } = DEFAULT_SUBJECT,
@@ -105,6 +126,21 @@ async function museBackend() {
     })
   }
   return { ...wire, host, session, events, notifyApproval }
+}
+
+async function museDecided(fixture: Awaited<ReturnType<typeof museBackend>>, count = 1) {
+  await vi.waitFor(() => {
+    expect(fixture.server.requestsFor('approval/decide')).toHaveLength(count)
+  })
+}
+
+async function completeMuseTurn(fixture: Awaited<ReturnType<typeof museBackend>>) {
+  fixture.server.notify('turn/completed', {
+    sessionId: fixture.session.sessionId,
+    turnId: 'schedule-turn',
+    terminal: 'completed',
+  })
+  await settle()
 }
 
 describe('scheduled Model API dispatch', () => {
@@ -158,16 +194,139 @@ describe('scheduled Model API dispatch', () => {
     expect(JSON.stringify(fixture.api.requests)).toContain('inside workspace')
     await fixture.host.close()
   })
+  it('checks requester safety even for a mode-permitted read before dispatch', async () => {
+    const fixture = await modelBackend()
+    const { run, row } = fixture.run(fakeRunContext(), { safety: () => 'Physical refused.' })
+    fixture.api.script(
+      { calls: [{ name: MODEL_API_TOOLS.readFile, arguments: '{"path":"src/read.txt"}' }] },
+      { text: 'done' },
+    )
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Read' }], run)
+    await done
+    expect(row).toHaveBeenCalledTimes(1)
+    expect(run.refusedActions).toHaveLength(1)
+    expect(JSON.stringify(fixture.api.responseBodies())).not.toContain('inside workspace')
+    await fixture.host.close()
+  })
+  it('declines MCP elicitation immediately and exposes its actual run to the host-owned tool', async () => {
+    const outcomes: unknown[] = []
+    let observed: UnattendedRun | undefined
+    const source = fakeMcpSource([{ server: 'srv', tool: 'ask' }])
+    source.call = async (_name, _args, signal, onElicitation) => {
+      if (onElicitation === undefined) throw new Error('Missing elicitation port')
+      observed = fixture.session.getScheduledRun()
+      outcomes.push(
+        await onElicitation({
+          server: 'srv',
+          signal,
+          params: {
+            message: 'Name?',
+            requestedSchema: {
+              type: 'object',
+              properties: { name: { type: 'string' } },
+              required: ['name'],
+            },
+          },
+        }),
+      )
+      return { output: 'done', visibleOutput: 'done' }
+    }
+    const fixture = await modelBackend({ mcpServers: source })
+    const context = fakeRunContext()
+    context.grant.rules = [{ id: 'mcp', kind: 'tool', name: 'mcp__srv__ask' }]
+    const { run, row } = fixture.run(context)
+    fixture.api.script({ calls: [{ name: 'mcp__srv__ask', arguments: '{}' }] }, { text: 'done' })
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Ask' }], run)
+    await done
+    expect(observed).toBe(run)
+    expect(outcomes).toEqual([{ action: 'decline' }])
+    expect(row).toHaveBeenCalledTimes(1)
+    expect(fixture.events.some((event) => event.type === 'elicitationRequested')).toBe(false)
+    await fixture.host.close()
+  })
+  it.each([
+    ['src/a.ts', false, false],
+    ['src/**', true, false],
+    ['src/**', false, true],
+  ] as const)(
+    'matches the entire native rename plan against the path grant %s (allowed %s, physical %s)',
+    async (glob, isAllowed, isPhysical) => {
+      const a = '/workspace/src/a.ts'
+      const b = '/workspace/src/b.ts'
+      const files = new Map([
+        [a, 'export function greet() {}\n'],
+        [b, 'greet()\n'],
+      ])
+      const service = fakeLanguageService({
+        files,
+        rename: () =>
+          Promise.resolve({ files: [renamed(a, 0, 16), renamed(b, 0, 0)], fileOperations: 'none' }),
+      })
+      const fixture = await modelBackend({ codeIntel: service })
+      for (const [path, text] of files) fixture.io.files.set(path, text)
+      const context = fakeRunContext()
+      context.grant.rules = [{ id: 'rename', kind: 'path', glob, access: 'edit' }]
+      if (isPhysical) context.mode = 'acceptEdits'
+      const { run, row } = fixture.run(context, {
+        safety: (action) =>
+          isPhysical && action.paths.includes('src/b.ts') ? 'Physical refused.' : undefined,
+      })
+      fixture.api.script(
+        {
+          calls: [
+            {
+              name: 'rename_symbol',
+              arguments: '{"path":"src/a.ts","line":1,"column":17,"new_name":"welcome"}',
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      const done = fixture.turnDone()
+      await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Rename' }], run)
+      await done
+      expect(service.asked.some((call) => call.startsWith('rename'))).toBe(true)
+      expect(fixture.io.files.get(a)).toBe(
+        isAllowed ? 'export function welcome() {}\n' : files.get(a),
+      )
+      expect(fixture.io.files.get(b)).toBe(isAllowed ? 'welcome()\n' : files.get(b))
+      expect(row).toHaveBeenCalledTimes(isAllowed ? 0 : 1)
+      await fixture.host.close()
+    },
+  )
+  it('rechecks revocation at the native shell entry after an adapter await', async () => {
+    const fixture = await modelBackend()
+    let hasEntered = false
+    const held = Promise.withResolvers<undefined>()
+    const execute = fixture.io.runShell
+    fixture.io.runShell = async (...args) => {
+      hasEntered = true
+      await held.promise
+      return await execute(...args)
+    }
+    let isActive = true
+    const context = commandContext()
+    const { run } = fixture.run(context, { isActive: () => isActive })
+    scriptShell(fixture.api)
+    const done = fixture.turnDone()
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
+    await vi.waitFor(() => {
+      expect(hasEntered).toBe(true)
+    })
+    isActive = false
+    held.resolve(undefined)
+    await done
+    expect(fixture.io.shellCalls).toHaveLength(0)
+    await fixture.host.close()
+  })
   it('uses the schedule mode/grant rather than the interactive mode or session rules, and restores ordinary turn behavior', async () => {
     const fixture = await modelBackend()
     await fixture.session.setApprovalMode('allowAll')
-    const context = fakeRunContext()
-    context.grant.rules = [{ id: 'npm', kind: 'command', prefix: 'npm test' }]
+    const context = commandContext()
     const { run, audit } = fixture.run(context)
-    fixture.api.script(
-      { calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }] },
-      { text: 'done' },
-    )
+    scriptShell(fixture.api)
     const done = fixture.turnDone()
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
     await done
@@ -266,10 +425,9 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     const fixture = await museBackend()
     const { run, row } = unattendedRun()
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
+    expect(fixture.session.getScheduledRun('schedule-turn')).toBe(run)
     fixture.notifyApproval()
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(1)
-    })
+    await museDecided(fixture)
     expect(fixture.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
       choiceId: 'abort',
       feedback: run.modelText.approvalRefused,
@@ -286,14 +444,11 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
   })
   it('allows only once for a matched rule and audits the run without command arguments', async () => {
     const fixture = await museBackend()
-    const context = fakeRunContext()
-    context.grant.rules = [{ id: 'npm', kind: 'command', prefix: 'npm test' }]
+    const context = commandContext()
     const { run, audit } = unattendedRun({ context })
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
     fixture.notifyApproval()
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(1)
-    })
+    await museDecided(fixture)
     expect(fixture.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
       choiceId: 'allow_once',
     })
@@ -304,7 +459,9 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
   })
   it('defers a question at once through the registry, then clarifies the captured tool without a form', async () => {
     const fixture = await museBackend()
-    const { run, deferQuestions } = unattendedRun()
+    const held = Promise.withResolvers<undefined>()
+    const deferQuestions = vi.fn(() => held.promise)
+    const { run } = unattendedRun({ deferQuestions })
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
     fixture.server.notify('turn/started', {
       sessionId: fixture.session.sessionId,
@@ -330,9 +487,20 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       viewCursor: '',
     })
     await vi.waitFor(() => {
+      expect(deferQuestions).toHaveBeenCalledTimes(1)
+    })
+    await completeMuseTurn(fixture)
+    const late = museEvents(fixture.session)
+    expect(late.some((event) => event.type === 'questionRequested')).toBe(false)
+    held.resolve(undefined)
+    await vi.waitFor(() => {
       expect(fixture.server.requestsFor('userInput/clarify')).toHaveLength(1)
     })
     expect(deferQuestions).toHaveBeenCalledTimes(1)
+    expect(deferQuestions).toHaveBeenCalledWith(
+      expect.objectContaining({ userInputId: 'question-1' }),
+      run.context,
+    )
     expect(fixture.events.some((event) => event.type === 'questionRequested')).toBe(false)
     await fixture.host.close()
   })
@@ -347,9 +515,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
     fixture.notifyApproval('device', { kind: 'tool', command: '' }, 'physical-1')
     fixture.notifyApproval('device', { kind: 'tool', command: '' }, 'physical-2')
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(2)
-    })
+    await museDecided(fixture, 2)
     expect(
       fixture.server.requestsFor('approval/decide').map((request) => request.params?.['choiceId']),
     ).toEqual(['abort', 'abort'])
@@ -359,8 +525,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     const fixture = await museBackend()
     const held = Promise.withResolvers<undefined>()
     const audit = vi.fn(() => held.promise)
-    const context = fakeRunContext()
-    context.grant.rules = [{ id: 'npm', kind: 'command', prefix: 'npm test' }]
+    const context = commandContext()
     const { run } = unattendedRun({
       context,
       audit,
@@ -370,15 +535,37 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     await vi.waitFor(() => {
       expect(audit).toHaveBeenCalledTimes(1)
     })
-    const late: AgentEvent[] = []
-    fixture.session.onEvent((event) => {
-      late.push(event)
+    const late = museEvents(fixture.session)
+    held.resolve(undefined)
+    await museDecided(fixture)
+    expect(late.some((event) => event.type === 'approvalRequested')).toBe(false)
+    await fixture.host.close()
+  })
+  it('never cancels a later ordinary turn when a completed scheduled approval fails late', async () => {
+    const fixture = await museBackend()
+    const held = Promise.withResolvers<undefined>()
+    const audit = vi.fn(() => held.promise)
+    let isActive = true
+    const { run } = unattendedRun({ context: commandContext(), audit, isActive: () => isActive })
+    await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
+    fixture.notifyApproval()
+    await vi.waitFor(() => {
+      expect(audit).toHaveBeenCalledTimes(1)
+    })
+    await completeMuseTurn(fixture)
+    const late = museEvents(fixture.session)
+    expect(late.some((event) => event.type === 'approvalRequested')).toBe(false)
+    isActive = false
+    await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
+    fixture.server.handle('approval/decide', () => {
+      throw new Error('Old stage closed')
     })
     held.resolve(undefined)
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(1)
-    })
-    expect(late.some((event) => event.type === 'approvalRequested')).toBe(false)
+    await museDecided(fixture)
+    await settle()
+    expect(fixture.server.requestsFor('turn/cancel')).toHaveLength(0)
+    const afterFailure = museEvents(fixture.session)
+    expect(afterFailure.some((event) => event.type === 'approvalRequested')).toBe(false)
     await fixture.host.close()
   })
   it('retains unattended ownership when a start ack fails after a captured approval and stops the turn', async () => {
@@ -387,17 +574,14 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
       fixture.notifyApproval()
       throw new Error('ack lost')
     })
-    const context = fakeRunContext()
-    context.grant.rules = [{ id: 'npm', kind: 'command', prefix: 'npm test' }]
+    const context = commandContext()
     await expect(
       fixture.session.sendScheduledTurn(
         [{ type: 'text', text: 'Check' }],
         unattendedRun({ context }).run,
       ),
     ).rejects.toThrow()
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(1)
-    })
+    await museDecided(fixture)
     expect(fixture.server.requestsFor('approval/decide')[0]?.params).toMatchObject({
       choiceId: 'abort',
     })
@@ -406,7 +590,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     await fixture.host.close()
   })
   it('refuses concurrent native admission and Bypass, then restores the ordinary mode before a new turn', async () => {
-    const fixture = await museBackend()
+    const fixture = await museBackend('allowAll')
     const { run } = unattendedRun()
     const results = await Promise.allSettled([
       fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run),
@@ -414,18 +598,13 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     ])
     expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
     await expect(fixture.session.setApprovalMode('allowAll')).rejects.toThrow()
-    fixture.server.notify('turn/completed', {
-      sessionId: fixture.session.sessionId,
-      turnId: 'schedule-turn',
-      terminal: 'completed',
-    })
-    await settle()
+    await completeMuseTurn(fixture)
     await fixture.session.sendTurn([{ type: 'text', text: 'Ordinary' }])
     expect(
       fixture.server
         .requestsFor('session/setApprovalMode')
         .map((request) => request.params?.['mode']),
-    ).toEqual(['promptUnmatched', 'promptUnmatched'])
+    ).toEqual(['promptUnmatched', 'allowAll'])
     await fixture.host.close()
   })
   it('keeps early approval notifications behind context admission rather than leaking a pending card', async () => {
@@ -442,9 +621,7 @@ describe('scheduled Muse Code dispatch over captured MSP frames', () => {
     })
     await fixture.session.sendScheduledTurn([{ type: 'text', text: 'Check' }], run)
     await settle()
-    await vi.waitFor(() => {
-      expect(fixture.server.requestsFor('approval/decide')).toHaveLength(1)
-    })
+    await museDecided(fixture)
     expect(fixture.events.some((event) => event.type === 'approvalRequested')).toBe(false)
     await fixture.host.close()
   })

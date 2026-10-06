@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -7,6 +6,7 @@ import * as z from 'zod/mini'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { ModelApiClientDeps } from '../../core/backends/modelapi/client'
 import type { SessionBudgetClaim } from '../../core/backends/modelapi/sessionBudget'
+import { fingerprint } from '../../core/verify/fingerprint'
 import { estimateCostUsd } from '../../core/usage/insights'
 import { unlessAborted } from '../../core/timeouts'
 import { PAID_DAILY_BUDGET, PAID_PRICES_USD, UI_TEXT } from '../../shared/constants'
@@ -223,7 +223,7 @@ export function createPaidDailyBudget(deps: {
     )
       throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
     const scope = day()
-    const ownScope = `${scope}-schedule-${createHash('sha256').update(schedule.id).digest('hex')}`
+    const ownScope = `${scope}-schedule-${fingerprint(schedule.id)}`
     const ownCap = Math.min(consent.dailyCapUsd, schedule.paidCapUsd, schedule.grant.paidCapUsd)
     const shared = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
     let own: Awaited<ReturnType<typeof journal.reserve>> | undefined
