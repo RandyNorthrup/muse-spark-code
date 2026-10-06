@@ -25421,6 +25421,26 @@ aggregate quality and the existing M96/M96c production joins with the lead.
 The correction is now proved by 29/29 owning tests, 100% scoped coverage,
 two red/restored guard drills and all required scoped delivery checks.
 The sole reviewed P2 is closed; §9 names the remaining dependency binding.
+**FIXM107R review repair (2026-10-06, Kubuntu).** Fix all three RVM107R
+P2 findings in the portable relocation coordinator and its owning suite:
+evaluate the final synchronous offer callback before the last policy/cancel
+check and send without an await; probe offered targets concurrently with
+`RESOURCE_RELOCATION_PROBE_MS` (5 seconds), treating deadline/abort as
+unknown headroom without changing post-dispatch uncertainty; and retain a
+per-conversation round-robin cursor among equally eligible headroom peers.
+Prove each regression red before repair and each guard with byte-exact
+mutation/restoration receipts in `docs/certification/m107-r-relocation.md`.
+No new dependency, permission, receiver frame or production binding. The
+rig/common brief prohibits aggregate quality and merges; the lead retains
+the existing M100/C2/W integration and full-gate handoffs.
+
+All three RVM107R P2 findings are fixed; none is an accepted review
+residual. The portable relocator retains its last automatic target across
+attempts (including concurrent selections), rotates within the best known
+headroom class, and leaves that cursor unchanged for an explicit choice or
+an unavailable pool. Certification records default-timeout regressions,
+deliberate guard failures and scoped/static/build results. Existing unbound
+production delivery and aggregate qualification remain named in §9.
 
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
@@ -29016,6 +29036,14 @@ this exact non-green check without editing another lane's generated file or
 weakening a gate. The absent feature catalog/reference generator remains
 M107-J-M102-history-binding in §9. See J's certification for scoped results
 and red/restored guards; neither shared check is represented as green.
+**FIXM107R bounded review certification (2026-10-06).** The rig/common
+brief prohibits aggregate quality, whole-unit/coverage runs and merges.
+Run the complete relocation suite with default test timeouts, before-fix
+regressions and byte-exact red drills, all-project typecheck, scoped
+lint/format, localization, host API, plain knip, duplication, cycles and
+production build under unchanged caps. The lead retains joined aggregate
+quality and M100/C2/W's delivery qualification. Exact repair receipts are
+in `docs/certification/m107-r-relocation.md`; no gate is weakened.
 
 **M107INT round-3 certification (2026-10-06).** The rig brief authorizes
 only the listed T2/U/H merges, scoped complete-file runs (at most three,
@@ -30572,6 +30600,17 @@ before a repaired one loads (2026-09-30).
   certify joined fairness/child rules, runner dispatch, responsiveness,
   bundle sizes and all editors. The rig forbids aggregate quality here;
   the lead runs it before integration. See `m107-c2-the-team-and-runners.md`.
+- **M107-R-integration-binding (FIXM107R, 2026-10-06).** The portable
+  relocation coordinator remains unbound in production on this base.
+  M100 supplies task-bound offer/dispatch and final normal-level receiver
+  admission; C2 supplies exclusive ownership and complete local retirement;
+  U/J/W bind rows, notices, Traffic, journal and lazy delivery/help. The
+  tests qualify injected fake ports, not paired-device behavior. Safe for
+  now because no shipped caller can dispatch through this coordinator;
+  follow-up is the existing dependency join, two paired-rig receipts,
+  joined bundle budgets and full quality. The review repairs retain every
+  existing permission and post-dispatch uncertainty guard. See
+  `docs/certification/m107-r-relocation.md` for each RVM107R finding.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered

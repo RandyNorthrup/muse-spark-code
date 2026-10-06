@@ -25,6 +25,13 @@ happened, not what was planned; superseded entries are kept.
 - The staged team/check slot adapter rechecks live governor capacity after
   local slot waiting. Work remains queued at pause or when throttle is full,
   releasing unstarted reservations before waiting again.
+- The staged resource relocator rechecks policy and cancellation after the
+  final offer callback, preventing dispatch after synchronous revocation.
+- Its headroom probes run concurrently with a five-second bound, and Keep
+  here cancels discovery without waiting for an unresponsive peer.
+- Automatic relocation rotates among equal-headroom peers across attempts,
+  preserving ample-before-some priority and explicit Move to choices.
+
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain
   unknown occupancy and never fall back to a bare process or job kill.
