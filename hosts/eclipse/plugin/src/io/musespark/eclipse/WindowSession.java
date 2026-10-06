@@ -22,7 +22,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     public final IWorkbenchWindow window;
     private final Process process;
     private final Map<String, MuseView> surfaces = new ConcurrentHashMap<>();
-    private record Delivery(MuseView view, JsonElement payload, int bytes) { }
+    private record Delivery(MuseView view, JsonElement payload, JsonElement sequence, int bytes) { }
     private final ArrayDeque<Delivery> browserQueue = new ArrayDeque<>();
     private boolean browserScheduled;
     private final ISelectionListener selections;
@@ -117,7 +117,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             view.binding().receive(frame, payload -> {
                 int size = peer.reserveBrowser(frame);
                 synchronized (browserQueue) {
-                    browserQueue.add(new Delivery(view, payload, size));
+                    browserQueue.add(new Delivery(view, payload, frame.get("seq"), size));
                     if (!browserScheduled) { browserScheduled = true; window.getShell().getDisplay().asyncExec(this::drainBrowser); }
                 }
             });
@@ -127,12 +127,25 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             contract.panel("error", error); peer.send(error); MusePlugin.get().log(code);
         }
     }
+    public void browserReady() {
+        synchronized (browserQueue) { if (!disposed && !browserQueue.isEmpty() && !browserScheduled) { browserScheduled = true; window.getShell().getDisplay().asyncExec(this::drainBrowser); } }
+    }
     private void drainBrowser() {
         while (!disposed) {
             Delivery delivery;
-            synchronized (browserQueue) { delivery = browserQueue.poll(); if (delivery == null) { browserScheduled = false; return; } }
-            try { delivery.view.deliverPayload(delivery.payload); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_PANEL_NOT_READY"); }
+            synchronized (browserQueue) {
+                delivery = null;
+                Iterator<Delivery> iterator = browserQueue.iterator();
+                while (iterator.hasNext()) { Delivery next = iterator.next(); if (next.view.binding().isReady()) { delivery = next; iterator.remove(); break; } }
+                if (delivery == null) { browserScheduled = false; return; }
+            }
+            JsonObject error = null;
+            try { delivery.view.deliverPayload(delivery.payload); } catch (RuntimeException ex) {
+                error = Json.object("mhp", "1.1", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
+                contract.panel("error", error); MusePlugin.get().log("MHP_PANEL_NOT_READY");
+            }
             finally { peer.releaseBrowser(delivery.bytes); }
+            if (error != null) try { peer.send(error); } catch (RuntimeException ex) { peer.close(); }
         }
     }
     public int dropBrowser(String surface) {
@@ -218,8 +231,8 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     }
     private JsonArray findFiles(JsonObject params) throws Exception {
         if (!trusted) throw new IllegalArgumentException("MHP_UNTRUSTED_WORKSPACE");
-        PathMatcher include = FileSystems.getDefault().getPathMatcher("glob:" + params.get("include").getAsString());
-        PathMatcher exclude = params.has("exclude") ? FileSystems.getDefault().getPathMatcher("glob:" + params.get("exclude").getAsString()) : null;
+        PathMatcher include = FileSystems.getDefault().getPathMatcher("glob:" + params.get("include").getAsString().replace("**/", "{**/,}"));
+        PathMatcher exclude = params.has("exclude") ? FileSystems.getDefault().getPathMatcher("glob:" + params.get("exclude").getAsString().replace("**/", "{**/,}")) : null;
         JsonArray result = new JsonArray(); int limit = params.get("limit").getAsInt();
         for (IProject project : ResourcesPlugin.getWorkspace().getRoot().getProjects()) if (project.isOpen()) project.accept(resource -> {
             if (result.size() >= limit) return false;
@@ -246,10 +259,13 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     }
     @Override public void close() {
         if (disposed) return; disposed = true;
+        // Snapshot before closing either pipe: EOF can make the parent exit and reparent its children.
+        List<ProcessHandle> descendants = process.descendants().toList();
         for (MuseView view : surfaces.values()) { int dropped = dropBrowser(view.binding().id); try { view.binding().close(dropped); } catch (RuntimeException ex) { MusePlugin.get().log("MHP_SURFACE_FAILURE"); } }
         surfaces.clear(); Completion.dispose(this); documents.close(); window.getSelectionService().removePostSelectionListener(selections); window.getPartService().removePartListener(parts);
         PlatformUI.getWorkbench().removeWindowListener(windows); ResourcesPlugin.getWorkspace().removeResourceChangeListener(problems); peer.drain(); peer.close(); stderr.shutdownNow();
-        process.descendants().forEach(ProcessHandle::destroy); process.destroy();
-        try { if (!process.waitFor(2, TimeUnit.SECONDS)) { process.descendants().forEach(ProcessHandle::destroyForcibly); process.destroyForcibly(); } } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+        descendants.forEach(ProcessHandle::destroy); process.toHandle().destroy();
+        try { process.waitFor(2, TimeUnit.SECONDS); } catch (InterruptedException ex) { Thread.currentThread().interrupt(); }
+        finally { descendants.stream().filter(ProcessHandle::isAlive).forEach(ProcessHandle::destroyForcibly); if (process.isAlive()) process.toHandle().destroyForcibly(); }
     }
 }

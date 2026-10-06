@@ -53,7 +53,24 @@ public final class Documents implements AutoCloseable {
         long version = extended.getModificationStamp();
         if (version < 0) throw new IllegalArgumentException("MHP_DOCUMENT_VERSION_UNAVAILABLE");
         String language = editor.getEditorInput().getName(); int dot = language.lastIndexOf('.');
-        return Json.object("uri", uri(editor), "version", version, "dirty", editor.isDirty(), "languageId", dot < 0 ? "plaintext" : language.substring(dot + 1));
+        return Json.object("uri", uri(editor), "version", version, "dirty", editor.isDirty(), "languageId", dot < 0 ? "plaintext" : switch (language.substring(dot + 1).toLowerCase(Locale.ROOT)) {
+            case "ts", "mts", "cts" -> "typescript";
+            case "tsx" -> "typescriptreact";
+            case "js", "mjs", "cjs" -> "javascript";
+            case "jsx" -> "javascriptreact";
+            case "py", "pyw" -> "python";
+            case "txt" -> "plaintext";
+            case "h" -> "c";
+            case "cc", "cxx", "hpp", "hxx" -> "cpp";
+            case "cs" -> "csharp";
+            case "sh", "bash" -> "shellscript";
+            case "md" -> "markdown";
+            case "yml" -> "yaml";
+            case "rs" -> "rust";
+            case "kt", "kts" -> "kotlin";
+            case "rb" -> "ruby";
+            default -> language.substring(dot + 1).toLowerCase(Locale.ROOT);
+        });
     }
     public JsonArray list() {
         JsonArray result = new JsonArray();

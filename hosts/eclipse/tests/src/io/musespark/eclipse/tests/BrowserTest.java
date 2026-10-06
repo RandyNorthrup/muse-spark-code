@@ -27,6 +27,15 @@ public class BrowserTest {
         assertTrue(Assets.scriptSafe("</script>\u2028").startsWith("\\u003c"));
         assertEquals(SWT.WEBKIT, MuseView.browserStyle()); assertEquals(SWT.EDGE, MuseView.browserStyle("win32"));
     }
+    @Test public void bootstrapAssetUrlsAreJavascriptStrings() throws Exception {
+        String html = Assets.html(Path.of("/tmp/o'connor/assets"), "en", "chat", null, new JsonObject());
+        int start = html.indexOf('>', html.lastIndexOf("<script nonce=")) + 1; Path script = Files.createTempFile("m104-bootstrap-", ".mjs");
+        try {
+            Files.writeString(script, html.substring(start, html.lastIndexOf("</script>")));
+            ProcessBuilder builder = new ProcessBuilder("node", "--check", script.toString()); Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean); builder.redirectErrorStream(true);
+            Process check = builder.start(); String output = new String(check.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8); assertEquals(output, 0, check.waitFor());
+        } finally { Files.deleteIfExists(script); }
+    }
     @Test public void credentialNamesAreRemovedBeforeRuntimeSpawn() {
         Map<String, String> environment = Assets.environment(Map.of("PRIVATE_API_KEY", "test-only-marker", "openai_api_key", "test-only-marker", "META_KEY", "test-only-marker", "AWS_SESSION_TOKEN", "test-only-marker", "PATH", "/bin", "LANG", "en_US.UTF-8"));
         assertEquals(Map.of("PATH", "/bin", "LANG", "en_US.UTF-8"), environment);
@@ -51,7 +60,7 @@ public class BrowserTest {
         } finally { try (var paths = Files.walk(directory)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); } }
     }
     @Test public void realWebkitBrowserFunctionExchangesOrderedMessagesAndSavedState() throws Exception {
-        Path directory = Files.createTempDirectory("m104-browser-"); Path page = directory.resolve("page.html");
+        Path directory = Files.createTempDirectory("m104-o'connor-browser-"); Path page = directory.resolve("page.html");
         Files.writeString(directory.resolve("main.css"), "body{color:black}");
         Files.writeString(directory.resolve("main.js"), "window.unsubscribe = window.museHost.onMessage(p => window.received = p); window.museHost.setState({draft:'persisted'}); window.museHost.postMessage({type:'ready'}); window.testReady=true;");
         Files.writeString(page, Assets.html(directory, "en", "chat", Json.object("draft", "initial"), new JsonObject()).replace("const listeners = new Set();", "window.addEventListener(\"error\", event => window.testError = event.message); const listeners = new Set();"));

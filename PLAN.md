@@ -5245,7 +5245,43 @@ have equivalent functionality even if we need to develop it ourselves".
   qualification (M104g). The research is
   `docs/certification/m104-research.md` (this file, moved in).
 
+**MHP 1.2 proposal — native HTML and bootstrap (FIXM104G, E02).** The
+frozen 1.0/1.1 exports and their locks remain byte-unchanged. The following
+additions require lane 0/B/D integration before native HTML can be advertised:
+
+- Add capability `surfaceHtml` and host-to-runtime request
+  `surfaces/renderHtml`. Params are exactly `{ surfaceId, sessionId,
+surfaceKind: "whatsNew", locale, nonce, styleUri, scriptUri, theme }`; IDs are the
+  existing opaque binding IDs, locale is the installed table's identifier,
+  nonce is the host-generated CSP nonce, styleUri is the host-extracted
+  bundled stylesheet's absolute file URI, scriptUri is its bundled page script's
+  absolute file URI, and theme uses the existing theme
+  schema. Result is exactly `{ html }`, a nonempty complete HTML document
+  bounded by the existing 16 MiB frame cap. The runtime uses its existing
+  localized release renderer and retains the rendered allow-listed link and
+  Try-it maps per binding; existing outward What's New index actions continue
+  through the sequenced carrier. The host injects its private embedded bridge
+  before the page's scripts, writes only the bound local page, and preserves
+  the asset-only nonce CSP, exact-document navigation, blocked popups and
+  ordered lifecycle. A reload obtains a new render and click-map generation
+  before `ready`; cancellation never installs a late render.
+- For 1.2 initialization, add required result field `hostContext` with
+  exactly `{ host, locale, theme, folders, trusted }`, using the existing
+  field schemas. These are authoritative native values; the runtime's
+  initial request cannot discover an editor's language, colors or product
+  identity. The old 1.1 result remains exactly version/capabilities. Runtime
+  settings, providers and paid decisions stay runtime-owned.
+- Eclipse's injected native HTML port is available only when its adapter
+  reports `surfaceHtml` at `mhp/1.2.0`; absent/older adapters explicitly
+  refuse What's New. No capability is added to the frozen 1.1 advertisement.
+  Lane 0 supplies the approved schemas; B/D implement the port's renderer
+  and shared bridge. This is a contract proposal, not a shipped wire claim.
+
 ## 3. Open questions (need the owner)
+
+- **M104 E02 / bootstrap:** approve the exact MHP 1.2 additions under D84
+  and wire the injected Eclipse HTML port through B/D. Frozen 1.1 remains
+  in force until lane 0 exports the approved schemas.
 
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
@@ -15413,6 +15449,18 @@ logged.
 ---
 
 ### M104 — Every editor, every feature (D84)
+
+**FIXM104G review repair (2026-10-05).** Fix RVM104G findings 1–9 in
+`hosts/eclipse`: bounded pipe close and owner shutdown, retained descendant
+cleanup, bounded cancelled-request correlation, script-safe asset URLs,
+standard language IDs, widget/model completion coordinates, recursive glob
+root matches and retained browser deliveries across reload. Each fix requires
+a named native regression and a byte-exact red drill in `m104-g.md`. The
+packaged UI gets the native API/message-event adapter its existing entry
+requires. The frozen exports remain unchanged; E02 and bootstrap metadata need an exact
+MHP 1.2 proposal under D84 and capability-checked native support. B/C/D/H/I
+shared integration remains owned by those lanes; do not invent a controller
+or widen the Eclipse capability advertisement.
 
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain

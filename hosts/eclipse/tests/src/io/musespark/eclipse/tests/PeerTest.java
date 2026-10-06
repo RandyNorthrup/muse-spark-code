@@ -20,6 +20,69 @@ public class PeerTest {
     private static JsonObject initialize() { return Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.0.0", "maximumExclusive", "mhp/1.2.0"), "capabilities", new String[] {"lifecycle", "workspace", "tab"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false); }
     private static JsonObject initialCall(JsonObject params) { return Json.object("jsonrpc", "2.0", "id", "runtime-init", "method", "initialize", "params", params); }
     private static void negotiate(MhpPeer peer) throws Exception { peer.accept(initialCall(initialize()).toString()); peer.initialized().get(2, TimeUnit.SECONDS); }
+    @Test public void closeReturnsWhileTheRuntimeDoesNotReadItsPipe() throws Exception {
+        ProcessBuilder builder = new ProcessBuilder("python3", "-c", "import time; print('ready', flush=True); time.sleep(100)");
+        Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean);
+        Process child = builder.start();
+        assertEquals("ready", new BufferedReader(new InputStreamReader(child.getInputStream())).readLine());
+        CountDownLatch writing = new CountDownLatch(1);
+        OutputStream output = new FilterOutputStream(child.getOutputStream()) {
+            @Override public void write(byte[] bytes) throws IOException { writing.countDown(); out.write(bytes); }
+        };
+        PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
+        MhpPeer peer = new MhpPeer(new Contract(), input, output, new Host(), code -> { });
+        ExecutorService closer = Executors.newSingleThreadExecutor();
+        try {
+            peer.send(Json.object("body", "x".repeat(1024 * 1024))); peer.start(); assertTrue(writing.await(2, TimeUnit.SECONDS));
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2); boolean blocked = false;
+            while (!blocked && System.nanoTime() < deadline) { blocked = Thread.getAllStackTraces().values().stream().flatMap(Arrays::stream).anyMatch(frame -> frame.getClassName().equals("java.io.FileOutputStream") && frame.getMethodName().equals("writeBytes")); Thread.onSpinWait(); }
+            assertTrue("the authored child must leave the writer blocked in its pipe", blocked);
+            closer.submit(peer::close).get(2, TimeUnit.SECONDS);
+            assertTrue("the peer must return before its owner terminates the process", child.isAlive());
+        } finally { child.destroyForcibly(); child.waitFor(2, TimeUnit.SECONDS); peer.close(); runtime.close(); closer.shutdownNow(); }
+    }
+    @Test public void transportFailureAfterInitializationShutsDownItsOwner() throws Exception {
+        for (String ending : List.of("{}\n", "")) {
+            Host host = new Host(); PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
+            try (MhpPeer peer = new MhpPeer(new Contract(), input, new ByteArrayOutputStream(), host, code -> { })) {
+                negotiate(peer); peer.start(); runtime.write(ending.getBytes(java.nio.charset.StandardCharsets.UTF_8)); runtime.close();
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                while (!host.stopped && System.nanoTime() < deadline) Thread.onSpinWait();
+                assertTrue("transport loss must close the owning session", host.stopped);
+            } finally { runtime.close(); }
+        }
+        Host host = new Host(); PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
+        OutputStream broken = new OutputStream() { @Override public void write(int value) throws IOException { throw new IOException("fake writer failure"); } };
+        try (MhpPeer peer = new MhpPeer(new Contract(), input, broken, host, code -> { })) {
+            negotiate(peer); peer.start(); long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+            while (!host.stopped && System.nanoTime() < deadline) Thread.onSpinWait(); assertTrue(host.stopped);
+        } finally { runtime.close(); }
+    }
+    @Test public void cancelledAndTimedOutRequestsAcceptValidatedLateReplies() throws Exception {
+        Host host = new Host();
+        try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), host, code -> fail(code))) {
+            negotiate(peer);
+            JsonObject params = Json.object("uri", "file:///x", "version", 1, "position", Json.object("line", 0, "character", 0), "context", Json.object("prefix", "", "suffix", "", "trigger", "invoke"));
+            var cancelled = peer.request("tab/complete", params); cancelled.cancel(false);
+            peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-1", "error", Json.object("code", -32800, "message", "MHP_CANCELLED")).toString());
+            var timedOut = peer.request("tab/complete", params); timedOut.completeExceptionally(new TimeoutException());
+            assertThrows(IllegalArgumentException.class, () -> peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-2", "result", Json.object("unexpected", true)).toString()));
+            peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-2", "result", new JsonArray()).toString());
+            var next = peer.request("tab/complete", params); peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-3", "result", new JsonArray()).toString()); assertTrue(next.get().isJsonArray()); assertFalse(host.stopped);
+        }
+    }
+    @Test public void cancelledCorrelationRecordsRemainBounded() throws Exception {
+        Contract contract = new Contract(); PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
+        try (MhpPeer peer = new MhpPeer(contract, input, new ByteArrayOutputStream(), new Host(), code -> { })) {
+            negotiate(peer); peer.start();
+            JsonObject params = Json.object("uri", "file:///x", "version", 1, "position", Json.object("line", 0, "character", 0), "context", Json.object("prefix", "", "suffix", "", "trigger", "invoke"));
+            // Drain the transport independently: outstanding correlation, rather than queued bytes, must stay bounded.
+            for (int i = 0; i < contract.queueMessages; i++) { peer.request("tab/complete", params).cancel(false); peer.drain(); }
+            assertThrows(IllegalStateException.class, () -> peer.request("tab/complete", params));
+            peer.accept(Json.object("jsonrpc", "2.0", "id", "eclipse-1", "result", new JsonArray()).toString());
+            assertFalse(peer.request("tab/complete", params).isDone());
+        } finally { runtime.close(); }
+    }
     @Test public void handshakeCorrelationDirectionAndResultValidation() throws Exception {
         Host host = new Host(); Contract contract = new Contract();
         try (MhpPeer peer = new MhpPeer(contract, new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), host, code -> fail(code))) {

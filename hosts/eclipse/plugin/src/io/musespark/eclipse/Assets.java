@@ -49,7 +49,7 @@ public final class Assets {
                 if (started) return;
                 if (typeof museNative !== 'function') throw new Error('MHP_BRIDGE_NOT_READY');
                 started = true; const script = document.createElement('script');
-                script.type = 'module'; script.nonce = 'SCRIPT_NONCE'; script.src = 'SCRIPT_URL'; document.body.append(script);
+                script.type = 'module'; script.nonce = 'SCRIPT_NONCE'; script.src = SCRIPT_URL; document.body.append(script);
               };
               window.museHost = Object.freeze({
                 postMessage(payload) { invoke('post', payload); },
@@ -58,7 +58,7 @@ public final class Assets {
                 setState(state) { invoke('state', state); saved = JSON.parse(encode(state)); hasState = true; }
               });
             })();
-            """.replace("INITIAL_STATE", state == null ? "null" : scriptSafe(state.toString())).replace("HAS_STATE", state == null ? "false" : "true").replace("SCRIPT_NONCE", nonce).replace("SCRIPT_URL", script);
+            """.replace("INITIAL_STATE", state == null ? "null" : scriptSafe(state.toString())).replace("HAS_STATE", state == null ? "false" : "true").replace("SCRIPT_NONCE", nonce).replace("SCRIPT_URL", scriptSafe(Json.GSON.toJson(script)));
         StringBuilder style = new StringBuilder(":root{");
         for (Map.Entry<String, JsonElement> token : tokens.entrySet()) {
             if (!token.getKey().matches("--muse-[A-Za-z][\\w-]*") || !token.getValue().getAsString().matches("#[0-9a-fA-F]{6}")) throw new IllegalArgumentException("MHP_INVALID_THEME");

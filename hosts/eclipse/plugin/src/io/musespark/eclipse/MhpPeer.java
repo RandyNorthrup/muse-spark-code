@@ -52,10 +52,13 @@ public final class MhpPeer implements AutoCloseable {
         JsonObject frame = Json.object("jsonrpc", "2.0", "id", id, "method", method, "params", params);
         contract.call(frame);
         CompletableFuture<JsonElement> future = new CompletableFuture<>();
-        pending.put(id, new Pending(method, future));
+        synchronized (pending) {
+            if (pending.size() >= contract.queueMessages) throw new IllegalStateException("MHP_PANEL_BACKPRESSURE");
+            pending.put(id, new Pending(method, future));
+        }
         try { send(frame); } catch (RuntimeException ex) { pending.remove(id); throw ex; }
         future.orTimeout(100, TimeUnit.SECONDS).whenComplete((value, error) -> {
-            if (error != null && pending.remove(id) != null && !closed) notify("$/cancelRequest", Json.object("id", id));
+            if (error != null && pending.containsKey(id) && !closed) notify("$/cancelRequest", Json.object("id", id));
         });
         return future;
     }
@@ -229,7 +232,12 @@ public final class MhpPeer implements AutoCloseable {
         synchronized (queue) { if (closed) return; closed = true; queue.clear(); bytes = 0; messages = 0; queue.notifyAll(); }
         for (Pending request : pending.values()) request.result.completeExceptionally(new IOException("MHP_CLOSED"));
         pending.clear(); reader.shutdownNow(); writer.shutdownNow(); dispatch.shutdownNow();
+        host.shutdown();
         initialization.completeExceptionally(new IOException("MHP_CLOSED"));
-        try { input.close(); output.close(); } catch (IOException ex) { log.accept("MHP_CLOSE_FAILURE"); }
+        // Process pipe close may wait for a blocked writer; the owning session terminates its process.
+        Thread.startVirtualThread(() -> {
+            try { input.close(); } catch (IOException ex) { log.accept("MHP_CLOSE_FAILURE"); }
+            try { output.close(); } catch (IOException ex) { log.accept("MHP_CLOSE_FAILURE"); }
+        });
     }
 }

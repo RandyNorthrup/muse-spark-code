@@ -17,6 +17,8 @@ public final class Completion {
     private final WindowSession session;
     private JsonObject registration;
     private StyledText widget;
+    private TextViewer viewer;
+    private int modelCaret;
     private JsonObject suggestion;
     private long version;
     private int caret;
@@ -34,7 +36,7 @@ public final class Completion {
         event.doit = false;
         try {
             ITextEditor editor = session.documents.active();
-            if (editor == null || session.documents.descriptor(editor).get("version").getAsLong() != version || widget.getCaretOffset() != caret) { clear(true); return; }
+            if (editor == null || session.documents.descriptor(editor).get("version").getAsLong() != version || widget.getCaretOffset() != caret || modelOffset() != modelCaret) { clear(true); return; }
             JsonObject selected = suggestion; suggestion = null;
             JsonObject params = Json.object("uri", session.documents.uri(editor), "expectedVersion", version, "range", selected.get("range"), "text", selected.get("text"), "undoLabel", selected.get("id").getAsString());
             // Completion is the user's explicit Tab action: current dirty text is expected, not overwritten.
@@ -57,9 +59,10 @@ public final class Completion {
     private void attach() {
         ITextEditor editor = session.documents.active();
         ITextOperationTarget target = editor == null ? null : editor.getAdapter(ITextOperationTarget.class);
-        StyledText next = target instanceof TextViewer viewer ? viewer.getTextWidget() : null;
+        TextViewer nextViewer = target instanceof TextViewer text ? text : null;
+        StyledText next = nextViewer == null ? null : nextViewer.getTextWidget();
         if (widget == next) return;
-        detach(); widget = next;
+        detach(); viewer = nextViewer; widget = next;
         if (widget != null) { widget.addPaintListener(paint); widget.addVerifyKeyListener(key); widget.addModifyListener(modify); widget.addCaretListener(move); }
     }
     private void complete(String trigger) {
@@ -70,8 +73,10 @@ public final class Completion {
             JsonObject descriptor = session.documents.descriptor(editor);
             if (!registration.getAsJsonArray("languages").asList().contains(descriptor.get("languageId"))) return;
             IDocument document = session.documents.document(editor);
-            caret = widget.getCaretOffset(); version = descriptor.get("version").getAsLong(); long expected = ++generation;
-            JsonObject params = Json.object("uri", descriptor.get("uri"), "version", version, "position", Documents.position(document, caret), "context", Json.object("prefix", document.get(0, caret), "suffix", document.get(caret, document.getLength() - caret), "trigger", trigger));
+            caret = widget.getCaretOffset(); modelCaret = modelOffset();
+            if (modelCaret < 0 || modelCaret > document.getLength()) throw new IllegalArgumentException("MHP_INVALID_RANGE");
+            version = descriptor.get("version").getAsLong(); long expected = ++generation;
+            JsonObject params = Json.object("uri", descriptor.get("uri"), "version", version, "position", Documents.position(document, modelCaret), "context", Json.object("prefix", document.get(0, modelCaret), "suffix", document.get(modelCaret, document.getLength() - modelCaret), "trigger", trigger));
             org.eclipse.swt.widgets.Display display = widget.getDisplay();
             session.peer.request("tab/complete", params).whenComplete((result, error) -> { if (display.isDisposed()) return; display.asyncExec(() -> {
                 if (widget == null || widget.isDisposed() || generation != expected) return;
@@ -80,7 +85,8 @@ public final class Completion {
             }); });
         } catch (Exception ex) { MusePlugin.get().log("MHP_COMPLETION_FAILURE"); }
     }
+    private int modelOffset() { return viewer instanceof ITextViewerExtension5 projection ? projection.widgetOffset2ModelOffset(widget.getCaretOffset()) : viewer.getVisibleRegion().getOffset() + widget.getCaretOffset(); }
     private void clear(boolean rejected) { generation++; if (suggestion != null && rejected) session.notify("tab/rejected", Json.object("id", suggestion.get("id"))); suggestion = null; if (widget != null && !widget.isDisposed()) widget.redraw(); }
-    private void detach() { clear(true); if (widget != null && !widget.isDisposed()) { widget.removePaintListener(paint); widget.removeVerifyKeyListener(key); widget.removeModifyListener(modify); widget.removeCaretListener(move); } widget = null; }
+    private void detach() { clear(true); if (widget != null && !widget.isDisposed()) { widget.removePaintListener(paint); widget.removeVerifyKeyListener(key); widget.removeModifyListener(modify); widget.removeCaretListener(move); } widget = null; viewer = null; }
     public static void dispose(WindowSession session) { Completion instance = INSTANCES.remove(session); if (instance != null) { session.window.getSelectionService().removePostSelectionListener(instance.selection); instance.detach(); } }
 }

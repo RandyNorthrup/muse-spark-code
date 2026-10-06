@@ -71,7 +71,7 @@ public final class MuseView extends ViewPart {
                             case "post" -> binding.post(payload);
                             case "state" -> binding.state(payload);
                             case "getState" -> { if (!payload.isJsonNull()) throw new IllegalArgumentException("MHP_INVALID_REQUEST"); JsonElement state = binding.state(); return Json.object("present", state != null, "value", state).toString(); }
-                            case "ready" -> { if (!payload.isJsonNull()) throw new IllegalArgumentException("MHP_INVALID_REQUEST"); binding.ready(); loaded = true; }
+                            case "ready" -> { if (!payload.isJsonNull()) throw new IllegalArgumentException("MHP_INVALID_REQUEST"); binding.ready(); loaded = true; session.browserReady(); }
                             default -> throw new IllegalArgumentException("MHP_INVALID_REQUEST");
                         }
                         return null;

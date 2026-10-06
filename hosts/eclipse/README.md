@@ -62,3 +62,12 @@ companion-tabs fallback after B/C integration.
 
 The source is not a supported full product until the
 shared lanes are integrated and every feature in the certification is qualified.
+
+Review repairs cover bounded shutdown even for an unreading runtime, forced
+cleanup of captured descendants, owner cleanup after transport loss and
+bounded late cancellation replies. Completions use standard language IDs and
+full-document offsets in folded/restricted views. Recursive includes/excludes
+cover project-root files; admitted panel deliveries retain their reservation
+across reload and resume on ready. Asset bootstraps support apostrophes in
+state/workspace paths. See the FIXM104G tests and red drills in
+`../../docs/certification/m104-g.md`.

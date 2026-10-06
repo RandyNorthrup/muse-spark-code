@@ -11,6 +11,9 @@ print(json.dumps({"jsonrpc": "2.0", "id": "fake-init", "method": "initialize", "
 }}), flush=True)
 for line in sys.stdin:
     frame = json.loads(line)
+    if len(sys.argv) == 3 and sys.argv[1] == "--receipts":
+        with open(sys.argv[2], "a", encoding="utf-8") as receipts:
+            receipts.write(json.dumps(frame) + "\n")
     if frame.get("method") != "tab/complete":
         continue
     position = frame["params"]["position"]

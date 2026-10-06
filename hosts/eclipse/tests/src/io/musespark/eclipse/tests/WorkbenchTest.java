@@ -54,6 +54,14 @@ public class WorkbenchTest {
         documents.acceptCompletion(params); assertEquals("user completionalpha\nbeta\n", documents.document(editor).get());
         assertThrows(IllegalArgumentException.class, () -> documents.acceptCompletion(params));
     }
+    @Test public void standardLanguageIdsMatchRuntimeCompletionRegistrations() throws Exception {
+        Map<String, String> languages = Map.of("ts", "typescript", "tsx", "typescriptreact", "js", "javascript", "jsx", "javascriptreact", "py", "python", "txt", "plaintext", "TS", "typescript");
+        for (var entry : languages.entrySet()) {
+            IFile sample = project.getFile("language." + entry.getKey()); sample.create(new ByteArrayInputStream(new byte[0]), true, null); ITextEditor opened = (ITextEditor) org.eclipse.ui.ide.IDE.openEditor(PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage(), sample, "org.eclipse.ui.DefaultTextEditor");
+            try { assertEquals(entry.getKey(), entry.getValue(), documents.descriptor(opened).get("languageId").getAsString()); }
+            finally { PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage().closeEditor(opened, false); }
+        }
+    }
     private JsonObject params(long version, JsonArray edits) { return Json.object("uri", file.getLocationURI().toString(), "expectedVersion", version, "edits", edits, "undoLabel", "test"); }
     private static JsonObject edit(int sl, int sc, int el, int ec, String text) { return Json.object("range", Json.object("start", Json.object("line", sl, "character", sc), "end", Json.object("line", el, "character", ec)), "newText", text); }
     private static JsonArray array(JsonObject... edits) { JsonArray result = new JsonArray(); for (JsonObject edit : edits) result.add(edit); return result; }

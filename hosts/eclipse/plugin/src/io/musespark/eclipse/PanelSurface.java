@@ -16,14 +16,15 @@ public final class PanelSurface {
     private long outgoing = 1;
     private long incoming = 1;
     private boolean opened;
-    private boolean ready;
-    private boolean closed;
+    private volatile boolean ready;
+    private volatile boolean closed;
     private boolean reloading;
     private JsonElement state;
     public PanelSurface(Contract contract, String id, String session, String kind, Consumer<JsonObject> send, ToIntFunction<String> purge, Consumer<String> log) {
         this.contract = contract; this.id = id; this.session = session; this.kind = kind; this.send = send; this.purge = purge; this.log = log;
         contract.panel("binding", Json.object("surface", id, "sessionId", session, "surfaceKind", kind));
     }
+    public boolean isReady() { return ready && !closed; }
     public synchronized void opened() { if (opened || closed) throw new IllegalStateException("MHP_PANEL_INVALID_LIFECYCLE"); send.accept(lifecycle("opened")); opened = true; }
     public synchronized void ready() { checkOpen(); if (!opened) throw new IllegalStateException("MHP_PANEL_INVALID_LIFECYCLE"); send.accept(lifecycle("ready")); ready = true; }
     public synchronized void reload() {
