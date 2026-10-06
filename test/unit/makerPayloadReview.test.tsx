@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MAKER_REVIEW_SMALL_ROWS, UI_TEXT } from '../../src/shared/constants'
@@ -57,6 +57,95 @@ it('invalid UTF-8, bidi, zero-width and combining marks cannot hide bytes', asyn
   const literal = await prepare(String.raw`\xFF␍`)
   expect(literal.rows.map((row) => row.text).join('')).toBe(String.raw`\\xFF\xe2\x90\x8d`)
 })
+it('BOM bytes at the start and inside a payload are always visible', async () => {
+  const payload = await prepare('efbbbf4d313035efbbbf0d0a', 'hex')
+  expect(payload.rows.map((row) => row.text).join('')).toBe(
+    String.raw`\xef\xbb\xbfM105\xef\xbb\xbf␍␊`,
+  )
+})
+it('random byte strings round-trip from the canonical rendering with every byte accounted for', async () => {
+  const samples = [
+    Uint8Array.from({ length: 256 }, (_, byte) => byte),
+    new TextEncoder().encode('\u{FEFF}hello\\␍界\u{FEFF}\r\n'),
+    ...Array.from({ length: 100 }, (_, index) => randomBytes(index * 2)),
+  ]
+  for (const bytes of samples) {
+    const payload = await canonicalPayload(bytes, 64, () => 8, new AbortController().signal)
+    const characters =
+      payload.rows
+        .map((row) => row.text)
+        .join('')
+        .match(/./gu) ?? []
+    const restored: number[] = []
+    for (let index = 0; index < characters.length; index += 1) {
+      const character = characters[index] ?? ''
+      if (character === '\\') {
+        if (characters[index + 1] === '\\') {
+          restored.push(92)
+          index += 1
+        } else {
+          expect(characters[index + 1]).toBe('x')
+          restored.push(Number.parseInt(characters.slice(index + 2, index + 4).join(''), 16))
+          index += 3
+        }
+      } else {
+        const point = character.codePointAt(0) ?? 0
+        restored.push(
+          ...(point >= 0x24_00 && point < 0x24_20
+            ? [point - 0x24_00]
+            : new TextEncoder().encode(character)),
+        )
+      }
+    }
+    expect(Uint8Array.from(restored)).toEqual(Uint8Array.from(bytes))
+  }
+})
+it.each([
+  'M302',
+  'M302 P',
+  'M302 P2',
+  'M302 S1',
+  'M302 P0 S170',
+  'M0302P2',
+  'M211 S0',
+  'M0211S0',
+  'M121',
+  'M80',
+  'M81',
+  '$20=0',
+  '$21=0',
+  'M564 S0',
+  'M564 H0',
+  'M570 H1 P0',
+  'M143 H1 S999',
+  'THERMAL_RUNAWAY OFF',
+  'THERMAL_PROTECTION ENABLED=0',
+  'VERIFY_HEATER ENABLE=0',
+  'SET_KINEMATIC_POSITION X900',
+  'SET_HEATER_TEMPERATURE HEATER=extruder TARGET=999',
+  'TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=999',
+])('safety-sensitive command %s always needs the extra acknowledgement', async (content) => {
+  const { send } = await approval(content)
+  expect(screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers)).toBeInTheDocument()
+  act(() => {
+    browser.visible()
+  })
+  expect(send).toBeDisabled()
+  fireEvent.click(screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers))
+  expect(send).toBeEnabled()
+})
+it.each(['M104 S201', 'M109 R201', 'M140 S71', 'M190 R71', 'M141 S40', 'M191 R40'])(
+  'over-limit or unconfigured heater %s needs acknowledgement',
+  async (content) => {
+    const summary = await summarizePayload(
+      outgoingPayloadBytes(content, 'text'),
+      uiApproval(),
+      { extruder: 200, bed: 70 },
+      new AbortController().signal,
+    )
+    expect(summary.highlights).toContainEqual(expect.objectContaining({ reason: 'temperature' }))
+  },
+)
 it('long unbroken and wide Unicode tokens wrap to the measured width', async () => {
   const bytes = outgoingPayloadBytes('界'.repeat(80) + 'W'.repeat(1000), 'text')
   const payload = await canonicalPayload(

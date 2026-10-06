@@ -4160,7 +4160,9 @@ The fixed-width rendering wraps to the measured container and mounts only
 visible rows. At most 200 rendered rows require scrolling the real payload
 container to its end once. Larger payloads require summary/digest confirmation;
 highlighted dangers always need an additional acknowledgement. Search and
-Next highlight reach unmounted material. Approval does not prove that the person
+Next highlight reach unmounted material. UTF-8 BOMs are escaped wherever they
+occur; safety-sensitive commands including every M302 spelling need additional
+acknowledgement. Approval does not prove that the person
 looked at every byte. Reject and Send once have equal styling and sizing.
 
 Completed review posts `makerPayloadReviewed {id, digest, isComplete}`. The

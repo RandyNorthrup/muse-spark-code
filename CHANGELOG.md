@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker canonical review preserves and visibly escapes BOM bytes everywhere,
+  with randomized exact-byte round-trip coverage. Every M302 spelling and
+  conservative power, protection, soft-limit and firmware-equivalent highlights
+  require the extra danger acknowledgement.
+
 - Maker summary highlights now follow CR-only line endings and padded numeric
   command codes. Compound blocks disclose unknown effects. Summary preparation
   avoids allocating heater maps and irrelevant parameter scans per motion line.

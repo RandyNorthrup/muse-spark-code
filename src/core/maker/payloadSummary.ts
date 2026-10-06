@@ -105,15 +105,17 @@ export async function summarizePayload(
       if (isTravelUnsafe || bounds === undefined) highlight('travel')
     }
     if (
-      head === 'M121' ||
-      (head === 'M211' && parameter('S') === 0) ||
-      (head === 'M302' && (parameter('P') === 1 || parameter('S') === 0)) ||
+      // Command-wide acknowledgement avoids firmware boolean/parameter spelling gaps.
+      /^(?:M(?:80|81|121|143|211|302|564|570)|SET_KINEMATIC_POSITION|FORCE_MOVE|SET_VELOCITY_LIMIT|SET_PIN|SHUTDOWN_MACHINE)$/.test(
+        head,
+      ) ||
       /\$(?:20|21)\s*=\s*0\b/.test(command) ||
-      /(?:THERMAL_RUNAWAY|THERMAL_PROTECTION|VERIFY_HEATER).*?(?:OFF|(?:ENABLE|ENABLED)\s*=\s*0)/.test(
-        command,
-      )
+      /THERMAL_RUNAWAY|THERMAL_PROTECTION|VERIFY_HEATER/.test(command)
     )
       highlight('safety')
+    // These firmware equivalents lack a portable heater-to-limit mapping; disclose the risk.
+    if (/^(?:G10|M568|SET_HEATER_TEMPERATURE|TEMPERATURE_WAIT)$/.test(head))
+      highlight('temperature')
     if (
       analysis?.unknown.includes(head) ||
       analysis?.unknown.includes(rawHead) ||

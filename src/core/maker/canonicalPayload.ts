@@ -55,7 +55,8 @@ function tokenAt(
   if (byte >= MAKER_REVIEW_UTF8_TWO && offset + size <= bytes.length) {
     const sequence = bytes.subarray(offset, offset + size)
     try {
-      const text = new TextDecoder('utf-8', { fatal: true }).decode(sequence)
+      // Keep BOMs as characters so the hidden-character escape accounts for their bytes.
+      const text = new TextDecoder('utf-8', { ignoreBOM: true, fatal: true }).decode(sequence)
       // Marks are escaped even after a base: their bytes never disappear in a composed glyph.
       return {
         text: /[\p{C}\p{M}\p{Z}\u{2400}-\u{2426}]/u.test(text)

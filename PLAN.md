@@ -18935,6 +18935,19 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103U5 (2026-10-06, Mac mini).** Address every RVM103U4 finding
+within U's existing architecture: preserve BOM bytes in the reversible
+canonical rendering, conservatively acknowledge safety/power commands and
+firmware equivalents, time-slice and cancel search independently of Stop,
+and reload using a small UI marker followed by host-owned pending-approval
+replay. The host revokes review readiness before replay; no payload or grant
+is restored from browser storage. Add exact-byte randomized round trips,
+danger-spelling regressions, a worst-case 100,000-line Chrome Stop test and
+large-payload reload coverage. Record byte-exact red drills in
+`docs/certification/m103-u.md`. No dependency, widened admission guard,
+merge, live/model/hardware call or aggregate quality run; the lead owns
+integration and installed-adapter qualification.
+
 **REDM103U (2026-10-06, Win11).** Replace the per-segment visibility proof
 with the lead's canonical-rendering, summary and digest approval rule. Add
 bounded async preparation and virtual rows measured against the container,
