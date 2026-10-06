@@ -9,7 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 - M106 strict-tool declarations reuse M101's schema rewrite. Convertible
   MCP tools become strict on capable models; unsupported schemas retain
-  non-strict arguments and produce one named conversion note. Strict-off
+  non-strict arguments and produce one named conversion note. Nullable
+  optionals restore correctly even after repeated strict encoding. Strict-off
   request goldens remain unchanged. Session-setting registration and the
   counted live M75 pair remain integration work.
 

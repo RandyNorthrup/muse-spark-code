@@ -37,7 +37,11 @@ import {
   MODEL_API_TOOLS,
   OBS_PACK_PAGE_CHARS,
 } from '../../src/shared/constants'
-import { isToolSchemaGrammarSafe, withStrictTools } from '../../src/core/backends/modelapi/schemas'
+import {
+  isToolSchemaGrammarSafe,
+  restoreOptionalToolArguments,
+  withStrictTools,
+} from '../../src/core/backends/modelapi/schemas'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -501,6 +505,21 @@ describe('toolDefinitions / classifyTool', () => {
 })
 
 describe('strict tool schemas and grammar safety (M101 item 24)', () => {
+  it('restores nullable optionals from already rewritten and twice rewritten declarations (M106)', () => {
+    const definitions = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: false,
+      shouldUseStrictTools: true,
+    })
+    for (const rewritten of [definitions, withStrictTools(definitions, true)]) {
+      const read = rewritten.find((tool) => tool.name === 'read_file')
+      if (read === undefined) throw new Error('missing read_file')
+      expect(
+        restoreOptionalToolArguments('{"path":"a.txt","offset":null,"limit":null}', read),
+      ).toBe('{"path":"a.txt"}')
+    }
+  })
+
   it.each(['linux', 'darwin', 'win32'] as const)(
     'rewrites every harness declaration through the effective strict option on %s (M106)',
     (platform) => {

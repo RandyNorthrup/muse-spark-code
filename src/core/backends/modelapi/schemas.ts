@@ -362,6 +362,7 @@ export type InputItem =
 
 /** MCP conversion evidence stays off the wire and survives copying a declaration. */
 export const NON_STRICT_TOOL = Symbol('nonStrictTool')
+const ORIGINAL_TOOL_PARAMETERS = Symbol('originalToolParameters')
 
 export interface FunctionToolDefinition {
   readonly type: 'function'
@@ -373,6 +374,8 @@ export interface FunctionToolDefinition {
   readonly strict: boolean
   /** The original MCP schema cannot convert losslessly; never auto-promote its fitted schema. */
   readonly [NON_STRICT_TOOL]?: true
+  /** Preserve omission semantics through repeated strict encodings; also absent from JSON. */
+  readonly [ORIGINAL_TOOL_PARAMETERS]?: Record<string, unknown>
 }
 
 /**
@@ -400,7 +403,12 @@ export function withStrictTools(
         if (tool.parameters['type'] !== 'object') {
           throw new Error('strict_tool_schema_unsupported')
         }
-        return { ...tool, parameters: strictToolSchema(tool.parameters), strict: true }
+        return {
+          ...tool,
+          parameters: strictToolSchema(tool.parameters),
+          strict: true,
+          [ORIGINAL_TOOL_PARAMETERS]: tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters,
+        }
       })
     : tools
 }
@@ -434,7 +442,7 @@ export function restoreOptionalToolArguments(json: string, tool: FunctionToolDef
       }),
     )
   }
-  return JSON.stringify(restore(value, tool.parameters))
+  return JSON.stringify(restore(value, tool[ORIGINAL_TOOL_PARAMETERS] ?? tool.parameters))
 }
 
 // Conservative common strict subset. Unknown/unsupported constraints refuse

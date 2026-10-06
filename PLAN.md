@@ -21746,7 +21746,7 @@ every Model API user in every editor.
 **Lane T mechanism delivered (2026-10-05, Kubuntu).** The four owned source
 regions consume FIXM101P2's rewrite, retain non-strict MCP fallback and its
 argument bytes, and expose injected effective-session options. Seven paired
-goldens preserve all original off bytes; the fake M75 pair and twelve red
+goldens preserve all original off bytes; the fake M75 pair and fifteen red
 drills are in `docs/certification/m106-t.md`. Registration and portable
 session-setting binding are **M106T-SESSION-BINDING** (W); evidence-record
 mapping is **M106T-CAPTURE-BINDING** (M95/W); the feature catalog/docs update
@@ -22393,6 +22393,18 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**M106T-MODELAPI-BUDGET (2026-10-05, Kubuntu; lane W binding).** The
+required merge baseline `33ef31aa2`, before T's changes, builds
+`dist/modelApi.js` at 486,485 bytes, 85 bytes above the unchanged 475 KiB
+(486,400-byte) cap. T adds strict conversion and restoration code; its final
+size and failing size gate are recorded in `docs/certification/m106-t.md`.
+Baseline comparison restored all four owned source files byte-exact. No
+threshold is raised and no full build/quality pass is claimed. W owns the
+bundle layout and must reduce/split it before integration is certified.
+The base also lacks the feature catalog/reference generator and the
+`check:reference` script; **M106T-HELP-REFERENCE** records the integration
+entry instead of claiming a nonexistent gate passed.
 
 **M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
 `VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing

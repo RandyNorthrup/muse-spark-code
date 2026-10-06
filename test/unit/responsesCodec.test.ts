@@ -199,9 +199,10 @@ describe('responsesCodec encodeRequest', () => {
         }).definition,
     )
     const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true })
-    expect(codec.encodeRequest({ ...firstTurnBody(), tools })['tools']).toEqual(
-      captured.request.tools,
-    )
+    // Compare the JSON wire: private conversion symbols are not request fields.
+    const serialized = JSON.stringify(codec.encodeRequest({ ...firstTurnBody(), tools })['tools'])
+    const wireTools: unknown = JSON.parse(serialized)
+    expect(wireTools).toEqual(captured.request.tools)
   })
 
   it('keeps explicit strict-off bytes with a capable model and gates strict-on by its record (M106)', () => {
