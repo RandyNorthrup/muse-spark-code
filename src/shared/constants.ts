@@ -8,6 +8,26 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 export const PRODUCT_NAME = 'Muse Spark'
 
+// M110 T: local terminal surface only; the MHP binding is injected by lane N.
+export const TUI_LIMITS = {
+  frameBytes: 256 * 1024,
+  transcriptChars: 32 * 1024,
+  transcriptEntries: 100,
+  pendingAsks: 100,
+  tasks: 100,
+  inputChars: 8000,
+  setupCodeChars: 128,
+  statusHeaderRows: 2,
+  connectMs: 5000,
+  refreshMs: 1000,
+  terminalColumns: 80,
+  terminalRows: 24,
+  minimumColumns: 20,
+  minimumRows: 8,
+  permissionMask: 0o077,
+  currencyDigits: 2,
+} as const
+
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'

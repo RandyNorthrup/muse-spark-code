@@ -16,6 +16,29 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M110 T: terminal surface, read only at render/dispatch time.
+  tuiInvalidFrame: 'The node sent an invalid or oversized frame.',
+  tuiConnecting: 'Connecting to the node…',
+  tuiAttended: 'Attended',
+  tuiUnattended: 'Unattended',
+  tuiResources: 'CPU {cpu}; memory {memory}',
+  tuiSealed: 'Key store sealed',
+  tuiUnlocked: 'Key store unlocked',
+  tuiPaidCost: 'Paid: {price}. Shared daily budget: {budget}.',
+  tuiFingerprint: 'Certificate SHA-256: {fingerprint}',
+  tuiSetupCode: 'One-time setup code: {code}',
+  tuiYou: 'You',
+  tuiAgent: 'Agent',
+  tuiAnswered: 'Request answered.',
+  tuiUnsafeSocket: 'The local socket and its folder must be private and owned by this user.',
+  tuiDisconnected: 'The node connection ended or could not be opened.',
+  tuiStopRequested: 'Stop everything requested.',
+  tuiInputTooLong: 'The message is too long.',
+  tuiKeys: 'Esc: Stop all | Tab: views | ↑/↓: scroll | Enter: send | numbers: choose',
+  tuiUsage: 'Usage: muse-spark-code-acp tui [--screen-reader] [--no-color]',
+  tuiRendererMissing: 'The terminal renderer is not installed.',
+  tuiLineKeys:
+    'Esc: Stop all. /stop /chat /diff /tasks /status. Enter sends. Choose an approval by number; Enter alone never approves.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
