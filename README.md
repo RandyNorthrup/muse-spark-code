@@ -3976,9 +3976,21 @@ model's tool capability. Hardware off hides device operations; registered
 machines keep Stop available. Tools cannot supply credentials, addresses,
 approval tokens or a hardware-enable reason. Serial opening and every send
 use the engine's single-use target binding and native Send once / Reject
-modal. Long exact payloads open read-only in the shared preview before the
-modal. A lost acknowledgement remains `sentOutcomeUnknown`, even if the
-notification fails; read status before considering another send.
+modal. Each long payload has its own read-only preview, keyed by approval UUID.
+Send once is offered only after delivery and a rendered-byte acknowledgement
+matching the request's digest. Closing or reloading that preview cancels its
+approval; another request cannot replace it. A lost acknowledgement remains
+`sentOutcomeUnknown`; passive notices never delay the tool result or a failed
+Stop. Read status before considering another send.
+
+W binds `openApprovalPreview(request, signal)` to the preview adapter's
+`openApproval`. U's owned page validates the host-only `makerApprovalPreview`
+message (`v: 1`, `request`), renders the complete exact payload, then sends
+`makerPreviewRendered` (`v: 1`, approval `id`, SHA-256 `digest` computed from
+the rendered bytes, decoding serial hex). Ready or successful `postMessage`
+alone cannot enable Send once. This handshake is separate from the portable
+maker protocol; missing renderer support expires refused. The shared preview
+page assets remain U/W's integration handoff.
 
 OctoPrint registration uses the engine's Read-only Access appkeys flow instead
 of a pasted key. This trunk has no captured appkeys implementation; wiring must

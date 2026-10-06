@@ -18767,9 +18767,14 @@ groups of at most three, typecheck, changed-file lint/format, localization,
 plain Knip, duplication, host API inventory and production build/caps/split.
 Native UI/device/physical qualification and aggregate quality remain E/W/lead
 obligations. No existing cap, threshold, hook or rule changes. V adds two
-lazy host entries with 25 KiB caps. The exact browser startup comparison
-against `c0e6c146` grows by **137 bytes**, entirely from three required
-English fallback keys; no maker UI/engine source enters startup. Strict
+lazy host entries with 25 KiB caps. FIXM103V restores every changed existing
+source input at `c0e6c1467` in memory with identical production options:
+browser startup **813,602 → 813,739 bytes (+137)**, activation
+**444,439 → 444,439 bytes (+0)**. The reviewed unused multiplication added
+another 14 bytes; the literal initializer removes it. The remaining browser
+growth is entirely three required English fallback keys; no maker UI/engine
+source enters startup. Named residual M103V-STARTUP-FALLBACK in §9 requires
+the lead's exact-byte waiver. Strict
 zero-byte startup growth (M103 acceptance 17) remains an explicit W handoff;
 the inline complete English browser fallback is retained as D6 requires.
 
@@ -18928,6 +18933,19 @@ ledger-format check remains deferred for this established plan format.
 Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
+
+**FIXM103V review repair (2026-10-06, Kubuntu).** Address all four
+RVM103V findings inside V's adapter files: verify the digest of the actual
+displayed bytes; require delivered/rendered acknowledgement before offering
+native Send once for long payloads; keep a separate immutable preview per
+approval UUID and cancel on close/reload; detach passive notices from tool
+outcomes and failed Stop; compare production startup against every changed
+source input at `c0e6c1467`, removing the unused constant initializer growth.
+The portable MakerHost and versioned maker protocol remain unchanged. V's
+native preview handshake is host-owned; U/W must implement its rendered-byte
+acknowledgement before wiring long approvals (otherwise they expire refused).
+Add pre-fix regression failures and byte-exact red drills, preserve caps and
+hooks, and record any remaining startup bytes for the lead's waiver in §9.
 
 **Lane V scope (2026-10-05, Kubuntu).** Implement the VS Code `MakerHost`
 adapter, canonical host storage and SecretStorage, native single-use approval
@@ -20853,6 +20871,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M103V-STARTUP-FALLBACK (FIXM103V / RVM103V P3, 2026-10-06).**
+  Full-base production comparison against `c0e6c1467`: browser startup
+  813,602 → 813,739 bytes (**+137**), activation 444,439 → 444,439 (**+0**).
+  The unintended 14-byte unused maker constant has been removed. The remaining
+  bytes are the three translated UI labels' complete English fallback, required
+  by D6; no maker implementation enters startup and all caps stay unchanged.
+  Safe for now: this is bounded static text below the existing 900 KiB startup
+  cap, with no newly activated device code. Follow-up: the lead must accept
+  exactly 137 bytes or W must remove them before claiming M103 acceptance 17.
+  This lane does not grant that waiver. Both P1s and the P2 are fixed; no safety
+  finding is deferred. U/W's existing unexposed page handoff must implement the
+  host-owned rendered-byte handshake; until then long approvals expire refused.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

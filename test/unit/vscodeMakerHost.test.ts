@@ -5,10 +5,11 @@ import path from 'node:path'
 import type * as vscode from 'vscode'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MakerApproval } from '../../src/core/maker/ports'
+import { MakerPreviewPanel } from '../../src/host/maker/makerPreviewPanel'
 import { createVscodeMakerHost, type VscodeMakerDeps } from '../../src/host/maker/vscodeMakerHost'
 import { MAKER_COMMANDS, MAKER_MODAL_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
 import type { ApprovalRequest, MakerMachineSummary } from '../../src/shared/makerProtocol'
-import { FakeLogOutputChannel } from './helpers/fakes'
+import { FakeLogOutputChannel, FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
 import { memento } from './helpers/memento'
 import { EventEmitter, FakeStatusBarItem, Uri, window, workspace } from './mocks/vscode'
 
@@ -77,10 +78,32 @@ async function harness() {
     isInteractive: () => state.interactive,
     stop: vi.fn<(id?: string) => Promise<void>>().mockResolvedValue(undefined),
     openPreview: vi.fn<VscodeMakerDeps['openPreview']>().mockResolvedValue(undefined),
+    openApprovalPreview: vi
+      .fn<VscodeMakerDeps['openApprovalPreview']>()
+      .mockImplementation((input) =>
+        Promise.resolve({
+          id: input.id,
+          digest: input.digest,
+          signal: new AbortController().signal,
+          dispose: vi.fn(),
+        }),
+      ),
   }
   const host = await createVscodeMakerHost(deps)
   hosts.push(host)
   return { host, deps, state, workspaceValues, machineValues, getSecret, storeSecret, deleteSecret }
+}
+async function previewHarness() {
+  const fixture = await harness()
+  const port = new MakerPreviewPanel({ ...fakeHostContext(), stop: fixture.deps.stop })
+  hosts.push(port)
+  vi.mocked(fixture.deps.openPreview).mockImplementation(async (input) => {
+    await port.open(input)
+  })
+  vi.mocked(fixture.deps.openApprovalPreview).mockImplementation(
+    async (input, signal) => await port.openApproval(input, signal),
+  )
+  return fixture
 }
 beforeEach(() => {
   workspace.isTrusted = true
@@ -89,6 +112,8 @@ beforeEach(() => {
   window.showInformationMessage.mockReset()
   window.showErrorMessage.mockReset()
   window.createStatusBarItem.mockReset()
+  window.createWebviewPanel.mockReset()
+  window.createWebviewPanel.mockImplementation((type, title) => new FakeWebviewPanel(type, title))
 })
 afterEach(async () => {
   for (const host of hosts.splice(0)) host.dispose()
@@ -109,6 +134,226 @@ async function expectSettled(pending: Promise<unknown>): Promise<void> {
 }
 
 describe('VS Code maker port', () => {
+  it('waits for exact rendered payload delivery before offering native Send once', async () => {
+    const { host } = await previewHarness()
+    vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
+    const payload = 'G1 X1\n'.repeat(34)
+    const input = {
+      ...request(),
+      kind: 'command',
+      payload,
+      digest: createHash('sha256').update(payload).digest('hex'),
+    } as const
+    const approval = new MakerApproval(input, () => true)
+    const pending = host.confirm(approval.request)
+    for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+    expect(modal).not.toHaveBeenCalled()
+    const view = window.createWebviewPanel.mock.results.at(-1)?.value
+    if (!(view instanceof FakeWebviewPanel)) throw new Error('missing approval preview')
+    expect(view.webview.postMessage).not.toHaveBeenCalled()
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+    expect(modal).not.toHaveBeenCalled()
+    expect(view.webview.postMessage).toHaveBeenCalledWith({
+      v: 1,
+      type: 'makerApprovalPreview',
+      request: input,
+    })
+    view.webview.messages.fire({
+      v: 1,
+      type: 'makerPreviewRendered',
+      id: input.id,
+      digest: 'b'.repeat(64),
+    })
+    await Promise.resolve()
+    expect(modal).not.toHaveBeenCalled()
+    view.webview.messages.fire({
+      v: 1,
+      type: 'makerPreviewRendered',
+      id: input.id,
+      digest: input.digest,
+    })
+    const answer = await pending
+    expect(answer).toMatchObject({ digest: input.digest, decision: 'allow_once' })
+    expect(approval.answer(answer)).toBeDefined()
+  })
+  it.each(['close', 'reload'])(
+    'keeps each pending approval preview immutable and cancels on %s before a late Send once',
+    async (event) => {
+      const { host } = await previewHarness()
+      const answers = [
+        Promise.withResolvers<vscode.MessageItem | undefined>(),
+        Promise.withResolvers<vscode.MessageItem | undefined>(),
+      ]
+      vi.mocked(modal).mockImplementation(
+        () =>
+          answers[vi.mocked(modal).mock.calls.length - 1]?.promise ?? Promise.resolve(undefined),
+      )
+      const requests = ['A', 'B'].map((name) => {
+        const payload = `${name}\n`.repeat(34)
+        return {
+          ...request(),
+          kind: 'command',
+          payload,
+          digest: createHash('sha256').update(payload).digest('hex'),
+        } as const
+      })
+      const inputA = requests[0]
+      const inputB = requests[1]
+      if (inputA === undefined || inputB === undefined) throw new Error('missing requests')
+      const pendingA = host.confirm(inputA)
+      const first = window.createWebviewPanel.mock.results.at(-1)?.value
+      if (!(first instanceof FakeWebviewPanel)) throw new Error('missing first preview')
+      first.webview.messages.fire({ v: 1, type: 'makerReady' })
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+      first.webview.messages.fire({
+        v: 1,
+        type: 'makerPreviewRendered',
+        id: inputA.id,
+        digest: inputA.digest,
+      })
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+      const pendingB = host.confirm(inputB)
+      expect(window.createWebviewPanel).toHaveBeenCalledTimes(2)
+      const second = window.createWebviewPanel.mock.results.at(-1)?.value
+      if (!(second instanceof FakeWebviewPanel)) throw new Error('missing second preview')
+      second.webview.messages.fire({ v: 1, type: 'makerReady' })
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+      second.webview.messages.fire({
+        v: 1,
+        type: 'makerPreviewRendered',
+        id: inputB.id,
+        digest: inputB.digest,
+      })
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+      expect(first.webview.postMessage).toHaveBeenCalledOnce()
+      expect(first.webview.postMessage).toHaveBeenLastCalledWith({
+        v: 1,
+        type: 'makerApprovalPreview',
+        request: inputA,
+      })
+      if (event === 'close') first.dispose()
+      else first.webview.messages.fire({ v: 1, type: 'makerReady' })
+      await expectSettled(pendingA)
+      answers[0]?.resolve(vi.mocked(modal).mock.calls[0]?.[2])
+      answers[1]?.resolve(vi.mocked(modal).mock.calls[1]?.[2])
+      expect(await pendingB).toMatchObject({
+        id: inputB.id,
+        digest: inputB.digest,
+        decision: 'allow_once',
+      })
+    },
+  )
+  it('expires an undelivered approval preview and ignores late Ready and acknowledgement', async () => {
+    const { host } = await previewHarness()
+    vi.useFakeTimers()
+    const payload = 'G1 X1\n'.repeat(34)
+    const input = {
+      ...request(),
+      kind: 'command',
+      payload,
+      digest: createHash('sha256').update(payload).digest('hex'),
+    } as const
+    const pending = host.confirm(input)
+    const view = window.createWebviewPanel.mock.results.at(-1)?.value
+    if (!(view instanceof FakeWebviewPanel)) throw new Error('missing approval preview')
+    await vi.advanceTimersByTimeAsync(10_000)
+    await expectSettled(pending)
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    view.webview.messages.fire({
+      v: 1,
+      type: 'makerPreviewRendered',
+      id: input.id,
+      digest: input.digest,
+    })
+    await Promise.resolve()
+    expect(view.webview.postMessage).not.toHaveBeenCalled()
+    expect(modal).not.toHaveBeenCalled()
+  })
+  it('refuses a trunk digest that differs from the displayed bytes', async () => {
+    const { host } = await harness()
+    vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
+    const input = { ...request(), digest: 'b'.repeat(64) }
+    const approval = new MakerApproval(input, () => true)
+    expect(approval.answer(await host.confirm(approval.request))).toBeUndefined()
+    expect(modal).not.toHaveBeenCalled()
+  })
+  it.each(['id', 'digest', 'closed', 'changedDigest'])(
+    'refuses a preview receipt with %s at native decision time',
+    async (fault) => {
+      const { host, deps } = await harness()
+      const payload = 'G1 X1\n'.repeat(34)
+      const input = {
+        ...request(),
+        kind: 'command',
+        payload,
+        digest: createHash('sha256').update(payload).digest('hex'),
+      } as const
+      const closed = new AbortController()
+      const receipt = {
+        id: input.id,
+        digest: input.digest,
+        signal: closed.signal,
+        dispose: vi.fn(),
+      }
+      switch (fault) {
+        case 'id': {
+          receipt.id = randomUUID()
+          break
+        }
+        case 'digest': {
+          receipt.digest = 'b'.repeat(64)
+          break
+        }
+        case 'closed': {
+          closed.abort()
+          break
+        }
+        default: {
+          break
+        }
+      }
+      vi.mocked(deps.openApprovalPreview).mockResolvedValue(receipt)
+      vi.mocked(modal).mockImplementation((_message, _options, ...items) => {
+        if (fault === 'changedDigest') receipt.digest = 'b'.repeat(64)
+        return Promise.resolve(items[0])
+      })
+      expect(await host.confirm(input)).toBeUndefined()
+      expect(receipt.dispose).toHaveBeenCalled()
+      if (fault !== 'changedDigest') expect(modal).not.toHaveBeenCalled()
+    },
+  )
+  it('delivers passive notices and failed Stop without waiting for dismissal', async () => {
+    const { host, deps } = await harness()
+    const toast = Promise.withResolvers<undefined>()
+    vi.mocked(modal).mockReturnValue(toast.promise)
+    window.showInformationMessage.mockReturnValue(toast.promise)
+    window.showErrorMessage.mockReturnValue(toast.promise)
+    try {
+      await expectSettled(host.notify('sentOutcomeUnknown'))
+      await expectSettled(host.notify({ type: 'makerNotice', level: 'info', message: 'info' }))
+      await expectSettled(host.notify({ type: 'makerNotice', level: 'error', message: 'error' }))
+      vi.mocked(deps.stop).mockRejectedValue(new Error('stop failed'))
+      const failure = (async () => {
+        try {
+          await host.stop()
+          return undefined
+        } catch (error: unknown) {
+          return error
+        }
+      })()
+      const state = { settled: false }
+      void failure.then(() => {
+        state.settled = true
+      })
+      for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+      expect(state.settled).toBe(true)
+      expect(await failure).toEqual(new Error(UI_TEXT.makerUnavailable))
+    } finally {
+      toast.resolve(undefined)
+    }
+  })
+
   it('shows the complete target and payload and offers only Send once and Reject', async () => {
     const { host } = await harness()
     vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
@@ -194,7 +439,7 @@ describe('VS Code maker port', () => {
       kind: 'serial',
       action: 'connect',
       id: randomUUID(),
-      digest: 'a'.repeat(64),
+      digest: createHash('sha256').update(Buffer.from('00ff', 'hex')).digest('hex'),
       expiresAt: Date.now() + 10_000,
       target: { kind: 'serial', port: '/dev/ttyACM0' },
       payload: { encoding: 'hex', value: '00ff' },
@@ -205,7 +450,15 @@ describe('VS Code maker port', () => {
       warnsAboutReset: true,
       flashIdentity: { status: 'unknown' },
     }
-    await host.confirm(serial)
+    expect(await host.confirm(serial)).toMatchObject({
+      digest: serial.digest,
+      decision: 'allow_once',
+    })
+    const approval = new MakerApproval(
+      { ...serial, digest: createHash('sha256').update('00ff').digest('hex') },
+      () => true,
+    )
+    expect(approval.answer(await host.confirm(approval.request))).toBeUndefined()
     expect(vi.mocked(modal).mock.calls.at(-1)?.[1].detail).toContain(UI_TEXT.makerResetWarning)
     expect(vi.mocked(modal).mock.calls.at(-1)?.[1].detail).toContain('"encoding":"hex"')
     expect(vi.mocked(modal).mock.calls.at(-1)?.[1].detail).toContain('00ff')
@@ -222,7 +475,7 @@ describe('VS Code maker port', () => {
       kind: 'machine',
       action: 'actuate',
       id: randomUUID(),
-      digest: 'a'.repeat(64),
+      digest: createHash('sha256').update('G1 X10').digest('hex'),
       expiresAt: Date.now() + 10_000,
       target: {
         kind: 'machine',
@@ -324,19 +577,18 @@ describe('VS Code maker port', () => {
       ...request(),
       kind: 'command',
       payload: 'x'.repeat(MAKER_MODAL_MAX_CHARS + 1),
+      digest: createHash('sha256')
+        .update('x'.repeat(MAKER_MODAL_MAX_CHARS + 1))
+        .digest('hex'),
     } as const
     vi.mocked(modal).mockImplementation((_message, _options, ...items) => Promise.resolve(items[0]))
     await host.confirm(input)
-    expect(deps.openPreview).toHaveBeenCalledWith({
-      kind: 'payload',
-      title: UI_TEXT.makerPayloadLabel,
-      content: input.payload,
-    })
-    expect(vi.mocked(deps.openPreview).mock.invocationCallOrder[0]).toBeLessThan(
+    expect(deps.openApprovalPreview).toHaveBeenCalledWith(input, expect.any(AbortSignal))
+    expect(vi.mocked(deps.openApprovalPreview).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(modal).mock.invocationCallOrder[0] ?? 0,
     )
     const wait = Promise.withResolvers<undefined>()
-    vi.mocked(deps.openPreview).mockReturnValue(wait.promise)
+    vi.mocked(deps.openApprovalPreview).mockReturnValue(wait.promise)
     const pending = host.confirm(input)
     await host.stop()
     await expectSettled(pending)

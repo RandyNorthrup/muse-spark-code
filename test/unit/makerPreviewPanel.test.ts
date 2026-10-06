@@ -1,6 +1,7 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MakerPreviewPanel } from '../../src/host/maker/makerPreviewPanel'
+import type { ApprovalRequest } from '../../src/shared/makerProtocol'
 import { MAKER_PREVIEW_VIEW_TYPE } from '../../src/shared/constants'
 import { FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
 import { window } from './mocks/vscode'
@@ -30,7 +31,167 @@ const preview = {
   content: '<script>G1 X1</script>',
 } as const
 
+function approval(): Extract<ApprovalRequest, { kind: 'command' }> {
+  const payload = 'G1 X1\n'.repeat(34)
+  return {
+    kind: 'command',
+    action: 'program',
+    id: randomUUID(),
+    digest: createHash('sha256').update(payload).digest('hex'),
+    target: { kind: 'serial', port: '/dev/ttyACM0' },
+    expiresAt: Date.now() + 10_000,
+    payload,
+  }
+}
+async function flush() {
+  for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+}
+function rendered(input: ApprovalRequest) {
+  return { v: 1, type: 'makerPreviewRendered', id: input.id, digest: input.digest }
+}
+function waitingApproval() {
+  const { port } = harness()
+  const input = approval()
+  const pending = port.openApproval(input, new AbortController().signal)
+  const view = panel()
+  const delivery = Promise.withResolvers<boolean>()
+  view.webview.postMessage.mockReturnValue(delivery.promise)
+  const settled = vi.fn()
+  void pending.then(settled)
+  return { port, input, pending, view, delivery, settled }
+}
 describe('restricted maker preview tab', () => {
+  it('requires both successful delivery and a matching rendered-byte acknowledgement', async () => {
+    const { port, input, pending, view, delivery, settled } = waitingApproval()
+    for (const ack of [
+      { v: 1, type: 'makerPreviewRendered', id: input.id, digest: input.digest },
+      { v: 2, type: 'makerPreviewRendered', id: input.id, digest: input.digest },
+    ])
+      view.webview.messages.fire(ack)
+    await flush()
+    expect(settled).not.toHaveBeenCalled()
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    for (const ack of [
+      { v: 1, type: 'makerPreviewRendered', id: randomUUID(), digest: input.digest },
+      { v: 1, type: 'makerPreviewRendered', id: input.id, digest: 'b'.repeat(64) },
+      { v: 1, type: 'makerPreviewRendered', id: input.id, digest: input.digest, confirm: true },
+      {
+        v: 1,
+        type: 'makerAnswer',
+        answer: {
+          id: input.id,
+          digest: input.digest,
+          target: input.target,
+          decision: 'allow_once',
+        },
+      },
+    ])
+      view.webview.messages.fire(ack)
+    delivery.resolve(true)
+    await flush()
+    expect(settled).not.toHaveBeenCalled()
+    view.webview.messages.fire(rendered(input))
+    expect(await pending).toMatchObject({ id: input.id, digest: input.digest })
+    port.dispose()
+  })
+  it('does not resolve a valid rendered acknowledgement until postMessage confirms delivery', async () => {
+    const { port, input, pending, view, delivery, settled } = waitingApproval()
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    view.webview.messages.fire(rendered(input))
+    await flush()
+    expect(settled).not.toHaveBeenCalled()
+    delivery.resolve(true)
+    expect(await pending).toMatchObject({ id: input.id, digest: input.digest })
+    port.dispose()
+  })
+  it.each(['close', 'abort', 'reload', 'deliveryFalse', 'deliveryRejected', 'ownerDispose'])(
+    'cancels an approval preview on %s and ignores late acknowledgement',
+    async (event) => {
+      const { port } = harness()
+      const input = approval()
+      const controller = new AbortController()
+      const pending = port.openApproval(input, controller.signal)
+      const state = { settled: false }
+      void pending.then(() => {
+        state.settled = true
+      })
+      const view = panel()
+      if (event === 'deliveryFalse') view.webview.postMessage.mockResolvedValue(false)
+      else if (event === 'deliveryRejected')
+        view.webview.postMessage.mockRejectedValue(new Error('failed'))
+      view.webview.messages.fire({ v: 1, type: 'makerReady' })
+      await flush()
+      switch (event) {
+        case 'close': {
+          view.dispose()
+          break
+        }
+        case 'abort': {
+          controller.abort()
+          break
+        }
+        case 'reload': {
+          view.webview.messages.fire({ v: 1, type: 'makerReady' })
+          break
+        }
+        case 'ownerDispose': {
+          port.dispose()
+          break
+        }
+        default: {
+          break
+        }
+      }
+      try {
+        await flush()
+        expect(state.settled).toBe(true)
+        expect(await pending).toBeUndefined()
+      } finally {
+        port.dispose()
+      }
+      view.webview.messages.fire({
+        v: 1,
+        type: 'makerPreviewRendered',
+        id: input.id,
+        digest: input.digest,
+      })
+      port.dispose()
+    },
+  )
+  it('does not replace an approval preview with a repeated id or an ordinary preview', async () => {
+    const { port, stop } = harness()
+    const input = approval()
+    const pending = port.openApproval(input, new AbortController().signal)
+    const view = panel()
+    const duplicate = new AbortController()
+    const repeated = port.openApproval(input, duplicate.signal)
+    const state = { settled: false }
+    void repeated.then(() => {
+      state.settled = true
+    })
+    try {
+      await flush()
+      expect(state.settled).toBe(true)
+      expect(await repeated).toBeUndefined()
+    } finally {
+      duplicate.abort()
+    }
+    view.webview.messages.fire({ v: 1, type: 'makerStop' })
+    expect(stop).toHaveBeenCalledWith(undefined)
+    view.webview.messages.fire({ v: 1, type: 'makerReady' })
+    await flush()
+    view.webview.messages.fire(rendered(input))
+    const receipt = await pending
+    if (receipt === undefined) throw new Error('missing receipt')
+    await port.open(preview)
+    expect(window.createWebviewPanel).toHaveBeenCalledTimes(2)
+    expect(view.webview.postMessage).toHaveBeenCalledOnce()
+    expect(receipt.signal.aborted).toBe(false)
+    view.dispose()
+    expect(receipt.signal.aborted).toBe(true)
+    port.dispose()
+  })
+
   it('loads only the separate preview page with CSP, no command URIs, and bundle-only roots', async () => {
     const { port } = harness()
     await port.open(preview)

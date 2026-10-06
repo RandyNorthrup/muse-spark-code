@@ -237,7 +237,7 @@ export const MAKER_PREVIEW_VIEW_TYPE = 'museSpark.makerPreview'
 export const MAKER_PREVIEW_SCRIPT_FILE = 'makerPreview.js'
 export const MAKER_PREVIEW_STYLE_FILE = 'makerPreview.css'
 export const MAKER_MODAL_MAX_LINES = 32
-export const MAKER_MODAL_MAX_CHARS = 8 * 1024
+export const MAKER_MODAL_MAX_CHARS = 8192
 export const MAKER_COMMANDS = {
   enableHardware: 'museSpark.enableHardware',
   disableHardware: 'museSpark.disableHardware',

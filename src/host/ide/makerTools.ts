@@ -66,18 +66,23 @@ function argumentsFor(
   return args
 }
 
-async function answer(
+function answer(
   raw: unknown,
   expected: 'makerState' | 'makerStatus' | 'makerResult',
   deps: IdeMakerToolsDeps,
-): Promise<string> {
+): string {
   const message = makerHostMessageSchema.parse(raw)
   if (message.type !== expected) throw new Error(MAKER_HOST_MODEL_TEXT.unavailable)
   if (message.type === 'makerResult') {
     try {
-      if (message.outcome === 'sentOutcomeUnknown') await deps.host.notify('sentOutcomeUnknown')
-      else if (message.outcome === 'sentWithUnrecordedAudit')
-        await deps.host.notify('auditUnrecorded')
+      if (message.outcome === 'sentOutcomeUnknown' || message.outcome === 'sentWithUnrecordedAudit')
+        void Promise.resolve(
+          deps.host.notify(
+            message.outcome === 'sentOutcomeUnknown' ? 'sentOutcomeUnknown' : 'auditUnrecorded',
+          ),
+        ).catch(() => {
+          // The informational UI never holds an already known tool outcome.
+        })
     } catch {
       // Preserve the dispatch outcome even when the notification UI fails.
     }
@@ -102,7 +107,7 @@ export function ideMakerTools(deps: IdeMakerToolsDeps): readonly McpTool[] {
     if (message.type !== 'makerStatus' && !deps.host.isInteractive())
       throw new Error(MAKER_HOST_MODEL_TEXT.unattendedDenied)
     signal.throwIfAborted()
-    return await answer(
+    return answer(
       await deps.action(message, signal),
       message.type === 'makerStatus' ? 'makerStatus' : 'makerResult',
       deps,
@@ -124,7 +129,7 @@ export function ideMakerTools(deps: IdeMakerToolsDeps): readonly McpTool[] {
           })
           if (!isOn(deps)) throw new Error(MAKER_HOST_MODEL_TEXT.hardwareDisabled)
           signal.throwIfAborted()
-          return await answer(await deps.listDevices(signal), 'makerState', deps)
+          return answer(await deps.listDevices(signal), 'makerState', deps)
         },
       },
       {

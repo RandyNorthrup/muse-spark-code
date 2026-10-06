@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { mkdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -21,6 +22,7 @@ import {
   type MakerPreview,
 } from '../../shared/makerProtocol'
 import type { Logger } from '../logger'
+import type { MakerApprovalPreview } from './makerPreviewPanel'
 
 export interface VscodeMakerDeps {
   readonly context: Pick<
@@ -35,6 +37,11 @@ export interface VscodeMakerDeps {
   /** The engine's independent Stop, never queued behind an action. */
   readonly stop: (machineId?: string) => Promise<void>
   readonly openPreview: (preview: MakerPreview) => Promise<void>
+  /** Resolves only after delivery and the owned page's rendered-byte acknowledgement. */
+  readonly openApprovalPreview: (
+    request: ApprovalRequest,
+    signal: AbortSignal,
+  ) => Promise<MakerApprovalPreview | undefined>
 }
 
 function storage(memento: vscode.Memento, directory: string): MakerStorage {
@@ -107,6 +114,15 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
   async confirm(raw: ApprovalRequest): Promise<ApprovalAnswer | undefined> {
     const request = makerApprovalRequestSchema.parse(raw)
     if (!this.admitted() || Date.now() >= request.expiresAt) return undefined
+    const payload = request.kind === 'serial' ? request.payload.value : request.payload
+    const shownDigest = createHash('sha256')
+      .update(
+        request.kind === 'serial' && request.payload.encoding === 'hex'
+          ? Buffer.from(payload, 'hex')
+          : payload,
+      )
+      .digest('hex')
+    if (shownDigest !== request.digest) return undefined
     const cancellation = new AbortController()
     const cancelled = new Promise<undefined>((resolve) => {
       cancellation.signal.addEventListener(
@@ -124,20 +140,32 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
       },
       Math.max(0, request.expiresAt - Date.now()),
     )
+    let preview: MakerApprovalPreview | undefined
+    const previewClosed = () => {
+      cancellation.abort()
+    }
+    const isCurrent = () =>
+      this.admitted() &&
+      Date.now() < request.expiresAt &&
+      !cancellation.signal.aborted &&
+      !preview?.signal.aborted &&
+      shownDigest === request.digest &&
+      (preview === undefined || preview.digest === shownDigest)
     try {
       const display = async (): Promise<ApprovalAnswer | undefined> => {
-        const payload = request.kind === 'serial' ? request.payload.value : request.payload
         const isLong =
           payload.length > MAKER_MODAL_MAX_CHARS ||
           payload.split('\n').length > MAKER_MODAL_MAX_LINES
         if (isLong) {
-          await this.openPreview({
-            kind: 'payload',
-            title: UI_TEXT.makerPayloadLabel,
-            content: payload,
-          })
-          if (!this.admitted() || Date.now() >= request.expiresAt || cancellation.signal.aborted)
+          preview = await this.deps.openApprovalPreview(
+            structuredClone(request),
+            cancellation.signal,
+          )
+          if (preview?.id !== request.id || !isCurrent()) {
+            preview?.dispose()
             return undefined
+          }
+          preview.signal.addEventListener('abort', previewClosed, { once: true })
         }
         const detail = [
           `${UI_TEXT.makerTargetLabel}: ${JSON.stringify(request.target, null, 2)}`,
@@ -170,11 +198,10 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
           send,
           reject,
         )
-        if (!this.admitted() || Date.now() >= request.expiresAt || cancellation.signal.aborted)
-          return undefined
+        if (!isCurrent()) return undefined
         return {
           id: request.id,
-          digest: request.digest,
+          digest: preview?.digest ?? shownDigest,
           target: request.target,
           decision: chosen === send ? 'allow_once' : 'reject_once',
         }
@@ -183,11 +210,14 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
     } finally {
       clearTimeout(timer)
       this.pending.delete(cancellation)
+      cancellation.abort()
+      preview?.dispose()
     }
   }
 
-  async notify(raw: MakerNotice): Promise<void> {
+  notify(raw: MakerNotice): Promise<void> {
     const notice = makerNoticeSchema.parse(raw)
+    let shown: Thenable<unknown>
     if (typeof notice === 'string') {
       const words = {
         physicalStopRequired: UI_TEXT.makerPhysicalStopRequired,
@@ -196,14 +226,18 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
         auditUnrecorded: UI_TEXT.makerAuditUnrecorded,
         sentOutcomeUnknown: UI_TEXT.makerSentOutcomeUnknown,
       }
-      await vscode.window.showWarningMessage(words[notice])
+      shown = vscode.window.showWarningMessage(words[notice])
     } else if (notice.type === 'presetsOffered') {
-      await vscode.window.showInformationMessage([notice.title, ...notice.notices].join('\n'))
+      shown = vscode.window.showInformationMessage([notice.title, ...notice.notices].join('\n'))
     } else {
-      if (notice.level === 'error') await vscode.window.showErrorMessage(notice.message)
-      else if (notice.level === 'warning') await vscode.window.showWarningMessage(notice.message)
-      else await vscode.window.showInformationMessage(notice.message)
+      if (notice.level === 'error') shown = vscode.window.showErrorMessage(notice.message)
+      else if (notice.level === 'warning') shown = vscode.window.showWarningMessage(notice.message)
+      else shown = vscode.window.showInformationMessage(notice.message)
     }
+    void Promise.resolve(shown).catch(() => {
+      this.deps.log.error('Maker notice failed')
+    })
+    return Promise.resolve()
   }
 
   stopControls(machines: readonly MakerMachineSummary[]): void {

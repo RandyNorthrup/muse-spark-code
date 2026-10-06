@@ -1,6 +1,7 @@
 // Build the real shipped Node entries once with the production plugins.
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -49,6 +50,27 @@ const parserSchema = z.object({
   string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
 })
 const parsers: z.infer<typeof parserSchema>[] = []
+
+function fullBaseSources(): Map<string, string> {
+  const base = 'c0e6c1467'
+  const tracked = new Set(
+    execFileSync('git', ['ls-tree', '-r', '--name-only', base, '--', 'src'], { encoding: 'utf8' })
+      .trim()
+      .split('\n'),
+  )
+  const changed = execFileSync('git', ['diff', '--name-only', base, '--', 'src'], {
+    encoding: 'utf8',
+  })
+    .trim()
+    .split('\n')
+    .filter((file) => tracked.has(file))
+  return new Map(
+    changed.map((file) => [
+      path.resolve(file),
+      execFileSync('git', ['show', `${base}:${file}`], { encoding: 'utf8' }),
+    ]),
+  )
+}
 
 beforeAll(async () => {
   const common = {
@@ -221,6 +243,42 @@ function inputs(name: string): string[] {
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps activation byte-exact in size against the full maker base', async () => {
+    const sources = fullBaseSources()
+    const baseline = await build({
+      write: false,
+      bundle: true,
+      minify: true,
+      metafile: true,
+      platform: 'node',
+      format: 'cjs',
+      target: 'node20.18',
+      logLevel: 'silent',
+      define: { 'process.env.NODE_ENV': '"production"' },
+      external: ['vscode'],
+      entryPoints: ['src/extension.ts'],
+      outfile: 'dist/extension.js',
+      plugins: [
+        {
+          name: 'full-maker-base',
+          setup(builder) {
+            builder.onLoad({ filter: /\.ts$/ }, (args) => {
+              const contents = sources.get(args.path)
+              return contents === undefined ? undefined : { contents, loader: 'ts' }
+            })
+          },
+        },
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+      ],
+    })
+    const base = baseline.outputFiles.find((file) => file.path.endsWith('/extension.js'))
+    if (base === undefined) throw new Error('missing activation baseline')
+    expect(Buffer.byteLength(bundleText('extension'))).toBe(base.contents.length)
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)

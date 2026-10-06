@@ -254,6 +254,37 @@ describe('ide maker tools', () => {
       expect(deps.action).toHaveBeenCalledOnce()
     },
   )
+  it.each(['sentOutcomeUnknown', 'sentWithUnrecordedAudit'])(
+    'delivers %s while its passive notice remains undismissed, even after caller cancellation',
+    async (outcome) => {
+      const { deps, call, result } = harness()
+      const toast = Promise.withResolvers<undefined>()
+      vi.mocked(deps.host.notify).mockReturnValue(toast.promise)
+      vi.mocked(deps.action).mockResolvedValue({ ...result, outcome })
+      const controller = new AbortController()
+      const pending = call(
+        'machine_send',
+        { machineId: 'printer', payload: 'G1 X1' },
+        controller.signal,
+      )
+      const state = { settled: false }
+      void pending.then(() => {
+        state.settled = true
+      })
+      try {
+        for (let tick = 0; tick < 10; tick += 1) await Promise.resolve()
+        controller.abort()
+        expect(state.settled).toBe(true)
+        expect(await pending).toContain(outcome)
+        expect(deps.action).toHaveBeenCalledOnce()
+        expect(deps.host.notify).toHaveBeenCalledWith(
+          outcome === 'sentOutcomeUnknown' ? 'sentOutcomeUnknown' : 'auditUnrecorded',
+        )
+      } finally {
+        toast.resolve(undefined)
+      }
+    },
+  )
   it('rejects refused, failed, malformed and unexpected engine replies', async () => {
     const { deps, call, result } = harness()
     for (const raw of [

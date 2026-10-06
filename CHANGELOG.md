@@ -37,6 +37,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker approvals verify the digest of displayed bytes and wait for delivered,
+  rendered payloads before offering Send once. Each pending approval has its
+  own immutable preview; closing or reloading it cancels approval. Passive
+  notices no longer hold tool outcomes or failed Stop, and the maker-only
+  modal limit no longer adds unused code to startup bundles. Shared preview
+  page rendering remains with M103's wiring lane.
+
 - The maker emulator lease consumer now reads P's version-2 record and
   immutable generation, verified against a live lease-only child without
   board assets. New machine registration requests leave generation UUIDs

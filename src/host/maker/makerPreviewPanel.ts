@@ -1,4 +1,6 @@
+import { createHash } from 'node:crypto'
 import * as vscode from 'vscode'
+import * as z from 'zod/mini'
 import {
   MAKER_PREVIEW_SCRIPT_FILE,
   MAKER_PREVIEW_STYLE_FILE,
@@ -9,9 +11,11 @@ import {
 } from '../../shared/constants'
 import {
   makerHostMessageSchema,
+  makerApprovalRequestSchema,
   makerPreviewSchema,
   makerSurfaceMessageSchema,
   type MakerPreview,
+  type ApprovalRequest,
 } from '../../shared/makerProtocol'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
@@ -24,13 +28,55 @@ export interface MakerPreviewPanelDeps {
   readonly stop: (machineId?: string) => Promise<void>
 }
 
+/** Host-owned native-preview handshake; this does not extend MakerHost's wire. */
+const approvalPreviewMessage = z.strictObject({
+  v: z.literal(MAKER_PROTOCOL_VERSION),
+  type: z.literal('makerApprovalPreview'),
+  request: makerApprovalRequestSchema,
+})
+const renderedMessage = z.strictObject({
+  v: z.literal(MAKER_PROTOCOL_VERSION),
+  type: z.literal('makerPreviewRendered'),
+  id: z.uuid(),
+  digest: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
+})
+export interface MakerApprovalPreview extends vscode.Disposable {
+  readonly id: string
+  readonly digest: string
+  /** Close, replacement/reload or failed delivery revokes the displayed payload. */
+  readonly signal: AbortSignal
+}
+
 /** U's separate preview page. The page cannot submit an approval or an action. */
 export class MakerPreviewPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
+  private readonly approvals = new Map<string, vscode.WebviewPanel>()
   private preview: MakerPreview | undefined
   private isReady = false
   private isDisposed = false
   constructor(private readonly deps: MakerPreviewPanelDeps) {}
+
+  private createPanel(title: string): vscode.WebviewPanel {
+    const bundleRoot = vscode.Uri.joinPath(this.deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
+    const panel = vscode.window.createWebviewPanel(
+      MAKER_PREVIEW_VIEW_TYPE,
+      title,
+      vscode.ViewColumn.Beside,
+      { enableScripts: true, enableCommandUris: false, localResourceRoots: [bundleRoot] },
+    )
+    panel.webview.html = buildWebviewHtml({
+      scriptUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MAKER_PREVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MAKER_PREVIEW_STYLE_FILE))
+        .toString(),
+      cspSource: panel.webview.cspSource,
+      nonce: createNonce(),
+      l10n: this.deps.l10n,
+    })
+    return panel
+  }
 
   private async send(): Promise<void> {
     if (!this.isReady || this.panel === undefined || this.preview === undefined) return
@@ -51,26 +97,9 @@ export class MakerPreviewPanel implements vscode.Disposable {
       await this.send()
       return
     }
-    const bundleRoot = vscode.Uri.joinPath(this.deps.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
-    const panel = vscode.window.createWebviewPanel(
-      MAKER_PREVIEW_VIEW_TYPE,
-      preview.title,
-      vscode.ViewColumn.Beside,
-      { enableScripts: true, enableCommandUris: false, localResourceRoots: [bundleRoot] },
-    )
+    const panel = this.createPanel(preview.title)
     this.panel = panel
     this.isReady = false
-    panel.webview.html = buildWebviewHtml({
-      scriptUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MAKER_PREVIEW_SCRIPT_FILE))
-        .toString(),
-      styleUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, MAKER_PREVIEW_STYLE_FILE))
-        .toString(),
-      cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
-      l10n: this.deps.l10n,
-    })
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
       const message = makerSurfaceMessageSchema.safeParse(raw)
       if (!message.success || this.panel !== panel) return
@@ -96,9 +125,96 @@ export class MakerPreviewPanel implements vscode.Disposable {
       this.isReady = false
     })
   }
+
+  async openApproval(
+    raw: ApprovalRequest,
+    signal: AbortSignal,
+  ): Promise<MakerApprovalPreview | undefined> {
+    const request = makerApprovalRequestSchema.parse(raw)
+    if (this.isDisposed || signal.aborted || this.approvals.has(request.id)) return undefined
+    const payload = request.kind === 'serial' ? request.payload.value : request.payload
+    const digest = createHash('sha256')
+      .update(
+        request.kind === 'serial' && request.payload.encoding === 'hex'
+          ? Buffer.from(payload, 'hex')
+          : payload,
+      )
+      .digest('hex')
+    if (digest !== request.digest) return undefined
+    const message = approvalPreviewMessage.parse({
+      v: MAKER_PROTOCOL_VERSION,
+      type: 'makerApprovalPreview',
+      request,
+    })
+    const panel = this.createPanel(UI_TEXT.makerPayloadLabel)
+    this.approvals.set(request.id, panel)
+    const closed = new AbortController()
+    let isReady = false
+    let isDelivered = false
+    let isRendered = false
+    return await new Promise<MakerApprovalPreview | undefined>((resolve) => {
+      const dispose = () => {
+        panel.dispose()
+      }
+      const complete = () => {
+        if (isDelivered && isRendered && !closed.signal.aborted)
+          resolve({ id: request.id, digest, signal: closed.signal, dispose })
+      }
+      const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
+        if (closed.signal.aborted) return
+        const acknowledgement = renderedMessage.safeParse(raw)
+        if (acknowledgement.success) {
+          if (
+            isReady &&
+            acknowledgement.data.id === request.id &&
+            acknowledgement.data.digest === digest
+          ) {
+            isRendered = true
+            complete()
+          }
+          return
+        }
+        const incoming = makerSurfaceMessageSchema.safeParse(raw)
+        if (!incoming.success) return
+        if (incoming.data.type === 'makerStop') {
+          void this.deps.stop(incoming.data.machineId).catch(() => {
+            this.deps.log.error('Maker preview Stop failed')
+          })
+        } else if (incoming.data.type === 'makerReady') {
+          if (isReady) {
+            dispose()
+            return
+          }
+          isReady = true
+          void Promise.resolve(panel.webview.postMessage(message))
+            .then((accepted) => {
+              if (accepted) {
+                isDelivered = true
+                complete()
+              } else dispose()
+            })
+            .catch(() => {
+              this.deps.log.error('Maker preview update failed')
+              dispose()
+            })
+        }
+      })
+      panel.onDidDispose(() => {
+        if (closed.signal.aborted) return
+        subscription.dispose()
+        signal.removeEventListener('abort', dispose)
+        this.approvals.delete(request.id)
+        closed.abort()
+        resolve(undefined)
+      })
+      signal.addEventListener('abort', dispose, { once: true })
+      if (signal.aborted) dispose()
+    })
+  }
   dispose(): void {
     this.isDisposed = true
     this.panel?.dispose()
+    for (const panel of this.approvals.values()) panel.dispose()
     this.preview = undefined
   }
 }
