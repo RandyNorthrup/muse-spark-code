@@ -954,6 +954,17 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 // not evidence that a model supports a modality or that storage is free.
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
+export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+// Release-version banners only; development/unknown versions refuse conversion.
+export const MEDIA_FFMPEG_VERSION_PATTERN =
+  /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
+export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+export const MEDIA_CONVERTER_INSTALL_PATHS = {
+  linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  win32: [String.raw`C:\Program Files\ffmpeg\bin\ffmpeg.exe`],
+} as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800

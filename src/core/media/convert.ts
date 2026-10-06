@@ -1,13 +1,21 @@
 // Optional machine-local conversion. No installation, shell, credentials,
 // provider calls or user content in diagnostics. Callers own confinement/consent.
 import { spawn } from 'node:child_process'
-import { constants, accessSync, statSync } from 'node:fs'
+import { Buffer } from 'node:buffer'
 import { chmod, lstat, mkdtemp, open, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { HOOK_FORBIDDEN_ENV_NAMES, SHELL_MAX_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import {
+  HOOK_FORBIDDEN_ENV_NAMES,
+  MEDIA_AVCONVERT_VERSION_PATTERN,
+  MEDIA_CONVERTER_INSTALL_PATHS,
+  MEDIA_CONVERTER_PROBE_MAX_BYTES,
+  MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
+  MEDIA_FFMPEG_VERSION_PATTERN,
+  SHELL_MAX_TIMEOUT_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { resolveExecutable, type ExecutableProbe } from '../executables'
 import {
   checkMediaLimits,
   sniffMedia,
@@ -34,32 +42,150 @@ const INPUT_FORMATS: Readonly<Record<MediaFileInfo['mediaType'], string>> = {
   'audio/mpeg': 'mp3',
 }
 
-function isExecutable(file: string): boolean {
-  try {
-    accessSync(file, constants.X_OK)
-    return statSync(file).isFile()
-  } catch {
-    return false
-  }
+/** REDM104L3's StrictModes/safe_path seam. The binding must realpath and check
+ * every component's owner/mode and reject symlinks on the canonical path. */
+interface TrustedPathVerifier {
+  readonly verify: (
+    file: string,
+    options: { readonly leafKind: 'file' },
+  ) => Promise<
+    'ok' | { readonly refused: true; readonly component: string; readonly reason: string }
+  >
 }
 
-/** Absolute PATH entries only; avconvert is macOS's own system executable. */
-export function locateMediaConverter(
-  givenProbe?: ExecutableProbe,
-):
+interface VersionProbeOptions {
+  readonly timeoutMs: number
+  readonly env: NodeJS.ProcessEnv
+  readonly signal?: AbortSignal
+}
+
+interface ConverterVerification {
+  readonly trustedPath?: TrustedPathVerifier
+  /** Raw bounded version stdout; an unrecognised banner is refused. */
+  readonly probeVersion?: (
+    command: string,
+    args: readonly string[],
+    options: VersionProbeOptions,
+  ) => Promise<string>
+}
+
+interface ConverterDiscoveryOptions extends ConverterVerification {
+  readonly platform?: NodeJS.Platform
+  /** User/machine configuration, never workspace PATH lookup. */
+  readonly configuredConverters?: readonly MediaConverter[]
+}
+
+function converterEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(
+      ([name]) =>
+        !name.toUpperCase().endsWith('_API_KEY') &&
+        !HOOK_FORBIDDEN_ENV_NAMES.has(name.toUpperCase()),
+    ),
+  )
+}
+
+async function isTrusted(
+  converter: MediaConverter,
+  options: ConverterVerification,
+): Promise<boolean> {
+  return (await options.trustedPath?.verify(converter.command, { leafKind: 'file' })) === 'ok'
+}
+
+function probeVersion(
+  command: string,
+  args: readonly string[],
+  options: VersionProbeOptions,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (isAborted(options.signal)) {
+      reject(new Error('Stopped'))
+      return
+    }
+    const child = spawn(command, args, {
+      env: options.env,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      windowsHide: true,
+    })
+    let output = ''
+    let bytes = 0
+    let hasFailed = false
+    const stop = () => {
+      hasFailed = true
+      child.kill('SIGKILL')
+    }
+    child.stdout.on('data', (chunk: Buffer) => {
+      bytes += chunk.length
+      if (bytes > MEDIA_CONVERTER_PROBE_MAX_BYTES) stop()
+      else output += chunk.toString('utf8')
+    })
+    const timer = setTimeout(stop, options.timeoutMs)
+    options.signal?.addEventListener('abort', stop, { once: true })
+    if (isAborted(options.signal)) stop()
+    child.once('error', () => {
+      hasFailed = true
+    })
+    child.once('close', (code) => {
+      clearTimeout(timer)
+      options.signal?.removeEventListener('abort', stop)
+      if (hasFailed || code !== 0) reject(new Error('Version probe failed'))
+      else resolve(output)
+    })
+  })
+}
+
+async function hasKnownVersion(
+  converter: MediaConverter,
+  options: ConverterVerification,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (!(await isTrusted(converter, options)) || isAborted(signal)) return false
+  const output = await (options.probeVersion ?? probeVersion)(
+    converter.command,
+    [converter.kind === 'ffmpeg' ? '-version' : '--version'],
+    {
+      timeoutMs: MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
+      env: converterEnvironment(),
+      ...(signal !== undefined && { signal }),
+    },
+  )
+  const banner = output.split('\n', 1)[0]?.replace(/\r$/u, '') ?? ''
+  return (
+    Buffer.byteLength(output) <= MEDIA_CONVERTER_PROBE_MAX_BYTES &&
+    (converter.kind === 'ffmpeg'
+      ? MEDIA_FFMPEG_VERSION_PATTERN
+      : MEDIA_AVCONVERT_VERSION_PATTERN
+    ).test(banner)
+  )
+}
+
+/** Documented installs or explicit configuration only; never consult PATH.
+ * No verifier means no offer. Every version probe is itself a verified launch. */
+export async function locateMediaConverter(
+  options: ConverterDiscoveryOptions = {},
+): Promise<
   | { readonly ok: true; readonly converter: MediaConverter }
-  | { readonly ok: false; readonly reason: string } {
-  const probe = givenProbe ?? {
-    platform: process.platform,
-    pathVariable: process.env['PATH'],
-    fileExists: isExecutable,
+  | { readonly ok: false; readonly reason: string }
+> {
+  const platform = options.platform ?? process.platform
+  const installations: Partial<Record<NodeJS.Platform, readonly string[]>> =
+    MEDIA_CONVERTER_INSTALL_PATHS
+  const paths = installations[platform] ?? []
+  const candidates: readonly MediaConverter[] = [
+    ...(options.configuredConverters ?? []),
+    ...(platform === 'darwin' ? [{ kind: 'avconvert' as const, command: AVCONVERT }] : []),
+    ...paths.map((command) => ({ kind: 'ffmpeg' as const, command })),
+  ]
+  const pathApi = platform === 'win32' ? path.win32 : path.posix
+  for (const converter of candidates) {
+    if (!pathApi.isAbsolute(converter.command)) continue
+    try {
+      if (await hasKnownVersion(converter, options)) return { ok: true, converter }
+    } catch {
+      // Missing, untrusted and unversioned candidates share a fixed diagnostic.
+    }
   }
-  if (probe.platform === 'darwin' && probe.fileExists(AVCONVERT))
-    return { ok: true, converter: { kind: 'avconvert', command: AVCONVERT } }
-  const command = resolveExecutable('ffmpeg', probe)
-  return command === undefined
-    ? { ok: false, reason: UI_TEXT.media.converterUnavailable }
-    : { ok: true, converter: { kind: 'ffmpeg', command } }
+  return { ok: false, reason: UI_TEXT.media.converterUnavailable }
 }
 
 interface ConversionRunOptions {
@@ -69,7 +195,7 @@ interface ConversionRunOptions {
   readonly signal?: AbortSignal
 }
 
-export interface MediaConversionOptions {
+export interface MediaConversionOptions extends ConverterVerification {
   readonly limits?: MediaLimits
   readonly signal?: AbortSignal
   readonly timeoutMs?: number
@@ -177,7 +303,7 @@ export async function convertToMp4(
     const input = await lstat(inputPath)
     if (!input.isFile()) return failed()
     const source = await sniffFile(inputPath, input.size)
-    if (!source.ok) return failed()
+    if (!source.ok || !(await hasKnownVersion(converter, options, options.signal))) return failed()
     const privateDirectory =
       options.createPrivateDirectory === undefined
         ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
@@ -228,13 +354,9 @@ export async function convertToMp4(
             output,
             '--replace',
           ]
-    const env = Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([name]) =>
-          !name.toUpperCase().endsWith('_API_KEY') &&
-          !HOOK_FORBIDDEN_ENV_NAMES.has(name.toUpperCase()),
-      ),
-    )
+    // Recheck immediately before encoding: discovery/probing does not grant trust.
+    if (!(await isTrusted(converter, options)) || isAborted(options.signal)) return failed()
+    const env = converterEnvironment()
     await (options.run ?? runConverter)(converter.command, args, {
       cwd: directory,
       env,

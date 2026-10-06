@@ -6508,14 +6508,18 @@ The owner's standing rulings apply:
    - WebM and Matroska (EBML), which U5 shows Meta refuses at upload and
      inline, and m4a (not captured) are refused with a conversion hint;
    - wav (RIFF `WAVE`) and mp3 (ID3 or frame sync) are audio;
-   - a file whose `moov` is not found within the window is "duration
-     unknown", allowed unless the model's record sets a maximum duration (and
-     refused in a capped session, decision 6).
+   - `vide` and `soun` track handlers establish the kind, independently of
+     the brand. Audio-only MP4 is audio. A file whose tracks cannot be read
+     within the bounded windows is refused, since the metadata contract has
+     no unknown-kind state. Unknown duration with known tracks remains allowed
+     unless the model sets a maximum or the session is capped (decision 6).
 
    **Convert to mp4** is offered only when a converter is already on the
-   machine (`avconvert`, which macOS ships, or an `ffmpeg` on PATH, found by
-   absolute path and run with an argument array into an owner-only temporary
-   file). Nothing is bundled or installed.
+   machine at an explicit configured path or a documented install location.
+   Each probe and launch requires the shared trusted-path verifier, and a
+   bounded probe must yield a strictly parsed release version. Unversioned
+   converters refuse. Conversion runs with an argument array into an owner-only
+   temporary file. Nothing is bundled or installed.
 
 5. **Sound, routed to where it is heard.**
    - **A video with a soundtrack, on a model that does not hear it** (Muse
@@ -21239,6 +21243,15 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
+  converter-trust guards consume the shared `TrustedPathVerifier` seam. This
+  base lacks `src/runtime/trustedPath.ts`; without a verified binding discovery
+  and conversion refuse. Integration binds its canonical-path/component
+  owner/mode/symlink checks for every editor, before each probe and encoding
+  launch. Unversioned avconvert is unavailable until a real version probe is
+  captured and supported; verified ffmpeg remains the alternative. Tests and
+  drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
+  deferred and no gate is weakened.
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
   The existing lane W handoffs remain: deferred browser JS exceeds 50 KiB,

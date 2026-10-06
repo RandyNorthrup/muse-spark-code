@@ -34,6 +34,55 @@ Red drills run full files, restore source byte-exact and compare SHA-256:
 Sniffer SHA before/after all three drills:
 `86ba4e764d07eed18b22bdf56a98931b53faf4a68f8301318a047bfc44ffb47e`.
 
+**P1: verified discovery and launch.** PATH is never read for a converter.
+Candidates are explicit machine/user configuration or these documented installs:
+Linux `/usr/bin/ffmpeg`, `/usr/local/bin/ffmpeg`; macOS `/usr/bin/avconvert`,
+`/opt/homebrew/bin/ffmpeg`, `/usr/local/bin/ffmpeg`; Windows
+`C:\Program Files\ffmpeg\bin\ffmpeg.exe`. Relative configuration is refused.
+Each version process first calls `TrustedPathVerifier.verify(path,
+{ leafKind: 'file' })`; each encoding launch verifies again. Only `ok`
+admits. The verifier's absence, refusal or exception never starts that process.
+Version stdout has a 16 KiB cap and a two-second deadline, stderr is ignored,
+and credentials are scrubbed from the probe as well as the encoder. A strict
+release banner is required; a help page or development/unknown banner refuses.
+The ffmpeg test banner is the rig's installed 8.0.1 release banner. The
+avconvert banner in tests exercises the injected boundary only, not a claimed
+macOS capture. An unversioned avconvert refuses in production.
+
+**Named handoff: M105-M1-trusted-converter-binding (REDM104L3, W, E1, E2).**
+`src/runtime/trustedPath.ts` is absent on this base. Bind/adapt its shared
+StrictModes/safe_path implementation to the consumer's `trustedPath` port:
+realpath, root/user ownership and no group/world write on every component,
+canonical-path symlink rejection and file leaf validation. Missing binding
+refuses both discovery and conversion. No permissive production verifier is
+provided. All editors use this portable core seam. The macOS owner must
+capture a real converter version before claiming avconvert availability;
+otherwise a verified, versioned ffmpeg is the available choice. This is a
+binding requirement, not a remaining review finding.
+
+P1 regressions passed: ignores workspace PATH; refuses absent/unsafe/relative
+verification before probing; strictly refuses unknown/malformed/oversized
+versions; kills deadline/overflow probes and waits for close; re-verifies after
+probing and refuses replacements before encoding. Converter suite: **22/22**
+passed under the repository's default timeout. All seven P1 guard drills exited
+1, failing these named regressions, and restored the source SHA-256:
+`50cc04f0848602ebee03e10ef1c1cd4bcabfc54058bddefbee38b76e1ada8bf1`.
+
+| Guard removed                 | Named failing regression                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| verification before probe     | refuses absent verification, unsafe components and relative configuration before probing |
+| verification before encoding  | re-verifies trust after probing and refuses replacements before encoding                 |
+| absolute configured candidate | refuses absent verification, unsafe components and relative configuration before probing |
+| strict version parser         | strictly refuses unknown, malformed and oversized version banners                        |
+| returned probe byte cap       | strictly refuses unknown, malformed and oversized version banners                        |
+| streaming probe byte cap      | kills a timed-out or overflowing version probe and waits for close                       |
+| probe deadline                | kills a timed-out or overflowing version probe and waits for close                       |
+
+The first streaming-cap drill stayed green because the deadline also killed
+the overflowing child. Its fixture now exits naturally before the deadline;
+removing the streaming cap then fails the kill assertion. The rerun and deadline
+drill both fired, with full test files, default timeouts and byte-exact restoration.
+
 ## Original implementation record
 
 Kubuntu, 2026-10-06. Branch `m105/m1`, base `10ff139c7` (lane 0 and F,

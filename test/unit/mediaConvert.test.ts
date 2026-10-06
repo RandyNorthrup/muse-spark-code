@@ -12,7 +12,13 @@ import {
   type MediaConverter,
   type MediaConversionOptions,
 } from '../../src/core/media/convert'
-import { HOOK_FORBIDDEN_ENV_NAMES, SHELL_MAX_TIMEOUT_MS, UI_TEXT } from '../../src/shared/constants'
+import {
+  HOOK_FORBIDDEN_ENV_NAMES,
+  MEDIA_CONVERTER_PROBE_MAX_BYTES,
+  MEDIA_CONVERTER_PROBE_TIMEOUT_MS,
+  SHELL_MAX_TIMEOUT_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { videoFixture } from './helpers/media/fixtures'
 
 vi.mock('node:child_process', async (original) => {
@@ -63,6 +69,9 @@ function convertToMp4(
   options: MediaConversionOptions = {},
 ) {
   return convertWithPlatformDefault(input, converter, {
+    trustedPath: { verify: () => Promise.resolve('ok') },
+    probeVersion: () =>
+      Promise.resolve(converter.kind === 'ffmpeg' ? FFMPEG_BANNER : 'avconvert version 1.0.0'),
     ...(process.platform === 'win32' && {
       createPrivateDirectory: () => mkdtemp(path.join(tmpdir(), 'm105-private-fake-')),
     }),
@@ -70,34 +79,141 @@ function convertToMp4(
   })
 }
 
+const FFMPEG_BANNER =
+  'ffmpeg version 8.0.1-3ubuntu2 Copyright (c) 2000-2025 the FFmpeg developers\n'
+const refused = { refused: true, component: '/untrusted', reason: 'test-only unsafe mode' } as const
+
 describe('M105 converter discovery', () => {
-  it('offers conversion only for an installed converter on an absolute PATH', () => {
-    const fileExists = vi.fn(() => true)
+  it('ignores workspace PATH and verifies only configured or documented install paths', async () => {
+    vi.stubEnv('PATH', `${fixture.workspace}/node_modules/.bin`)
+    const verify = vi.fn((file: string) =>
+      Promise.resolve(file === '/usr/bin/ffmpeg' ? ('ok' as const) : refused),
+    )
+    const probeVersion = vi.fn(() => Promise.resolve(FFMPEG_BANNER))
     expect(
-      locateMediaConverter({ platform: 'linux', pathVariable: ':.:relative', fileExists }),
-    ).toEqual({ ok: false, reason: UI_TEXT.media.converterUnavailable })
-    expect(fileExists).not.toHaveBeenCalled()
-    expect(
-      locateMediaConverter({ platform: 'linux', pathVariable: '.:/usr/bin', fileExists }),
+      await locateMediaConverter({ platform: 'linux', trustedPath: { verify }, probeVersion }),
     ).toEqual({ ok: true, converter: { kind: 'ffmpeg', command: '/usr/bin/ffmpeg' } })
+    expect(verify.mock.calls.map(([file]) => file.replaceAll('\\', '/'))).toEqual([
+      '/usr/bin/ffmpeg',
+    ])
+    expect(verify).toHaveBeenCalledWith('/usr/bin/ffmpeg', { leafKind: 'file' })
+    expect(probeVersion).toHaveBeenCalledWith(
+      '/usr/bin/ffmpeg',
+      ['-version'],
+      expect.objectContaining({ timeoutMs: MEDIA_CONVERTER_PROBE_TIMEOUT_MS }),
+    )
+    const windows = String.raw`C:\Program Files\ffmpeg\bin\ffmpeg.exe`
     expect(
-      locateMediaConverter({ platform: 'darwin', pathVariable: '/opt/bin', fileExists }),
-    ).toEqual({ ok: true, converter: { kind: 'avconvert', command: '/usr/bin/avconvert' } })
-    expect(
-      locateMediaConverter({
+      await locateMediaConverter({
         platform: 'win32',
-        pathVariable: String.raw`.;C:\Tools`,
-        fileExists: (file) => file.replaceAll('\\', '/') === 'C:/Tools/ffmpeg.exe',
+        trustedPath: { verify: () => Promise.resolve('ok') },
+        probeVersion,
       }),
-    ).toEqual({ ok: true, converter: { kind: 'ffmpeg', command: String.raw`C:\Tools\ffmpeg.exe` } })
+    ).toMatchObject({ ok: true, converter: { command: windows } })
+  })
+
+  it('refuses absent verification, unsafe components and relative configuration before probing', async () => {
+    const probeVersion = vi.fn(() => Promise.resolve(FFMPEG_BANNER))
+    expect(await locateMediaConverter({ platform: 'linux', probeVersion })).toEqual({
+      ok: false,
+      reason: UI_TEXT.media.converterUnavailable,
+    })
+    const verify = vi.fn(() => Promise.resolve(refused))
     expect(
-      locateMediaConverter({ platform: 'linux', pathVariable: '/missing', fileExists: () => false })
-        .ok,
-    ).toBe(false)
+      await locateMediaConverter({
+        platform: 'aix',
+        configuredConverters: [fake, { kind: 'ffmpeg', command: 'relative/ffmpeg' }],
+        trustedPath: { verify },
+        probeVersion,
+      }),
+    ).toMatchObject({ ok: false })
+    expect(verify).toHaveBeenCalledExactlyOnceWith(fake.command, { leafKind: 'file' })
+    expect(probeVersion).not.toHaveBeenCalled()
+  })
+
+  it('strictly refuses unknown, malformed and oversized version banners', async () => {
+    for (const banner of [
+      'ffmpeg version N-123-git',
+      'ffmpeg version 8.0.1',
+      'private output',
+      'prefix ' + FFMPEG_BANNER,
+      FFMPEG_BANNER + 'x'.repeat(MEDIA_CONVERTER_PROBE_MAX_BYTES),
+    ]) {
+      expect(
+        await locateMediaConverter({
+          platform: 'aix',
+          configuredConverters: [fake],
+          trustedPath: { verify: () => Promise.resolve('ok') },
+          probeVersion: () => Promise.resolve(banner),
+        }),
+      ).toMatchObject({ ok: false })
+    }
+    const probeVersion = vi.fn(() => Promise.reject(new Error('private probe failure')))
+    expect(
+      await locateMediaConverter({
+        platform: 'aix',
+        configuredConverters: [fake],
+        trustedPath: { verify: () => Promise.resolve('ok') },
+        probeVersion,
+      }),
+    ).toEqual({ ok: false, reason: UI_TEXT.media.converterUnavailable })
+    expect(
+      await locateMediaConverter({
+        platform: 'darwin',
+        trustedPath: { verify: () => Promise.resolve('ok') },
+        probeVersion: () => Promise.resolve('Usage: avconvert --source ...'),
+      }),
+    ).toMatchObject({ ok: false })
+  })
+
+  it('kills a timed-out or overflowing version probe and waits for close', async () => {
+    const actual = await vi.importActual<typeof ChildProcess>('node:child_process')
+    for (const mode of ['deadline', 'overflow', 'known']) {
+      let child: ReturnType<typeof spawn> | undefined
+      vi.mocked(spawn).mockImplementation((_command, _args, options) => {
+        expect(options).toMatchObject({ stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true })
+        const script =
+          mode === 'known'
+            ? `process.stdout.write(${JSON.stringify(FFMPEG_BANNER)})`
+            : mode === 'overflow'
+              ? `process.stdout.write('x'.repeat(${String(MEDIA_CONVERTER_PROBE_MAX_BYTES + 1)})); setTimeout(() => {}, 300)`
+              : 'setTimeout(() => {}, 3500)'
+        child = actual.spawn(process.execPath, ['-e', script], options)
+        return child
+      })
+      const result = await locateMediaConverter({
+        platform: 'aix',
+        configuredConverters: [fake],
+        trustedPath: { verify: () => Promise.resolve('ok') },
+      })
+      expect(result.ok).toBe(mode === 'known')
+      expect(child?.killed).toBe(mode !== 'known')
+    }
   })
 })
 
 describe('M105 private local conversion', () => {
+  it('re-verifies trust after probing and refuses replacements before encoding', async () => {
+    const verify = vi.fn().mockResolvedValueOnce('ok').mockResolvedValueOnce(refused)
+    const run = vi.fn(writeConverted)
+    expect(await convertToMp4(fixture.input, fake, { trustedPath: { verify }, run })).toMatchObject(
+      { ok: false },
+    )
+    expect(verify).toHaveBeenCalledTimes(2)
+    expect(run).not.toHaveBeenCalled()
+    expect(await convertWithPlatformDefault(fixture.input, fake, { run })).toMatchObject({
+      ok: false,
+    })
+    expect(run).not.toHaveBeenCalled()
+    expect(
+      await convertToMp4(fixture.input, fake, {
+        probeVersion: () => Promise.resolve('unknown version'),
+        run,
+      }),
+    ).toMatchObject({ ok: false })
+    expect(run).not.toHaveBeenCalled()
+  })
+
   it('uses an argument array, private directory/file, and verifies mp4 metadata before success', async () => {
     const run: NonNullable<MediaConversionOptions['run']> = async (command, args, options) => {
       expect(command).toBe(process.execPath)
