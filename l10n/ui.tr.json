@@ -2449,6 +2449,7 @@
   "playbookHelpDescription": "İnceleme turlarını, tasarım kararlarını, güvenlik retlerini ve kural ayarlarını göster.",
   "playbookCommandUsage": "`playbook status|record|settings` kullanın.",
   "playbookSave": "Ayarları kaydet",
+  "playbookSaved": "İşleyiş kılavuzu ayarları kaydedildi.",
   "playbookRules": {
     "threeStrikes": "Üç başarısız turdan sonra yeniden tasarla",
     "onePassReview": "Tüm sınıfları tek geçişte incele",

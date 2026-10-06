@@ -1,9 +1,13 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { PlaybookPanel } from '../../src/webview/playbook/PlaybookPanel'
-import { PlaybookNoteRows, PlaybookStrikeBadge } from '../../src/webview/playbook/PlaybookRows'
+import {
+  PlaybookAgentDetails,
+  PlaybookNoteRows,
+  PlaybookStrikeBadge,
+} from '../../src/webview/playbook/PlaybookRows'
 import { createPlaybookBridge, playbookRequestSchema } from '../../src/webview/playbook/bridge'
 import {
   surfacePort,
@@ -21,22 +25,34 @@ afterEach(() => {
 })
 
 function offloadReasonInput() {
-  fireEvent.click(
-    screen.getByRole('checkbox', { name: new RegExp(UI_TEXT.playbookRules.offload, 'u') }),
-  )
-  return screen.getByRole('textbox', { name: UI_TEXT.playbookReasonLabel })
+  const toggle = screen.getByRole('checkbox', {
+    name: new RegExp(UI_TEXT.playbookRules.offload, 'u'),
+  })
+  fireEvent.click(toggle)
+  const form = toggle.closest('form')
+  if (form === null) throw new Error('missing offload form')
+  return within(form).getByRole('textbox', { name: UI_TEXT.playbookReasonLabel })
 }
 
 async function submitOffloadMaintenance(port: ReturnType<typeof surfacePort>) {
+  const mounted = await openSettings(port)
+  fireEvent.submit(offloadForm('maintenance'))
+  return mounted
+}
+
+async function openSettings(port: ReturnType<typeof surfacePort>) {
   const mounted = render(<PlaybookPanel port={port} />)
   await screen.findByText(/workspace-panel/u)
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.playbookSettings }))
+  return mounted
+}
+
+function offloadForm(reason: string) {
   const input = offloadReasonInput()
-  fireEvent.change(input, { target: { value: 'maintenance' } })
+  fireEvent.change(input, { target: { value: reason } })
   const form = input.closest('form')
   if (form === null) throw new Error('missing settings form')
-  fireEvent.submit(form)
-  return mounted
+  return form
 }
 
 describe('M116 shared playbook surfaces', () => {
@@ -65,9 +81,7 @@ describe('M116 shared playbook surfaces', () => {
   it('requires a reason before saving off and shows the persisted actor/time', async () => {
     const port = surfacePort()
     const change = vi.spyOn(port, 'change')
-    render(<PlaybookPanel port={port} />)
-    await screen.findByText(/workspace-panel/u)
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.playbookSettings }))
+    await openSettings(port)
     const switches = screen.getAllByRole('checkbox')
     expect(switches).toHaveLength(8)
     for (const control of switches) expect(control).toBeChecked()
@@ -106,6 +120,120 @@ describe('M116 shared playbook surfaces', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(UI_TEXT.playbookUnavailable)
     expect(screen.queryByText(/private detail/u)).not.toBeInTheDocument()
     expect(port.snapshot().settings.rules.offload.enabled).toBe(true)
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+  })
+
+  it('restores the submitting control after a rule save and politely announces success', async () => {
+    const port = surfacePort()
+    const saving = Promise.withResolvers<undefined>()
+    const persist = port.change
+    const change = vi.spyOn(port, 'change').mockImplementation(async (patch) => {
+      const next = await persist(patch)
+      await saving.promise
+      return next
+    })
+    await openSettings(port)
+    const form = offloadForm('maintenance')
+    const save = within(form).getByRole('button', { name: UI_TEXT.playbookSave })
+    save.focus()
+    fireEvent.submit(form)
+    await waitFor(() => {
+      expect(save).toBeDisabled()
+    })
+    // JSDOM keeps disabled controls focused; model the browser's native blur.
+    save.blur()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    await act(async () => {
+      saving.resolve(undefined)
+      await saving.promise
+    })
+    await waitFor(() => {
+      expect(
+        within(
+          screen.getByRole('form', { name: new RegExp(UI_TEXT.playbookRules.offload, 'u') }),
+        ).getByRole('button'),
+      ).toHaveFocus()
+    })
+    expect(save).not.toBeInTheDocument()
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveAttribute('aria-atomic', 'true')
+    expect(status).toHaveTextContent(UI_TEXT.playbookSaved)
+    const savedForm = screen.getByRole('form', {
+      name: new RegExp(UI_TEXT.playbookRules.offload, 'u'),
+    })
+    fireEvent.submit(savedForm)
+    expect(change).toHaveBeenCalledTimes(1)
+  })
+
+  it('saves the round limit as a field patch without discarding another rule draft or focus', async () => {
+    const port = surfacePort()
+    const change = vi.spyOn(port, 'change')
+    await openSettings(port)
+    const draft = offloadReasonInput()
+    fireEvent.change(draft, { target: { value: 'unsaved maintenance' } })
+    const limit = screen.getByRole('combobox', { name: UI_TEXT.playbookPatchRoundsLabel })
+    fireEvent.change(limit, { target: { value: '1' } })
+    const form = limit.closest('form')
+    if (form === null) throw new Error('missing limit form')
+    const save = within(form).getByRole('button')
+    save.focus()
+    fireEvent.submit(form)
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.playbookSaved)
+    })
+    expect(change).toHaveBeenCalledWith({ patchRoundsMax: 1 })
+    expect(port.snapshot().settings.rules.offload.enabled).toBe(true)
+    expect(port.snapshot().settings.patchRoundsMax).toBe(1)
+    expect(draft).toBeInTheDocument()
+    expect(draft).toHaveValue('unsaved maintenance')
+    expect(save).toHaveFocus()
+    // A focusable, unchanged Save is announced unavailable and cannot write again.
+    expect(save).toHaveAttribute('aria-disabled', 'true')
+    fireEvent.submit(form)
+    expect(change).toHaveBeenCalledTimes(1)
+  })
+
+  it('preserves an unrelated rule draft when another rule is saved', async () => {
+    const port = surfacePort()
+    await openSettings(port)
+    const other = screen.getByRole('form', {
+      name: new RegExp(UI_TEXT.playbookRules.smallFirst, 'u'),
+    })
+    fireEvent.click(within(other).getByRole('checkbox'))
+    fireEvent.change(within(other).getByRole('textbox'), { target: { value: 'keep my draft' } })
+    const form = offloadForm('maintenance')
+    fireEvent.submit(form)
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.playbookSaved)
+    })
+    expect(within(other).getByRole('textbox')).toHaveValue('keep my draft')
+    expect(port.snapshot().settings.rules.smallFirst.enabled).toBe(true)
+  })
+
+  it('focuses the saved rule heading if the submitting control disappears', async () => {
+    const snapshot = surfaceSnapshot()
+    snapshot.settings.rules.offload = {
+      enabled: false,
+      reason: 'maintenance',
+      actor: 'owner',
+      at: 0,
+    }
+    const port = surfacePort(snapshot)
+    vi.spyOn(port, 'change').mockResolvedValue(surfaceSnapshot())
+    await openSettings(port)
+    const form = screen.getByRole('form', { name: new RegExp(UI_TEXT.playbookRules.offload, 'u') })
+    const reason = within(form).getByRole('textbox')
+    fireEvent.change(reason, { target: { value: 'updated maintenance' } })
+    reason.focus()
+    fireEvent.submit(form)
+    await waitFor(() => {
+      expect(
+        screen.getByRole('heading', { name: new RegExp(UI_TEXT.playbookRules.offload, 'u') }),
+      ).toHaveFocus()
+    })
+    expect(reason).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.playbookSaved)
   })
 
   it('rejects a settings reply scoped to another team', async () => {
@@ -194,6 +322,50 @@ describe('M116 shared playbook surfaces', () => {
       }),
     )
   })
+
+  it.each(['pending', 'caught', 'remains'] as const)(
+    'orders combined agent details ahead of statistics for %s redesigns',
+    (outcome) => {
+      const snapshot = surfaceSnapshot()
+      for (const record of snapshot.records)
+        if (record.kind === 'design') record.value.outcome = outcome
+      snapshot.records.push(
+        ...surfacePriorityNotes().map((value) => ({ kind: 'note' as const, value })),
+      )
+      const { container } = render(<PlaybookAgentDetails records={snapshot.records} />)
+      const combined = [...container.querySelectorAll('.playbook-note, .playbook-badge')]
+      const owner = combined.findIndex((item) =>
+        item.textContent.includes(UI_TEXT.playbookNotes.classifierBlocked),
+      )
+      const design = combined.findIndex((item) =>
+        item.textContent.includes(UI_TEXT.playbookOutcomeLabel),
+      )
+      const warning = combined.findIndex((item) => item.textContent.includes('round 3'))
+      const statistic = combined.findIndex((item) => item.textContent.includes('review rounds'))
+      const progress = combined.findIndex((item) =>
+        item.textContent.includes(UI_TEXT.playbookNotes.checksPassed),
+      )
+      for (const index of [owner, design, warning, statistic, progress])
+        expect(index).toBeGreaterThanOrEqual(0)
+      expect(owner).toBeLessThan(warning)
+      expect(design).toBeLessThan(warning)
+      expect(warning).toBeLessThan(statistic)
+      expect(warning).toBeLessThan(progress)
+    },
+  )
+
+  it.each(['pending', 'caught', 'remains'] as const)(
+    'places unresolved %s redesign badges before statistics',
+    (outcome) => {
+      const snapshot = surfaceSnapshot()
+      for (const record of snapshot.records)
+        if (record.kind === 'design') record.value.outcome = outcome
+      const { container } = render(<PlaybookStrikeBadge records={snapshot.records} />)
+      const badges = container.querySelectorAll('.playbook-badge')
+      expect(badges[0]).toHaveTextContent(UI_TEXT.playbookOutcomeLabel)
+      expect(badges[1]).toHaveTextContent('review rounds')
+    },
+  )
 })
 
 describe('shared playbook postMessage boundary', () => {

@@ -2637,6 +2637,7 @@
   "playbookHelpDescription": "Zobrazit kola kontrol, rozhodnutí o návrhu, bezpečnostní odmítnutí a nastavení pravidel.",
   "playbookCommandUsage": "Použijte `playbook status|record|settings`.",
   "playbookSave": "Uložit nastavení",
+  "playbookSaved": "Nastavení příručky byla uložena.",
   "playbookRules": {
     "threeStrikes": "Po třech neúspěšných kolech přepracovat návrh",
     "onePassReview": "Zkontrolovat všechny třídy v jednom průchodu",

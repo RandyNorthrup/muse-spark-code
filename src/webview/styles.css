@@ -3928,7 +3928,8 @@ li:focus-within > .row-actions .row-actions-button,
   cursor: pointer;
 }
 
-.playbook-button:disabled {
+.playbook-button:disabled,
+.playbook-button[aria-disabled='true'] {
   opacity: 65%;
   cursor: default;
 }
@@ -3953,6 +3954,11 @@ li:focus-within > .row-actions .row-actions-button,
   gap: var(--ms-gap);
   min-height: 32px;
   cursor: pointer;
+}
+
+.playbook-rule h3 {
+  margin: 0;
+  font: inherit;
 }
 
 .playbook-rule .playbook-switch input {

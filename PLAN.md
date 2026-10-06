@@ -28341,6 +28341,15 @@ anywhere joined it).
 
 ## 7. Gates
 
+**M116-U repair certification (RVM116U).** The rig brief reserves the full
+quality run for the lead and requires scoped local checks with default test
+timeouts. U does not change the inherited failing bundle/knip registration
+gates: W must register the three lazy playbook entries and the two harness
+entrypoints before integration can go green. This is the existing named
+integration deferral, not a cap, ignore or rule change. Repair regressions,
+disk-mutated red drills and their byte-exact restores are recorded in
+`docs/certification/m116-u.md`.
+
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
 test files, deliberate failures, typecheck, scoped lint/format, deadcode,
@@ -29551,6 +29560,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M116-U review repair (RVM116U).** All three P2 findings are fixed; none
+  is retained as a review residual. Shared bridges require a caller-supplied
+  workspace id and host replies echoing the bridge/workspace correlation
+  fields. The same shared React changes serve VS Code, native hosts and the
+  companion; shared formatting serves CLI/ACP. P/I's authenticated durable
+  bindings and W's bundle/harness/docs/help registration remain the previously
+  named integration handoffs in `docs/certification/m116-u.md`. This base has
+  no feature catalogue or reference generator; W registers the integrated
+  surfaces when those files join. U introduces no released-support claim.
 
 - **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
   are fixed in the contracts/fixtures; none is deferred as a residual.

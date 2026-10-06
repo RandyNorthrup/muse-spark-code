@@ -2543,6 +2543,7 @@
   "playbookHelpDescription": "Mostrar rondas de revisión, decisiones de diseño, rechazos de seguridad y ajustes de las reglas.",
   "playbookCommandUsage": "Usa `playbook status|record|settings`.",
   "playbookSave": "Guardar ajustes",
+  "playbookSaved": "Se ha guardado la configuración del manual.",
   "playbookRules": {
     "threeStrikes": "Rediseñar tras tres intentos fallidos",
     "onePassReview": "Revisar todas las clases en una pasada",

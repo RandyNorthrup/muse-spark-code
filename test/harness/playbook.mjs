@@ -62,6 +62,9 @@ async function mount() {
     (message) => {
       const request = playbookRequestSchema.parse(message)
       const respond = async () => {
+        // A host reply arrives after the submitting frame; exercise the busy
+        // render rather than collapsing a save into an immediate fake promise.
+        await new Promise((resolve) => globalThis.requestAnimationFrame(resolve))
         const result =
           request.type === 'playbookRead'
             ? await hostPort.read()

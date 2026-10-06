@@ -2543,6 +2543,7 @@
   "playbookHelpDescription": "Mostra cicli di revisione, decisioni progettuali, rifiuti di sicurezza e impostazioni delle regole.",
   "playbookCommandUsage": "Usa `playbook status|record|settings`.",
   "playbookSave": "Salva impostazioni",
+  "playbookSaved": "Le impostazioni della guida sono state salvate.",
   "playbookRules": {
     "threeStrikes": "Riprogetta dopo tre tentativi falliti",
     "onePassReview": "Esamina tutte le classi in un solo passaggio",

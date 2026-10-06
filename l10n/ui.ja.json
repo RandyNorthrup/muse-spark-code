@@ -2355,6 +2355,7 @@
   "playbookHelpDescription": "レビュー回数、設計判断、安全上の拒否、ルール設定を表示します。",
   "playbookCommandUsage": "`playbook status|record|settings` を使用してください。",
   "playbookSave": "設定を保存",
+  "playbookSaved": "プレイブックの設定を保存しました。",
   "playbookRules": {
     "threeStrikes": "三回の不成功後に再設計する",
     "onePassReview": "すべての分類を一度にレビューする",

@@ -2637,6 +2637,7 @@
   "playbookHelpDescription": "Показать раунды ревью, проектные решения, отказы безопасности и настройки правил.",
   "playbookCommandUsage": "Используйте `playbook status|record|settings`.",
   "playbookSave": "Сохранить настройки",
+  "playbookSaved": "Настройки регламента сохранены.",
   "playbookRules": {
     "threeStrikes": "Перепроектировать после трёх неудачных раундов",
     "onePassReview": "Проверять все классы за один проход",

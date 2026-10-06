@@ -78,7 +78,7 @@ export function playbookCounterText(counter: ReturnType<typeof playbookCounters>
   return `${counter.module} · ${label}: ${plural(UI_TEXT.playbookStrikeBadge, counter.round)}`
 }
 
-export function playbookNotePriority(note: PlaybookWhyNote): number {
+function playbookNotePriority(note: PlaybookWhyNote): number {
   if (note.needsUser) return 0
   switch (note.code) {
     case 'checksPassed':
@@ -96,15 +96,17 @@ export function playbookNotePriority(note: PlaybookWhyNote): number {
   }
 }
 
-function prioritized(entry: PlaybookRecord): number {
+function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): number {
   if (entry.kind === 'note') return playbookNotePriority(entry.value)
-  if (entry.kind === 'design' && entry.value.outcome === 'remains') return 0
-  if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 1
+  if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 0
   return entry.kind === 'round' && entry.value.findings.length > 0 ? 1 : 2
 }
 
-/** Stable within a priority: owner/escalation first, failing reviews next. */
-export function orderedPlaybookRecords(records: readonly PlaybookRecord[]): PlaybookRecord[] {
+/** Every surface shares this stable order: owner/unresolved designs, warnings,
+ * then informational records and aggregate counter statistics. */
+export function orderedPlaybookRecords<T extends PlaybookRecord | { readonly kind: 'counter' }>(
+  records: readonly T[],
+): T[] {
   return records.toSorted((a, b) => prioritized(a) - prioritized(b))
 }
 

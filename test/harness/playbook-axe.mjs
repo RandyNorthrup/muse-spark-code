@@ -65,7 +65,47 @@ try {
                 .locator('.playbook-views button')
                 .nth(scene === 'record' ? 1 : 2)
                 .click()
-            if (scene === 'settings') await page.locator('.playbook-switch').first().waitFor()
+            if (scene === 'settings') {
+              await page.locator('.playbook-switch').first().waitFor()
+              // Exercise native keyboard submission and sequential Tab navigation
+              // in every language/theme/width, including the 320 px review case.
+              const firstForm = page.locator('form.playbook-rule').first()
+              const firstSave = firstForm.locator('button')
+              await firstForm.locator('input').press('Space')
+              await firstForm.locator('textarea').fill('Keyboard maintenance')
+              await firstSave.focus()
+              await firstSave.press('Enter')
+              await page.waitForFunction(() => {
+                const save = globalThis.document.querySelector('form.playbook-rule button')
+                const status = globalThis.document.querySelector('[role="status"]')
+                return save === globalThis.document.activeElement && status.textContent.length > 0
+              })
+              await page.keyboard.press('Tab')
+              const continued = await page
+                .locator('form.playbook-rule')
+                .nth(1)
+                .locator('input')
+                .evaluate((input) => input === globalThis.document.activeElement)
+              if (!continued)
+                throw new Error(`Save lost keyboard sequence: ${locale}/${theme}/${String(width)}`)
+              const otherDraft = page.locator('textarea[id$="-offload"]')
+              await otherDraft.fill('Unsubmitted maintenance')
+              const rounds = page.locator('form.playbook-rule').last()
+              await rounds.locator('select').selectOption('1')
+              await rounds.locator('button').focus()
+              await rounds.locator('button').press('Enter')
+              await page.waitForFunction(() =>
+                globalThis.document.activeElement?.id.endsWith('-rounds-save'),
+              )
+              if ((await otherDraft.inputValue()) !== 'Unsubmitted maintenance')
+                throw new Error('Limit save discarded unrelated draft')
+              const status = page.locator('[role="status"]')
+              if (
+                (await status.getAttribute('aria-live')) !== 'polite' ||
+                (await status.textContent()) === ''
+              )
+                throw new Error('Missing polite save announcement')
+            }
           }
           await page.addScriptTag({ path: 'node_modules/axe-core/axe.min.js' })
           const violations = await page.evaluate(async () => {

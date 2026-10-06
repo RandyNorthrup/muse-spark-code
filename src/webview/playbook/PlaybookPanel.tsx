@@ -1,5 +1,5 @@
 // Shared surface: native hosts and the companion page mount the same component.
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import {
   PLAYBOOK_CONFIGURABLE_RULES,
   PLAYBOOK_PATCH_ROUNDS_MAX,
@@ -18,47 +18,56 @@ import {
 import { disabledPlaybookDetail, playbookText } from '../../runtime/playbook/text'
 
 function RuleSetting({
+  id,
   rule,
   setting,
   busy,
   save,
 }: {
+  readonly id: string
   readonly rule: PlaybookConfigurableRule
   readonly setting: PlaybookSettings['rules']['threeStrikes']
   readonly busy: boolean
-  readonly save: (change: PlaybookChange) => Promise<void>
+  readonly save: (change: PlaybookChange, form: HTMLFormElement) => Promise<void>
 }) {
-  const id = useId()
   const [enabled, setEnabled] = useState(setting.enabled)
   const [reason, setReason] = useState(setting.enabled ? '' : setting.reason)
   const [error, setError] = useState(false)
   const detail = disabledPlaybookDetail(setting)
+  const isUnchanged =
+    enabled === setting.enabled &&
+    (enabled || reason.trim() === (setting.enabled ? '' : setting.reason))
   return (
     <form
       className="playbook-rule"
+      aria-labelledby={`${id}-heading`}
       noValidate
       onSubmit={(event) => {
         event.preventDefault()
+        if (busy || isUnchanged) return
         const parsed = playbookChangeSchema.safeParse(
           enabled ? { rule, enabled } : { rule, enabled, reason },
         )
         setError(!parsed.success)
-        if (parsed.success) void save(parsed.data)
+        if (parsed.success) void save(parsed.data, event.currentTarget)
       }}
     >
-      <label className="playbook-switch">
-        <input
-          type="checkbox"
-          checked={enabled}
-          disabled={busy}
-          onChange={(event) => {
-            setEnabled(event.target.checked)
-            setError(false)
-          }}
-        />
-        <span>{UI_TEXT.playbookRules[rule]}</span>
-        <span>{enabled ? UI_TEXT.playbookEnabled : UI_TEXT.playbookDisabled}</span>
-      </label>
+      <h3 id={`${id}-heading`} tabIndex={-1}>
+        <label className="playbook-switch">
+          <input
+            id={`${id}-toggle`}
+            type="checkbox"
+            checked={enabled}
+            disabled={busy}
+            onChange={(event) => {
+              setEnabled(event.target.checked)
+              setError(false)
+            }}
+          />
+          <span>{UI_TEXT.playbookRules[rule]}</span>
+          <span>{enabled ? UI_TEXT.playbookEnabled : UI_TEXT.playbookDisabled}</span>
+        </label>
+      </h3>
       {detail === undefined ? null : <p className="playbook-detail">{detail}</p>}
       {enabled ? null : (
         <>
@@ -84,13 +93,11 @@ function RuleSetting({
         </p>
       ) : null}
       <button
+        id={`${id}-save`}
         type="submit"
         className="playbook-button"
-        disabled={
-          busy ||
-          (enabled === setting.enabled &&
-            (enabled || reason.trim() === (setting.enabled ? '' : setting.reason)))
-        }
+        disabled={busy}
+        aria-disabled={busy || isUnchanged}
       >
         {UI_TEXT.playbookSave}
       </button>
@@ -105,7 +112,7 @@ function Settings({
 }: {
   readonly snapshot: PlaybookSnapshot
   readonly busy: boolean
-  readonly save: (change: PlaybookChange) => Promise<void>
+  readonly save: (change: PlaybookChange, form: HTMLFormElement) => Promise<void>
 }) {
   const id = useId()
   const [limit, setLimit] = useState(snapshot.settings.patchRoundsMax)
@@ -116,6 +123,7 @@ function Settings({
       </h2>
       {PLAYBOOK_CONFIGURABLE_RULES.map((rule) => (
         <RuleSetting
+          id={`${id}-${rule}`}
           key={`${rule}:${JSON.stringify(snapshot.settings.rules[rule])}`}
           rule={rule}
           setting={snapshot.settings.rules[rule]}
@@ -129,12 +137,16 @@ function Settings({
       </div>
       <form
         className="playbook-rule"
+        aria-labelledby={`${id}-rounds-heading`}
         onSubmit={(event) => {
           event.preventDefault()
-          void save({ patchRoundsMax: limit })
+          if (!busy && limit !== snapshot.settings.patchRoundsMax)
+            void save({ patchRoundsMax: limit }, event.currentTarget)
         }}
       >
-        <label htmlFor={id}>{UI_TEXT.playbookPatchRoundsLabel}</label>
+        <h3 id={`${id}-rounds-heading`} tabIndex={-1}>
+          <label htmlFor={id}>{UI_TEXT.playbookPatchRoundsLabel}</label>
+        </h3>
         <p id={`${id}-help`}>{UI_TEXT.playbookPatchRoundsHelp}</p>
         <select
           id={id}
@@ -152,9 +164,11 @@ function Settings({
           ))}
         </select>
         <button
+          id={`${id}-rounds-save`}
           type="submit"
           className="playbook-button"
-          disabled={busy || limit === snapshot.settings.patchRoundsMax}
+          disabled={busy}
+          aria-disabled={busy || limit === snapshot.settings.patchRoundsMax}
         >
           {UI_TEXT.playbookSave}
         </button>
@@ -168,6 +182,7 @@ export interface PlaybookPanelProps {
 }
 
 export function PlaybookPanel({ port }: PlaybookPanelProps) {
+  const surface = useRef<HTMLElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   const [data, setData] = useState<{ port: PlaybookSurfacePort; snapshot: PlaybookSnapshot }>()
   const snapshot = data?.port === port ? data.snapshot : undefined
@@ -177,6 +192,24 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
   const isBusy = busyPort === port
   const [errorPort, setError] = useState<PlaybookSurfacePort>()
   const isError = errorPort === port
+  const [saved, setSaved] = useState<{
+    port: PlaybookSurfacePort
+    controlId: string
+    headingId: string | null
+  }>()
+  useLayoutEffect(() => {
+    if (saved?.port !== port) return
+    const control = surface.current?.querySelector<HTMLElement>(
+      `[id="${CSS.escape(saved.controlId)}"]`,
+    )
+    const ruleHeading =
+      saved.headingId === null
+        ? null
+        : surface.current?.querySelector<HTMLElement>(`[id="${CSS.escape(saved.headingId)}"]`)
+    if (control != null) control.focus()
+    else if (ruleHeading == null) heading.current?.focus()
+    else ruleHeading.focus()
+  }, [saved, port])
   useEffect(() => {
     let isActive = true
     activePort.current = port
@@ -198,17 +231,25 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
       activePort.current = undefined
     }
   }, [port])
-  const save = async (change: PlaybookChange) => {
+  const save = async (change: PlaybookChange, form: HTMLFormElement) => {
     if (isBusy || snapshot === undefined) return
+    const active = form.ownerDocument.activeElement
+    const control = active !== null && form.contains(active) ? active : form.querySelector('button')
+    const controlId = control?.id ?? ''
+    const headingId = form.getAttribute('aria-labelledby')
     setBusy(port)
     setError(undefined)
+    setSaved(undefined)
     try {
       const next = playbookSnapshotSchema.parse(
         await port.change(playbookChangeSchema.parse(change)),
       )
       if (next.settings.teamId !== snapshot.settings.teamId)
         throw new Error(UI_TEXT.playbookUnavailable)
-      if (activePort.current === port) setData({ port, snapshot: next })
+      if (activePort.current === port) {
+        setData({ port, snapshot: next })
+        setSaved({ port, controlId, headingId })
+      }
     } catch {
       if (activePort.current === port) setError(port)
     } finally {
@@ -225,12 +266,7 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
     content = isError ? null : <p role="status">{UI_TEXT.loadingOutput}</p>
   else if (view === 'settings')
     content = (
-      <Settings
-        key={`${snapshot.settings.teamId}:${String(snapshot.settings.patchRoundsMax)}`}
-        snapshot={snapshot}
-        busy={isBusy}
-        save={save}
-      />
+      <Settings key={snapshot.settings.teamId} snapshot={snapshot} busy={isBusy} save={save} />
     )
   else
     content = (
@@ -239,8 +275,11 @@ export function PlaybookPanel({ port }: PlaybookPanelProps) {
       </pre>
     )
   return (
-    <section className="playbook-surface" aria-label={UI_TEXT.playbookTitle}>
+    <section ref={surface} className="playbook-surface" aria-label={UI_TEXT.playbookTitle}>
       {isError ? <p role="alert">{UI_TEXT.playbookUnavailable}</p> : null}
+      <p role="status" aria-live="polite" aria-atomic="true">
+        {saved?.port === port ? UI_TEXT.playbookSaved : ''}
+      </p>
       <h1 ref={heading} tabIndex={-1}>
         {UI_TEXT.playbookTitle}
       </h1>

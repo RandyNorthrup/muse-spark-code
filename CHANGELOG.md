@@ -11,6 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Fence shared playbook replies by bridge lifetime, request and workspace so
   late replies from a disposed surface cannot populate another workspace.
+- Show owner failures and unresolved redesigns before warnings and review
+  statistics in playbook badges and selected-agent details. Settings saves
+  preserve other drafts, restore keyboard focus, and announce success politely.
 
 ## [0.14.1] - 2026-10-05
 

@@ -2355,6 +2355,7 @@
   "playbookHelpDescription": "검토 라운드, 설계 결정, 안전 거부 및 규칙 설정을 표시합니다.",
   "playbookCommandUsage": "`playbook status|record|settings`를 사용하세요.",
   "playbookSave": "설정 저장",
+  "playbookSaved": "플레이북 설정이 저장되었습니다.",
   "playbookRules": {
     "threeStrikes": "세 번의 실패 후 재설계",
     "onePassReview": "모든 분류를 한 번에 검토",

@@ -44,6 +44,7 @@ export const EN = {
     'Show review strikes, design decisions, safety refusals and rule settings.',
   playbookCommandUsage: 'Use `playbook status|record|settings`.',
   playbookSave: 'Save settings',
+  playbookSaved: 'Playbook settings saved.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
     threeStrikes: 'Redesign after three strikes',
