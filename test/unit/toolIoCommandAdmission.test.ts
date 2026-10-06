@@ -54,6 +54,26 @@ function localIo(passNames: readonly string[] = []) {
 }
 
 describe('native command final owner admission', () => {
+  it('D89.5 fences the RVENVFENCE credential names in a real unattended shell', async () => {
+    const names = ['AZURE_DEVOPS_EXT_PAT', 'SYSTEM_ACCESSTOKEN', 'TF_TOKEN_app_terraform_io']
+    for (const name of names) vi.stubEnv(name, `envfence-fake-${name}`)
+    vi.stubEnv('TOKENIZERS_PARALLELISM', 'envfence-harmless-tokenizers')
+    vi.stubEnv('KEY_PATH', 'envfence-harmless-path')
+    try {
+      const result = await localIo(names).runShell(
+        process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
+        rootDirectory(),
+        REAL_SHELL_TIMEOUT_MS,
+      )
+      expect(result.exitCode).toBe(0)
+      for (const name of names) expect(result.stdout.includes(`envfence-fake-${name}`)).toBe(false)
+      expect(result.stdout.includes('envfence-harmless-tokenizers')).toBe(true)
+      expect(result.stdout.includes('envfence-harmless-path')).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('D89.5 real-shell environment probe withholds parent credentials unless interactive and named', async () => {
     vi.stubEnv('OPENAI_API_KEY', 'envfence-fake-parent')
     try {

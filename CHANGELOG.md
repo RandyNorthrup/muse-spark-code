@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Security
 
+- Cover common credential suffix families, Azure DevOps PATs,
+  `SYSTEM_ACCESSTOKEN` and Terraform's `TF_TOKEN_*` in the shared environment
+  fence. A scheduled shell delayed in directory preparation now retains its
+  original unattended admission after backgrounding and turn completion;
+  a later interactive turn cannot grant it credential pass-through.
 - Fence credential environment variables from VS Code Model API shell commands,
   verification/`then_run`, schedules, child workers, hooks/plugins, Git and native
   helpers, using the same matcher as ACP/headless. Terminal overrides are fenced

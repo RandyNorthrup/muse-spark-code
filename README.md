@@ -3398,15 +3398,22 @@ stopped and the next message resumes the same session.
 ## Privacy and security
 
 - Model-run shell commands and native helpers do not inherit credential
-  variables (`*_API_KEY`, `*_TOKEN`, `*_SECRET`, `*_PASSWORD` and known cloud
-  credentials), including credentials set by terminal environment overrides.
+  variables (`*_TOKEN`, `*_SECRET`, `*_PASSWORD`, `*_PASSPHRASE`, `*_API_KEY`,
+  `*_ACCESS_KEY`, `*_PRIVATE_KEY`, `*_SECRET_KEY`, `*_CREDENTIALS`, `*_AUTH`,
+  `*_PAT` and known cloud credentials), including Azure DevOps PATs,
+  `SYSTEM_ACCESSTOKEN`, Terraform's `TF_TOKEN_*` and credentials set by terminal
+  environment overrides. Harmless names such as `TOKENIZERS_PARALLELISM` and
+  `KEY_PATH` remain available.
   The machine-scoped `museSpark.shell.passEnvironmentVariables` setting is
   an array of names, default `[]`, never values. Naming a credential permits
   an interactive top-level shell or `!` command to receive it: the command
   can expose its value in tool output to the conversation and model provider.
   Verification/`then_run`, schedules, child/team workers and hooks never honor
   this exception. An interactive command moved to the background retains its
-  starting environment. MCP servers receive only their narrow host environment
+  starting environment. The command's origin is captured when it is created
+  and its admission is rechecked at spawn: a delayed scheduled command stays
+  fenced after its turn ends or another interactive turn starts.
+  MCP servers receive only their narrow host environment
   and explicitly configured `env`; browser checks use a private environment.
   Muse Code's own credential inheritance stays unchanged. ACP/headless tools
   remain credential-free and offer no pass-through option.

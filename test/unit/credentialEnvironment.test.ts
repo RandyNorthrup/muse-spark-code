@@ -49,6 +49,48 @@ const CREDENTIAL_NAMES = [
   'SERVICE_SECRET',
   'SERVICE_PASSWORD',
   'ANTHROPIC_AUTH_TOKEN',
+  'AZURE_DEVOPS_EXT_PAT',
+  'SYSTEM_ACCESSTOKEN',
+  'TF_TOKEN_app_terraform_io',
+  'TF_TOKEN_example_com',
+  'SERVICE_PASSPHRASE',
+  'SERVICE_ACCESS_KEY',
+  'SERVICE_PRIVATE_KEY',
+  'SERVICE_CREDENTIALS',
+  'SERVICE_AUTH',
+  'SERVICE_PAT',
+  'SERVICE_SECRET_KEY',
+  'TOKEN',
+  'SECRET',
+  'PASSWORD',
+  'PASSPHRASE',
+  'API_KEY',
+  'ACCESS_KEY',
+  'PRIVATE_KEY',
+  'CREDENTIALS',
+  'AUTH',
+  'PAT',
+  'OPENAI_KEY',
+  'ANTHROPIC_KEY',
+  'META_KEY',
+  'GEMINI_KEY',
+  'DOCKER_AUTH_CONFIG',
+  'AWS_SECRET_KEY',
+  'AZURE_STORAGE_SAS',
+  'KEY_PATH_TOKEN',
+  'TOKENIZERS_PARALLELISM_API_KEY',
+]
+const HARMLESS_NAMES = [
+  'TOKENIZERS_PARALLELISM',
+  'KEY_PATH',
+  'AZURE_REGION',
+  'AWS_PROFILE',
+  'API_KEY_ALIAS',
+  'TOKEN_COUNT',
+  'PASSWORD_LENGTH',
+  'AUTH_MODE',
+  'SECRETARY',
+  'PATTERN',
 ]
 const CREDENTIALS = Object.fromEntries(CREDENTIAL_NAMES.map((name) => [name, 'envfence-fake']))
 const ENV = { PATH: '/usr/bin', HOME: '/home/u', ...CREDENTIALS }
@@ -58,6 +100,22 @@ describe('D89.5 shared credential fence', () => {
   it.each(CREDENTIAL_NAMES)('fences %s in either case in the editor and runtime', (name) => {
     expect(isCredentialVariable(name)).toBe(true)
     expect(isCredentialVariable(name.toLowerCase())).toBe(true)
+    const env = { [name]: 'envfence-fake', [name.toLowerCase()]: 'envfence-fake' }
+    expect(withoutCredentials(env)).toEqual({})
+    expect(takeCredentials(env)).toHaveLength(2)
+    expect(env).toEqual({})
+  })
+
+  it.each(HARMLESS_NAMES)('preserves harmless look-alike %s in either case', (name) => {
+    for (const spelling of [name, name.toLowerCase()]) {
+      expect(isCredentialVariable(spelling)).toBe(false)
+      const env = { [spelling]: 'envfence-harmless' }
+      expect(withoutCredentials(env)).toEqual(env)
+      expect(shellEnvironment(env, 'linux', undefined)).toEqual(env)
+      expect(hookEnvironment(env, 'linux', [spelling])).toEqual(env)
+      expect(takeCredentials(env)).toEqual([])
+      expect(env[spelling]).toBe('envfence-harmless')
+    }
   })
 
   it('preserves ordinary environment and Muse Code credentials, without mutating the source', () => {

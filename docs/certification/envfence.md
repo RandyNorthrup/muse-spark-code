@@ -140,3 +140,63 @@ Aggregate `npm run quality`, coverage and cross-platform native execution
 remain the lead's rig gates under the lane common rules, which prohibit the
 aggregate run in this lane. No threshold, ignore, timeout policy, rule level or
 dependency pin changed. No unsafe cast or suppression was added.
+
+## FIXENVFENCE — RVENVFENCE review repair
+
+2026-10-05, directly on the Kubuntu rig, `fix/shell-credential-fence-2`,
+reviewed base `7a20ac0fe479985d9e1e0041b5d18c69ca10658d`. Both confirmed P1
+findings are fixed. There were no P2/P3 findings and none is deferred.
+
+| Finding                                                                                          | Repair                                                                                                                                                                                                                                                                                                         | Regression                                                                                                                                                                                                                                                                                                                                                                     | Red drill                                                                                                                                                                                                                               |
+| ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P1: common credential names escaped the shared matcher                                           | Fence every standard suffix family, including passphrases, access/private/secret keys, credentials, auth and PATs; retain existing cloud exclusions; recognize `SYSTEM_ACCESSTOKEN`, Docker auth configuration, Azure storage SAS and Terraform's `TF_TOKEN_*`. Harmless look-alikes have an exact allow-list. | `credentialEnvironment`: 48 credential names, both cases, removal from editor/tool environments and ACP startup; 10 harmless names preserved; `KEY_PATH_TOKEN` and `TOKENIZERS_PARALLELISM_API_KEY` still fenced. `toolIoCommandAdmission`: real unattended shell cannot see any of the three reviewed names even with all three named in pass-through; harmless names remain. | Revert matcher to the reviewed base: **25 failures**, including all three reviewed names and the real-shell probe. Broaden harmless-name matching to prefixes: **6 failures**, including both credential look-alikes. Both runs exit 1. |
+| P1: a backgrounded scheduled shell acquired interactive pass-through after directory preparation | Capture the command's owning turn and interactive status at `runCall`, before hooks, approval or directory waits; pass that immutable status to the shell. Native entry still checks captured owner/lifecycle and policy admission after adapter waits. Missing/mismatched owners cannot grant pass-through.   | `shellEnvironmentOrigins`: hold actual sidecar `mkdir`, move the row to the background, await real turn completion, then release; repeat while a later interactive turn is held active. Both real shells withhold the fake named credential. A delayed interactive command retains its permitted environment.                                                                  | Restore the live `this.active?.confirmedRequest` lookup after the wait: **2 failures**, both scheduled cases, at the real-shell credential-absence assertion. Exit 1.                                                                   |
+
+Each regression was observed failing before its fix. The drills were repeated
+against the final assertions and shared schedule fixture. Each mutation used
+an in-memory byte backup, restored in `finally`, with byte equality and SHA-256
+checked. The final green regression run passed **83 tests** after restoration.
+
+| File                                         | SHA-256 before and after every restoration                         |
+| -------------------------------------------- | ------------------------------------------------------------------ |
+| `src/core/credentialEnvironment.ts`          | `05a5b24ece8c36f35e7eef9aa873c774b0200bd3615d61b18932e2e7654bf0d3` |
+| `src/core/backends/modelapi/ModelApiHost.ts` | `b50729660c9c0db4fcad315e49a5745ab19de0c7657d5759960dc26545dd40b1` |
+
+All tests used `npx vitest run <files> --maxWorkers=3 --testTimeout=120000`,
+at most three complete files per invocation; no test-name filtering, new skips,
+live or paid model requests, credential-file reads or golden regeneration.
+
+| Files (under `test/unit/`, suffix `.test.ts`)                          |  Passed | Skips |
+| ---------------------------------------------------------------------- | ------: | ----: |
+| credentialEnvironment, shellEnvironmentOrigins, toolIoCommandAdmission |      83 |     0 |
+| modelApiHost, modelApiShellDirectory, modelApiGoldenRequests           |     664 |     0 |
+| acpRuntime, pluginHost, checkpointHost                                 |     125 |     0 |
+| **Total: 9 files**                                                     | **872** | **0** |
+
+The same shared matcher serves VS Code and ACP/headless in every editor.
+Muse Code's documented credential route and the interactive `!` command
+remain covered by positive tests. Name-only pass-through, POSIX exact matching,
+Windows case-insensitive matching and unattended exclusions stay in place.
+No dependency, wire shape, paid setting, approval guard or gate was widened.
+README, CHANGELOG and PLAN move with the repair. The inherited
+**ENVFENCE-HELPREF** catalogue follow-up is named in PLAN §9: this base has no
+catalogue or generator; the manifest, translations and README already describe
+the setting. Add it when HELPREF joins the release.
+
+Production build passes all size, split, host-global and notice gates:
+extension **437.6 / 600 KiB**, Model API **446.9 / 475 KiB**, checkpoint store
+**76.9 / 225 KiB**, ACP **817.5 / 850 KiB**. Localization reports 14 tables,
+165 manifest strings, 591 source files, 0 problems; host API reports 332 APIs,
+31 VS Code-importing files, 25 Node built-ins, 61 theme variables, 0 problems.
+Deadcode and duplication pass without changing their configuration.
+
+Final `npm run typecheck` passes all five projects. Changed-file ESLint and
+Prettier checks, `git diff --check`, localization, host API, deadcode,
+duplication and production build all exit 0. The initial lint and typecheck
+briefly overlapped, contrary to the lane's shared-resource rule; remaining
+heavy checks were serialized, including the final typecheck and lint runs.
+
+Aggregate quality, coverage and native Windows/macOS execution remain with
+the lead under the rig/common rules. No merge, push, remote/config change or
+external write was performed. The existing worktree-local Husky pre-commit
+hook was present before commit and remains enabled.

@@ -6429,6 +6429,18 @@ environments in every editor; no pass-through flag is added there.
 The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
 catalogue when that lane merges. No paid/live calls are authorized.
 
+**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
+common credential names escaped the matcher, and a scheduled shell delayed
+in directory preparation could read a later active-turn state as interactive.
+Cover the standard credential suffix families and known exact/prefix names,
+with an explicit harmless-name allow-list. Capture interactive admission when
+the command is created, before hooks or directory waits; the native spawn
+still rechecks the captured owner's admission. Regressions must include a
+real shell, ACP startup removal, safe-name preservation, and a backgrounded
+scheduled command released after its turn ends. Deliberately break each fix,
+observe the named tests fail, restore byte-exact and record the evidence in
+`docs/certification/envfence.md`. No new dependency or broader exception.
+
 ## 3. Open questions (need the owner)
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
@@ -18238,6 +18250,10 @@ joined with M57, M58 and PR #49's sign-in
       deadcode/duplication and production bundle budgets.
 - [x] Certification: `docs/certification/envfence.md`; hooks-on local commit.
       The lead runs aggregate quality on the rigs (lane common rules).
+- [x] FIXENVFENCE: repair both RVENVFENCE P1s with regression tests and red
+      drills (25 matcher failures, 2 delayed-origin failures), followed by
+      byte-exact restoration. Focused certification is appended to
+      `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
 
@@ -19413,6 +19429,13 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
+  `src/shared/featureCatalog.ts` or reference generator. The existing setting
+  and its full security contract are in README, D89.5, the manifest and all
+  translations, so the repair introduces no undocumented command or option.
+  Follow-up: add the setting to HELPREF's catalogue when that lane joins the
+  release. RVENVFENCE's two P1 findings are fixed; no review finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
