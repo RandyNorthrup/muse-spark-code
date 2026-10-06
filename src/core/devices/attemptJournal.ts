@@ -7,6 +7,7 @@ import { handleIdentity, lstatIdentity, sameFile, type FileIdentity } from '../f
 import { DEVICE_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../../shared/constants'
 import {
   deviceDispatchSchema,
+  deviceAttemptIdentitySchema,
   deviceJournalRecordSchema,
   type DeviceAttemptIdentity,
   type DeviceDispatch,
@@ -39,6 +40,9 @@ export class DeviceJournalError extends Error {
 const stateSchema = z.strictObject({
   version: z.literal(DEVICE_LIMITS.protocolVersion),
   records: z.array(deviceJournalRecordSchema).check(z.maxLength(DEVICE_LIMITS.tombstones)),
+  cancellations: z.optional(
+    z.array(deviceAttemptIdentitySchema).check(z.maxLength(DEVICE_LIMITS.tombstones)),
+  ),
   acknowledgements: z
     .array(
       z.strictObject({
@@ -84,14 +88,22 @@ function isTerminal(record: DeviceJournalRecord): boolean {
   )
 }
 function validateState(state: JournalState): void {
-  const ids = state.records.map((row) => identityOf(row).attemptId)
+  const identities = state.records.map((row) => identityOf(row))
+  const ids = identities.map((identity) => identity.attemptId)
+  const byId = new Map(identities.map((identity) => [identity.attemptId, identity]))
   const settlements = state.records.flatMap((row) => {
     if (row.kind === 'source-intent') return []
     return [
       row.kind === 'receiver-record' ? row.outcome.usage.settlementId : row.usage.settlementId,
     ]
   })
+  const cancellations = state.cancellations ?? []
   if (
+    new Set(cancellations.map((identity) => identity.attemptId)).size !== cancellations.length ||
+    cancellations.some((identity) => {
+      const known = byId.get(identity.attemptId)
+      return known !== undefined && canonical(known) !== canonical(identity)
+    }) ||
     new Set(ids).size !== ids.length ||
     new Set(settlements).size !== settlements.length ||
     state.records.some(
@@ -313,6 +325,31 @@ export class AttemptJournal {
   }
   public async lookup(identity: DeviceAttemptIdentity): Promise<DeviceJournalRecord | undefined> {
     return await this.ordered(async () => this.find(await this.readNow(), identity))
+  }
+  /** M100-E-CANCEL-RETENTION: permanent identity evidence, including before admission. */
+  public async cancellations(): Promise<readonly DeviceAttemptIdentity[]> {
+    return await this.ordered(async () => {
+      const state = await this.readNow()
+      return state.cancellations ?? []
+    })
+  }
+  public async recordCancellation(input: DeviceAttemptIdentity): Promise<void> {
+    const identity = deviceAttemptIdentitySchema.parse(input)
+    await this.ordered(async () => {
+      const state = await this.readNow()
+      const known = this.find(state, identity)
+      const cancelledIdentity = known === undefined ? identity : identityOf(known)
+      const cancellations = state.cancellations ?? []
+      const prior = cancellations.find((row) => row.attemptId === identity.attemptId)
+      if (prior !== undefined) {
+        if (canonical(prior) !== canonical(identity))
+          throw new DeviceJournalError('payload-changed')
+        return
+      }
+      if (cancellations.length >= DEVICE_LIMITS.tombstones) throw new DeviceJournalError('capacity')
+      state.cancellations = [...cancellations, cancelledIdentity]
+      await this.writeNow(state)
+    })
   }
   public async sourceIntent(request: DeviceDispatch, now: number): Promise<DeviceJournalRecord> {
     if (deviceDispatchDigest(request) !== request.payloadDigest)

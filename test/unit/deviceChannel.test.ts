@@ -31,34 +31,61 @@ function fixture(isActive = () => true, isSource = false) {
   return { socket, handler, channel }
 }
 
+function cancelBytes() {
+  return encodeDeviceFrame({
+    ...deviceTestFrame,
+    body: {
+      kind: 'cancel',
+      identity: {
+        pairId: deviceTestFrame.pairId,
+        receiverIncarnationId: deviceTestFrame.receiverIncarnationId,
+        boardId: 'a'.repeat(32),
+        taskId: 'b'.repeat(32),
+        attemptId: 'c'.repeat(32),
+      },
+    },
+  })
+}
+
 describe('authenticated device channel bounds', () => {
-  it('RVM100E-P2-2 counts priority controls against the unchanged frame capacity', () => {
+  it.each(['separate', 'Stop-first-overflow'])(
+    'RVM100E2-P2-1 delivers Stop with 31 filled data slots (%s)',
+    (input) => {
+      const { socket, handler } = fixture()
+      const held = Promise.withResolvers<undefined>()
+      handler.receive = vi.fn(() => held.promise)
+      const data = encodeDeviceFrame(deviceTestFrame)
+      for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', data)
+      expect(handler.receive).toHaveBeenCalledOnce()
+      expect(socket.destroyed).toBe(false)
+      socket.emit(
+        'data',
+        input === 'separate' ? cancelBytes() : Buffer.concat([cancelBytes(), data, data]),
+      )
+      expect(handler.receive).toHaveBeenCalledTimes(2)
+      expect(handler.receive).toHaveBeenLastCalledWith(
+        expect.objectContaining({ body: expect.objectContaining({ kind: 'cancel' }) }),
+        expect.anything(),
+      )
+      expect(socket.destroyed).toBe(input !== 'separate')
+      held.resolve(undefined)
+    },
+  )
+  it('RVM100E-P2-2 counts priority controls against the fixed reserved frame capacity', () => {
     const { socket, handler } = fixture()
     handler.receive = vi.fn(
       () =>
         new Promise<void>(() => {
-          /* Hold every control to exercise the shared in-flight bound. */
+          /* Hold every control to exercise the reserved in-flight bound. */
         }),
     )
-    const cancel = encodeDeviceFrame({
-      ...deviceTestFrame,
-      body: {
-        kind: 'cancel',
-        identity: {
-          pairId: deviceTestFrame.pairId,
-          receiverIncarnationId: deviceTestFrame.receiverIncarnationId,
-          boardId: 'a'.repeat(32),
-          taskId: 'b'.repeat(32),
-          attemptId: 'c'.repeat(32),
-        },
-      },
-    })
-    for (let index = 0; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', cancel)
-    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.queuedFrames)
+    const cancel = cancelBytes()
+    for (let index = 0; index < DEVICE_LIMITS.controlFrames; index += 1) socket.emit('data', cancel)
+    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.controlFrames)
     expect(socket.destroyed).toBe(false)
     socket.emit('data', cancel)
     expect(socket.destroyed).toBe(true)
-    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.queuedFrames)
+    expect(handler.receive).toHaveBeenCalledTimes(DEVICE_LIMITS.controlFrames)
   })
   it('RVM100T-P2-3 rechecks incomplete-frame expiry after decoding before admission', () => {
     vi.useFakeTimers()
@@ -70,8 +97,9 @@ describe('authenticated device channel bounds', () => {
       this: DeviceFrameDecoder,
       chunk,
       available,
+      control,
     ) {
-      const result = push.call(this, chunk, available)
+      const result = push.call(this, chunk, available, control)
       vi.setSystemTime(Date.now() + DEVICE_LIMITS.frameDeadlineMs)
       return result
     })

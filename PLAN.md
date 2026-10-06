@@ -17788,6 +17788,22 @@ this repair. Each finding gets a regression and byte-exact red/restored drill
 in `docs/certification/m100-e.md`. No new dependency or physical-action
 adapter is introduced; D83's concrete physical-action UI remains unqualified.
 
+**FIXM100E2 round-two repair (2026-10-06).** Fix all four RVM100E2 P2s
+by construction: decode the validated control header before data capacity and
+route cancel frames immediately through a separate fixed control capacity;
+retain full-identity cancellation tombstones synchronously before effects,
+including controls that overtake queued dispatch, and persist them when the
+journal is available. Cancellation retention is named and survives identical
+retries. One synchronous receiver state owner issues tagged effects for
+admission, cancellation, retirement and confirmations; completed retirement
+invalidates late confirmation generations. E owns the necessary framing,
+channel, journal and constants changes. Owning regressions include 31 filled
+data slots and Stop-first overflow, queued dispatch overtaking, identical
+retry, delayed cancellation confirmation and a small completion-order
+permutation test. Every finding gets byte-exact red/restored evidence in
+`docs/certification/m100-e.md`; no review residual, dependency, guard waiver,
+paid/live call or physical-device qualification is introduced.
+
 - **Goal.** The owner explicitly links his four LAN devices, offers a bounded
   pool from each open extension, delegates independent lanes and checks from
   one board, and receives reviewable Git branches without moving credentials
@@ -18671,8 +18687,8 @@ remain the lead's exact integrated-tree prerequisites.
 
 **FIXM100E execution/control review repair (2026-10-06).** The rig brief
 requires local scoped checks, hooks-on commits, no merges and no aggregate
-quality run. Both RVM100E P2s are repaired with owning regressions and
-byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
+quality run. Both RVM100E P2s and all four RVM100E2 P2s are repaired with
+owning regressions, completion-order permutations and byte-exact red/restored receipts in `docs/certification/m100-e.md`. Full
 quality, installed physical-device/UI qualification and the inherited
 host-API/split-reader handoffs remain the lead's joined-tree prerequisites;
 no existing gate, timeout or permission boundary is weakened.
@@ -19670,7 +19686,11 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **M100-E-JOINED-QUALIFICATION (inherited integration handoff).** Both
-  RVM100E P2 findings are repaired, with no review finding deferred. E's
+  RVM100E P2 findings and all four RVM100E2 P2 findings are repaired, with
+  no review finding deferred. Cancellation identities use
+  **M100-E-CANCEL-RETENTION**: the full receiver lifetime in memory and
+  permanent journal retention through compaction; finite evidence exhaustion
+  blocks new work while Stop still reaches the local cancellation port. E's
   receiver and journal remain unshipped; scoped software/TLS-channel tests
   do not qualify a concrete physical-action descriptor/nonce, receiver-local
   physical approval UI or unattended device operation under D83. Safe for

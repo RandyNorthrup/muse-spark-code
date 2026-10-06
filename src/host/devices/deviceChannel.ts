@@ -109,9 +109,19 @@ export function openDeviceChannel(
     try {
       if (!isActive()) throw new Error('revoked')
       checkFrameDeadline()
+      let completedControls = 0
       const frames = decoder.push(
         chunk,
-        DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning) - controls,
+        DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning),
+        {
+          available: DEVICE_LIMITS.controlFrames - controls,
+          receive(frame) {
+            checkFrameDeadline()
+            if (!isActive() || !isMatching(frame)) throw new Error('invalid-frame')
+            completedControls += 1
+            void control(frame)
+          },
+        },
       )
       checkFrameDeadline()
       const isInitialOffer = currentIncarnation === undefined && frames.length > 0
@@ -129,7 +139,7 @@ export function openDeviceChannel(
       }
       // A completed frame followed by an incomplete frame gets a fresh absolute
       // deadline; trickling bytes within one frame never extends its deadline.
-      if (!decoder.incomplete || frames.length > 0) {
+      if (!decoder.incomplete || frames.length > 0 || completedControls > 0) {
         clearTimeout(frameTimer)
         frameTimer = undefined
         frameStartedAt = undefined
@@ -143,11 +153,8 @@ export function openDeviceChannel(
         }, DEVICE_LIMITS.frameDeadlineMs)
       }
       for (const frame of frames) {
-        if (frame.body.kind === 'cancel') void control(frame)
-        else {
-          queue.push(frame)
-          void drain()
-        }
+        queue.push(frame)
+        void drain()
       }
     } catch (error) {
       failure =

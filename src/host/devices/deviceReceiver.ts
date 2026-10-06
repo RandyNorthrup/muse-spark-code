@@ -13,6 +13,7 @@ import { DevicePairingError } from '../../core/devices/pairing'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   deviceDispatchSchema,
+  isSameAttempt,
   deviceFrameSchema,
   type DEVICE_FAILURES,
   type DeviceAttemptIdentity,
@@ -64,6 +65,35 @@ export interface DeviceReceiverPolicy {
   /** M95 binds current local model, tariff, key owner and reservation; no peer credentials. */
   assertPaidBinding(request: DeviceDispatch, use: PaidUseRequest): Promise<void>
 }
+interface PendingAttempt {
+  readonly identity: DeviceAttemptIdentity
+  readonly control: AbortController
+}
+interface LiveAttempt extends PendingAttempt {
+  readonly lease: DeviceLocalAttempt
+  phase: 'reserved' | 'active' | 'retiring'
+}
+type ReceiverEvent =
+  | { kind: 'dispatch'; pending: PendingAttempt }
+  | { kind: 'dispatch-finished'; pending: PendingAttempt }
+  | { kind: 'reserved' | 'admitted'; live: LiveAttempt }
+  | { kind: 'cancel'; identity: DeviceAttemptIdentity }
+  | { kind: 'cancel-confirmed'; live: LiveAttempt }
+  | { kind: 'cancel-failed'; live: LiveAttempt; error: unknown }
+  | {
+      kind: 'retirement-observed'
+      live: LiveAttempt
+      result: Awaited<DeviceLocalAttempt['retirement']>
+    }
+  | { kind: 'retired'; live: LiveAttempt }
+  | { kind: 'failed'; reason: Failure; live?: LiveAttempt }
+type ReceiverEffect =
+  | { kind: 'abort'; control: AbortController }
+  | { kind: 'cancel' | 'record-uncertain'; live: LiveAttempt }
+  | { kind: 'remember-cancel'; identity: DeviceAttemptIdentity; live?: LiveAttempt }
+  | { kind: 'retire'; live: LiveAttempt; result: Awaited<DeviceLocalAttempt['retirement']> }
+  | { kind: 'report'; error: unknown }
+
 export class DeviceReceiver implements DeviceExecutionPort {
   public static async open(
     incarnationId: string,
@@ -73,6 +103,11 @@ export class DeviceReceiver implements DeviceExecutionPort {
   ): Promise<DeviceReceiver> {
     if (!/^[a-f0-9]{32}$(?![\s\S])/.test(incarnationId)) throw new DeviceJournalError('storage')
     const receiver = new DeviceReceiver(incarnationId, journal, execution, policy)
+    const cancellations = await journal.cancellations()
+    for (const identity of cancellations)
+      receiver.cancelled.set(identity.attemptId, Object.freeze(identity))
+    if (receiver.cancelled.size >= DEVICE_LIMITS.tombstones)
+      receiver.transition({ kind: 'failed', reason: 'capacity' })
     const records = await journal.records()
     await execution.retain(records)
     for (const row of records) {
@@ -95,18 +130,10 @@ export class DeviceReceiver implements DeviceExecutionPort {
   private queue: Promise<void> = Promise.resolve()
   private isPaused = true
   private failure: Failure | undefined
-  private readonly live = new Map<
-    string,
-    {
-      readonly identity: DeviceAttemptIdentity
-      readonly lease: DeviceLocalAttempt
-      readonly control: AbortController
-    }
-  >()
-  private readonly pending = new Set<{
-    readonly identity: DeviceAttemptIdentity
-    readonly control: AbortController
-  }>()
+  private readonly live = new Map<string, LiveAttempt>()
+  private readonly pending = new Set<PendingAttempt>()
+  // M100-E-CANCEL-RETENTION: receiver lifetime in memory, permanent in its journal.
+  private readonly cancelled = new Map<string, DeviceAttemptIdentity>()
   private readonly pendingReconciliation = new Set<string>()
   private constructor(
     private readonly incarnationId: string,
@@ -114,6 +141,213 @@ export class DeviceReceiver implements DeviceExecutionPort {
     private readonly execution: DeviceReceiverExecution,
     private readonly policy: DeviceReceiverPolicy,
   ) {}
+  private owns(live: LiveAttempt): boolean {
+    return this.live.get(live.identity.attemptId) === live && live.phase !== 'retiring'
+  }
+  /** One synchronous owner changes state; awaited effects return tagged generation events. */
+  private transition(event: ReceiverEvent): ReceiverEffect[] {
+    switch (event.kind) {
+      case 'dispatch': {
+        const stopped = this.cancelled.get(event.pending.identity.attemptId)
+        if (stopped !== undefined) {
+          if (!isSameAttempt(stopped, event.pending.identity))
+            throw new DeviceJournalError('payload-changed')
+          if (this.failure === 'storage') throw new DeviceJournalError('storage')
+          throw new DevicePairingError('grant')
+        }
+        this.pending.add(event.pending)
+        return []
+      }
+      case 'dispatch-finished': {
+        this.pending.delete(event.pending)
+        return []
+      }
+      case 'reserved': {
+        this.live.set(event.live.identity.attemptId, event.live)
+        return event.live.control.signal.aborted ? [{ kind: 'cancel', live: event.live }] : []
+      }
+      case 'admitted': {
+        if (this.owns(event.live)) event.live.phase = 'active'
+        return []
+      }
+      case 'cancel': {
+        const live = this.live.get(event.identity.attemptId)
+        const pending = [...this.pending].filter(
+          (row) => row.identity.attemptId === event.identity.attemptId,
+        )
+        const original =
+          live?.identity ?? pending[0]?.identity ?? this.cancelled.get(event.identity.attemptId)
+        if (original !== undefined && !isSameAttempt(original, event.identity))
+          throw new DeviceJournalError('payload-changed')
+        const effects: ReceiverEffect[] = []
+        // Identity is remembered before aborts, local cancellation or journal effects.
+        if (
+          this.cancelled.has(event.identity.attemptId) ||
+          this.cancelled.size < DEVICE_LIMITS.tombstones
+        ) {
+          this.cancelled.set(event.identity.attemptId, Object.freeze(event.identity))
+          if (this.cancelled.size >= DEVICE_LIMITS.tombstones)
+            this.transition({ kind: 'failed', reason: 'capacity' })
+        } else {
+          this.isPaused = true
+          this.failure = 'capacity'
+          effects.push({ kind: 'report', error: new DeviceJournalError('capacity') })
+        }
+        for (const row of pending) effects.push({ kind: 'abort', control: row.control })
+        if (live !== undefined) {
+          effects.push({ kind: 'abort', control: live.control }, { kind: 'cancel', live })
+        }
+        effects.push({
+          kind: 'remember-cancel',
+          identity: event.identity,
+          ...(live !== undefined && { live }),
+        })
+        return effects
+      }
+      case 'cancel-failed': {
+        if (!this.owns(event.live)) return []
+        this.transition({
+          kind: 'failed',
+          reason: event.error instanceof DeviceJournalError ? event.error.reason : 'uncertain',
+          live: event.live,
+        })
+        return [{ kind: 'report', error: event.error }]
+      }
+      case 'cancel-confirmed': {
+        if (!this.owns(event.live)) return []
+        return event.live.phase === 'reserved'
+          ? []
+          : [{ kind: 'record-uncertain', live: event.live }]
+      }
+      case 'retirement-observed': {
+        if (this.live.get(event.live.identity.attemptId) !== event.live) return []
+        event.live.phase = 'retiring'
+        return [
+          { kind: 'abort', control: event.live.control },
+          { kind: 'retire', live: event.live, result: event.result },
+        ]
+      }
+      case 'retired': {
+        if (this.live.get(event.live.identity.attemptId) !== event.live) return []
+        this.live.delete(event.live.identity.attemptId)
+        if (this.failure === 'uncertain' && this.live.size === 0) this.failure = undefined
+        return []
+      }
+      case 'failed': {
+        if (event.live !== undefined && this.live.get(event.live.identity.attemptId) !== event.live)
+          return []
+        this.isPaused = true
+        // Exhausted cancellation evidence and failed storage remain latched.
+        if (
+          event.reason === 'storage' ||
+          (this.failure !== 'storage' && this.failure !== 'capacity')
+        )
+          this.failure = event.reason
+        if (event.live !== undefined) this.pendingReconciliation.add(event.live.identity.attemptId)
+        return []
+      }
+    }
+  }
+  private async effects(effects: readonly ReceiverEffect[]): Promise<void> {
+    // Start all effects synchronously: neither persistence nor confirmation gates Stop.
+    await Promise.all(
+      effects.map(async (effect) => {
+        switch (effect.kind) {
+          case 'abort': {
+            effect.control.abort()
+            return
+          }
+          case 'report': {
+            throw effect.error
+          }
+          case 'cancel': {
+            let confirmation: ReceiverEvent
+            try {
+              await effect.live.lease.cancel()
+              confirmation = { kind: 'cancel-confirmed', live: effect.live }
+            } catch (error) {
+              confirmation = { kind: 'cancel-failed', live: effect.live, error }
+            }
+            await this.effects(this.transition(confirmation))
+            return
+          }
+          case 'remember-cancel': {
+            try {
+              await this.journal.recordCancellation(effect.identity)
+            } catch (error) {
+              if (effect.live !== undefined && !this.owns(effect.live)) return
+              if (error instanceof DeviceJournalError && error.reason !== 'payload-changed')
+                this.transition({
+                  kind: 'failed',
+                  reason: error.reason,
+                  ...(effect.live !== undefined && { live: effect.live }),
+                })
+              throw error
+            }
+            return
+          }
+          case 'retire': {
+            await this.ordered(async () => {
+              if (this.live.get(effect.live.identity.attemptId) !== effect.live) return
+              try {
+                await this.journal.advance(
+                  effect.live.identity,
+                  (previous) => ({
+                    ...previous,
+                    revision: previous.revision + 1,
+                    state: 'retired',
+                    occupied: {
+                      workers: 0,
+                      processes: 0,
+                      heavyChecks: 0,
+                      tokens: 0,
+                      spendUsd: 0,
+                      artifactBytes: 0,
+                    },
+                    usage: effect.result.usage,
+                    ...(effect.result.artifact !== undefined && {
+                      artifact: effect.result.artifact,
+                    }),
+                  }),
+                  Date.now(),
+                )
+                await effect.live.lease.release()
+                this.transition({ kind: 'retired', live: effect.live })
+              } catch (error) {
+                this.transition({ kind: 'failed', reason: 'storage', live: effect.live })
+                throw error
+              }
+            })
+            return
+          }
+          case 'record-uncertain': {
+            await this.ordered(async () => {
+              if (!this.owns(effect.live)) return
+              try {
+                await this.journal.advance(
+                  effect.live.identity,
+                  (previous) => ({
+                    ...previous,
+                    revision: previous.revision + 1,
+                    state: 'uncertain',
+                  }),
+                  Date.now(),
+                )
+              } catch (error) {
+                this.transition({
+                  kind: 'failed',
+                  reason: error instanceof DeviceJournalError ? error.reason : 'uncertain',
+                  live: effect.live,
+                })
+                throw error
+              }
+            })
+            return
+          }
+        }
+      }),
+    )
+  }
   private async ordered<T>(work: () => Promise<T>): Promise<T> {
     const predecessor = this.queue
     const operation = (async () => {
@@ -195,17 +429,6 @@ export class DeviceReceiver implements DeviceExecutionPort {
       },
     }
   }
-  private async markUncertain(identity: DeviceAttemptIdentity): Promise<void> {
-    this.isPaused = true
-    this.failure = 'uncertain'
-    await this.ordered(async () => {
-      await this.journal.advance(
-        identity,
-        (previous) => ({ ...previous, revision: previous.revision + 1, state: 'uncertain' }),
-        Date.now(),
-      )
-    })
-  }
   public get paused(): boolean {
     return this.isPaused
   }
@@ -223,15 +446,15 @@ export class DeviceReceiver implements DeviceExecutionPort {
     for (const [attemptId, live] of this.live) {
       this.pendingReconciliation.add(attemptId)
       void live.lease.pause().catch(() => {
-        if (this.live.get(attemptId) === live) this.failure = 'uncertain'
+        this.transition({ kind: 'failed', reason: 'uncertain', live })
       })
     }
   }
   public async dispatch(input: DeviceDispatch): Promise<DeviceFrame> {
     const request = deviceDispatchSchema.parse(input)
     const pending = { identity: Object.freeze(request.identity), control: new AbortController() }
-    this.pending.add(pending)
     try {
+      this.transition({ kind: 'dispatch', pending })
       return await this.ordered(async () => {
         let hasReserved = false
         try {
@@ -254,51 +477,33 @@ export class DeviceReceiver implements DeviceExecutionPort {
           await boundary.beforeAction()
           const lease = await this.execution.admit(request)
           hasReserved = true
-          this.live.set(request.identity.attemptId, {
-            identity: pending.identity,
-            lease,
-            control: pending.control,
-          })
+          const live: LiveAttempt = { ...pending, lease, phase: 'reserved' }
+          const reservationEffects = this.transition({ kind: 'reserved', live })
           // Attach the local retirement observer before the only start operation.
           void (async () => {
             let result: Awaited<DeviceLocalAttempt['retirement']>
             try {
               result = await lease.retirement
             } catch {
-              await this.markUncertain(request.identity)
+              this.transition({ kind: 'failed', reason: 'uncertain', live })
+              await this.effects([{ kind: 'record-uncertain', live }])
               return
             }
-            await this.ordered(async () => {
-              await this.journal.advance(
-                request.identity,
-                (previous) => ({
-                  ...previous,
-                  revision: previous.revision + 1,
-                  state: 'retired',
-                  occupied: {
-                    workers: 0,
-                    processes: 0,
-                    heavyChecks: 0,
-                    tokens: 0,
-                    spendUsd: 0,
-                    artifactBytes: 0,
-                  },
-                  usage: result.usage,
-                  ...(result.artifact !== undefined && { artifact: result.artifact }),
-                }),
-                Date.now(),
-              )
-              await lease.release()
-              this.live.delete(request.identity.attemptId)
-              if (this.failure === 'uncertain' && this.live.size === 0) this.failure = undefined
-            })
+            await this.effects(this.transition({ kind: 'retirement-observed', live, result }))
           })().catch(() => {
-            this.isPaused = true
-            this.failure = 'storage'
+            this.transition({ kind: 'failed', reason: 'storage', live })
           })
-          if (pending.control.signal.aborted) await lease.cancel()
+          // Journal the late reservation without waiting for Stop confirmation.
+          void this.effects(reservationEffects).catch((error: unknown) => {
+            this.transition({
+              kind: 'failed',
+              reason: error instanceof DeviceJournalError ? error.reason : 'uncertain',
+              live,
+            })
+          })
           // Capacity belongs to M96. Neither durable write can be bypassed by a retry.
           await this.journal.admit(request, lease.usage, Date.now())
+          this.transition({ kind: 'admitted', live })
           await boundary.beforeAction()
           await this.journal.advance(
             request.identity,
@@ -325,15 +530,20 @@ export class DeviceReceiver implements DeviceExecutionPort {
           // A late refusal cannot claim that no admission/reservation happened.
           const reason = hasReserved && reportedReason !== 'storage' ? 'uncertain' : reportedReason
           if (reason === 'storage' || reason === 'uncertain') {
-            this.isPaused = true
-            this.failure = reason
+            this.transition({ kind: 'failed', reason })
             if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
           }
           return this.frame(request.identity.pairId, { kind: 'failure', reason })
         }
       })
+    } catch (error) {
+      const reason =
+        error instanceof DeviceJournalError || error instanceof DevicePairingError
+          ? error.reason
+          : 'uncertain'
+      return this.frame(request.identity.pairId, { kind: 'failure', reason })
     } finally {
-      this.pending.delete(pending)
+      this.transition({ kind: 'dispatch-finished', pending })
     }
   }
   public async reconcile(
@@ -361,51 +571,8 @@ export class DeviceReceiver implements DeviceExecutionPort {
     if (identity.receiverIncarnationId !== this.incarnationId)
       throw new DeviceJournalError('uncertain')
     this.frame(identity.pairId, { kind: 'cancel', identity })
-    const live = this.live.get(identity.attemptId)
-    const pending = [...this.pending].filter(
-      (attempt) => attempt.identity.attemptId === identity.attemptId,
-    )
-    const original = live?.identity ?? pending[0]?.identity
-    if (
-      original !== undefined &&
-      (original.pairId !== identity.pairId ||
-        original.receiverIncarnationId !== identity.receiverIncarnationId ||
-        original.boardId !== identity.boardId ||
-        original.taskId !== identity.taskId ||
-        original.attemptId !== identity.attemptId)
-    )
-      throw new DeviceJournalError('payload-changed')
-    for (const attempt of pending) {
-      if (
-        attempt.identity.pairId === identity.pairId &&
-        attempt.identity.boardId === identity.boardId &&
-        attempt.identity.taskId === identity.taskId &&
-        attempt.identity.receiverIncarnationId === identity.receiverIncarnationId
-      )
-        attempt.control.abort()
-    }
-    if (live === undefined) {
-      if (pending.length > 0) return
-      const row = await this.journal.lookup(identity)
-      if (row?.kind !== 'receiver-record') throw new DeviceJournalError('uncertain')
-      return
-    }
-    live.control.abort()
-    // Stop reaches the local owner even when persistence is broken or stalled.
-    try {
-      await live.lease.cancel()
-      await this.journal.advance(
-        live.identity,
-        (previous) => ({ ...previous, revision: previous.revision + 1, state: 'uncertain' }),
-        Date.now(),
-      )
-    } catch (error) {
-      this.isPaused = true
-      this.failure = error instanceof DeviceJournalError ? error.reason : 'uncertain'
-      this.pendingReconciliation.add(identity.attemptId)
-      throw error
-    }
-    // A cancellation acknowledgement never writes terminal state or releases capacity.
+    await this.effects(this.transition({ kind: 'cancel', identity }))
+    // A cancellation acknowledgement never retires or releases occupancy.
   }
   /** Called only by T after pinned mutual authentication/current-pair validation. */
   public async receive(input: DeviceFrame, channel: DeviceChannel): Promise<void> {

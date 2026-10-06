@@ -51,6 +51,57 @@ async function retire() {
 }
 
 describe('durable attempt ownership', () => {
+  it('RVM100E2-P2-4 refuses exhausted cancellation capacity without losing earlier evidence', async () => {
+    const { request, directory, owner } = fixture()
+    const text = JSON.stringify({
+      version: 1,
+      records: [],
+      cancellations: Array.from({ length: DEVICE_LIMITS.tombstones }, (_, index) => ({
+        ...request.identity,
+        attemptId: index.toString(16).padStart(DEVICE_LIMITS.idChars, '0'),
+      })),
+      acknowledgements: [],
+    })
+    const file = path.join(directory, 'attempts.json')
+    await writeFile(file, text)
+    const journal = await AttemptJournal.open(directory, owner, executionProtection)
+    await expect(journal.recordCancellation(request.identity)).rejects.toThrow('capacity')
+    expect(await readFile(file, 'utf8')).toBe(text)
+  })
+  it('RVM100E2-P2-4 persists cancellation identities idempotently with full tuple validation', async () => {
+    const { journal, request, directory, owner } = fixture()
+    await journal.recordCancellation(request.identity)
+    await journal.recordCancellation(request.identity)
+    await expect(
+      journal.recordCancellation({ ...request.identity, taskId: '0'.repeat(32) }),
+    ).rejects.toThrow('payload-changed')
+    const restored = await AttemptJournal.open(directory, owner, executionProtection)
+    expect(await restored.cancellations()).toEqual([request.identity])
+    await journal.admit(request, executionUsage, Date.now())
+    expect(await journal.cancellations()).toEqual([request.identity])
+  })
+  it.each(['duplicate', 'record-tuple'])(
+    'RVM100E2-P2-4 rejects corrupt %s cancellation evidence',
+    async (damage) => {
+      const { journal, request, directory, owner } = fixture()
+      await journal.admit(request, executionUsage, Date.now())
+      await writeFile(
+        path.join(directory, 'attempts.json'),
+        JSON.stringify({
+          version: 1,
+          records: await journal.records(),
+          cancellations:
+            damage === 'duplicate'
+              ? [request.identity, request.identity]
+              : [{ ...request.identity, taskId: '0'.repeat(32) }],
+          acknowledgements: [],
+        }),
+      )
+      await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
+        'storage',
+      )
+    },
+  )
   it('persists source intent and hashes validated payload independent of key order', async () => {
     const { journal, request, directory, owner } = fixture()
     const first = await journal.sourceIntent(request, 100)

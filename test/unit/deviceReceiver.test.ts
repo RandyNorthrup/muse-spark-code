@@ -4,8 +4,13 @@ import { Socket } from 'node:net'
 import { TLSSocket } from 'node:tls'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
+import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DevicePairingError } from '../../src/core/devices/pairing'
-import { deviceDispatchSchema, type DeviceFrame } from '../../src/shared/devices'
+import {
+  deviceDispatchSchema,
+  type DeviceDispatch,
+  type DeviceFrame,
+} from '../../src/shared/devices'
 import { openDeviceChannel, type DeviceChannel } from '../../src/host/devices/deviceChannel'
 import {
   useExecutionFixture,
@@ -20,6 +25,12 @@ afterEach(() => {
   for (const socket of sockets) socket.destroy()
   sockets.clear()
 })
+function otherDispatch(request: DeviceDispatch) {
+  return signedDispatch({
+    ...request,
+    identity: { ...request.identity, attemptId: '0'.repeat(32) },
+  })
+}
 function liveChannel() {
   const { receiver, request } = fixture()
   const socket = new TLSSocket(new Socket())
@@ -72,6 +83,213 @@ const use = {
 } as const
 
 describe('receiver admission and local authority', () => {
+  it.each(['separate', 'Stop-first-overflow'])(
+    'RVM100E2-P2-1 reaches the live local cancellation port with saturated data (%s)',
+    async (input) => {
+      const { receiver, request, policy, lease } = fixture()
+      await receiver.dispatch(request)
+      const second = otherDispatch(request)
+      const approval = deferred<boolean>()
+      policy.approve.mockReturnValueOnce(approval.promise)
+      const { socket } = liveChannel()
+      const data = encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: second }))
+      socket.emit('data', data)
+      await vi.waitFor(() => {
+        expect(policy.approve).toHaveBeenLastCalledWith(second)
+      })
+      for (let index = 1; index < DEVICE_LIMITS.queuedFrames; index += 1) socket.emit('data', data)
+      const stop = encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity }))
+      socket.emit('data', input === 'separate' ? stop : Buffer.concat([stop, data, data]))
+      expect(lease.cancel).toHaveBeenCalledOnce()
+      expect(lease.release).not.toHaveBeenCalled()
+      approval.resolve(false)
+      await receiver.reconcile([request.identity])
+    },
+  )
+  it('RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A', async () => {
+    const { request, policy, lease, journal } = fixture()
+    const approval = deferred<boolean>()
+    policy.approve.mockReturnValueOnce(approval.promise)
+    const second = otherDispatch(request)
+    const { socket, send } = liveChannel()
+    socket.emit('data', encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: request })))
+    await vi.waitFor(() => {
+      expect(policy.approve).toHaveBeenCalledOnce()
+    })
+    socket.emit(
+      'data',
+      Buffer.concat([
+        encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: second })),
+        encodeDeviceFrame(incoming({ kind: 'cancel', identity: second.identity })),
+      ]),
+    )
+    approval.resolve(false)
+    await vi.waitFor(() => {
+      expect(send.mock.calls.filter(([frame]) => frame.body.kind === 'failure')).toHaveLength(2)
+    })
+    expect(lease.start).not.toHaveBeenCalled()
+    expect(policy.approve).toHaveBeenCalledOnce()
+    expect(await journal.lookup(second.identity)).toBeUndefined()
+  })
+  it.each(['coalesced', 'later'])(
+    'RVM100E2-P2-4 retains cancellation through an identical %s retry',
+    async (timing) => {
+      const { request, policy, lease, receiver } = fixture()
+      const { socket, send } = liveChannel()
+      const dispatch = encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: request }))
+      const cancel = encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity }))
+      socket.emit(
+        'data',
+        Buffer.concat(timing === 'coalesced' ? [dispatch, cancel, dispatch] : [dispatch, cancel]),
+      )
+      if (timing === 'later') {
+        await vi.waitFor(() => {
+          expect(send).toHaveBeenCalled()
+        })
+        socket.emit('data', dispatch)
+      }
+      await vi.waitFor(() => {
+        expect(send.mock.calls.filter(([frame]) => frame.body.kind === 'failure')).toHaveLength(2)
+      })
+      expect(await responseBody(receiver.dispatch(request))).toEqual({
+        kind: 'failure',
+        reason: 'grant',
+      })
+      expect(lease.start).not.toHaveBeenCalled()
+      expect(policy.approve).not.toHaveBeenCalled()
+    },
+  )
+  it.each([
+    ['approve', 'cancel', 'retire', 'confirm'],
+    ['approve', 'cancel', 'confirm', 'retire'],
+    ['cancel', 'approve', 'retire', 'confirm'],
+    ['cancel', 'retire', 'approve', 'confirm'],
+    ['retire', 'approve', 'cancel', 'confirm'],
+    ['approve', 'retire', 'cancel', 'confirm'],
+  ])(
+    'RVM100E2 permutations preserve Stop and final retirement: %s → %s → %s → %s',
+    async (...order) => {
+      const {
+        receiver,
+        request,
+        policy,
+        lease,
+        execution,
+        journal,
+        retirement,
+        fixture: counts,
+      } = fixture()
+      const approval = deferred<boolean>()
+      const confirmation = deferred<undefined>()
+      policy.approve.mockReturnValueOnce(approval.promise)
+      lease.cancel.mockReturnValue(confirmation.promise)
+      const first = receiver.dispatch(request)
+      await vi.waitFor(() => {
+        expect(policy.approve).toHaveBeenCalledOnce()
+      })
+      const second = otherDispatch(request)
+      const queued = receiver.dispatch(second)
+      await receiver.cancel(second.identity)
+      let cancel: Promise<void> | undefined
+      let launchesAtStop = 0
+      const complete = async (event: string) => {
+        switch (event) {
+          case 'approve': {
+            approval.resolve(true)
+            await first
+            return
+          }
+          case 'cancel': {
+            launchesAtStop = counts.launches
+            cancel = receiver.cancel(request.identity)
+            return
+          }
+          case 'retire': {
+            retirement.resolve({ usage: lease.usage })
+            if (execution.admit.mock.calls.length > 0)
+              await vi.waitFor(() => {
+                expect(lease.release).toHaveBeenCalledOnce()
+              })
+            return
+          }
+          case 'confirm': {
+            confirmation.resolve(undefined)
+            return
+          }
+        }
+      }
+      for (const event of order) await complete(event)
+      await Promise.all([first, queued, cancel])
+      expect(counts.launches).toBe(launchesAtStop)
+      expect(execution.admit).not.toHaveBeenCalledWith(second)
+      expect(await journal.cancellations()).toEqual(
+        expect.arrayContaining([request.identity, second.identity]),
+      )
+      expect(await responseBody(receiver.dispatch(second))).toEqual({
+        kind: 'failure',
+        reason: 'grant',
+      })
+      if (execution.admit.mock.calls.length > 0) {
+        await vi.waitFor(() => {
+          expect(lease.release).toHaveBeenCalledOnce()
+        })
+        expect(await journal.lookup(request.identity)).toMatchObject({
+          outcome: { state: 'retired' },
+        })
+        if (counts.boundary !== undefined)
+          await expect(counts.boundary.beforeAction()).rejects.toThrow('grant')
+      }
+      expect(receiver.blockedReason).toBeUndefined()
+      await receiver.reconcile([request.identity, second.identity])
+      receiver.resumeQueue()
+    },
+  )
+  it('RVM100E2-P2-4 refuses admission synchronously while cancellation persistence is stalled', async () => {
+    const { receiver, request, journal, execution, policy } = fixture()
+    const persistence = deferred<undefined>()
+    vi.spyOn(journal, 'recordCancellation').mockReturnValueOnce(persistence.promise)
+    const cancel = receiver.cancel(request.identity)
+    try {
+      expect(await responseBody(receiver.dispatch(request))).toEqual({
+        kind: 'failure',
+        reason: 'grant',
+      })
+      expect(execution.admit).not.toHaveBeenCalled()
+      expect(policy.approve).not.toHaveBeenCalled()
+    } finally {
+      persistence.resolve(undefined)
+      await cancel
+    }
+  })
+  it('RVM100E2-P2-3 retires a late reservation without waiting for cancel confirmation', async () => {
+    const { receiver, request, execution, lease, retirement } = fixture()
+    const reservation = deferred<typeof lease>()
+    const confirmation = deferred<undefined>()
+    execution.admit.mockReturnValueOnce(reservation.promise)
+    lease.cancel.mockReturnValueOnce(confirmation.promise)
+    const dispatch = receiver.dispatch(request)
+    await vi.waitFor(() => {
+      expect(execution.admit).toHaveBeenCalledOnce()
+    })
+    await receiver.cancel(request.identity)
+    reservation.resolve(lease)
+    try {
+      await vi.waitFor(() => {
+        expect(lease.cancel).toHaveBeenCalledOnce()
+      })
+      retirement.resolve({ usage: lease.usage })
+      await vi.waitFor(() => {
+        expect(lease.release).toHaveBeenCalledOnce()
+      })
+      expect(await responseBody(dispatch)).toEqual({ kind: 'failure', reason: 'uncertain' })
+    } finally {
+      confirmation.resolve(undefined)
+      await dispatch
+    }
+    expect(receiver.blockedReason).toBeUndefined()
+    await receiver.reconcile([request.identity])
+    receiver.resumeQueue()
+  })
   it.each(['approval', 'start-confirmation'])(
     'RVM100E-P2-2 delivers Stop while dispatch waits for %s on the same channel',
     async (wait) => {
@@ -141,10 +359,7 @@ describe('receiver admission and local authority', () => {
     await receiver.dispatch(request)
     const approval = deferred<boolean>()
     policy.approve.mockReturnValueOnce(approval.promise)
-    const second = signedDispatch({
-      ...request,
-      identity: { ...request.identity, attemptId: '0'.repeat(32) },
-    })
+    const second = otherDispatch(request)
     const { socket, port } = liveChannel()
     socket.emit('data', encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: second })))
     await vi.waitFor(() => {
@@ -258,10 +473,7 @@ describe('receiver admission and local authority', () => {
   })
   it('uses M96 atomic capacity for the final slot, including local work and child capacity', async () => {
     const { receiver, request, execution, fixture: counts } = fixture()
-    const second = signedDispatch({
-      ...request,
-      identity: { ...request.identity, attemptId: '0'.repeat(32) },
-    })
+    const second = otherDispatch(request)
     const responses = await Promise.all([receiver.dispatch(request), receiver.dispatch(second)])
     expect(responses[0].body.kind).toBe('outcome')
     expect(responses[1].body).toEqual({ kind: 'failure', reason: 'capacity' })
@@ -412,10 +624,7 @@ describe('receiver admission and local authority', () => {
     expect(lease.pause).toHaveBeenCalledOnce()
     if (local.boundary === undefined) throw new Error('missing boundary')
     await expect(local.boundary.beforeAction()).rejects.toThrow('grant')
-    const fresh = signedDispatch({
-      ...request,
-      identity: { ...request.identity, attemptId: '0'.repeat(32) },
-    })
+    const fresh = otherDispatch(request)
     expect(await responseBody(receiver.dispatch(fresh))).toEqual({
       kind: 'failure',
       reason: 'reconcile-required',
