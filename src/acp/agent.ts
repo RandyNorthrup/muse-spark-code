@@ -92,6 +92,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -151,6 +152,8 @@ export interface AcpAgentDeps {
    * session. Absent, the agent behaves exactly as before.
    */
   readonly reportError?: (fact: AcpErrorFact) => void
+  /** M113's lazy deterministic engine, scoped to this session's workspace. */
+  readonly reports?: AcpReportsPort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -189,6 +192,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 interface PreparingPrompt {
   isCancelled: boolean
   error?: unknown
+  readonly reportAbort?: AbortController
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -321,8 +325,17 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        {
+          name: SLASH_COMMAND_NAMES.report,
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
         ...this.skills
-          .filter((skill) => skill.selector !== SLASH_COMMAND_NAMES.help)
+          .filter(
+            (skill) =>
+              skill.selector !== SLASH_COMMAND_NAMES.help &&
+              skill.selector !== SLASH_COMMAND_NAMES.report,
+          )
           .map((skill) => ({
             name: skill.selector,
             description: skill.description === '' ? skill.displayName : skill.description,
@@ -606,6 +619,10 @@ class AcpSession {
     }
   }
 
+  private isCurrentReport(preparing: PreparingPrompt): boolean {
+    return this.preparing === preparing && !preparing.isCancelled && !this.isDisposed
+  }
+
   /**
    * A session let go changes nothing more on the backend, which a newer
    * load may now hold, and replays nothing: the request fails instead.
@@ -828,6 +845,28 @@ class AcpSession {
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
+    const reportArgs = acpReportArguments(blocks)
+    if (reportArgs !== undefined) {
+      const reportAbort = new AbortController()
+      const preparing: PreparingPrompt = { isCancelled: false, reportAbort }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        const text = await runAcpReport(reportArgs, this.deps.reports, {
+          cwd: this.cwd,
+          sessionId: this.sessionId,
+          signal: reportAbort.signal,
+        })
+        if ('error' in preparing) throw preparing.error
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } finally {
+        this.preparing = undefined
+      }
+    }
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
@@ -917,6 +956,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -940,6 +980,7 @@ class AcpSession {
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
+      this.preparing.reportAbort?.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -965,6 +1006,7 @@ class AcpSession {
     this.isDisposed = true
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
     }
     const wasRunning = this.pending !== undefined
     this.pending?.resolve('cancelled')

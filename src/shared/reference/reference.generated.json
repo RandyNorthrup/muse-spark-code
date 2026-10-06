@@ -3229,6 +3229,18 @@
       "text": { "ui": "reportUsage" }
     },
     {
+      "route": "report",
+      "name": "report problem",
+      "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
+      "text": { "ui": "reportUsage" }
+    },
+    {
+      "route": "reports",
+      "name": "report <kind> / report history",
+      "description": "Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+      "text": { "ui": "reportCliUsage" }
+    },
+    {
       "route": "help",
       "name": "help --all",
       "description": "Commands, settings and features, with descriptions and documentation.",

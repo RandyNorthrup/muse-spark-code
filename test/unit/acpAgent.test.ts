@@ -590,7 +590,14 @@ describe('the ACP agent (M63)', () => {
     expect(h.updates).toEqual([
       {
         sessionUpdate: 'available_commands_update',
-        availableCommands: [{ name: 'help', description: UI_TEXT.referenceIntro, input: null }],
+        availableCommands: [
+          { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+          {
+            name: 'report',
+            description: UI_TEXT.reportSlashDescription,
+            input: { hint: '<kind> [args] | history' },
+          },
+        ],
       },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Hel' } },
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'lo' } },
@@ -680,6 +687,11 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        {
+          name: 'report',
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
       ],
     })
