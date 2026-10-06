@@ -24,6 +24,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- JetBrains development plugin: give each runtime a connection actor and epoch;
+  bound writes, metadata collection and cleanup; terminate contained workers
+  after parent-first crashes. Reconnect drops old work, overflowing edit
+  positions are refused before narrowing, and Tab failures expose fixed words.
+  Native stress and compatibility receipts are in `docs/certification/m104-e-redesign.md`.
+
 - JetBrains development plugin: isolate cancelled Tab responses, bound the
   metadata handshake without blocking shutdown, and dispose the native session
   and runtime process tree on transport failure. Workspace globs include root

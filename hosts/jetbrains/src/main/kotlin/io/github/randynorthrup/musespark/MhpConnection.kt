@@ -30,9 +30,25 @@ class RequestCancellation {
   }
 }
 
+interface MhpPeer {
+  fun request(
+    method: String,
+    params: JsonObject,
+  ): CompletableFuture<JsonElement>
+
+  fun notify(
+    method: String,
+    params: JsonObject,
+  )
+}
+
 data class ConnectionEvents(
   val initialized: () -> Unit,
   val diagnostic: (String) -> Unit,
+  val failed: (String) -> Unit = {},
+  val stopped: () -> Unit = {},
+  val completion: (Int, () -> Unit) -> Unit = { _, action -> action() },
+  val epoch: Long = 0,
 )
 
 class MhpConnection(
@@ -42,7 +58,8 @@ class MhpConnection(
   private val send: (JsonObject, String?) -> Unit,
   private val panel: (JsonObject) -> Unit,
   private val events: ConnectionEvents,
-) : Closeable {
+) : Closeable,
+  MhpPeer {
   private data class Pending(
     val method: String,
     val future: CompletableFuture<JsonElement>,
@@ -89,7 +106,7 @@ class MhpConnection(
     if (frame.has("error")) {
       boundary.failure(frame)
       outbound.remove(frame["id"].toString())
-      pending.future.completeExceptionally(IllegalStateException(frame.getAsJsonObject("error")["message"].asString))
+      pending.future.completeExceptionally(IllegalStateException("MHP_RUNTIME_REQUEST_FAILED"))
     } else {
       boundary.result(pending.method, frame)
       outbound.remove(frame["id"].toString())
@@ -108,6 +125,7 @@ class MhpConnection(
       "shutdown" -> {
         sendMhpReply(boundary, send, method, frame["id"], jsonValue(null))
         close()
+        events.stopped()
       }
       else -> dispatch(frame, definition)
     }
@@ -126,14 +144,17 @@ class MhpConnection(
       val task = CompletableFuture.supplyAsync { services.metadata }
       metadataTask = task
       task.orTimeout(METADATA_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete { metadata, failure ->
-        synchronized(this) {
-          if (!closed) {
-            runCatching {
-              if (failure != null) throw failure
-              finishInitialize(frame, metadata)
-            }.onFailure {
-              sendMhpFailure(boundary, send, events, frame["id"], "MHP_INTERNAL_ERROR")
-              close()
+        events.completion(metadata?.toString()?.toByteArray(Charsets.UTF_8)?.size ?: 1) {
+          synchronized(this) {
+            if (!closed) {
+              runCatching {
+                if (failure != null) throw failure
+                finishInitialize(frame, metadata)
+              }.onFailure {
+                sendMhpFailure(boundary, send, events, frame["id"], "MHP_INTERNAL_ERROR")
+                close()
+                events.failed("MHP_METADATA_FAILED")
+              }
             }
           }
         }
@@ -179,37 +200,48 @@ class MhpConnection(
     requestBudget.reserve(bytes)
     val cancellation = RequestCancellation()
     inbound[id.toString()] = Incoming(cancellation, bytes)
-    val release = {
-      synchronized(this) { inbound.remove(id.toString())?.let { requestBudget.release(it.bytes) } }
+    val finish: (Result<JsonElement>) -> Unit = { result ->
+      events.completion(
+        result
+          .getOrNull()
+          ?.toString()
+          ?.toByteArray(Charsets.UTF_8)
+          ?.size ?: 1,
+      ) {
+        synchronized(this) {
+          if (!closed && inbound.remove(id.toString()) != null) {
+            requestBudget.release(bytes)
+            result.fold({ value ->
+              runCatching {
+                cancellation.check()
+                sendMhpReply(boundary, send, method, id, value)
+              }.onFailure { sendMhpFailure(boundary, send, events, id, technicalCode(it)) }
+            }, { sendMhpFailure(boundary, send, events, id, technicalCode(it)) })
+          }
+        }
+      }
     }
     runCatching {
       executor.execute {
-        try {
+        finish(
           runCatching {
             cancellation.check()
             require(definition["capability"].asString in services.capabilities) { "MHP_UNSUPPORTED_CAPABILITY" }
-            val result = services.request(method, frame.getAsJsonObject("params"), cancellation)
-            cancellation.check()
-            sendMhpReply(boundary, send, method, id, result)
-          }.onFailure { sendMhpFailure(boundary, send, events, id, technicalCode(it)) }
-        } finally {
-          release()
-        }
+            services.request(method, frame.getAsJsonObject("params"), cancellation)
+          },
+        )
       }
-    }.onFailure {
-      release()
-      sendMhpFailure(boundary, send, events, id, "MHP_INTERNAL_ERROR")
-    }
+    }.onFailure { finish(Result.failure(it)) }
   }
 
   @Synchronized
-  fun request(
+  override fun request(
     method: String,
     params: JsonObject,
   ): CompletableFuture<JsonElement> {
     check(negotiated && !closed) { "MHP_INCOMPATIBLE_VERSION" }
     require(outbound.size < boundary.maximumQueuedMessages) { "MHP_PANEL_BACKPRESSURE" }
-    val id = "jetbrains-${nextId++}"
+    val id = "jetbrains-${events.epoch}-${nextId++}"
     val frame = json("jsonrpc" to "2.0", "id" to id, "method" to method, "params" to params)
     val definition = boundary.call(frame)
     require(definition["direction"].asString == "hostToRuntime") { "MHP_INVALID_REQUEST" }
@@ -217,16 +249,18 @@ class MhpConnection(
     outbound[jsonValue(id).toString()] = Pending(method, future)
     runCatching { send(frame, null) }.onFailure { outbound.remove(jsonValue(id).toString()) }.getOrThrow()
     future.whenComplete { _, _ ->
-      if (future.isCancelled && outbound.containsKey(jsonValue(id).toString())) {
-        // Retain the bounded pending slot until its validated late reply arrives.
-        runCatching { notify("$/cancelRequest", json("id" to id)) }
+      events.completion(1) {
+        if (future.isCancelled && outbound.containsKey(jsonValue(id).toString())) {
+          // Retain the bounded pending slot until its validated late reply arrives.
+          runCatching { notify("$/cancelRequest", json("id" to id)) }
+        }
       }
     }
     return future
   }
 
   @Synchronized
-  fun notify(
+  override fun notify(
     method: String,
     params: JsonObject,
   ) {

@@ -96,11 +96,15 @@ class MhpBoundaryTest {
 
   @Test
   fun boundsWriterQueueAndDropsOnlyTheClosingSurface() {
-    val pipe = MhpPipe(ByteArrayInputStream(byteArrayOf()), ByteArrayOutputStream(), boundary, {}, {})
+    val failures = mutableListOf<String>()
+    val pipe = MhpPipe(ByteArrayInputStream(byteArrayOf()), ByteArrayOutputStream(), boundary, {}, failures::add)
     repeat(boundary.maximumQueuedMessages) { pipe.send(json("id" to it), if (it == 0) "other" else "chat") }
-    assertThrows(Exception::class.java) { pipe.send(json("id" to "overflow")) }
     assertEquals(boundary.maximumQueuedMessages - 1, pipe.drop("chat"))
     assertEquals(1, pipe.drop("other"))
+    repeat(boundary.maximumQueuedMessages) { pipe.send(json("id" to it), "chat") }
+    assertThrows(Exception::class.java) { pipe.send(json("id" to "overflow")) }
+    assertEquals(listOf("MHP_PANEL_BACKPRESSURE"), failures)
+    assertEquals(0, pipe.drop("chat"))
     pipe.close()
     assertThrows(Exception::class.java) { pipe.send(json()) }
   }

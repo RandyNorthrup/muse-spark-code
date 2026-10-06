@@ -35,11 +35,11 @@ import kotlin.coroutines.resumeWithException
 class NativeTab(
   private val project: Project,
 ) {
-  @Volatile private var connection: MhpConnection? = null
+  @Volatile private var connection: MhpPeer? = null
 
   @Volatile private var registration: JsonObject? = null
 
-  fun bind(peer: MhpConnection?) {
+  fun bind(peer: MhpPeer?) {
     connection = peer
     registration = null
   }
@@ -75,7 +75,7 @@ class NativeTab(
 
   private suspend fun present(
     request: InlineCompletionRequest,
-    peer: MhpConnection,
+    peer: MhpPeer,
     snapshot: JsonObject,
     items: List<JsonObject>,
   ): MuseTabOffer? {
@@ -213,7 +213,7 @@ class MuseTabOffer(
   text: String,
   private val completionId: JsonElement,
   private val uri: String,
-  private val peer: MhpConnection,
+  private val peer: MhpPeer,
 ) {
   val element: InlineCompletionElement = InlineCompletionGrayTextElement(text)
   private val settled = AtomicBoolean()

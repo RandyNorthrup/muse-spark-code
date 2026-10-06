@@ -5279,6 +5279,22 @@ have equivalent functionality even if we need to develop it ourselves".
   The platform's minimatch brace expansion is a stub, so expand alternatives
   locally with the shared glob limits (256 characters/alternatives) before
   invoking that existing matcher. No new dependencies or live calls.
+- **REDM104E lifecycle redesign (2026-10-05).** Replace split host/pipe
+  lifetime management with one generation-scoped connection actor owning the
+  runtime, bounded transport and MHP session. Callers enqueue work only;
+  stream pumps are private supervised I/O tasks, never host-owned. Admission
+  overflow, write timeout, invalid wire data and the metadata deadline fail
+  the entire generation with a fixed diagnostic. Closing marks the generation
+  unavailable immediately, cancels work, requests bounded stream closure and
+  terminates its process containment before bounded worker joins. POSIX
+  process groups and Windows jobs survive parent-first exit; refuse launch
+  if containment cannot be established. Replies and UI callbacks carry the
+  originating generation. Validate integer conversion before narrowing and
+  expose only fixed failure words to Tab/IDE logging. Existing round-one
+  regressions stay; one native stress suite adds all six round-two cases,
+  reconnect/project lifetime coverage and byte-exact red drills. Run strict
+  Plugin Verifier against all three declared IDEA releases. No shared wire,
+  paid behavior, other editor or gate threshold changes; no IDE agreement.
 - **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
   `initialize` direction is runtime-to-host, but its result cannot carry the
   host's actual metadata. Add capability `hostMetadata` and protocol version
@@ -15659,6 +15675,15 @@ lane A's first step.
 
 ## 7. Gates
 
+**REDM104E (2026-10-05, Kubuntu).** The explicit rig/common brief requires
+owned JVM tests, scoped repository gates and the three declared IDEA verifier
+releases. Full `npm run quality`, aggregate coverage and unrelated editor
+qualification remain with the lead; running them here is explicitly prohibited.
+No merge is listed by this redesign brief; the rig's no-merge override applies.
+No agreement, paid/live call, dependency, gate cap or severity change is allowed.
+The existing absence of the feature-reference catalog at this branch remains
+as recorded below. Lifecycle evidence goes in `docs/certification/m104-e-redesign.md`.
+
 **M104 E3 (2026-10-05, Kubuntu).** The rig brief requires scoped repository
 checks and the owned JVM suite, with full quality and aggregate repository
 tests left to the lead. No threshold, timeout, rule or test filter is weakened.
@@ -16248,7 +16273,7 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **FIXM104E / RVM104E (2026-10-05):** all six numbered review findings
+- **FIXM104E / RVM104E (2026-10-05, first-round record):** all six numbered review findings
   are fixed in the JetBrains lane; no P1/P2/P3 finding is retained as a
   residual. Cancelled outbound requests retain only their existing bounded
   pending slots until a validated reply or connection close; an unresponsive

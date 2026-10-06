@@ -56,8 +56,23 @@ Cancelling one Tab request sends only its cancellation notification. Its bounded
 pending slot stays until the peer's validated result or failure arrives, so a late
 reply leaves the shared chat transport alive. A peer that never replies can fill
 the existing request bound and receives backpressure until it settles or closes.
-A transport failure disposes native commands, widgets, panels and Tab bindings
-and terminates the runtime process tree.
+A generation-scoped connection actor owns the runtime, protocol and supervised
+stream pumps. Host and editor callbacks enqueue bounded messages; a full queue
+fails the connection with a visible technical reason. A two-second write
+deadline detects a runtime that stops reading stdin. Project disposal marks
+the generation closed immediately, cancels its work and requests stream
+closure on private workers, so Java's buffered pipe locks cannot stall the IDE.
+The owner signals process handles with a two-second stop deadline, terminates
+containment and bounds worker joins. POSIX launches establish a process group
+through the system Perl/POSIX launcher; Windows assigns a gated command launcher
+to a kill-on-close job before releasing it to start the runtime. A parent exit
+also fails the connection, even when its worker keeps stdout open. Containment
+retains workers after parent-first exit; a missing launcher or failed job
+assignment refuses startup. Transport failure removes native commands, widgets,
+panels and Tab bindings. Reconnect creates a new epoch, and closed-epoch work,
+surface callbacks and replies cannot target the replacement. Runtime failure
+text is validated and replaced with fixed words before it can reach Tab's
+platform error logger.
 Only insertion ranges at the unchanged caret are offered. Other replacements
 are rejected rather than applied to the wrong buffer.
 
@@ -70,8 +85,11 @@ branch's base, so its assembled qualification remains an integration item.
 A runtime offering `hostMetadata` and a range containing `mhp/1.2.0` receives
 IDE identity/version, locale, theme tokens, workspace folders and trust in
 `initialize.result.hostMetadata`. Other peers receive the exact legacy 1.1
-result. Metadata collection runs outside the connection lock with a two-second
-deadline; shutdown cancels initialization and late metadata cannot reopen it.
+result. Metadata collection runs outside the actor with a two-second deadline; failure
+tears down the entire connection attempt and displays a failure. Shutdown
+cancels initialization and late metadata cannot reopen it. Wire coordinates
+are checked before integer narrowing, so oversized positions cannot wrap into
+valid edits.
 The native resource build measures the shipped inline main script against
 950 KiB (the unchanged shared startup 900 KiB plus deferred 50 KiB), and
 What's New against its existing 25 KiB. The shared startup gate still applies.
@@ -80,6 +98,7 @@ schema and other hosts are unchanged.
 
 This is a development artifact, not a usable or supported Marketplace release. The
 qualification evidence, F1–F56 coverage and outstanding integration work are
-in [the follow-up certification](../../docs/certification/m104-e3.md). Distribution,
+in [the follow-up certification](../../docs/certification/m104-e3.md) and
+[the lifecycle redesign record](../../docs/certification/m104-e-redesign.md). Distribution,
 signing, the all-IDE verifier matrix and end-to-end runtime qualification are
 owned by lanes I and J.

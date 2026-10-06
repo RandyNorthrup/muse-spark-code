@@ -8,6 +8,8 @@ import java.io.OutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.ArrayDeque
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 class MhpPipe(
   private val input: InputStream,
@@ -27,12 +29,25 @@ class MhpPipe(
   private var inFlight: Queued? = null
   private var lastSurface: String? = null
   private var closed = false
+  private var writingSince = 0L
+  private val deadlines =
+    Executors.newSingleThreadScheduledExecutor { task ->
+      Thread(task, "Muse MHP deadlines").apply { isDaemon = true }
+    }
+  private val closers = mutableListOf<Thread>()
   private val writer = Thread(::writeLoop, "Muse MHP writer").apply { isDaemon = true }
   private val reader = Thread(::readLoop, "Muse MHP reader").apply { isDaemon = true }
 
   fun start() {
     writer.start()
     reader.start()
+    deadlines.scheduleWithFixedDelay({
+      val expired =
+        synchronized(monitor) {
+          writingSince != 0L && System.nanoTime() - writingSince >= TimeUnit.SECONDS.toNanos(WRITE_SECONDS)
+        }
+      if (expired) fail("MHP_TRANSPORT_WRITE_TIMEOUT")
+    }, 1, 1, TimeUnit.SECONDS)
   }
 
   /** Admission includes the writer's in-flight frame. There is exactly one byte writer. */
@@ -44,7 +59,12 @@ class MhpPipe(
     require(bytes.size <= boundary.maximumFrameBytes) { "MHP_PANEL_TOO_LARGE" }
     synchronized(monitor) {
       check(!closed) { "MHP_TRANSPORT_CLOSED" }
-      budget.reserve(bytes.size)
+      try {
+        budget.reserve(bytes.size)
+      } catch (failure: IllegalArgumentException) {
+        fail("MHP_PANEL_BACKPRESSURE")
+        throw failure
+      }
       queue.addLast(Queued(bytes, surface))
       monitor.notifyAll()
     }
@@ -70,6 +90,7 @@ class MhpPipe(
             val chosen = eligible.firstOrNull { it.surface != lastSurface } ?: queue.first
             queue.remove(chosen)
             inFlight = chosen
+            writingSince = System.nanoTime()
             lastSurface = chosen.surface
             chosen
           }
@@ -79,6 +100,7 @@ class MhpPipe(
         synchronized(monitor) {
           if (inFlight != null) budget.release(frame.bytes.size)
           inFlight = null
+          writingSince = 0L
           monitor.notifyAll()
         }
       }
@@ -117,11 +139,32 @@ class MhpPipe(
       inFlight = null
       monitor.notifyAll()
     }
-    runCatching { input.close() }
-    runCatching { output.close() }
+    deadlines.shutdownNow()
+    // Process pipe close may acquire the blocked writer/reader lock. Never wait here.
+    for (stream in listOf(input, output)) {
+      Thread({ runCatching { stream.close() } }, "Muse MHP stream close").apply {
+        isDaemon = true
+        synchronized(monitor) { closers.add(this) }
+        start()
+      }
+    }
+  }
+
+  fun joinWorkers() {
+    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(JOIN_SECONDS)
+    val workers = synchronized(monitor) { listOf(reader, writer) + closers }
+    for (worker in workers) {
+      if (worker !== Thread.currentThread()) {
+        val remaining = deadline - System.nanoTime()
+        if (remaining > 0) worker.join(TimeUnit.NANOSECONDS.toMillis(remaining).coerceAtLeast(1))
+      }
+    }
   }
 
   companion object {
+    private const val WRITE_SECONDS = 2L
+    private const val JOIN_SECONDS = 2L
+
     fun readLine(
       input: InputStream,
       maximumBytes: Int,

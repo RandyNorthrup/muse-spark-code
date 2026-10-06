@@ -20,7 +20,7 @@ import com.intellij.openapi.vfs.VirtualFile
 fun installEditorEvents(
   project: Project,
   services: NativeHostServices,
-  connection: MhpConnection,
+  connection: MhpPeer,
   parent: Disposable,
 ) {
   val events = EditorFactory.getInstance().eventMulticaster

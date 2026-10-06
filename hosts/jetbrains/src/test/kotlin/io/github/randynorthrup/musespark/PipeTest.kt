@@ -64,13 +64,15 @@ class PipeTest {
           unblock.countDown()
         }
       }
-    val pipe = MhpPipe(input, output, boundary, {}, {}, budget)
+    val failures = mutableListOf<String>()
+    val pipe = MhpPipe(input, output, boundary, {}, failures::add, budget)
     repeat(boundary.maximumQueuedMessages) { pipe.send(json("id" to it), "a") }
     try {
       pipe.start()
       assertTrue(entered.await(WAIT_SECONDS, TimeUnit.SECONDS))
       assertThrows(Exception::class.java) { pipe.send(json("id" to "overflow"), "b") }
-      assertEquals(boundary.maximumQueuedMessages - 1, pipe.drop("a"))
+      assertEquals(listOf("MHP_PANEL_BACKPRESSURE"), failures)
+      assertEquals(0, pipe.drop("a"))
       pipe.close()
       repeat(boundary.maximumQueuedMessages) { budget.reserve(1) }
       assertThrows(Exception::class.java) { budget.reserve(1) }

@@ -21,6 +21,25 @@ class DocumentServicesTest : BasePlatformTestCase() {
     return DocumentServices(project) { true } to file
   }
 
+  fun testWireIntegersCannotWrapIntoValidEditCoordinates() {
+    val document =
+      com.intellij.openapi.editor.EditorFactory
+        .getInstance()
+        .createDocument("alpha")
+    for (value in listOf(4294967296L, 9007199254740991L, -1L)) {
+      for (position in listOf(json("line" to value, "character" to 0), json("line" to 0, "character" to value))) {
+        assertEquals(
+          "MHP_INVALID_RANGE",
+          org.junit.Assert
+            .assertThrows(IllegalArgumentException::class.java) {
+              DocumentServices.offset(document, position)
+            }.message,
+        )
+      }
+    }
+    assertEquals("alpha", document.text)
+  }
+
   private fun edit(
     uri: String,
     version: Long,

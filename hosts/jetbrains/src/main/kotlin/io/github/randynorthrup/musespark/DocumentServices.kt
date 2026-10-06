@@ -192,12 +192,21 @@ class DocumentServices(
       document: Document,
       position: JsonObject,
     ): Int {
-      val line = position["line"].asInt
-      val character = position["character"].asInt
+      val line = checkedCoordinate(position["line"])
+      val character = checkedCoordinate(position["character"])
       require(line >= 0 && line < document.lineCount) { "MHP_INVALID_RANGE" }
       val start = document.getLineStartOffset(line)
       require(character >= 0 && character <= document.getLineEndOffset(line) - start) { "MHP_INVALID_RANGE" }
       return start + character
+    }
+
+    private fun checkedCoordinate(value: JsonElement): Int {
+      val number = value.asBigDecimal
+      require(
+        number >= java.math.BigDecimal.ZERO && number <= Int.MAX_VALUE.toBigDecimal() &&
+          number.stripTrailingZeros().scale() <= 0,
+      ) { "MHP_INVALID_RANGE" }
+      return number.intValueExact()
     }
 
     fun position(

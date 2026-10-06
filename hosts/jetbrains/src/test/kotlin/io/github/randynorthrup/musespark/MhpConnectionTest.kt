@@ -360,6 +360,45 @@ class MhpConnectionTest {
   }
 
   @Test
+  fun closedEpochDropsQueuedInboundReplyInsteadOfSendingIntoReplacement() {
+    initialize()
+    connection.receive(call("ui/input", json("title" to "Old", "prompt" to "Old request")))
+    connection.close()
+    sent.clear()
+    tasks.removeAt(0).run()
+    assertTrue("Closed epoch must not emit a cancellation reply", sent.isEmpty())
+  }
+
+  @Test
+  fun runtimeFailureTextCannotBecomeAnIdeLoggerException() {
+    initialize()
+    val future =
+      connection.request(
+        "tab/complete",
+        json(
+          "uri" to "file:///workspace/a.kt",
+          "position" to json("line" to 0, "character" to 0),
+          "version" to 1,
+          "context" to json("prefix" to "", "suffix" to "", "trigger" to "invoke"),
+        ),
+      )
+    connection.receive(
+      json(
+        "jsonrpc" to "2.0",
+        "id" to sent.last()["id"],
+        "error" to
+          json(
+            "code" to boundary.errorCode("internalError"),
+            "message" to "FIXTURE_ONLY_PRIVATE_ACCOUNT_FILE_CONTENTS",
+          ),
+      ),
+    )
+    val failure = assertThrows(java.util.concurrent.ExecutionException::class.java) { future.get() }
+    assertEquals("MHP_RUNTIME_REQUEST_FAILED", failure.cause?.message)
+    assertFalse(failure.stackTraceToString().contains("FIXTURE_ONLY_PRIVATE_ACCOUNT_FILE_CONTENTS"))
+  }
+
+  @Test
   fun boundsRetainedRequestBytesAndRejectsDuplicateIdsBeforeDispatch() {
     initialize()
     val prompt = "x".repeat(JsonBoundary().maximumFrameBytes / 2)
