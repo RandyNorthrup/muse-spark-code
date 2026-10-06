@@ -301,9 +301,17 @@ adds the report dialog; this train keeps Share and Session Board eager to
 fit both unchanged aggregate caps. Browser English remains fully inline through
 a lossless synchronous fragment dictionary.
 The unchanged 900 KiB startup cap includes every transitively eager chunk;
-optional JavaScript has a new 50 KiB total cap (38.6 KiB measured plus
+the original optional surfaces retain their 50 KiB total cap (38.6 KiB measured plus
 15%, rounded by D6). Chunk reachability, lazy placement and packaging are
 guarded; stale chunks are cleared before a build. Existing caps are unchanged.
+
+**STARTDIET (2026-10-05).** Highlighting loads only for a closed supported
+fence, with plain React-escaped code and all actions rendered immediately.
+Its static import closure has a new **125 KiB** cap (93.1 KiB measured plus
+15%, rounded to 25 KiB). The original deferred surfaces retain their aggregate
+50 KiB cap, including any helpers they share with a new closure; unclassified
+deferred JavaScript is charged there too. Startup remains capped at 900 KiB.
+
 | `dist/conversationGit.js` | ≤ 150 KiB (M71: the Git adapter and the window's git and pull request features; measured 127.4 KiB plus 15%, rounded up to 25 KiB) |
 
 M98 adds `dist/judge.js` at **100 KiB**, measured at 77.7 KiB on Kubuntu,
@@ -6789,6 +6797,39 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### STARTDIET — Chat startup headroom (2026-10-05)
+
+- **Scope.** Measure the production startup import closure and record its forty
+  largest modules with import chains. Keep the 900 KiB startup cap and all
+  existing budgets; achieve at least 40 KiB of startup headroom on 0.14.0.
+  Move the syntax engine and all eighteen grammars to a lazy code-body chunk:
+  render the escaped, selectable code and its actions immediately, including
+  during streaming and import latency. Load highlighting only for a closed,
+  supported fence. Keep Markdown/GFM parsing synchronous for restored messages.
+  Defer the remaining action-only dialogs (Share, Session Board, handoff,
+  secret prompt), and the separate Tasks surface. Reuse React, localization,
+  language aliases and shared helpers through ESM splitting, with no dependency,
+  translated text, model/wire shape, paid-call or host-specific change.
+- **Budgets.** Add measured budgets for the new lazy import closures under D6's
+  existing size-plus-15%-rounded-to-25-KiB rule. The original seven deferred
+  surfaces retain their aggregate 50 KiB cap, including any shared deferred
+  helpers. Unclassified deferred output stays charged to that cap. Guard new
+  entry points, their source placement and startup exclusion in the split gate.
+- **Proof.** Before/after per-output bytes and startup/deferred totals; unchanged
+  empty/sign-in/transcript/Markdown harness images; the accessibility gate;
+  directly run touched/owning unit files (at most three per invocation, three
+  workers), typecheck, changed-file lint/format, localization, host API,
+  deadcode, duplication and production build. Hold a new import to prove code
+  and actions render while it loads and a canceled dialog stays closed. Statically
+  re-import a moved module, watch the bundle split check fail, then restore its
+  SHA-256 exactly. Record results in `docs/certification/startdiet.md`.
+- **Editors.** All changes are in the shared browser UI/build guards; every editor
+  using that webview receives the same behavior. ACP/headless have no browser
+  surface and their bundles/behavior are unchanged. No live or paid calls.
+- **Lane gates.** The rig brief explicitly forbids full quality/full unit runs
+  and merges; use its direct targeted checks and hooks-on local commits. The
+  lead owns the full cross-rig gate and integration.
 
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
