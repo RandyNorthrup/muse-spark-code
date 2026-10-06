@@ -239,14 +239,15 @@ export class PaidUsage {
     private readonly costOf?: (modelId: string, usage: SubagentUsage) => number | undefined,
   ) {}
 
-  private usageCost(modelId: string, usage: SubagentUsage): number {
-    if (this.costOf === undefined) return reviewerCost(modelId, usage)
+  private usageCost(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): number {
+    if (verifiedCostUsd === undefined && this.costOf === undefined)
+      return reviewerCost(modelId, usage)
     if (
       Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
       usage.cachedTokens > usage.inputTokens
     )
       throw new Error('Paid usage must be valid nonnegative token counts')
-    const cost = this.costOf(modelId, usage)
+    const cost = verifiedCostUsd ?? this.costOf?.(modelId, usage)
     if (cost === undefined || !Number.isFinite(cost) || cost < 0)
       throw new Error('Paid usage has no verified catalog cost')
     return cost
@@ -334,8 +335,8 @@ export class PaidUsage {
   }
 
   /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
-  public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = this.usageCost(modelId, usage)
+  public addJudgeUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd)
     const unknown = this.tally.judgeUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -429,15 +430,7 @@ export class PaidUsage {
    * never reports keeps its unknown count, never a zero cost.
    */
   public addTabUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
-    if (
-      verifiedCostUsd !== undefined &&
-      (!Number.isFinite(verifiedCostUsd) ||
-        verifiedCostUsd < 0 ||
-        Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-        usage.cachedTokens > usage.inputTokens)
-    )
-      throw new Error('Paid usage has no valid verified receipt')
-    const cost = verifiedCostUsd ?? this.usageCost(modelId, usage)
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd)
     const unknown = this.tally.tabUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {

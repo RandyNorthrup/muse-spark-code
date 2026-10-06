@@ -1,6 +1,7 @@
 import { build } from 'esbuild'
 import { describe, expect, it, vi } from 'vitest'
 import { createRuntimeGit, type RuntimeGitDeps } from '../../../src/runtime/features/git'
+import { openOwnedRepository } from '../../../src/host/git/ownedRepository'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { fakeGitWindow, change } from '../../unit/helpers/fakeGit'
 import type { GitSurface } from '../../../src/host/conversation/conversationController'
@@ -61,6 +62,25 @@ describe('F36 portable Git owner', () => {
         ],
       }),
     ).resolves.toBeDefined()
+  })
+  it('compares physical repository owners with Windows separators and case', async () => {
+    const fake = fakeGitWindow()
+    const repository = { ...fake.repository, rootUri: { fsPath: String.raw`c:\src\app` } }
+    const opened = await openOwnedRepository(
+      'C:/Src/App/',
+      'win32',
+      () => Promise.resolve(repository),
+      (root, check) => {
+        check()
+        return Promise.resolve({ cwd: root, isCurrent: () => true })
+      },
+      () => undefined,
+    )
+    expect(opened.repository).toBe(repository)
+    expect(opened.cwd).toBe('C:/Src/App/')
+    expect(() => {
+      opened.check()
+    }).not.toThrow()
   })
   it('uses actual consent and final process admission for the exact staged commit', async () => {
     const rig = setup()

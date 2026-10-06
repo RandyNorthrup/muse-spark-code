@@ -896,5 +896,110 @@
     "exitCode": 1,
     "sha256Before": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc",
     "sha256Restored": "8d4aeafbd3026ef1557577d069eb5a8bd0059a96aca79ae68b2f11882d2e09bc"
+  },
+  {
+    "drill": "portable-judge-capability",
+    "file": "src/runtime/features/judge.ts",
+    "exitCode": 1,
+    "sha256Before": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d",
+    "sha256Restored": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+  },
+  {
+    "drill": "portable-judge-unpriced",
+    "file": "src/runtime/features/judge.ts",
+    "exitCode": 1,
+    "sha256Before": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d",
+    "sha256Restored": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+  },
+  {
+    "drill": "portable-judge-invalid-price",
+    "file": "src/runtime/features/judge.ts",
+    "exitCode": 1,
+    "sha256Before": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d",
+    "sha256Restored": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+  },
+  {
+    "drill": "portable-judge-prepare-drain",
+    "file": "src/host/judge/judgeUse.ts",
+    "exitCode": 1,
+    "sha256Before": "4c2ae6fff84bc95f87f338d886b269dc3eef7519f287aa18fb7f5f886bc2ba7d",
+    "sha256Restored": "4c2ae6fff84bc95f87f338d886b269dc3eef7519f287aa18fb7f5f886bc2ba7d"
+  },
+  {
+    "drill": "portable-judge-core-prepare-drain",
+    "file": "src/core/judge/use.ts",
+    "exitCode": 1,
+    "sha256Before": "0b4396a71cdd815d812d033717a379959dc2ed35f639545f3624820af715f095",
+    "sha256Restored": "0b4396a71cdd815d812d033717a379959dc2ed35f639545f3624820af715f095"
+  },
+  {
+    "drill": "portable-judge-batch-drain",
+    "file": "src/host/judge/judgeEntry.ts",
+    "exitCode": 1,
+    "sha256Before": "668fafc664672b5fcdc1c4c190e88aee910aacc4416abc552d7e89ae013cfa6e",
+    "sha256Restored": "668fafc664672b5fcdc1c4c190e88aee910aacc4416abc552d7e89ae013cfa6e"
+  },
+  {
+    "drill": "portable-judge-batch-owner",
+    "file": "src/core/judge/same/batches.ts",
+    "exitCode": 1,
+    "sha256Before": "c44c9f79b557c19c77114361e7b9dcbe5e44051687acc904b650ff786b71ec56",
+    "sha256Restored": "c44c9f79b557c19c77114361e7b9dcbe5e44051687acc904b650ff786b71ec56"
+  },
+  {
+    "drill": "portable-judge-snapshot-copy",
+    "file": "src/host/judge/judgeTransport.ts",
+    "exitCode": 1,
+    "sha256Before": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470",
+    "sha256Restored": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470"
+  },
+  {
+    "drill": "portable-judge-original-reader",
+    "file": "src/host/judge/judgeTransport.ts",
+    "exitCode": 1,
+    "sha256Before": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470",
+    "sha256Restored": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470"
+  },
+  {
+    "drill": "portable-judge-original-tally",
+    "file": "src/host/judge/judgeTransport.ts",
+    "exitCode": 1,
+    "sha256Before": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470",
+    "sha256Restored": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470"
+  },
+  {
+    "drill": "portable-judge-late-delivery",
+    "file": "src/runtime/features/judge.ts",
+    "exitCode": 1,
+    "sha256Before": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d",
+    "sha256Restored": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+  },
+  {
+    "drill": "portable-judge-awaited-release",
+    "file": "src/runtime/features/judge.ts",
+    "exitCode": 1,
+    "sha256Before": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d",
+    "sha256Restored": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+  },
+  {
+    "drill": "portable-judge-paid-receipt",
+    "file": "src/core/paid/paidFeatures.ts",
+    "exitCode": 1,
+    "sha256Before": "18e6d602ef4fb48fbc56f84468b44c4c29d3101c357ec34408c2c8efcd9c09c1",
+    "sha256Restored": "18e6d602ef4fb48fbc56f84468b44c4c29d3101c357ec34408c2c8efcd9c09c1"
+  },
+  {
+    "drill": "portable-judge-subscription-catalog",
+    "file": "src/host/judge/judgeEntry.ts",
+    "exitCode": 1,
+    "sha256Before": "8de5756927e15f28b04b4cc3884efa14fb3cbfbbdc7c8b79fc8d4086408d81b6",
+    "sha256Restored": "8de5756927e15f28b04b4cc3884efa14fb3cbfbbdc7c8b79fc8d4086408d81b6"
+  },
+  {
+    "drill": "portable-git-windows-owner",
+    "file": "src/host/git/ownedRepository.ts",
+    "exitCode": 1,
+    "sha256Before": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36",
+    "sha256Restored": "c25b3600ad455ec175b0ff77b89e9af87a1e4303f65352304a8822c9c0c45b36"
   }
 ]

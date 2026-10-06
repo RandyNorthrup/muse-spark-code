@@ -346,12 +346,13 @@ Add an Unreleased note for bounded portable session transfer, guarded physical
 worktrees, fetch/browser tool owners and historical paid response pricing.
 Keep all native/composition/provider qualification prerequisites visible in
 PLAN §3/§7, help/catalog and the support matrix. No new command/setting or UI
-translation key was added by B. The original XL lane still needs F6/F17/F18/
-F20/F23/F24/F36/F37/F38/F41/F42/F53/F54/F55/F56 implementation/bindings and full
-qualification; partially exposed rows also remain P until assembled receipts.
+translation key was added by B. At that checkpoint the original XL lane still needed the remaining groups.
+Continuation checkpoints 8–14 below supersede that implementation list: all
+exposed rows still require their native/composition/provider qualification;
+F53/F55/F56 lack engine/contract prerequisites and remain missing.
 No registry status is changed by B.
 
-### A/F — final gate blockers (2026-10-06, Kubuntu)
+### A/F — checkpoint 6 gate blockers (2026-10-06, Kubuntu)
 
 `npm run deadcode` currently exits 1: A's unchanged central test discovery
 reports 19 new engine test/helper files, eleven portable feature implementation
@@ -561,3 +562,60 @@ change/accept events, cancellation and trigger hooks. Bind owned lazy readers
 with split/size guards; Tab and voice MODEL_TEXT stay in declared bundles.
 No editor/provider qualification, flag defaults or headless paid availability
 is changed. F owns PLAN/Unreleased/help for these component receipts.
+
+### A/C/D/E/F — F54 owned lazy same-model advisory
+
+`createRuntimeJudge` returns `judge` and awaited idempotent `dispose`; publish
+as the controller's Judge contribution and register its owner immediately.
+Reuse the real dist/judge.js checked lazy factory. The installed Judge remains
+advisory, with captured M98 stated-confidence parsing, isolation, redaction,
+standing-allow refusal and exact-action latches. The new settled seam drains
+both consent preparation and actual background batches, including late known
+paid settlement, before native sources or the shared journal may close.
+Its contribution's synchronous dispose initiates that same owner release.
+
+Supply immutable profile/selected-context ownership, captured canJudge support
+for the actual phase-1 request (stated confidence/cache/reasoning settings),
+verified priceOf for the selected model, the existing shared judgeLedger,
+cancellable native consent/source/session operations and awaited native drain.
+Unknown capabilities or absent/unusable prices refuse before bundle load or a
+popup. The Model API transport copies its admitted tariff, then passes the
+settled verified cost to PaidUsage.addJudgeUsage. RuntimePaidUse.judge binds
+the existing interactive D48 grants/gate/tally to this source; its workspace
+and surface identity must match composition. M95's captured transport and
+price-popup contract are still prerequisites for other providers; Meta
+fallback is never used by this portable factory's tariff injection.
+
+Muse Code startSession must itself guard final native/session entry after its
+credential waits and honour cancellation; a session returned after retirement
+is disposed without a turn. Model API transport must invoke the existing
+ResponseAttemptGuard after key waits and onRequestStarted only at dispatch.
+Native owners provide actual readMainBody/keyPrefix/prefixTokens from the
+owned conversation, rather than reconstructing a prompt from panel content.
+Add the owned engines lazy reader/discovery and unchanged size/split checks;
+JUDGE_MODEL_TEXT stays in its declared reader. C keeps cautions advisory and
+unknown/stale outcomes empty. No new provider wire, phase-2 logprobs/local
+Judge, CLI, permission authority, editor qualification or W claim is added.
+F owns PLAN/Unreleased/help and native qualification receipts.
+
+### A/F — F53, F55 and F56 prerequisite stops
+
+F53 legal-scan has no engine, runtime entry or captured result contract in
+this base. PLAN D77's reference to planned M97 exec legal-scan is not its
+implementation. Supply the actual scan rules/normalization/result and trusted
+CLI contracts plus captured internal/provider material before an adapter can
+reuse them. Building that engine here exceeds the shared ~300-line stop rule.
+
+F55 remains M100/D80 documentation-only. Its recorded prerequisites are M95
+provider-local auth/prices, M96 roles/board/worker and attempt journal, accepted
+security review, manual public invitations, pinned mutual TLS, revocation,
+bounded remote attempt/Git-return contracts and durable ownership/accounting.
+No device protocol/service exists to bind here; implementation exceeds the
+stop rule. Devices/mDNS remain explicitly off, without listeners/discovery.
+
+F56 has no captured remote broker/control authorization contract or engine in
+this base. A must supply the reviewed owned broker/session-grant interface and
+captured validated protocol, with native cancellable approval, revocation and
+process ownership; availability cannot be guessed without an authorized live
+capture. Building a broker/control service exceeds the stop rule. No placeholder
+factory, new listener or registry support promotion was made for these rows.

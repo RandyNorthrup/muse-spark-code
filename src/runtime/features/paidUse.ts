@@ -5,6 +5,7 @@ import type { CoreLogger } from '../../core/logging'
 import { PAID_FEATURES, type PaidFeature } from '../../shared/constants'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ConversationCompositionPorts } from '../../host/compose/conversationDeps'
+import type { JudgeWindowDeps } from '../../host/judge/judgeBundle'
 import type { RuntimePaidGrantStore } from '../paidGrants'
 
 export interface RuntimePaidUseDeps {
@@ -113,6 +114,28 @@ export class RuntimePaidUse extends AcpPaidUse {
           this.runtimeDeps.usage.addBestOfNUsage(modelId, usage)
         },
       },
+    }
+  }
+
+  /** The same interactive D48 grants/gate/tally back the optional advisory source. */
+  public judge(root: string, surfaceId: string, budgetUsd: () => number): JudgeWindowDeps['paid'] {
+    return {
+      gate: { isOn: (feature) => this.isOn(feature) },
+      consent: {
+        remembered: () => PAID_FEATURES.filter((feature) => this.isRemembered(root, feature)),
+      },
+      usage: this.runtimeDeps.usage,
+      allowsJudgeUse: (modelId) =>
+        this.allows(
+          root,
+          surfaceId,
+          {
+            feature: 'judge',
+            modelId,
+            dailyBudgetUsd: budgetUsd(),
+          },
+          false,
+        ),
     }
   }
 
