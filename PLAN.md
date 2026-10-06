@@ -13963,6 +13963,17 @@ joined with M57, M58 and PR #49's sign-in
         device-metric zoom checks and 24 English/pseudo WCAG pages on Windows
         11 25H2, build 26200.9457; exit 0 on `2fd060c3`. Receipt and screen-reader
         scope are recorded in `docs/certification/m97.md` (M97WIN).
+  - [x] Windows installed VSIX: both selected backends pass 3/3 keyless host
+        checks; NVDA 2026.2 speaks all report controls, evidence links, native
+        dialogs, export and shipped notices/license editors. Fifteen controls
+        retain visual focus order at 100% and actual 207% VS Code zoom; native
+        dialog containment/restoration and raw UIA bridge limits are recorded
+        in `docs/certification/m97.md` and `m97sr-receipt.json` (M97SR).
+  - [ ] M97SR rig directory cleanup: extension uninstalled, private extension
+        list empty, owned Code/NVDA stopped and temporary task removed.
+        Automatic approval review rejects unlinking the four private skill
+        junctions and removing `C:/lanes/M97SR-host` with only "blocked by
+        policy". The inactive directory remains; no deletion bypass is used.
   - [ ] Muse Code explanation read-only confinement proved, or explicitly refused.
   - [ ] Final-tree rig/full-quality, a11y, package/bundle and installed-host gates.
   - [ ] Delivered commands, costs, limits and privacy documented from real runs.
@@ -14728,14 +14739,21 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
 - I-R5 — **open; owner: paid/backend lane and lead.** Bounded optional
   explanation, paid-use and read-only confinement receipts are absent. This
   lane made no paid/live calls. Ordinary coding-turn billing remains ordinary.
-- I-R6 — **Windows headless accessibility receipt closed; remaining host
-  receipts open; owner: M97WIN/lead/platform rigs.** The final-head command on
+- I-R6 — **Windows headless, installed-host and NVDA/actual-zoom receipts
+  closed for the recorded free flows; other platform/hosted receipts open;
+  owner: M97WIN/M97SR/lead/platform rigs.** The final-head command on
   Windows 11 25H2 (26200.9457) passes 96 real Chromium accessibility-tree,
   keyboard and device-metric zoom checks plus 24 English/pseudo WCAG pages,
   exit 0; the platform-mismatch drill exits 1. The Windows workspace suite
   passes all 11 tests, including junction/reparse and path admission checks.
-  Windows installed-host, actual browser zoom/OS screen-reader sessions and
-  hosted platform receipts remain outstanding. Actual local VSIX installs on Mac in
+  M97SR's repaired installed VSIX passes 3/3 keyless tests with each selected
+  backend, 15-control NVDA focus/speech loops at 100% and actual 207% VS Code
+  zoom, native dialog containment/restoration, six evidence links and shipped
+  notices/license editor reads. Windows' raw native UIA Pane names/roles and
+  NVDA's logical MSAA names are retained separately in the receipt; this is
+  not a claim that every internal Win32 Pane has a meaningful UIA name.
+  Other-platform actual zoom/OS screen-reader sessions and hosted platform
+  receipts remain outstanding. Actual local VSIX installs on Mac in
   both selected backend profiles now pass 3/3 tests apiece; fake transports
   compare the shipped native/MCP scanner without a signed-in model.
 - I-R7 — **command contract closed; owner: M97FIN.** Reserved

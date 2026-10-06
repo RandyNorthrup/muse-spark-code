@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Record installed Windows VSIX/NVDA receipts for legal-report controls,
+  dialogs, export, notices and license text, including actual VS Code zoom.
+
 - Restore the legal report's Export button after returning from its native
   save dialog, so cancellation preserves keyboard and screen-reader focus.
 
