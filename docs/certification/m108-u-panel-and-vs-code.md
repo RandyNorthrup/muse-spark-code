@@ -114,6 +114,48 @@ passed after the error ownership fix. All 14 final drill source hashes match
 restored production bytes. The rig brief assigns aggregate quality/full unit
 runs to the lead; PLAN §7 records that bounded-lane exception.
 
+### Final repair validation and local commit
+
+Implementation checkpoint `a119fc35c` used normal hooks: scoped ESLint and
+Prettier passed, and staged gitleaks scanned 34.57 KB with no leaks. All
+14 drill source hashes still match after hooks and final validation. The
+worktree has no production fake, dependency/gate/config/limit change or
+other-lane source edit.
+
+| Final check (macmini)                                                                                                                      | Result                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/accountsPanelHost.test.ts test/unit/accountsPanel.test.tsx test/unit/accountsPanel.a11y.test.mjs --maxWorkers=3` | **77 passed**: 17 host, 26 UI, 34 browser/bundle checks. All 32 axe scenes have zero violations/incomplete findings. Repository timeouts.                                                                                                                                         |
+| `npx vitest run test/unit/App.test.tsx test/unit/accounts.test.ts --maxWorkers=3`                                                          | **176 passed**: 152 App, 24 account contracts. Existing jsdom canvas notices; no failed assertions. Repository timeouts.                                                                                                                                                          |
+| `npm run typecheck` plus final `npm run typecheck:webview` and `npm run typecheck:unit` after the error-state adjustment                   | All five projects pass; final changed projects pass.                                                                                                                                                                                                                              |
+| Changed-file `eslint --max-warnings=0`, hook ESLint and `prettier --check`                                                                 | Pass. Hooks also reformatted all staged source/docs without changing the certified guard hashes.                                                                                                                                                                                  |
+| `npm run deadcode`                                                                                                                         | Pass; plain knip, existing configuration hints only.                                                                                                                                                                                                                              |
+| `npx jscpd`                                                                                                                                | 1,202 files, zero clones.                                                                                                                                                                                                                                                         |
+| `node scripts/check-l10n.mjs`                                                                                                              | 14 tables, 164 manifest strings, 617 source files, zero problems.                                                                                                                                                                                                                 |
+| `npm run build`                                                                                                                            | Production size/split/host-globals/notices gates pass. All budgets unchanged.                                                                                                                                                                                                     |
+| `npm run check:host-api`                                                                                                                   | **Exit 1**, named W integration handoff: regenerate the record's `node:crypto` count **46 → 48** (P plus U) and add Accounts CSS to the theme-source list. Still 332 VS Code APIs, 31 VS Code importers, 25 Node builtins and 61 theme variables. No other changes are requested. |
+| `git diff --check` and post-hook drill SHA-256 comparison                                                                                  | Pass.                                                                                                                                                                                                                                                                             |
+
+**253 distinct final tests passed**, with no timeout override, filtering or
+skips. Complete owning files were used for every red and green run. The
+shared Accounts deferred JS is **20,981 bytes (20.49 KiB) / 25 KiB**. Production
+activation **440.3/600 KiB**, Model API **450.1/475**, checkpoint **76.9/225**,
+ACP **818.6/850**, webview startup **897.5/900**, existing deferred JS
+**49.7/50** all pass. Audit of the actual **37** production metafiles in
+`dist/meta/` and `dist/meta-acp/`, with separator normalization, finds no U
+Accounts host/UI/display/bridge modules; installed bindings remain disabled
+on this base.
+
+The 13 implementation/checkpoint files are PLAN, this certification,
+`src/shared/modelsPanel.ts`, `src/shared/hostApi/accounts.ts`,
+`src/host/models/accountPolicyPrompt.ts`, `src/host/models/accountsHandler.ts`,
+`src/webview/models/sections/accounts/AccountsSection.tsx`,
+`AccountsConfirmationDialog.tsx`, `AccountNotices.tsx`,
+`test/harness/accounts.mjs`, `test/unit/accountsPanelHost.test.ts`,
+`test/unit/accountsPanel.test.tsx` and `test/unit/helpers/accounts/panel.ts`.
+The final documentation-only commit adds these validation receipts. W keeps
+the generated host API record, public/help docs and integrated full-quality
+run; these are integration conditions, not unresolved RVM108U findings.
+
 ## Original lane certification
 
 Completed U's bounded implementation on the **macmini** rig, branch `m108/u`,

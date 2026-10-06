@@ -20099,6 +20099,11 @@ most three workers/files, scoped static/build checks and hook-on commits.
 The lead retains integrated quality, coverage and installed editor/live
 certification. No gate is weakened; receipts are in
 `docs/certification/m108-u-panel-and-vs-code.md`.
+Final scoped tests pass 253/253, including 32 browser axe scenes; static,
+localization and production build gates pass. `check:host-api` still requires
+W's generated record update: `node:crypto` imports 46 → 48 and Accounts CSS
+in the theme-source list. The API/theme totals are unchanged. Keep that
+named integration handoff rather than editing W's owned file in this lane.
 
 **FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
