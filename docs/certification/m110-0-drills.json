@@ -568,6 +568,81 @@
         }
       ],
       "restored": true
+    },
+    {
+      "name": "RVM110L0-git-config",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.fsmonitor",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.sshcommand",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.hookspath",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.askpass",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.smudge",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.clean",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.process",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting diff.canary.command",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting diff.canary.textconv",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting merge.canary.driver",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting credential.helper",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting include.path",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting includeif.gitdir:repo.path",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting protocol.allow",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting url.ssh://evil/.insteadof",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting remote.origin.uploadpack",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting remote.origin.receivepack",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting future.program"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "d742898e6145e0177fdadd3655a04e59d1ed847876b8280f15e6b9d9dac98a80"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-config-value",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node MHP method extension H14 fixes safe Git overrides and refuses configuration environment injection"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "d742898e6145e0177fdadd3655a04e59d1ed847876b8280f15e6b9d9dac98a80"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-destination",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension H14 requires the resolved SSH destination and host key before approving network Git"
+      ],
+      "files": [
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "2adc268c00393aae2a2f4b2b237f538a03d1ab3b88ce81946329084f7969d7ac"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-hooks",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension H14 fixes safe Git overrides and refuses configuration environment injection"
+      ],
+      "files": [
+        {
+          "file": "src/shared/constants.ts",
+          "sha256": "071ce3a08db55242eb9e5cfbd7f62d6c4b67387329c458ddf2c6515befde4dc7"
+        }
+      ],
+      "restored": true
     }
   ]
 }

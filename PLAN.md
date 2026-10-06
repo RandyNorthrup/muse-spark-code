@@ -8770,6 +8770,23 @@ restore` checks versions and replays migrations. A schedule writes to a
       page's fetch, pull and push through an agent socket only its own user
       can open. Agents' git commands get no credential (M96's fence), so they
       work on local branches, and the person pushes from the git page.
+      **RVM110L0-1 boundary:** argv and a step-up do not make repository Git
+      configuration safe. N owns a closed Git runner: every node-initiated
+      Git uses `NODE_GIT_OPTIONS` and an allow-list environment with no
+      inherited `GIT_*`, system/global config or executable lookup from the
+      repository. Credentialed Git runs only against a service-owned gitdir
+      whose inert config passes `nodeGitRepositoryConfigSchema`, without
+      repository includes, hooks, filters, drivers or helpers and without a
+      check/use race on mutable configuration. The person approves the exact
+      SSH host/port/user/repository and verified host key exposed by git
+      status, plus remote/ref/head in the action digest. N rechecks that
+      binding immediately before using its socket and passes the resolved
+      destination, never a mutable alias. SSH has a trusted absolute wrapper,
+      pinned host key and no repository/user config, proxy, local command or
+      agent forwarding. Hooks are disabled by default; user-enabled hooks
+      execute separately as `muse-tools` without service identity/socket.
+      C/N/U1 must qualify the repository-program canary in A0-GIT; a list of
+      `-c` overrides alone is not a closed configuration boundary.
     - **Listening.** One TLS port on the interface the user chooses (with
       Docker, the published host address). Before sign-in it serves only the
       sign-in page. D80.2's firewall guidance applies, including Windows
@@ -24112,6 +24129,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M110L0-Git-runtime-qualification (RVM110L0-1).** The closed configuration,
+  fixed Git policy and immutable SSH destination contracts are fixed in L0;
+  the actual service-owned snapshot/runner, trusted SSH wrapper, atomic
+  destination recheck and two-UID repository-program canary are N/C/U1's
+  unimplemented A0-GIT qualification. Safe for now: L0 has no listener,
+  credentialed Git child or node service, and threat-model acceptance and
+  A0-GIT are prerequisites to claiming support. Follow-up: bind the constants
+  and parsers, prove no hooks/helpers/filters/drivers/includes/config env can
+  execute with service privileges or its socket, and qualify alias/host-key
+  mutation before dispatch. This names the runtime evidence still needed,
+  not an exception to the closed runner requirement.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

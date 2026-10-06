@@ -31,6 +31,56 @@ make a repository trustworthy. The browser's memory bearer is a capability,
 never an identity record to persist. HTTP authentication and WebAuthn proof
 verification belong to A1; a zod schema alone proves neither.
 
+## Closed Git runner (H10, H11, H14; RVM110L0-1)
+
+N owns all node-initiated Git dispatch, including reads: use the fixed
+`NODE_GIT_OPTIONS` overrides, `NODE_GIT_ENVIRONMENT` and an allow-list base
+environment. Remove every inherited `GIT_*`, loader, shell startup and
+credential variable before adding trusted runtime paths. `GIT_CONFIG_NOSYSTEM`
+is set; system/global config and system attributes are absent. Git and its
+exec-path, SSH wrapper and any helper executable are absolute installed
+paths owned by the service/image, never found through repository PATH.
+N rebuilds `GIT_EXEC_PATH` and, for network commands, `GIT_SSH_COMMAND` with
+the trusted absolute wrapper only (no client text); that binding overrides
+the deliberately empty `core.sshCommand`. No inherited SSH command survives.
+
+Credentialed operations use a private service-owned gitdir/snapshot outside
+the workspace, never the repository's mutable `.git/config`. Only inert
+metadata allowed by `nodeGitRepositoryConfigSchema` enters that config;
+values are bounded alphanumeric atoms, preventing injected config syntax.
+unknown keys fail closed. Includes/includeIf, SSH commands, fsmonitor,
+hooks, credential helpers, filters (clean/smudge/process), diff/textconv and
+merge drivers, URL rewrites, remote upload/receive-pack overrides and protocol
+extensions cannot enter it. Fixed `-c` overrides suppress hooks, fsmonitor,
+signing, askpass, helpers, external diff, pagers, submodule recursion and
+automatic maintenance; only SSH transport is allowed. No arbitrary client
+argv or extra `-c` reaches this runner. The snapshot must remain service-owned
+and immutable through execution: rechecking a mutable repository config once
+is insufficient. Its object/ref/index import is bounded and confined, with
+no symlinks, alternate object stores, replacement objects or included files
+that lead outside owned storage. Working-tree tools receive no credential.
+
+The status contract exposes the exact SSH host, port, user, repository path
+and verified host-key digest. Step-up binds those fields, the remote label,
+ref and expected head in the action digest. Immediately before opening the
+deploy-key socket, N rechecks the resolved alias against the approved tuple
+and service-owned host registration; a changed destination/key/head refuses.
+Dispatch uses the resolved destination, never the alias, with correctly
+encoded path segments and explicit refs. The trusted SSH wrapper ignores
+user/system SSH config, enforces that host key through an owned known-hosts
+file, requires BatchMode, and disables ProxyCommand/ProxyJump,
+KnownHostsCommand, LocalCommand, agent forwarding and host-key auto-update.
+Read-only/local Git has no socket.
+
+Repository hooks are off unless the owner enables them; enabled hooks run
+separately as `muse-tools`, under the ordinary tool policy, with no service
+identity, key, agent socket or helper. They never run inside credentialed
+Git. C owns filesystem/binary permissions, N the runner and race-free
+snapshot, and U1 the exact destination display/approval/recheck binding.
+The A0-GIT synthetic repository-program and socket canary is mandatory before
+support. L0 tests freeze the policy, closed config and destination shapes;
+they do not certify this unimplemented OS runner.
+
 | ID  | Attacker / failure                                               | Required control                                                                                                                                                                                                                                                                                                                                     | Proof owner and red drill                                                                                                                                     |
 | --- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | H01 | Unconfigured service opens a port                                | Config starts with `listener: null`. Bind only the explicitly chosen private or loopback address; reject wildcard, public, multicast and metadata addresses. Docker publication/firewall must enforce the same LAN scope.                                                                                                                            | L0 config schema; N/C/S0 process and off-LAN reach checks. Plant a wildcard/public bind.                                                                      |

@@ -6,6 +6,8 @@ import {
   nodeStateSchema,
   nodeTerminalHostEventSchema,
   nodeToolRequestSchema,
+  nodeGitDestinationSchema,
+  nodeGitRepositoryConfigSchema,
 } from '../../../../src/shared/node'
 import { nodeSessionSchema } from '../../../../src/shared/nodeAuth'
 
@@ -20,6 +22,8 @@ export function nodeSchemaDocuments(): Record<string, z.core.JSONSchema.JSONSche
     event: nodeEventSchema,
     'terminal-host-event': nodeTerminalHostEventSchema,
     'tool-request': nodeToolRequestSchema,
+    'git-destination': nodeGitDestinationSchema,
+    'git-repository-config': nodeGitRepositoryConfigSchema,
   }
   for (const [name, schema] of Object.entries(schemas)) {
     documents[name] = {

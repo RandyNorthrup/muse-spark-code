@@ -17,6 +17,7 @@ import {
   nodeDashboardSchema,
   nodeFileListSchema,
   nodeFileTextSchema,
+  nodeGitDestinationSchema,
   nodeRelativePathSchema,
   nodeTerminalSizeSchema,
 } from '../node'
@@ -64,12 +65,18 @@ const networkGit = z.strictObject({
   ...workspace,
   ...stepUp,
   remote: nodeIdentifierSchema.check(z.regex(/^(?!-)/u)),
+  destination: nodeGitDestinationSchema,
   ref: ref.check(z.startsWith('refs/heads/')),
   expectedHead: head,
 })
 const gitResult = z.strictObject({ head, changed: z.boolean() })
 
-/** Access is a dispatch requirement, never a grant implied by a valid shape. */
+/**
+ * Access is a dispatch requirement, never a grant implied by a valid shape.
+ * N's Git runner uses NODE_GIT_OPTIONS/environment and a service-owned closed
+ * gitdir; bind/recheck destination, host key, ref and head before credential use.
+ * See M110-N-git in docs/certification/m110-captures.md; argv alone is insufficient.
+ */
 export const nodeMethods = {
   'node/auth/begin': {
     access: 'public',
@@ -162,6 +169,14 @@ export const nodeMethods = {
         )
         .check(z.maxLength(NODE_MAX_PAGE_ITEMS)),
       nextCursor: cursor,
+      remotes: z
+        .array(
+          z.strictObject({
+            name: nodeIdentifierSchema.check(z.regex(/^(?!-)/u)),
+            destination: nodeGitDestinationSchema,
+          }),
+        )
+        .check(z.maxLength(NODE_MAX_PAGE_ITEMS)),
     }),
   },
   'node/git/diff': {

@@ -24,6 +24,10 @@ happened, not what was planned; superseded entries are kept.
   including through the scripted tool-host contract.
 - The home-node tool-host contract now supplies ordered terminal output and
   spontaneous exit delivery, bounded buffering and disconnect disposal.
+- Home-node Git contracts require a closed configuration and safe Git policy;
+  network approvals bind the resolved SSH destination and verified host key.
+  Runtime isolation and repository-program canary qualification remain required
+  before the node service is supported.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

@@ -9,6 +9,8 @@ import {
   NODE_TERMINAL_FRAMES_PER_S,
   NODE_WS_AUTH_MS,
   NODE_SERVICE_USER,
+  NODE_GIT_OPTIONS,
+  NODE_GIT_ENVIRONMENT,
 } from '../../src/shared/constants'
 import {
   nodeMethodErrorSchema,
@@ -20,6 +22,7 @@ import {
 } from '../../src/shared/hostApi/nodeMethods'
 import { nodeAuthentication, nodeBearer, nodeDashboard, nodeHash } from './helpers/node/records'
 import { nodeRegistrationSchema } from '../../src/shared/nodeAuth'
+import { nodeGitRepositoryConfigSchema } from '../../src/shared/node'
 
 const fileParams: NodeMethodParams<'node/files/read'> = {
   workspaceId: 'workspace-1',
@@ -35,6 +38,13 @@ const networkParams = {
   stepUpId: 'proof-1',
   actionDigest: nodeHash,
   remote: 'origin',
+  destination: {
+    host: 'git.example.test',
+    port: 22,
+    user: 'git',
+    repository: 'owner/repo.git',
+    hostKeyDigest: nodeHash,
+  },
   ref: 'refs/heads/main',
   expectedHead: 'a'.repeat(40),
 }
@@ -178,6 +188,7 @@ describe('node MHP method extension', () => {
         head: null,
         changes: [],
         nextCursor: 'page-2',
+        remotes: [{ name: networkParams.remote, destination: networkParams.destination }],
       }).nextCursor,
     ).toBe('page-2')
     expect(
@@ -231,6 +242,117 @@ describe('node MHP method extension', () => {
     expect(
       nodeMethods['node/git/commit'].result.parse({ head: 'a'.repeat(64), changed: true }).head,
     ).toHaveLength(64)
+  })
+  it.each([
+    'core.fsmonitor',
+    'core.sshcommand',
+    'core.hookspath',
+    'core.askpass',
+    'filter.canary.smudge',
+    'filter.canary.clean',
+    'filter.canary.process',
+    'diff.canary.command',
+    'diff.canary.textconv',
+    'merge.canary.driver',
+    'credential.helper',
+    'include.path',
+    'includeif.gitdir:repo.path',
+    'protocol.allow',
+    'url.ssh://evil/.insteadof',
+    'remote.origin.uploadpack',
+    'remote.origin.receivepack',
+    'future.program',
+  ])('H14 closed Git snapshot refuses repository program setting %s', (name) => {
+    expect(
+      nodeGitRepositoryConfigSchema.safeParse({
+        'core.repositoryformatversion': '0',
+        [name]: 'SYNTHETICREPOSITORYPROGRAM',
+      }).success,
+    ).toBe(false)
+  })
+  it('H14 fixes safe Git overrides and refuses configuration environment injection', () => {
+    expect(
+      nodeGitRepositoryConfigSchema.parse({
+        'core.bare': 'true',
+        'extensions.objectformat': 'sha1',
+      }),
+    ).toEqual({ 'core.bare': 'true', 'extensions.objectformat': 'sha1' })
+    expect(
+      nodeGitRepositoryConfigSchema.safeParse({ GIT_CONFIG_PARAMETERS: 'core.sshCommand=canary' })
+        .success,
+    ).toBe(false)
+    expect(nodeGitRepositoryConfigSchema.safeParse({ 'core.bare': 'true\0canary' }).success).toBe(
+      false,
+    )
+    expect(
+      nodeGitRepositoryConfigSchema.safeParse({ 'core.bare': 'true\n[core]\nsshCommand=canary' })
+        .success,
+    ).toBe(false)
+    expect(nodeGitRepositoryConfigSchema.safeParse({ 'core.bare': '' }).success).toBe(false)
+    expect(NODE_GIT_OPTIONS[0]).toBe('--no-replace-objects')
+    const overrides = new Map<string, string>()
+    for (let index = 1; index < NODE_GIT_OPTIONS.length; index += 2) {
+      expect(NODE_GIT_OPTIONS[index]).toBe('-c')
+      const [name, value] = NODE_GIT_OPTIONS[index + 1]!.split('=', 2)
+      overrides.set(name!, value!)
+    }
+    expect(Object.fromEntries(overrides)).toEqual({
+      'core.fsmonitor': 'false',
+      'core.hooksPath': '/dev/null',
+      'core.sshCommand': '',
+      'credential.helper': '',
+      'diff.external': '',
+      'core.askPass': '',
+      'core.pager': '',
+      'interactive.diffFilter': '',
+      'core.attributesFile': '/dev/null',
+      'core.excludesFile': '/dev/null',
+      'commit.gpgsign': 'false',
+      'tag.gpgsign': 'false',
+      'log.showSignature': 'false',
+      'submodule.recurse': 'false',
+      'protocol.allow': 'never',
+      'protocol.ssh.allow': 'always',
+      'maintenance.auto': 'false',
+      'gc.auto': '0',
+    })
+    expect(NODE_GIT_ENVIRONMENT).toEqual({
+      GIT_CONFIG_NOSYSTEM: '1',
+      GIT_CONFIG_SYSTEM: '/dev/null',
+      GIT_CONFIG_GLOBAL: '/dev/null',
+      GIT_CONFIG_COUNT: '0',
+      GIT_ATTR_NOSYSTEM: '1',
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ALLOW_PROTOCOL: 'ssh',
+    })
+  })
+  it('H14 requires the resolved SSH destination and host key before approving network Git', () => {
+    const { destination, ...aliasOnly } = networkParams
+    for (const method of ['node/git/fetch', 'node/git/pull', 'node/git/push'] as const) {
+      expect(nodeMethods[method].params.safeParse(aliasOnly).success).toBe(false)
+      expect(nodeMethods[method].params.parse(networkParams).destination).toEqual(destination)
+      for (const invalid of [
+        { ...destination, host: '-evil' },
+        { ...destination, host: 'other.test/path' },
+        { ...destination, port: 0 },
+        { ...destination, user: '-oProxyCommand=canary' },
+        { ...destination, repository: '../repo' },
+        { ...destination, hostKeyDigest: 'unverified' },
+        { ...destination, password: 'SYNTHETIC-NODE-CANARY' },
+      ])
+        expect(
+          nodeMethods[method].params.safeParse({ ...networkParams, destination: invalid }).success,
+        ).toBe(false)
+    }
+    expect(
+      nodeMethods['node/git/status'].result.parse({
+        branch: 'main',
+        head: networkParams.expectedHead,
+        changes: [],
+        nextCursor: null,
+        remotes: [{ name: 'origin', destination }],
+      }).remotes,
+    ).toEqual([{ name: 'origin', destination }])
   })
   it('H04 setup code is confined to enrollment, never a sign-in reply', () => {
     expect(

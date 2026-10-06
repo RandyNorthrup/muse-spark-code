@@ -4,6 +4,7 @@ import * as z from 'zod/mini'
 import {
   NODE_AUDIT_MAX_BYTES,
   NODE_AUDIT_RETENTION_DAYS,
+  NODE_GIT_INERT_CONFIG_NAMES,
   NODE_MAX_ARGV_ITEMS,
   NODE_MAX_ARG_CHARS,
   NODE_MAX_CHALLENGES,
@@ -277,6 +278,20 @@ export const nodeEventSchema = z.discriminatedUnion('type', [
 ])
 export type NodeEvent = z.infer<typeof nodeEventSchema>
 
+/** Only inert metadata may be imported into N's closed Git configuration. */
+export const nodeGitRepositoryConfigSchema = z.partialRecord(
+  z.enum(NODE_GIT_INERT_CONFIG_NAMES),
+  z.string().check(z.minLength(1), z.maxLength(NODE_MAX_ARG_CHARS), z.regex(/^[A-Za-z0-9]+$/u)),
+)
+/** SSH destination and verified host key, included in the step-up action digest. */
+export const nodeGitDestinationSchema = z.strictObject({
+  host: nodeDomainSchema,
+  port: z.int().check(z.minimum(1), z.maximum(NODE_MAX_PORT)),
+  user: nodeIdentifierSchema.check(z.regex(/^[A-Za-z_][A-Za-z0-9_-]*$/u)),
+  repository: nodeRelativePathSchema,
+  hostKeyDigest: nodeDigestSchema,
+})
+
 export const nodeToolRequestSchema = z.strictObject({
   id: nodeIdentifierSchema,
   workspaceId: nodeIdentifierSchema,
@@ -309,6 +324,7 @@ export const nodeToolResultSchema = z.strictObject({
   ),
 })
 export interface NodeToolHostPort {
+  /** Direct Git uses NODE_GIT_OPTIONS/environment; no service credential crosses this port. */
   run(request: NodeToolRequest, signal: AbortSignal): Promise<z.infer<typeof nodeToolResultSchema>>
   /**
    * Install the observer before starting the child; events include its ID even

@@ -54,6 +54,75 @@ export const NODE_MAX_ARG_CHARS = 4096
 export const NODE_MAX_COMMIT_CHARS = 4096
 export const NODE_AUDIT_MAX_BYTES = 10 * 1024 * 1024
 export const NODE_AUDIT_RETENTION_DAYS = 30
+// N applies these to every node-initiated Git command (D90.23). Credentialed
+// Git additionally uses a service-owned, closed gitdir, never the live repo's
+// executable configuration. User-enabled hooks run separately as muse-tools.
+export const NODE_GIT_OPTIONS = [
+  '--no-replace-objects',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'core.hooksPath=/dev/null',
+  '-c',
+  'core.sshCommand=',
+  '-c',
+  'core.askPass=',
+  '-c',
+  'credential.helper=',
+  '-c',
+  'diff.external=',
+  '-c',
+  'interactive.diffFilter=',
+  '-c',
+  'core.pager=',
+  '-c',
+  'core.attributesFile=/dev/null',
+  '-c',
+  'core.excludesFile=/dev/null',
+  '-c',
+  'commit.gpgsign=false',
+  '-c',
+  'tag.gpgsign=false',
+  '-c',
+  'log.showSignature=false',
+  '-c',
+  'submodule.recurse=false',
+  '-c',
+  'protocol.allow=never',
+  '-c',
+  'protocol.ssh.allow=always',
+  '-c',
+  'maintenance.auto=false',
+  '-c',
+  'gc.auto=0',
+] as const
+// Start with an allow-list environment, remove all inherited GIT_* and
+// loader/shell/credential variables, then add these and N's trusted paths.
+// For network Git, N supplies GIT_SSH_COMMAND as the trusted absolute wrapper
+// (no client text). It overrides the deliberately empty core.sshCommand;
+// without that binding SSH must fail rather than select a repository program.
+export const NODE_GIT_ENVIRONMENT = {
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_COUNT: '0',
+  GIT_ATTR_NOSYSTEM: '1',
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ALLOW_PROTOCOL: 'ssh',
+} as const
+// Same inert metadata names as action/lib/git.mjs; includes, remotes, helpers,
+// filters and current/future program-selecting settings cannot enter a snapshot.
+export const NODE_GIT_INERT_CONFIG_NAMES = [
+  'core.repositoryformatversion',
+  'core.filemode',
+  'core.bare',
+  'core.logallrefupdates',
+  'core.symlinks',
+  'core.ignorecase',
+  'core.precomposeunicode',
+  'extensions.objectformat',
+  'extensions.refstorage',
+] as const
 // Declarative regexes are also carried into the versioned JSON Schemas.
 export const NODE_ID_PATTERN = '^[A-Za-z0-9_-]+$'
 export const NODE_DIGEST_PATTERN = '^[a-f0-9]{64}$'
