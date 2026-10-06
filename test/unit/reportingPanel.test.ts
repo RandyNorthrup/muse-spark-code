@@ -23,6 +23,13 @@ function panel() {
   return result
 }
 
+function olderReport(document: ReportDocument): ReportDocument {
+  return finalizeReport({
+    ...document,
+    header: { ...document.header, asOf: '2026-10-05T12:00:00+00:00' },
+  })
+}
+
 function setup() {
   const document = renderFixture()
   const reports = {
@@ -60,7 +67,12 @@ function setup() {
       expect(state().busy).toBe(false)
     })
   }
+  const ready = async () => {
+    await ui.open('project')
+    panel().webview.messages.fire({ type: 'reportingReady' })
+  }
   return {
+    ready,
     ui,
     reports,
     document,
@@ -118,8 +130,7 @@ describe('M113 VS Code report tab', () => {
 
   it('copies and attaches renderer Markdown without submitting a model turn', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     await t.act({ type: 'reportingAction', action: 'copy' })
     const expected = RENDERERS.md(t.document, 'en', REPORT_THEME)
     expect(env.clipboard.writeText).toHaveBeenCalledWith(expected)
@@ -132,8 +143,7 @@ describe('M113 VS Code report tab', () => {
 
   it('saves all four formats only to the dialog URI and writes nothing on cancel', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     for (const format of ['md', 'html', 'json', 'text'] as const) {
       const uri = Uri.file(`C:/chosen/report.${format}`)
       fakeWindow.showSaveDialog.mockResolvedValueOnce(uri)
@@ -151,8 +161,7 @@ describe('M113 VS Code report tab', () => {
 
   it('rejects malformed actions, foreign history ids and unverified documents', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     for (const message of [
       null,
       { type: 'sendMessage', text: 'model' },
@@ -177,18 +186,14 @@ describe('M113 VS Code report tab', () => {
 
   it('lists scoped history, opens a saved report and refreshes without regenerating history', async () => {
     const t = setup()
-    const older = finalizeReport({
-      ...t.document,
-      header: { ...t.document.header, asOf: '2026-10-05T12:00:00+00:00' },
-    })
+    const older = olderReport(t.document)
     expect(verifyReport(older).header.contentHash).toBe(t.document.header.contentHash)
     t.reports.history.mockResolvedValue({
       status: 'listed',
       entries: [{ id: 'older', header: older.header }],
     })
     t.reports.get.mockResolvedValue({ status: 'retrieved', document: older })
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     await t.act({ type: 'reportingAction', action: 'history' })
     expect(t.state().history?.[0]?.id).toBe('older')
     await t.act({ type: 'reportingOpen', id: 'older' })
@@ -206,10 +211,7 @@ describe('M113 VS Code report tab', () => {
 
   it('compares the immediately older saved report and recognizes unchanged hashes', async () => {
     const t = setup()
-    const older = finalizeReport({
-      ...t.document,
-      header: { ...t.document.header, asOf: '2026-10-05T12:00:00+00:00' },
-    })
+    const older = olderReport(t.document)
     t.reports.history.mockResolvedValue({
       status: 'listed',
       entries: [
@@ -218,8 +220,7 @@ describe('M113 VS Code report tab', () => {
       ],
     })
     t.reports.get.mockResolvedValue({ status: 'retrieved', document: older })
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     await t.act({ type: 'reportingAction', action: 'diff' })
     expect(t.state().status).toContain('No change since')
     expect(t.reports.compare).not.toHaveBeenCalled()
@@ -274,8 +275,7 @@ describe('M113 VS Code report tab', () => {
         { id: 'older', header: older.header },
       ],
     })
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     await t.act({ type: 'reportingAction', action: 'history' })
     await t.act({ type: 'reportingOpen', id: 'older' })
     expect(t.state().isError).toBe(true)
@@ -309,8 +309,7 @@ describe('M113 VS Code report tab', () => {
         },
       ],
     })
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     await t.act({ type: 'reportingAction', action: 'history' })
     expect(t.state().history?.map((entry) => entry.id)).toEqual(['a', 'z', 'early'])
     expect(JSON.stringify(t.state())).not.toContain('owner@example.com')
@@ -318,8 +317,7 @@ describe('M113 VS Code report tab', () => {
 
   it('rejects a wrong report kind and discards generation completed after disposal', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     t.reports.run.mockResolvedValueOnce({
       status: 'generated',
       document: finalizeReport({ ...t.document, header: { ...t.document.header, kind: 'usage' } }),
@@ -331,8 +329,7 @@ describe('M113 VS Code report tab', () => {
     t.reports.run.mockReturnValueOnce(pending.promise)
     const generating = t.ui.open('usage')
     t.ui.dispose()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     pending.resolve({
       status: 'generated',
       document: finalizeReport({ ...t.document, header: { ...t.document.header, kind: 'usage' } }),
@@ -343,15 +340,13 @@ describe('M113 VS Code report tab', () => {
 
   it('does not write or publish an old operation after its tab closes', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     const chosen = Promise.withResolvers<ReturnType<typeof Uri.file> | undefined>()
     fakeWindow.showSaveDialog.mockReturnValueOnce(chosen.promise)
     t.panel().webview.messages.fire({ type: 'reportingSave', format: 'md' })
     const old = t.panel()
     t.ui.dispose()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     chosen.resolve(Uri.file('C:/selected/old.md'))
     await Promise.resolve()
     await Promise.resolve()
@@ -360,10 +355,40 @@ describe('M113 VS Code report tab', () => {
     expect(env.clipboard.writeText).not.toHaveBeenCalled()
   })
 
+  it.each(['copy', 'attach', 'save'] as const)(
+    'does not publish an old %s completion into a reopened tab',
+    async (action) => {
+      const t = setup()
+      await t.ready()
+      const pending = Promise.withResolvers<undefined>()
+      if (action === 'copy') env.clipboard.writeText.mockReturnValueOnce(pending.promise)
+      else if (action === 'attach') t.attachMarkdown.mockReturnValueOnce(pending.promise)
+      else {
+        fakeWindow.showSaveDialog.mockResolvedValueOnce(Uri.file('C:/selected/report.md'))
+        workspace.fs.writeFile.mockReturnValueOnce(pending.promise)
+      }
+      t.panel().webview.messages.fire(
+        action === 'save'
+          ? { type: 'reportingSave', format: 'md' }
+          : { type: 'reportingAction', action },
+      )
+      if (action === 'save')
+        await vi.waitFor(() => {
+          expect(workspace.fs.writeFile).toHaveBeenCalledOnce()
+        })
+      t.ui.dispose()
+      await t.ready()
+      pending.resolve(undefined)
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0)
+      })
+      expect(t.state().status).toBe('')
+    },
+  )
+
   it('serializes actions and reports clipboard/save failures using fixed localized messages', async () => {
     const t = setup()
-    await t.ui.open('project')
-    t.panel().webview.messages.fire({ type: 'reportingReady' })
+    await t.ready()
     const copy = Promise.withResolvers<undefined>()
     env.clipboard.writeText.mockReturnValueOnce(copy.promise)
     t.panel().webview.messages.fire({ type: 'reportingAction', action: 'copy' })
@@ -394,6 +419,29 @@ describe('M113 VS Code report tab', () => {
     await t.ui.open('problem')
     expect(t.openProblem).toHaveBeenCalledOnce()
     expect(t.reports.run).not.toHaveBeenCalled()
+  })
+
+  it('refuses nonfunction packaged factories without invoking their values', () => {
+    const t = setup()
+    for (const value of [null, {}, { createReportingEngine: true }]) {
+      const load = reportEngineLoader({
+        bundlePath: 'C:/extension/dist/reporting.js',
+        log: t.context.log,
+        loadBundle: () => value,
+      })
+      expect(load).toThrow(EN.reportUi.generationFailed)
+    }
+    for (const value of [
+      { createReportPanel: true, createReportingWindow: () => t.ui },
+      { createReportPanel: () => t.ui, createReportingWindow: true },
+    ]) {
+      const load = reportPanelLoader({
+        bundlePath: 'C:/extension/dist/reportingPanel.js',
+        log: t.context.log,
+        loadBundle: () => value,
+      })
+      expect(load).toThrow(EN.reportUi.generationFailed)
+    }
   })
 
   it('retries missing lazy bundles and accepts only factories from the packaged contract', () => {

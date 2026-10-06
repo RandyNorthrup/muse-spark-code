@@ -54,7 +54,7 @@ describe('the shared report page', () => {
       [EN.reportUi.diffPrevious, 'diff'],
       [EN.reportUi.refresh, 'refresh'],
       [EN.reportUi.show, 'pick'],
-    ]) {
+    ] as const) {
       fireEvent.click(screen.getByRole('button', { name }))
       expect(t.post).toHaveBeenLastCalledWith({ type: 'reportingAction', action })
     }

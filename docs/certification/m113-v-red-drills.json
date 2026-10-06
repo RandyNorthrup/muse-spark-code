@@ -287,5 +287,160 @@
     "restoredHash": "5e6439433368b34ff55a3b7344c231819ae6e22e9746da667c3d13abe41ef522",
     "byteExact": true,
     "fired": true
+  },
+  {
+    "name": "stale-completion-publish",
+    "file": "src/host/reporting/reportPanel.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "does not publish an old",
+    "failed": [
+      "     × does not publish an old copy completion into a reopened tab 42ms",
+      "     × does not publish an old attach completion into a reopened tab 27ms",
+      "     × does not publish an old save completion into a reopened tab 81ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > does not publish an old copy completion into a reopened tab",
+      "AssertionError: expected 'Report copied.' to be '' // Object.is equality",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > does not publish an old attach completion into a reopened tab",
+      "AssertionError: expected 'Report attached to the message.' to be '' // Object.is equality",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > does not publish an old save completion into a reopened tab",
+      "AssertionError: expected 'Report saved to [redacted path]' to be '' // Object.is equality"
+    ],
+    "beforeHash": "86ff2e58f55bd4462d833618e439034c0e8e9794c56ef4b0d40edf82cbc155d0",
+    "restoredHash": "86ff2e58f55bd4462d833618e439034c0e8e9794c56ef4b0d40edf82cbc155d0",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "theme-foreground",
+    "file": "src/webview/reporting/styles.css",
+    "test": "node test/harness/reporting/verify.mjs (all 32 scenes)",
+    "exitCode": 1,
+    "expected": "dark scene color-contrast",
+    "failed": [
+      "dark 690 report: color-contrast",
+      "dark 690 history: color-contrast",
+      "dark 690 diff: color-contrast",
+      "dark 690 error: color-contrast",
+      "dark 320 report: color-contrast",
+      "dark 320 history: color-contrast",
+      "dark 320 diff: color-contrast",
+      "dark 320 error: color-contrast"
+    ],
+    "beforeHash": "5b1e6e11aacfd2c4a86489294ddc1ba97968f436a9848c8fc661f22eda93257a",
+    "restoredHash": "5b1e6e11aacfd2c4a86489294ddc1ba97968f436a9848c8fc661f22eda93257a",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "engine-factory-function",
+    "file": "src/host/reporting/reportEngineBundle.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "refuses nonfunction packaged",
+    "failed": [
+      "     × refuses nonfunction packaged factories without invoking their values 15ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > refuses nonfunction packaged factories without invoking their values",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "595ffd4ca78c0eda71445f35f4933203e3f7536f32403644abb09f05d5afd686",
+    "restoredHash": "595ffd4ca78c0eda71445f35f4933203e3f7536f32403644abb09f05d5afd686",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "panel-factory-function",
+    "file": "src/host/reporting/reportPanelBundle.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "refuses nonfunction packaged",
+    "failed": [
+      "     × refuses nonfunction packaged factories without invoking their values 15ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > refuses nonfunction packaged factories without invoking their values",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "836a40cd0f58a721c7e034cc70f6ef0847d31fabc571d137f6661f10b2f25f62",
+    "restoredHash": "836a40cd0f58a721c7e034cc70f6ef0847d31fabc571d137f6661f10b2f25f62",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "window-factory-function",
+    "file": "src/host/reporting/reportPanelBundle.ts",
+    "test": "test/unit/reportingPanel.test.ts",
+    "exitCode": 1,
+    "expected": "refuses nonfunction packaged",
+    "failed": [
+      "     × refuses nonfunction packaged factories without invoking their values 15ms",
+      " FAIL  test/unit/reportingPanel.test.ts > M113 VS Code report tab > refuses nonfunction packaged factories without invoking their values",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "836a40cd0f58a721c7e034cc70f6ef0847d31fabc571d137f6661f10b2f25f62",
+    "restoredHash": "836a40cd0f58a721c7e034cc70f6ef0847d31fabc571d137f6661f10b2f25f62",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "parser-special-arguments",
+    "file": "src/host/reporting/reportRequest.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "refuses malformed",
+    "failed": [
+      "     × refuses malformed scopes, flags and duplicate options without quoting the input 9ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > refuses malformed scopes, flags and duplicate options without quoting the input",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "restoredHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "parser-option-value",
+    "file": "src/host/reporting/reportRequest.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "refuses malformed",
+    "failed": [
+      "     × refuses malformed scopes, flags and duplicate options without quoting the input 8ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > refuses malformed scopes, flags and duplicate options without quoting the input",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "restoredHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "parser-schema",
+    "file": "src/host/reporting/reportRequest.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "refuses malformed",
+    "failed": [
+      "     × refuses malformed scopes, flags and duplicate options without quoting the input 9ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > refuses malformed scopes, flags and duplicate options without quoting the input",
+      "AssertionError: expected [Function] to throw an error"
+    ],
+    "beforeHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "restoredHash": "9f39e7e1f298509739804cd93e9c680ad0a695e403de21e34995474e07b226ee",
+    "byteExact": true,
+    "fired": true
+  },
+  {
+    "name": "slash-word-boundary",
+    "file": "src/host/reporting/reportCommand.ts",
+    "test": "test/unit/reportingRequest.test.ts",
+    "exitCode": 1,
+    "expected": "reserves report",
+    "failed": [
+      "     × reserves report with any whitespace or arguments and leaves ordinary messages alone 9ms",
+      " FAIL  test/unit/reportingRequest.test.ts > the local report command grammar > reserves report with any whitespace or arguments and leaves ordinary messages alone",
+      "AssertionError: expected 'er project' to be undefined"
+    ],
+    "beforeHash": "62204d0a00f8860005daae94080614a80fb3fda1fb6d3afa160266fd99e53ffd",
+    "restoredHash": "62204d0a00f8860005daae94080614a80fb3fda1fb6d3afa160266fd99e53ffd",
+    "byteExact": true,
+    "fired": true
   }
 ]

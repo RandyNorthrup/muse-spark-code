@@ -68,7 +68,8 @@ export class ReportPanel implements vscode.Disposable {
   }
   public constructor(private readonly deps: ReportPanelDeps) {}
 
-  private post(patch: Partial<ReportingHostMessage> = {}): void {
+  private post(patch: Partial<ReportingHostMessage> = {}, target = this.panel): void {
+    if (this.panel !== target) return
     this.state = { ...this.state, ...patch }
     if (this.ready) void this.panel?.webview.postMessage(this.state)
   }
@@ -369,10 +370,10 @@ export class ReportPanel implements vscode.Disposable {
       const text = engine.render[format](document, this.deps.context.l10n.locale, this.deps.theme())
       if (action === 'copy') {
         await vscode.env.clipboard.writeText(text)
-        this.post({ status: UI_TEXT.reportUi.copied })
+        this.post({ status: UI_TEXT.reportUi.copied }, target)
       } else if (action === 'attach') {
         await this.deps.attachMarkdown(text)
-        this.post({ status: UI_TEXT.reportUi.attached })
+        this.post({ status: UI_TEXT.reportUi.attached }, target)
       } else if (message.type === 'reportingSave') {
         const extension = format === 'text' ? 'txt' : format
         const uri = await vscode.window.showSaveDialog({
@@ -382,7 +383,10 @@ export class ReportPanel implements vscode.Disposable {
         })
         if (uri === undefined || this.panel !== target) return
         await vscode.workspace.fs.writeFile(uri, Buffer.from(text, 'utf8'))
-        this.post({ status: fill(UI_TEXT.reportUi.saved, { path: engine.scrub(uri.fsPath) }) })
+        this.post(
+          { status: fill(UI_TEXT.reportUi.saved, { path: engine.scrub(uri.fsPath) }) },
+          target,
+        )
       }
     }, failure)
   }
