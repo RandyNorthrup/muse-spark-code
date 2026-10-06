@@ -1,44 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseScheduleCommand } from '../../src/runtime/schedules/args'
-import {
-  runScheduleCommand,
-  scheduleResultText,
-  type ScheduleControlPort,
-} from '../../src/runtime/schedules/command'
+import { runScheduleCommand, scheduleResultText } from '../../src/runtime/schedules/command'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { scheduleDraftSchema, scheduleViewV2Of } from '../../src/shared/scheduleV2'
+import { scheduleViewV2Of } from '../../src/shared/scheduleV2'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fakeSchedule } from './helpers/schedules/fixtures'
+import { fakeRuntimeScheduleControl, fakeScheduleDraft } from './helpers/schedules/runtimeFixtures'
 
 const CWD = '/workspace/schedules'
 function control() {
-  return {
-    request: vi
-      .fn<ScheduleControlPort['request']>()
-      .mockResolvedValue({ kind: 'accepted', id: 'schedule-1' }),
-    runDue: vi.fn<ScheduleControlPort['runDue']>().mockResolvedValue(),
-    close: vi.fn<ScheduleControlPort['close']>().mockResolvedValue(),
-  }
-}
-function draft() {
-  const s = fakeSchedule()
-  return scheduleDraftSchema.parse({
-    name: s.name,
-    action: s.action,
-    trigger: s.trigger,
-    target: s.target,
-    delivery: s.delivery,
-    whenClosed: s.whenClosed,
-    catchUp: s.catchUp,
-    mode: s.mode,
-    grant: s.grant,
-    paidCapUsd: s.paidCapUsd,
-    parallel: s.parallel,
-    zone: s.zone,
-    end: s.end,
-    pinned: s.pinned,
-  })
+  return fakeRuntimeScheduleControl({ kind: 'accepted', id: 'schedule-1' })
 }
 describe('schedule terminal commands', () => {
   it.each(['remove', 'run-now', 'pause', 'resume', 'fire'])(
@@ -62,7 +34,7 @@ describe('schedule terminal commands', () => {
   )
   it('validates a draft without accepting host-owned authority', async () => {
     const c = control()
-    const value = draft()
+    const value = fakeScheduleDraft()
     await runScheduleCommand(
       { operation: 'add', isJson: true, draft: JSON.stringify(value) },
       CWD,
@@ -130,6 +102,8 @@ describe('schedule terminal commands', () => {
     for (const argv of [
       ['list'],
       ['timeline', '--hours', '168'],
+      ['timeline', '--hours', '24'],
+      ['timeline'],
       ['background', 'off'],
       ['background', 'status'],
     ]) {
@@ -141,15 +115,22 @@ describe('schedule terminal commands', () => {
     expect(c.request.mock.calls.map(([request]) => request.method)).toEqual([
       'schedules/list',
       'schedules/timeline',
+      'schedules/timeline',
+      'schedules/timeline',
       'schedules/backgroundRemove',
       'schedules/backgroundStatus',
     ])
+    expect(
+      c.request.mock.calls.flatMap(([r]) => (r.method === 'schedules/timeline' ? [r.hours] : [])),
+    ).toEqual([168, 24, 24])
     for (const argv of [
       [],
       ['add'],
       ['list', 'id'],
       ['remove'],
       ['timeline', '--hours', '25'],
+      ['timeline', '--hours', '024'],
+      ['timeline', '--hours', '24.0'],
       ['background', 'on'],
       ['list', '--draft', '{}'],
       ['run-due', '--cwd', '/tmp'],
@@ -157,6 +138,12 @@ describe('schedule terminal commands', () => {
       ['list', '--unknown', 'private'],
       ['list', '--unknown'],
       ['list', '--cwd', ''],
+      ['remove', 'id', 'extra'],
+      ['add', 'id', '--draft', '{}'],
+      ['add', '--draft', ''],
+      ['add', '--draft', '{}', '--hours', '24'],
+      ['timeline', 'id'],
+      ['list', '--hours', '24'],
     ])
       expect(parseScheduleCommand(argv)).toEqual({
         ok: false,

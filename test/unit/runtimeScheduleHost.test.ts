@@ -79,6 +79,7 @@ describe('runtime scheduler host', () => {
         host.deliver(schedule, { ...context, ...changed }, record.occurrenceMs),
       ).rejects.toThrow()
     await expect(host.deliver(schedule, context, -1)).rejects.toThrow()
+    await expect(host.deliver(schedule, context, 1.5)).rejects.toThrow()
     expect(deliver).not.toHaveBeenCalled()
   })
   it('rejects a mismatched or incomplete final settlement', async () => {
@@ -91,10 +92,39 @@ describe('runtime scheduler host', () => {
       { occurrenceMs: record.occurrenceMs + 1 },
       { target: { ...schedule.target, sessionId: 'other' } },
       { delivery: 'steer' },
+      {
+        event: {
+          source: 'manual',
+          eventKey: 'event-1',
+          kind: 'manual',
+          observedAt: 1000,
+          fields: {},
+        },
+      },
       { cost: undefined },
     ]) {
       deliver.mockResolvedValue({ ...record, ...changed })
       await expect(host.deliver(schedule, context, record.occurrenceMs)).rejects.toThrow()
     }
+  })
+  it('validates schedule, unattended context and event boundaries before delivery', async () => {
+    const { host, deliver, record, schedule, context } = setup()
+    host.hold(schedule.workspaceKey)
+    await expect(
+      host.deliver({ ...schedule, paidCapUsd: -1 }, context, record.occurrenceMs),
+    ).rejects.toThrow()
+    const invalidContext = { ...context }
+    Reflect.set(invalidContext, 'unattended', false)
+    await expect(host.deliver(schedule, invalidContext, record.occurrenceMs)).rejects.toThrow()
+    await expect(
+      host.deliver(schedule, context, record.occurrenceMs, {
+        source: 'manual',
+        eventKey: '',
+        kind: 'manual',
+        observedAt: 1000,
+        fields: {},
+      }),
+    ).rejects.toThrow()
+    expect(deliver).not.toHaveBeenCalled()
   })
 })

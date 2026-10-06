@@ -1,6 +1,6 @@
 // M115 X: parsing does not load the schedule engine into ACP's startup bundle.
 import { parseArgs } from 'node:util'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
 
 export interface ScheduleCommandOptions {
   readonly operation:
@@ -61,7 +61,8 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
     if (operation === 'timeline') {
       if (
         argument !== undefined ||
-        (values.hours !== undefined && values.hours !== '24' && values.hours !== '168')
+        (values.hours !== undefined &&
+          SCHEDULE_TIMELINE_HOURS.every((hours) => String(hours) !== values.hours))
       )
         return refused()
       return {

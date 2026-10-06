@@ -2580,7 +2580,9 @@
       "unavailable": "Bu ana makinede zamanlamalar kullanılamıyor. Çalışma zamanı zamanlayıcısının bağlantısı gerekiyor.",
       "invalidRequest": "Geçersiz zamanlama isteği. Taslağı, tanımlayıcıyı ve seçenekleri kontrol edin.",
       "invalidResponse": "Zamanlayıcı geçersiz bir yanıt döndürdü.",
-      "consentRequired": "Arka plan zamanlaması için açıkça Evet demeniz gerekir."
+      "consentRequired": "Arka plan zamanlaması için açıkça Evet demeniz gerekir.",
+      "backgroundUnavailable": "Bu ana makinede arka plan zamanlaması kullanılamıyor.",
+      "backgroundRearmUnavailable": "Bu launchd uyandırması kendi kaydını yeniden yapılandıramaz. Yeniden zamanlama için harici bir yardımcı süreç gerekir."
     }
   }
 }

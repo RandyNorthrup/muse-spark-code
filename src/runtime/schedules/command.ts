@@ -3,7 +3,7 @@ import {
   scheduleResponseSchema,
   type ScheduleRequest,
 } from '../../shared/scheduleV2'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_TIMELINE_HOURS, UI_TEXT } from '../../shared/constants'
 import { formatDateTime, formatNumber } from '../../shared/l10n/text'
 import { workspaceKey } from '../dataFolder'
 import type { ScheduleCommandOptions } from './args'
@@ -34,7 +34,7 @@ function requestOf(options: ScheduleCommandOptions, cwd: string): ScheduleReques
       return scheduleRequestSchema.parse({
         method: 'schedules/timeline',
         workspaceKey: key,
-        hours: Number(options.hours ?? '24'),
+        hours: Number(options.hours ?? SCHEDULE_TIMELINE_HOURS[0]),
       })
     }
     case 'background-off': {

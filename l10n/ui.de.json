@@ -2580,7 +2580,9 @@
       "unavailable": "Zeitpläne sind auf diesem Host nicht verfügbar. Die Anbindung an den Laufzeitplaner ist erforderlich.",
       "invalidRequest": "Ungültige Zeitplananfrage. Prüfen Sie Entwurf, Kennung und Optionen.",
       "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
-      "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja."
+      "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja.",
+      "backgroundUnavailable": "Hintergrundplanung ist auf diesem Host nicht verfügbar.",
+      "backgroundRearmUnavailable": "Dieser launchd-Aufruf kann seinen eigenen Eintrag nicht neu konfigurieren. Dafür ist ein externer Hilfsprozess erforderlich."
     }
   }
 }

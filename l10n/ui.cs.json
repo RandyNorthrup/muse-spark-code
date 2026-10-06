@@ -2772,7 +2772,9 @@
       "unavailable": "Plány nejsou na tomto hostiteli dostupné. Je nutné připojení plánovače běhového prostředí.",
       "invalidRequest": "Neplatný požadavek na plán. Zkontrolujte návrh, identifikátor a možnosti.",
       "invalidResponse": "Plánovač vrátil neplatnou odpověď.",
-      "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano."
+      "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano.",
+      "backgroundUnavailable": "Plánování na pozadí není na tomto hostiteli dostupné.",
+      "backgroundRearmUnavailable": "Toto probuzení launchd nemůže upravit vlastní položku. Je nutný externí pomocník pro opětovné nastavení."
     }
   }
 }

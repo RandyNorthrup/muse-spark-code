@@ -2580,7 +2580,9 @@
       "unavailable": "Ezen a gazdagépen az ütemezések nem érhetők el. A futtatókörnyezet ütemezőjének csatlakoztatása szükséges.",
       "invalidRequest": "Érvénytelen ütemezési kérés. Ellenőrizze a piszkozatot, az azonosítót és a beállításokat.",
       "invalidResponse": "Az ütemező érvénytelen választ adott.",
-      "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges."
+      "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges.",
+      "backgroundUnavailable": "A háttérben történő ütemezés ezen a gazdagépen nem érhető el.",
+      "backgroundRearmUnavailable": "Ez a launchd-ébresztés nem módosíthatja a saját bejegyzését. Az újbóli ütemezéshez külső segédfolyamat szükséges."
     }
   }
 }

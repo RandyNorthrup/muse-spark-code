@@ -2676,7 +2676,9 @@
       "unavailable": "Las programaciones no están disponibles en este host. Se requiere la conexión con el programador del entorno de ejecución.",
       "invalidRequest": "Solicitud de programación no válida. Compruebe el borrador, el identificador y las opciones.",
       "invalidResponse": "El programador devolvió una respuesta no válida.",
-      "consentRequired": "La programación en segundo plano requiere que responda Sí explícitamente."
+      "consentRequired": "La programación en segundo plano requiere que responda Sí explícitamente.",
+      "backgroundUnavailable": "La programación en segundo plano no está disponible en este host.",
+      "backgroundRearmUnavailable": "Esta activación de launchd no puede reconfigurar su propia entrada. Se requiere un proceso auxiliar externo para volver a programarla."
     }
   }
 }

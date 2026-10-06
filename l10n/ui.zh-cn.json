@@ -2484,7 +2484,9 @@
       "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
       "invalidRequest": "计划请求无效。请检查草稿、标识符和选项。",
       "invalidResponse": "调度器返回了无效响应。",
-      "consentRequired": "后台计划需要您明确选择“是”。"
+      "consentRequired": "后台计划需要您明确选择“是”。",
+      "backgroundUnavailable": "此主机无法使用后台计划。",
+      "backgroundRearmUnavailable": "此 launchd 唤醒进程无法重新配置自身的条目。需要外部辅助进程来安排下一次唤醒。"
     }
   }
 }

@@ -28,6 +28,9 @@ export const EN = {
       invalidRequest: 'Invalid schedule request. Check the draft, identifier and options.',
       invalidResponse: 'The scheduler returned an invalid response.',
       consentRequired: 'Background scheduling requires your explicit Yes.',
+      backgroundUnavailable: 'Background scheduling is unavailable on this host.',
+      backgroundRearmUnavailable:
+        'This launchd wake cannot reconfigure its own entry. An external rearm helper is required.',
     },
     settings: {
       enabled:

@@ -2676,7 +2676,9 @@
       "unavailable": "Les planifications sont indisponibles sur cet hôte. La connexion au planificateur du runtime est requise.",
       "invalidRequest": "Demande de planification non valide. Vérifiez le brouillon, l’identifiant et les options.",
       "invalidResponse": "Le planificateur a renvoyé une réponse non valide.",
-      "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite."
+      "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite.",
+      "backgroundUnavailable": "La planification en arrière-plan est indisponible sur cet hôte.",
+      "backgroundRearmUnavailable": "Ce réveil launchd ne peut pas reconfigurer sa propre entrée. Un processus auxiliaire externe est nécessaire pour la reprogrammer."
     }
   }
 }

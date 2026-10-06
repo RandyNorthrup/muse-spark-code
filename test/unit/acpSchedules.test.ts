@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { acpSchedules } from '../../src/acp/schedules'
-import type { ScheduleControlPort } from '../../src/runtime/schedules/command'
+import { fakeRuntimeScheduleControl } from './helpers/schedules/runtimeFixtures'
 import { UI_TEXT } from '../../src/shared/constants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 
@@ -8,11 +8,7 @@ describe('ACP schedule adapter', () => {
   it.each(['museCode', 'modelApi'] as const)(
     'uses the shared control on %s without a model turn',
     async (backend) => {
-      const control: ScheduleControlPort = {
-        request: vi.fn().mockResolvedValue({ kind: 'list', schedules: [] }),
-        runDue: vi.fn(),
-        close: vi.fn().mockResolvedValue(undefined),
-      }
+      const control = fakeRuntimeScheduleControl()
       const load = vi.fn().mockResolvedValue(control)
       const port = acpSchedules(load)
       const context = { cwd: '/workspace', sessionId: 'session-1', backend }
@@ -26,11 +22,7 @@ describe('ACP schedule adapter', () => {
     },
   )
   it('keeps a JSON prompt intact and refuses cross-workspace and run-due commands', async () => {
-    const control: ScheduleControlPort = {
-      request: vi.fn().mockResolvedValue({ kind: 'accepted' }),
-      runDue: vi.fn(),
-      close: vi.fn().mockResolvedValue(undefined),
-    }
+    const control = fakeRuntimeScheduleControl({ kind: 'accepted' })
     const load = vi.fn().mockResolvedValue(control)
     const port = acpSchedules(load)
     const context = { cwd: '/workspace', sessionId: 'session-1', backend: 'modelApi' as const }

@@ -520,13 +520,17 @@ async function main(): Promise<number> {
   switch (command.command) {
     case 'schedule': {
       const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
-      let binding: Awaited<ReturnType<typeof load>> | undefined
       try {
-        binding = await load()
-        const result = await binding.command(
-          command.options,
-          path.resolve(command.options.cwd ?? process.cwd()),
-        )
+        const binding = await load()
+        let result
+        try {
+          result = await binding.command(
+            command.options,
+            path.resolve(command.options.cwd ?? process.cwd()),
+          )
+        } finally {
+          await binding.close()
+        }
         writeLine(process.stdout, result.output)
         return result.exitCode
       } catch {
@@ -536,8 +540,6 @@ async function main(): Promise<number> {
           command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
         )
         return EXIT_FAILED
-      } finally {
-        await binding?.close()
       }
     }
     case 'setup': {

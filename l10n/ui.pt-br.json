@@ -2676,7 +2676,9 @@
       "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
       "invalidRequest": "Solicitação de agendamento inválida. Verifique o rascunho, o identificador e as opções.",
       "invalidResponse": "O agendador retornou uma resposta inválida.",
-      "consentRequired": "O agendamento em segundo plano exige seu Sim explícito."
+      "consentRequired": "O agendamento em segundo plano exige seu Sim explícito.",
+      "backgroundUnavailable": "O agendamento em segundo plano não está disponível neste host.",
+      "backgroundRearmUnavailable": "Esta ativação do launchd não pode reconfigurar sua própria entrada. É necessário um processo auxiliar externo para reagendá-la."
     }
   }
 }

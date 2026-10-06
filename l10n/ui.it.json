@@ -2676,7 +2676,9 @@
       "unavailable": "Le pianificazioni non sono disponibili su questo host. È necessario il collegamento al pianificatore del runtime.",
       "invalidRequest": "Richiesta di pianificazione non valida. Controlla la bozza, l’identificatore e le opzioni.",
       "invalidResponse": "Il pianificatore ha restituito una risposta non valida.",
-      "consentRequired": "La pianificazione in background richiede un Sì esplicito."
+      "consentRequired": "La pianificazione in background richiede un Sì esplicito.",
+      "backgroundUnavailable": "La pianificazione in background non è disponibile su questo host.",
+      "backgroundRearmUnavailable": "Questa attivazione di launchd non può riconfigurare la propria voce. È necessario un processo ausiliario esterno per riprogrammarla."
     }
   }
 }

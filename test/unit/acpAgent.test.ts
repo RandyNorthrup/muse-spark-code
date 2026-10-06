@@ -653,6 +653,45 @@ describe('the ACP agent (M63)', () => {
     })
   })
 
+  it('stops and disposes a running turn even when schedule lease release fails', async () => {
+    const release = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error('Private watcher failure'))
+    const h = harness({
+      schedules: { run: vi.fn(), holdWorkspace: vi.fn().mockResolvedValue(release) },
+    })
+    await h.run(async (client) => {
+      const { sessionId, session, response } = await running(h, client)
+      await client.request('session/close', { sessionId })
+      expect(await response).toEqual({ stopReason: 'cancelled' })
+      expect(release).toHaveBeenCalledOnce()
+      expect(session.cancel).toHaveBeenCalledOnce()
+      expect(session.dispose).toHaveBeenCalledOnce()
+      expect(h.log.warn).toHaveBeenCalledWith('ACP schedule workspace release failed')
+    })
+  })
+
+  it('releases a late schedule lease when its adopting ACP session already closed', async () => {
+    const held = Promise.withResolvers<() => Promise<void>>()
+    const release = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const holdWorkspace = vi.fn().mockReturnValue(held.promise)
+    const h = harness({ schedules: { run: vi.fn(), holdWorkspace } })
+    await h.run(async (client) => {
+      await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      const loading = client.request('session/load', {
+        sessionId: 'old-1',
+        cwd: CWD,
+        mcpServers: [],
+      })
+      await until(() => holdWorkspace.mock.calls.length === 1)
+      await client.request('session/close', { sessionId: 'old-1' })
+      held.resolve(release)
+      await expect(loading).rejects.toThrow()
+      expect(release).toHaveBeenCalledOnce()
+      expect(h.host.sessions[0]?.dispose).toHaveBeenCalledOnce()
+    })
+  })
+
   it('announces skills as commands and runs /selector as the skill', async () => {
     const h = harness()
     await h.run(async (client) => {
