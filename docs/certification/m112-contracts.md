@@ -102,7 +102,10 @@ ids' `clarified` settlements to `deferred`. See
 `test/unit/helpers/m46Capture.ts` holds the actual settled frame. Lane 0
 made no model attempt and invented no MSP parser or field.
 
-Q must drive 60/0/5→10 from the machine setting, keep approvals outside
+Scheduled/unattended scheduled prompts defer at once (D92.8 as amended by
+D95), including when the interactive setting is 60 or 0. Q must test both
+cases. Other unattended lanes retain their existing immediate decline or
+clarification policy. Q must drive 60/0/5→10 from the machine setting, keep approvals outside
 this path, expire the 21st open card, coalesce waiting/reasked cards by key,
 retain drafts under deferral, deliver late answers through existing
 `submit`, queue idle dismissals before the next user message, and implement
@@ -144,7 +147,8 @@ no-form client's immediate deferral. The fake ACP client mirrors pinned SDK
 `$/cancel_request` but the response promise can still resolve normally.
 Its forms/cancellation capabilities can be disabled independently.
 Headless, best-of-N, worktrees and the evaluation keep immediate
-cancellation/clarification. Scheduled interactive prompts do defer.
+cancellation/clarification. Scheduled prompts defer immediately, never wait
+for interactive input, even with interactive deferral set to 0.
 A owns README, ACP/CI docs, CONTRIBUTING, layout, editor matrix and
 CHANGELOG. No claim that lane 0 ships those behaviours.
 
@@ -169,7 +173,9 @@ above and its request-id/error envelopes:
 `questions/defer` and `questions/list` satisfy the brief's additional
 open/defer/answer/list handoff; D92 names open/answer/dismiss and counts.
 The host must validate session ownership for every request and refuse
-headless/unattended deferral. These methods are not implemented by lane 0.
+headless and other unattended deferral, with the scheduled-run exception:
+scheduled prompts defer immediately rather than using the interactive
+deadline or refusing deferral. These methods are not implemented by lane 0.
 JetBrains/JCEF, Visual Studio/WebView2 and Eclipse/SWT bridges, companion
 page, M110a0 lane T's TUI and M111b's desktop bind this same contract when
 those lanes land. They do not block Q/U/A on main. Native key mappings need
