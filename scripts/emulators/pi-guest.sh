@@ -18,4 +18,4 @@ printf '\nMUSE_EMULATOR_READY\n'
 cat /proc/device-tree/model
 printf '\n'
 gpioinfo || true
-exec /bin/sh -i
+exec setsid --wait /sbin/agetty --autologin root --login-program /bin/sh --login-options=-i --noclear --noissue --local-line ttyAMA0 115200 linux

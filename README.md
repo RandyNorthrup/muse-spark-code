@@ -3476,6 +3476,16 @@ bash scripts/emulators/esp32.sh stop esp32 temp/m103-x/manual-esp32
 lifetime; `qemu-uart.sh` bridges QEMU's private socket and PTY; `pico.mjs`
 runs the RP2040 CPU and USB CDC. These are development helpers.
 
+Pi 3B and 4B extract matching kernels, device trees and modules from the pinned
+Raspberry Pi OS image. PL011 uses QEMU's first serial backend and Linux
+`ttyAMA0`; the mini-UART's second backend is explicitly discarded. The copied
+device trees give PL011 the `serial0` alias, disable its Bluetooth claim and
+let Linux initialize it. Both guests boot with one CPU and open a development
+root shell through `agetty`; no full desktop or systemd boot is claimed.
+S3 download mode uses the documented `0x00` strap and a disposable QEMU state
+with USB download disabled, keeping the ROM on UART0. This initializes the
+test model; no fuse programming command is run.
+
 Every launcher takes `start|status|stop`, the board name and a private state
 directory. ESP32 and AVR launchers also take `boot|download` as the fourth
 argument; download starts their programming bootloader. The state record's
@@ -3495,9 +3505,10 @@ when enabled. It uses P's actual serial sessions, host-only single-use
 approvals and native cross-process leases. Synthetic USB metadata is test
 input. This base lacks G's classifier and the editor adapters, so it does
 not certify their physical-safety or installed-editor flows. The Pi 3B/4B
-consoles and S3 ROM downloader currently fail qualification; the tests retain
-those failures. Run instructions, tools, receipts and remaining hardware
-checks are in [`docs/certification/m103-x.md`](docs/certification/m103-x.md).
+consoles and S3 ROM downloader have dedicated qualification checks, including
+an S3 app upload, reboot and Stop during programming. Run instructions, tools,
+receipts and remaining hardware checks are in
+[`docs/certification/m103-x.md`](docs/certification/m103-x.md).
 
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git

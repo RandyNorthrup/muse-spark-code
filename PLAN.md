@@ -15234,6 +15234,15 @@ authorized on the Kubuntu rig; no emulator dependency ships in the product.
 The lane brief reserves full quality for the lead and forbids merges/pushes;
 X runs focused suites and the individual static/build gates with hooks on.
 
+**Lane X2 continuation (2026-10-05, 90-minute rig brief).** Finish Pi 3B/4B
+console qualification with explicit UART routing and matching device-tree
+aliases; document a Pi 4 model workaround only if needed. Qualify the S3 ROM
+download strap, esptool v5 reset flags and flash size through write/verify,
+reboot into the UART application and Stop during programming. Re-run the
+whole emulator matrix, retain unavailable transports and integrated-guard
+limits, and update the certification receipts. Product code changes only
+for a demonstrated product bug, with a regression test and red drill.
+
 **Lane G's table (initial; each row and each near-miss is a fixture).**
 
 esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
@@ -15615,9 +15624,11 @@ lane A's first step.
 **M103 X emulator lane (2026-10-05, Kubuntu).** The rig brief prohibits full
 quality and assigns it to the lead. X adds only development rig scripts and
 tests. This P-only base lacks G/D/M/W integration; injected test classification
-is not G's physical-safety guard. Pi 3B/4B console qualification and the S3
-ROM UART flash path have failed; these remain failures in the opt-in matrix,
-not skips or weakened assertions. Physical boards, GPIO electrical behavior,
+is not G's physical-safety guard. The original Pi 3B/4B console and S3 ROM
+UART flash failures are resolved by X2's matching image kernel/DTBs, explicit
+PL011/getty setup and disposable S3 UART-download fixture. The restored
+matrix passes 22 tests with no skips, including app upload, reboot output and
+Stop during real programming. Physical boards, GPIO electrical behavior,
 RF, power, timing, installed-editor paths and full quality remain required.
 The unchanged W-owned host API inventory is stale from P. Individual gates,
 versions, attempted fixes and receipts are in `docs/certification/m103-x.md`.

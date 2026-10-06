@@ -62,6 +62,7 @@ def pi():
         shutil.copyfileobj(source, target)
     with image.open('rb') as source:
         table = source.read(512)
+        boot_offset = struct.unpack_from('<I', table, 446 + 8)[0] * 512
         root_offset, root_sectors = struct.unpack_from('<II', table, 446 + 16 + 8)
         source.seek(root_offset * 512)
         remaining = root_sectors * 512
@@ -72,12 +73,21 @@ def pi():
                     raise ValueError('truncated Pi partition')
                 target.write(block)
                 remaining -= len(block)
-    # Matching old Pi firmware supplies the emulated controller's GPIO module.
-    modules = '/usr/lib/modules/6.6.28-v8+'
-    for directory in (modules, modules + '/kernel', modules + '/kernel/drivers', modules + '/kernel/drivers/gpio'):
-        debugfs(f'mkdir {directory}')
-    debugfs(f'write {ROOT}/pi-stable/modules.dep {modules}/modules.dep')
-    debugfs(f'write {ROOT}/pi-stable/kernel/drivers/gpio/gpio-mockup.ko.xz {modules}/kernel/drivers/gpio/gpio-mockup.ko.xz')
+    # Use the pinned OS image's matching kernel, device trees and modules.
+    for source, target in [('kernel8.img', 'pi-kernel.img'),
+                           ('bcm2710-rpi-3-b.dtb', 'pi3-console.dtb'),
+                           ('bcm2711-rpi-4-b.dtb', 'pi4-console.dtb')]:
+        run('mcopy', '-o', '-i', f'{image}@@{boot_offset}', f'::{source}', str(IMAGES / target))
+    for target in ('pi3-console.dtb', 'pi4-console.dtb'):
+        tree = str(IMAGES / target)
+        # QEMU's serial_hd(0) is PL011, serial_hd(1) is the mini-UART.
+        # Firmware is absent: let Linux initialize PL011, not Bluetooth.
+        for node, key, value in [('/aliases', 'serial0', '/soc/serial@7e201000'),
+                                 ('/aliases', 'serial1', '/soc/serial@7e215040'),
+                                 ('/chosen', 'stdout-path', 'serial0:115200n8'),
+                                 ('/soc/serial@7e201000/bluetooth', 'status', 'disabled')]:
+            run('fdtput', '-t', 's', tree, node, key, value)
+        run('fdtput', '-d', tree, '/soc/serial@7e201000', 'skip-init')
     for command in (
         'write scripts/emulators/pi-guest.sh /usr/local/bin/muse-emulator-init',
         'set_inode_field /usr/local/bin/muse-emulator-init mode 0100755',
@@ -135,6 +145,12 @@ exec switch_root /root /usr/local/bin/muse-emulator-init
 
 
 def prepare():
+    # Test-model initial state only; no efuse programming command is run.
+    # IDF 5.4.2 esp32s3/esp_efuse_table.csv: disable USB download (not UART).
+    efuse = bytearray(1024)
+    for bit in (132, 159):  # DIS_USB_SERIAL_JTAG_DOWNLOAD_MODE, DIS_USB_OTG_DOWNLOAD_MODE
+        efuse[bit // 8] |= 1 << (bit % 8)
+    (IMAGES / 'esp32s3-uart-efuse.bin').write_bytes(efuse)
     for board, source, address in [('esp32', 'esp32.bin', '0x1000'),
                                    ('esp32c3', 'esp32c3.bin', '0')]:
         run(str(ROOT / 'venv/bin/esptool'), '--chip', board, 'merge-bin', '--pad-to-size',

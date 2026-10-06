@@ -111,7 +111,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           operation: 'read',
           identity,
           baud: 115_200,
-          durationMs: 15_000,
+          // Cold OS/.NET startup precedes the first receipt on Pi and Renode.
+          durationMs: board.script === 'pi' || board.script === 'renode' ? 30_000 : 15_000,
           dtr: false,
           rts: false,
           payloadHex: '',
@@ -139,17 +140,20 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         if (observed.status !== 'complete') throw new Error('monitor refused')
         await writeFile(path.join(receipt, 'monitor.txt'), observed.capture.bytes)
         expect(observed.capture.bytes.toString('utf8')).toContain(board.text)
+        if (board.script === 'pi')
+          expect(observed.capture.bytes.toString('utf8')).toContain('root (automatic login)')
         expect(confirm).toHaveBeenCalledTimes(1)
         expect(confirm.mock.calls[0]?.[0]).toMatchObject({
           action: 'connect',
           warnsAboutReset: true,
           target: identity,
         })
-        expect(checkFlashIdentity(identity, { idfTarget: 'esp32' }).status).toBe(
-          board.family === 'esp32' ? 'match' : board.family === undefined ? 'unknown' : 'mismatch',
-        )
+        let flashStatus = 'unknown'
+        if (board.family !== undefined)
+          flashStatus = board.family === 'esp32' ? 'match' : 'mismatch'
+        expect(checkFlashIdentity(identity, { idfTarget: 'esp32' }).status).toBe(flashStatus)
         let payload = 'MUSE_PING\n'
-        if (board.script === 'pi') payload = 'cat /proc/device-tree/model; echo MUSE_PING\n'
+        if (board.script === 'pi') payload = 'cat /proc/device-tree/model; tty; echo MUSE_PING\n'
         else if (board.name === 'nrf52') payload = 'help\r\n'
         else if (board.script === 'esp32' || board.name === 'pico')
           payload = "print('MUSE_PING')\r\n"
@@ -169,13 +173,13 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           board.name === 'nrf52' ? 'Available commands' : 'MUSE_PING',
         )
         if (board.script === 'pi') {
-          expect(written.capture.bytes.toString('utf8')).toContain(
-            board.name === 'pi-virt'
-              ? 'Raspberry Pi (QEMU virt, generic arm64)'
-              : board.name === 'raspi3b'
-                ? 'Raspberry Pi 3 Model B'
-                : 'Raspberry Pi 4 Model B',
-          )
+          expect(written.capture.bytes.toString('utf8')).toContain('/dev/ttyAMA0')
+          const models = {
+            'pi-virt': 'Raspberry Pi (QEMU virt, generic arm64)',
+            raspi3b: 'Raspberry Pi 3 Model B',
+            raspi4b: 'Raspberry Pi 4 Model B',
+          }
+          expect(written.capture.bytes.toString('utf8')).toContain(models[board.name])
         }
         expect(confirm).toHaveBeenCalledTimes(2)
         expect(confirm.mock.calls[0]?.[0].id).not.toBe(confirm.mock.calls[1]?.[0].id)
@@ -245,13 +249,20 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
       const state = path.join(directory, `${board.name}-flash`)
       const leases = path.join(directory, `${board.name}-fl`)
       await mkdir(leases, { mode: 0o700 })
+      let artifact = Buffer.from('M103 emulator flash receipt\n')
+      if (board.script === 'avr')
+        artifact = await readFile(path.resolve(`temp/m103-x/images/${board.name}.hex`))
+      else if (board.name === 'esp32s3')
+        artifact = await readFile(path.resolve('temp/m103-x/esp32s3-build/muse_emulator_uart.bin'))
+      if (board.name === 'esp32s3') {
+        await mkdir(state, { mode: 0o700 })
+        const initial = await readFile(path.resolve('temp/m103-x/images/esp32s3-flash.bin'))
+        initial.fill(0xff, 0x1_00_00, 0x1_00_00 + artifact.length)
+        await writeFile(path.join(state, 'flash.bin'), initial)
+      }
       let run = await startRig(board, state, 'download')
       const abort = new AbortController()
       const deps = await sessionDependencies(board, run.port, leases, abort.signal)
-      const artifact =
-        board.script === 'avr'
-          ? await readFile(path.resolve(`temp/m103-x/images/${board.name}.hex`))
-          : Buffer.from('M103 emulator flash receipt\n')
       const open = vi.fn((input: SerialActionInput, maxBytes: number) =>
         startSerialProcess(
           {
@@ -281,6 +292,7 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
       }
       const flashDeps = {
         ...deps,
+        limits: { ...deps.limits, maxBytes: board.name === 'esp32s3' ? 262_144 : 65_536 },
         open,
         confirm,
         classify: () => Promise.resolve('program' as const),
@@ -319,7 +331,27 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(await readFile(path.join(state, 'approved-image'))).toEqual(artifact)
         if (board.script === 'esp32') {
           const flash = await readFile(path.join(state, 'flash.bin'))
-          expect(flash.subarray(0x3f_00_00, 0x3f_00_00 + artifact.length)).toEqual(artifact)
+          const address = board.name === 'esp32s3' ? 0x1_00_00 : 0x3f_00_00
+          expect(flash.subarray(address, address + artifact.length)).toEqual(artifact)
+          if (board.name === 'esp32s3') {
+            expect(await readFile(path.join(state, 'uart-efuse.bin'))).toEqual(
+              await readFile(path.resolve('temp/m103-x/images/esp32s3-uart-efuse.bin')),
+            )
+            await rigCommand(board, 'stop', state)
+            run = await startRig(board, state)
+            const booted = await runSerialAction(
+              { ...input, operation: 'read', payloadHex: '', durationMs: 15_000 },
+              { ...deps, confirm },
+            )
+            expect(booted.status).toBe('complete')
+            if (booted.status !== 'complete') throw new Error('reboot monitor refused')
+            await writeFile(path.join(receipt, 'flashed-app.txt'), booted.capture.bytes)
+            expect(booted.capture.bytes.toString('utf8')).toContain(board.text)
+            expect(confirm).toHaveBeenCalledTimes(2)
+            expect(confirm.mock.calls[1]?.[0].action).toBe('connect')
+            await rigCommand(board, 'stop', state)
+            run = await startRig(board, state, 'download')
+          }
         } else {
           // The bootloader leaves programming mode after a verified upload.
           await rigCommand(board, 'stop', state)
@@ -354,7 +386,8 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
         expect(stopped.status).toBe('complete')
         if (stopped.status !== 'complete') throw new Error('flash Stop refused')
         expect(stopped.capture.reason).toBe('stopped')
-        expect(confirm).toHaveBeenCalledTimes(2)
+        expect(confirm).toHaveBeenCalledTimes(board.name === 'esp32s3' ? 3 : 2)
+        await writeFile(path.join(receipt, 'flash-stop.txt'), stopped.capture.bytes)
         const pid = Number(await readFile(path.join(state, 'flash-tool-pid'), 'utf8'))
         await until(async () => !(await isTestProcessAlive(pid)))
       } finally {

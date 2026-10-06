@@ -73,30 +73,5 @@
     "file": "images/STM32F40x.svd.gz",
     "url": "https://dl.antmicro.com/projects/renode/svd/STM32F40x.svd.gz",
     "sha256": "d71b3e11c870ec83346eb994e98a57c5eacdf0082d2949ed495d7a3828bf41ec"
-  },
-  {
-    "file": "images/pi4-kernel.img",
-    "url": "https://raw.githubusercontent.com/raspberrypi/firmware/1.20240424/boot/kernel8.img",
-    "sha256": "b62a1818c6214fbbded1737d87078c51c7290281a5947a7e05ef60ca05b7712e"
-  },
-  {
-    "file": "images/pi4.dtb",
-    "url": "https://raw.githubusercontent.com/raspberrypi/firmware/1.20240424/boot/bcm2711-rpi-4-b.dtb",
-    "sha256": "4a7b3a612fe02be08c1c4e9033a3206f48c7b83bdb81e6fb3f54d7e915abcbfb"
-  },
-  {
-    "file": "images/pi3-stable.dtb",
-    "url": "https://raw.githubusercontent.com/raspberrypi/firmware/1.20240424/boot/bcm2710-rpi-3-b.dtb",
-    "sha256": "a3a7b5e37c550fed85d837ae4ed764adbc8902e7e1969a6cb97a6a080c80928a"
-  },
-  {
-    "file": "pi-stable/modules.dep",
-    "url": "https://raw.githubusercontent.com/raspberrypi/firmware/1.20240424/modules/6.6.28-v8+/modules.dep",
-    "sha256": "9034b1b64f0e466597607a0f5e411c1c3aeb63b09e34e4bfc98db1a46923484f"
-  },
-  {
-    "file": "pi-stable/kernel/drivers/gpio/gpio-mockup.ko.xz",
-    "url": "https://raw.githubusercontent.com/raspberrypi/firmware/1.20240424/modules/6.6.28-v8+/kernel/drivers/gpio/gpio-mockup.ko.xz",
-    "sha256": "5e7026f6af9f117d529165108ee8895522a80ac6ae98a3f34aa821ba7678b11d"
   }
 ]

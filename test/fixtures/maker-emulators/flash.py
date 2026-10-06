@@ -10,7 +10,8 @@ import sys
 BASE = Path(__file__).resolve().parents[3]
 board, directory, length_text = sys.argv[1:]
 length = int(length_text)
-if board not in ('esp32', 'esp32s3', 'esp32c3', 'uno', 'mega') or not 0 < length <= 65536:
+limit = 262144 if board == 'esp32s3' else 65536
+if board not in ('esp32', 'esp32s3', 'esp32c3', 'uno', 'mega') or not 0 < length <= limit:
     raise SystemExit(2)
 state = Path(directory).resolve()
 info = state.stat()
@@ -27,9 +28,10 @@ if len(data) != length:
 artifact = state / 'approved-image'
 artifact.write_bytes(data)
 if board.startswith('esp32'):
+    address = '0x10000' if board == 'esp32s3' else '0x3f0000'
     args = [str(BASE / 'temp/m103-x/venv/bin/esptool'), '--chip', board, '--port', str(port),
             '--no-stub', '--before', 'no-reset', '--after', 'no-reset', 'write-flash',
-            '0x3f0000', str(artifact)]
+            '--flash-size', '4MB', address, str(artifact)]
 else:
     chip, programmer, baud = ('atmega328p', 'stk500v1', '57600') if board == 'uno' else ('atmega2560', 'stk500v2', '115200')
     args = ['avrdude', '-p', chip, '-c', programmer, '-b', baud, '-P', str(port),
@@ -42,6 +44,6 @@ while byte := child.stdout.read(1):
     sys.stdout.buffer.write(byte)
     sys.stdout.buffer.flush()
     pending = (pending + byte)[-128:]
-    if b'Writing at 0x003f0400' in pending or b'Writing |' in pending:
+    if any(word in pending for word in (b'Writing at 0x003f0400', b'Writing at 0x00010400', b'Writing |')):
         (state / 'flash-writing').touch()
 raise SystemExit(child.wait(timeout=30))

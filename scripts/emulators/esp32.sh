@@ -24,6 +24,12 @@ if [[ "$mode" == download ]]; then
   [[ "$board" == esp32c3 ]] && strap=0x02
   [[ "$board" == esp32s3 ]] && strap=0x00
   args+=(-global "driver=$board.gpio,property=strap_mode,value=$strap")
+  if [[ "$board" == esp32s3 ]]; then
+    # The ROM otherwise selects unemulated USB and faults on UART input.
+    # This initializes a disposable emulator fixture; it never burns efuses.
+    cp -- "$base/temp/m103-x/images/esp32s3-uart-efuse.bin" "$state/uart-efuse.bin"
+    args+=(-drive "file=$state/uart-efuse.bin,if=none,format=raw,id=efuse" -global 'driver=nvram.esp32s3.efuse,property=drive,value=efuse')
+  fi
 elif [[ "$mode" != boot ]]; then
   exit 2
 fi
