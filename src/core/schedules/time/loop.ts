@@ -1,12 +1,8 @@
-import {
-  ISO_DATE_LENGTH,
-  MILLISECONDS_PER_DAY,
-  SCHEDULE_LIFETIME_MS,
-} from '../../../shared/constants'
+import { SCHEDULE_LIFETIME_MS } from '../../../shared/constants'
 import { scheduleZoneSchema, type ScheduleTimeTrigger } from '../../../shared/scheduleV2'
 import { parseLoopPrompt, type LoopParseResult } from '../../backends/modelapi/schedules'
 import { nextTimeFire } from './scheduleTime'
-import { checkInstant, ZonedScheduleCalendar } from './zonedCalendar'
+import { checkInstant } from './zonedCalendar'
 
 type LoopControl = { readonly verb: 'list' } | { readonly verb: 'cancel'; readonly id: string }
 export type LoopTimeParseResult =
@@ -23,8 +19,8 @@ export type LoopTimeParseResult =
       }
     }
 
-/** V/X bind this adapter when replacing M52. Keep its grammar and seven-day
- * default; `d` selects civil days, while `m`/`h` remain elapsed intervals. */
+/** V/X bind this adapter when replacing M52. Keep its grammar, seven-day
+ * default and exact elapsed cadence for all m/h/d units, including precision. */
 export function parseScheduleLoop(
   text: string,
   nowMs: number,
@@ -36,20 +32,10 @@ export function parseScheduleLoop(
   checkInstant(nowMs)
   scheduleZoneSchema.parse(zone)
   const { cadence, prompt } = parsed.command
-  let trigger: ScheduleTimeTrigger
-  if (cadence.kind === 'cron') {
-    trigger = cadence
-  } else if (/^\/loop\s+\d+d(?:\s|$)/i.test(text.trim())) {
-    const date = new Date(new ZonedScheduleCalendar(zone).stamp(nowMs))
-    trigger = {
-      kind: 'daily',
-      everyDays: cadence.everyMs / MILLISECONDS_PER_DAY,
-      anchorDate: date.toISOString().slice(0, ISO_DATE_LENGTH),
-      times: [{ hour: date.getUTCHours(), minute: date.getUTCMinutes() }],
-    }
-  } else {
-    trigger = { kind: 'interval', everyMs: cadence.everyMs, anchorMs: nowMs }
-  }
+  const trigger: ScheduleTimeTrigger =
+    cadence.kind === 'cron'
+      ? cadence
+      : { kind: 'interval', everyMs: cadence.everyMs, anchorMs: nowMs }
   const end = { atMs: nowMs + SCHEDULE_LIFETIME_MS }
   return nextTimeFire(trigger, zone, nowMs, end.atMs) === undefined
     ? { ok: false, reason: 'badCadence' }

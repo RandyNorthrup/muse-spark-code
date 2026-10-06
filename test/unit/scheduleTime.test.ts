@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { parseScheduleLoop } from '../../src/core/schedules/time/loop'
+import { nextScheduleFire, parseLoopPrompt } from '../../src/core/backends/modelapi/schedules'
 import { ZonedScheduleCalendar } from '../../src/core/schedules/time/zonedCalendar'
 import {
   nextScheduleTime,
@@ -364,7 +365,38 @@ describe('M115 stored-zone time engine', () => {
     ).toBeUndefined()
   })
 
-  it('adapts the unchanged loop grammar with a seven-day default and civil day units', () => {
+  it('matches M52 first fires and expiry with nonzero seconds and milliseconds', () => {
+    for (const at of ['2026-10-05T12:00:30.123Z', '2026-03-07T17:00:30.123Z']) {
+      const now = instant(at)
+      for (const zone of ['UTC', 'America/Los_Angeles']) {
+        for (const cadence of ['1d', '7d', '15m', '48h']) {
+          const text = `/loop ${cadence} inspect`
+          const original = parseLoopPrompt(text)
+          if (!original?.ok || original.command.verb !== 'create') {
+            throw new Error('Expected an M52 loop creation')
+          }
+          const first = nextScheduleFire(original.command.cadence, now, now + 7 * 86_400_000)
+          const adapted = parseScheduleLoop(text, now, zone)
+          if (first === undefined) {
+            expect(adapted).toEqual({ ok: false, reason: 'badCadence' })
+          } else {
+            if (!adapted?.ok || adapted.command.verb !== 'create') {
+              throw new Error('Expected an adapted loop creation')
+            }
+            const command = adapted.command
+            expect(nextTimeFire(command.trigger, command.zone, now, command.end.atMs)).toBe(first)
+            expect(command.trigger).toEqual({
+              kind: 'interval',
+              everyMs: first - now,
+              anchorMs: now,
+            })
+          }
+        }
+      }
+    }
+  })
+
+  it('adapts the unchanged loop grammar with a seven-day default and elapsed day units', () => {
     const now = instant('2026-03-07T17:00:00Z')
     const zone = 'America/Los_Angeles'
     expect(parseScheduleLoop('/loop inspect', now, zone)).toEqual({
@@ -384,16 +416,15 @@ describe('M115 stored-zone time engine', () => {
     expect(days).toMatchObject({
       command: {
         trigger: {
-          kind: 'daily',
-          everyDays: 2,
-          anchorDate: '2026-03-07',
-          times: [{ hour: 9, minute: 0 }],
+          kind: 'interval',
+          everyMs: 2 * 86_400_000,
+          anchorMs: now,
         },
       },
     })
     if (days?.ok && days.command.verb === 'create') {
       expect(nextTimeFire(days.command.trigger, days.command.zone, now)).toBe(
-        instant('2026-03-09T16:00:00Z'),
+        instant('2026-03-09T17:00:00Z'),
       )
     } else throw new Error('Expected a loop creation')
     expect(parseScheduleLoop('/loop "0 9 * * 1-5" standup', now, zone)).toMatchObject({
@@ -415,7 +446,10 @@ describe('M115 stored-zone time engine', () => {
       ok: false,
       reason: 'badCadence',
     })
-    expect(parseScheduleLoop('/loop 7d inspect', now, zone)).toMatchObject({ ok: true })
+    expect(parseScheduleLoop('/loop 7d inspect', now, zone)).toEqual({
+      ok: false,
+      reason: 'badCadence',
+    })
     expect(parseScheduleLoop('inspect', now, zone)).toBeUndefined()
   })
 })
