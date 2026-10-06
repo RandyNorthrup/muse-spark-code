@@ -15688,6 +15688,15 @@ lane A's first step.
 
 ## 7. Gates
 
+**FIXM104E3 (2026-10-05, Kubuntu).** Follow RVM104E3's scoped rig brief:
+all owned native regressions and deliberate failures, native lint, scoped
+repository checks, production build and strict Plugin Verifier on the three
+pinned IDEA releases. The shared rules explicitly prohibit full `npm run quality`
+and aggregate unit coverage here; those remain the lead's integration gate.
+No merge/push, dependency, threshold, suppression or installed-IDE agreement
+change is authorized. Exact results and the named tree-discovery residual are
+in `docs/certification/m104-e-redesign.md`.
+
 **REDM104E (2026-10-05, Kubuntu).** The explicit rig/common brief requires
 owned JVM tests, scoped repository gates and the three declared IDEA verifier
 releases. Full `npm run quality`, aggregate coverage and unrelated editor
@@ -16297,8 +16306,9 @@ before a repaired one loads (2026-09-30).
 
 - **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
   identities fix cleanup of observed separate-session workers after parent-first
-  exit and JVM shutdown. A detached child created and reparented wholly between
-  the 10-ms observations cannot be discovered from an exited parent's ancestry.
+  exit and JVM shutdown. Detached descendants outside observed ancestry can
+  remain unseen, for example after creation/reparenting between the 10-ms
+  observations. ProcessHandle cannot reconstruct an exited parent's ancestry.
   Cooperative runtime supervision and process-group/Windows-job containment
   remain, but no unconditional whole-tree claim is made. Safe for the existing
   development-only qualification; follow-up is supervisor integration and an OS

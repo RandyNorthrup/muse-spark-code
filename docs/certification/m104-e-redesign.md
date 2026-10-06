@@ -226,9 +226,10 @@ process fix passed **65 tests**, ktlint and detekt (`temp/r3-process-green.log`)
 The subsequent identity regression brings the inventory to 66; final and drill
 receipts are recorded below before handoff.
 
-Named residual **R3-tree-discovery-window**: a detached child that is created
-and reparented entirely between the 10-ms observations may never enter the
-snapshot. ProcessHandle cannot reconstruct an exited parent's lost ancestry.
+Named residual **R3-tree-discovery-window**: a detached descendant outside
+observed ancestry may never enter the snapshot, for example one created and
+reparented entirely between the 10-ms observations. ProcessHandle cannot
+reconstruct an exited parent's lost ancestry.
 The runtime's cooperative supervision and same-group/job containment remain;
 this is safe only within the adapter's existing development qualification,
 with no supported whole-tree guarantee. Follow-up: integration must qualify
@@ -320,3 +321,57 @@ dependency, shared protocol file or model/paid call was introduced.
 
 Final restored native source: **69/69 passed, zero failures/errors/skips**,
 ktlint and detekt exit 0 (`temp/r3-native-final-restored.log`).
+
+## RVM104E3 final gates and artifact
+
+Source commits: `f4e1dbeb5` (descendants) and `b21b796cf` (native mutation
+fences). Both ran the unchanged hooks: lint-staged and staged gitleaks, with
+no leaks, preload or bypass. All work and checks ran directly on Kubuntu,
+sequentially. No merge, rebase, push, install, agreement, model attempt or paid
+call occurred. Full aggregate quality/coverage remain with the lead under the
+explicit rig/common prohibition, recorded in PLAN §7.
+
+All scoped checks exit 0 (`temp/r3-scoped-results.json`): all five TypeScript
+projects, scoped native `.mjs` ESLint, changed Markdown/JSON Prettier, plain
+`knip`, `jscpd`, localization (**14 tables, 131 manifest strings, 481 source
+files, zero problems**), host API and whitespace. Shared contract Vitest:
+**55/55 passed** with three workers, 120-second limit, no cache and runner config
+loader; native Node suites: **8/8 passed, zero skips**. Restored native JVM:
+**69/69 passed, zero failures/errors/skips**; ktlint and detekt pass. Six red
+drills fired their named regressions; one initial cleanup-order attempt did
+not, is recorded, and was replaced by the acknowledged-worker drill. Every
+mutation was restored byte-exact. No gate threshold, rule level or filter changed.
+
+Production build, size/split, host globals and bundled notices pass
+(`temp/r3-scoped-build.log`). Activation **582.3/600 KiB**, Model API
+**429.5/475**, checkpoints **89.2/225**, ACP **804.4/850**, shared startup
+**877.5/900**, deferred **38.6/50**. Actual native folded main **913.0/950**,
+notes **0.7/25** (`temp/r3-native-inline.log`). No cap was raised.
+
+Final development ZIP: `hosts/jetbrains/build/distributions/muse-spark-code-jetbrains-0.1.0.zip`,
+**3,335,807 bytes**, SHA-256
+`1d2ea09290ee2d831e0a4ed4c92fe1d9a8ff23d4a842321f638658519852cb06`.
+The exact bytes matched before and after the fresh verifier.
+
+`buildPlugin` and `verifyPlugin --offline --no-daemon` exit 0
+(`temp/r3-package.log`, `temp/r3-verifier.log`). Verifier **1.410** and
+**FailureLevel.ALL** remain unchanged; build SDK `privateIdePath=temp/idea-sdk`
+and three installed releases via `verificationIdePaths`. **0 bytes** downloaded,
+no suppression. SDK optional-module layout warnings in the tool log do not
+change the three Compatible plugin verdicts. This is API verification; no
+standalone IDE agreement was accepted or standalone IDE qualification claimed.
+
+| Release       | Build            | Fresh verdict                                         |
+| ------------- | ---------------- | ----------------------------------------------------- |
+| IDEA 2025.3.3 | IU-253.31033.145 | [Compatible](m104-e-r3-verifier/IU-253.31033.145.txt) |
+| IDEA 2026.1.5 | IU-261.27258.48  | [Compatible](m104-e-r3-verifier/IU-261.27258.48.txt)  |
+| IDEA 2026.2.3 | IU-262.10968.63  | [Compatible](m104-e-r3-verifier/IU-262.10968.63.txt)  |
+
+The four frozen MHP schema/lock hashes listed above still match byte-for-byte.
+No shared/provider/paid/golden-file source or other-host path changed. Windows
+and macOS execution, standalone IDE agreement and controller/companion assembly
+remain the existing qualification limits. R3-tree-discovery-window is the sole
+named new residual; native mutation finding 2 has none.
+
+Source-commit gitleaks scanned both new commits and 33,952 bytes with zero leaks
+(`temp/r3-source-gitleaks.log`); certification commits also run staged gitleaks.
