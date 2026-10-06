@@ -1,0 +1,145 @@
+# M117 G — goal resolution and DAG
+
+Base: `7f43e600`, branch `m117/g`, Mac mini, 2026-10-06.
+
+## Implementation plan and ownership
+
+D97.2 and D97.5's DAG only: implement `src/core/estimator/goal.ts` and
+`dag.ts`, with `estimatorGoal.test.ts` and `estimatorDag.test.ts`. No model,
+network, paid call, new dependency, editor adapter or startup import is needed.
+W owns the final lazy entry, budgets, reference registration and product docs.
+The supplied lane rules prohibit merges, pushes and aggregate quality runs.
+
+- Resolve all six frozen structured goal kinds against a validated, injected
+  application snapshot. M113's plan reader and git/PR/issue/CI sources are
+  absent on this base. Its eventual adapter supplies explicit associations;
+  the estimator never guesses a lane from issue prose or a branch name.
+- Include transitive prerequisites. Merged lanes satisfy dependencies and
+  have no remaining work. Running lanes subtract measured active agent hours
+  and retain the calibrated minimum supplied in the frozen lane contract.
+- Combine rig affinity with existing constraints and normalized relative
+  file paths. Incompatible constraints fail explicitly. Rig OS/architecture,
+  machine class and GPU facts come from the injected rig catalog, allowing
+  arbitrary rig names without hard-coded host assumptions.
+- Compute a stable topological order, forward/backward times, critical path,
+  downstream priority and slack. A duration map lets S analyze sampled
+  durations; it must cover exactly the lanes and never revive merged work.
+  These are dependency-only hours, not a resource-constrained schedule or
+  P50/P90 forecast. Sort by code units, never locale or input order.
+- Exercise chain, fan-out, diamond, affinity and repository-history fixtures,
+  cross-process TZ/LANG determinism, default-timeout performance and byte-exact
+  red drills for every guard and calculation.
+
+## Named integration handoffs
+
+- `M117-G-M113-snapshot`: bind the source port to the checked plan reader,
+  explicit goal associations and captured source projections. Apply M96
+  active agent time and C's calibrated minimum before projecting each lane.
+  Open PR CI demand stays in the lane's resource contract. Unavailable data
+  must fail the adapter or retain explicit unknown resource quantities;
+  missing hour estimates cannot be invented to satisfy the lane schema.
+- `M117-G-S-dag`: S consumes the resolved frozen lanes and DAG timing, and
+  supplies its sampled remaining durations through the exact duration map.
+- `M117-G-W-docs`: W owns CHANGELOG, help-reference registration, the final
+  lazy chunk and split/budget checks. This core piece exposes no new command,
+  setting or user-facing feature. All editor, ACP and headless surfaces use
+  the same functions through U/W; no VS Code dependency is introduced.
+- `M117-G-history-hours`: the M103/M104 fixture records dependencies and
+  some git elapsed durations, but every original estimate is unavailable.
+  Its topology can be certified; a measured critical-path duration cannot.
+  Tests must label any substituted duration as a test assumption.
+
+## Verification and red drills
+
+All 57 deliberate mutations ran both complete owning Vitest files directly
+on Mac mini with `--maxWorkers=3` and the repository default timeout. Each
+exited 1 and failed its intended named regression; none depended on a compiler
+or import failure. Every changed source was restored from saved bytes in
+`finally` and its SHA-256 rechecked before the next drill. No production
+mutation, suppressed gate, test-name filter, skip or raised timeout is retained.
+
+The table names one actual failing regression per drill. G01–G08 cover source
+identity/reference guards; G13 removes boundary parsing altogether. G14–G19
+cover remaining work and dependency closure. G20–G33 cover affinity and paths.
+G34–G39 cover stable ordering and association/graph bounds. D01–D10 cover DAG
+validation; D11–D18 alter timing, slack, priority, critical flags, resources,
+sampled durations and determinism. D14 divides durations by slots and proves
+additional resources cannot shorten the dependency path. D18 adds a clock
+read, and the cross-process TZ/LANG byte comparison fails.
+
+| Drill (deliberately bypassed or altered) | Observed named regression | Exit |
+| ---------------------------------------- | ------------------------- | ---- |
+
+| `G01-lane-identity` | validates unique identities and all references across plan/source projections | 1 |
+| `G02-catalog-identities` | validates unique identities and all references across plan/source projections | 1 |
+| `G03-source-identities` | validates unique identities and all references across plan/source projections | 1 |
+| `G04-lane-associations` | refuses an invalid milestone-lane association in isolation | 1 |
+| `G05-exact-milestone` | refuses an invalid milestone-namespace association in isolation | 1 |
+| `G06-release-associations` | refuses an invalid release-milestone association in isolation | 1 |
+| `G07-prerequisite-associations` | refuses an invalid prerequisite association in isolation | 1 |
+| `G08-rig-associations` | refuses an invalid rig association in isolation | 1 |
+| `G09-snapshot-time` | rejects stale snapshots, unavailable reads and malformed projected data | 1 |
+| `G10-unknown-milestone` | rejects unknown goal M999 instead of estimating a partial success | 1 |
+| `G11-unknown-label` | rejects unknown goal label:missing instead of estimating a partial success | 1 |
+| `G12-unknown-custom-lane` | rejects unknown goal M112:missing instead of estimating a partial success | 1 |
+| `G13-strict-source-parse` | rejects stale snapshots, unavailable reads and malformed projected data | 1 |
+| `G14-merged-remainder` | computes remaining merged work with 0 active hours | 1 |
+| `G15-running-floor` | computes remaining running work with 8 active hours | 1 |
+| `G16-active-hours` | computes remaining running work with 3 active hours | 1 |
+| `G17-merged-pr-evidence` | uses merged PR evidence and stops traversing satisfied prerequisites | 1 |
+| `G18-prerequisite-closure` | resolves pr:12 with its transitive prerequisites | 1 |
+| `G19-satisfied-edges` | uses merged PR evidence and stops traversing satisfied prerequisites | 1 |
+| `G20-affinity-conflicts` | intersects explicit OS, architecture, class and GPU constraints rather than broadening them | 1 |
+| `G21-ambiguous-architecture` | rejects contradictory architecture hints in a single builder path | 1 |
+| `G22-unknown-architecture` | refuses unknown builder architecture for os/** | 1 |
+| `G23-relative-paths` | rejects nonrelative file /Users/example/file instead of retaining a profile path | 1 |
+| `G24-windows-separators` | derives file affinity without rig hints for native\windows\** | 1 |
+| `G25-windows-affinity` | derives file affinity without rig hints for native\windows\** | 1 |
+| `G26-darwin-affinity` | derives file affinity without rig hints for .\native\darwin\** | 1 |
+| `G27-linux-affinity` | derives file affinity without rig hints for os/x64/** | 1 |
+| `G28-x64-affinity` | derives file affinity without rig hints for os/x64/** | 1 |
+| `G29-arm64-affinity` | derives file affinity without rig hints for os/arm64/** | 1 |
+| `G30-gpu-kind` | infers OS and architecture from files without a rig and requires GPUs for GPU kinds | 1 |
+| `G31-gpu-rig` | preserves GPU requirements from the rig and refuses contradictory native file constraints | 1 |
+| `G32-rooted-files` | does not infer native or builder affinity from unrelated nested directories | 1 |
+| `G33-dot-and-repeat-separators` | derives file affinity without rig hints for native//./windows/** | 1 |
+| `G34-catalog-order` | returns stable goal bytes when source row and association order changes | 1 |
+| `G35-graph-bound` | bounds the resolved graph without silently truncating lanes | 1 |
+| `G36-code-unit-order` | marks both equal longest paths critical and picks a stable representative by lane ID | 1 |
+| `D01-duplicate-lanes` | rejects duplicate identities, missing prerequisites, self edges and cycles | 1 |
+| `D02-missing-prerequisite` | rejects duplicate identities, missing prerequisites, self edges and cycles | 1 |
+| `D03-self-edge` | rejects duplicate identities, missing prerequisites, self edges and cycles | 1 |
+| `D04-cycle` | rejects duplicate identities, missing prerequisites, self edges and cycles | 1 |
+| `D05-duration-coverage` | requires exact sampled-duration coverage 0 | 1 |
+| `D06-valid-duration` | rejects invalid sampled duration NaN | 1 |
+| `D07-merged-duration` | never revives completed work or samples running work below its calibrated floor | 1 |
+| `D08-running-duration-floor` | never revives completed work or samples running work below its calibrated floor | 1 |
+| `D09-overflow` | rejects duration overflow and overlarge graphs instead of emitting invalid forecasts | 1 |
+| `D10-graph-bound` | rejects duration overflow and overlarge graphs instead of emitting invalid forecasts | 1 |
+| `D11-forward-critical-path` | matches the chain fixture critical path and forward/backward timing | 1 |
+| `D12-backward-slack` | gives the diamond noncritical branch one hour of slack and downstream priority | 1 |
+| `D13-numerical-slack` | handles fractional durations without false slack on critical nodes | 1 |
+| `D14-resource-critical-path` | does not let slot, account or CI capacity shorten a dependency critical path | 1 |
+| `D15-downstream-priority` | gives the diamond noncritical branch one hour of slack and downstream priority | 1 |
+| `D16-sampled-durations` | honors an exact sampled remaining-duration map for scheduling simulations without mutation | 1 |
+| `D17-completed-critical-flag` | returns a zero-duration empty or fully merged goal | 1 |
+| `D18-clock-read` | produces identical bytes twice and in children with different TZ and LANG | 1 |
+| `G37-association-uniqueness` | rejects duplicate references inside a milestone association | 1 |
+| `G38-association-bound` | bounds association lists even when the selected goal is empty | 1 |
+| `G39-release-uniqueness` | rejects duplicate references inside a release association | 1 |
+
+Restored source hashes at drill time (identical across every drill):
+
+- `goal.ts`: `6dab7b47dea9e97b568aeefd1c6240b066216a1f33b3a55c8c247352073c6599`.
+- `dag.ts`: `34ae9dd66a643b631430a1a19a82cb75bde424061aaf66ba3391d248daff7de1`.
+
+The first exploratory golden run exposed incorrect test expectations for
+M103/M104 endpoints and a fixture with dangling unrelated milestone refs.
+The expectations were corrected by reading the captured dependency rows
+(M103 ends at E, M104's longest unit-weight chain ends at H); the size fixture
+now contains only its own milestone. These are fixture corrections, not
+weakened checks or fabricated historical duration measurements.
+
+## Scoped gate results
+
+Final results and hooked commit receipts are recorded below after verification.
