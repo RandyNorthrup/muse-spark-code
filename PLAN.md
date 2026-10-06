@@ -24089,6 +24089,19 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM110C / RVM110C (lane C, 2026-10-05).** Both review P2s are
+  resolved: automatic stable/preview promotion compares the current digest's
+  validated release aliases by SemVer before writing, and OCI reconstruction
+  applies every whiteout form to lower layers, including root opacity, before
+  adding current-layer files. No review finding remains as a residual. The
+  existing workflow concurrency group serializes channel writes and retention;
+  any future explicit audited rollback workflow must share that group.
+  Hosted GHCR/OIDC/retention and final-runtime/platform qualification remain
+  the named lead/N/0/J handoffs in `docs/certification/m110-c.md`; this repair
+  certifies crafted OCI layers and the actual promotion shell on local fakes.
+  No registry operation or model call runs here. J carries the CHANGELOG and
+  operator-documentation update at integration.
+
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
   compaction that exists, the manual one: PreCompact may block it, and

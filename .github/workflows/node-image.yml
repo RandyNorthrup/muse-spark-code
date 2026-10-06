@@ -185,6 +185,7 @@ jobs:
       - name: join checked digests, sign, attest and verify the release identity
         env:
           IMAGE: ghcr.io/randynorthrup/muse-spark-code-node
+          GH_TOKEN: ${{ github.token }}
         run: |
           export PATH="$RUNNER_TEMP/image-tools:$PATH"
           amd64=$(node -p 'require("./receipts/receipt-amd64.json").digest')
@@ -203,10 +204,13 @@ jobs:
           identity="https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-image.yml@refs/tags/$GITHUB_REF_NAME"
           cosign verify-attestation --certificate-identity "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com --type spdxjson "$REFERENCE" >/dev/null
           cosign verify-attestation --certificate-identity "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com --type slsaprovenance "$REFERENCE" >/dev/null
-          channel=stable
-          case "$GITHUB_REF_NAME" in *-*) channel=preview;; esac
-          docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" --tag "$IMAGE:$channel" "$REFERENCE"
-          for tag in "$GITHUB_REF_NAME" "$channel"; do
+          gh api --paginate --slurp '/users/randynorthrup/packages/container/muse-spark-code-node/versions?per_page=100' > "$RUNNER_TEMP/node-channel-versions.json"
+          channel=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {nodeImageChannel} from "./scripts/retain-node-images.mjs"; console.log(nodeImageChannel(process.env.GITHUB_REF_NAME,JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/node-channel-versions.json","utf8"))))')
+          docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" "$REFERENCE"
+          if [ -n "$channel" ]; then
+            docker buildx imagetools create --tag "$IMAGE:$channel" "$REFERENCE"
+          fi
+          for tag in "$GITHUB_REF_NAME" ${channel:+"$channel"}; do
             promoted=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "$IMAGE:$tag" | jq -r .digest)
             test "$promoted" = "$digest"
           done

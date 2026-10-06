@@ -33,6 +33,80 @@ const RegistryObject = z.union([
   }),
 ])
 
+function releaseVersion(tag) {
+  const match =
+    /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*))?(?:\+[\da-zA-Z-]+(?:\.[\da-zA-Z-]+)*)?$/.exec(
+      tag,
+    )
+  if (!match) throw new Error('Valid SemVer release tag required for channel promotion')
+  const [, major, minor, patch, prerelease] = match
+  const pre = prerelease?.split('.') ?? []
+  if (pre.some((part) => /^0\d+$/.test(part)))
+    throw new Error('Valid SemVer prerelease required for channel promotion')
+  return { core: [major, minor, patch].map(BigInt), pre }
+}
+
+function atLeast(candidate, current) {
+  for (const [index, part] of candidate.core.entries()) {
+    if (part !== current.core[index]) return part > current.core[index]
+  }
+  if (candidate.pre.length === 0 || current.pre.length === 0) return candidate.pre.length === 0
+  for (const [index, part] of candidate.pre.entries()) {
+    const other = current.pre[index]
+    if (other === undefined) return true
+    if (part === other) continue
+    const isNumeric = /^\d+$/.test(part)
+    const isOtherNumeric = /^\d+$/.test(other)
+    if (isNumeric && isOtherNumeric) return BigInt(part) > BigInt(other)
+    return isNumeric === isOtherNumeric ? part > other : isOtherNumeric
+  }
+  return candidate.pre.length >= current.pre.length
+}
+
+export function nodeImageChannel(tag, pages, execute = execFileSync) {
+  const candidate = releaseVersion(tag)
+  const channel = candidate.pre.length === 0 ? 'stable' : 'preview'
+  const current = Versions.parse(pages)
+    .flat()
+    .filter((entry) => entry.metadata.container.tags.includes(channel))
+  if (current.length > 1) throw new Error('Ambiguous current node image channel')
+  const versions = (current[0]?.metadata.container.tags ?? [])
+    .filter((entry) => /^v\d+\./.test(entry))
+    .map((entry) => releaseVersion(entry))
+  if (current.length === 1 && versions.length === 0)
+    throw new Error('Current node image channel has no release version')
+  // Bind the paginated release aliases to the channel's actual registry digest.
+  let inspected
+  const reference = `${POLICY.image}:${channel}`
+  try {
+    inspected = z
+      .object({ digest: Digest })
+      .parse(
+        JSON.parse(
+          execute(
+            'docker',
+            ['buildx', 'imagetools', 'inspect', '--format', '{{json .Manifest}}', reference],
+            { encoding: 'utf8', stdio: 'pipe' },
+          ),
+        ),
+      )
+  } catch (error) {
+    if (
+      current.length === 0 &&
+      error.status === 1 &&
+      String(error.stderr).trim() === `ERROR: ${reference}: not found`
+    )
+      return channel
+  }
+  if (!inspected)
+    throw new Error('Current node image channel lookup failed; registry details withheld')
+  if (current.length === 0)
+    throw new Error('Current node image channel is missing from the release listing')
+  if (inspected.digest !== current[0].name)
+    throw new Error('Current node image channel changed during publication')
+  return versions.every((version) => atLeast(candidate, version)) ? channel : ''
+}
+
 export function nodeImageRetention(versions, readManifest) {
   const ordered = versions.toSorted((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
   const releases = ordered.filter((entry) =>
