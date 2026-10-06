@@ -12,6 +12,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -99,10 +100,13 @@ function packagingFixture() {
   for (const folder of [
     'scripts',
     'dist',
+    'dist/webview',
+    'dist/meta',
     'native/windows',
     'l10n',
     'docs/schemas',
     'test/action',
+    'test/packaging',
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
@@ -119,6 +123,12 @@ function packagingFixture() {
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
   )
   writeFileSync(path.join(dir, 'scripts/check-l10n.mjs'), '// test-owned source gate\n')
+  // These inert bundles isolate schema/bin/staging guards. Real archive
+  // localization and native export parity run in the production package drills.
+  writeFileSync(
+    path.join(dir, 'test/packaging/moduleExports.test.mjs'),
+    '// test-owned inert export fixture\n',
+  )
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({
@@ -133,6 +143,7 @@ function packagingFixture() {
   for (const bundle of [
     'acp',
     'modelApi',
+    'providers',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
@@ -147,6 +158,8 @@ function packagingFixture() {
     'validation',
     'searchWorker',
     'pageWorker',
+    'usageService',
+    'usageCompanion',
   ]) {
     writeFileSync(
       path.join(dir, 'dist', `${bundle}.js`),
@@ -157,6 +170,22 @@ function packagingFixture() {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
+  const languageFiles = readdirSync(path.join(ROOT, 'l10n'))
+  for (const table of languageFiles) {
+    if (table.startsWith('usage.') && table.endsWith('.json'))
+      cpSync(path.join(ROOT, 'l10n', table), path.join(dir, 'l10n', table))
+  }
+  writeFileSync(path.join(dir, 'dist/webview/usage.js'), '// test-owned usage asset\n')
+  writeFileSync(path.join(dir, 'dist/webview/usage.css'), '/* test-owned usage asset */\n')
+  writeFileSync(
+    path.join(dir, 'dist/meta/webview.json'),
+    JSON.stringify({
+      outputs: {
+        'dist/webview/usage.js': { imports: [] },
+        'dist/webview/usage.css': {},
+      },
+    }),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   writeFileSync(path.join(dir, 'docs', 'npm-readme.md'), '# Test-owned npm page\n')

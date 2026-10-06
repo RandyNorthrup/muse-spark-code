@@ -77,6 +77,8 @@ function sizeFixture(sharedBytes) {
         },
         'dist/webview/shared.js': { imports: [] },
         'dist/webview/deferred.js': { imports: [] },
+        'dist/webview/models.js': { imports: [] },
+        'dist/webview/usage.js': { imports: [] },
       },
     }),
   )

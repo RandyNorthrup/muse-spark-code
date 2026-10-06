@@ -14,6 +14,7 @@ beforeEach(() => {
       outputs: {
         'dist/webview/main.js': { imports: [] },
         'dist/webview/models.js': { imports: [] },
+        'dist/webview/usage.js': { imports: [] },
       },
     }),
   )
@@ -65,6 +66,7 @@ describe('bundled What’s New content budget', () => {
           },
           'dist/webview/chunks/eager.js': { imports: [] },
           'dist/webview/models.js': { imports: [] },
+          'dist/webview/usage.js': { imports: [] },
         },
       }),
     )
@@ -75,7 +77,7 @@ describe('bundled What’s New content budget', () => {
   })
 
   it.each([
-    ['deferred JS', 50, 'src/webview/components/HistoryDialog.tsx'],
+    ['deferred JS', 50, 'src/webview/components/deferredHelper.ts'],
     ['code highlighting', 125, 'src/webview/components/HighlightedCode.tsx'],
     ['action dialogs', 25, 'src/webview/components/ShareView.tsx'],
     ['tasks tab', 25, 'src/webview/TasksApp.tsx'],
@@ -87,6 +89,8 @@ describe('bundled What’s New content budget', () => {
         JSON.stringify({
           outputs: {
             'dist/webview/main.js': { imports: [{ path: chunk, kind: 'dynamic-import' }] },
+            'dist/webview/models.js': { imports: [] },
+            'dist/webview/usage.js': { imports: [] },
             [chunk]: { imports: [], entryPoint },
           },
         }),

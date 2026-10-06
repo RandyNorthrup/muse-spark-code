@@ -61,6 +61,11 @@ async function bytes(base?: string): Promise<number> {
     plugins.push({
       name: 'immutable-baseline',
       setup(builder) {
+        builder.onResolve({ filter: /^\./ }, (args) => {
+          const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+          const key = path.relative(process.cwd(), source).split(path.sep).join('/')
+          return baselineSources.has(key) ? { path: source } : undefined
+        })
         builder.onLoad({ filter: /[\\/]src[\\/].*\.ts$/ }, (args) => {
           const contents = baselineSources.get(
             path.relative(process.cwd(), args.path).split(path.sep).join('/'),

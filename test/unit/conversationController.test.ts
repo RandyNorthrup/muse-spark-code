@@ -5758,7 +5758,7 @@ describe('ConversationController: backends and tiers (M7)', () => {
       {
         type: 'notice',
         level: 'warning',
-        text: 'Contributor-tier models are blocked in this workspace (museSpark.confidentialWorkspace).',
+        text: UI_TEXT.contributorBlocked,
       },
       expect.objectContaining({ type: 'sessionInfo', modelId: 'muse-spark-1.3' }),
     ])

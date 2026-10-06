@@ -6,6 +6,10 @@ import { brotliDecompressSync } from 'node:zlib'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const folders = []
+const TAR =
+  process.platform === 'win32'
+    ? path.join(process.env.SystemRoot ?? String.raw`C:\Windows`, 'System32', 'tar.exe')
+    : 'tar'
 afterEach(() => {
   for (const folder of folders.splice(0)) rmSync(folder, { recursive: true, force: true })
 })
@@ -117,7 +121,7 @@ describe('usage assets in the ACP package', () => {
     const result = f.run()
     expect(result.status, result.stderr).toBe(0)
     const tarball = path.join(f.root, 'dist', 'muse-spark-code-acp-0.0.0-test.tgz')
-    const files = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' }).split(/\r?\n/u)
+    const files = execFileSync(TAR, ['-tzf', tarball], { encoding: 'utf8' }).split(/\r?\n/u)
     for (const file of [
       'dist/usageService.js',
       'dist/usageCompanion.js',

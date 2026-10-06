@@ -21565,6 +21565,29 @@ on this base), failing guard drills and exact measurements are recorded in
 on Kubuntu, not fabricated here. Native IDE installation and hosted CI remain
 their owners' release sign-off, distinct from the nine browser route receipts.
 
+The one authorized full quality attempt exposed stale package frame names,
+the confirmed-contributor path omitting its confidentiality warning, and an ACP guard fixture that
+predates the usage assets/archive. Repair those without weakening assertions
+or production guards. Its Windows five-second default test deadlines and the
+GNU tar drive-path error are recorded separately; scoped rig runs retain the
+brief's 120-second CLI limit. Do not repeat the full wrapper or raise a deadline.
+Run its unreached checks individually and retain the original result in the
+certification; a fresh aggregate coverage run remains a lead gate.
+
+The unreached audit refuses high advisory `GHSA-68fv-2mgg-jv7q` in
+`source-map-js` 1.2.1. Registry metadata reports fixed release 1.2.2 and no
+peer dependencies. A lockfile-only exact override attempt is refused by the
+repository's seven-day minimum release age (ETARGET); the attempted override
+is removed. No age bypass, audit exception, threshold change or shared-install
+mutation is made. Dependency remediation and fresh aggregate coverage remain
+required before release.
+
+The separately run SAST exits 1 with nine blocking findings in the merged
+makers research, plugin child-process adapter and companion launch HTML,
+plus five reported rule timeouts. No suppression or deadline change is made.
+These require review and remediation before release; focused M102 receipts
+do not certify the aggregate security gate.
+
 **M102INT local gate scope and deferral (2026-10-05, Win11).** The rig brief
 requires composed lane tests (at most three files per run), types, scoped lint
 and format, plain knip, duplication, localization, cycles, host API and all

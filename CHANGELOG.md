@@ -22,6 +22,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Contributor models show the confidentiality warning even after contributor
+  confirmation. Package frame validation includes the Models and Usage bundles.
 - Usage and Models pages share React and browser common code with chat. The
   usage companion loads those modules under its existing authenticated CSP;
   packaged ACP installs retain every usage translation alongside the archived
