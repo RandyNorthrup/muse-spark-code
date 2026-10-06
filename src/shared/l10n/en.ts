@@ -16,6 +16,64 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M100/D80: lazy Devices setup, observations and recovery.
+  devices: {
+    title: 'Devices',
+    pair: 'Pair device',
+    offer: 'Offer lanes',
+    offerChecks: 'Offer checks',
+    pause: 'Pause offers',
+    unlink: 'Unlink',
+    resume: 'Resume queue',
+    manualAddress: 'Manual address',
+    discovery: 'Discover on this LAN',
+    fingerprint: 'Fingerprint',
+    copyInvitation: 'Copy public invitation',
+    copyConfirmation: 'Copy confirmation',
+    scan: 'Scan QR or paste text',
+    compare: 'Compare this fingerprint on both screens before confirming.',
+    pairingHelp: 'Both devices must confirm. A public invitation alone grants no access.',
+    scopeHelp:
+      'Only the approved repository snapshot, task brief and result go to this device. Its own model receives the context.',
+    paidHelp:
+      'This device uses its own sign-ins and pays its own charges. Before the first paid use, local consent names the price {price} and shared daily budget {budget}.',
+    blockedHelp:
+      'Check {application} on {interface} at {address}:{port}: receiver offer, route and OS firewall permission. Ask an administrator for scoped access if needed. A timeout does not prove a firewall denial.',
+    unresolvedHelp:
+      'Reconnect and reconcile before resuming. Uncertain work keeps its occupied slots and spending liability; a timeout or retry cannot release it.',
+    unlinkHelp:
+      'Unlink removes this pair’s local key and connections. It cannot recall code or stop work already admitted on an offline peer.',
+    unsupportedHost:
+      'Pairing requires a qualified local desktop host. This host cannot offer lanes.',
+    waitingApproval: 'Waiting for approval on {device}',
+    lastObservation: 'Last observation',
+    taskBranch: 'Task branch',
+    rolesModels: 'Offered roles and models',
+    workers: 'Worker limit',
+    processes: 'Process limit',
+    heavyChecks: 'Heavy-check slots',
+    tokens: 'Token limit',
+    spend: 'Spend limit',
+    artifact: 'Result size limit',
+    offerScope: 'Repository mapping and exact base snapshot',
+    local: 'Local',
+    connected: 'Connected',
+    paused: 'Paused',
+    offline: 'Offline',
+    uncertain: 'Uncertain',
+    incompatible: 'Incompatible',
+    blocked: 'Blocked or unreachable',
+    bundleUnavailable: 'Devices could not load. Retry setup or reinstall the extension.',
+    protocolMismatch: 'Device protocol mismatch. Upgrade both devices and pair again.',
+    storageUnavailable:
+      'Device state cannot be saved or read. New work is blocked; preserve unresolved work and repair local storage.',
+    fingerprintChanged:
+      'Device fingerprint changed. Pair again; previous unresolved work remains blocked.',
+    settingsDescription:
+      'Enable paired LAN devices after mutual fingerprint confirmation and an explicit local offer. Off by default. Each executing device keeps its own credentials, approvals and charges.',
+    discoveryDescription:
+      'Enable optional LAN discovery for paired receivers that are offering work. Off by default. Advertises only an opaque service id, port and protocol version; discovery grants no trust.',
+  },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

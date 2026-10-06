@@ -8,6 +8,66 @@ import type { BrowserRuntimeMode } from './browserCheckConstants'
 
 export const PRODUCT_NAME = 'Muse Spark'
 
+// M100/D80: hard protocol/resource ceilings, not permission or retirement rules.
+export const DEVICE_LIMITS = {
+  protocolVersion: 1,
+  devicesDefault: false,
+  discoveryDefault: false,
+  idChars: 32,
+  digestChars: 64,
+  addressChars: 45,
+  ipv4Octets: 4,
+  ipv4OctetMax: 255,
+  ipv6Groups: 8,
+  portMax: 65_535,
+  certificateBase64Chars: 4096,
+  signatureBase64Chars: 128,
+  invitationTextChars: 8192,
+  invitationValidityMs: 300_000,
+  clockSkewMs: 30_000,
+  frameBytes: 131_072,
+  frameDeadlineMs: 10_000,
+  handshakeDeadlineMs: 10_000,
+  idleConnectionMs: 30_000,
+  connectionsPerPair: 2,
+  connectionsTotal: 16,
+  queuedFrames: 32,
+  pairedDevices: 16,
+  repositories: 32,
+  entries: 32,
+  checks: 32,
+  workers: 32,
+  processes: 128,
+  heavyChecks: 8,
+  tokens: 1_000_000,
+  spendUsd: 500,
+  modelIdChars: 128,
+  labelChars: 80,
+  taskBriefChars: 8192,
+  guidanceChars: 8192,
+  reportChars: 16_384,
+  writePaths: 256,
+  pathChars: 512,
+  artifactBytes: 67_108_864,
+  expandedArtifactBytes: 268_435_456,
+  artifactObjects: 16_384,
+  artifactFiles: 4096,
+  artifactChunkBytes: 65_536,
+  base64GroupChars: 4,
+  base64GroupBytes: 3,
+  artifactChunkBase64Chars: 87_384,
+  unresolvedAttempts: 128,
+  reconciliationPage: 32,
+  journalBytes: 16_777_216,
+  terminalRecords: 4096,
+  terminalRetentionMs: 2_592_000_000,
+  tombstones: 65_536,
+} as const
+
+// AWS's IPv6 instance-metadata address is inside ULA; private scope alone
+// cannot admit it. Compare expanded numeric groups, including alternate forms.
+export const DEVICE_METADATA_ULA_SEGMENTS = [0xfd_00, 0xe_c2, 0, 0, 0, 0, 0, 0x2_54] as const
+
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'

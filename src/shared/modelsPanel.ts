@@ -1,0 +1,132 @@
+// M100 Devices region of M95's Models & Agents panel. M95 is not on this
+// base: only its device boundary is defined here, with no registry fallback.
+import * as z from 'zod/mini'
+import { DEVICE_LIMITS } from './constants'
+import {
+  DEVICE_FAILURES,
+  deviceCapsSchema,
+  deviceEndpointSchema,
+  deviceInvitationSchema,
+  deviceOfferSchema,
+  devicePairingConfirmationSchema,
+} from './devices'
+
+const id = z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/))
+const label = z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.labelChars))
+export const DEVICE_STATUSES = [
+  'local',
+  'connected',
+  'paused',
+  'offline',
+  'uncertain',
+  'incompatible',
+  'blocked-or-unreachable',
+] as const
+
+export const devicesPanelStateSchema = z.discriminatedUnion('enabled', [
+  // Off has no rows/discovery switch. U must hide the section, not probe it.
+  z.strictObject({ enabled: z.literal(false) }),
+  z.strictObject({
+    enabled: z.literal(true),
+    discoveryEnabled: z.boolean(),
+    devices: z
+      .array(
+        z.strictObject({
+          deviceId: id,
+          pairId: id,
+          label,
+          fingerprint: z.string().check(z.regex(/^[a-f0-9]{64}$(?![\s\S])/)),
+          endpoint: deviceEndpointSchema,
+          status: z.enum(DEVICE_STATUSES),
+          lastObservedAt: z.optional(z.int().check(z.gte(0))),
+          waitingApprovals: z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.unresolvedAttempts)),
+          unresolvedAttempts: z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.unresolvedAttempts)),
+          retainedLiabilityUsd: z
+            .number()
+            .check(z.gte(0), z.lte(DEVICE_LIMITS.spendUsd * DEVICE_LIMITS.unresolvedAttempts)),
+          offers: z.array(deviceOfferSchema).check(z.maxLength(DEVICE_LIMITS.repositories)),
+        }),
+      )
+      .check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
+  }),
+])
+export type DevicesPanelState = z.infer<typeof devicesPanelStateSchema>
+
+// These are local UI requests, never transport RPCs or permissions. The host
+// picks a trusted repository via its own picker; no path arrives from the UI.
+const action = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('pair') }),
+  z.strictObject({
+    kind: z.literal('importInvitation'),
+    text: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.invitationTextChars)),
+  }),
+  z.strictObject({
+    kind: z.literal('confirmFingerprint'),
+    invitationId: id,
+    fingerprint: z.string().check(z.regex(/^[a-f0-9]{64}$(?![\s\S])/)),
+  }),
+  z.strictObject({
+    kind: z.literal('importConfirmation'),
+    confirmation: devicePairingConfirmationSchema,
+  }),
+  z.strictObject({ kind: z.literal('setAddress'), pairId: id, endpoint: deviceEndpointSchema }),
+  z.strictObject({ kind: z.literal('setDiscovery'), enabled: z.boolean() }),
+  z.strictObject({
+    kind: z.literal('offer'),
+    pairId: id,
+    lanes: z.boolean(),
+    checks: z.boolean(),
+    caps: deviceCapsSchema,
+  }),
+  z.strictObject({ kind: z.literal('pauseOffers'), pairId: id }),
+  z.strictObject({ kind: z.literal('unlink'), pairId: id }),
+  z.strictObject({ kind: z.literal('resumeQueue'), pairId: id, boardId: id }),
+])
+export const deviceWebviewRequestSchema = z.strictObject({
+  type: z.literal('deviceRequest'),
+  requestId: id,
+  action,
+})
+export type DeviceWebviewRequest = z.infer<typeof deviceWebviewRequestSchema>
+export const deviceHostMessageSchema = z.strictObject({
+  type: z.literal('deviceState'),
+  state: devicesPanelStateSchema,
+  setup: z.optional(
+    z.strictObject({
+      requestId: id,
+      invitation: z.optional(deviceInvitationSchema),
+      confirmation: z.optional(devicePairingConfirmationSchema),
+      // Local facts, never copied into offers/discovery/logs. U renders as text.
+      listenerApplication: z.optional(label),
+      interfaceLabel: z.optional(label),
+      failure: z.optional(z.enum(DEVICE_FAILURES)),
+    }),
+  ),
+})
+export type DeviceHostMessage = z.infer<typeof deviceHostMessageSchema>
+
+type DeviceParseResult<T> =
+  | { readonly ok: true; readonly message: T }
+  | { readonly ok: false; readonly error: 'invalid-device-message' }
+
+function parseDevice<T>(schema: z.ZodMiniType<T>, input: unknown): DeviceParseResult<T> {
+  const result = schema.safeParse(input)
+  return result.success
+    ? { ok: true, message: result.data }
+    : { ok: false, error: 'invalid-device-message' }
+}
+
+// Fixed failure words avoid reflecting peer text into a local log or report.
+export function parseDeviceWebviewRequest(input: unknown): DeviceParseResult<DeviceWebviewRequest> {
+  return parseDevice(deviceWebviewRequestSchema, input)
+}
+
+export function parseDeviceHostMessage(input: unknown): DeviceParseResult<DeviceHostMessage> {
+  return parseDevice(deviceHostMessageSchema, input)
+}
+
+// U/I binds this to a lazy handler only after explicit setup/enabled offers.
+// It must revalidate requests; this interface never supplies an implementation.
+export interface DevicesPanelPort {
+  request(message: DeviceWebviewRequest): Promise<DeviceHostMessage>
+}
