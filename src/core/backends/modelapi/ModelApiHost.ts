@@ -11601,6 +11601,9 @@ export class ModelApiSession implements AgentSession {
    * turn when nothing runs, as `goal/*` does; nothing else starts one.
    */
   public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    if (this.isDisposed || this.isHostClosing()) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
     const problem = goalObjectiveProblem(command)
     if (problem !== undefined) {
       const detail =

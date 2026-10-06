@@ -728,5 +728,12 @@
     "exitCode": 1,
     "sha256Before": "d3d7f7a1410c1d0eea7db5e9dc38fdc165af5c4e814d7b89a936a07f113c03f0",
     "sha256Restored": "d3d7f7a1410c1d0eea7db5e9dc38fdc165af5c4e814d7b89a936a07f113c03f0"
+  },
+  {
+    "drill": "goal-retired-owner",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "exitCode": 1,
+    "sha256Before": "348bf229bbbd8404babe3eac9a3dd608ea196f5f0efe3e27af34df2c04b007bd",
+    "sha256Restored": "348bf229bbbd8404babe3eac9a3dd608ea196f5f0efe3e27af34df2c04b007bd"
   }
 ]

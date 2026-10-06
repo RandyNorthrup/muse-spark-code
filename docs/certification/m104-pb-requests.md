@@ -452,3 +452,14 @@ selected-model tool capabilities; C supplies grouped run presentation. A
 new orchestration implementation needs a separately sized checkpoint under
 the shared 300-line rule. No provider wire is invented, and the native Muse
 workflow setting still belongs to Muse Code; the extension never edits it.
+
+### A/C/D/E/F — F20 retained session goal refusal
+
+The actual packaged Model API runtime accepts, wakes, pauses, reads, resumes
+and forks existing captured goals. A retained session now refuses controlGoal
+after runtime release before changing its goal or dispatching work. Bind
+existing controller goal actions; no extra wire/port is needed. C/native owners
+retain unknown captured goal statuses and show the existing goal data. Selected
+model support still needs a captured catalog entry. Muse Code owns its own goal
+engine; its native/controller scenarios and all provider scenarios remain open.
+F owns the PLAN/Unreleased/help record for the refusal and component receipts.
