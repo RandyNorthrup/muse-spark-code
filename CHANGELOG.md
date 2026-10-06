@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resource actuators keep unconfirmed irreversible writes unknown during
+  recovery and retirement, verify confirmed policy again, and require a fresh
+  prior-state reading before attempting another irreversible change.
+
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
   process in a reused group. Ticket retirement also invalidates pending reads

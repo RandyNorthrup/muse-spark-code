@@ -19617,6 +19617,18 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**Lane A review repair (FIXM107A, 2026-10-05).** Fix all three RVM107A
+P2s within the actuator modules and owning suites: release per-member controls
+only on explicit exited state, keeping absent/unknown membership conservative;
+retry unavailable Linux control opens on later scans with bounded backoff;
+and distinguish a pending mutation from OS-confirmed application, including
+irreversible recovery and renewed dispatch. Lane T2's exited/zombie state is
+not on this base: consume its registered identity-bound state through an
+explicit injected port, with no guessed PID/disappearance fallback. Document
+that binding for integration. Every finding gets a before-fix failing test
+and a byte-exact red drill in `docs/certification/m107-a.md`. No dependency,
+guard widening, other-lane code edit, merge or full quality run is authorized.
+
 **Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
 RVM107T within the tree readers and their owning suites: freshly revalidate
 the root or an existing orphan witness before committing POSIX witnesses;
@@ -20045,6 +20057,13 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107A bounded-lane certification (2026-10-05).** The rig brief and
+shared rules delegate aggregate quality/coverage to the lead. Hook-on local
+commits require complete owning suites, deliberate guard-break drills,
+typecheck, scoped lint/format and the required static/build checks. The
+existing W-owned host-API record and native/editor/integrated-governor receipts
+remain integration handoffs; no gate is weakened.
 
 **FIXM107T bounded-lane certification (2026-10-05).** The rig brief/shared
 rules prohibit aggregate `npm run quality` and full tests in this worktree.

@@ -17,6 +17,7 @@ interface SavedControl {
   readonly control: ResourceControl
   original: string | null
   dirty: boolean
+  applied: string | null
 }
 interface TreeControls {
   readonly ticket: ResourceTicket
@@ -75,10 +76,23 @@ export class ResourceActuators {
     const isRecovering =
       level === 'normal' || (control.minimumLevel === 'pause' && level !== 'pause')
     if (isRecovering && !saved.dirty) return result('unchanged')
-    if (isRecovering && !control.reversible) return result('lifetimeLowered')
     try {
       const before = await this.proof(tree.ticket, control.identity)
       if (before === null) return result('unknown')
+      if (isRecovering && !control.reversible) {
+        if (saved.applied === null) return result('unknown')
+        return result(
+          (await control.read(before)) === saved.applied ? 'lifetimeLowered' : 'unknown',
+        )
+      }
+      if (!control.reversible && saved.original !== null) {
+        const current = await control.read(before)
+        if (
+          current === null ||
+          (saved.dirty && saved.applied === null && current !== saved.original)
+        )
+          return result('unknown')
+      }
       if (saved.original === null) {
         saved.original = await control.read(before)
         if (saved.original === null) return result('unknown')
@@ -89,8 +103,10 @@ export class ResourceActuators {
       saved.dirty = true
       const identity = await this.proof(tree.ticket, control.identity)
       if (identity === null) return result('unknown')
+      saved.applied = null
       const actual = await control.write(value, identity)
       if (actual !== value) return result('unknown')
+      saved.applied = value
       if (isRecovering) saved.dirty = false
       if (isRecovering) return result('restored')
       return result(control.reversible ? 'applied' : 'lifetimeLowered')
@@ -120,7 +136,7 @@ export class ResourceActuators {
         if (controls.length === 0) results.push({ control: null, status: 'unknown' })
         for (const control of controls) {
           if (tree.saved.has(control.key)) await control.close()
-          else tree.saved.set(control.key, { control, original: null, dirty: false })
+          else tree.saved.set(control.key, { control, original: null, dirty: false, applied: null })
         }
       } catch {
         results.push({ control: null, status: 'unknown' })

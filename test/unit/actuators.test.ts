@@ -99,6 +99,84 @@ describe('resource actuator authority and recovery', () => {
     expect(f.value()).toBe('1')
   })
   it.each(['null', 'mismatch', 'throw'] as const)(
+    'keeps unconfirmed irreversible %s attempts unknown during recovery and retirement',
+    async (failure) => {
+      const f = fixture()
+      Object.assign(f.control, { minimumLevel: 'pause', reversible: false, name: 'nice' })
+      f.write.mockImplementationOnce(() =>
+        failure === 'throw'
+          ? Promise.reject(new Error('failed'))
+          : Promise.resolve(failure === 'null' ? null : 'different'),
+      )
+      expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+        { control: 'nice', status: 'unknown' },
+      ])
+      expect(await f.actuators.setLevel(ticket, 'normal')).toEqual([
+        { control: 'nice', status: 'unknown' },
+      ])
+      expect(await f.actuators.retire(ticket)).toEqual({
+        retired: false,
+        results: [{ control: 'nice', status: 'unknown' }],
+      })
+      expect(f.write).toHaveBeenCalledTimes(1)
+      expect(f.value()).toBe('100')
+    },
+  )
+  it('never promotes an unconfirmed irreversible write even if a later read sees the target', async () => {
+    const f = fixture()
+    Object.assign(f.control, { minimumLevel: 'pause', reversible: false, name: 'nice' })
+    const write = f.write.getMockImplementation()!
+    f.write.mockImplementationOnce(async (next) => {
+      await write(next)
+      return null
+    })
+    expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+      { control: 'nice', status: 'unknown' },
+    ])
+    expect(f.value()).toBe('1')
+    expect(await f.actuators.retire(ticket)).toEqual({
+      retired: false,
+      results: [{ control: 'nice', status: 'unknown' }],
+    })
+    expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+      { control: 'nice', status: 'unknown' },
+    ])
+    expect(f.write).toHaveBeenCalledTimes(1)
+  })
+  it('reproves confirmed irreversible policy on recovery without another mutation', async () => {
+    const f = fixture()
+    Object.assign(f.control, { minimumLevel: 'pause', reversible: false, name: 'nice' })
+    await f.actuators.setLevel(ticket, 'pause')
+    f.read.mockResolvedValueOnce('100')
+    expect(await f.actuators.setLevel(ticket, 'normal')).toEqual([
+      { control: 'nice', status: 'unknown' },
+    ])
+    f.tree.remove(ticket.root.pid)
+    expect(await f.actuators.retire(ticket)).toHaveProperty('retired', false)
+    expect(f.write).toHaveBeenCalledTimes(1)
+  })
+  it('requires a fresh known prior state before retrying an irreversible mutation', async () => {
+    const f = fixture()
+    Object.assign(f.control, { minimumLevel: 'pause', reversible: false, name: 'nice' })
+    f.write.mockResolvedValueOnce(null)
+    await f.actuators.setLevel(ticket, 'pause')
+    f.read.mockResolvedValueOnce(null)
+    expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+      { control: 'nice', status: 'unknown' },
+    ])
+    expect(f.write).toHaveBeenCalledTimes(1)
+    f.read.mockResolvedValueOnce('different')
+    expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+      { control: 'nice', status: 'unknown' },
+    ])
+    expect(f.write).toHaveBeenCalledTimes(1)
+    expect(await f.actuators.setLevel(ticket, 'pause')).toEqual([
+      { control: 'nice', status: 'lifetimeLowered' },
+    ])
+    expect(await f.actuators.retire(ticket)).toHaveProperty('retired', true)
+    expect(f.write).toHaveBeenCalledTimes(2)
+  })
+  it.each(['null', 'mismatch', 'throw'] as const)(
     'reports failed %s readback as unknown and retains the original for recovery',
     async (failure) => {
       const f = fixture()
