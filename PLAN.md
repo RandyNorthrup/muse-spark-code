@@ -19630,6 +19630,20 @@ integration lead retains the existing W/native/full-gate handoffs.
 All three RVM107T P2s are now fixed and proved by the owning regressions and
 byte-exact guard drills; no reviewed finding is left as an accepted residual.
 
+**FIXM107S review correction (2026-10-05).** RVM107S found four P2s in
+lane S. Fix all four in the sampler and its owning tests: honour cgroup v1
+memory limits instead of combining container headroom with host capacity;
+preserve missing/null Windows CIM counters until validation; query Nvidia
+independently of Linux DRM readings and merge the busiest valid device;
+reject noncanonical cgroup paths and normalize the ancestor walk's boundary.
+Every finding gets a before-fix regression and a deliberate red/restored
+drill in `docs/certification/m107-s.md`. No new dependency, settings or
+surface. The rig brief forbids merges, pushes and aggregate quality here;
+the lead retains W's integration/platform gates and shared delivery docs.
+All four RVM107S findings are fixed with before-fix regressions and 13
+red/restored source drills; none is deferred. The inherited platform/delivery
+qualifications are named in §9 and the certification record.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
@@ -20060,6 +20074,15 @@ no production import or host API. W owns the generated file; after integration
 run `npm run check:host-api -- --write`, review those four rows and rerun the
 gate. This is the named existing snapshot deferral, not an unfixed review
 finding or a green host-API claim. See `docs/certification/m107-t.md`.
+
+**FIXM107S bounded review certification (2026-10-05).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and whole-unit runs.
+Run the three complete sampler owning files, typecheck, changed-file
+lint/format and static/build checks directly on Kubuntu with normal hooks.
+The pre-existing host-API importer-count drift stays W's responsibility;
+the gate remains red until its generated record is updated at integration.
+No gate, timeout, threshold, ignore or bundle cap is weakened. Receipts
+and deliberate failures are in `docs/certification/m107-s.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -21245,6 +21268,25 @@ before a repaired one loads (2026-09-30).
   the integrated governor, including the host-API record above. Detailed
   receipts and the six original named handoffs are in
   `docs/certification/m107-t.md`.
+
+- **M107-S-platform-qualification.** The sampler's measured costs qualify
+  Kubuntu's default/Linux disk paths and unavailable-GPU discovery only.
+  Native Windows CIM/hardware counters and child CPU, Mac cost, and hardware
+  GPU cost remain unqualified. Safe for now: S is staged and unwired, and
+  failed/unavailable counters stay unknown. Follow-up: lead/W collect the
+  missing platform and optional-hardware receipts before full M107 acceptance.
+- **M107-S-Darwin-disk.** No qualified unprivileged disk duty-cycle counter
+  exists on this lane's base. Safe for now: Darwin disk explicitly returns
+  unknown, performs no root probe, and cannot clear pressure with a fabricated
+  zero. Follow-up: lead/W qualify a counter or formally defer Darwin disk in
+  the integrated milestone; do not claim supported Mac disk utilization.
+- **M107-S-shipping-gates.** W has not bound the sampler into the lazy
+  resourceGovernor bundle or every editor/runtime, and the generated host-API
+  record has the documented Node-importer drift. Safe for now: S is unshipped
+  and the checks continue to reject unsupported integration. Follow-up: W
+  wires all runtimes, updates its owned record and certifies the joined size,
+  full quality/coverage and editor matrix. These are inherited qualification
+  handoffs, not deferred RVM107S findings.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
