@@ -2052,5 +2052,8 @@
   "hardwareShellNote": "Donanım çalışma alanı: bu kabuk komutunun tam metnini inceleyin. Onay tek kullanımlıktır ve iki dakika sonra sona erer. Cihaz işlemleri için donanım araçlarını kullanın. {warning}",
   "hardwareProgramWarning": "Bu komut bir kartı programlıyor gibi görünüyor.",
   "hardwareConnectWarning": "Bu komut bir cihaz bağlantı noktası açıyor gibi görünüyor; kart sıfırlanabilir.",
-  "hardwareActuateWarning": "Bu komut bir bağlantı noktasına yazıyor veya bir makine komutu gönderiyor gibi görünüyor."
+  "hardwareActuateWarning": "Bu komut bir bağlantı noktasına yazıyor veya bir makine komutu gönderiyor gibi görünüyor.",
+  "hardwareIrreversibleWarning": "Bu, geri alınamaz bir sigorta, eFuse veya kilit biti yazma işlemine benziyor.",
+  "hardwareTargetNote": "Hedef bağlaması: {targets}",
+  "hardwareBindingUnavailable": "Bu cihaz bağdaştırıcısı, süreç başlangıcında onaylanan hedefi doğrulayamıyor. Hiçbir şey gönderilmedi."
 }

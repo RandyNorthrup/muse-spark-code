@@ -2204,5 +2204,8 @@
   "hardwareShellNote": "Obszar roboczy sprzętu: sprawdź dokładną treść tego polecenia powłoki. Zgoda obowiązuje jednorazowo i wygasa po dwóch minutach. Do działań na urządzeniach używaj narzędzi sprzętowych. {warning}",
   "hardwareProgramWarning": "To polecenie wygląda na programowanie płytki.",
   "hardwareConnectWarning": "To polecenie wygląda na otwieranie portu urządzenia; płytka może się zresetować.",
-  "hardwareActuateWarning": "To polecenie wygląda na zapis do portu lub wysłanie polecenia do maszyny."
+  "hardwareActuateWarning": "To polecenie wygląda na zapis do portu lub wysłanie polecenia do maszyny.",
+  "hardwareIrreversibleWarning": "Wygląda to na nieodwracalny zapis bezpiecznika, eFuse lub bitu blokady.",
+  "hardwareTargetNote": "Powiązanie z celem: {targets}",
+  "hardwareBindingUnavailable": "Ten adapter urządzenia nie może zweryfikować zatwierdzonego celu przy uruchamianiu procesu. Nic nie wysłano."
 }

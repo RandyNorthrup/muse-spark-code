@@ -2128,5 +2128,8 @@
   "hardwareShellNote": "Area di lavoro hardware: verifica questo comando shell esatto. L’approvazione vale una volta e scade dopo due minuti. Usa gli strumenti hardware per le azioni sui dispositivi. {warning}",
   "hardwareProgramWarning": "Questo comando sembra programmare una scheda.",
   "hardwareConnectWarning": "Questo comando sembra aprire una porta del dispositivo; la scheda potrebbe riavviarsi.",
-  "hardwareActuateWarning": "Questo comando sembra scrivere su una porta o inviare un comando a una macchina."
+  "hardwareActuateWarning": "Questo comando sembra scrivere su una porta o inviare un comando a una macchina.",
+  "hardwareIrreversibleWarning": "Sembra una scrittura irreversibile di fusibili, eFuse o bit di blocco.",
+  "hardwareTargetNote": "Vincolo al destinatario: {targets}",
+  "hardwareBindingUnavailable": "Questo adattatore del dispositivo non può verificare il destinatario approvato all’avvio del processo. Non è stato inviato nulla."
 }

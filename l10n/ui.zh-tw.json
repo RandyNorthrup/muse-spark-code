@@ -1976,5 +1976,8 @@
   "hardwareShellNote": "硬體工作區：請核查此 shell 命令的確切內容。核准僅生效一次，並在兩分鐘後到期。裝置操作請使用硬體工具。{warning}",
   "hardwareProgramWarning": "此命令似乎會將程式寫入開發板。",
   "hardwareConnectWarning": "此命令似乎會開啟裝置連接埠；開發板可能會重設。",
-  "hardwareActuateWarning": "此命令似乎會向連接埠寫入資料或傳送機器命令。"
+  "hardwareActuateWarning": "此命令似乎會向連接埠寫入資料或傳送機器命令。",
+  "hardwareIrreversibleWarning": "這看起來像是不可逆的熔絲、eFuse 或鎖定位元寫入。",
+  "hardwareTargetNote": "目標綁定：{targets}",
+  "hardwareBindingUnavailable": "此裝置介面卡無法在處理程序啟動時驗證已核准的目標。未傳送任何內容。"
 }

@@ -2576,6 +2576,10 @@ export const EN = {
   hardwareProgramWarning: 'This looks like it programs a board.',
   hardwareConnectWarning: 'This looks like it opens a device port; the board may reset.',
   hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
+  hardwareIrreversibleWarning: 'This looks like an irreversible fuse, eFuse or lock-bit write.',
+  hardwareTargetNote: 'Target binding: {targets}',
+  hardwareBindingUnavailable:
+    'This device adapter cannot verify the approved target at process start. Nothing was sent.',
   hardwareRefused:
     'This device operation is refused. Review and run the command yourself in your own terminal.',
   hardwareUnattended:

@@ -1,13 +1,13 @@
 import type { AgentEvent, ApprovalSubject } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
-import { hardwareAction, hardwareArgvAction } from '../maker/guard/hardwareCommands'
-import type { HardwareContext } from '../maker/guard/httpCommands'
 import {
-  isHardwareWorkspace,
-  isReadOnlyHardwareCommand,
-  isReadOnlyHardwareArgv,
-  hardwareShellNote,
-} from '../maker/guard/shellPolicy'
+  hardwareAction,
+  hardwareArgvAction,
+  hardwareTargets,
+  isHardwareStop,
+} from '../maker/guard/hardwareCommands'
+import type { HardwareContext } from '../maker/guard/httpCommands'
+import { isHardwareWorkspace, hardwareShellNote } from '../maker/guard/shellPolicy'
 import { isDeviceAction, isPhysicalTool, type ActionClass } from '../maker/guard/actionClass'
 
 type ApprovalCard = Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>
@@ -31,6 +31,12 @@ export function approvalHardwareAction(
 ): ActionClass | undefined {
   if (isPhysicalTool(subject.toolName ?? '')) return 'actuate'
   if (subject.kind !== 'shell') return undefined
+  if (
+    subject.command !== undefined &&
+    subject.stages === undefined &&
+    isHardwareStop(subject.command, 'bash', context)
+  )
+    return undefined
   const actions = [
     ...(subject.command === undefined
       ? []
@@ -41,23 +47,10 @@ export function approvalHardwareAction(
         ]),
     ...(subject.stages ?? []).map((stage) => hardwareArgvAction(stage.argv, context)),
   ]
-  if (actions.includes('refused')) return 'refused'
   if (isHardwareWorkspace(context)) {
-    const dialects = ['bash', 'powershell', 'cmd'] as const
-    const isReadOnly =
-      (subject.command !== undefined || subject.stages?.length === 1) &&
-      (subject.command === undefined ||
-        dialects.every((dialect) =>
-          isReadOnlyHardwareCommand(subject.command ?? '', dialect, context),
-        )) &&
-      (subject.stages === undefined ||
-        (subject.stages.length === 1 &&
-          dialects.every((dialect) =>
-            isReadOnlyHardwareArgv(subject.stages?.[0]?.argv ?? [], dialect, context),
-          )))
-    if (!isReadOnly) return actions.find((action) => isDeviceAction(action)) ?? 'actuate'
+    return actions.find((action) => action !== 'refused' && isDeviceAction(action)) ?? 'actuate'
   }
-  return actions.find((action) => isDeviceAction(action))
+  return actions.includes('refused') ? 'refused' : actions.find((action) => isDeviceAction(action))
 }
 
 /** Every physical action has only approve once and reject, never a prefix/session grant. */
@@ -65,18 +58,33 @@ export function scrubHardwareApproval<T extends ApprovalCard>(
   event: T,
   context: HardwareContext = {},
 ): T {
+  if (
+    event.subject.kind === 'shell' &&
+    event.subject.command !== undefined &&
+    event.subject.stages === undefined &&
+    isHardwareStop(event.subject.command, 'bash', context)
+  )
+    return event
   const action =
     approvalHardwareAction(event.subject, context) ??
     (isPhysicalTool('toolName' in event ? event.toolName : '') ? 'actuate' : undefined)
   if (!isDeviceAction(action) && !(event.subject.kind === 'shell' && isHardwareWorkspace(context)))
     return event
   let note = UI_TEXT.approvalHardwareNote
+  const hasNoBindingAdapter = event.subject.kind !== 'shell'
   if (action === 'refused') note = UI_TEXT.hardwareRefused
+  else if (hasNoBindingAdapter) note = UI_TEXT.hardwareBindingUnavailable
   else if (event.subject.kind === 'shell' && isHardwareWorkspace(context))
     note = hardwareShellNote(
       event.subject.command === undefined
         ? hardwareArgvAction(event.subject.stages?.[0]?.argv ?? [], context)
         : hardwareAction(event.subject.command, 'bash', context),
+      hardwareTargets(
+        event.subject.command ?? event.subject.target ?? event.subject.kind,
+        'bash',
+        context,
+        event.subject.stages?.map((stage) => stage.argv),
+      ),
     )
   return markHardwareApproval({
     ...event,
@@ -85,7 +93,7 @@ export function scrubHardwareApproval<T extends ApprovalCard>(
         choice.scope === 'once' &&
         (choice.decision === 'abort' ||
           choice.decision === 'deny' ||
-          (action !== 'refused' && choice.decision === 'approved')),
+          (action !== 'refused' && !hasNoBindingAdapter && choice.decision === 'approved')),
     ),
     note,
   })

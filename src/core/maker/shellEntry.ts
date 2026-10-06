@@ -8,8 +8,6 @@ export {
 export { parseShell } from './guard/shellParse'
 export {
   isHardwareWorkspace,
-  isReadOnlyHardwareCommand,
-  isReadOnlyHardwareArgv,
   hardwareShellNote,
   hardwareApprovalMode,
   prepareHardwareTurn,

@@ -2128,5 +2128,8 @@
   "hardwareShellNote": "Espace de travail matériel : vérifiez cette commande shell exacte. L’approbation vaut une fois et expire après deux minutes. Utilisez les outils matériels pour les actions sur les appareils. {warning}",
   "hardwareProgramWarning": "Cette commande semble programmer une carte.",
   "hardwareConnectWarning": "Cette commande semble ouvrir un port d’appareil ; la carte peut se réinitialiser.",
-  "hardwareActuateWarning": "Cette commande semble écrire sur un port ou envoyer une commande à une machine."
+  "hardwareActuateWarning": "Cette commande semble écrire sur un port ou envoyer une commande à une machine.",
+  "hardwareIrreversibleWarning": "Cela ressemble à une écriture irréversible de fusibles, d’eFuses ou de bits de verrouillage.",
+  "hardwareTargetNote": "Liaison à la cible : {targets}",
+  "hardwareBindingUnavailable": "Cet adaptateur ne peut pas vérifier la cible approuvée au démarrage du processus. Rien n’a été envoyé."
 }

@@ -27,14 +27,7 @@ const EXPORTS = new Map(
     ],
     [
       'src/core/maker/guard/shellPolicy.ts',
-      [
-        'isHardwareWorkspace',
-        'isReadOnlyHardwareCommand',
-        'isReadOnlyHardwareArgv',
-        'hardwareShellNote',
-        'hardwareApprovalMode',
-        'prepareHardwareTurn',
-      ],
+      ['isHardwareWorkspace', 'hardwareShellNote', 'hardwareApprovalMode', 'prepareHardwareTurn'],
     ],
     ['src/core/maker/guard/shellParse.ts', ['parseShell']],
     ['src/core/maker/ports.ts', ['HardwareApproval']],

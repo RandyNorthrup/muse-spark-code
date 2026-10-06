@@ -14,8 +14,6 @@ export {
 } from './guard/hardwareCommands'
 export {
   isHardwareWorkspace,
-  isReadOnlyHardwareCommand,
-  isReadOnlyHardwareArgv,
   hardwareShellNote,
   hardwareApprovalMode,
   prepareHardwareTurn,

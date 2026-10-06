@@ -1976,5 +1976,8 @@
   "hardwareShellNote": "하드웨어 작업 공간: 이 셸 명령의 정확한 내용을 검토하세요. 승인은 한 번만 적용되며 2분 후 만료됩니다. 장치 작업에는 하드웨어 도구를 사용하세요. {warning}",
   "hardwareProgramWarning": "이 명령은 보드를 프로그래밍하는 것으로 보입니다.",
   "hardwareConnectWarning": "이 명령은 장치 포트를 여는 것으로 보이며 보드가 재설정될 수 있습니다.",
-  "hardwareActuateWarning": "이 명령은 포트에 쓰거나 기계 명령을 보내는 것으로 보입니다."
+  "hardwareActuateWarning": "이 명령은 포트에 쓰거나 기계 명령을 보내는 것으로 보입니다.",
+  "hardwareIrreversibleWarning": "되돌릴 수 없는 퓨즈, eFuse 또는 잠금 비트 쓰기로 보입니다.",
+  "hardwareTargetNote": "대상 바인딩: {targets}",
+  "hardwareBindingUnavailable": "이 장치 어댑터는 프로세스 시작 시 승인된 대상을 확인할 수 없습니다. 아무것도 전송하지 않았습니다."
 }

@@ -127,10 +127,8 @@ describe('Muse Code hardware approvals', () => {
       rawArgs: '{"confirm":true,"token":"model-chosen"}',
       subject: { kind: 'tool', toolName: 'mcp__moonraker__send_gcode' },
     })
-    expect(physical.availableChoices.map((choice) => choice.choiceId)).toEqual([
-      'allow_once',
-      'abort',
-    ])
+    expect(physical.availableChoices.map((choice) => choice.choiceId)).toEqual(['abort'])
+    expect(physical.note).toBe(UI_TEXT.hardwareBindingUnavailable)
     expect(isReviewableApproval(physical, 'auto', 'parent-turn')).toBe(false)
   })
 
@@ -220,7 +218,9 @@ describe('Muse Code guard over the real MSP transport', () => {
             requirementId: request.requirementId,
             choiceId: 'allow_once',
           }),
-        ).rejects.toThrow(UI_TEXT.hardwareExpired)
+        ).rejects.toThrow(
+          kind === 'typed tool' ? UI_TEXT.hardwareBindingUnavailable : UI_TEXT.hardwareExpired,
+        )
         expect(h.server.requestsFor('approval/decide')).toHaveLength(0)
       } finally {
         await h.host.close()

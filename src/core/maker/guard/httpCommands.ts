@@ -9,6 +9,12 @@ export interface HardwareContext {
   readonly hasConnectedBoard?: boolean
   readonly workspaceRoot?: string
   readonly isUnattended?: boolean
+  /** Session guard output; shell entry reads the latch instead of re-deriving hardware mode. */
+  readonly hardwareSessionLatched?: boolean
+  readonly isCommandActive?: boolean
+  readonly hasActiveDeviceSession?: boolean
+  /** Host inventory notifications, including observations between model calls. */
+  readonly onHardwareObserved?: (observe: (context: HardwareContext) => void) => () => void
   /** Host-observed addresses/ports and stop payloads; never model input. */
   readonly targets?: readonly (TargetIdentity & { readonly stop?: string })[]
   readonly boardRoots?: readonly string[]

@@ -2204,5 +2204,8 @@
   "hardwareShellNote": "Pracovní prostor s hardwarem: zkontrolujte přesný příkaz shellu. Schválení platí jednou a vyprší za dvě minuty. Pro akce zařízení použijte nástroje pro hardware. {warning}",
   "hardwareProgramWarning": "Zdá se, že tento příkaz programuje desku.",
   "hardwareConnectWarning": "Zdá se, že tento příkaz otevírá port zařízení; deska se může restartovat.",
-  "hardwareActuateWarning": "Zdá se, že tento příkaz zapisuje do portu nebo odesílá příkaz stroji."
+  "hardwareActuateWarning": "Zdá se, že tento příkaz zapisuje do portu nebo odesílá příkaz stroji.",
+  "hardwareIrreversibleWarning": "Vypadá to jako nevratný zápis pojistky, eFuse nebo zámkového bitu.",
+  "hardwareTargetNote": "Vazba cíle: {targets}",
+  "hardwareBindingUnavailable": "Tento adaptér zařízení nemůže při spuštění procesu ověřit schválený cíl. Nic nebylo odesláno."
 }

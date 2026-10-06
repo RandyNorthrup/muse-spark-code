@@ -1,19 +1,56 @@
 import { describe, expect, it } from 'vitest'
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
 import { APPROVAL_MODES } from '../../src/shared/permissionModes'
 import { PermissionEngine } from '../../src/core/backends/modelapi/permissions'
-import {
-  isHardwareWorkspace,
-  isReadOnlyHardwareCommand,
-  READ_ONLY_HARDWARE_COMMANDS,
-} from '../../src/core/maker/guard/shellPolicy'
+import { isHardwareWorkspace, hardwareShellNote } from '../../src/core/maker/guard/shellPolicy'
 import type { GuardDialect } from '../../src/core/maker/guard/shellParse'
 import { hardwareAction } from '../../src/core/maker/guard/hardwareCommands'
 import { developerHardwareCorpus } from './helpers/hardwareCorpus'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const dialects: readonly GuardDialect[] = ['bash', 'powershell', 'cmd']
 const hardware = { isHardwareWorkspace: true }
+
+describe('fourth design: every hardware shell asks', () => {
+  it.each(dialects)(
+    'R3F1: argv spelling never proves ls/PATH/functions/wrappers safe (%s)',
+    (dialect) => {
+      for (const command of [
+        'ls',
+        'dir',
+        'Get-ChildItem',
+        'cat README.md',
+        'pio --version',
+        'esptool --help',
+      ]) {
+        const engine = new PermissionEngine('onRequest')
+        engine.allowForSession('shell', command)
+        expect(
+          engine.judge({ toolName: 'shell', toolClass: 'shell', command, dialect, hardware }),
+        ).toMatchObject({ verdict: 'ask', hasSessionChoice: false, isReviewable: false })
+      }
+    },
+  )
+
+  it.each([
+    'Start-Process espefuse -ArgumentList "burn-key KEY0 key.bin"',
+    'Start-Process -FilePath espefuse -ArgumentList "burn-key KEY0 key.bin"',
+    'espefuse burn-key KEY0 key.bin',
+  ])('R3F6: irreversible spelling only annotates an exact-command card: %s', (command) => {
+    expect(hardwareAction(command, 'powershell', hardware)).toBe('refused')
+    expect(hardwareShellNote(hardwareAction(command, 'powershell', hardware))).toContain(
+      UI_TEXT.hardwareIrreversibleWarning,
+    )
+    expect(
+      new PermissionEngine('onRequest').judge({
+        toolName: 'shell',
+        toolClass: 'shell',
+        command,
+        dialect: 'powershell',
+        hardware,
+      }),
+    ).toMatchObject({ verdict: 'ask', hasSessionChoice: false, isReviewable: false })
+  })
+})
 
 describe('REDM103G2 hardware workspace admission, independent of classifier', () => {
   it.each([
@@ -111,7 +148,6 @@ describe('REDM103G2 hardware workspace admission, independent of classifier', ()
     ])('%s asks exactly once in hardware (' + dialect + ')', (_name, command) => {
       const engine = new PermissionEngine('onRequest')
       engine.allowForSession('bash', command)
-      expect(isReadOnlyHardwareCommand(command, dialect, hardware)).toBe(false)
       expect(
         engine.judge({ toolName: 'bash', toolClass: 'shell', command, dialect, hardware }),
       ).toMatchObject({
@@ -122,124 +158,6 @@ describe('REDM103G2 hardware workspace admission, independent of classifier', ()
       })
     })
   }
-})
-
-describe('one read-only hardware allowlist, exact argv only', () => {
-  it.each(READ_ONLY_HARDWARE_COMMANDS)('row $argv admits only its exact shape', (row) => {
-    // File rows use a real regular workspace file, never a fixture device.
-    const command = [...row.argv, ...(row.workspaceFile ? ['README.md'] : [])].join(' ')
-    for (const dialect of row.dialects) {
-      const context = { ...hardware, workspaceRoot: process.cwd() }
-      expect(isReadOnlyHardwareCommand(command, dialect, context)).toBe(true)
-      expect(
-        new PermissionEngine('promptUnmatched').judge({
-          toolName: 'shell',
-          toolClass: 'shell',
-          command,
-          dialect,
-          hardware: context,
-        }),
-      ).toMatchObject({ verdict: 'allow', hasSessionChoice: false })
-      expect(isReadOnlyHardwareCommand('x' + command, dialect, context)).toBe(false)
-      expect(isReadOnlyHardwareCommand(command + 'x', dialect, context)).toBe(false)
-      expect(isReadOnlyHardwareCommand(command + ' --evil', dialect, context)).toBe(false)
-      for (const mutation of ['x' + command, command + 'x'])
-        expect(
-          new PermissionEngine('onRequest').judge({
-            toolName: 'shell',
-            toolClass: 'shell',
-            command: mutation,
-            dialect,
-            hardware: context,
-          }),
-        ).toMatchObject({
-          verdict: 'ask',
-          isReviewable: false,
-          hasSessionChoice: false,
-        })
-    }
-  })
-  it.each(dialects)(
-    'compositions, expansions, redirections, aliases and wrappers ask (%s)',
-    (dialect) => {
-      for (const command of [
-        'git status; git status',
-        'git status && git status',
-        'git status | cat',
-        'git status > result',
-        'git status < input',
-        'git status # ignored',
-        'git status\n',
-        '$GIT status',
-        '%GIT% status',
-        'env git status',
-        'command git status',
-        'git -c alias.status=upload status',
-        'git --exec-path=/tmp status',
-        'sh -c "git status"',
-        'git st',
-        'git status --short=$ARGS',
-        'git status $(gpioset)',
-      ])
-        expect(isReadOnlyHardwareCommand(command, dialect, hardware), command).toBe(false)
-    },
-  )
-  it('workspace file reads reject traversal, devices, missing root and non-files', () => {
-    for (const file of [
-      '../README.md',
-      '/dev/ttyUSB0',
-      'COM5',
-      'COM5.txt',
-      'NUL.txt',
-      '.',
-      'missing-file',
-    ])
-      expect(
-        isReadOnlyHardwareCommand('cat ' + file, 'bash', {
-          ...hardware,
-          workspaceRoot: process.cwd(),
-        }),
-      ).toBe(false)
-    expect(isReadOnlyHardwareCommand('cat README.md', 'bash', hardware)).toBe(false)
-  })
-  it('a regular file behind a workspace symlink cannot earn a read exemption inside or outside the workspace', () => {
-    const root = path.resolve('temp')
-    mkdirSync(root, { recursive: true })
-    const folder = mkdtempSync(path.join(root, 'hardware-read-'))
-    if (!folder.startsWith(root + path.sep)) throw new Error('Fixture escaped the worktree')
-    try {
-      const workspace = path.join(folder, 'workspace')
-      const outside = path.join(folder, 'outside')
-      mkdirSync(workspace)
-      mkdirSync(outside)
-      writeFileSync(path.join(outside, 'file.txt'), 'ordinary file')
-      symlinkSync(
-        outside,
-        path.join(workspace, 'link'),
-        process.platform === 'win32' ? 'junction' : 'dir',
-      )
-      expect(
-        isReadOnlyHardwareCommand('cat link/file.txt', 'bash', {
-          ...hardware,
-          workspaceRoot: workspace,
-        }),
-      ).toBe(false)
-      symlinkSync(
-        workspace,
-        path.join(workspace, 'inside-link'),
-        process.platform === 'win32' ? 'junction' : 'dir',
-      )
-      writeFileSync(path.join(workspace, 'ordinary.txt'), 'ordinary file')
-      expect(
-        isReadOnlyHardwareCommand('cat inside-link/ordinary.txt', 'bash', {
-          ...hardware,
-          workspaceRoot: workspace,
-        }),
-      ).toBe(false)
-    } finally {
-      rmSync(folder, { recursive: true, force: true })
-    }
-  })
 })
 
 describe('R2 classifier warnings and irreversible refusals', () => {
@@ -292,17 +210,9 @@ describe('300 developer command/dialect pairs inside and outside hardware', () =
   it.each(dialects)(
     'zero new outside asks, exact hardware admission and unattended denial (%s)',
     (dialect) => {
-      const expectedReads = new Set([
-        'esptool --help',
-        'espefuse --help',
-        'picotool --help',
-        'picotool help',
-        ...(dialect === 'bash' ? ['cat README.md'] : []),
-      ])
       expect(developerHardwareCorpus).toHaveLength(100)
       const context = { ...hardware, workspaceRoot: process.cwd() }
       const interactive = new PermissionEngine('onRequest')
-      let reads = 0
       for (const command of developerHardwareCorpus) {
         const query = { toolName: 'shell', toolClass: 'shell', command, dialect } as const
         for (const mode of APPROVAL_MODES) {
@@ -321,16 +231,12 @@ describe('300 developer command/dialect pairs inside and outside hardware', () =
             command,
           ).toBe('deny')
         }
-        const isReadOnly = expectedReads.has(command)
-        expect(isReadOnlyHardwareCommand(command, dialect, context), command).toBe(isReadOnly)
         expect(interactive.judge({ ...query, hardware: context })).toMatchObject({
-          verdict: isReadOnly ? 'allow' : 'ask',
+          verdict: 'ask',
           isReviewable: false,
           hasSessionChoice: false,
         })
-        if (isReadOnly) reads += 1
       }
-      expect(reads).toBe(dialect === 'bash' ? 5 : 4)
     },
   )
 })

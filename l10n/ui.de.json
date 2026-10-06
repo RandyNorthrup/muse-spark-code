@@ -2052,5 +2052,8 @@
   "hardwareShellNote": "Hardware-Arbeitsbereich: Prüfen Sie diesen genauen Shell-Befehl. Die Genehmigung gilt einmal und läuft nach zwei Minuten ab. Verwenden Sie die Hardware-Werkzeuge für Geräteaktionen. {warning}",
   "hardwareProgramWarning": "Dieser Befehl scheint eine Platine zu programmieren.",
   "hardwareConnectWarning": "Dieser Befehl scheint einen Geräteport zu öffnen; die Platine kann zurückgesetzt werden.",
-  "hardwareActuateWarning": "Dieser Befehl scheint in einen Port zu schreiben oder einen Maschinenbefehl zu senden."
+  "hardwareActuateWarning": "Dieser Befehl scheint in einen Port zu schreiben oder einen Maschinenbefehl zu senden.",
+  "hardwareIrreversibleWarning": "Dies sieht nach einem irreversiblen Schreiben von Sicherungen, eFuses oder Sperrbits aus.",
+  "hardwareTargetNote": "Zielbindung: {targets}",
+  "hardwareBindingUnavailable": "Dieser Geräteadapter kann das genehmigte Ziel beim Prozessstart nicht überprüfen. Es wurde nichts gesendet."
 }

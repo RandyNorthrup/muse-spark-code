@@ -257,6 +257,12 @@ export function hardwareAction(
   dialect: GuardDialect = 'bash',
   context: HardwareContext = {},
 ): ActionClass | undefined {
+  // In latched hardware mode this is only a card annotation, including opaque wrappers.
+  if (
+    context.isHardwareWorkspace === true &&
+    HARDWARE_RULES.some(([action, rule]) => action === 'refused' && rule.test(command))
+  )
+    return 'refused'
   const parsed = parseShell(command, dialect)
   const actions = parsed.commands.map((item) => classifyCommand(item, context))
   for (const index of parsed.commands.keys()) {

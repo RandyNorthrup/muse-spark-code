@@ -67,7 +67,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import { countSecretMatches } from '../../redact'
 import { hardwareAction, isHardwareStop } from '../../maker/guard/hardwareCommands'
-import { isHardwareWorkspace, isReadOnlyHardwareCommand } from '../../maker/guard/shellPolicy'
+import { isHardwareWorkspace } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
@@ -310,18 +310,15 @@ export class PermissionEngine {
     }
     const action = hardwareAction(query.command, query.dialect, query.hardware)
     if (isHardwareWorkspace(query.hardware)) {
-      if (
-        action === 'refused' ||
+      return settled(
         query.isUnattended === true ||
-        query.hardware?.isUnattended === true ||
-        this.mode === 'allowAll'
+          query.hardware?.isUnattended === true ||
+          this.mode === 'allowAll'
+          ? 'deny'
+          : 'ask',
+        'hardwareDetected',
+        rule,
       )
-        return settled('deny', 'hardwareDetected', rule)
-      if (!isReadOnlyHardwareCommand(query.command, query.dialect, query.hardware))
-        return settled('ask', 'hardwareDetected', rule)
-      return countSecretMatches(query.command, []) > 0
-        ? settled('ask', 'secretDetected', rule)
-        : settled('allow')
     }
     if (isDeviceAction(action)) {
       return settled(

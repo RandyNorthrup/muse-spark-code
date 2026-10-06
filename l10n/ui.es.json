@@ -2128,5 +2128,8 @@
   "hardwareShellNote": "Espacio de trabajo de hardware: revisa este comando exacto de shell. La aprobación vale una vez y caduca a los dos minutos. Usa las herramientas de hardware para las acciones de dispositivos. {warning}",
   "hardwareProgramWarning": "Parece que este comando programa una placa.",
   "hardwareConnectWarning": "Parece que este comando abre un puerto de dispositivo; la placa podría reiniciarse.",
-  "hardwareActuateWarning": "Parece que este comando escribe en un puerto o envía un comando a una máquina."
+  "hardwareActuateWarning": "Parece que este comando escribe en un puerto o envía un comando a una máquina.",
+  "hardwareIrreversibleWarning": "Esto parece una escritura irreversible de fusibles, eFuses o bits de bloqueo.",
+  "hardwareTargetNote": "Vinculación del destino: {targets}",
+  "hardwareBindingUnavailable": "Este adaptador de dispositivo no puede verificar el destino aprobado al iniciar el proceso. No se envió nada."
 }

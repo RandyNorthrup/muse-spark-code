@@ -2052,5 +2052,8 @@
   "hardwareShellNote": "Hardveres munkaterület: ellenőrizze ezt a pontos shellparancsot. A jóváhagyás egyszer érvényes, és két perc múlva lejár. Az eszközműveletekhez használja a hardveres eszközöket. {warning}",
   "hardwareProgramWarning": "Úgy tűnik, ez a parancs egy áramköri lapot programoz.",
   "hardwareConnectWarning": "Úgy tűnik, ez a parancs eszközportot nyit meg; a lap újraindulhat.",
-  "hardwareActuateWarning": "Úgy tűnik, ez a parancs egy portra ír vagy gépi parancsot küld."
+  "hardwareActuateWarning": "Úgy tűnik, ez a parancs egy portra ír vagy gépi parancsot küld.",
+  "hardwareIrreversibleWarning": "Ez visszafordíthatatlan biztosíték-, eFuse- vagy zárolóbit-írásnak tűnik.",
+  "hardwareTargetNote": "Célhoz kötés: {targets}",
+  "hardwareBindingUnavailable": "Ez az eszközadapter nem tudja ellenőrizni a jóváhagyott célt a folyamat indításakor. Semmi sem lett elküldve."
 }

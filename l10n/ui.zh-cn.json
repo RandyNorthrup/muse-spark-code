@@ -1976,5 +1976,8 @@
   "hardwareShellNote": "硬件工作区：请核查此 shell 命令的准确内容。批准仅生效一次，并在两分钟后过期。设备操作请使用硬件工具。{warning}",
   "hardwareProgramWarning": "此命令似乎会给开发板写入程序。",
   "hardwareConnectWarning": "此命令似乎会打开设备端口；开发板可能会重置。",
-  "hardwareActuateWarning": "此命令似乎会向端口写入数据或发送机器命令。"
+  "hardwareActuateWarning": "此命令似乎会向端口写入数据或发送机器命令。",
+  "hardwareIrreversibleWarning": "这看起来像是不可逆的熔丝、eFuse 或锁定位写入。",
+  "hardwareTargetNote": "目标绑定：{targets}",
+  "hardwareBindingUnavailable": "此设备适配器无法在进程启动时验证已批准的目标。未发送任何内容。"
 }

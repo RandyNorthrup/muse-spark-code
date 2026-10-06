@@ -1976,5 +1976,8 @@
   "hardwareShellNote": "ハードウェア用ワークスペースです。このシェルコマンドの正確な内容を確認してください。承認は1回限りで、2分後に期限切れになります。デバイス操作にはハードウェアツールを使用してください。{warning}",
   "hardwareProgramWarning": "このコマンドは基板にプログラムを書き込むようです。",
   "hardwareConnectWarning": "このコマンドはデバイスのポートを開くようです。基板がリセットされる可能性があります。",
-  "hardwareActuateWarning": "このコマンドはポートへの書き込み、または機械へのコマンド送信を行うようです。"
+  "hardwareActuateWarning": "このコマンドはポートへの書き込み、または機械へのコマンド送信を行うようです。",
+  "hardwareIrreversibleWarning": "ヒューズ、eFuse、またはロックビットへの不可逆な書き込みのようです。",
+  "hardwareTargetNote": "対象の固定: {targets}",
+  "hardwareBindingUnavailable": "このデバイスアダプターはプロセス開始時に承認された対象を確認できません。何も送信されていません。"
 }
