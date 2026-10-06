@@ -1,11 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type VaultBroker } from '../../../src/core/vault/broker/broker'
-import { VaultAuditLog, type VaultAuditAnchorPort } from '../../../src/core/vault/broker/audit'
-import { type VaultPrivateFilesPort } from '../../../src/core/vault/broker/files'
 import { type VaultBrokerDeps } from '../../../src/core/vault/broker/ports'
-import { vaultAuditRecordSchema, type VaultTicket } from '../../../src/shared/vault'
+import { type VaultTicket } from '../../../src/shared/vault'
 import { brokerFixture, cleanTaint, delayListing } from './brokerFixture'
 import { VAULT_LOCK_DRAIN_MS } from '../../../src/shared/constants'
+import { realAudit } from './auditFixture'
 import { grant, use } from '../helpers/vault/fixtures'
 
 const brokers = new Set<VaultBroker>()
@@ -63,64 +62,6 @@ async function assertNoMaterial(fixture: Awaited<ReturnType<typeof setup>>, tick
     }
   }
   expect(destination.mock.calls.length).toBe(0)
-}
-
-function realAudit() {
-  let bytes = Buffer.alloc(0),
-    anchor = { generation: 0, hash: '0'.repeat(64), baseGeneration: 0, baseHash: '0'.repeat(64) }
-  const entered = Promise.withResolvers<undefined>(),
-    waiting = Promise.withResolvers<undefined>()
-  let isHolding = false,
-    isFailing = false
-  const files: VaultPrivateFilesPort = {
-    directory: () => Promise.resolve(),
-    read: () => Promise.resolve(Buffer.from(bytes)),
-    replace: (_path, next) => {
-      bytes = Buffer.from(next)
-      return Promise.resolve()
-    },
-    append: async (_path, next) => {
-      if (isFailing) throw new Error('test terminal append failed')
-      bytes = Buffer.concat([bytes, next])
-      if (!isHolding) {
-        return
-      }
-
-      entered.resolve(undefined)
-      await waiting.promise
-    },
-    claim: () => Promise.reject(new Error('unused audit claim')),
-  }
-  const anchors: VaultAuditAnchorPort = {
-    read: () => Promise.resolve(structuredClone(anchor)),
-    write: (next) => {
-      anchor = structuredClone(next)
-      return Promise.resolve()
-    },
-    transaction: async (run) => await run(),
-  }
-  const audit = new VaultAuditLog('test-audit', anchors, undefined, files)
-  return {
-    audit,
-    entered: entered.promise,
-    hold: () => {
-      isHolding = true
-    },
-    release: () => {
-      isHolding = false
-      waiting.resolve(undefined)
-    },
-    fail: (isFailed: boolean) => {
-      isFailing = isFailed
-    },
-    generation: () => anchor.generation,
-    outcomes: () =>
-      bytes
-        .toString('utf8')
-        .split('\n')
-        .filter(Boolean)
-        .map((line) => vaultAuditRecordSchema.parse(JSON.parse(line)).outcome),
-  }
 }
 
 describe('RVM109B2 authority ownership', () => {
@@ -279,12 +220,12 @@ describe('RVM109B2 authority ownership', () => {
     await cleanup
     vi.useRealTimers()
   })
-  it('P2-2 a timed-out authorization append cannot authenticate a late pending row', async () => {
+  it('P2-2 a timed-out acknowledgement completes its committed row before the terminal outcome', async () => {
     const log = realAudit(),
       fixture = await setup({ audit: log.audit })
     log.hold()
     const pending = request(fixture),
-      denied = expect(pending).rejects.toThrow()
+      denied = expect(pending).resolves.toEqual({ kind: 'denied', reason: 'locked' })
     await log.entered
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     const locked = fixture.broker.lock(),
@@ -293,7 +234,8 @@ describe('RVM109B2 authority ownership', () => {
     await observed
     log.release()
     await denied
-    expect(log.generation()).toBe(0)
+    expect(log.generation()).toBe(2)
+    expect(log.outcomes()).toEqual(['pending', 'locked'])
     expect(fixture.deps.onApproval).not.toHaveBeenCalled()
     vi.useRealTimers()
     brokers.delete(fixture.broker)

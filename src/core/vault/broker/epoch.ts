@@ -28,14 +28,14 @@ export class VaultLockEpoch implements VaultEpochPort {
       throw error
     }
   }
-  async bump(): Promise<number> {
+  async bump(authorize?: () => void): Promise<number> {
     await this.files.directory(this.runDirectory)
     // An occupied writer fails closed; no pid-based stale-file deletion or lost increment.
     const release = await this.files.claim(this.writer, Buffer.alloc(0))
     try {
       const epoch = (await this.current()) + 1
       if (!Number.isSafeInteger(epoch)) throw new Error(UI_TEXT.vault.noAccess)
-      await this.files.replace(this.path, Buffer.from(JSON.stringify({ v: 1, epoch })))
+      await this.files.replace(this.path, Buffer.from(JSON.stringify({ v: 1, epoch })), authorize)
       return epoch
     } finally {
       await release()

@@ -1,4 +1,3 @@
-import { VaultBrokerQueue } from './queue'
 import { createHash, createHmac, hkdfSync, randomBytes } from 'node:crypto'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -10,8 +9,13 @@ import {
   UI_TEXT,
 } from '../../../shared/constants'
 import { vaultAuditRecordSchema, type VaultAuditRecord } from '../../../shared/vault'
-import { type VaultAuditPort } from './ports'
-import { UnixVaultPrivateFiles, isVaultFileMissing, type VaultPrivateFilesPort } from './files'
+import { type VaultAuditPort, type VaultAuditWriter } from './ports'
+import {
+  UnixVaultPrivateFiles,
+  isVaultFileMissing,
+  type VaultPrivateFilesPort,
+  type VaultFileWriter,
+} from './files'
 
 const hashSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
 const count = z.number().check(z.int(), z.nonnegative())
@@ -43,12 +47,14 @@ function unsigned(record: VaultAuditRecord): Omit<VaultAuditRecord, 'hash' | 'ma
   const { hash: _hash, mac: _mac, ...result } = record
   return result
 }
-export class VaultAuditLog implements VaultAuditPort {
+class VaultAuditWriterSession implements VaultAuditWriter {
+  private writer: VaultFileWriter | null = null
+  private isClosed = false
   private key: Buffer | null = null
   private records: VaultAuditRecord[] = []
   private anchor: Anchor | null = null
   private size = 0
-  private readonly queue = new VaultBrokerQueue()
+  private tail: Promise<unknown> = Promise.resolve()
   private readonly path: string
   constructor(
     private readonly directory: string,
@@ -63,24 +69,28 @@ export class VaultAuditLog implements VaultAuditPort {
     return createHmac('sha256', this.key).update(hash).digest('hex')
   }
   private async serial<T>(run: () => Promise<T>): Promise<T> {
-    const generation = this.queue.generation
-    return await this.queue.run(() =>
-      this.anchors.transaction(async () => {
-        this.check(generation)
-        const result = await run()
-        this.check(generation)
-        return result
-      }),
-    )
+    const previous = this.tail
+    const result = (async () => {
+      try {
+        await previous
+      } catch {
+        /* The previous caller owns its failure. */
+      }
+      return await this.anchors.transaction(async () => {
+        this.check()
+        return await run()
+      })
+    })()
+    this.tail = result
+    return await result
   }
-  private check(generation: number): void {
-    if (!this.key || generation !== this.queue.generation) throw new Error(UI_TEXT.vault.locked)
+  private check(): void {
+    if (!this.key) throw new Error(UI_TEXT.vault.locked)
   }
   private async verify(): Promise<void> {
-    const current = this.queue.generation
-    this.check(current)
+    this.check()
     const anchor = anchorSchema.parse(await this.anchors.read())
-    this.check(current)
+    this.check()
     let bytes: Buffer
     try {
       bytes = await this.files.read(this.path, this.maxBytes)
@@ -88,7 +98,7 @@ export class VaultAuditLog implements VaultAuditPort {
       if (!isVaultFileMissing(error)) throw error
       bytes = Buffer.alloc(0)
     }
-    this.check(current)
+    this.check()
     const text = bytes.toString('utf8')
     if (bytes.length > 0 && (!text.endsWith('\n') || text.includes('\n\n')))
       throw new Error(UI_TEXT.vault.noAccess)
@@ -115,10 +125,12 @@ export class VaultAuditLog implements VaultAuditPort {
     this.anchor = anchor
     this.size = bytes.byteLength
   }
-  private async appendRecord(input: Parameters<VaultAuditPort['append']>[0]): Promise<void> {
-    const current = this.queue.generation
+  private async appendRecord(
+    input: Parameters<VaultAuditPort['append']>[0],
+    canCommit: () => boolean,
+  ): Promise<void> {
     await this.verify()
-    this.check(current)
+    this.check()
     const anchor = this.anchor
     if (!anchor || !this.key) throw new Error(UI_TEXT.vault.locked)
     const record = vaultAuditRecordSchema.parse({
@@ -135,24 +147,31 @@ export class VaultAuditLog implements VaultAuditPort {
     const line = Buffer.from(`${JSON.stringify(record)}\n`, 'utf8')
     if (line.byteLength > this.maxBytes) throw new Error(UI_TEXT.vault.noAccess)
     const next = { ...anchor, generation: record.generation, hash: record.hash }
+    this.check()
+    if (!canCommit()) return
+    const writer = this.writer
+    if (!writer) throw new Error(UI_TEXT.vault.locked)
     if (this.size + line.byteLength > this.maxBytes) {
       // The authenticated slot checkpoint retains the capped prefix's head, so rotation has no gap.
       next.baseGeneration = anchor.generation
       next.baseHash = anchor.hash
-      await this.files.replace(this.path, line)
-    } else await this.files.append(this.path, line)
-    this.check(current)
+      writer.replace(line)
+    } else writer.append(line)
+    this.check()
     try {
+      // Physical commit already happened in this tick. Finish its anchor under the writer transaction, even on close.
       await this.anchors.write(next)
-      this.check(current)
     } catch (error: unknown) {
       this.close()
       throw error
     }
     this.anchor = next
   }
+  private checkOpen(): void {
+    if (this.isClosed) throw new Error(UI_TEXT.vault.locked)
+  }
   async open(vaultKey: Uint8Array): Promise<void> {
-    this.close()
+    if (this.isClosed) throw new Error(UI_TEXT.vault.locked)
     if (
       vaultKey.byteLength !== VAULT_KEY_BYTES ||
       !Number.isSafeInteger(this.maxBytes) ||
@@ -160,28 +179,33 @@ export class VaultAuditLog implements VaultAuditPort {
       this.maxBytes > VAULT_AUDIT_MAX_BYTES
     )
       throw new Error(UI_TEXT.vault.noAccess)
-    const generation = this.queue.generation
     await this.files.directory(this.directory)
-    if (generation !== this.queue.generation) throw new Error(UI_TEXT.vault.locked)
+    this.checkOpen()
     const derived = new Uint8Array(
       hkdfSync('sha256', vaultKey, Buffer.alloc(0), 'muse-vault-audit-v1', VAULT_KEY_BYTES),
     )
-    this.key = Buffer.alloc(VAULT_KEY_BYTES)
-    this.key.set(derived)
-    derived.fill(0)
     try {
+      this.writer = this.files.writer(this.path)
+      this.key = Buffer.alloc(VAULT_KEY_BYTES)
+      this.key.set(derived)
+      derived.fill(0)
       await this.serial(async () => {
         await this.verify()
       })
     } catch (error: unknown) {
       this.close()
       throw error
+    } finally {
+      derived.fill(0)
     }
   }
-  async append(input: Parameters<VaultAuditPort['append']>[0]): Promise<void> {
+  async append(
+    input: Parameters<VaultAuditPort['append']>[0],
+    canCommit: () => boolean = () => true,
+  ): Promise<void> {
     const snapshot = inputSchema.parse(input)
     await this.serial(async () => {
-      await this.appendRecord(snapshot)
+      await this.appendRecord(snapshot, canCommit)
     })
   }
   async read(): Promise<readonly VaultAuditRecord[]> {
@@ -191,12 +215,58 @@ export class VaultAuditLog implements VaultAuditPort {
     })
   }
   close(): void {
-    this.queue.invalidate(() => {
-      this.key?.fill(0)
-      this.key = null
-      this.anchor = null
-      this.records = []
-      this.size = 0
-    }, true)
+    this.isClosed = true
+    this.writer?.close()
+    this.writer = null
+    this.key?.fill(0)
+    this.key = null
+    this.anchor = null
+    this.records = []
+    this.size = 0
+  }
+}
+/** A factory plus the direct-reader facade. Every asynchronous operation captures one isolated session. */
+export class VaultAuditLog implements VaultAuditPort {
+  private current: VaultAuditWriter | null = null
+  constructor(
+    private readonly directory: string,
+    private readonly anchors: VaultAuditAnchorPort,
+    private readonly maxBytes = VAULT_AUDIT_MAX_BYTES,
+    private readonly files: VaultPrivateFilesPort = new UnixVaultPrivateFiles(),
+  ) {}
+  async openWriter(vaultKey: Uint8Array): Promise<VaultAuditWriter> {
+    const writer = new VaultAuditWriterSession(
+      this.directory,
+      this.anchors,
+      this.maxBytes,
+      this.files,
+    )
+    await writer.open(vaultKey)
+    return writer
+  }
+  async open(vaultKey: Uint8Array): Promise<void> {
+    this.close()
+    const writer = new VaultAuditWriterSession(
+      this.directory,
+      this.anchors,
+      this.maxBytes,
+      this.files,
+    )
+    this.current = writer
+    await writer.open(vaultKey)
+  }
+  async append(record: Parameters<VaultAuditPort['append']>[0]): Promise<void> {
+    const writer = this.current
+    if (!writer) throw new Error(UI_TEXT.vault.locked)
+    await writer.append(record)
+  }
+  async read(): Promise<readonly VaultAuditRecord[]> {
+    const writer = this.current
+    if (!writer) throw new Error(UI_TEXT.vault.locked)
+    return await writer.read()
+  }
+  close(): void {
+    this.current?.close()
+    this.current = null
   }
 }

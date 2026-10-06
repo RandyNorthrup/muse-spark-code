@@ -14,7 +14,6 @@ import {
   vaultBrokerResponseSchema,
   vaultPrivateReadSchema,
   vaultPrivateMaterialSchema,
-  type VaultAuthenticatedPeer,
   type VaultBrokerRequest,
   type VaultBrokerResponse,
 } from '../../../shared/vaultProtocol'
@@ -28,7 +27,8 @@ import { vaultPrivateDirectory } from './files'
 import pathModule from 'node:path'
 import { type VaultBroker } from './broker'
 import { isVaultBootTokenMatch } from './broker'
-import { type VaultUseLifetime } from './ports'
+import { type VaultUseLifetime, type VaultConnectionIdentity } from './ports'
+import { type RegistrationToken, type ConnectionToken } from './state'
 import { type VaultCeiling } from './policy'
 import { type VaultPeerVerifier, type VaultProcessIdentity } from './peer'
 
@@ -47,12 +47,7 @@ export const vaultChannelResponseSchema = z.union([
   }),
 ])
 export type VaultChannelResponse = z.infer<typeof vaultChannelResponseSchema>
-export interface VaultConnectionIdentity {
-  peer: VaultAuthenticatedPeer
-  requester: VaultRequester | null
-  firstParty: boolean
-  manage: boolean
-}
+export type { VaultConnectionIdentity } from './ports'
 export interface VaultSecuredListenerPort {
   /** P creates an owner-only, remote-refusing pipe before handing over any accepted socket. */
   listen(path: string, accepted: (socket: Socket) => void): Promise<() => Promise<void>>
@@ -76,7 +71,6 @@ export interface VaultChannelDeps {
   lifetime(requester: VaultRequester, socket: Socket): VaultUseLifetime
   perform(requester: VaultRequester, ticketId: string, use: VaultUse, socket: Socket): Promise<void>
   scrub(text: string): Promise<string>
-  audit(): Promise<readonly VaultAuditRecord[]>
 }
 /** NDJSON with a byte limit and validation before dispatch; one sequential stream per pinned peer. */
 export class VaultChannelServer {
@@ -84,19 +78,30 @@ export class VaultChannelServer {
   private isClosed = false
   private securedClose: (() => Promise<void>) | null = null
   private readonly sockets = new Set<Socket>()
-  private readonly identities = new Map<Socket, VaultConnectionIdentity>()
+  private readonly identities = new Map<
+    Socket,
+    { identity: VaultConnectionIdentity; token?: RegistrationToken }
+  >()
   private readonly unsubscribe: () => void
   constructor(private readonly deps: VaultChannelDeps) {
-    this.unsubscribe = deps.broker.subscribeInvalidation((requesterId) => {
-      for (const [socket, identity] of this.identities)
-        if (identity.requester && (requesterId === null || identity.requester.id === requesterId))
+    this.unsubscribe = deps.broker.subscribeInvalidation((requesterId, token) => {
+      for (const [socket, held] of this.identities) {
+        const identity = held.identity
+        if (
+          identity.requester &&
+          (requesterId === null ||
+            (identity.requester.id === requesterId && (!token || held.token === token)))
+        )
           socket.destroy()
+      }
     })
   }
   private async dispatch(
     identity: VaultConnectionIdentity,
     request: VaultBrokerRequest['request'],
     socket: Socket,
+    token: RegistrationToken | undefined,
+    connection: ConnectionToken,
   ): Promise<VaultBrokerResponse['response']> {
     const broker = this.deps.broker
     const requester = identity.requester
@@ -120,26 +125,35 @@ export class VaultChannelServer {
       }
       case 'registerRequester': {
         if (requester || !identity.manage) return denied
-        await broker.register(
-          identity.peer,
-          request.requester,
-          this.deps.ceiling(request.requester),
-        )
-        // A host's conversation gets its own connection, separate from its management/private-read channel.
+        // A host conversation takes its own incarnation-bound connection.
         if (request.requester.peerProcessId === identity.peer.processId) {
+          const bound = await broker.registerOnConnection(
+            identity.peer,
+            request.requester,
+            this.deps.ceiling(request.requester),
+            connection,
+          )
           identity.requester = structuredClone(request.requester)
           identity.firstParty = false
           identity.manage = false
-        }
+          this.identities.set(socket, { identity, token: bound })
+        } else
+          await broker.register(
+            identity.peer,
+            request.requester,
+            this.deps.ceiling(request.requester),
+          )
         return { kind: 'ok' }
       }
       case 'endRequester': {
         if (!identity.manage && requester?.id !== request.requesterId) return denied
-        await broker.endRequester(request.requesterId)
+        await broker.endRequester(request.requesterId, null, identity.manage ? undefined : token)
         return { kind: 'ok' }
       }
       case 'list': {
-        return requester ? { kind: 'items', items: [...(await broker.list(requester))] } : denied
+        return requester
+          ? { kind: 'items', items: [...(await broker.list(requester, token))] }
+          : denied
       }
       case 'requestUse': {
         if (!requester) return denied
@@ -151,6 +165,7 @@ export class VaultChannelServer {
           request.proposal.handle,
           request.proposal.use,
           taint,
+          token,
         )
         return socket.writable ? result : denied
       }
@@ -179,7 +194,7 @@ export class VaultChannelServer {
             response: { kind: 'audit', records },
           }),
         )
-        const available = await this.deps.audit()
+        const available = await broker.readAudit(identity.peer, connection)
         for (const record of available) {
           if (
             record.generation <= request.afterGeneration ||
@@ -206,6 +221,7 @@ export class VaultChannelServer {
           request.ticket,
           request.use,
           this.deps.lifetime(requester, socket),
+          token,
         )
         if (result.kind === 'ticket')
           await this.deps.perform(requester, result.ticket.id, request.use, socket)
@@ -242,6 +258,8 @@ export class VaultChannelServer {
       socket.destroy()
       return
     }
+    const connection = this.deps.broker.beginConnection()
+    let token: RegistrationToken | undefined
     this.sockets.add(socket)
     socket.pause()
     const cancellation = new AbortController()
@@ -290,7 +308,11 @@ export class VaultChannelServer {
           close()
           return
         }
-        const verified = await this.deps.identify(peer, request.hostId, request.hostSession)
+        const authenticated = await this.deps.broker.authenticate(connection, () =>
+          this.deps.identify(peer, request.hostId, request.hostSession),
+        )
+        const verified = authenticated.identity
+        token = authenticated.token
         if (
           verified.peer.hostId !== request.hostId ||
           verified.peer.processId !== peer.processId ||
@@ -300,7 +322,7 @@ export class VaultChannelServer {
           return
         }
         identity = structuredClone(verified)
-        this.identities.set(socket, identity)
+        this.identities.set(socket, { identity, ...(token && { token }) })
         clearTimeout(timeout)
         const status = await this.deps.broker.status()
         await write({
@@ -319,24 +341,44 @@ export class VaultChannelServer {
         if (!identity.firstParty || identity.requester !== null)
           response = { kind: 'denied', reason: 'peer' }
         else {
-          const material = await this.deps.broker.firstPartyRead(
+          await this.deps.broker.sendFirstParty(
             identity.peer,
             request,
+            (material) => {
+              const response = vaultPrivateMaterialSchema.parse({
+                v: VAULT_PROTOCOL_VERSION,
+                kind: 'material',
+                requestId: randomBytes(VAULT_LIMITS.idBytes).toString('hex'),
+                encoding: 'base64',
+                bytes: material.toString('base64'),
+              })
+              const frame = vaultChannelResponseSchema.parse({
+                v: VAULT_PROTOCOL_VERSION,
+                sequence: message.sequence,
+                response,
+              })
+              const encoded = `${JSON.stringify(frame)}\n`
+              if (
+                socket.destroyed ||
+                !socket.writable ||
+                Buffer.byteLength(encoded) > VAULT_LIMITS.frameBytes
+              )
+                throw new Error(UI_TEXT.vault.noAccess)
+              socket.write(encoded)
+            },
             cancellation.signal,
+            connection,
           )
-          try {
-            response = vaultPrivateMaterialSchema.parse({
-              v: VAULT_PROTOCOL_VERSION,
-              kind: 'material',
-              requestId: randomBytes(VAULT_LIMITS.idBytes).toString('hex'),
-              encoding: 'base64',
-              bytes: material.toString('base64'),
-            })
-          } finally {
-            material.fill(0)
-          }
+          return
         }
-      } else response = await this.dispatch(identity, request, socket)
+      } else
+        response = await this.dispatch(
+          identity,
+          request,
+          socket,
+          this.identities.get(socket)?.token,
+          connection,
+        )
       await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
     }
     socket.once('close', () => {
@@ -344,8 +386,7 @@ export class VaultChannelServer {
       clearTimeout(timeout)
       this.identities.delete(socket)
       this.sockets.delete(socket)
-      if (identity?.requester)
-        void this.deps.broker.endRequester(identity.requester.id).catch(close)
+      void this.deps.broker.closeConnection(connection).catch(close)
     })
     socket.on('error', close)
     let authenticatedPeer: VaultProcessIdentity | null = null

@@ -88,7 +88,10 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
     },
     epoch: {
       current: () => Promise.resolve(epoch),
-      bump: () => Promise.resolve(++epoch),
+      bump: (authorize) => {
+        authorize?.()
+        return Promise.resolve(++epoch)
+      },
       subscribe: (listener) => {
         listeners.add(listener)
         return () => {
@@ -97,6 +100,24 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
       },
     },
     audit: {
+      openWriter: async (key) => {
+        await deps.audit.open(key)
+        let isClosed = false
+        return {
+          append: async (row, canCommit = () => true) => {
+            if (isClosed) throw new Error('locked audit')
+            if (canCommit()) await deps.audit.append(row)
+          },
+          read: async () => {
+            if (isClosed) throw new Error('locked audit')
+            return await deps.audit.read()
+          },
+          close: () => {
+            isClosed = true
+            deps.audit.close()
+          },
+        }
+      },
       open: vi.fn(() => Promise.resolve()),
       append: vi.fn((record: Parameters<VaultAuditPort['append']>[0]) => {
         records.push(structuredClone(record))

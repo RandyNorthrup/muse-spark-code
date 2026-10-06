@@ -38,10 +38,22 @@ export interface VaultUnlockPort {
 }
 export interface VaultEpochPort {
   current(): Promise<number>
-  bump(): Promise<number>
+  /** Commit only while the caller still owns this lock generation. */
+  bump(authorize?: () => void): Promise<number>
   subscribe(listener: (epoch: number) => void): () => void
 }
+export interface VaultAuditWriter {
+  /** Checked synchronously at the physical commit, after all scrubbing and queue waits. */
+  append(
+    record: Omit<VaultAuditRecord, 'v' | 'id' | 'generation' | 'previousHash' | 'hash' | 'mac'>,
+    canCommit?: () => boolean,
+  ): Promise<void>
+  read(): Promise<readonly VaultAuditRecord[]>
+  close(): void
+}
 export interface VaultAuditPort {
+  /** Each acquisition returns an isolated writer; closing it cannot close a newer writer. */
+  openWriter(key: Uint8Array): Promise<VaultAuditWriter>
   open(key: Uint8Array): Promise<void>
   append(
     record: Omit<VaultAuditRecord, 'v' | 'id' | 'generation' | 'previousHash' | 'hash' | 'mac'>,
@@ -83,4 +95,11 @@ export interface VaultBrokerDeps {
   onRevoked(requesterId: string, grantId: string | null): void
   /** T binds the real scrub service; every persisted target passes through it. */
   scrub(text: string): Promise<string>
+}
+
+export interface VaultConnectionIdentity {
+  peer: VaultAuthenticatedPeer
+  requester: VaultRequester | null
+  firstParty: boolean
+  manage: boolean
 }

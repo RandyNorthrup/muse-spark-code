@@ -7855,6 +7855,19 @@ It builds on:
     | V15 | sudo swapped between card and run                                                        | The feeder runs the exact approved argv through sudo's absolute path; `-k`; askpass labelled, capped and followed by `sudo -K`                                                                          | `NOPASSWD` sudoers, which the panel names                                                                   |
     | V16 | The vault as one target holding everything                                               | Per-item keys, presence items, lock on idle and screen lock, the break glass, the recovery code                                                                                                         | A silently unlocked vault is as exposed to same-user code as today's stores                                 |
 
+### D90 — Broker state transitions (M109 B, 2026-10-06)
+
+Broker core = synchronous reducer + tagged effects. Registration capabilities
+bind authentication, requests and connection cleanup to one incarnation.
+Each completion carries its operation, connection, incarnation and unlock
+generation; stale completions dispose only their own resources. Plaintext is
+broker-owned through the final synchronous transport write. Lock advances the
+generation and wipes owned buffers before any asynchronous settlement. Audit
+writers are isolated resources, with cancellable pending rows and terminal
+outcomes that supersede pending work. Audit UI reads capture the installed
+writer through a tagged effect, rather than an implicit factory-global reader.
+The runner performs I/O; the reducer alone changes broker state. No await-and-recheck implementation remains.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
@@ -20624,6 +20637,15 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**REDM109B redesign (2026-10-06).** Replace the broker's async authorization
+owner and re-validation helper with D90's synchronous reducer and tagged effect
+runner. Close all RVM109B3 probes by construction; retain named regressions from
+all three rounds. Add deterministic exhaustive and seeded effect-order tests,
+with invariant checks after every event, and three byte-exact mutation drills.
+Certification records coverage, resource ownership and writer commit semantics.
+This rig lane runs targeted checks directly, without merges or aggregate quality;
+the lead retains the joined-tree quality and platform checks.
+
 **FIXM109B2 review repair (2026-10-06).** Close all four RVM109B2 findings:
 bind each continuation to the requester's fresh registration incarnation and
 the broker generation, including channel provenance loading before broker entry;
@@ -20959,6 +20981,25 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**REDM109B / D90 (2026-10-06, Mac mini).** The broker core is a synchronous
+reducer with tagged effects; the old queue and async re-validation implementation
+are deleted. All three review reports have named regressions. The final restored
+source passes 282 vault tests at repository-default timeout, at most three files
+and three workers per invocation; the deterministic scheduler covers 505
+exhaustive and 900 seeded schedules (seed 109003), 40,025 invariant steps.
+The three required generation/incarnation/unowned-cleanup mutations each fail
+its named test and restore byte-exact with current-source SHA-256 receipts.
+All five typechecks, changed-file ESLint/Prettier, plain knip, zero-clone jscpd,
+localization, schema drift and production build pass; every bundle cap is unchanged.
+The only required targeted gate deferral is the same six pre-existing Node
+import counts in W's generated host API record; the existing B-W patch still
+applies cleanly. Aggregate `npm run quality` is prohibited by the brief and is
+lead-owned, as are the joined native/editor matrix and bundle registration.
+No dependencies, suppressions, casts or weakened gates were added. This record
+supersedes the historical FIXM109B/FIXM109B2 await inventories and ownership
+claims; current evidence is `docs/certification/m109-b.md` and
+`m109-b-redesign-drills.json`.
 
 **FIXM109B2 / RVM109B2 (2026-10-06, Mac mini).** All four findings are
 fixed with fake-only regressions and byte-exact red drills. Direct default-timeout
@@ -22189,6 +22230,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **REDM109B / D90 (2026-10-06).** The synchronous reducer and capability-bound
+  effects supersede the earlier FIXM109B/FIXM109B2 authorization/cleanup claims.
+  The RVM109B3 stale hello/close, private transport release, pending audit/reopen
+  and obsolete unlock/epoch paths now depend on immutable incarnation/generation
+  ownership. None of those findings is accepted as residual risk. C/P/W must bind
+  isolated audit writers, synchronous private-file commit/close, and the epoch
+  and grant authorization callbacks at their exact physical commit boundary.
+  Committed audit rows settle their authenticated anchor under C's transaction;
+  actual anchor failure still fails closed and requires verified repair. B claims
+  no power-loss atomicity, memory zeroization, enabled product feature or joined
+  Windows/editor certification. Existing C/P/T/route/W/full-quality handoffs and
+  the W-owned host API record remain integration work. Current proof and limits:
+  `docs/certification/m109-b.md`; the old await inventory is historical only.
 
 - **FIXM109B2 / RVM109B2 (2026-10-06).** All four review findings are fixed;
   no P1/P2/P3 is accepted as a residual. Every request retains its registration

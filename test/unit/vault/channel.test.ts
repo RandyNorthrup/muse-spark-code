@@ -102,7 +102,6 @@ async function channelSetup() {
     perform: vi.fn(() => Promise.resolve()),
     lifetime: () => ({ close: vi.fn(), terminate: () => Promise.resolve(true) }),
     scrub: (text) => Promise.resolve(text),
-    audit: () => fixture.deps.audit.read(),
   }
   const server = new VaultChannelServer(deps)
   servers.push(server)
@@ -131,7 +130,7 @@ async function auditRecord(fixture: Awaited<ReturnType<typeof channelSetup>>) {
     tainted: false,
     reasons: [],
   })
-  const audited = await fixture.deps.audit()
+  const audited = await fixture.brokerDeps.audit.read()
   const record = audited[0]
   if (!record) throw new Error('expected audit record')
   return record
@@ -190,6 +189,33 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
   }
 }
 describe('native authenticated broker channel', () => {
+  it('RVM109B3 P1-1 hello held across cancellation cannot acquire a same-ceiling replacement', async () => {
+    const fixture = await channelSetup()
+    workerConnection(fixture)
+    const identify = fixture.deps.identify,
+      entered = Promise.withResolvers<undefined>(),
+      waiting = Promise.withResolvers<undefined>()
+    fixture.deps.identify = async (...args) => {
+      const observed = await identify(...args)
+      entered.resolve(undefined)
+      await waiting.promise
+      return observed
+    }
+    const opening = openClient(fixture),
+      observed = expect(opening).rejects.toThrow()
+    await entered.promise
+    await fixture.broker.endRequester(fixture.identity.id)
+    await fixture.broker.register(
+      { ...fixture.peer, processId: process.pid, userId: processIdentity.userId },
+      fixture.identity,
+      'ask',
+    )
+    waiting.resolve(undefined)
+    await observed
+    expect(await fixture.broker.list(fixture.identity)).toHaveLength(1)
+    expect(fixture.deps.perform).not.toHaveBeenCalled()
+  })
+
   it('P1 a requester connection closed during taint lookup cannot create a late UI card for its replacement', async () => {
     const fixture = await channelSetup()
     workerConnection(fixture)
@@ -214,9 +240,6 @@ describe('native authenticated broker channel', () => {
     await entered.promise
     await fixture.broker.endRequester(fixture.identity.id)
     await observed
-    await vi.waitFor(() => {
-      expect(ended.mock.calls.length).toBeGreaterThan(1)
-    })
     await fixture.broker.register(
       { ...fixture.peer, processId: process.pid, userId: processIdentity.userId },
       fixture.identity,
@@ -226,6 +249,8 @@ describe('native authenticated broker channel', () => {
     await new Promise<void>((resolve) => {
       setImmediate(resolve)
     })
+    expect(ended.mock.calls.length).toBe(1)
+    expect(await fixture.broker.list(fixture.identity)).toHaveLength(1)
     expect(requested.mock.calls.length).toBe(0)
     expect(fixture.brokerDeps.onApproval).not.toHaveBeenCalled()
     expect(fixture.deps.perform).not.toHaveBeenCalled()
@@ -251,7 +276,7 @@ describe('native authenticated broker channel', () => {
     const entry = await fixture.firstParty(true),
       waiting = Promise.withResolvers<boolean>()
     fixture.brokerDeps.unlock.presence = vi.fn(() => waiting.promise)
-    const read = vi.spyOn(fixture.broker, 'firstPartyRead'),
+    const read = vi.spyOn(fixture.broker, 'sendFirstParty'),
       client = await openClient(fixture)
     const pending = client.firstPartyRead(entry.request),
       observed = expect(pending).rejects.toThrow()
@@ -294,7 +319,7 @@ describe('native authenticated broker channel', () => {
       ...record,
       generation: index + 1,
     }))
-    fixture.deps.audit = () => Promise.resolve(records)
+    fixture.brokerDeps.audit.read = () => Promise.resolve(records)
     const client = await openClient(fixture)
     const first = await client.send({
       kind: 'audit',
@@ -322,7 +347,7 @@ describe('native authenticated broker channel', () => {
   it('audit item and requester filters return only matching records', async () => {
     const fixture = await channelSetup(),
       record = await auditRecord(fixture)
-    fixture.deps.audit = () =>
+    fixture.brokerDeps.audit.read = () =>
       Promise.resolve([
         {
           ...record,
