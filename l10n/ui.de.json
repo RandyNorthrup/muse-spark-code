@@ -2600,5 +2600,7 @@
   "referenceElicitationTitle": "MCP-Formulare",
   "referenceElicitation": "MCP-Formulare erfragen Informationen für den anfragenden MCP-Server. Gesendete Formularwerte gehen an diesen Server, außerhalb des Modellgesprächs und des Transkripts. Ein Server kann sie in späteren Werkzeugausgaben zurückgeben. Geben Sie niemals ein Passwort oder einen Schlüssel ein.",
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert."
+  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
+  "resourceHarnessInTree": "Stopp pausiert: Der Steuerprozess befindet sich noch in diesem Prozessbaum. Die Zuständigkeit bleibt erhalten; versuchen Sie Stopp erneut.",
+  "resourceCgroupChanged": "Stopp verweigert: Die cgroup dieses Prozessbaums wurde entfernt oder ersetzt. Die Zuständigkeit bleibt erhalten."
 }

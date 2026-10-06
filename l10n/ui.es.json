@@ -2694,5 +2694,7 @@
   "referenceElicitationTitle": "Formularios MCP",
   "referenceElicitation": "Los formularios MCP solicitan información para el servidor MCP que la pide. Los valores enviados van a ese servidor, fuera de la conversación del modelo y de la transcripción. El servidor puede incluirlos en una salida posterior de una herramienta. Nunca introduzcas una contraseña ni una clave.",
   "referenceNativeAgentsConditions": "Cuando run.subagent_delegation_mode=\"auto\", Muse Code puede delegar en agentes. Con \"off\", las herramientas de delegación no están disponibles. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave."
+  "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
+  "resourceHarnessInTree": "Detención en pausa: el proceso de control sigue en este árbol. Se conserva su control; vuelve a intentar detenerlo.",
+  "resourceCgroupChanged": "Detención rechazada: la cgroup de este árbol se eliminó o reemplazó. Se conserva su control."
 }

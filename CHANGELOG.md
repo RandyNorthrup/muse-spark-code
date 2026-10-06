@@ -60,6 +60,16 @@ happened, not what was planned; superseded entries are kept.
   recovery and retirement, verify confirmed policy again, and require a fresh
   prior-state reading before attempting another irreversible change.
 
+- Linux resource trees pin their cgroup directory before the workload runs.
+  Stop and accounting refuse a removed or replaced directory, and an empty
+  tree retires automatically after its root exits. Stop also reasserts the
+  harness's pinned home placement before kill or freeze; bounded retry failure
+  keeps ownership with an explicit localized status for a later Stop retry.
+
+- Linux resource trees launch behind a gate in their own delegated cgroup.
+  Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
+  an outside same-tick PID replacement from inheriting tree authority.
+  Undelegated groups refuse small PID namespaces and recheck identity bounds.
 - Registered resource trees expose verified signal and tree-kill actions, with
   exact birth checks and honest outcomes. Observed descendants retain authority
   after reparenting or starting another session; recycled PIDs need new proof.

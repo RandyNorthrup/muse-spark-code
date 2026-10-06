@@ -32,11 +32,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
       const folder = await mkdtemp(path.join(tmpdir(), 'm107-t2-root-zombie-'))
       try {
         const file = path.join(folder, 'lifecycle')
-        await runTreeProgram('/usr/bin/cc', [
-          path.resolve('test/unit/helpers/resourceLifecycle.c'),
-          '-o',
-          file,
-        ])
+        await runTreeProgram(
+          '/usr/bin/cc',
+          [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+          { PATH: '/usr/bin:/bin' },
+        )
         const parent = spawn(file, ['hold-zombie'], {
           detached: true,
           env: {},
@@ -101,11 +101,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
       const births = new Set<string>()
       try {
         const file = path.join(folder, 'lifecycle')
-        await runTreeProgram('/usr/bin/cc', [
-          path.resolve('test/unit/helpers/resourceLifecycle.c'),
-          '-o',
-          file,
-        ])
+        await runTreeProgram(
+          '/usr/bin/cc',
+          [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+          { PATH: '/usr/bin:/bin' },
+        )
         for (let attempt = 0; attempt < 32; attempt++) {
           const child = spawn(file, ['short'], {
             detached: true,
@@ -158,11 +158,11 @@ describe.runIf(process.platform === 'darwin' || process.platform === 'linux')(
       const births: ResourceProcessIdentity[] = []
       try {
         const file = path.join(folder, 'lifecycle')
-        await runTreeProgram('/usr/bin/cc', [
-          path.resolve('test/unit/helpers/resourceLifecycle.c'),
-          '-o',
-          file,
-        ])
+        await runTreeProgram(
+          '/usr/bin/cc',
+          [path.resolve('test/unit/helpers/resourceLifecycle.c'), '-o', file],
+          { PATH: '/usr/bin:/bin' },
+        )
         const rootProcess = spawn(file, ['descendants'], {
           detached: true,
           env: {},

@@ -55,6 +55,7 @@ function world(platform: 'linux' | 'darwin') {
     )
   })
   const read = vi.fn((file: string) => {
+    if (file === '/proc/sys/kernel/pid_max') return Promise.resolve('4194304')
     const row = rows.get(Number(/\/proc\/(\d+)\/stat$/.exec(file)?.[1]))
     return row === undefined
       ? Promise.reject(Object.assign(new Error('gone'), { code: 'ENOENT' }))

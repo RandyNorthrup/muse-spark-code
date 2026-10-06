@@ -2506,5 +2506,7 @@
   "referenceElicitationTitle": "MCP 表单",
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
+  "resourceHarnessInTree": "停止已暂停：控制进程仍在此进程树中。管理权将保留，请重试停止。",
+  "resourceCgroupChanged": "停止被拒绝：此进程树的 cgroup 已被删除或替换。管理权将保留。"
 }

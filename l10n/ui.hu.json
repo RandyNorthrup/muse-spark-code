@@ -2600,5 +2600,7 @@
   "referenceElicitationTitle": "MCP-űrlapok",
   "referenceElicitation": "Az MCP-űrlapok a kérést küldő MCP-kiszolgáló számára kérnek adatokat. Az elküldött értékek ehhez a kiszolgálóhoz kerülnek, a modell beszélgetésén és az átiraton kívül. A kiszolgáló későbbi eszközkimenetben visszaadhatja őket. Soha ne adjon meg jelszót vagy kulcsot.",
   "referenceNativeAgentsConditions": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot."
+  "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
+  "resourceHarnessInTree": "A leállítás szünetel: a vezérlőfolyamat még ebben a fában van. A felügyelet megmarad; próbálja újra a leállítást.",
+  "resourceCgroupChanged": "A leállítás megtagadva: a fa cgroup csoportját eltávolították vagy lecserélték. A felügyelet megmarad."
 }

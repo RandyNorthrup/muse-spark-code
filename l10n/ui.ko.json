@@ -2506,5 +2506,7 @@
   "referenceElicitationTitle": "MCP 양식",
   "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다."
+  "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
+  "resourceHarnessInTree": "중지가 보류되었습니다. 제어 프로세스가 아직 이 트리 안에 있습니다. 관리 권한은 유지됩니다. 중지를 다시 시도하세요.",
+  "resourceCgroupChanged": "중지가 거부되었습니다. 이 트리의 cgroup이 삭제되거나 교체되었습니다. 관리 권한은 유지됩니다."
 }

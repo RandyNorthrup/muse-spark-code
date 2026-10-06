@@ -18,6 +18,10 @@ import { forms } from './forms'
 export const EN = {
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
+  resourceHarnessInTree:
+    'Stop paused: the harness is still in this tree. Ownership is retained; retry Stop.',
+  resourceCgroupChanged:
+    'Stop refused: this tree’s cgroup was removed or replaced. Ownership is retained.',
   resourceNormal: 'Normal',
   resourceThrottle: 'Throttling',
   resourceRelocate: 'Relocating',

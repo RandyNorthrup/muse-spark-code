@@ -150,7 +150,7 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     }
   }
 
-  /** Snapshot identities first, then signal individually: never a PID/group-only kill. */
+  /** Kernel containment where available; otherwise a verified identity snapshot. */
   async kill(
     ticket: ResourceTicket,
     signal: ResourceSignal = 'SIGKILL',
@@ -164,6 +164,28 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
     )
       return { status: 'refused', members: [] }
     try {
+      if (entry.ticket.scope.type === 'cgroup' && this.reader.killCgroup !== undefined) {
+        const result = await this.reader.killCgroup(
+          structuredClone(entry.ticket),
+          signal,
+          () => this.entries.get(entry.ticket.id) === entry && entry.ready,
+        )
+        return z
+          .strictObject({
+            message: z.optional(z.string()),
+            status: z.union([
+              resourceActionResultSchema,
+              z.enum(['cgroup_changed', 'harness_in_tree']),
+            ]),
+            members: z.array(
+              z.strictObject({
+                identity: resourceProcessIdentitySchema,
+                result: resourceActionResultSchema,
+              }),
+            ),
+          })
+          .parse(result)
+      }
       const raw = await this.reader.actionMembers(structuredClone(entry.ticket))
       if (raw === null || this.entry(ticket) !== entry) return { status: 'refused', members: [] }
       const snapshot = z.array(resourceProcessIdentitySchema).parse(raw)

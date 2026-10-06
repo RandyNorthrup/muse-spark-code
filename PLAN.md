@@ -25460,6 +25460,41 @@ explicit injected port, with no guessed PID/disappearance fallback. Document
 that binding for integration. Every finding gets a before-fix failing test
 and a byte-exact red drill in `docs/certification/m107-a.md`. No dependency,
 guard widening, other-lane code edit, merge or full quality run is authorized.
+**Lane T3 review repair (FIXM107T3, 2026-10-06).** Fix both RVM107T3G
+P2s, with no reviewed residual: pin each private cgroup's open directory and
+(dev, ino) before GO, use its /proc/self/fd path for all later file accesses,
+refuse replacement/removal, and retire empty trees after root exit. Pin the
+harness home too; reassert its placement before scans and immediately before
+kill/freeze, retry a named bounded count, and retain ownership with an explicit
+localized harness_in_tree status on exhaustion. Keep Linux handles behind the
+existing tree port; Darwin/Windows/fake ports stay unchanged. Regression tests
+and byte-exact guard-break receipts belong in docs/certification/m107-t3.md.
+The sub-millisecond final reassert/write window and same-user kill(2) authority
+are recorded honestly in §9. No dependency or aggregate quality/merge.
+
+**Lane T3 Linux containment (2026-10-06).** Close RVM104L3 finding 2's
+same-tick PID alias with a private cgroup per governed Linux launch. No M96 K
+scope implementation exists on this base. Detect cgroup v2/user delegation
+without root; launch a gated workload inside a delegated systemd user scope
+(or a writable subtree already containing this harness), create its own child
+cgroup, bind its ticket before GO, and retain the outer scope until cleanup.
+Cgroup membership alone enrolls descendants; old birth/parent witnesses never
+admit an outside replacement. Stop uses cgroup.kill, or freezes and signals
+all recursively enumerated cgroup.procs members before thawing. Completion
+requires cgroup.events populated 0, followed by removal; unknown/timeout reads
+refuse completion and retain ownership. Accounting uses that same cgroup's
+lifetime CPU and its current members' RSS. Group fallback reads pid_max and
+CLK_TCK, refuses authority below LINUX_PID_IDENTITY_MIN_PID_MAX, and freshly
+checks observed membership before each signal. Its bounded identity assumption
+and final read-to-signal race stay explicit in §9. Darwin identities and
+Windows jobs are unchanged. All editor/ACP/headless launch consumers share the
+portable API; C1/C2/W still own all-spawn and lazy-bundle integration. No new
+user command, setting, paid call, dependency or wire shape. Certify the 711/712
+same-tick replacement, launch-before-GO, freeze fallback, populated-zero wait,
+low-pid_max refusal and a native forked-grandchild Stop with deliberate red
+mutations in docs/certification/m107-t3.md. Direct bounded owning suites and
+static/build gates only; the brief forbids aggregate quality and branch merges.
+
 **Lane T2 process authority (2026-10-05).** Before M104 LSP supervision
 resumes, add registered, freshly identity-verified `signal` and snapshot-based
 `kill` to the tree registry. These are Stop/cancel services, never governor
@@ -28949,6 +28984,33 @@ typecheck, scoped lint/format and the required static/build checks. The lead
 retains full integrated quality, coverage, native platform and editor receipts.
 No threshold, timeout, rule, skip policy or guard is weakened.
 
+**FIXM107T3 review certification (2026-10-06).** Both RVM107T3G P2s
+are fixed; no reviewed finding is deferred. Direct complete owning batches
+pass 173 tests with eight existing platform skips using repository-default
+5 s timeouts, and 13 deliberate guard mutations fail and restore source
+byte-exact. All five TypeScript projects, scoped lint/format, deadcode,
+cycles, duplication (zero clones), localization (14 tables, zero problems)
+and production build/caps pass. After final ticket normalization, host/unit
+types, the 38 owning Linux tests, lint, duplication and build pass again.
+The host-API record still exits 1 only for the same six W-owned import counts
+listed below; its generated file is untouched. No aggregate quality, model
+call, dependency, threshold or hook change. See docs/certification/m107-t3.md.
+
+**M107 T3 scoped certification (2026-10-06).** The rig/shared brief forbids
+aggregate quality and branch merges. T3 certifies complete owning files,
+native cgroup launch/Stop on Kubuntu, deliberate guard mutations and serial
+static/build gates. Full integrated quality/coverage and all editor/spawn
+wiring remain the lead's handoff. No gate configuration or dependency changes.
+The existing W-owned host-API snapshot must include the new Linux launcher
+and timer imports on integration: node:child_process 13→15, node:crypto 46→47,
+node:fs/promises 47→49, node:path 84→87, node:process 1→3 and
+node:timers/promises 3→5. Its gate exits 1 for those six counts; the generated
+file is untouched. W regenerates and reviews the record after integration.
+All other required scoped checks pass, with 161 tests, eight existing platform
+skips and 17 deliberately failing/restored drills; exact receipts are in
+docs/certification/m107-t3.md. This is the existing deferral, not a green
+host-API or full-quality claim.
+
 **M107 T2 scoped certification (2026-10-06).** The rig brief prohibits
 aggregate quality and merges; the lead retains integrated quality/coverage
 and native Linux/Windows qualification. T2 runs complete owning test files,
@@ -30458,6 +30520,42 @@ before a repaired one loads (2026-09-30).
   controls report unknown. Follow-up: bind and certify the integrated
   governor in every editor and on Win11/Mac/Kubuntu, then run the unchanged
   full gate. Detailed scoped receipts are in `docs/certification/m107-a.md`.
+- **M107-T3 harness placement dispatch window (FIXM107T3, 2026-10-06).**
+  Both RVM107T3G P2s are fixed, with no reviewed finding deferred. Directory
+  identity is an open read-only handle with exact BigInt (dev, ino), retained
+  through unregister; all cgroup file reads/writes use /proc/self/fd. Stop
+  reasserts a separately pinned harness home before scanning and immediately
+  before kill/freeze. Repeated insertion exhausts three attempts into the
+  distinct localized harness_in_tree outcome, retaining ticket and keeper for
+  a later Stop. The final reassert and control-file write remain adjacent
+  user-space operations: the remaining normally sub-millisecond window is
+  not atomic, and scheduler preemption can extend it. Same-user code can
+  already signal the harness directly with kill(2); this is not a new
+  privilege boundary. On the rig's root-owned login home, a no-op placement
+  write is denied: accept only EACCES/EPERM followed by confirmation that
+  /proc/self/cgroup still names the pinned home, and still perform the member
+  scan. A moved harness or any other home-write/read failure refuses dispatch.
+  Native and injected receipts are in docs/certification/m107-t3.md. The
+  existing C1/C2/W all-editor/spawn and full-gate handoffs remain unchanged.
+
+- **M107-T3 Linux fallback identity bound (2026-10-06).** Private cgroup
+  launches use current kernel containment for enrollment and cgroup.kill for
+  forced Stop; completion is cgroup.events populated 0 followed by removal.
+  Without delegation, admission and every signal require pid_max at least
+  LINUX_PID_IDENTITY_MIN_PID_MAX (4,194,304), with a valid observed CLK_TCK.
+  The rig reads 100 Hz, so a starttime bucket is 10 ms (generally 1/CLK_TCK
+  seconds). This is an explicit assumption that a numerical PID cannot be
+  reused inside that bucket, not a uniqueness theorem derived from pid_max:
+  allocator wrap, occupied slots and churn are not bounded by this code.
+  A same-tick reuse can still alias an observed group identity despite fresh
+  parent/birth proofs in this fallback. Below the bound, unknown pid_max or
+  unavailable clock units refuse authority. No native same-tick reuse was
+  forced. Individual POSIX signals (including the specified freeze fallback)
+  still have a final membership/read-to-signal race; only cgroup.kill avoids
+  numerical PID action. User-space group observation also cannot reconstruct
+  an unobserved fork/reparent edge. All-spawn and lazy-bundle integration stay
+  C1/C2/W handoffs; Darwin and Windows authority is unchanged. See
+  docs/certification/m107-t3.md for native and deliberate guard-fire receipts.
 
 - **M107-T-native-and-integration (existing W/native handoff, FIXM107T).**
   The three RVM107T P2 findings are fixed; native Windows job execution,

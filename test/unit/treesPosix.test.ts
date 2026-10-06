@@ -184,7 +184,7 @@ describe('POSIX group and start-time proof', () => {
     expect(await reader.usage(scoped)).toBeNull()
     snapshot = { rows: [row(710)], cpuSeconds: null }
     reader.forget(scoped)
-    expect(await reader.usage(scoped)).toEqual({ cpuSeconds: 2, residentBytes: 4096 })
+    expect(await reader.usage(scoped)).toBeNull()
     expect(
       await reader.usage({ ...ticket, root: { ...ticket.root, startTime: 'whole seconds' } }),
     ).toBeNull()
@@ -268,6 +268,7 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
     scope ?? `/sys/fs/cgroup/user.slice/user-${String(process.getuid?.())}.slice/owned.scope`
   const cg = `${delegated}/check-1`
   const read = vi.fn((file: string) => {
+    if (file === '/proc/sys/kernel/pid_max') return Promise.resolve('4194304')
     const pid = /\/proc\/(\d+)\/stat$/.exec(file)?.[1]
     if (pid !== undefined) {
       const sample = samples.get(Number(pid))
@@ -283,13 +284,23 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
     Promise.resolve(args[0] === 'CLK_TCK' ? '100\n' : '4096\n'),
   )
   const reader = new LinuxResourceTreeReader({
+    homeCgroup: delegated,
+    pinDirectory: (directory) =>
+      Promise.resolve({
+        path: directory,
+        matches: () => Promise.resolve(true),
+        close: () => Promise.resolve(),
+      }),
     ownedCgroupRoot: scope ?? delegated,
     read,
     list: () => Promise.resolve(['self', '710', '711', '999']),
     canonical: (file) => Promise.resolve(file),
+    directories: (file) => Promise.resolve(file === cg ? ['nested'] : []),
     run,
     ...overrides,
   })
+  files.set(`${cg}/cgroup.procs`, '710\n')
+  files.set(`${cg}/nested/cgroup.procs`, '711\n')
   files.set('/proc/710/cgroup', `0::${cg.slice('/sys/fs/cgroup'.length)}\n`)
   files.set('/proc/711/cgroup', `0::${cg.slice('/sys/fs/cgroup'.length)}/nested\n`)
   files.set('/proc/999/cgroup', '0::/outside\n')
@@ -470,11 +481,17 @@ describe('Linux OS reader', () => {
         ? Promise.resolve(stat(row(710, '2000')))
         : original(file)
     })
-    expect(await reader.usage({ ...ticket, scope: { type: 'cgroup', path: cg } })).toBeNull()
+    expect(await reader.usage({ ...ticket, scope: { type: 'cgroup', path: cg } })).toEqual({
+      cpuSeconds: 12.5,
+      residentBytes: 4096,
+    })
+    expect(
+      await reader.contains({ ...ticket, scope: { type: 'cgroup', path: cg } }, ticket.root),
+    ).toBe(false)
   })
 
   it.each([999, 711])(
-    'omits a vanished cgroup row without losing the healthy tree (pid=%s)',
+    'ignores outsiders and omits vanished members without losing the healthy tree (pid=%s)',
     async (vanishedPid) => {
       const { read, samples, scoped, registry } = await registeredLinuxCgroup()
       const original = read.getMockImplementation()!
@@ -497,7 +514,7 @@ describe('Linux OS reader', () => {
     const { read, samples, scoped, registry } = await registeredLinuxCgroup()
     const original = read.getMockImplementation()!
     read.mockImplementation((file) =>
-      file === '/proc/999/cgroup'
+      file === '/proc/711/cgroup'
         ? Promise.reject(Object.assign(new Error('unreadable cgroup'), { code }))
         : original(file),
     )
