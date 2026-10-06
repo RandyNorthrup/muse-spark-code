@@ -142,5 +142,48 @@
     "exitCode": 1,
     "failedAssertions": ["\u00d7 still rejects a malformed reply 8ms"],
     "restoredSha256": "5ca3efeb15559d3635420b7896ca6dfb4de46222547a25aebdee7018176949c5"
+  },
+  {
+    "name": "state-shared-queue",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 serializes the same resolved record across independent store instances 143ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-cas-compare",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 refuses a stale revision and retries from the newer record before publication 63ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-newest-activity",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 migrates legacy activity records without overwriting a newer observation 61ms",
+      "\u00d7 keeps newest activity even when an older observation arrives later, with revision breaking ties 57ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
+  },
+  {
+    "name": "state-exclusive-publication",
+    "file": "src/runtime/settingsStore.ts",
+    "beforeSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9",
+    "exitCode": 1,
+    "failedAssertions": [
+      "\u00d7 serializes the same resolved record across independent store instances 137ms",
+      "\u00d7 refuses a stale revision and retries from the newer record before publication 49ms",
+      "\u00d7 refuses an owned or abandoned lock at the fixed deadline without stealing it 50ms"
+    ],
+    "restoredSha256": "3c9afced44cd18167e5b576a3eb9198c42322e18c009827123b94a96b37190e9"
   }
 ]

@@ -1,4 +1,7 @@
 import { createHash } from 'node:crypto'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import { build } from 'esbuild'
 import type * as FsPromises from 'node:fs/promises'
 import { mkdtemp, readFile, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -9,6 +12,8 @@ import { RUNTIME_STATE } from '../../src/shared/constants'
 import { filesUnder, removeFolder } from './helpers/temporaryFolders'
 
 const publishGate = vi.hoisted(() => ({
+  beforeLock: (_file: string): Promise<void> => Promise.resolve(),
+  lockAttempts: 0,
   isOn: false,
   arrivals: 0,
   heldFile: '',
@@ -19,6 +24,14 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const original = await importOriginal<typeof FsPromises>()
   return {
     ...original,
+    async open(...args: Parameters<typeof original.open>) {
+      const file = args[0].toString()
+      if (file.endsWith('.lock')) {
+        publishGate.lockAttempts += 1
+        await publishGate.beforeLock(file)
+      }
+      return await original.open(...args)
+    },
     async rename(...args: Parameters<typeof original.rename>) {
       if (publishGate.isOn) {
         publishGate.arrivals += 1
@@ -113,6 +126,178 @@ describe('runtime settings and storage', () => {
     }
     expect(await store.getStorage('ordered', 'user')).toBe(2)
   })
+  it('serializes the same resolved record across independent store instances', async () => {
+    const { root, store } = await setup()
+    const other = new RuntimeSettingsStore(path.join(root, '.'), '/workspace/one')
+    const release = Promise.withResolvers<boolean>()
+    publishGate.isOn = true
+    publishGate.arrivals = 0
+    publishGate.lockAttempts = 0
+    publishGate.released = release.promise
+    const writes: Promise<void>[] = []
+    try {
+      writes.push(store.setStorage('lastSession', { sessionId: 'older', at: 1 }, 'workspace'))
+      await vi.waitFor(() => {
+        expect(publishGate.arrivals).toBe(1)
+      })
+      writes.push(other.setStorage('lastSession', { sessionId: 'newer', at: 2 }, 'workspace'))
+      await new Promise((resolve) => setTimeout(resolve, OBSERVATION_MS))
+      expect(publishGate.arrivals).toBe(1)
+      expect(publishGate.lockAttempts).toBe(1)
+    } finally {
+      release.resolve(true)
+      await Promise.all(writes)
+      await Promise.all([store.settled(), other.settled()])
+      publishGate.isOn = false
+    }
+    expect(await store.getStorage('lastSession', 'workspace')).toEqual({
+      sessionId: 'newer',
+      at: 2,
+    })
+  })
+
+  it('refuses a stale revision and retries from the newer record before publication', async () => {
+    const { root, store } = await setup()
+    await store.setStorage('cas', 0, 'user')
+    const record = filesUnder(root).find((file) => file.endsWith('.json'))
+    if (record === undefined) throw new Error('missing record')
+    publishGate.lockAttempts = 0
+    let isFirst = true
+    publishGate.beforeLock = async () => {
+      if (!isFirst) return
+      isFirst = false
+      await writeFile(
+        record,
+        JSON.stringify({ version: RUNTIME_STATE.version, key: 'cas', value: 1, revision: 7 }),
+      )
+    }
+    try {
+      await store.setStorage('cas', 2, 'user')
+    } finally {
+      publishGate.beforeLock = () => Promise.resolve()
+    }
+    expect(publishGate.lockAttempts).toBe(2)
+    expect(JSON.parse(await readFile(record, 'utf8'))).toMatchObject({ value: 2, revision: 8 })
+  })
+
+  it('migrates legacy activity records without overwriting a newer observation', async () => {
+    const { root, store } = await setup()
+    await store.setStorage('lastSession', { sessionId: 'seed', at: 1 }, 'workspace')
+    const file = filesUnder(root).find((file) => file.endsWith('.json'))
+    if (file === undefined) throw new Error('missing record')
+    await writeFile(
+      file,
+      JSON.stringify({
+        version: 1,
+        key: 'lastSession',
+        value: { sessionId: 'legacy-newer', at: 2 },
+      }),
+    )
+    await store.setStorage('lastSession', { sessionId: 'older', at: 1 }, 'workspace')
+    expect(await store.getStorage('lastSession', 'workspace')).toEqual({
+      sessionId: 'legacy-newer',
+      at: 2,
+    })
+    await store.setStorage('lastSession', { sessionId: 'latest', at: 3 }, 'workspace')
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({
+      version: RUNTIME_STATE.version,
+      revision: 1,
+      activityAt: 3,
+    })
+  })
+
+  it('keeps newest activity even when an older observation arrives later, with revision breaking ties', async () => {
+    const { root, store } = await setup()
+    const other = new RuntimeSettingsStore(root, '/workspace/one')
+    await store.setStorage('lastSession', { sessionId: 'newer', at: 2 }, 'workspace')
+    await other.setStorage('lastSession', { sessionId: 'older', at: 1 }, 'workspace')
+    expect(await other.getStorage('lastSession', 'workspace')).toEqual({
+      sessionId: 'newer',
+      at: 2,
+    })
+    await other.setStorage('lastSession', { sessionId: 'tie', at: 2 }, 'workspace')
+    expect(await store.getStorage('lastSession', 'workspace')).toEqual({ sessionId: 'tie', at: 2 })
+  })
+
+  it('publishes setting changes to other same-root stores and preserves workspace isolation', async () => {
+    const { root, store } = await setup()
+    const other = new RuntimeSettingsStore(root, '/workspace/one')
+    const unrelated = new RuntimeSettingsStore(root, '/workspace/two')
+    const peer = vi.fn(),
+      elsewhere = vi.fn()
+    const stops = [other.onSettingsChanged(peer), unrelated.onSettingsChanged(elsewhere)]
+    try {
+      await store.updateSetting('museSpark.autosave', false, 'workspace')
+      expect(peer).toHaveBeenCalledExactlyOnceWith(['museSpark.autosave'])
+      expect(elsewhere).not.toHaveBeenCalled()
+      await store.updateSetting('museSpark.autosave', false, 'user')
+      expect(peer).toHaveBeenCalledTimes(2)
+      expect(elsewhere).toHaveBeenCalledOnce()
+    } finally {
+      for (const stop of stops) stop()
+    }
+  })
+
+  it('coordinates real separate processes without a lost revision or older restore', async () => {
+    const { root, store } = await setup()
+    const output = await build({
+      stdin: {
+        resolveDir: process.cwd(),
+        loader: 'ts',
+        contents: `
+      import { RuntimeSettingsStore } from './src/runtime/settingsStore';
+      const store = new RuntimeSettingsStore(process.argv[1], '/workspace/one');
+      store.setStorage('lastSession', { sessionId: 'process-' + process.argv[2], at: Number(process.argv[2]) }, 'workspace')
+        .then(() => store.settled()).catch(() => { process.exitCode = 1 });
+    `,
+      },
+      bundle: true,
+      write: false,
+      platform: 'node',
+      format: 'cjs',
+      logLevel: 'silent',
+    })
+    const code = output.outputFiles[0]?.text
+    if (code === undefined) throw new Error('missing fake writer')
+    await store.setStorage('lastSession', { sessionId: 'initial', at: 0 }, 'workspace')
+    await Promise.all(
+      [1, 2].map((at) =>
+        promisify(execFile)(process.execPath, ['-e', code, root, String(at)], { env: {} }),
+      ),
+    )
+    expect(await store.getStorage('lastSession', 'workspace')).toEqual({
+      sessionId: 'process-2',
+      at: 2,
+    })
+    const file = filesUnder(root).find((file) => file.endsWith('.json'))
+    if (file === undefined) throw new Error('missing record')
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({
+      version: RUNTIME_STATE.version,
+      revision: expect.any(Number),
+      activityAt: 2,
+    })
+    expect(filesUnder(root).every((entry) => entry.endsWith('.json'))).toBe(true)
+  })
+
+  it('refuses an owned or abandoned lock at the fixed deadline without stealing it', async () => {
+    const { root, store } = await setup()
+    await store.setStorage('locked', 1, 'user')
+    const file = filesUnder(root).find((entry) => entry.endsWith('.json'))
+    if (file === undefined) throw new Error('missing record')
+    await writeFile(`${file}.lock`, 'owned')
+    const clock = vi
+      .spyOn(Date, 'now')
+      .mockReturnValueOnce(0)
+      .mockReturnValue(RUNTIME_STATE.lockTimeoutMs)
+    try {
+      await expect(store.setStorage('locked', 2, 'user')).rejects.toThrow('MHP_STATE_LOCK_TIMEOUT')
+    } finally {
+      clock.mockRestore()
+    }
+    expect(await readFile(`${file}.lock`, 'utf8')).toBe('owned')
+    expect(await store.getStorage('locked', 'user')).toBe(1)
+  })
+
   it('uses shared defaults, validates updates, and gives workspace settings precedence', async () => {
     const { root, store } = await setup()
     expect(await store.getSetting('museSpark.autosave')).toBe(true)

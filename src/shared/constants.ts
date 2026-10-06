@@ -5329,7 +5329,10 @@ export const RUNTIME_STATE = {
   maximumKeyChars: 1024,
   directoryMode: 0o700,
   fileMode: 0o600,
-  version: 1,
+  version: 2,
+  lockTimeoutMs: 5000,
+  lockRetryMs: 25,
+  casAttempts: 8,
   folder: 'panel-state',
 } as const
 

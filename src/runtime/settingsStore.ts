@@ -8,16 +8,25 @@ import { storeErrorCode } from '../host/backend/storeErrors'
 import { countSecretMatches } from '../shared/redact'
 import { RUNTIME_STATE, SETTINGS_SECTION, SETTING_DEFAULTS } from '../shared/constants'
 import { jsonValueSchema, settingKeySchema } from '../shared/hostApi/data'
+import { setTimeout as delay } from 'node:timers/promises'
 import { workspaceKey } from './dataFolder'
 
-const recordSchema = z.strictObject({
-  version: z.literal(RUNTIME_STATE.version),
-  key: z.string().check(z.maxLength(RUNTIME_STATE.maximumKeyChars)),
-  value: jsonValueSchema,
-})
+const recordSchema = z
+  .strictObject({
+    version: z.union([z.literal(1), z.literal(RUNTIME_STATE.version)]),
+    revision: z.optional(z.number().check(z.int(), z.gte(0), z.lte(Number.MAX_SAFE_INTEGER))),
+    activityAt: z.optional(z.number().check(z.gte(0))),
+    key: z.string().check(z.maxLength(RUNTIME_STATE.maximumKeyChars)),
+    value: jsonValueSchema,
+  })
+  .check(z.refine((record) => record.version === 1 || record.revision !== undefined))
 type JsonValue = z.infer<typeof jsonValueSchema>
 type Scope = 'user' | 'workspace'
 type StoreKind = 'settings' | 'storage'
+// Separate ACP/panel store instances share the exact resolved record queue.
+const publications = new Map<string, Promise<void>>()
+const observers = new Map<string, Set<(key: string) => void>>()
+const activitySchema = z.object({ at: z.number().check(z.gte(0)) })
 const credentialName = /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)/iu
 
 /** Values have no credential lane; neither a secret-shaped value nor a named credential is stored. */
@@ -37,8 +46,7 @@ function checkValue(key: string, value: JsonValue): void {
 
 /** Per-key atomic records avoid unrelated writers replacing a whole shared map. */
 export class RuntimeSettingsStore {
-  private readonly writers = new Map<string, Promise<void>>()
-  private readonly listeners = new Set<(keys: readonly string[]) => void>()
+  private readonly writers = new Set<Promise<void>>()
 
   public constructor(
     private readonly root: string,
@@ -49,10 +57,14 @@ export class RuntimeSettingsStore {
     recordSchema.shape.key.parse(key)
     const name = createHash('sha256').update(key).digest('hex')
     const namespace = scope === 'user' ? 'global' : workspaceKey(this.workspaceRoot)
-    return path.join(this.root, RUNTIME_STATE.folder, kind, namespace, `${name}.json`)
+    return path.resolve(this.root, RUNTIME_STATE.folder, kind, namespace, `${name}.json`)
   }
 
-  private async read(kind: StoreKind, scope: Scope, key: string): Promise<JsonValue | undefined> {
+  private async readRecord(
+    kind: StoreKind,
+    scope: Scope,
+    key: string,
+  ): Promise<z.infer<typeof recordSchema> | undefined> {
     const file = this.file(kind, scope, key)
     let handle
     try {
@@ -76,33 +88,74 @@ export class RuntimeSettingsStore {
         if (part.bytesRead === 0) break
       }
       const raw: unknown = JSON.parse(new TextDecoder().decode(bytes.subarray(0, offset)))
-      const record = recordSchema.parse(raw)
+      const parsed = recordSchema.safeParse(raw)
+      if (!parsed.success) throw new Error('MHP_STATE_INVALID_RECORD')
+      const record = parsed.data
       if (record.key !== key) throw new Error('MHP_STATE_INVALID_RECORD')
       checkValue(key, record.value)
-      return record.value
+      return record
     } finally {
       await handle.close()
     }
   }
 
-  private async write(kind: StoreKind, scope: Scope, key: string, value: JsonValue): Promise<void> {
-    const file = this.file(kind, scope, key)
-    checkValue(key, value)
-    const record = recordSchema.parse({ version: RUNTIME_STATE.version, key, value })
-    const text = JSON.stringify(record)
-    if (Buffer.byteLength(text) > RUNTIME_STATE.maximumRecordBytes)
-      throw new Error('MHP_STATE_TOO_LARGE')
-    const previous = this.writers.get(file)
-    const writing = (async () => {
-      // A failed earlier write does not prevent a later explicitly requested update.
+  private async read(kind: StoreKind, scope: Scope, key: string): Promise<JsonValue | undefined> {
+    const record = await this.readRecord(kind, scope, key)
+    return record?.value
+  }
+
+  private async lock(file: string): Promise<() => Promise<void>> {
+    const deadline = Date.now() + RUNTIME_STATE.lockTimeoutMs
+    for (;;) {
       try {
-        await previous
-      } catch {
-        // Failure belongs to the earlier update; this explicit update still runs.
+        const handle = await open(`${file}.lock`, 'wx', RUNTIME_STATE.fileMode)
+        return async () => {
+          await handle.close()
+          await rm(`${file}.lock`)
+        }
+      } catch (error: unknown) {
+        if (storeErrorCode(error) !== 'EEXIST') throw error
+        // Never steal a live or abandoned lock: a bounded, named refusal is
+        // safer than two publishers believing they own the same CAS window.
+        if (Date.now() >= deadline) throw new Error('MHP_STATE_LOCK_TIMEOUT', { cause: error })
+        await delay(RUNTIME_STATE.lockRetryMs)
       }
-      await mkdir(path.dirname(file), { recursive: true, mode: RUNTIME_STATE.directoryMode })
+    }
+  }
+
+  private async publish(
+    kind: StoreKind,
+    scope: Scope,
+    key: string,
+    value: JsonValue,
+    activityAt?: number,
+  ): Promise<void> {
+    const file = this.file(kind, scope, key)
+    await mkdir(path.dirname(file), { recursive: true, mode: RUNTIME_STATE.directoryMode })
+    for (let attempt = 0; attempt < RUNTIME_STATE.casAttempts; attempt++) {
+      const observed = await this.readRecord(kind, scope, key)
+      const expected = observed?.revision ?? 0
+      const unlock = await this.lock(file)
       const temporary = `${file}.${randomUUID()}.tmp`
       try {
+        const current = await this.readRecord(kind, scope, key)
+        // The comparison and atomic rename are inside the same cross-process
+        // exclusive lock. Stale snapshots are refused and reread on retry.
+        if ((current?.revision ?? 0) !== expected) continue
+        const previousActivity = activitySchema.safeParse(current?.value)
+        const newestAt =
+          current?.activityAt ?? (previousActivity.success ? previousActivity.data.at : 0)
+        if (activityAt !== undefined && activityAt < newestAt) return
+        const record = recordSchema.parse({
+          version: RUNTIME_STATE.version,
+          key,
+          value,
+          revision: expected + 1,
+          ...(activityAt !== undefined && { activityAt }),
+        })
+        const text = JSON.stringify(record)
+        if (Buffer.byteLength(text) > RUNTIME_STATE.maximumRecordBytes)
+          throw new Error('MHP_STATE_TOO_LARGE')
         const handle = await open(temporary, 'wx', RUNTIME_STATE.fileMode)
         try {
           await handle.writeFile(text, 'utf8')
@@ -111,15 +164,43 @@ export class RuntimeSettingsStore {
           await handle.close()
         }
         await rename(temporary, file)
+        return
       } finally {
-        await rm(temporary, { force: true })
+        try {
+          await rm(temporary, { force: true })
+        } finally {
+          await unlock()
+        }
       }
+    }
+    throw new Error('MHP_STATE_VERSION_CONFLICT')
+  }
+
+  private async write(kind: StoreKind, scope: Scope, key: string, value: JsonValue): Promise<void> {
+    const file = this.file(kind, scope, key)
+    checkValue(key, value)
+    if (Buffer.byteLength(JSON.stringify(value)) > RUNTIME_STATE.maximumRecordBytes)
+      throw new Error('MHP_STATE_TOO_LARGE')
+    const activity = activitySchema.safeParse(value)
+    let activityAt: number | undefined
+    if (kind === 'storage' && key === 'lastSession')
+      activityAt = activity.success ? activity.data.at : Date.now()
+    const previous = publications.get(file)
+    const writing = (async () => {
+      try {
+        await previous
+      } catch {
+        /* A failed earlier update does not veto a new explicit update. */
+      }
+      await this.publish(kind, scope, key, value, activityAt)
     })()
-    this.writers.set(file, writing)
+    publications.set(file, writing)
+    this.writers.add(writing)
     try {
       await writing
     } finally {
-      if (this.writers.get(file) === writing) this.writers.delete(file)
+      this.writers.delete(writing)
+      if (publications.get(file) === writing) publications.delete(file)
     }
   }
 
@@ -127,7 +208,7 @@ export class RuntimeSettingsStore {
   public async settled(): Promise<void> {
     const failures: unknown[] = []
     while (this.writers.size > 0) {
-      const writes = await Promise.allSettled(this.writers.values())
+      const writes = await Promise.allSettled(this.writers)
       for (const write of writes) if (write.status === 'rejected') failures.push(write.reason)
     }
     if (failures.length > 0) throw new AggregateError(failures, 'MHP_STATE_WRITE_FAILED')
@@ -153,7 +234,8 @@ export class RuntimeSettingsStore {
     if (schema === undefined) throw new Error('MHP_STATE_UNKNOWN_SETTING')
     const parsed = jsonValueSchema.parse(schema.parse(value))
     await this.write('settings', scope, key, parsed)
-    for (const listener of this.listeners) listener([key])
+    const listeners = observers.get(this.file('settings', scope, key)) ?? []
+    for (const listener of listeners) listener(key)
   }
 
   public async getStorage(key: string, scope: Scope): Promise<JsonValue> {
@@ -165,9 +247,28 @@ export class RuntimeSettingsStore {
   }
 
   public onSettingsChanged(listener: (keys: readonly string[]) => void): () => void {
-    this.listeners.add(listener)
+    const notify = (key: string) => {
+      listener([key])
+    }
+    const files = Object.keys(SETTING_DEFAULTS).flatMap((name) =>
+      (['user', 'workspace'] as const).map((scope) =>
+        this.file('settings', scope, `${SETTINGS_SECTION}.${name}`),
+      ),
+    )
+    for (const file of files) {
+      let listeners = observers.get(file)
+      if (listeners === undefined) {
+        listeners = new Set()
+        observers.set(file, listeners)
+      }
+      listeners.add(notify)
+    }
     return () => {
-      this.listeners.delete(listener)
+      for (const file of files) {
+        const listeners = observers.get(file)
+        listeners?.delete(notify)
+        if (listeners?.size === 0) observers.delete(file)
+      }
     }
   }
 }
