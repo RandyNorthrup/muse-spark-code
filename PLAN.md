@@ -19787,6 +19787,21 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L6 private-group amendment (2026-10-06).** Retain the completed
+RVM104L5 Stop-discovery repair and its regressions. For POSIX ancestors only,
+adopt Debian OpenSSH's user-private-group refinement: group write is safe
+only when the component gid equals the current user's primary gid, its group
+name equals the user name, and system group/user membership lookups prove no
+other user belongs. Linux uses the installed getent interfaces to getgrgid,
+passwd enumeration and getgrouplist (initgroups); Darwin uses those libc
+lookups in the signed helper. Unavailable, malformed or incomplete lookup
+results refuse the exception. Keep private leaves 0700, world-write/sticky,
+owner, symlink, ACL and identity guards unchanged. Windows retains its native
+SID/DACL rule; POSIX groups confer no Windows authority. Extend the shared
+vectors for private, shared and unknown groups, test every condition and
+native Darwin parity, and remove the membership guard in byte-exact red
+drills. No dependency, merge, live call or native Linux/Windows claim.
+
 **FIXM104L5 root discovery (2026-10-06).** Repair RVM104L5's sole P2
 before any signal: independent Stop enumerates every platform candidate in
 its documented order, then previously selected roots recorded in a verified
@@ -21436,6 +21451,22 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**FIXM104L6 scoped certification (2026-10-06).** The rig brief reserves
+aggregate quality/coverage for the lead. Twelve complete owning/adjacent files
+pass 162 tests with one Windows skip in five serialized default-timeout
+invocations; failed preliminary contention batches and unchanged rechecks are
+recorded as M104L6-ADJACENT-CONTENTION in §9. Three new byte-exact guard drills,
+all five typechecks, scoped ESLint/Prettier, plain Knip, zero-clone duplication,
+cycles, fourteen-table localization, reference and production build guards
+pass. The source-keyed signed native fixtures and production universal Darwin
+build pass. Existing budgets remain unchanged, including authority 49.9/50 KiB.
+The W-owned host-API snapshot remains deferred: current Node counts are
+child_process 17, crypto 55, fs 39, fs/promises 57, os 12, path 99, process 5;
+this amendment adds only the os userInfo import to the prior discrepancy.
+VS Code APIs (332), importing files (31) and theme variables (61) do not change.
+W/lead reviews and regenerates at integration; this lane leaves its file intact.
+Native Linux/Windows and editor qualification remain the lead's reruns.
+
 **FIXM104L5 scoped certification (2026-10-06).** The rig/common brief
 reserves aggregate quality and full coverage for the lead; this repair runs
 12 complete owning/adjacent files (150 passed, one Windows-only skip), six
@@ -22456,6 +22487,35 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M104L6-ADJACENT-CONTENTION (2026-10-06).** A scoped batch once
+  refused a replaced broker recovery-lock pathname; its unchanged full-file
+  recheck and a recheck with HEAD's original trusted-path source pass. Another
+  batch's unchanged M107 native detached-member assertion once observed no
+  enrolled member; the complete native file passes in isolation at repository
+  deadlines. The latter repeats the previously recorded native sampling
+  qualification gap. No weakened identity check, native reader change,
+  timeout override or test filtering is used. Safe for this unmerged lane:
+  replacement still refuses before broker authority is used; process actions
+  still require verified registered identities, with the documented sampled
+  descendant limitation. Follow-up: L/T/integration stress exclusive broker
+  recovery and native enrollment under contention and resolve their lifecycle
+  fixture/admission protocols before declaring qualification. These are named
+  follow-ups, not fixed findings or an aggregate-quality receipt.
+
+- **FIXM104L6 private-group qualification (2026-10-06).** Group write grants
+  no authority unless the component gid, user's primary gid and matching
+  group/user names agree, and both primary and supplementary membership
+  lookups prove exclusivity. Lookup failures refuse; each verification samples
+  membership anew. Linux uses getent's NSS interfaces; no new dependency is
+  installed and missing getent refuses the exception. Darwin's libc predicate
+  and signed full-path helper are tested here; Linux NSS/root selection and
+  Windows native DACL vector runs remain named integration reruns. Safe for
+  this unmerged lane: no native Linux/Windows qualification or changed
+  world-write, private-leaf, ACL, owner, symlink or identity guarantee is
+  claimed. Follow-up: the lead runs the same vector/lifecycle suites on Linux
+  (including umask 002 home ancestry) and Windows, and reviews W's host-API
+  refresh. RVM104L5-F1 remains fixed, with no review residual.
 
 - **RVM104L5-F1 — fixed by FIXM104L5 (2026-10-06).** Independent Stop
   no longer chooses only the first root acceptable in its own environment.

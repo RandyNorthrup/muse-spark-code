@@ -388,5 +388,110 @@
     ],
     "posix": false,
     "windows": false
+  },
+  {
+    "name": "UPG group-writable",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 509,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false,
+        "group": "private"
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": true,
+    "windows": true
+  },
+  {
+    "name": "shared group-writable",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 509,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true,
+        "group": "shared"
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
+  },
+  {
+    "name": "unknown membership group-writable",
+    "components": [
+      {
+        "owner": "root",
+        "mode": 493,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      },
+      {
+        "owner": "user",
+        "mode": 509,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": true,
+        "group": "unknown"
+      },
+      {
+        "owner": "user",
+        "mode": 448,
+        "sticky": false,
+        "directory": true,
+        "symlink": false,
+        "acl": false,
+        "writableForeign": false
+      }
+    ],
+    "posix": false,
+    "windows": false
   }
 ]

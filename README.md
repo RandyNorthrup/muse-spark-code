@@ -514,9 +514,13 @@ or a duplicate owner UUID/generation across roots refuses before any signal,
 retaining ownership. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
 ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
 uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
-POSIX ancestors must be root/user-owned and not group/other writable; a
-root-owned sticky ancestor is allowed only with an immediately user-owned
-child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
+POSIX ancestors must be root/user-owned. Group write is allowed only for
+the user's private group: its gid is the user's primary gid, its name matches
+the user name, and system membership lookups prove it has no other members.
+Unavailable membership information refuses that exception. Linux requires
+`/usr/bin/getent` for those lookups; macOS uses the signed native helper.
+World write is refused except at a root-owned sticky ancestor with an
+immediately user-owned child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
 refuses reparse points and other SIDs' mutating grants throughout the ancestry,
 with protected owner/SYSTEM security at the private leaf.
 

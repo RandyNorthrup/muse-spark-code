@@ -84,9 +84,48 @@ func runProcIdentityIfRequested() {
 
 // M104L: OpenSSH StrictModes/safe_path over the real ancestry, not a chosen root.
 // https://github.com/openssh/openssh-portable/blob/master/misc.c
+// Debian OpenSSH's private-group refinement, including users whose primary
+// or supplementary membership is absent from gr_mem. Unknown lookup refuses.
+func isUserPrivateGroup(_ gid: gid_t) -> Bool {
+    guard gid == getgid(), let user = getpwuid(getuid()), user.pointee.pw_gid == gid,
+          let userName = user.pointee.pw_name else { return false }
+    let name = String(cString: userName)
+    guard let group = getgrgid(gid), let groupName = group.pointee.gr_name,
+          String(cString: groupName) == name, var members = group.pointee.gr_mem else { return false }
+    while let member = members.pointee {
+        guard String(cString: member) == name else { return false }
+        members = members.advanced(by: 1)
+    }
+    setpwent()
+    defer { endpwent() }
+    var foundUser = false
+    while true {
+        errno = 0
+        guard let entry = getpwent() else { return errno == 0 && foundUser }
+        guard let entryName = entry.pointee.pw_name else { return false }
+        let candidate = String(cString: entryName)
+        let primary = entry.pointee.pw_gid
+        if candidate == name {
+            guard entry.pointee.pw_uid == getuid(), primary == gid else { return false }
+            foundUser = true
+            continue
+        }
+        guard primary != gid else { return false }
+        var count: Int32 = 0
+        _ = getgrouplist(candidate, Int32(bitPattern: primary), nil, &count)
+        guard count > 0 else { return false }
+        var groups = [Int32](repeating: 0, count: Int(count))
+        guard getgrouplist(candidate, Int32(bitPattern: primary), &groups, &count) >= 0,
+              count > 0, count <= groups.count else { return false }
+        let known = groups.prefix(Int(count))
+        guard known.contains(Int32(bitPattern: primary)), !known.contains(Int32(bitPattern: gid)) else { return false }
+    }
+}
+
 struct PrivatePathComponent: Codable {
     let owner: String
     let mode: UInt32
+    let group: String?
     let sticky: Bool
     let directory: Bool
     let symlink: Bool
@@ -98,7 +137,9 @@ func privatePathAllows(_ rows: [PrivatePathComponent]) -> Bool {
     for (index, row) in rows.enumerated() {
         guard row.directory, !row.symlink, ["root", "user"].contains(row.owner),
               !needsUserChild || row.owner == "user" else { return false }
-        let writable = row.mode & 0o022 != 0
+        let groupWritable = row.mode & 0o020 != 0
+        let otherWritable = row.mode & 0o002 != 0
+        let writable = otherWritable || (groupWritable && row.group != "private")
         needsUserChild = writable && row.owner == "root" && row.sticky
         guard !writable || needsUserChild else { return false }
         if index == rows.count - 1 {
@@ -121,6 +162,7 @@ func verifyPrivatePath(_ input: String) -> Bool {
         logical = parent
     }
     var rows: [PrivatePathComponent] = []
+    var privateGroup: Bool?
     var next = canonical
     while true {
         var info = stat()
@@ -132,9 +174,14 @@ func verifyPrivatePath(_ input: String) -> Bool {
                 acl_free(UnsafeMutableRawPointer(acl)); hasAcl = true
             } else if errno != ENOENT { return false }
         }
+        var group: String? = nil
+        if info.st_mode & 0o020 != 0 && info.st_mode & 0o002 == 0 && info.st_gid == getgid() {
+            if privateGroup == nil { privateGroup = isUserPrivateGroup(info.st_gid) }
+            group = privateGroup == true ? "private" : "unknown"
+        }
         rows.insert(PrivatePathComponent(
             owner: info.st_uid == getuid() ? "user" : info.st_uid == 0 ? "root" : "foreign",
-            mode: UInt32(info.st_mode), sticky: info.st_mode & 0o1000 != 0,
+            mode: UInt32(info.st_mode), group: group, sticky: info.st_mode & 0o1000 != 0,
             directory: info.st_mode & S_IFMT == S_IFDIR,
             symlink: info.st_mode & S_IFMT == S_IFLNK, acl: hasAcl), at: 0)
         let parent = (next as NSString).deletingLastPathComponent
@@ -145,6 +192,11 @@ func verifyPrivatePath(_ input: String) -> Bool {
 }
 func runPrivateDirectoryIfRequested() {
     guard let command = CommandLine.arguments.dropFirst().first else { return }
+    if command == "private-group" {
+        guard CommandLine.arguments.count == 3, let gid = gid_t(CommandLine.arguments[2]),
+              let data = try? JSONSerialization.data(withJSONObject: ["private": isUserPrivateGroup(gid)]) else { exit(2) }
+        FileHandle.standardOutput.write(data); exit(0)
+    }
     if command == "private-temp" {
         let length = confstr(_CS_DARWIN_USER_TEMP_DIR, nil, 0)
         guard length > 0 else { exit(2) }

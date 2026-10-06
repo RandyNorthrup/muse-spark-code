@@ -122,7 +122,8 @@ async function createTrustedRoot(root: string, packageRoot: string) {
       existing = path.dirname(existing)
     }
   }
-  if (process.platform !== 'win32') await verifyTrustedPath(existing, false)
+  if (process.platform !== 'win32')
+    await verifyTrustedPath(existing, false, undefined, undefined, packageRoot)
   for (const directory of missing) await privateDirectory(directory, true, packageRoot)
 }
 
@@ -234,7 +235,7 @@ export async function privateDirectory(
   }
   let isNew = false
   if (shouldCreate) {
-    await verifyTrustedPath(path.dirname(directory), false)
+    await verifyTrustedPath(path.dirname(directory), false, undefined, undefined, packageRoot)
     try {
       await mkdir(directory, { mode: LSP_LIMITS.directoryMode })
       isNew = true
@@ -242,9 +243,15 @@ export async function privateDirectory(
       if (!(error instanceof Error && 'code' in error && error.code === 'EEXIST')) throw error
     }
   }
-  await verifyTrustedPath(directory, true, async (handle) => {
-    await verifyPrivateHandle(handle, true, packageRoot)
-  })
+  await verifyTrustedPath(
+    directory,
+    true,
+    async (handle) => {
+      await verifyPrivateHandle(handle, true, packageRoot)
+    },
+    undefined,
+    packageRoot,
+  )
   return { isNew }
 }
 

@@ -2,8 +2,86 @@ import { constants } from 'node:fs'
 import { open, realpath, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
+import { userInfo } from 'node:os'
+import * as z from 'zod/mini'
+import { runProgram } from '../host/processTree'
+import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { handleIdentity, lstatIdentity, sameFile } from '../core/fs/fileIdentity'
 import { LSP_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../shared/constants'
+
+/** System lookups only: never infer exclusive membership from a matching name. */
+async function isUserPrivateGroup(gid: bigint, packageRoot: string): Promise<boolean> {
+  const current = userInfo()
+  if (gid !== BigInt(current.gid) || process.getgid?.() !== current.gid) return false
+  const env = withoutKeyringRoutes(withoutCredentials(process.env))
+  try {
+    if (process.platform === 'darwin') {
+      const output = await runProgram(
+        path.join(packageRoot, 'native', 'darwin', 'muse-dictate'),
+        ['private-group', String(gid)],
+        env,
+      )
+      return z.strictObject({ private: z.boolean() }).parse(JSON.parse(output)).private
+    }
+    // glibc getent group uses getgrgid; initgroups uses getgrouplist. Enumerate
+    // passwd too: a primary-group member need not appear in the group's list.
+    const lookup = async (args: readonly string[]) => {
+      const output = await runProgram('/usr/bin/getent', args, env)
+      return output.trim()
+    }
+    const groupText = await lookup(['group', String(gid)])
+    const group = groupText.split(':')
+    if (
+      group.length !== LSP_LIMITS.groupFields ||
+      group[0] !== current.username ||
+      group[2] !== String(gid) ||
+      group[3]?.split(',').some((member) => member !== '' && member !== current.username)
+    )
+      return false
+    const usersText = await lookup(['passwd'])
+    const users = usersText.split('\n').map((line) => line.split(':'))
+    if (
+      users.every(
+        (row) =>
+          !(
+            row[0] === current.username &&
+            row[2] === String(current.uid) &&
+            row[3] === String(gid)
+          ),
+      )
+    )
+      return false
+    for (const row of users) {
+      const name = row[0]
+      if (
+        !name ||
+        row.length !== LSP_LIMITS.passwdFields ||
+        !/^\d+$/u.test(row[2] ?? '') ||
+        !/^\d+$/u.test(row[3] ?? '')
+      )
+        return false
+      if (name === current.username) {
+        if (row[2] !== String(current.uid) || row[3] !== String(gid)) return false
+        continue
+      }
+      if (row[3] === String(gid)) return false
+      const groupsText = await lookup(['initgroups', name])
+      const groups = groupsText.split(/\s+/u)
+      if (
+        groups.shift() !== name ||
+        groups.length === 0 ||
+        groups.some((value) => !/^\d+$/u.test(value)) ||
+        !groups.includes(row[3] ?? '') ||
+        groups.includes(String(gid))
+      )
+        return false
+    }
+    return true
+  } catch {
+    // Failed NSS/native lookup cannot prove exclusive membership.
+    return false
+  }
+}
 
 /** OpenSSH misc.c safe_path / StrictModes, with the root-owned sticky exception.
  * https://github.com/openssh/openssh-portable/blob/master/misc.c
@@ -14,6 +92,7 @@ export async function verifyTrustedPath(
   isPrivateLeaf = true,
   nativeVerify?: (handle: FileHandle) => Promise<void>,
   windowsVerify?: () => Promise<void>,
+  packageRoot = path.resolve(__dirname, '..'),
 ) {
   if (process.platform === 'win32') {
     if (windowsVerify === undefined) throw new Error('ELSP_PRIVATE: native path verifier required')
@@ -42,6 +121,7 @@ export async function verifyTrustedPath(
       if (next === path.dirname(next)) break
     }
   }
+  let privateGroup: Promise<boolean> | undefined
   let requiresUserChild = false
   let leaf
   for (const component of components) {
@@ -57,8 +137,14 @@ export async function verifyTrustedPath(
       if (!info.isDirectory()) refuse('not a directory')
       if (info.uid !== current && info.uid !== WORKSPACE_IDENTITY_ZERO) refuse('foreign owner')
       if (requiresUserChild && info.uid !== current) refuse('sticky parent needs user-owned child')
-      const isWritable =
-        (info.mode & BigInt(constants.S_IWGRP | constants.S_IWOTH)) !== WORKSPACE_IDENTITY_ZERO
+      const isGroupWritable = (info.mode & BigInt(constants.S_IWGRP)) !== WORKSPACE_IDENTITY_ZERO
+      const isOtherWritable = (info.mode & BigInt(constants.S_IWOTH)) !== WORKSPACE_IDENTITY_ZERO
+      let isSafeGroup = false
+      if (isGroupWritable && !isOtherWritable && info.gid === BigInt(process.getgid?.() ?? -1)) {
+        privateGroup ??= isUserPrivateGroup(info.gid, packageRoot)
+        isSafeGroup = await privateGroup
+      }
+      const isWritable = isOtherWritable || (isGroupWritable && !isSafeGroup)
       requiresUserChild =
         isWritable &&
         info.uid === WORKSPACE_IDENTITY_ZERO &&

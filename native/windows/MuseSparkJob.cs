@@ -283,6 +283,8 @@ public static class MuseSparkPrivateDirectory {
   }
 
   // Shared vectors exercise the exact owner/type/write predicate used by Inspect.
+  // POSIX private groups have no Windows authority: a foreign mutating SID
+  // always refuses, while a grant solely to the current user's SID is safe.
   public static bool AllowsComponent(string owner, bool directory, bool reparse, bool unsafeAcl, bool writableForeign, bool leaf) {
     return directory && !reparse && !unsafeAcl && !writableForeign &&
       (leaf ? owner == "user" : owner == "user" || owner == "root");

@@ -5377,6 +5377,8 @@ export const CONVERSATION_MODEL_TEXT = {
 /** M104L: limits shared by stdio LSP and its private workspace broker. */
 export const LSP_SERVER_NOT_INITIALIZED = -32_002
 export const LSP_LIMITS = {
+  groupFields: 4,
+  passwdFields: 7,
   stickyMode: 0o1000,
   headerBytes: 8192,
   headerDelimiterBytes: 4,

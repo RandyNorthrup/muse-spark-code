@@ -37,6 +37,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Trusted POSIX runtime paths accept group-writable ancestors only when system
+  lookups prove the group is the user's private primary group. Shared or unknown
+  membership still refuses; private leaves remain 0700.
+
 - Independent Stop searches every verified runtime root and remembered root
   location before signalling, so changed XDG/TMPDIR values or repaired earlier
   candidates cannot hide a running supervisor. Owner records bind their trust

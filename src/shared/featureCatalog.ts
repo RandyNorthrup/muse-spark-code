@@ -4,7 +4,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp',
     behavior:
-      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL, resolved record identity and directory identity verified before contents are written; one StrictModes verifier checks the full real ancestry to the filesystem root, including root-owned sticky parents only with user-owned children; platform root selection records refusals and its chosen path, refusing startup if none qualifies; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
+      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL, resolved record identity and directory identity verified before contents are written; one StrictModes verifier checks the full real ancestry to the filesystem root, including root-owned sticky parents only with user-owned children and group write only for a primary group named for the user with proven exclusive membership; unknown membership refuses; platform root selection records refusals and its chosen path, refusing startup if none qualifies; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
   },
   {
     command: 'lsp --workspace <directory>',
