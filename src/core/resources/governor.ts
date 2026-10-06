@@ -10,6 +10,7 @@ import {
   RESOURCE_MEMORY_ENTER_SAMPLES,
   RESOURCE_MEMORY_HYSTERESIS_GIB,
   RESOURCE_MIN_DWELL_MS,
+  RESOURCE_OPTIONAL_MIN_PERCENT,
   RESOURCE_OVERRIDE_MS,
   RESOURCE_SAMPLE_MS,
 } from '../../shared/constants'
@@ -57,6 +58,7 @@ export class ResourceGovernor {
   private criticalSince: number | undefined
   private recoveredSince: number | undefined
   private overrideUntil: number | null = null
+  private expiredOverrideAt: number | null = null
   private cancelOverride: (() => void) | undefined
   private cancelSample: (() => void) | undefined
   private pending: Promise<void> | undefined
@@ -79,21 +81,34 @@ export class ResourceGovernor {
     // Yield before a port that may throw synchronously, so pending is installed first.
     await Promise.resolve()
     try {
-      const sample = resourceSampleSchema.parse(await this.options.sampler.sample())
-      if (!this.disposed) this.evaluate(sample)
-    } catch (error) {
-      if (!this.disposed) {
-        this.options.onError(error)
-        this.evaluate({
-          atMs: this.options.clock.now(),
-          cpuPercent: null,
-          memoryUsedPercent: null,
-          memoryAvailableBytes: null,
-          memoryTotalBytes: null,
-          gpuPercent: null,
-          diskBusyPercent: null,
-          pressure: null,
-        })
+      for (;;) {
+        const requestedAt = this.options.clock.now()
+        try {
+          const sample = resourceSampleSchema.parse(await this.options.sampler.sample())
+          if (this.disposed) return
+          // Keep the shared promise pending while an older read drains, then sample serially.
+          if (this.expiredOverrideAt !== null && requestedAt < this.expiredOverrideAt) continue
+          if (this.expiredOverrideAt !== null && sample.atMs < this.expiredOverrideAt)
+            throw new Error('Resource sample predates override expiry')
+          this.expiredOverrideAt = null
+          this.evaluate(sample)
+        } catch (error) {
+          if (!this.disposed) {
+            if (this.expiredOverrideAt !== null && requestedAt < this.expiredOverrideAt) continue
+            this.options.onError(error)
+            this.evaluate({
+              atMs: this.options.clock.now(),
+              cpuPercent: null,
+              memoryUsedPercent: null,
+              memoryAvailableBytes: null,
+              memoryTotalBytes: null,
+              gpuPercent: null,
+              diskBusyPercent: null,
+              pressure: null,
+            })
+          }
+        }
+        return
       }
     } finally {
       this.pending = undefined
@@ -104,13 +119,25 @@ export class ResourceGovernor {
     const percentage = (metric: Metric, value: number | null, limit: number): Threshold => ({
       metric,
       high: value === null ? null : value >= limit,
-      recovered: value !== null && value < limit - RESOURCE_HYSTERESIS_POINTS,
+      recovered:
+        value !== null &&
+        value <
+          limit -
+            Math.max(RESOURCE_OPTIONAL_MIN_PERCENT / 2, (limit * RESOURCE_HYSTERESIS_POINTS) / 100),
     })
     const floor =
       sample.memoryTotalBytes === null
         ? null
         : resourceMemoryFloorBytes(this.settings, sample.memoryTotalBytes)
     const free = sample.memoryAvailableBytes
+    const memoryMargin =
+      sample.memoryTotalBytes === null
+        ? null
+        : Math.min(
+            sample.memoryTotalBytes / 2,
+            RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,
+            Math.max(1, (sample.memoryTotalBytes * RESOURCE_HYSTERESIS_POINTS) / 100),
+          )
     const readings: Threshold[] = [
       percentage('cpu', sample.cpuPercent, this.settings.cpuMaxPercent),
       percentage('memoryUsed', sample.memoryUsedPercent, this.settings.memoryMaxPercent),
@@ -118,9 +145,7 @@ export class ResourceGovernor {
         metric: 'memoryFree',
         high: free === null || floor === null ? null : free < floor,
         recovered:
-          free !== null &&
-          floor !== null &&
-          free > floor + RESOURCE_MEMORY_HYSTERESIS_GIB * RESOURCE_GIB_BYTES,
+          free !== null && floor !== null && memoryMargin !== null && free > floor + memoryMargin,
       },
     ]
     if (this.settings.gpuMaxPercent !== null)
@@ -241,6 +266,7 @@ export class ResourceGovernor {
 
     this.cancelOverride?.()
     this.overrideUntil = null
+    this.expiredOverrideAt = null
     this.change('normal', 'disabled')
   }
 
@@ -249,11 +275,14 @@ export class ResourceGovernor {
     this.cancelOverride?.()
     const atMs = this.options.clock.now()
     this.overrideUntil = atMs + RESOURCE_OVERRIDE_MS
+    this.expiredOverrideAt = null
     this.resetWindows()
     this.change('normal', 'override')
     this.options.events.publish({ type: 'override', atMs, untilMs: this.overrideUntil })
     this.cancelOverride = this.options.clock.setTimeout(() => {
       this.overrideUntil = null
+      this.expiredOverrideAt = this.options.clock.now()
+      this.resetWindows()
       // A fresh reading, never the cached sample, decides when the override ends.
       void this.refresh()
     }, RESOURCE_OVERRIDE_MS)
@@ -273,6 +302,7 @@ export class ResourceGovernor {
     this.cancelSample?.()
     this.cancelOverride?.()
     this.overrideUntil = null
+    this.expiredOverrideAt = null
   }
 
   refresh(): Promise<void> {

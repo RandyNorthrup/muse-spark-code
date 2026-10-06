@@ -244,17 +244,17 @@ describe('resource governor levels', () => {
     await f.read(5000, { gpuPercent: 10, diskBusyPercent: 10 })
     await f.series(65_000, { gpuPercent: null, diskBusyPercent: 10 })
     expect(f.governor.level()).toBe('pause')
-    await f.series(125_000, { gpuPercent: 60, diskBusyPercent: 10 })
+    await f.series(125_000, { gpuPercent: 63, diskBusyPercent: 10 })
     expect(f.governor.level()).toBe('pause')
-    await f.series(185_000, { gpuPercent: 59, diskBusyPercent: 70 })
+    await f.series(185_000, { gpuPercent: 62, diskBusyPercent: 72 })
     expect(f.governor.level()).toBe('pause')
     await f.series(245_000, {
-      gpuPercent: 59,
-      diskBusyPercent: 69,
+      gpuPercent: 62,
+      diskBusyPercent: 71,
       memoryAvailableBytes: 2.5 * RESOURCE_GIB_BYTES,
     })
     expect(f.governor.level()).toBe('pause')
-    await f.series(310_000, { gpuPercent: 59, diskBusyPercent: 69 })
+    await f.series(310_000, { gpuPercent: 62, diskBusyPercent: 71 })
     expect(f.governor.level()).toBe('relocate')
     await f.series(375_000, { cpuPercent: null, gpuPercent: null, diskBusyPercent: null })
     expect(f.governor.level()).toBe('relocate')
@@ -279,12 +279,140 @@ describe('resource governor levels', () => {
     expect(disk.seen.at(-1)).toMatchObject({ reason: 'disk' })
   })
 
+  it.each(['gpuPercent', 'diskBusyPercent'] as const)(
+    'recovers from sustained %s overload at limits from 1 to 10 percent',
+    async (metric) => {
+      for (const limit of [1, 1.5, 5, 10]) {
+        const settings = resourceSettingsSchema.parse({
+          [metric === 'gpuPercent' ? 'gpuMaxPercent' : 'diskBusyMaxPercent']: limit,
+          relocate: 'off',
+        })
+        const f = setup(settings)
+        await f.read(0, { [metric]: limit })
+        await f.series(90_000, { [metric]: limit })
+        expect(f.governor.level(), `${metric} limit ${String(limit)}`).toBe('pause')
+        await f.series(215_000, { [metric]: 0 })
+        expect(f.governor.level(), `${metric} limit ${String(limit)}`).toBe('normal')
+      }
+    },
+  )
+
+  it('has a reachable percentage recovery band across the full valid settings ranges', async () => {
+    for (let limit = 1; limit <= 100; limit += 0.25) {
+      const settings = resourceSettingsSchema.parse({
+        cpuMaxPercent: Math.max(30, limit),
+        memoryMaxPercent: Math.min(98, Math.max(40, limit)),
+        gpuMaxPercent: limit,
+        diskBusyMaxPercent: limit,
+        relocate: 'off',
+      })
+      const f = setup(settings)
+      const idle = { cpuPercent: 0, memoryUsedPercent: 0, gpuPercent: 0, diskBusyPercent: 0 }
+      await f.read(0, { ...idle, memoryAvailableBytes: 0 })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(125_000, idle)
+      expect(f.governor.level(), `settings at limit ${String(limit)}`).toBe('normal')
+    }
+  })
+
   it.each([
-    ['cpu band', { cpuPercent: 75 }],
-    ['memory-used band', { memoryUsedPercent: 80 }],
+    [1, 0.5],
+    [2, 1.5],
+    [5, 4.5],
+    [10, 9],
+    [100, 90],
+  ])(
+    'holds the relative recovery boundary %s → %s with a half-point margin floor',
+    async (limit, boundary) => {
+      const f = setup(resourceSettingsSchema.parse({ gpuMaxPercent: limit, relocate: 'off' }))
+      await f.read(0, { gpuPercent: 0, memoryAvailableBytes: 0 })
+      await f.series(65_000, { gpuPercent: boundary })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(130_000, { gpuPercent: boundary - 0.25 })
+      expect(f.governor.level()).toBe('throttle')
+    },
+  )
+
+  it('recovers on a 512 MiB container with default memory settings', async () => {
+    const f = setup()
+    const total = RESOURCE_GIB_BYTES / 2
+    await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+    expect(f.governor.level()).toBe('pause')
+    await f.series(185_000, {
+      memoryUsedPercent: 0,
+      memoryAvailableBytes: total,
+      memoryTotalBytes: total,
+    })
+    expect(f.governor.level()).toBe('normal')
+    expect(f.onError).not.toHaveBeenCalled()
+  })
+
+  it('has a reachable free-memory recovery band across all valid floor settings and machine sizes', async () => {
+    for (let floorGiB = 0.5; floorGiB <= 64; floorGiB += 0.5) {
+      for (const total of [
+        1,
+        2,
+        1024,
+        RESOURCE_GIB_BYTES / 2,
+        8 * RESOURCE_GIB_BYTES,
+        1024 * RESOURCE_GIB_BYTES,
+      ]) {
+        const f = setup(
+          resourceSettingsSchema.parse({ memoryMinFreeGiB: floorGiB, relocate: 'off' }),
+        )
+        await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+        expect(f.governor.level()).toBe('pause')
+        await f.series(125_000, {
+          memoryUsedPercent: 0,
+          memoryAvailableBytes: total,
+          memoryTotalBytes: total,
+        })
+        expect(f.governor.level(), `${String(floorGiB)} GiB floor on ${String(total)} bytes`).toBe(
+          'normal',
+        )
+        expect(f.onError).not.toHaveBeenCalled()
+      }
+    }
+  })
+
+  it('keeps the free-memory margin floor below the tiny-machine headroom', async () => {
+    const f = setup(resourceSettingsSchema.parse({ relocate: 'off' }))
+    await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: 2 })
+    await f.series(65_000, { memoryUsedPercent: 0, memoryAvailableBytes: 1, memoryTotalBytes: 2 })
+    expect(f.governor.level()).toBe('pause')
+    await f.series(190_000, { memoryUsedPercent: 0, memoryAvailableBytes: 2, memoryTotalBytes: 2 })
+    expect(f.governor.level()).toBe('normal')
+  })
+
+  it.each([
+    [RESOURCE_GIB_BYTES / 2, RESOURCE_GIB_BYTES / 8],
+    [16 * RESOURCE_GIB_BYTES, 2.5 * RESOURCE_GIB_BYTES],
+  ])(
+    'holds the scaled/capped memory recovery boundary on a %s-byte machine',
+    async (total, boundary) => {
+      const f = setup(resourceSettingsSchema.parse({ relocate: 'off' }))
+      await f.read(0, { memoryAvailableBytes: 0, memoryTotalBytes: total })
+      await f.series(65_000, {
+        memoryUsedPercent: 0,
+        memoryAvailableBytes: boundary,
+        memoryTotalBytes: total,
+      })
+      expect(f.governor.level()).toBe('pause')
+      await f.series(130_000, {
+        memoryUsedPercent: 0,
+        memoryAvailableBytes: boundary + 1,
+        memoryTotalBytes: total,
+      })
+      expect(f.governor.level()).toBe('throttle')
+    },
+  )
+
+  it.each([
+    ['cpu band', { cpuPercent: 76.5 }],
+    ['memory-used band', { memoryUsedPercent: 81 }],
     ['free-memory band', { memoryAvailableBytes: 2.5 * RESOURCE_GIB_BYTES }],
-    ['GPU band', { gpuPercent: 60 }],
-    ['disk band', { diskBusyPercent: 70 }],
+    ['GPU band', { gpuPercent: 63 }],
+    ['disk band', { diskBusyPercent: 72 }],
     ['unknown CPU', { cpuPercent: null }],
     ['unknown used memory', { memoryUsedPercent: null }],
     ['unknown available memory', { memoryAvailableBytes: null }],
@@ -372,6 +500,149 @@ describe('resource governor levels', () => {
     f.governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
     expect(f.governor.level()).toBe('normal')
     expect(f.seen.at(-1)).toMatchObject({ reason: 'disabled' })
+  })
+
+  it.each([
+    [false, RESOURCE_OVERRIDE_MS - 1000],
+    [true, RESOURCE_OVERRIDE_MS - 1000],
+    [false, RESOURCE_OVERRIDE_MS],
+    [true, RESOURCE_OVERRIDE_MS],
+  ] as const)(
+    'waits for a serial post-expiry sample when an older read is pending (fresh critical: %s, older time: %s)',
+    async (freshCritical, olderAt) => {
+      const older = Promise.withResolvers<ResourceSample>()
+      const fresh = Promise.withResolvers<ResourceSample>()
+      const sampler = {
+        sample: vi
+          .fn<() => Promise<ResourceSample>>()
+          .mockResolvedValueOnce(sample(0, { memoryAvailableBytes: 0 }))
+          .mockReturnValueOnce(older.promise)
+          .mockReturnValueOnce(fresh.promise),
+      }
+      const f = setup(undefined, sampler)
+      await f.governor.refresh()
+      f.governor.resumeNow()
+      f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+      const pending = f.governor.refresh()
+      await Promise.resolve()
+      expect(sampler.sample).toHaveBeenCalledTimes(2)
+      f.clock.advance(1000)
+      expect(f.governor.status([]).overrideUntilMs).toBeNull()
+      expect(sampler.sample).toHaveBeenCalledTimes(2)
+      older.resolve(
+        sample(olderAt, {
+          memoryAvailableBytes: freshCritical ? 8 * RESOURCE_GIB_BYTES : 0,
+        }),
+      )
+      await Promise.resolve()
+      expect(sampler.sample).toHaveBeenCalledTimes(3)
+      expect(f.governor.refresh()).toBe(pending)
+      expect(f.governor.status([]).sample!.atMs).toBe(0)
+      expect(f.governor.level()).toBe('normal')
+      fresh.resolve(
+        sample(RESOURCE_OVERRIDE_MS, {
+          memoryAvailableBytes: freshCritical ? 0 : 8 * RESOURCE_GIB_BYTES,
+        }),
+      )
+      await pending
+      expect(f.governor.level()).toBe(freshCritical ? 'pause' : 'normal')
+      expect(f.governor.status([]).sample!.atMs).toBe(RESOURCE_OVERRIDE_MS)
+      expect(f.onError).not.toHaveBeenCalled()
+    },
+  )
+
+  it('requests the post-expiry sample even when the older read rejects', async () => {
+    const older = Promise.withResolvers<ResourceSample>()
+    const fresh = Promise.withResolvers<ResourceSample>()
+    const sampler = {
+      sample: vi
+        .fn<() => Promise<ResourceSample>>()
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(fresh.promise),
+    }
+    const f = setup(undefined, sampler)
+    f.governor.resumeNow()
+    f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+    f.governor.start()
+    f.clock.advance(0)
+    const pending = f.governor.refresh()
+    await Promise.resolve()
+    f.clock.advance(1000)
+    older.reject(new Error('Pre-expiry read failed'))
+    await Promise.resolve()
+    expect(sampler.sample).toHaveBeenCalledTimes(2)
+    fresh.resolve(sample(RESOURCE_OVERRIDE_MS, { memoryAvailableBytes: 0 }))
+    await pending
+    expect(f.governor.level()).toBe('pause')
+    expect(f.onError).not.toHaveBeenCalled()
+  })
+
+  it('refuses a pre-expiry timestamp returned by the newly requested sample and can retry', async () => {
+    const sampler = {
+      sample: vi
+        .fn<() => Promise<ResourceSample>>()
+        .mockRejectedValueOnce(new Error('Fresh read failed'))
+        .mockResolvedValueOnce(sample(RESOURCE_OVERRIDE_MS - 1, { memoryAvailableBytes: 0 }))
+        .mockResolvedValueOnce(
+          sample(RESOURCE_OVERRIDE_MS + RESOURCE_SAMPLE_MS, { memoryAvailableBytes: 0 }),
+        ),
+    }
+    const f = setup(undefined, sampler)
+    f.governor.resumeNow()
+    f.clock.advance(RESOURCE_OVERRIDE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    expect(f.governor.status([]).sample).toMatchObject({
+      atMs: RESOURCE_OVERRIDE_MS,
+      memoryAvailableBytes: null,
+    })
+    expect(f.onError).toHaveBeenCalledTimes(1)
+    f.clock.advance(RESOURCE_SAMPLE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    expect(f.onError).toHaveBeenCalledTimes(2)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('pause')
+  })
+
+  it.each(['renew', 'disable', 'dispose'] as const)(
+    'cancels pending expiry freshness on %s without starting another read',
+    async (action) => {
+      const older = Promise.withResolvers<ResourceSample>()
+      const sampler = {
+        sample: vi.fn<() => Promise<ResourceSample>>().mockReturnValue(older.promise),
+      }
+      const f = setup(undefined, sampler)
+      f.governor.resumeNow()
+      f.clock.advance(RESOURCE_OVERRIDE_MS - 1000)
+      const pending = f.governor.refresh()
+      await Promise.resolve()
+      f.clock.advance(1000)
+      if (action === 'renew') f.governor.resumeNow()
+      else if (action === 'disable')
+        f.governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
+      else f.governor.dispose()
+      older.resolve(sample(RESOURCE_OVERRIDE_MS - 1000, { memoryAvailableBytes: 0 }))
+      await pending
+      expect(sampler.sample).toHaveBeenCalledTimes(1)
+      expect(f.governor.level()).toBe('normal')
+      expect(f.onError).not.toHaveBeenCalled()
+    },
+  )
+
+  it('starts sustained and critical CPU evidence again from the fresh expiry sample', async () => {
+    const f = setup()
+    f.governor.resumeNow()
+    await f.read(0, { cpuPercent: 97 })
+    await f.series(RESOURCE_OVERRIDE_MS - RESOURCE_SAMPLE_MS, { cpuPercent: 97 })
+    f.steps.push(sample(RESOURCE_OVERRIDE_MS, { cpuPercent: 97 }))
+    f.clock.advance(RESOURCE_SAMPLE_MS)
+    await f.governor.refresh()
+    expect(f.governor.level()).toBe('normal')
+    await f.series(RESOURCE_OVERRIDE_MS + 30_000, { cpuPercent: 97 })
+    expect(f.governor.level()).toBe('throttle')
+    await f.series(RESOURCE_OVERRIDE_MS + 60_000, { cpuPercent: 97 })
+    expect(f.governor.level()).toBe('pause')
   })
 
   it('shares pending samples, starts one serial timer, and discards a sample after disposal', async () => {
