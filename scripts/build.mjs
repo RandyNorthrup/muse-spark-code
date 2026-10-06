@@ -150,6 +150,8 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
+const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
+const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
@@ -446,6 +448,16 @@ const acpOptions = {
   banner: { js: '#!/usr/bin/env node' },
 }
 
+const fontInstallOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [FONT_INSTALL_ENTRY],
+  outfile: FONT_INSTALL_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -589,6 +601,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(fontInstallOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -635,7 +648,8 @@ if (isWatch) {
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
-  const builds = [...Object.values(shipped), acp]
+  const fontInstall = esbuild.build(fontInstallOptions)
+  const builds = [...Object.values(shipped), acp, fontInstall]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -647,6 +661,8 @@ if (isWatch) {
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
+    const { metafile: fontsMetafile } = await fontInstall
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'fontsInstall.json'), JSON.stringify(fontsMetafile))
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
   }
