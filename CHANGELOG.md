@@ -37,6 +37,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Independent Stop searches every verified runtime root and remembered root
+  location before signalling, so changed XDG/TMPDIR values or repaired earlier
+  candidates cannot hide a running supervisor. Owner records bind their trust
+  root; ambiguous copies and root mismatches refuse, and no matching run exits 1.
+
 - Private runtime state now verifies every real ancestor through the filesystem
   root with the shared StrictModes rule, selects only verified platform roots,
   and binds the resolved record pathname to its held file before contents.

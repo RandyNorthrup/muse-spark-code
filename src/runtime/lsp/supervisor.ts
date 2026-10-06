@@ -1,7 +1,7 @@
 // Independent process supervision: Stop never enters the model/request queue.
 import { type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import { readdir, rename, rm, type FileHandle } from 'node:fs/promises'
+import { lstat, readdir, realpath, rename, rm } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import path from 'node:path'
 import { constants as osConstants } from 'node:os'
@@ -13,18 +13,64 @@ import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
 import type { StopBinding, StopReceipt, StopOwner } from './stopReceipt'
+import { stablePrivateRoot, trustedPrivateRoots } from '../privateDirectory'
 
-async function readTreeReceipt(file: string) {
-  const { treeReceiptSchema } = await import('./stopReceipt')
+async function readStopRecord(file: string): Promise<unknown> {
   const handle = await openPrivateRecord(file)
   try {
     const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
     const { bytesRead } = await handle.read(bytes)
     if (bytesRead > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
-    return treeReceiptSchema.parse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
+    return JSON.parse(bytes.toString('utf8', 0, bytesRead))
   } finally {
     await handle.close()
   }
+}
+
+async function readTreeReceipt(file: string) {
+  const { treeReceiptSchema } = await import('./stopReceipt')
+  return treeReceiptSchema.parse(await readStopRecord(file))
+}
+
+export async function runtimeLocatorDirectory(packageRoot: string, shouldCreate = false) {
+  const directory = path.join(await stablePrivateRoot(packageRoot, shouldCreate), 'runtime-roots')
+  await privateDirectory(directory, shouldCreate)
+  return directory
+}
+
+/** Discover old environment roots as paths only; each must independently pass admission. */
+export async function stopRuntime(
+  cwd: string,
+  packageRoot: string,
+  home: string,
+  diagnostic: (message: string) => void,
+): Promise<void> {
+  const roots = new Set<string>()
+  for await (const root of trustedPrivateRoots(packageRoot, diagnostic)) roots.add(root)
+  const { rootLocatorSchema } = await import('./stopReceipt')
+  try {
+    const directory = await runtimeLocatorDirectory(packageRoot)
+    const files = await readdir(directory)
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue
+      try {
+        const locator = rootLocatorSchema.parse(await readStopRecord(path.join(directory, file)))
+        await privateDirectory(locator.trustRoot)
+        const root = await realpath(locator.trustRoot)
+        roots.add(root)
+        diagnostic(`ELSP_PRIVATE_ROOT: ${root}`)
+      } catch {
+        diagnostic('ESTOP_ROOT_REFUSED')
+      }
+    }
+  } catch {
+    diagnostic('ESTOP_LOCATORS_REFUSED')
+  }
+  await stopWorkspace(
+    [...roots].map((root) => path.join(root, `muse-runtime-${workspaceKey(home)}`)),
+    cwd,
+    packageRoot,
+  )
 }
 
 export class UnverifiedStopError extends Error {
@@ -35,6 +81,7 @@ export class UnverifiedStopError extends Error {
 
 export interface SupervisorDeps {
   readonly registry: string
+  readonly locatorDirectory?: string
   readonly cwd: string
   readonly file: string
   readonly args: readonly string[]
@@ -49,6 +96,7 @@ export interface SupervisorDeps {
 /** The supervisor owns pipes and a group/job; the child never owns Stop. */
 export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   await privateDirectory(deps.registry, true)
+  const trustRoot = await realpath(path.dirname(deps.registry))
   const env = withoutCredentials(deps.env)
   const { processAuthority } = await import('./processAuthority')
   const authority = await processAuthority(deps.packageRoot, deps.registry)
@@ -66,8 +114,12 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
   const ownerId = randomUUID()
   const generation = randomBytes(RUNTIME_STOP.generationBytes).toString('hex')
   const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${ownerId}.json`)
+  const locator =
+    deps.locatorDirectory === undefined
+      ? undefined
+      : path.join(deps.locatorDirectory, `${ownerId}.json`)
   const ownership = (binding: StopBinding | null) =>
-    JSON.stringify({ pid: process.pid, pipe, token, generation, ownerId, binding })
+    JSON.stringify({ trustRoot, pid: process.pid, pipe, token, generation, ownerId, binding })
   let child: ChildProcessWithoutNullStreams | undefined
   let watchdog: ChildProcessWithoutNullStreams | undefined
   let watchdogDone: Promise<number> | undefined
@@ -146,6 +198,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       control.once('error', reject)
       control.listen(pipe, resolve)
     })
+    if (locator !== undefined) await writePrivateRecord(locator, JSON.stringify({ trustRoot }))
     await writePrivateRecord(record, ownership(null))
     process.on('SIGTERM', requestStop)
     process.on('SIGINT', requestStop)
@@ -292,6 +345,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
         await rm(`${record}.tree.observed`, { force: true })
         await rm(`${record}.tree`, { force: true })
         await rm(record, { force: true })
+        if (locator !== undefined) await rm(locator, { force: true })
         await rm(directory, { recursive: true, force: true })
       }
     }
@@ -300,43 +354,54 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
 
 /** Private authenticated control sockets reach every owner in this workspace. */
 export async function stopWorkspace(
-  registry: string,
+  registries: string | readonly string[],
   cwd: string,
   packageRoot = path.resolve(__dirname, '..'),
 ): Promise<void> {
   const { ownerSchema, isReceiptMatching, isSameProcess } = await import('./stopReceipt')
-  let files: string[]
-  try {
-    await privateDirectory(registry)
-    files = await readdir(registry)
-  } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
-    throw error
-  }
   const prefix = `${workspaceKey(cwd)}-`
-  const owners = files.filter((file) => file.startsWith(prefix) && file.endsWith('.json'))
+  const owners: { registry: string; file: string; owner: StopOwner }[] = []
+  const runs = new Set<string>()
+  const uniqueRegistries = new Set(typeof registries === 'string' ? [registries] : registries)
+  for (const registry of uniqueRegistries) {
+    let files: string[]
+    try {
+      // Missing registries are not native ACL refusals on Windows.
+      await lstat(registry)
+      await privateDirectory(registry)
+      files = await readdir(registry)
+    } catch (error: unknown) {
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
+      throw error
+    }
+    const trustRoot = await realpath(path.dirname(registry))
+    for (const file of files) {
+      if (!file.startsWith(prefix) || !file.endsWith('.json')) continue
+      let raw: unknown
+      try {
+        raw = await readStopRecord(path.join(registry, file))
+      } catch (error: unknown) {
+        // The owner removes its private record when it finishes stopping.
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
+        throw error
+      }
+      const parsed = ownerSchema.safeParse(raw)
+      if (
+        !parsed.success ||
+        parsed.data.trustRoot.replaceAll('\\', '/') !== trustRoot.replaceAll('\\', '/')
+      )
+        throw new UnverifiedStopError([])
+      const owner = parsed.data
+      const run = `${owner.ownerId}:${owner.generation}`
+      if (runs.has(run)) throw new Error('ESTOP_AMBIGUOUS')
+      runs.add(run)
+      owners.push({ registry, file, owner })
+    }
+  }
+  if (typeof registries !== 'string' && owners.length === 0) throw new Error('ESTOP_NO_RUN')
   for (let offset = 0; offset < owners.length; offset += RUNTIME_STOP.owners) {
     await Promise.all(
-      owners.slice(offset, offset + RUNTIME_STOP.owners).map(async (file) => {
-        let handle: FileHandle
-        try {
-          handle = await openPrivateRecord(path.join(registry, file))
-        } catch (error: unknown) {
-          // The owner removes its private record when it finishes stopping.
-          if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
-          throw error
-        }
-        let owner: StopOwner
-        try {
-          const bytes = Buffer.alloc(RUNTIME_STOP.recordBytes + 1)
-          const { bytesRead } = await handle.read(bytes)
-          if (bytesRead > RUNTIME_STOP.recordBytes) throw new Error('ESTOP_RECORD')
-          const parsed = ownerSchema.safeParse(JSON.parse(bytes.toString('utf8', 0, bytesRead)))
-          if (!parsed.success) throw new UnverifiedStopError([])
-          owner = parsed.data
-        } finally {
-          await handle.close()
-        }
+      owners.slice(offset, offset + RUNTIME_STOP.owners).map(async ({ registry, file, owner }) => {
         if (!isProcessAlive(owner.pid)) {
           const receiptFile = `${path.join(registry, file)}.tree`
           let receipt: StopReceipt | undefined

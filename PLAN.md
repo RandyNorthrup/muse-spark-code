@@ -19787,6 +19787,22 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104L5 root discovery (2026-10-06).** Repair RVM104L5's sole P2
+before any signal: independent Stop enumerates every platform candidate in
+its documented order, then previously selected roots recorded in a verified
+stable home fallback. The path-only locator is necessary when all XDG paths
+change; it carries no bearer and grants no authority. Verify each full path,
+read bounded private owner records in every admitted registry, bind their
+chosen canonical trust root, owner UUID and generation, and refuse duplicate
+run identities across roots before contacting any owner. Missing ownership
+is an explicit exit 1/no-such-run; ambiguity is exit 1 with ownership retained.
+Run startup still chooses the first verified platform candidate, but requires
+a verified stable locator namespace before launch; normal completion removes
+its locator, uncertain cleanup retains it. No dependency, guard widening,
+merge, paid/live call or new native-platform claim. Regress environment/trust
+changes, ambiguous copies, untrusted forged roots, root mismatches and empty
+search, with byte-exact red drills in `docs/certification/m104-l.md`.
+
 **REDM104L3 trust redesign (2026-10-06).** Replace the selected-root boundary
 with one shared StrictModes/safe_path verifier over the entire real path.
 Root/current-user ancestors must be non-writable by group/other, except a
@@ -21420,6 +21436,24 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
+**FIXM104L5 scoped certification (2026-10-06).** The rig/common brief
+reserves aggregate quality and full coverage for the lead; this repair runs
+12 complete owning/adjacent files (150 passed, one Windows-only skip), six
+byte-exact guard drills, all five typecheck projects and the unchanged
+scoped lint/format, Knip, zero-clone duplication, cycles, localization,
+reference and production size/split/global/notice checks. Repository test
+and hook deadlines are unchanged; expensive native discovery setup is in
+beforeAll. The production CLI dispatch smoke uses an owned fake control
+peer and verifies ambiguity 1/no connection, successful Stop 0 and empty
+search 1; native supervision/guardian cleanup is separately tested. The
+W-owned host-API snapshot remains failed/deferred on the identical prior
+Node counts: child_process 16→17, crypto 54→55, fs 36→39,
+fs/promises 53→57, os 10→11, path 91→99, process 3→5. Its 332 VS Code
+APIs, 31 importing files and 61 theme variables do not change. W/lead
+regenerates and reviews it at integration; this lane leaves it untouched.
+No dependency, guard, size cap, rule, threshold or ignore is widened.
+Certification and native Linux/Windows reruns are in `docs/certification/m104-l.md`.
+
 **REDM104L3 scoped certification (2026-10-06).** The rig brief prohibits
 aggregate quality, merges and native Linux/Windows claims. The 29 complete
 owning/adjacent files pass 443 tests with ten platform skips, using repository
@@ -22422,6 +22456,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM104L5-F1 — fixed by FIXM104L5 (2026-10-06).** Independent Stop
+  no longer chooses only the first root acceptable in its own environment.
+  Full-path-verified platform candidates and verified stable-home path locators
+  discover prior custom roots; bounded private owner records bind their found
+  root and UUID/generation. All owners are preflighted before any signal;
+  duplicate identities refuse and missing runs return exit 1. The locator has
+  no bearer and confers no trust. An unsafe or missing former root is refused,
+  never searched as authority. No P1/P2/P3 from RVM104L5 remains as a residual.
+  Existing same-user, POSIX identity interval, sampled-descendant and separate
+  Linux same-tick release blocker below remain unchanged; native Linux/Windows
+  qualification and the W-owned host-API refresh remain integration work.
 
 - **REDM104L3 private-state boundary (2026-10-06).** Same-user processes
   are not a security boundary: they can already signal the user's processes

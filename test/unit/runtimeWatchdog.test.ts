@@ -1,18 +1,40 @@
 import './helpers/lspPrivateDirectoryMock'
 import { spawn } from 'node:child_process'
-import { mkdtemp, readFile, readdir, writeFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, writeFile, rm, mkdir, chmod, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
+import * as os from 'node:os'
+import * as processTree from '../../src/host/processTree'
+import type * as privateDirectories from '../../src/runtime/privateDirectory'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
-import { treeReceiptSchema, isReceiptMatching } from '../../src/runtime/lsp/stopReceipt'
+import {
+  treeReceiptSchema,
+  isReceiptMatching,
+  ownerSchema,
+} from '../../src/runtime/lsp/stopReceipt'
 import { LSP_LIMITS } from '../../src/shared/constants'
-import { stopWorkspace, UnverifiedStopError } from '../../src/runtime/lsp/supervisor'
+import {
+  stopWorkspace,
+  stopRuntime,
+  runtimeLocatorDirectory,
+  UnverifiedStopError,
+} from '../../src/runtime/lsp/supervisor'
 import { isProcessAlive } from '../../src/host/checkpoints/windowPresence'
 import { runProgram } from '../../src/host/processTree'
+import { workspaceKey } from '../../src/runtime/dataFolder'
 import { removeFolder } from './helpers/temporaryFolders'
 
-const folder = await mkdtemp(path.join(tmpdir(), 'muse-watchdog-'))
+vi.mock('node:os', async (original) => ({ ...(await original<typeof os>()) }))
+vi.mock('../../src/host/processTree', async (original) => ({
+  ...(await original<typeof processTree>()),
+}))
+const privateRoots = await vi.importActual<typeof privateDirectories>(
+  '../../src/runtime/privateDirectory',
+)
+const folder = await realpath(
+  await mkdtemp(path.join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'mw-')),
+)
 const parentFile = path.join(folder, 'parent.js')
 const { installLspNativeFixture, buildLspProcess } = await import('./helpers/lspNativeFixture')
 afterAll(await installLspNativeFixture(folder))
@@ -67,8 +89,208 @@ function runGuardian(label: string) {
   return { registry, file, parent }
 }
 
+function rootSelector(home: string, temporary: string, selector: string) {
+  const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+  if (platform === undefined) throw new Error('fixture platform')
+  const homeRead = vi.spyOn(os, 'homedir').mockReturnValue(home)
+  const actualProgram = processTree.runProgram
+  const probing = vi
+    .spyOn(processTree, 'runProgram')
+    .mockImplementation((file, args, env) =>
+      args[0] === 'private-temp'
+        ? Promise.resolve(JSON.stringify({ directory: temporary }))
+        : actualProgram(file, args, env),
+    )
+  Object.defineProperty(process, 'platform', { value: selector })
+  return () => {
+    Object.defineProperty(process, 'platform', platform)
+    vi.unstubAllEnvs()
+    homeRead.mockRestore()
+    probing.mockRestore()
+  }
+}
+
+async function prepareDiscovery(selector: string) {
+  const home = path.join(folder, selector)
+  const rejected = path.join(home, 'tmp')
+  const state = path.join(home, 'state')
+  const changed = path.join(home, 'new')
+  await mkdir(home, { mode: 0o700 })
+  for (const root of [rejected, state, changed]) await mkdir(root, { mode: 0o700 })
+  await chmod(rejected, 0o755)
+  const restore = rootSelector(home, rejected, selector)
+  let root: string
+  let locatorDirectory: string
+  try {
+    vi.stubEnv('XDG_RUNTIME_DIR', rejected)
+    vi.stubEnv('XDG_STATE_HOME', state)
+    vi.stubEnv('XDG_CACHE_HOME', changed)
+    vi.stubEnv('TMPDIR', rejected)
+    locatorDirectory = await runtimeLocatorDirectory(folder, true)
+    root = await privateRoots.trustedPrivateRoot(folder)
+    expect(root).toBe(selector === 'linux' ? state : path.dirname(locatorDirectory))
+  } finally {
+    restore()
+  }
+  const registry = path.join(root, `muse-runtime-${workspaceKey(home)}`)
+  const file = path.join(home, 'run.json')
+  const parent = spawn(
+    process.execPath,
+    [parentFile, registry, home, watchdogFile, file, locatorDirectory],
+    { stdio: 'ignore' },
+  )
+  const closed = new Promise<number | null>((resolve) => parent.once('close', resolve))
+  const owned = await receipt(file)
+  await pause(600)
+  return { home, rejected, changed, root, registry, locatorDirectory, parent, closed, owned }
+}
+
 // Windows uses the kill-on-close job instead, exercised by runtimeSupervisor.test.ts.
 describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian', () => {
+  const selectors = process.platform === 'darwin' ? ['linux', 'darwin'] : ['linux']
+  const discovery = new Map<string, Awaited<ReturnType<typeof prepareDiscovery>>>()
+  // Native launch and fallback directory acquisition belong to shared setup;
+  // the unchanged five-second tests measure independent discovery and Stop.
+  beforeAll(async () => {
+    for (const selector of selectors) discovery.set(selector, await prepareDiscovery(selector))
+  })
+  afterAll(async () => {
+    for (const run of discovery.values()) {
+      await stopWorkspace(run.registry, run.home, folder)
+      run.parent.kill('SIGKILL')
+      await waitExited(run.owned.root)
+      await waitExited(run.owned.detached)
+    }
+  })
+
+  it.each(selectors)(
+    'independent Stop discovers the original root after %s environment and trust changes',
+    async (selector) => {
+      const run = discovery.get(selector)
+      if (run === undefined) throw new Error('missing discovery fixture')
+      const { home, rejected, changed, root, registry, locatorDirectory, owned, closed } = run
+      const ownerFiles = await readdir(registry)
+      const ownerFile = ownerFiles.find((name) => name.endsWith('.json'))
+      if (ownerFile === undefined) throw new Error('missing owner')
+      const owner = ownerSchema.parse(
+        JSON.parse(await readFile(path.join(registry, ownerFile), 'utf8')),
+      )
+      expect(owner.trustRoot).toBe(root)
+      await chmod(rejected, 0o700)
+      const restore = rootSelector(home, rejected, selector)
+      const diagnostics: string[] = []
+      try {
+        vi.stubEnv('XDG_RUNTIME_DIR', changed)
+        vi.stubEnv('XDG_STATE_HOME', changed)
+        vi.stubEnv('XDG_CACHE_HOME', changed)
+        vi.stubEnv('TMPDIR', changed)
+        expect(await privateRoots.trustedPrivateRoot(folder)).not.toBe(root)
+        await stopRuntime(home, folder, home, (message) => {
+          diagnostics.push(message)
+        })
+        restore()
+        await waitExited(owned.root)
+        await waitExited(owned.detached)
+        expect(await closed).toBe(0)
+        expect(diagnostics).toContain(`ELSP_PRIVATE_ROOT: ${root}`)
+        expect(await readdir(locatorDirectory)).toEqual([])
+      } finally {
+        restore()
+      }
+    },
+  )
+
+  it.each(['duplicate', 'wrong-root', 'untrusted-forgery', 'separators'])(
+    'independent Stop preflights every root and refuses or ignores %s before signalling',
+    async (fault) => {
+      const home = path.join(folder, fault)
+      const firstRoot = path.join(home, 'first')
+      const secondRoot = path.join(home, 'second')
+      await mkdir(home, { mode: 0o700 })
+      await mkdir(firstRoot, { mode: 0o700 })
+      await mkdir(secondRoot, { mode: 0o700 })
+      const firstRegistry = path.join(firstRoot, `muse-runtime-${workspaceKey(home)}`)
+      const secondRegistry = path.join(secondRoot, `muse-runtime-${workspaceKey(home)}`)
+      await mkdir(secondRegistry, { mode: 0o700 })
+      const file = path.join(home, 'run.json')
+      const parent = spawn(
+        process.execPath,
+        [parentFile, firstRegistry, home, watchdogFile, file],
+        { stdio: 'ignore' },
+      )
+      const homeRead = vi.spyOn(os, 'homedir').mockReturnValue(home)
+      const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+      if (platform === undefined) throw new Error('fixture platform')
+      let owned: z.infer<typeof receiptSchema> | undefined
+      let original: string | undefined
+      let ownerFile: string | undefined
+      try {
+        owned = await receipt(file)
+        await pause(600)
+        const ownerFiles = await readdir(firstRegistry)
+        ownerFile = ownerFiles.find((name) => name.endsWith('.json'))
+        if (ownerFile === undefined) throw new Error('missing owner')
+        original = await readFile(path.join(firstRegistry, ownerFile), 'utf8')
+        const owner = ownerSchema.parse(JSON.parse(original))
+        const forged = JSON.stringify({
+          ...owner,
+          trustRoot: fault === 'separators' ? firstRoot.replaceAll('/', '\\') : secondRoot,
+        })
+        if (fault === 'wrong-root' || fault === 'separators')
+          await writeFile(path.join(firstRegistry, ownerFile), forged)
+        else await writeFile(path.join(secondRegistry, ownerFile), forged, { mode: 0o600 })
+        if (fault === 'untrusted-forgery') {
+          Object.defineProperty(process, 'platform', { value: 'linux' })
+          const locators = await runtimeLocatorDirectory(folder, true)
+          Object.defineProperty(process, 'platform', platform)
+          await writeFile(
+            path.join(locators, 'forged.json'),
+            JSON.stringify({ trustRoot: secondRoot }),
+            { mode: 0o600 },
+          )
+          await chmod(secondRoot, 0o755)
+        }
+        vi.stubEnv('XDG_RUNTIME_DIR', firstRoot)
+        vi.stubEnv('XDG_STATE_HOME', secondRoot)
+        vi.stubEnv('XDG_CACHE_HOME', '')
+        Object.defineProperty(process, 'platform', { value: 'linux' })
+        const stopping = stopRuntime(home, folder, home, () => undefined)
+        if (fault === 'untrusted-forgery' || fault === 'separators')
+          await expect(stopping).resolves.toBeUndefined()
+        else {
+          await expect(stopping).rejects.toThrow(
+            fault === 'duplicate' ? 'ESTOP_AMBIGUOUS' : 'ESTOP_UNVERIFIED',
+          )
+          expect(await isRunning(owned.root)).toBe(true)
+          expect(await isRunning(owned.detached)).toBe(true)
+          expect(await readdir(firstRegistry)).toContain(ownerFile)
+          expect(parent.exitCode).toBeNull()
+        }
+      } finally {
+        Object.defineProperty(process, 'platform', platform)
+        vi.unstubAllEnvs()
+        homeRead.mockRestore()
+        if (fault === 'wrong-root' && original !== undefined && ownerFile !== undefined)
+          await writeFile(path.join(firstRegistry, ownerFile), original)
+        await stopWorkspace(firstRegistry, home, folder)
+        parent.kill('SIGKILL')
+        if (owned !== undefined) {
+          await waitExited(owned.root)
+          await waitExited(owned.detached)
+        }
+      }
+    },
+  )
+
+  it('independent Stop reports no such run without signalling or creating a registry', async () => {
+    const root = path.join(folder, 'no-run')
+    await mkdir(root, { mode: 0o700 })
+    await expect(stopWorkspace([path.join(root, 'absent')], root, folder)).rejects.toThrow(
+      'ESTOP_NO_RUN',
+    )
+    expect(await readdir(root)).toEqual([])
+  })
+
   it('retains ownership and names observed PIDs when the owner dies before guardian completion', async () => {
     const registry = path.join(folder, 'suspended-guardian')
     const file = path.join(folder, 'suspended.json')

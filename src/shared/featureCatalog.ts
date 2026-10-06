@@ -28,7 +28,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'stop',
     behavior:
-      'Stop supervised owners in the current canonical workspace without entering the request queue. Owner death requires an exclusively created completed guardian receipt bound to the current random generation, owner UUID, resource ticket, guardian/root birth identities and observed members; copied, stale and incomplete receipts refuse; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
+      'Stop supervised owners in the current canonical workspace without entering the request queue. Search every verified platform root, then verified prior roots from path-only locators in the stable home fallback, even after XDG/TMPDIR changes. Supervision requires that verified locator namespace. Preflight every owner before signalling; canonical trust-root mismatches and duplicate owner UUID/generations refuse with ownership retained. No matching run exits 1 (ESTOP_NO_RUN); duplicates exit 1 (ESTOP_AMBIGUOUS). Owner death requires an exclusively created completed guardian receipt bound to the current random generation, owner UUID, resource ticket, guardian/root birth identities and observed members; copied, stale and incomplete receipts refuse; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
   },
   {
     command: 'muse.stop / muse.usage / muse.help',

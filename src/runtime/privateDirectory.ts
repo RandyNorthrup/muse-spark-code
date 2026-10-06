@@ -31,6 +31,16 @@ export async function trustedPrivateRoot(
     /* Callers may inspect the thrown refusals. */
   },
 ): Promise<string> {
+  for await (const root of trustedPrivateRoots(packageRoot, diagnostic, true)) return root
+  throw new Error('ELSP_PRIVATE: no verified runtime root')
+}
+
+/** Stop visits every candidate; startup alone may create the stable fallback. */
+export async function* trustedPrivateRoots(
+  packageRoot: string,
+  diagnostic: (message: string) => void,
+  shouldCreate = false,
+): AsyncGenerator<string> {
   const home = homedir()
   const candidates: { directory: string; mayCreate: boolean }[] = []
   if (process.platform === 'win32') {
@@ -64,24 +74,38 @@ export async function trustedPrivateRoot(
       mayCreate: true,
     })
   }
-  const refusals: string[] = []
+  const verified = new Set<string>()
   for (const candidate of candidates) {
     try {
       if (!path.isAbsolute(candidate.directory)) throw new Error('ELSP_PRIVATE: relative root')
-      if (candidate.mayCreate) await createTrustedRoot(candidate.directory, packageRoot)
+      if (shouldCreate && candidate.mayCreate)
+        await createTrustedRoot(candidate.directory, packageRoot)
       await privateDirectory(candidate.directory, false, packageRoot)
       const chosen = await realpath(candidate.directory)
       diagnostic(`ELSP_PRIVATE_ROOT: ${chosen}`)
-      return chosen
+      if (!verified.has(chosen)) {
+        verified.add(chosen)
+        yield chosen
+      }
     } catch (error: unknown) {
       const reason =
         error instanceof Error && error.cause instanceof Error ? error.cause.message : String(error)
       const refusal = `${candidate.directory}: ${reason}`
-      refusals.push(refusal)
       diagnostic(refusal)
     }
   }
-  throw new Error(`ELSP_PRIVATE: no verified runtime root; ${refusals.join('; ')}`)
+}
+
+/** Environment-independent discovery namespace, verified before use. */
+export async function stablePrivateRoot(packageRoot: string, shouldCreate = false) {
+  const home = homedir()
+  let root = path.join(home, '.local', 'state', 'muse-spark')
+  if (process.platform === 'win32') root = path.join(home, 'AppData', 'Local', 'Muse Spark')
+  else if (process.platform === 'darwin')
+    root = path.join(home, 'Library', 'Application Support', 'Muse Spark')
+  if (shouldCreate) await createTrustedRoot(root, packageRoot)
+  await privateDirectory(root, false, packageRoot)
+  return await realpath(root)
 }
 
 async function createTrustedRoot(root: string, packageRoot: string) {

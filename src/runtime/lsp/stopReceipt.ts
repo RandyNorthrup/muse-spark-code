@@ -45,6 +45,7 @@ export function isReceiptMatching(
 }
 
 export const ownerSchema = z.strictObject({
+  trustRoot: z.string().check(z.minLength(1), z.maxLength(RUNTIME_STOP.pathChars)),
   pid: z.int().check(z.gte(1)),
   generation: stopBindingSchema.shape.generation,
   ownerId: stopBindingSchema.shape.ownerId,
@@ -60,6 +61,7 @@ export const ownerSchema = z.strictObject({
 })
 
 export type StopOwner = z.infer<typeof ownerSchema>
+export const rootLocatorSchema = z.strictObject({ trustRoot: ownerSchema.shape.trustRoot })
 export type StopReceipt = z.infer<typeof treeReceiptSchema>
 export const guardianMessageSchema = z.strictObject({
   ticket: resourceTicketSchema,

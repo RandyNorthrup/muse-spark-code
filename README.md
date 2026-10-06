@@ -497,13 +497,23 @@ or reparented descendants retain their exact identities. A descendant that
 double-forks wholly between observations can still escape this sampling
 policy. Windows uses a named native job and awaits Windows qualification.
 
-The broker and Stop select a verified private root in platform order: Linux
+The broker and supervisor select a verified private root in platform order: Linux
 `XDG_RUNTIME_DIR`, then configured `XDG_STATE_HOME` / `XDG_CACHE_HOME`, then
 `~/.local/state/muse-spark`; macOS's per-user temporary directory from the
 signed helper, then `~/Library/Application Support/Muse Spark`; Windows
 `%LOCALAPPDATA%\Muse Spark`. Diagnostics record each refused candidate and
 its failing ancestor, and the selected real path. If none qualifies, startup
-refuses. Verification walks the whole real path to the filesystem/volume root.
+refuses. Supervision also requires a verified stable home fallback for path-only
+root locators (`runtime-roots/`): Linux's home state fallback, macOS Application
+Support, or `~/AppData/Local/Muse Spark` on Windows. No control token is in a
+locator. Independent Stop searches every verified platform candidate in the
+order above, then previously selected roots from those locators, verifying each
+again. It finds runs even after XDG/TMPDIR changes or an earlier refused root
+becomes trusted. Each owner record names its canonical trust root; a mismatch
+or a duplicate owner UUID/generation across roots refuses before any signal,
+retaining ownership. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
+ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
+uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
 POSIX ancestors must be root/user-owned and not group/other writable; a
 root-owned sticky ancestor is allowed only with an immediately user-owned
 child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows

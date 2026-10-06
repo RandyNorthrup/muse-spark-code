@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { superviseRuntime } from '../../../src/runtime/lsp/supervisor'
-const [registry, workspace, watchdogFile, receipt] = process.argv.slice(2)
+const [registry, workspace, watchdogFile, receipt, locatorDirectory] = process.argv.slice(2)
 if (
   registry === undefined ||
   workspace === undefined ||
@@ -21,6 +21,7 @@ const stdout = new PassThrough()
 stdout.resume()
 void superviseRuntime({
   registry,
+  ...(locatorDirectory !== undefined && { locatorDirectory }),
   cwd: workspace,
   file: process.execPath,
   args: ['-e', source, receipt],

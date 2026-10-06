@@ -42,7 +42,12 @@ import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
 import { takeCredentials } from './credentialVariables'
 import { workspaceKey, paidGrantsFile } from './dataFolder'
-import { stopWorkspace, superviseRuntime, UnverifiedStopError } from './lsp/supervisor'
+import {
+  stopRuntime,
+  runtimeLocatorDirectory,
+  superviseRuntime,
+  UnverifiedStopError,
+} from './lsp/supervisor'
 import { trustedPrivateRoot } from './privateDirectory'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -376,19 +381,21 @@ async function main(): Promise<number> {
     })
   if (command.command === 'supervise' || command.command === 'stop') {
     await installLanguage()
-    const registry = path.join(
-      await trustedPrivateRoot(packageRoot, (message) => {
-        log.warn(message)
-      }),
-      `muse-runtime-${workspaceKey(homedir())}`,
-    )
+    const diagnostic = (message: string) => {
+      log.warn(message)
+    }
     try {
       if (command.command === 'stop') {
-        await stopWorkspace(registry, process.cwd(), packageRoot)
+        await stopRuntime(process.cwd(), packageRoot, homedir(), diagnostic)
         return 0
       }
+      const registry = path.join(
+        await trustedPrivateRoot(packageRoot, diagnostic),
+        `muse-runtime-${workspaceKey(homedir())}`,
+      )
       const code = await superviseRuntime({
         registry,
+        locatorDirectory: await runtimeLocatorDirectory(packageRoot, true),
         cwd: process.cwd(),
         file: process.execPath,
         args: [__filename, ...command.args],
@@ -405,6 +412,13 @@ async function main(): Promise<number> {
     } catch (error: unknown) {
       if (error instanceof UnverifiedStopError) {
         writeLine(process.stderr, fill(UI_TEXT.acpStopUnverified, { pids: error.pids.join(', ') }))
+        return EXIT_FAILED
+      }
+      if (
+        error instanceof Error &&
+        (error.message === 'ESTOP_NO_RUN' || error.message === 'ESTOP_AMBIGUOUS')
+      ) {
+        writeLine(process.stderr, error.message)
         return EXIT_FAILED
       }
       // Never expose a private control token, profile path or raw child error.

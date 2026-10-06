@@ -119,10 +119,14 @@ describe('M104H2 runtime supervision', () => {
       })
     })
     if (gone.pid === undefined) throw new Error('no fixture PID')
-    const record = path.join(registry, `${workspaceKey(directory)}-gone.json`)
+    const record = path.join(
+      registry,
+      `${workspaceKey(directory)}-00000000-0000-4000-8000-000000000001.json`,
+    )
     await writeFile(
       record,
       JSON.stringify({
+        trustRoot: await fs.realpath(directory),
         pid: gone.pid,
         pipe: 'unused',
         token: 'a'.repeat(64),
