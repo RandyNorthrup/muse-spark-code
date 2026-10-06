@@ -103,8 +103,10 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     settings,
   )
   const tempRoots = options.tempRoots ?? {
-    create: async (owner: string) =>
-      await new TreeTempRoots(tmpdir(), await registry(), disks).create(owner),
+    create: async (owner: string) => {
+      const store = await registry()
+      return await new TreeTempRoots(store.base, store, disks).create(owner)
+    },
   }
   const events = new ResourceEvents(options.onError)
   const governor = new ResourceGovernor({

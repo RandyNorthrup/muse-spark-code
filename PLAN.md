@@ -19692,6 +19692,20 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107DK (2026-10-06, Kubuntu).** Repair all eight RVM107DK findings.
+Constrain creation records to direct random children of one verified private
+base, require an ownership marker and fresh tree-exit proof after reload,
+persist creation intent before mkdir, and quarantine before recursive removal.
+Linux pins the base by fd; macOS/Windows verify its identity around rename.
+Keep per-entry refusals protected while continuing cleanup. Checkpoints use
+a separate admission class without temp allocation and check their destination;
+race sampling against abort/disposal and bound statfs; project Muse child
+environments at the shared spawn boundary and retain failed SDK exits.
+Regression tests and byte-exact red drills go in `docs/certification/m107-dk.md`.
+No dependency, merge, paid/live call or full quality run; lead runs aggregate
+gates and native foreign-platform receipts. Only the explicitly named Windows
+owner and macOS/Windows ancestor-swap qualifications remain in §9.
+
 **Lane DK (2026-10-06, Kubuntu).** Implement D87.14 from
 `docs/plan-owner-answers-1006` against the integrated S/T/G/A/C1 trunk.
 Extend the existing sample/settings/device contracts with disk inputs; keep
@@ -20226,7 +20240,7 @@ project typechecks, changed-source lint/format, localization, deadcode,
 duplication, cycle, host-API and production build checks. No gate is weakened.
 Scoped results and deliberate failures are in `m107-dk.md`.
 `check:host-api` is deliberately left red only for W's generated Node import
-counts (crypto 47→49, fs/promises 51→55, os 12→13, path 92→96); DK's ownership
+counts (crypto 47→49, fs 33→34, fs/promises 51→54, os 12→13, path 92→96); DK's ownership
 rule forbids editing that record. W regenerates and reviews it at integration.
 
 **FIXM107INT bounded review certification (2026-10-06).** The user's rig
@@ -21475,10 +21489,27 @@ through the lazy factory port. M100/R consumes validated disk
 headroom and refuses unknown/below-floor disk-heavy placement. M96c/M109
 supplies archived/merged-and-clean proof for worktrees/dependency copies.
 Lane 0 must measure OS leftovers on macOS/Windows; DK cannot certify the
-Mac mini killed-browser receipt from Kubuntu. Cleaner root identity and
-canonical-path checks do not promise race-free protection from same-user
-concurrent directory substitution; no Node fd-relative tree removal exists
-in this implementation. Unknown creation/exit/archive proof refuses cleanup.
+Mac mini killed-browser receipt from Kubuntu. Cleanup now requires confinement to a verified private base and a matching
+ownership marker, quarantines before removal, and on Linux uses a pinned
+base fd. A loaded ended timestamp is never exit proof. Unknown
+creation/exit/archive proof refuses cleanup. External OS clones, worktrees
+and dependency copies need a separately reviewed confined ownership adapter;
+this registry refuses records outside its base rather than granting an
+external-path deletion exception. Content a same-user process moves into a
+harness-created root counts as that tree's content.
+
+- **M107-DK-Windows-owner (FIXM107DK, 2026-10-06).** Node's Windows stat uid
+  is not an OS ownership/ACL proof. Windows still refuses base junctions/
+  symlinks, checks native directory identity, confines every record, verifies
+  markers and requires tree-exit proof. No ACL is changed. W/T should supply
+  a native owner check before claiming POSIX-equivalent owner validation.
+- **M107-DK-non-Linux-ancestor-window (FIXM107DK, 2026-10-06).** macOS and
+  Windows lack Linux's `/proc/self/fd` directory pin. They check base identity
+  before and after quarantine rename and restore a refused entry when possible.
+  A same-user ancestor swap between those checks and a filesystem operation
+  remains possible; roots are never removed through their original pathname.
+  W/T should provide a native fd/handle-relative adapter and platform race
+  receipts. The owner explicitly accepts this narrow window for this repair.
 
 - **FIXM107INT qualification (2026-10-06).** The four RVM107INT findings
   are repaired at their launch, queue and ownership boundaries; none is

@@ -341,6 +341,8 @@ export function isGitExitError(value: unknown): value is GitExitError {
 }
 
 export interface GitProcessOptions {
+  /** Checkpoint Git bypasses temp pressure and checks this storage volume instead. */
+  readonly checkpointDestination?: string | undefined
   readonly beforeRun?: BestOfNGitGuard | undefined
   readonly cwd: string
   /** The child's whole environment: nothing else is inherited. */
@@ -380,7 +382,16 @@ export interface GitProcessDeps {
 export function createGitProcess(deps: GitProcessDeps): GitProcess {
   const gitPath = gitLocator(deps)
   return async (args, options) => {
-    const resource = await admitResource('other', options.signal, options.beforeRun?.resourceClass)
+    const resource =
+      options.checkpointDestination === undefined
+        ? await admitResource('other', options.signal, options.beforeRun?.resourceClass)
+        : await admitResource(
+            'other',
+            options.signal,
+            'checkpoint',
+            false,
+            options.checkpointDestination,
+          )
     let wasSpawned = false
     try {
       const job =

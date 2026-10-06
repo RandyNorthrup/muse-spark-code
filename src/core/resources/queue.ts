@@ -26,6 +26,8 @@ export interface ResourceLaunchRequest {
   priority: number
   /** Tests/builds/installs/worktrees/downloads never use the foreground deadline. */
   diskHeavy?: boolean | undefined
+  /** Only the checkpoint saving a pause; its own destination is checked by the host. */
+  checkpoint?: boolean | undefined
   parent?: ResourcePermit
 }
 export interface ResourceAdmission {
@@ -174,6 +176,10 @@ export class ResourceQueue {
     for (const entry of ordered) {
       if (!this.waiting.has(entry.id)) continue
       try {
+        if (entry.request.checkpoint === true) {
+          this.grant(entry)
+          continue
+        }
         const limit = this.options.capacity(entry.request.kind)
         if (limit !== null && limit !== 0 && limit !== 1)
           throw new RangeError('Invalid resource capacity')

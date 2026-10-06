@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { holdResourceJob } from '../../src/host/resources/resourceJobHolder'
 import * as childProcess from 'node:child_process'
@@ -268,6 +269,37 @@ describe('C1 final process admission', () => {
     await expect(pending).rejects.toThrow('owner changed')
     expect(childProcess.spawn).not.toHaveBeenCalled()
     expect(lease.complete).toHaveBeenCalledWith(true)
+  })
+
+  it('routes checkpoint Git through its destination admission class before spawning', async () => {
+    const stop = new AbortController()
+    const run = createGitProcess({
+      platform: 'linux',
+      env: { PATH: '/usr/bin' },
+      fileExists: () => true,
+      spawn: childProcess.spawn,
+    })
+    const destination = path.join(process.cwd(), 'checkpoint-storage')
+    await expect(
+      run(['status'], {
+        cwd: process.cwd(),
+        env: {},
+        timeoutMs: 1000,
+        checkpointDestination: destination,
+        signal: stop.signal,
+        beforeRun: () => {
+          throw new Error('fixture stops before spawn')
+        },
+      }),
+    ).rejects.toThrow('fixture stops before spawn')
+    expect(admitResource).toHaveBeenCalledWith(
+      'other',
+      stop.signal,
+      'checkpoint',
+      false,
+      destination,
+    )
+    expect(childProcess.spawn).not.toHaveBeenCalled()
   })
 
   it('rechecks MCP workspace admission after the governor wait', async () => {

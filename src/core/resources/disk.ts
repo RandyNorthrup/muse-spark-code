@@ -11,6 +11,7 @@ import {
   RESOURCE_DISK_MIN_FREE_GIB,
   RESOURCE_DISK_SAMPLE_MS,
   RESOURCE_DISK_TREND_MS,
+  RESOURCE_DISK_READ_TIMEOUT_MS,
   RESOURCE_GIB_BYTES,
   RESOURCE_BIGINT_ZERO,
   UI_TEXT,
@@ -117,7 +118,7 @@ export class ResourceDiskSampler {
     let freeBytes: number | null = null
     let totalBytes: number | null = null
     try {
-      const stats = await this.port.read(target.path)
+      const stats = await this.readStats(target.path)
       const total = stats.bsize * stats.blocks
       const free = stats.bsize * stats.bavail
       if (
@@ -161,6 +162,24 @@ export class ResourceDiskSampler {
     return volume
   }
 
+  private async readStats(file: string): ReturnType<ResourceDiskPort['read']> {
+    let timer: NodeJS.Timeout | undefined
+    try {
+      return await Promise.race([
+        this.port.read(file),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(
+              Object.assign(new Error('Disk sampling timed out'), { code: 'resourceDiskUnknown' }),
+            )
+          }, RESOURCE_DISK_READ_TIMEOUT_MS)
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   private async readAll(): Promise<ResourceDiskVolume[]> {
     await Promise.resolve()
     try {
@@ -195,7 +214,7 @@ export class ResourceDiskSampler {
     let candidate = path.resolve(file)
     for (;;) {
       try {
-        const stats = await this.port.read(candidate)
+        const stats = await this.readStats(candidate)
         const volume = resourceDiskVolumeSchema.parse({
           role: 'workspace',
           atMs: this.port.now(),

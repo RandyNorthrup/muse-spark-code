@@ -44,11 +44,12 @@ async function load(): Promise<ResourceLaunchHost | undefined> {
 export async function admitResource(
   kind: ResourceKind,
   signal?: AbortSignal,
-  workClass?: ResourceClass,
+  workClass?: ResourceClass | 'checkpoint',
   isDiskHeavy?: boolean,
+  checkpointDestination?: string,
 ): Promise<ResourceLease | undefined> {
   const host = await load()
-  return await host?.admit(kind, signal, workClass, isDiskHeavy)
+  return await host?.admit(kind, signal, workClass, isDiskHeavy, checkpointDestination)
 }
 
 export async function inResourceClass<T>(

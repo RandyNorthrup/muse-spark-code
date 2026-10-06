@@ -5,7 +5,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { spawnMspConnection } from '@muse-code/sdk'
 import { posixQuoted } from '../../core/shellQuote'
 import { resourceWindowsJob } from '../../core/resources/admission'
-import type { ResourceLease } from '../../core/resources/launch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
 import {
   RESOURCE_ID_MAX_LENGTH,
   RESOURCE_SAMPLE_MS,
@@ -86,10 +86,11 @@ async function museResourceLaunch(
     }
   }
   // A private side file contains only the generated wrapper's PID, never CLI output.
-  const folder = await mkdtemp(path.join(tmpdir(), 'muse-resource-'))
+  const folder = await mkdtemp(path.join(resource.temp?.root ?? tmpdir(), 'muse-resource-'))
   const file = path.join(folder, 'root')
   return {
     command: '/bin/sh',
+    env: resourceEnvironment(launch.env ?? process.env, resource),
     complete: (isTreeGone) => {
       resource.complete(isTreeGone)
     },
@@ -196,6 +197,9 @@ export async function spawnResourceMuseConnection(
               return result
             }
             return await Promise.race([closing(), stopped])
+          } catch (error: unknown) {
+            resource?.failed?.()
+            throw error
           } finally {
             clearTimeout(forceTimer)
             clearTimeout(finalTimer)
@@ -206,23 +210,40 @@ export async function spawnResourceMuseConnection(
     handshake.child.close = bounded(handshake.child.close.bind(handshake.child))
     const initialize = handshake.initialize.bind(handshake)
     handshake.initialize = async (params) => {
-      const spawned = await initialize(params)
-      spawned.close = bounded(spawned.close.bind(spawned))
-      return spawned
+      try {
+        const spawned = await initialize(params)
+        spawned.close = bounded(spawned.close.bind(spawned))
+        return spawned
+      } catch (error: unknown) {
+        resource?.failed?.()
+        throw error
+      }
     }
     const ended = () => {
       launch?.complete(false)
     }
-    void handshake.exited.then(ended).catch(ended)
+    void handshake.exited
+      .then((exit) => {
+        if (exit.code !== 0 || exit.signal !== null) resource?.failed?.()
+        ended()
+      })
+      .catch(() => {
+        resource?.failed?.()
+        ended()
+      })
     await launch.register()
     return handshake
   } catch (error: unknown) {
+    resource?.failed?.()
     if (handshake === undefined) {
       if (launch === undefined) resource?.complete(true)
       else launch.complete(true)
     } else {
-      await handshake.close()
-      launch?.complete(false)
+      try {
+        await handshake.close()
+      } finally {
+        launch?.complete(false)
+      }
     }
     throw error
   } finally {

@@ -3869,7 +3869,13 @@ Muse Code inherits the SDK's stdio directly, and closing it stops its verified
 Windows job within a bounded shutdown. A forced stop or missing exit proof
 is reported explicitly, with session handles still disposed. Holder failure
 retains unknown work. Missing native identity proof remains
-unknown. The remaining milestone lanes supply actions, routing, UI, runtime
+unknown. Per-tree temp roots use private-base confinement, ownership markers
+and quarantine cleanup; Linux pins the base directory by fd. Public manifests
+are refused, and cleanup requires fresh exit proof after reload. Checkpoint
+Git checks its storage volume and bypasses temp pressure without allocating a
+temp root. Admission cancellation does not wait for sampling, stalled statfs
+is reported unknown, and failed Muse exits retain roots for 24 hours.
+The remaining milestone lanes supply actions, routing, UI, runtime
 wiring and final delivery; see [C1 certification](docs/certification/m107-c1.md).
 
 After every complete four-channel release, the workflow runs

@@ -1,8 +1,8 @@
-import { mkdir, mkdtemp, rm, readFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { CreatedRegistry } from '../../src/core/resources/createdRegistry'
 import { TreeTempRoots } from '../../src/host/resources/tempRoots'
-import type { ResourceTempRoot } from '../../src/core/resources/launch'
+import type { ResourceTempRoot, ResourceLease } from '../../src/core/resources/launch'
 import type { ResourceLaunchHostOptions } from '../../src/core/resources/launchHost'
 import { describe, expect, it, vi } from 'vitest'
 import { ResourceGovernor } from '../../src/core/resources/governor'
@@ -13,6 +13,7 @@ import { resourceEnvironment } from '../../src/core/resources/launch'
 import { assertResourceWrite } from '../../src/core/resources/admission'
 import { ResourceDiskSampler } from '../../src/core/resources/disk'
 import {
+  RESOURCE_DISK_READ_TIMEOUT_MS,
   RESOURCE_FOREGROUND_WAIT_MS,
   RESOURCE_GIB_BYTES as GiB,
   RESOURCE_MIN_DWELL_MS,
@@ -229,27 +230,48 @@ describe('DK admission, safe points and spawn environment', () => {
     expect(env.temp).toBe('/old')
     expect(resourceEnvironment(env, undefined)).toEqual(env)
   })
-  it('cleans an unspawned temp root when disposal wins its creation race', async () => {
-    const pendingRoot = Promise.withResolvers<ResourceTempRoot>()
-    const create = vi.fn(() => pendingRoot.promise)
-    const finish = vi.fn(() => Promise.resolve())
-    const root: ResourceTempRoot = {
-      root: '/tree',
-      profile: '/tree/profile',
-      cache: '/tree/cache',
-      environment: { TMPDIR: '/tree', TEMP: '/tree', TMP: '/tree' },
-      finish,
-    }
-    const h = setup({ tempRoots: { create } })
-    const pending = h.host.admit('other')
-    const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
-    await Promise.resolve()
-    expect(create).toHaveBeenCalledOnce()
-    h.host.dispose()
-    pendingRoot.resolve(root)
-    await rejected
-    expect(finish).toHaveBeenCalledWith(false)
-  })
+  it.each(['disposal', 'cancellation'])(
+    'cleans an unspawned temp root when %s wins its creation race',
+    async (action) => {
+      const pendingRoot = Promise.withResolvers<ResourceTempRoot>()
+      const create = vi.fn(() => pendingRoot.promise)
+      const finish = vi.fn(() => Promise.resolve())
+      const root: ResourceTempRoot = {
+        root: '/tree',
+        profile: '/tree/profile',
+        cache: '/tree/cache',
+        environment: { TMPDIR: '/tree', TEMP: '/tree', TMP: '/tree' },
+        finish,
+      }
+      const h = setup({ tempRoots: { create } })
+      const stop = new AbortController()
+      let outcome: unknown
+      const pending = (async () => {
+        try {
+          await h.host.admit('other', stop.signal)
+        } catch (error: unknown) {
+          outcome = error
+        }
+      })()
+      await Promise.resolve()
+      expect(create).toHaveBeenCalledOnce()
+      try {
+        if (action === 'disposal') h.host.dispose()
+        else stop.abort()
+        await vi.waitFor(() => {
+          expect(outcome).toMatchObject({ name: 'AbortError' })
+        })
+        expect(finish).not.toHaveBeenCalled()
+      } finally {
+        pendingRoot.resolve(root)
+        await pending
+        await vi.waitFor(() => {
+          expect(finish).toHaveBeenCalledWith(false)
+        })
+        h.host.dispose()
+      }
+    },
+  )
   it('keeps live registered temp roots on disposal and marks failed completed runs separately', async () => {
     const finish = vi.fn(() => Promise.resolve())
     const create = vi.fn(() =>
@@ -354,5 +376,150 @@ describe('DK admission, safe points and spawn environment', () => {
     await expect(guarded.assertWrite(process.cwd())).rejects.toThrow('Cannot write to')
     guarded.dispose()
     h.host.dispose()
+  })
+  it('admits checkpoints on a healthy destination at critical temp pressure without allocating a temp root', async () => {
+    const scratch = path.join(process.cwd(), 'temp')
+    await mkdir(scratch, { recursive: true })
+    const root = await mkdtemp(path.join(scratch, 'm107-dk-checkpoint-'))
+    const destination = path.join(root, 'checkpoint-destination')
+    const settings = resourceSettingsSchema.parse({})
+    const read = vi.fn((file: string) =>
+      Promise.resolve({
+        bsize: BigInt(GiB),
+        blocks: 100n,
+        bavail: file === destination ? 50n : 1n,
+      }),
+    )
+    const disks = new ResourceDiskSampler([{ role: 'temp', path: root }], () => settings, {
+      now: () => 0,
+      read,
+    })
+    const registry = await CreatedRegistry.open(path.join(root, 'registry.json'), () => 0, {
+      exited: () => Promise.resolve(true),
+      archivedAndClean: () => Promise.resolve(false),
+      freeBytes: () => Promise.resolve(null),
+    })
+    const roots = new TreeTempRoots(registry.base, registry, disks)
+    const create = vi.spyOn(roots, 'create')
+    const finish = vi.spyOn(registry, 'finish')
+    const h = setup({ disks, created: registry, tempRoots: roots })
+    let admission: Promise<void> | undefined
+    let checkpoint: ResourceLease | undefined
+    let admissionError: unknown
+    try {
+      await h.read(1)
+      expect(h.governor.level()).toBe('pause')
+      admission = (async () => {
+        try {
+          checkpoint = await h.host.admit('other', undefined, 'checkpoint', false, destination)
+        } catch (error: unknown) {
+          admissionError = error
+        }
+      })()
+      await vi.waitFor(() => {
+        expect(admissionError).toBeUndefined()
+        expect(checkpoint).toBeDefined()
+      })
+      await admission
+      if (checkpoint === undefined) throw new Error('Missing checkpoint lease')
+      expect(checkpoint.temp).toBeUndefined()
+      expect(create).not.toHaveBeenCalled()
+      expect(await readdir(registry.base)).toEqual([])
+      expect(read).toHaveBeenCalledWith(destination)
+      checkpoint.complete(true)
+      expect(finish).not.toHaveBeenCalled()
+      await expect(
+        h.host.admit('other', undefined, 'checkpoint', false, root),
+      ).rejects.toMatchObject({ code: 'resourceDiskCritical' })
+      await expect(h.host.admit('other', undefined, 'checkpoint')).rejects.toThrow(
+        'destination unavailable',
+      )
+    } finally {
+      h.host.dispose()
+      await admission
+      await registry.clean()
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+  it('rejects deferred sampling admission promptly on abort or disposal without waiting for the sampler', async () => {
+    for (const action of ['abort', 'dispose']) {
+      const pending = Promise.withResolvers<ResourceSample>()
+      const h = setup()
+      const governor = new ResourceGovernor({
+        clock: h.clock,
+        events: h.events,
+        settings: h.settings,
+        sampler: { sample: () => pending.promise },
+        hasRelocationTarget: () => false,
+        onError: vi.fn(),
+      })
+      const disks = new ResourceDiskSampler([], () => h.settings)
+      const host = new ResourceLaunchHost({
+        governor,
+        events: h.events,
+        clock: h.clock,
+        settings: () => h.settings,
+        disks,
+        bindTree: () => Promise.resolve(null),
+        onError: vi.fn(),
+      })
+      const stop = new AbortController()
+      let outcome: unknown
+      const sampling = governor.refresh()
+      const result = (async () => {
+        try {
+          await host.admit('other', stop.signal)
+        } catch (error: unknown) {
+          outcome = error
+        }
+      })()
+      try {
+        await Promise.resolve()
+        if (action === 'abort') stop.abort()
+        else host.dispose()
+        await vi.waitFor(() => {
+          expect(outcome).toMatchObject({ name: 'AbortError' })
+        })
+        await result
+      } finally {
+        host.dispose()
+        h.host.dispose()
+        pending.resolve({
+          atMs: 0,
+          cpuPercent: null,
+          memoryUsedPercent: null,
+          memoryAvailableBytes: null,
+          memoryTotalBytes: null,
+          gpuPercent: null,
+          diskBusyPercent: null,
+          pressure: null,
+        })
+        await sampling
+      }
+    }
+  })
+  it('reports a stalled statfs volume unknown within its named timeout and bounds fresh destination checks', async () => {
+    vi.useFakeTimers()
+    const pending = Promise.withResolvers<{ bsize: bigint; blocks: bigint; bavail: bigint }>()
+    const settings = resourceSettingsSchema.parse({})
+    const disks = new ResourceDiskSampler([{ role: 'temp', path: process.cwd() }], () => settings, {
+      now: () => 0,
+      read: () => pending.promise,
+    })
+    try {
+      const sampling = disks.sample()
+      await vi.advanceTimersByTimeAsync(RESOURCE_DISK_READ_TIMEOUT_MS)
+      expect(await sampling).toEqual([
+        { role: 'temp', atMs: 0, freeBytes: null, totalBytes: null, etaMs: null },
+      ])
+      const writing = expect(disks.assertWrite(process.cwd())).rejects.toMatchObject({
+        code: 'resourceDiskUnknown',
+      })
+      await vi.advanceTimersByTimeAsync(RESOURCE_DISK_READ_TIMEOUT_MS)
+      await writing
+    } finally {
+      pending.resolve({ bsize: 1n, blocks: 100n, bavail: 50n })
+      vi.useRealTimers()
+    }
   })
 })

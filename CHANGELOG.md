@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Disk cleanup rejects forged or public manifests, requires private-base
+  confinement and an ownership marker, and quarantines roots before removal.
+  Linux pins the base directory during cleanup. Creation intent is saved before
+  mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+- Checkpoint Git checks its storage volume and stays available at critical temp
+  pressure without allocating a temp root. Admission abort/disposal no longer
+  waits for sampling; stalled statfs publishes unknown readings within a bound.
+- Account/sign-in Muse children receive the same owned temp environment as chat
+  children. Nonzero/signal exits and SDK initialization/spawn failures retain
+  their temp roots for 24 hours after proved tree exit.
+
 - Staged disk-space protection samples harness write volumes with `fs.statfs`,
   uses the existing governor's levels and recovery, and blocks disk-heavy
   admission before the foreground deadline can bypass it. Owned-tree temp

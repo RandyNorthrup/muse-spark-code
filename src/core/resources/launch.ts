@@ -47,8 +47,9 @@ export interface ResourceAdmissionPort {
   admit(
     kind: ResourceKind,
     signal?: AbortSignal,
-    workClass?: ResourceClass,
+    workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy?: boolean,
+    checkpointDestination?: string,
   ): Promise<ResourceLease>
   run<T>(kind: ResourceKind, action: () => Promise<T>, signal?: AbortSignal): Promise<T>
 }

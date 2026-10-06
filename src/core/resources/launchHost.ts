@@ -36,6 +36,7 @@ interface Work {
   owner: string
   temp: ResourceTempRoot | undefined
   failed: boolean
+  checkpoint: boolean
 }
 export interface ResourceLaunchHostOptions {
   readonly governor: ResourceGovernor
@@ -61,6 +62,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private settings: string | undefined
   private readonly retired = new Set<string>()
   private readonly safePointCancels = new Set<() => void>()
+  private readonly admissionCancels = new Set<() => void>()
   private readonly cleanupTimers = new Set<() => void>()
   private readonly unsubscribe: () => void
   private readonly unsubscribeSample: () => void
@@ -94,6 +96,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   private finishTemp(work: Work): void {
+    if (work.checkpoint) return
     this.retired.add(work.owner)
     const finish =
       work.temp === undefined
@@ -118,6 +121,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         .finally(() => {
           this.retired.delete(work.owner)
         })
+  }
+
+  private async finishPendingTemp(work: Work, creating: Promise<ResourceTempRoot>): Promise<void> {
+    try {
+      work.temp = await creating
+    } catch {
+      work.failed = true
+    }
+    this.finishTemp(work)
   }
 
   private retire(work: Work, isTreeGone = true): void {
@@ -207,6 +219,28 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     return this.disposed
   }
 
+  private async waitAdmission<T>(pending: Promise<T>, signal?: AbortSignal): Promise<T> {
+    let cancel: (() => void) | undefined
+    try {
+      return await Promise.race([
+        new Promise<never>((_resolve, reject) => {
+          cancel = () => {
+            reject(new DOMException('Resource admission cancelled', 'AbortError'))
+          }
+          this.admissionCancels.add(cancel)
+          signal?.addEventListener('abort', cancel, { once: true })
+          if (signal?.aborted === true || this.disposed) cancel()
+        }),
+        pending,
+      ])
+    } finally {
+      if (cancel !== undefined) {
+        this.admissionCancels.delete(cancel)
+        signal?.removeEventListener('abort', cancel)
+      }
+    }
+  }
+
   refreshTrees(): Promise<void> {
     this.pending ??= this.sampleAll()
     return this.pending
@@ -215,8 +249,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   async admit(
     kind: ResourceKind,
     signal?: AbortSignal,
-    workClass?: ResourceClass,
+    workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy = kind === 'check' || kind === 'browserCheck',
+    checkpointDestination?: string,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     const settings = this.options.settings()
@@ -226,10 +261,17 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       this.settings = signature
     }
     this.options.governor.start()
-    if (this.options.disks !== undefined) await this.options.governor.refresh()
-    const selectedClass = workClass ?? this.context.getStore() ?? 'foreground'
+    const isCheckpoint = workClass === 'checkpoint'
+    if (isCheckpoint) {
+      if (checkpointDestination === undefined) throw new Error('Checkpoint destination unavailable')
+      await this.waitAdmission(this.assertWrite(checkpointDestination), signal)
+    } else if (this.options.disks !== undefined)
+      await this.waitAdmission(this.options.governor.refresh(), signal)
+    const selectedClass = isCheckpoint
+      ? 'foreground'
+      : (workClass ?? this.context.getStore() ?? 'foreground')
     const permit = await this.queue.request(
-      { kind, class: selectedClass, priority: 0, diskHeavy: isDiskHeavy },
+      { kind, class: selectedClass, priority: 0, diskHeavy: isDiskHeavy, checkpoint: isCheckpoint },
       signal,
     ).ready
     const work: Work = {
@@ -245,14 +287,23 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       owner: randomUUID(),
       temp: undefined,
       failed: false,
+      checkpoint: isCheckpoint,
     }
     this.work.add(work)
+    let creating: Promise<ResourceTempRoot> | undefined
     try {
-      work.temp = await this.options.tempRoots?.create(work.owner)
+      if (!isCheckpoint) creating = this.options.tempRoots?.create(work.owner)
+      if (creating !== undefined) work.temp = await this.waitAdmission(creating, signal)
     } catch (error: unknown) {
-      work.failed = true
-      if (this.work.has(work)) this.retire(work)
-      else this.finishTemp(work)
+      if (creating !== undefined && (signal?.aborted === true || this.isClosed())) {
+        this.retire(work, false)
+        // Cancellation returns promptly; the private creation still drains into owned cleanup.
+        void this.finishPendingTemp(work, creating).catch(this.options.onError)
+      } else {
+        work.failed = true
+        if (this.work.has(work)) this.retire(work)
+        else this.finishTemp(work)
+      }
       throw error
     }
     if (signal?.aborted === true || this.isClosed()) {
@@ -368,6 +419,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     this.unsubscribe()
     this.unsubscribeSample()
     for (const cancel of this.safePointCancels) cancel()
+    for (const cancel of this.admissionCancels) cancel()
     for (const cancel of this.cleanupTimers) cancel()
     this.queue.dispose()
     this.options.governor.dispose()
