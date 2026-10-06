@@ -21306,6 +21306,25 @@ startup cancellation that settles all waiters, and named argument bounds.
 Each correction has a regression and a byte-exact restored red drill in
 `docs/certification/m96-t.md`. No live calls, dependencies or wider guards.
 
+**WINPUB publication performance (2026-10-05).** Fresh repair allowance for
+the two-writer Windows publication delay, from `829ba9b3`. Instrument only
+the real concurrent commit/publication path, including Git's descendants,
+lock/rename/fsync regions and any waits or retries, idle and under bounded
+CPU load. Fix measured product cost without changing atomic expected-old
+ref publication, importing incomplete objects, caching mutable refs/config,
+or weakening repository-program isolation. There is no application polling
+lock in this path; investigate Git import and transaction cost before adding
+one. Require 30/30 loaded two-writer executions, four consecutive complete
+214-case Windows runs with three workers and default deadlines, and a
+SHA-256-exact restored old-path timeout drill. Keep POSIX semantics; Mac/Linux
+integration and full quality remain the lead's gates under the rig brief.
+No timeout increase, test retry, skip, dependency, push, merge or rebase.
+The publication trace also measures loose-object hardware flushes inside
+unpack-objects. A saved-byte trial of Git's existing `--keep` import reports
+three hardware flushes per writer, the same as loose-object import, so it
+is not adopted. POSIX object-import representation remains unchanged;
+fsync is never disabled and no second object-store writer is implemented.
+
 **FIXM96I repair plan (2026-10-05, RVM96B findings 1–12 and 24).**
 Windows follow-up WINM96I runs the complete owning files on the local Windows
 host (at most three files and three workers), including junction deletion,
@@ -28424,6 +28443,66 @@ import in `src/host/team/acpProcess.ts` exists at lane base `49340fe1`.
 The inventory is outside FIXM96W's owned files; the lead regenerates it
 after integration. No source import, gate, ignore or threshold is hidden
 or weakened. See `docs/certification/m96-w.md` and §9's named residual.
+
+**WINPUB native publication proof (2026-10-05).** Task imports exclude
+automatic maintenance, commit-graph writing and submodule recursion while
+retaining object validation and atomic expected-old ref publication. The
+final source passes four consecutive complete Windows runs, **214/214** each,
+with three workers and default deadlines. An early six-worker loaded run
+passes **30/30**, but the repeat under verified Git selection is **18 passed /
+10 timed out / 2 hook-cascade skipped**. The loaded performance requirement
+remains open; the early green is not substituted for the later failure.
+The restored old-path drill times out in five of thirty cases at full
+saturation. Every new import
+option's guard fires separately and restores SHA-256-exact. A broken alternate
+Git installation interrupts an earlier sequence; process-local selection of
+the verified rig Git resolves that environment failure without changing gates.
+Individual Git syscall timings and a robust loaded deadline guarantee are
+not established. Full quality/coverage and Mac/Linux integration remain the
+lead's gates. Detailed receipts and retained failures are in
+`docs/certification/m96-i-winpub.md`; the historical REDWINI96 results below
+are not substituted for this new proof.
+
+**REDWINI96 measured redesign (2026-10-05).** Exact merge blobs use one
+binary-safe batch and per-operation reuse; dirty base metadata uses one
+query, and isolated revision lookup avoids a driver-config child. Prepared
+fixtures compact immutable objects once and keep mutable files independent.
+The complete 214-row Windows diagnostic records product children
+**362 → 257**, fixture children **120 → 4** and body product/fixture time
+**19.947/12.461 s → 17.785/4.349 s**, with shared setup shown separately.
+Seven deliberate slow-path/schema/isolation/packing drills fail and restore
+SHA-256-exact.
+
+Four consecutive complete final-source native passes remain **unachieved**.
+An uninstrumented sequence passes three times, then protected refusal times
+out; after measured compaction, the final-source profile is **213/214**,
+with two-writer publication taking **5.027 s**. A complete workspace trace
+times out in publication refusal again (**5.017 s**). common.md's repeated
+failure stop rule prevents another repair/retry on that path. Full quality,
+coverage, hosted certification and Mac integration are explicitly delegated
+to the lead by the rig brief/common.md; no gate or deadline is weakened.
+The measured changes and exact residual actions are in the REDWINI96 section
+of `docs/certification/m96-i.md` and its linked timing table. This closes
+neither **I-default-timeout** nor **I-path-race**.
+All five compiler projects (plus the final unit recheck), changed-file
+ESLint/Prettier, deadcode, zero-clone duplication, localization, host API and
+production size/split/globals/notices gates pass on the Windows rig. No
+dependency, suppression, gate level, deadline or bundle cap changes.
+
+**WINI96C fixture proof (2026-10-05).** Overlap and junction setup use real
+fast-import without unused task copies; docs-base setup preserves the real
+index with read-tree. The overlap test additionally requires its domain
+refusal message after a deliberate guard removal exposed a generic-error
+false positive. Mac snapshot `86e32b4e` passes all 214 owning cases, all five
+compiler projects and the scoped static/build matrix; overlap and native
+junction control drills fail as intended and restore SHA-256-exact. Native
+full proof remains required: the plain source before message refinement is
+211/214, with workspace base-capture, two-writer and drive-alias timeouts.
+No deadline, assertion or gate is weakened, and no Windows/CI green is
+claimed. Full quality/coverage and hosted certification remain the lead's
+gates under common.md. Evidence and exact remaining actions are in the
+WINI96C section of `docs/certification/m96-i.md`.
+
 **WINM96I Windows follow-up (2026-10-05).** Complete owning files pass on
 Windows: teamWorkspaces 39, teamRefFence 89, teamMerge 45 and reviewGate /
 reviewerPick 16 (189 total; four existing POSIX-only bodies return). Junction
@@ -30038,9 +30117,78 @@ before a repaired one loads (2026-09-30).
   two timing failures. Earlier I-Windows records used 120-second overrides
   and do not close this gate. Detailed timings and remaining actions are in
   `docs/certification/m96-i.md`, WINI96.
+  WINI96B (2026-10-05) authorizes a fresh, two-attempt repair round for
+  exactly the filter canary, two-writer and publication-race timeouts.
+  Profile per-step wall time, direct Git children and filesystem calls;
+  reduce fixture work and use deterministic completion barriers. Keep all
+  assertions and default deadlines. Acceptance: three consecutive complete
+  lane-I Windows passes with three workers, then one at normal workers;
+  retain POSIX behavior and record before/after case costs. Native tests
+  here are the explicit exception to common.md's rig-only rule. Full
+  quality/coverage and release integration remain the lead's gates.
+  Final-source three-worker acceptance passes three consecutive complete
+  lane-I runs, each 214/214 with unchanged defaults. All three assigned
+  repairs pass in normal configuration too, but that complete run is
+  213/214: the unassigned overlap-refusal case times out at 5.085 s.
+  I-default-timeout's normal-worker criterion therefore remains open;
+  the earlier normal pass is not substituted for final-source proof.
+  WINI96B's exact three-case scope prevents changing the fourth fixture
+  without owner authorization. A focused fast-import setup replacement
+  is proposed, with assertions and deadlines unchanged. No blind rerun.
+  Fresh POSIX 214/214, three restored guard drills and all scoped
+  static/build gates pass. See the WINI96B certification section.
+  WINI96C (2026-10-05) authorizes the proposed overlap-refusal fixture
+  repair, restarting the two-attempt rule for this case. Replace only its
+  unused task-copy setup with the existing real Git fast-import helper;
+  retain overlap refusal, untouched-user-bytes assertions and all default
+  deadlines. Profile the complete owning file before the change, then
+  require three consecutive complete lane-I Windows passes at three
+  workers and one at normal workers. Record per-case timings, direct Git
+  children, observed filesystem calls and an exact-restored overlap guard
+  drill in the same certification record. Native runs are this brief's
+  explicit rig-only exception; full quality, coverage, hosted CI and final
+  milestone integration remain the lead's gates.
+  The first WINI96C normal-worker run passes the overlap case at 1.200 s
+  but exposes a junction-delete fixture timeout at 9.463 s (213/214).
+  Continue the same lane-I fixture-cost work with no blind retry: use
+  captured profiles to remove its unused task copy and replace docs-base
+  porcelain with fast-import plus a real index reset. Keep actual junctions,
+  outside-byte/sentinel/ref assertions and deadlines. Prove the junction
+  fixture control fails when its link is deliberately removed, restore
+  byte-exact, then obtain fresh final-source native repeats and normal proof.
+  The overlap guard drill initially survives: a generic Git error is wrapped
+  with the same `mergeFailed` code. Retain the code and untouched-byte checks
+  and additionally require the specific overlap-refusal message; re-drill
+  the real guard and restore exactly. Workspace timeouts remain explicit
+  pending proof; no normal-worker success is inferred from an earlier tree.
   The integrator must unify lane I's tokenizer and lane W's shared Git
   classifier in round 3b, and honour TeamGit's explicit isolated environment
   argument. Proof and remaining checks are in `docs/certification/m96-i.md`.
+  REDWINI96 (2026-10-05) replaces the third-round patch approach with a
+  measured redesign. Profile all 214 cases, separating fixture setup from
+  product calls and counting their Git requests and children. Prepare each
+  fixture once per owning file and copy it cheaply. Reduce measured product
+  spawn cost without caching mutable refs, configuration or path checks.
+  A measured copy-cost follow-up compacts the fully prepared immutable seed
+  once before cases; task copies take their objects from that completed seed,
+  avoiding repeated links and directory creation for many tiny imports.
+  Acceptance is four consecutive complete Windows runs at three workers,
+  default deadlines, and a byte-exact restored slow-path timeout drill.
+  The M96 integration lane re-runs Mac/Linux; full quality remains the
+  lead's gate under common.md. No retries, deadline increases or skips.
+  WINPUB removes per-import automatic maintenance, commit-graph writing and
+  submodule recursion, retaining live reads, connectivity checks and CAS.
+  Four final-source native runs pass **214/214** each under verified Git
+  selection. One early six-worker load run passes **30/30**, but its repeat
+  is **18 passed / 10 timed out / 2 hook-cascade skipped**; the required loaded
+  deadline remains unclosed. The original fetch path's restored stress drill
+  times out in five of thirty independent cases. Individual lock/rename/fsync
+  syscall durations remain unavailable from Git's traces; native transaction
+  bounds and flush counts are recorded instead. Git's pack-retention trial
+  retains three hardware flushes per writer and is not shipped. No guessed
+  durability/streaming contract, new object-store writer or deadline change
+  is added. Full quality/coverage, Mac/Linux and existing I-path-race remain
+  the lead's checks. See `docs/certification/m96-i-winpub.md` for every result.
 
 - **FIXM96I / RVM96B (2026-10-05):** findings 1–12 and 24 are repaired,
   with no scoped finding deferred. Named validation residual **I-Windows**

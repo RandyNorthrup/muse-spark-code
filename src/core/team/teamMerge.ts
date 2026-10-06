@@ -67,6 +67,7 @@ export function isTeamMergeError(value: unknown): value is TeamMergeError {
 const OBJECT_ID = /^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i
 const LOSSY_DECODER = new TextDecoder('utf-8', { fatal: false })
 const NUL = 0
+const LINE_FEED = 0x0a
 const EXECUTABLE_BIT = 0o100
 const PLAIN_FILE_MODE = 0o644
 const EXECUTABLE_MASK = 0o111
@@ -161,6 +162,15 @@ interface RawChange {
   readonly change: TeamMergeChange
   readonly baseMode: number | undefined
   readonly theirsMode: number | undefined
+  readonly baseSha: string
+  readonly theirsSha: string
+}
+
+interface PreparedFile {
+  readonly file: TeamMergePlannedFile
+  readonly change: RawChange
+  readonly baseBytes: Uint8Array | undefined
+  readonly theirsBytes: Uint8Array | undefined
 }
 
 function hasNul(bytes: Uint8Array): boolean {
@@ -180,12 +190,12 @@ function parseRawDiff(output: Uint8Array): readonly RawChange[] {
     throw new TeamMergeError('mergeFailed', 'The team merge could not read the change')
   }
   const changes: RawChange[] = []
-  const RECORD = /^:(\d+) (\d+) [a-f0-9]+ [a-f0-9]+ ([ACDMRTUXB])$/
+  const RECORD = /^:(\d+) (\d+) ([a-f0-9]+) ([a-f0-9]+) ([ACDMRTUXB])$/
   for (let index = 0; index < tokens.length; index += 2) {
     const header = tokens[index] ?? ''
     const file = tokens[index + 1] ?? ''
     const match = RECORD.exec(header)
-    const status = match?.[3] ?? ''
+    const status = match?.[5] ?? ''
     if (match === null || file === '' || status === 'R' || status === 'C') {
       throw new TeamMergeError('mergeFailed', 'The team merge could not read the change')
     }
@@ -202,6 +212,8 @@ function parseRawDiff(output: Uint8Array): readonly RawChange[] {
       change,
       baseMode: Number.isSafeInteger(baseMode) ? baseMode : undefined,
       theirsMode: Number.isSafeInteger(theirsMode) ? theirsMode : undefined,
+      baseSha: match[3] ?? '',
+      theirsSha: match[4] ?? '',
     })
   }
   return changes
@@ -278,37 +290,47 @@ function isWithinWritePaths(relative: string, writePaths: readonly string[]): bo
   })
 }
 
-/** `git ls-tree -z <rev> -- <path>`: the blob sha and mode, if the path is a file. */
-async function treeBlob(
-  runGit: TeamGit,
-  repositoryRoot: string,
-  rev: string,
-  file: string,
-): Promise<{ readonly sha: string; readonly mode: number } | undefined> {
-  const output = LOSSY_DECODER.decode(
-    await runGit(['ls-tree', '-z', rev, '--', file], repositoryRoot),
-  )
-  const record = output.split('\0', 1)[0] ?? ''
-  if (record === '') {
-    return undefined
-  }
-  const match = /^(\d+) blob ([a-f0-9]+)\t/.exec(record)
-  if (match === null) {
-    // A tree or submodule where a file was expected: the merge refuses it
-    // as unsafe rather than guessing (fail-closed).
-    return undefined
-  }
-  const mode = Number.parseInt(match[1] ?? '', 8)
-  if ((mode & ~EXECUTABLE_MASK) !== ADDED_BASE_MODE) {
+/** Validate modes before reading objects; links and submodules remain refused. */
+function checkBlobMode(mode: number | undefined, file: string): void {
+  if (mode === undefined || (mode & ~EXECUTABLE_MASK) !== ADDED_BASE_MODE) {
     throw new TeamMergeError('unsafePath', `The team merge refused a non-regular file ${file}`, [
       file,
     ])
   }
-  return Number.isSafeInteger(mode) ? { sha: match[2] ?? '', mode } : undefined
 }
 
-async function readBlob(runGit: TeamGit, repositoryRoot: string, sha: string): Promise<Uint8Array> {
-  return await runGit(['cat-file', 'blob', sha], repositoryRoot)
+/** One binary-safe batch of the exact immutable blobs needed by this operation. */
+async function readBlobs(
+  runGit: TeamGit,
+  root: string,
+  names: readonly string[],
+): Promise<ReadonlyMap<string, Uint8Array>> {
+  const blobs = new Map<string, Uint8Array>()
+  if (names.length === 0) return blobs
+  const output = Buffer.from(await runGit(['cat-file', '--batch'], root, names.join('\n') + '\n'))
+  let offset = 0
+  for (const name of names) {
+    const newline = output.indexOf(LINE_FEED, offset)
+    const header = output.subarray(offset, newline).toString('ascii')
+    const match = /^([a-f0-9]{40}|[a-f0-9]{64}) blob (0|[1-9]\d*)$/.exec(header)
+    const size = Number(match?.[2])
+    const end = newline + 1 + size
+    if (
+      newline < offset ||
+      match?.[1] !== name ||
+      !Number.isSafeInteger(size) ||
+      end >= output.length ||
+      output[end] !== LINE_FEED
+    ) {
+      throw new TeamMergeError('mergeFailed', 'The team merge could not read its blob batch')
+    }
+    blobs.set(name, output.subarray(newline + 1, end))
+    offset = end + 1
+  }
+  if (offset !== output.length) {
+    throw new TeamMergeError('mergeFailed', 'The team merge received extra blob data')
+  }
+  return blobs
 }
 
 function areBytesEqual(left: Uint8Array | undefined, right: Uint8Array | undefined): boolean {
@@ -336,6 +358,15 @@ export async function planTeamMerge(
   spec: TeamMergeSpec,
   platform: NodeJS.Platform = process.platform,
 ): Promise<readonly TeamMergePlannedFile[]> {
+  const prepared = await prepareTeamMerge(io, spec, platform)
+  return prepared.map(({ file }) => file)
+}
+
+async function prepareTeamMerge(
+  io: TeamMergeIo,
+  spec: TeamMergeSpec,
+  platform: NodeJS.Platform,
+): Promise<readonly PreparedFile[]> {
   const base = checkCommit(spec.baseCommit, 'base')
   const head = checkCommit(spec.branchHead, 'branch head')
   for (const agentRef of spec.agentRefs) {
@@ -352,6 +383,7 @@ export async function planTeamMerge(
     [
       'diff',
       '--raw',
+      '--no-abbrev',
       '-z',
       '--no-color',
       '--no-ext-diff',
@@ -363,47 +395,40 @@ export async function planTeamMerge(
     ],
     spec.repositoryRoot,
   )
-  const planned: TeamMergePlannedFile[] = []
-  for (const change of parseRawDiff(raw)) {
-    const relative = await confinedRelative(io, spec.repositoryRoot, change.path, platform)
-    const baseBlob =
-      change.change === 'added'
-        ? undefined
-        : await treeBlob(io.runGit, spec.repositoryRoot, base, change.path)
-    // A tree, submodule or mode-only record the raw parse kept: the merge
-    // takes the branch's file explicitly below, or refuses a non-file.
-    const theirsBlob =
-      change.change === 'deleted'
-        ? undefined
-        : await treeBlob(io.runGit, spec.repositoryRoot, head, change.path)
-    if (theirsBlob === undefined && change.change !== 'deleted') {
-      throw new TeamMergeError(
-        'unsafePath',
-        `The team merge refused a non-file path ${change.path}`,
-        [change.path],
-      )
+  const changes = parseRawDiff(raw)
+  const paths: string[] = []
+  const names = new Set<string>()
+  for (const change of changes) {
+    paths.push(await confinedRelative(io, spec.repositoryRoot, change.path, platform))
+    if (change.change !== 'added') {
+      checkBlobMode(change.baseMode, change.path)
+      names.add(checkCommit(change.baseSha, 'base blob'))
     }
-    const baseBytes =
-      baseBlob === undefined
-        ? undefined
-        : await readBlob(io.runGit, spec.repositoryRoot, baseBlob.sha)
-    const theirsBytes =
-      theirsBlob === undefined
-        ? undefined
-        : await readBlob(io.runGit, spec.repositoryRoot, theirsBlob.sha)
-    const isBinary =
-      (baseBytes !== undefined && hasNul(baseBytes)) ||
-      (theirsBytes !== undefined && hasNul(theirsBytes))
-    planned.push({
-      path: relative,
-      change: change.change,
-      isBinary,
-      isProtected: isProtectedPath(relative.toLowerCase()),
-      outsideWritePaths:
-        spec.writePaths !== undefined && !isWithinWritePaths(relative, spec.writePaths),
-    })
+    if (change.change === 'deleted') continue
+    checkBlobMode(change.theirsMode, change.path)
+    names.add(checkCommit(change.theirsSha, 'branch blob'))
   }
-  return planned
+  const blobs = await readBlobs(io.runGit, spec.repositoryRoot, [...names])
+  return changes.map((change, index) => {
+    const relative = paths[index] ?? change.path
+    const baseBytes = change.change === 'added' ? undefined : blobs.get(change.baseSha)
+    const theirsBytes = change.change === 'deleted' ? undefined : blobs.get(change.theirsSha)
+    return {
+      change,
+      baseBytes,
+      theirsBytes,
+      file: {
+        path: relative,
+        change: change.change,
+        isBinary:
+          (baseBytes !== undefined && hasNul(baseBytes)) ||
+          (theirsBytes !== undefined && hasNul(theirsBytes)),
+        isProtected: isProtectedPath(relative.toLowerCase()),
+        outsideWritePaths:
+          spec.writePaths !== undefined && !isWithinWritePaths(relative, spec.writePaths),
+      },
+    }
+  })
 }
 
 /**
@@ -419,7 +444,8 @@ export async function applyTeamMerge(
   options: TeamMergeOptions = {},
 ): Promise<TeamMergeResult> {
   const platform = options.platform ?? process.platform
-  const planned = await planTeamMerge(io, spec, platform)
+  const prepared = await prepareTeamMerge(io, spec, platform)
+  const planned = prepared.map(({ file }) => file)
   const outside = planned.filter((file) => file.outsideWritePaths).map((file) => file.path)
   if (outside.length > 0) {
     throw new TeamMergeError(
@@ -445,7 +471,7 @@ export async function applyTeamMerge(
   let landingRoot = spec.repositoryRoot
   try {
     try {
-      for (const file of planned) {
+      for (const file of prepared) {
         const outcome = await mergeOneFile(io, spec, file, scratch, platform)
         written.push(...outcome.written)
         conflicts.push(...outcome.conflicts)
@@ -708,39 +734,24 @@ function errorCode(error: unknown): string | undefined {
 async function mergeOneFile(
   io: TeamMergeIo,
   spec: TeamMergeSpec,
-  file: TeamMergePlannedFile,
+  prepared: PreparedFile,
   scratch: string,
   platform: NodeJS.Platform,
 ): Promise<FileOutcome> {
-  const base = spec.baseCommit
-  const head = spec.branchHead
-  const baseBlob =
-    file.change === 'added'
-      ? undefined
-      : await treeBlob(io.runGit, spec.repositoryRoot, base, file.path)
-  const theirsBlob =
-    file.change === 'deleted'
-      ? undefined
-      : await treeBlob(io.runGit, spec.repositoryRoot, head, file.path)
-  const baseBytes =
-    baseBlob === undefined
-      ? undefined
-      : await readBlob(io.runGit, spec.repositoryRoot, baseBlob.sha)
-  const theirsBytes =
-    theirsBlob === undefined
-      ? undefined
-      : await readBlob(io.runGit, spec.repositoryRoot, theirsBlob.sha)
+  const { file, change, baseBytes, theirsBytes } = prepared
+  const theirsMode = change.change === 'deleted' ? undefined : change.theirsMode
   await confinedRelative(io, spec.repositoryRoot, file.path, platform)
   const oursBytes = await readWorktreeFile(spec.repositoryRoot, file.path)
   const absolute = path.join(spec.repositoryRoot, file.path)
   const oursStat = await linkOf(absolute)
   const oursMode = platform === 'win32' ? undefined : oursStat?.mode
   const beforeMode = oursMode === undefined ? undefined : oursMode & PERMISSION_MASK
-  const baseMode = baseBlob?.mode ?? ADDED_BASE_MODE
+  const baseMode =
+    change.change === 'added' ? ADDED_BASE_MODE : (change.baseMode ?? ADDED_BASE_MODE)
   const hasModeFlip =
     platform !== 'win32' &&
-    theirsBlob !== undefined &&
-    (baseMode & EXECUTABLE_BIT) !== (theirsBlob.mode & EXECUTABLE_BIT)
+    theirsMode !== undefined &&
+    (baseMode & EXECUTABLE_BIT) !== (theirsMode & EXECUTABLE_BIT)
   let afterMode: number | undefined
   if (platform !== 'win32' && theirsBytes !== undefined) {
     afterMode = beforeMode
@@ -755,7 +766,7 @@ async function mergeOneFile(
     }
     if (hasModeFlip) {
       afterMode =
-        (theirsBlob.mode & EXECUTABLE_BIT) === 0
+        (theirsMode & EXECUTABLE_BIT) === 0
           ? afterMode & ~EXECUTABLE_MASK
           : afterMode | ((afterMode & READABLE_MASK) >> 2)
     }

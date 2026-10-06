@@ -3,12 +3,11 @@
 // refs, scratch copies for read-only workers, the end-of-task commit and
 // fetch, and cleanup. Real temporary repositories; no model calls.
 
-import { lstat, mkdir, readFile, rename, symlink, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, readFile, rename, symlink, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { execFile } from 'node:child_process'
 import type * as ChildProcess from 'node:child_process'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { cpSync } from 'node:fs'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import {
   commitTaskBranch,
@@ -27,6 +26,7 @@ import {
 } from '../../src/core/team/teamWorkspaces'
 import {
   cleanupTeamRoots,
+  copyTeamFixture,
   fixtureBlobs,
   teamFixtureCommit,
   teamFixtureRepo,
@@ -109,7 +109,7 @@ async function copiedTaskWorkspace(
     process.platform,
   )
   await mkdir(path.dirname(folder), { recursive: true })
-  cpSync(template.workspace.folder, folder, { recursive: true })
+  copyTeamFixture(template.workspace.folder, folder)
   await writeFile(
     path.join(folder, '.git', 'objects', 'info', 'alternates'),
     `${path.join(root, '.git', 'objects')}\n`,
@@ -119,8 +119,14 @@ async function copiedTaskWorkspace(
   }
   const branch = `agents/${role}/${taskId}`
   const agentsRef = `refs/heads/${branch}`
-  await runGit(['branch', '-m', branch], folder)
-  await runGit(['update-ref', agentsRef, head, '0'.repeat(head.length)], root)
+  const ref = path.join(folder, '.git', agentsRef)
+  await mkdir(path.dirname(ref), { recursive: true })
+  await writeFile(ref, head + '\n')
+  await writeFile(path.join(folder, '.git', 'HEAD'), `ref: ${agentsRef}\n`)
+  await unlink(path.join(folder, '.git', 'refs', 'heads', 'agents', 'engineering', 'fixture'))
+  const userRef = path.join(root, '.git', agentsRef)
+  await mkdir(path.dirname(userRef), { recursive: true })
+  await writeFile(userRef, head + '\n')
   return { root, head, workspace: { folder, branch, agentsRef } }
 }
 
@@ -166,7 +172,18 @@ describe('resolveBaseCommit', () => {
   it('captures uncommitted work with HEAD as parent, without touching the branch', async () => {
     const { root, head } = await teamFixtureRepo(runGit)
     await writeFile(path.join(root, 'shared.txt'), 'one\nWORK\nthree\n')
-    const base = await resolveBaseCommit(runGit, root)
+    const metadataReads: (readonly string[])[] = []
+    let metadataOutput = ''
+    const measuredGit: typeof runGit = async (args, cwd, input, env) => {
+      const result = await runGit(args, cwd, input, env)
+      if (args[0] === 'rev-parse') {
+        metadataReads.push([...args])
+        metadataOutput = TEXT.decode(result)
+      }
+      return result
+    }
+    const base = await resolveBaseCommit(measuredGit, root)
+    expect(metadataReads).toHaveLength(1)
     expect(base).not.toBe(head)
     expect(await revOf(root, `${base}^`)).toBe(head)
     // The user's branch and tree are untouched.
@@ -176,6 +193,18 @@ describe('resolveBaseCommit', () => {
     expect(TEXT.decode(await runGit(['show', `${base}:shared.txt`], root))).toBe(
       'one\nWORK\nthree\n',
     )
+    for (const malformed of [
+      metadataOutput.split('\n', 1)[0] ?? '',
+      metadataOutput + 'extra\n',
+      metadataOutput.replace(/^[^\n]+/u, ''),
+    ]) {
+      const malformedGit: typeof runGit = (args) =>
+        Promise.resolve(new TextEncoder().encode(args.includes('status') ? 'dirty' : malformed))
+      await expect(resolveBaseCommit(malformedGit, root)).rejects.toMatchObject({
+        code: 'workspaceFailed',
+        message: 'The team workspace has no Git metadata',
+      })
+    }
   })
 })
 
@@ -268,9 +297,14 @@ describe('startTeamWorkspace', () => {
 })
 
 describe('two writers', () => {
+  let first: TaskWorkspace
+  let second: TaskWorkspace
+  beforeAll(async () => {
+    first = await copiedTaskWorkspace('t1')
+    second = await copiedTaskWorkspace('t2', 'own-branch', 'engineering', first)
+  })
+
   it('never touch each other’s trees; both branches land from the same base', async () => {
-    const first = await copiedTaskWorkspace('t1')
-    const second = await copiedTaskWorkspace('t2', 'own-branch', 'engineering', first)
     const { root, head } = first
     expect(first.workspace.folder).not.toBe(second.workspace.folder)
     await writeWorkerFile(first.workspace.folder, 'shared.txt', 'one\nFIRST\nthree\n')
@@ -281,27 +315,90 @@ describe('two writers', () => {
     expect(await readFile(path.join(second.workspace.folder, 'shared.txt'), 'utf8')).toBe(
       'one\nSECOND\nthree\n',
     )
-    const one = await commitWorkerEdit(first.workspace.folder, 'engineering', 't1', 'entry-a')
-    const two = await commitWorkerEdit(second.workspace.folder, 'engineering', 't2', 'entry-b')
+    const ready = Promise.withResolvers<undefined>()
+    let writersReady = 0
+    const concurrentGit: typeof runGit = async (args, cwd, input, env) => {
+      if (args.includes('add')) {
+        writersReady += 1
+        if (writersReady === 2) {
+          ready.resolve(undefined)
+        }
+        await ready.promise
+      }
+      return await runGit(args, cwd, input, env)
+    }
+    // Both real commits reach staging before either proceeds. No sleeps,
+    // timing assumptions or serialized writer stand-ins.
+    const [one, two] = await Promise.all([
+      commitTaskBranch(concurrentGit, first.workspace.folder, {
+        branch: 'agents/engineering/t1',
+        role: 'engineering',
+        taskId: 't1',
+        entryId: 'entry-a',
+      }),
+      commitTaskBranch(concurrentGit, second.workspace.folder, {
+        branch: 'agents/engineering/t2',
+        role: 'engineering',
+        taskId: 't2',
+        entryId: 'entry-b',
+      }),
+    ])
+    expect(writersReady).toBe(2)
     expect(one.committed).toBe(true)
     expect(two.committed).toBe(true)
-    await publishTaskRef(
-      runGit,
+    const imports: (readonly string[])[] = []
+    const publicationGit: typeof runGit = async (args, cwd, input, env) => {
+      if (args[0] === 'fetch') imports.push(args)
+      return await runGit(args, cwd, input, env)
+    }
+    await Promise.all([
+      publishTaskRef(
+        publicationGit,
+        root,
+        first.workspace.folder,
+        'agents/engineering/t1',
+        'refs/heads/agents/engineering/t1',
+        head,
+      ),
+      publishTaskRef(
+        publicationGit,
+        root,
+        second.workspace.folder,
+        'agents/engineering/t2',
+        'refs/heads/agents/engineering/t2',
+        head,
+      ),
+    ])
+    expect(imports).toHaveLength(2)
+    for (const args of imports) {
+      expect(args).toEqual(
+        expect.arrayContaining([
+          '--no-write-fetch-head',
+          '--no-auto-maintenance',
+          '--no-write-commit-graph',
+          '--no-recurse-submodules',
+        ]),
+      )
+    }
+    // Read from the destination object store, not the worker alternates:
+    // removing incidental fetch work must still import both complete trees.
+    const published = await runGit(
+      ['cat-file', '--batch'],
       root,
-      first.workspace.folder,
-      'agents/engineering/t1',
-      'refs/heads/agents/engineering/t1',
-      head,
+      `${one.head}:shared.txt\n${two.head}:shared.txt\n`,
     )
-    await publishTaskRef(
-      runGit,
-      root,
-      second.workspace.folder,
-      'agents/engineering/t2',
-      'refs/heads/agents/engineering/t2',
-      head,
-    )
+    expect(Array.from(fixtureBlobs(published).values(), (bytes) => TEXT.decode(bytes))).toEqual([
+      'one\nFIRST\nthree\n',
+      'one\nSECOND\nthree\n',
+    ])
     expect(await revOf(root, 'refs/heads/agents/engineering/t1')).toBe(one.head)
+    expect(await revOf(root, 'refs/heads/agents/engineering/t2')).toBe(two.head)
+    const finalTrees = await Promise.all(
+      [first, second].map(
+        async ({ workspace }) => await readFile(path.join(workspace.folder, 'shared.txt'), 'utf8'),
+      ),
+    )
+    expect(finalTrees).toEqual(['one\nFIRST\nthree\n', 'one\nSECOND\nthree\n'])
     // The user's branch still has no commit.
     expect(await revOf(root, 'main')).toBe(head)
   })
@@ -337,15 +434,20 @@ describe('commitTaskBranch', () => {
 })
 
 describe('publishTaskRef', () => {
-  it('refuses a ref the extension did not write last, without overwriting it', async () => {
-    const { root, head, workspace } = await copiedTaskWorkspace('t1')
+  let fixture: TaskWorkspace
+  let taskHead: string
+  beforeAll(async () => {
+    fixture = await copiedTaskWorkspace('t1')
+    const { head, workspace } = fixture
     await writeWorkerFile(workspace.folder, 'shared.txt', 'one\nCHANGED\nthree\n')
-    const { head: taskHead } = await commitWorkerEdit(
-      workspace.folder,
-      'engineering',
-      't1',
-      'entry-a',
-    )
+    taskHead = await teamFixtureCommit(runGit, workspace.folder, head, {
+      'shared.txt': 'one\nCHANGED\nthree\n',
+    })
+    await runGit(['read-tree', '--reset', taskHead], workspace.folder)
+  })
+
+  it('refuses a ref the extension did not write last, without overwriting it', async () => {
+    const { root, head, workspace } = fixture
     // A worker's script pushes into the user's repository by its path: the
     // ref now holds the task head, which the extension never wrote there,
     // and the reflog shows receive-pack wrote it.
@@ -379,6 +481,21 @@ describe('publishTaskRef', () => {
 })
 
 describe('repair regressions: publication CAS', () => {
+  let raceFixture: TaskWorkspace
+  let taskHead: string
+  beforeAll(async () => {
+    raceFixture = await copiedTaskWorkspace('cas')
+    // Publication imports an existing commit; commitTaskBranch has its own
+    // real-porcelain tests. Build this fixture in one plumbing transaction.
+    taskHead = await teamFixtureCommit(
+      runGit,
+      raceFixture.workspace.folder,
+      raceFixture.head,
+      { 'shared.txt': 'changed\n' },
+      'refs/heads/agents/engineering/cas',
+    )
+  })
+
   it('reports a held ref lock as Git failure rather than fictitious movement', async () => {
     const { root, head, workspace } = await copiedTaskWorkspace('locked')
     const ref = 'refs/heads/agents/engineering/locked'
@@ -391,25 +508,23 @@ describe('repair regressions: publication CAS', () => {
   })
 
   it('refuses an intervening ref movement at the object import boundary', async () => {
-    const { root, head, workspace } = await copiedTaskWorkspace('cas')
-    await writeWorkerFile(workspace.folder, 'shared.txt', 'changed\n')
-    const { head: taskHead } = await commitWorkerEdit(
-      workspace.folder,
-      'engineering',
-      'cas',
-      'entry',
-    )
+    const { root, head, workspace } = raceFixture
     const ref = 'refs/heads/agents/engineering/cas'
+    let isImportCompleted = false
     const racingGit: typeof runGit = async (args, cwd, input) => {
       const result = await runGit(args, cwd, input)
       if (args[0] === 'fetch') {
+        // This awaited seam is the barrier: imported objects exist, while
+        // the publication CAS has not run. The intervening writer wins.
         await runGit(['update-ref', ref, taskHead, head], root)
+        isImportCompleted = true
       }
       return result
     }
     await expect(
       publishTaskRef(racingGit, root, workspace.folder, 'agents/engineering/cas', ref, head),
     ).rejects.toMatchObject({ code: 'refMoved' })
+    expect(isImportCompleted).toBe(true)
     expect(await revOf(root, ref)).toBe(taskHead)
   })
 })
@@ -493,6 +608,9 @@ describe('round 2: extension-owned Git isolation', () => {
       process.platform === 'win32' ? 'NUL' : '/dev/null',
     )
     expect(calls[1]?.env?.['GIT_TERMINAL_PROMPT']).toBe('0')
+    await teamProgramFreeGit(fakeGit)(['rev-parse', '--verify', 'HEAD^{commit}'], process.cwd())
+    expect(calls).toHaveLength(3)
+    expect(calls[2]?.env).toEqual(calls[1]?.env)
   })
 })
 
@@ -707,12 +825,21 @@ describe('fixture batch and ownership', () => {
   })
 
   it('keeps copied workspace bytes, refs and object sources independent', async () => {
+    const templateAlternates = path.join(
+      templates.own!.workspace.folder,
+      '.git',
+      'objects',
+      'info',
+      'alternates',
+    )
+    const originalAlternates = await readFile(templateAlternates, 'utf8')
     const { root, head, workspace } = await copiedTaskWorkspace('independent')
     const alternates = await readFile(
       path.join(workspace.folder, '.git', 'objects', 'info', 'alternates'),
       'utf8',
     )
     expect(path.resolve(alternates.trim())).toBe(path.join(root, '.git', 'objects'))
+    expect(await readFile(templateAlternates, 'utf8')).toBe(originalAlternates)
     expect(await revOf(root, 'agents/engineering/independent')).toBe(head)
     expect(await revOf(workspace.folder, 'HEAD')).toBe(head)
     await writeWorkerFile(workspace.folder, 'shared.txt', 'only this copy\n')

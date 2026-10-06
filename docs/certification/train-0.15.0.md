@@ -594,3 +594,38 @@ new individual cap, credential read, paid/live attempt or full quality run.
 | 2 — packed data audit  |      454,262 |     486,463 |      821,206 | 840,264 |      2,397,730 | 2,252,800 |
 | 3 — lazy event tail    |      454,262 |     486,312 |      821,206 | 840,264 |      2,396,321 | 2,252,800 |
 | 4 — lead's VSIX cap    |      454,262 |     486,312 |      821,206 | 840,264 |      2,396,407 | 2,534,400 |
+
+### Step 5 — M96 Windows fixture/publication continuation
+
+Merge `m96/ifix-win4` at `c2e4220f1` with `--no-ff`, from `7b7893b44`.
+Three conflicts: CHANGELOG and PLAN union both histories; the executable-mode
+test adopts the incoming fast-import fixture while retaining the rig's
+saved/restored umask. Prepared copies retain the seed's ambient group-write
+mode, so the first replay correctly fails two full-mode assertions (775 vs
+755). Explicitly set this fixture's starting tracked-file mode to 644 before
+its fast-imported executable commit; the original 755/644 and Undo-content
+assertions stay unchanged. This is a fixture admission repair, with the
+failing-before/passing-after receipt retained.
+
+The product preserves batched immutable Git blob reads, confinement and mode
+validation, expected-old atomic publication and complete imported-object
+validation. Publication disables per-task automatic maintenance, commit-graph
+writing and submodule recursion. Mutable repository/index/config state is not
+cached. The incoming Windows loaded-publication timing blocker remains named
+in its original certification; Linux scoped success does not settle it.
+
+Five distinct owning complete files pass **226 tests**, in sequential batches
+of at most three files/workers with the brief's 120-second admission. The two
+changed suites and team review/reviewer selection pass 120; ref-fence and
+staging-copy pass 106. No timeout, skip, assertion, gate or cap is weakened.
+Inherited input drills keep their original provenance.
+
+Step 5's five compiler projects, scoped ESLint/Prettier, regenerated/checked
+host API (no output delta), localization and `npm run package` pass. All raw
+bundle caps remain fixed; 42 native module probes, staged localization and
+static badges pass. Universal VSIX **2,397,289 / 2,534,400**, **137,111 bytes
+headroom**. Runtime byte counts and the eager chat closure are unchanged.
+
+| TRAIN15D step               | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX |  VSIX cap |
+| --------------------------- | -----------: | ----------: | -----------: | ------: | -------------: | --------: |
+| 5 — M96 fixture/publication |      454,262 |     486,312 |      821,206 | 840,264 |      2,397,289 | 2,534,400 |

@@ -181,6 +181,51 @@
           "cap": 25600
         }
       ]
+    },
+    {
+      "stage": "train15d-step5",
+      "extension": 454262,
+      "modelApi": 486312,
+      "startup": 821206,
+      "acp": 840264,
+      "vsix": 2397289,
+      "deferred": [
+        {
+          "name": "deferred JS",
+          "bytes": 48104,
+          "cap": 51200
+        },
+        {
+          "name": "paid usage",
+          "bytes": 4018,
+          "cap": 25600
+        },
+        {
+          "name": "provider usage",
+          "bytes": 1683,
+          "cap": 25600
+        },
+        {
+          "name": "code highlighting",
+          "bytes": 90229,
+          "cap": 128000
+        },
+        {
+          "name": "action dialogs",
+          "bytes": 9490,
+          "cap": 25600
+        },
+        {
+          "name": "tasks tab",
+          "bytes": 1424,
+          "cap": 25600
+        },
+        {
+          "name": "team UI",
+          "bytes": 16132,
+          "cap": 25600
+        }
+      ]
     }
   ],
   "drills": [
@@ -377,5 +422,31 @@
     "reference": "featureCatalogue and generator absent on this input",
     "productionBuild": "all individual size/split/global/notices gates exit 0",
     "package": "npm run package exit 0; universal 2,396,407 / 2,534,400; 42 native module checks"
+  },
+  "step5": {
+    "input": "c2e4220f1",
+    "firstParent": "7b7893b44",
+    "conflicts": ["CHANGELOG.md", "PLAN.md", "test/unit/teamMerge.test.ts"],
+    "resolution": "union docs; fast-import fixture with restored mask and explicit starting mode",
+    "initialTests": {
+      "passed": 102,
+      "failed": 2
+    },
+    "tests": [
+      {
+        "files": [
+          "test/unit/teamMerge.test.ts",
+          "test/unit/teamWorkspaces.test.ts",
+          "test/unit/teamReviewGate.test.ts"
+        ],
+        "passed": 120
+      },
+      {
+        "files": ["test/unit/teamRefFence.test.ts", "test/unit/teamStagingCopy.test.ts"],
+        "passed": 106
+      }
+    ],
+    "open": "incoming loaded Windows task publication acceptance blocker remains external",
+    "checks": "five-project typecheck, scoped ESLint/Prettier, regenerated/checked host API, l10n, production build and universal package exit 0"
   }
 }

@@ -88,6 +88,11 @@ export function teamProgramFreeGit(runGit: TeamGit): TeamGit {
       'gc.auto=0',
     ]
     try {
+      // These exact plumbing operations cannot invoke an attribute driver.
+      // Keep the fixed policy and isolated environment, without a config child.
+      if (args[0] === 'rev-parse') {
+        return await runGit([...fixed, ...args], cwd, input, env)
+      }
       // Names only: configured program values are never read. Re-read on
       // every call, since a worker may have edited its repository config.
       const names = decodeText(
@@ -251,25 +256,34 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
   if (status.length === 0) {
     return await revParse(runGit, repositoryRoot, 'HEAD')
   }
-  const head = await revParse(runGit, repositoryRoot, 'HEAD')
+  const metadata = decodeText(
+    await runGit(
+      [
+        'rev-parse',
+        '--path-format=absolute',
+        '--git-path',
+        'objects',
+        '--git-path',
+        'info/exclude',
+        '--verify',
+        'HEAD^{commit}',
+      ],
+      repositoryRoot,
+    ),
+  )
+    .trim()
+    .split('\n')
+  const [objects, localExclude, headText, ...extra] = metadata
+  if (!objects || !localExclude || !headText || extra.length > 0) {
+    throw new TeamWorkspaceError('workspaceFailed', 'The team workspace has no Git metadata')
+  }
+  const head = objectId(new TextEncoder().encode(headText), 'base')
   // A private repository/index captures tracked and untracked work without
   // touching the user's index, refs, hooks or repository filter configuration.
   const scratch = await mkdtemp(path.join(tmpdir(), 'muse-team-base-'))
   try {
     await runGit(['init', '--bare', scratch], repositoryRoot)
-    const objects = decodeText(
-      await runGit(
-        ['rev-parse', '--path-format=absolute', '--git-path', 'objects'],
-        repositoryRoot,
-      ),
-    ).trim()
     await writeFile(path.join(scratch, 'objects', 'info', 'alternates'), `${objects}\n`)
-    const localExclude = decodeText(
-      await runGit(
-        ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude'],
-        repositoryRoot,
-      ),
-    ).trim()
     try {
       await copyFile(localExclude, path.join(scratch, 'info', 'exclude'))
     } catch (error: unknown) {
@@ -455,7 +469,22 @@ export async function publishTaskRef(
     )
   }
   const head = await revParse(teamProgramFreeGit(runGit), cloneFolder, branch)
-  await runGit(['fetch', '--no-write-fetch-head', '--no-tags', cloneFolder, head], repositoryRoot)
+  // Import only: per-task housekeeping adds children to both concurrent
+  // writers and can contend on the user's repository. Objects are checked
+  // before the separate atomic ref transaction, with no submodule work.
+  await runGit(
+    [
+      'fetch',
+      '--no-write-fetch-head',
+      '--no-tags',
+      '--no-auto-maintenance',
+      '--no-write-commit-graph',
+      '--no-recurse-submodules',
+      cloneFolder,
+      head,
+    ],
+    repositoryRoot,
+  )
   try {
     await runGit(
       ['update-ref', agentsRef, head, expected ?? '0'.repeat(head.length)],

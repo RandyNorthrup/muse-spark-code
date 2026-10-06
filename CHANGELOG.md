@@ -695,13 +695,51 @@ with Your Own Model` wizard (in-memory draft; Save writes
   readback before prompting. Abort signals interrupt startup and pending
   turns; failure and completion dispose sessions and owned ACP children.
 
+- **Concurrent task publication on Windows (WINPUB).** Importing a worker's
+  objects no longer starts automatic Git maintenance, writes a commit graph,
+  or recurses into submodules. The destination still validates imported
+  objects before atomic expected-old ref publication. The real two-writer
+  regression checks both imported trees and the import command policy;
+  loaded timings and deadline limits are recorded in lane I's certification.
+
+- **Windows team Git operation cost (REDWINI96).** Merge reads exact blob
+  IDs and modes from its raw diff, retrieves all required bytes through one
+  binary-safe Git batch, and reuses them within that operation. Dirty base
+  capture combines its metadata reads; isolated revision lookup avoids a
+  driver scan. Mutable refs, configuration and paths retain their checks.
+  Tests prepare and compact real repository/task fixtures once per file,
+  then hard-link only immutable packed objects into independent copies,
+  without a test-only blob cache. Measurements, restored drills and native
+  repeats are recorded in M96 lane I's certification.
+
+- **Windows overlap-refusal fixture cost (WINI96C).** The overlap regression
+  imports its real task commit with Git fast-import, avoiding a separate
+  task-tree copy and checkout that its parent-directory destination never
+  uses. Overlap refusal, untouched user bytes and default deadlines remain
+  checked; native timings and repeated runs are in lane I's certification.
+  A subsequent junction-delete timeout receives the same unused-copy
+  removal; shared docs-base setup uses fast-import and a real index reset,
+  retaining junction, outside-content, sentinel and ref checks.
+  The overlap assertion also requires the specific refusal message, so a
+  generic Git failure cannot hide a missing overlap guard.
+
+- **Remaining Windows team fixture cost (WINI96B).** The repository-program
+  canary uses one owned Node program and a prepared repository, without a
+  redundant task-tree copy. Two real writers commit concurrently behind an
+  explicit staging barrier and publish their distinct refs in parallel.
+  The publication-race fixture uses Git fast-import; its intervening write
+  stays at the awaited object-import boundary. Original assertions and
+  default deadlines remain, with additional checks of both published refs,
+  both worker trees and the canary's merged content. Measurements and
+  platform proof are in M96 lane I's certification record.
+
 - **Lower Windows team fixture cost (WINI96).** Tests reuse prepared,
   independent repository and workspace copies, batch fixture commits with
   Git fast-import, and read immutable blobs through one Git batch per
   repository. Every original assertion and default deadline remains.
-  Windows merge and workspace suite times fall roughly by half; three
-  default-timeout cases still block complete native verification, recorded
-  in M96 lane I's certification.
+  Windows merge and workspace suite times fall roughly by half; at that
+  checkpoint, three default-timeout cases still block complete native
+  verification, recorded in M96 lane I's certification.
 
 
 - **Team merge transactions (RVM96I2C lane I).** Landing compares each
@@ -714,8 +752,8 @@ with Your Own Model` wizard (in-memory draft; Save writes
   patch output remains available. Ref-lock failures retain their real error,
   symlink blobs refuse, executable flips preserve private permissions, binary
   rework keeps the worker's bytes, and 8.3 fixture listings stay bounded.
-  Windows default-timeout verification remains blocked; see M96 lane I's
-  certification record.
+  That checkpoint left Windows default-timeout verification blocked; see
+  M96 lane I's certification record and the WINI96B follow-up above.
 
 
 - **Windows team paths (M96 lane I).** Canonical containment accepts drive
