@@ -27908,6 +27908,16 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**U review repairs (RVM116U, 2026-10-06).** Fix all three P2 findings in
+U's shared surfaces, with no review residuals: match transport replies on a
+random 128-bit bridge lifetime id, request counter and workspace id; use
+the same ordering function for notes, badges and combined agent details
+(owner failures/unresolved redesigns, warnings, statistics); preserve
+unrelated setting drafts when saving a field patch, restore the submitting
+control's focus (or the saved rule heading), and announce successful saves
+through a polite live region. Add regressions and byte-exact red drills in
+`docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
+
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
 fake board. M96's plan is on its own branch, so the playbook's lanes sit here

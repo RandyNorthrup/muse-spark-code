@@ -70,6 +70,8 @@ async function mount() {
           new globalThis.MessageEvent('message', {
             data: playbookResponseSchema.parse({
               type: 'playbookState',
+              bridgeId: request.bridgeId,
+              workspaceId: request.workspaceId,
               requestId: request.requestId,
               snapshot: result,
             }),
@@ -79,6 +81,7 @@ async function mount() {
       void respond()
     },
     10_000,
+    snapshot.settings.teamId,
   )
   globalThis.addEventListener(
     'pagehide',

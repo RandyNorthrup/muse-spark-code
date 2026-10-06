@@ -1,0 +1,24 @@
+[
+  {
+    "id": "review-bridge-lifetime",
+    "file": "src/webview/playbook/bridge.ts",
+    "before": "response.bridgeId !== lifetime.bridgeId || response.workspaceId !== lifetime.workspaceId",
+    "after": "false",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "drops disposed bridge replies before a new workspace request can resolve",
+    "exitCode": 1,
+    "beforeSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "afterSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f"
+  },
+  {
+    "id": "review-bridge-workspace",
+    "file": "src/webview/playbook/bridge.ts",
+    "before": "response.workspaceId !== lifetime.workspaceId",
+    "after": "false",
+    "testFile": "test/unit/PlaybookPanel.test.tsx",
+    "test": "drops disposed bridge replies before a new workspace request can resolve",
+    "exitCode": 1,
+    "beforeSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f",
+    "afterSha256": "7a8083386f4eb924aa6b7c3eba400ed24efa0e47b2bfe7d6501cca45c0582e8f"
+  }
+]

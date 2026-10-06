@@ -199,14 +199,19 @@ describe('M116 shared playbook surfaces', () => {
 describe('shared playbook postMessage boundary', () => {
   it('requires a positive integer transport deadline', () => {
     for (const deadline of [0, -1, 1.5, NaN])
-      expect(() => createPlaybookBridge(window, vi.fn(), deadline)).toThrow()
+      expect(() => createPlaybookBridge(window, vi.fn(), deadline, 'workspace-panel')).toThrow()
   })
 
   it('requires a positive integer protocol correlation id', () => {
     for (const requestId of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1])
-      expect(playbookRequestSchema.safeParse({ type: 'playbookRead', requestId }).success).toBe(
-        false,
-      )
+      expect(
+        playbookRequestSchema.safeParse({
+          type: 'playbookRead',
+          bridgeId: 'A'.repeat(22) + '==',
+          workspaceId: 'workspace-panel',
+          requestId,
+        }).success,
+      ).toBe(false)
   })
 
   it('scrubs a failed post and releases its pending request', async () => {
@@ -217,6 +222,7 @@ describe('shared playbook postMessage boundary', () => {
         throw new Error('private transport detail')
       },
       1000,
+      'workspace-panel',
     )
     await expect(bridge.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(vi.getTimerCount()).toBe(0)
@@ -231,12 +237,20 @@ describe('shared playbook postMessage boundary', () => {
         sent.push(message)
       },
       1000,
+      'workspace-panel',
     )
     const reading = bridge.read()
-    expect(sent[0]).toEqual({ type: 'playbookRead', requestId: 1 })
+    const first = playbookRequestSchema.parse(sent[0])
+    expect(first).toEqual({
+      type: 'playbookRead',
+      bridgeId: expect.any(String),
+      workspaceId: 'workspace-panel',
+      requestId: 1,
+    })
     window.dispatchEvent(
       new MessageEvent('message', {
         data: {
+          ...first,
           type: 'playbookState',
           requestId: 2,
           snapshot: {
@@ -248,24 +262,28 @@ describe('shared playbook postMessage boundary', () => {
     )
     window.dispatchEvent(
       new MessageEvent('message', {
-        data: { type: 'playbookState', requestId: 1, snapshot: {}, extra: true },
+        data: { ...first, type: 'playbookState', requestId: 1, snapshot: {}, extra: true },
       }),
     )
     window.dispatchEvent(
       new MessageEvent('message', {
-        data: { type: 'playbookState', requestId: 1, snapshot: surfaceSnapshot() },
+        data: { ...first, type: 'playbookState', requestId: 1, snapshot: surfaceSnapshot() },
       }),
     )
     expect(await reading).toEqual(surfaceSnapshot())
     const changing = bridge.change({ rule: 'offload', enabled: false, reason: 'maintenance' })
     const rejected = expect(changing).rejects.toThrow(UI_TEXT.playbookUnavailable)
     window.dispatchEvent(
-      new MessageEvent('message', { data: { type: 'playbookUnavailable', requestId: 2 } }),
+      new MessageEvent('message', {
+        data: { ...first, type: 'playbookUnavailable', requestId: 2 },
+      }),
     )
     await rejected
     expect(
       playbookRequestSchema.safeParse({
         type: 'playbookChange',
+        bridgeId: first.bridgeId,
+        workspaceId: first.workspaceId,
         requestId: 1,
         change: { rule: 'neverAround', enabled: false, reason: 'override' },
       }).success,
@@ -275,7 +293,7 @@ describe('shared playbook postMessage boundary', () => {
 
   it('bounds missing answers and rejects pending requests on dispose', async () => {
     vi.useFakeTimers()
-    const bridge = createPlaybookBridge(window, vi.fn(), 1000)
+    const bridge = createPlaybookBridge(window, vi.fn(), 1000, 'workspace-panel')
     const reading = bridge.read()
     const rejected = expect(reading).rejects.toThrow(UI_TEXT.playbookUnavailable)
     await vi.advanceTimersByTimeAsync(1000)
@@ -285,5 +303,75 @@ describe('shared playbook postMessage boundary', () => {
     await pending
     await expect(bridge.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
     expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('drops disposed bridge replies before a new workspace request can resolve', async () => {
+    vi.useFakeTimers()
+    const sent: unknown[] = []
+    const post = (message: unknown) => {
+      sent.push(message)
+    }
+    const old = createPlaybookBridge(window, post, 1000, 'old-workspace')
+    const rejected = expect(old.read()).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    const oldRequest = playbookRequestSchema.parse(sent[0])
+    old.dispose()
+    await rejected
+    const next = createPlaybookBridge(window, post, 1000, 'new-workspace')
+    const resolved = vi.fn()
+    const readNext = async () => {
+      resolved(await next.read())
+    }
+    const reading = readNext()
+    const nextRequest = playbookRequestSchema.parse(sent[1])
+    expect(nextRequest.bridgeId).not.toBe(oldRequest.bridgeId)
+    const snapshot = surfaceSnapshot()
+    snapshot.settings.teamId = 'old-workspace'
+    for (const correlation of [
+      oldRequest,
+      { ...nextRequest, workspaceId: 'old-workspace' },
+      { ...nextRequest, bridgeId: oldRequest.bridgeId },
+    ]) {
+      window.dispatchEvent(
+        new MessageEvent('message', { data: { ...correlation, type: 'playbookState', snapshot } }),
+      )
+      await Promise.resolve()
+      expect(resolved).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(1)
+    }
+    snapshot.settings.teamId = 'new-workspace'
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { ...nextRequest, type: 'playbookState', snapshot } }),
+    )
+    await reading
+    expect(resolved).toHaveBeenCalledWith(snapshot)
+    next.dispose()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('isolates simultaneous bridge instances even within the same workspace', async () => {
+    const sent: unknown[] = []
+    const post = (message: unknown) => {
+      sent.push(message)
+    }
+    const first = createPlaybookBridge(window, post, 1000, 'workspace-panel')
+    const second = createPlaybookBridge(window, post, 1000, 'workspace-panel')
+    const firstRead = first.read()
+    const resolved = vi.fn()
+    const readSecond = async () => {
+      resolved(await second.read())
+    }
+    const secondRead = readSecond()
+    const request = playbookRequestSchema.parse(sent[0])
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: { ...request, type: 'playbookState', snapshot: surfaceSnapshot() },
+      }),
+    )
+    await firstRead
+    expect(resolved).not.toHaveBeenCalled()
+    const rejected = expect(secondRead).rejects.toThrow(UI_TEXT.playbookUnavailable)
+    second.dispose()
+    await rejected
+    first.dispose()
   })
 })

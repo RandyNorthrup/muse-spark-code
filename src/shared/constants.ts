@@ -1346,6 +1346,8 @@ export const PLAYBOOK_LAUNDER_WINDOW_MS = 3_600_000
 export const PLAYBOOK_RECORD_MAX = 5000
 export const PLAYBOOK_RECORD_FOLDER = 'playbook/v1'
 export const PLAYBOOK_ID_MAX_CHARS = 128
+// 128 random bits fence each postMessage bridge lifetime, plus its request counter.
+export const PLAYBOOK_BRIDGE_ID_BYTES = 16
 export const PLAYBOOK_FINDING_CLASSES = [
   'validation',
   'security',

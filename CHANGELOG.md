@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Fence shared playbook replies by bridge lifetime, request and workspace so
+  late replies from a disposed surface cannot populate another workspace.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security
