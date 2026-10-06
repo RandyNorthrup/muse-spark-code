@@ -7,6 +7,21 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M112 lane A's ACP question adapter: deadlines and cooperative form
+  withdrawal, immediate deferral without forms, late form answers, and local
+  `/questions` and `/answer` commands. The runtime parses
+  `--questions-defer-after` and its help is translated in all 14 languages.
+  The portable registry, durable idle-answer queue and runtime launch binding
+  remain named integration handoffs; no new installed-editor certification
+  is claimed. Headless's explicit policy declines immediately with no clock.
+
+### Fixed
+
+- Correct the frozen question contract: scheduled/unattended prompts defer
+  immediately, including when interactive deferral is disabled.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security
