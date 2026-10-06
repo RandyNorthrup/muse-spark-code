@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- M100 queues receiver grants with pairing actions and preserves a later Pause
+  across pending secret reads and writes; stale grants cannot resume the pair.
+- M100's device store keeps expected pairing/grant policy refusals distinct
+  from persistence failures, preserving unrelated pairs after stale requests.
+- M100's pairing/storage test fixtures create and clean their own OS temporary
+  directories, so a clean worktree does not need an ignored `temp/` directory.
+
 ## [0.14.1] - 2026-10-05
 
 ### Security
