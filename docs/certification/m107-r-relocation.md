@@ -297,3 +297,41 @@ missing dependency/documentation/help bindings are named above; full quality
 is left to the lead as the explicit rig brief requires. The final receipt
 commit uses the same normal hooks and explicit-path staging. No merge,
 rebase or push occurs.
+
+## FIXM107R review repairs (2026-10-06, Kubuntu)
+
+Read `M107R.rig.md`, all of `codex/common.md` and `RVM107R.report.md`,
+AGENTS, D87/M107 and the existing certification before editing. The review
+has no P1 and three P2 findings. The lead requires all three fixed: final
+synchronous policy validation, bounded concurrent discovery, and retained
+fair routing state. The repair scope is recorded in PLAN before code;
+only the coordinator, its tests, the required shared timeout constant and
+PLAN/CHANGELOG/this certification are in scope. No dependency, live/paid
+call, credential read, network call, merge, rebase, push or hook change.
+The earlier implementation receipts remain historical.
+
+### Finding 1 — final offer callback can revoke policy
+
+Move the final offer and queued-phase callbacks ahead of the last policy
+and cancellation read. Dispatch follows synchronously with no await or
+injected callback in between. The required row still precedes dispatch.
+
+Regression `rechecks %s after the final synchronous offer callback` covers
+off, cancel, ask, changed level, already-started work and disabled governor.
+Before repair, the complete default-timeout file exited 1: all six new
+cases failed while the original 83 passed. After repair, 89/89 passed.
+The red drill moves the policy snapshot before the final offer callback
+again: exit 1, those same six failures and 83 passes. Restore source bytes
+in finally and compare SHA-256 equal:
+`11a1d25dfce1741a554c8eb88f0b6fa430846bd3083e8935f462ec01df3ddd2b`.
+All runs use `npx vitest run test/unit/relocate.test.ts --maxWorkers=3`;
+no filter, skip or timeout override. Drill log: `temp/m107r/final-policy-drill.log`.
+
+Before the first repair commit: all five `npm run typecheck` projects exit
+0; changed-source/test ESLint exits 0 with zero warnings after converting
+the new test's branching to the required switch; explicit-file Prettier
+and whitespace checks pass. The restored, formatted suite passes 89/89.
+
+The inherited named M100/C2/U/J/W handoffs above remain; PLAN §9 names
+`M107-R-integration-binding` with its current safety boundary and follow-up.
+Aggregate quality is the lead's explicit rig/common responsibility.

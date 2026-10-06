@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The staged resource relocator rechecks policy and cancellation after the
+  final offer callback, preventing dispatch after synchronous revocation.
+
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
   member stops, including descendants after root exit. Refused stops retain
   unknown occupancy and never fall back to a bare process or job kill.

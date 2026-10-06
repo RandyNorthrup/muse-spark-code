@@ -234,13 +234,9 @@ export class ResourceRelocator {
       })
       this.options.row(work, target, metadata)
       // Synchronous row/offer ports may revoke permission or cancel re-entrantly.
+      if (!this.offered(work, target) || (!isRunning && work.phase() !== 'queued')) return result
       const final = this.status(signal, isManual)
-      if (
-        final?.level !== metadata.level ||
-        (!isApproved && final.settings.relocate === 'ask') ||
-        (!isRunning && work.phase() !== 'queued') ||
-        !this.offered(work, target)
-      )
+      if (final?.level !== metadata.level || (!isApproved && final.settings.relocate === 'ask'))
         return result
       state.isDispatched = true
       const admission = await target.dispatch(metadata, signal)

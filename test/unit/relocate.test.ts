@@ -412,6 +412,52 @@ describe('resource relocation', () => {
     },
   )
 
+  it.each(['off', 'cancel', 'ask', 'level', 'started', 'disabled'])(
+    'rechecks %s after the final synchronous offer callback',
+    async (change) => {
+      const f = setup()
+      let keeping: Promise<boolean> | undefined
+      let offers = 0
+      f.target.hasOffer = vi.fn(() => {
+        if (++offers === 3) {
+          switch (change) {
+            case 'off': {
+              f.status.settings.relocate = 'off'
+              break
+            }
+            case 'cancel': {
+              keeping = f.attempt.keepHere()
+              break
+            }
+            case 'ask': {
+              f.status.settings.relocate = 'ask'
+              break
+            }
+            case 'level': {
+              f.status.level = 'pause'
+              break
+            }
+            case 'started': {
+              f.phase('running')
+              break
+            }
+            default: {
+              f.status.settings.enabled = false
+            }
+          }
+        }
+        return true
+      })
+      expect(await f.attempt.run()).toBe('kept')
+      if (keeping !== undefined) expect(await keeping).toBe(true)
+      expect(f.target.hasOffer).toHaveBeenCalledTimes(3)
+      expect(f.options.row).toHaveBeenCalledOnce()
+      expect(f.target.dispatch).not.toHaveBeenCalled()
+      expect(f.work.settle).toHaveBeenCalledExactlyOnceWith('kept')
+      expect(f.errors).not.toHaveBeenCalled()
+    },
+  )
+
   it('refuses invisible moves if the required row cannot be installed', async () => {
     const f = setup()
     f.options.row = () => {

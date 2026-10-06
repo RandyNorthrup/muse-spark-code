@@ -19621,6 +19621,19 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107R review repair (2026-10-06, Kubuntu).** Fix all three RVM107R
+P2 findings in the portable relocation coordinator and its owning suite:
+evaluate the final synchronous offer callback before the last policy/cancel
+check and send without an await; probe offered targets concurrently with
+`RESOURCE_RELOCATION_PROBE_MS` (5 seconds), treating deadline/abort as
+unknown headroom without changing post-dispatch uncertainty; and retain a
+per-conversation round-robin cursor among equally eligible headroom peers.
+Prove each regression red before repair and each guard with byte-exact
+mutation/restoration receipts in `docs/certification/m107-r-relocation.md`.
+No new dependency, permission, receiver frame or production binding. The
+rig/common brief prohibits aggregate quality and merges; the lead retains
+the existing M100/C2/W integration and full-gate handoffs.
+
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
 C1's native launch/retirement and Linux path repairs, and adopt T2's exact
@@ -20178,6 +20191,15 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107R bounded review certification (2026-10-06).** The rig/common
+brief prohibits aggregate quality, whole-unit/coverage runs and merges.
+Run the complete relocation suite with default test timeouts, before-fix
+regressions and byte-exact red drills, all-project typecheck, scoped
+lint/format, localization, host API, plain knip, duplication, cycles and
+production build under unchanged caps. The lead retains joined aggregate
+quality and M100/C2/W's delivery qualification. Exact repair receipts are
+in `docs/certification/m107-r-relocation.md`; no gate is weakened.
 
 **M107INT round-3 certification (2026-10-06).** The rig brief authorizes
 only the listed T2/U/H merges, scoped complete-file runs (at most three,
@@ -21458,6 +21480,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-R-integration-binding (FIXM107R, 2026-10-06).** The portable
+  relocation coordinator remains unbound in production on this base.
+  M100 supplies task-bound offer/dispatch and final normal-level receiver
+  admission; C2 supplies exclusive ownership and complete local retirement;
+  U/J/W bind rows, notices, Traffic, journal and lazy delivery/help. The
+  tests qualify injected fake ports, not paired-device behavior. Safe for
+  now because no shipped caller can dispatch through this coordinator;
+  follow-up is the existing dependency join, two paired-rig receipts,
+  joined bundle budgets and full quality. The review repairs retain every
+  existing permission and post-dispatch uncertainty guard. See
+  `docs/certification/m107-r-relocation.md` for each RVM107R finding.
 
 - **M107 round-3 delivery qualification (2026-10-06).** T2/U/H are joined
   into C1/G/A/S. Every repository-owned governed payload stop uses its registered
