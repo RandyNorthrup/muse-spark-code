@@ -21,6 +21,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker detection works in ordinary macOS workspaces again. Directory
+  enumeration uses the checked inherited descriptor, preserving confinement
+  when a workspace ancestor is replaced and retaining bounded reads.
+
 - Maker detection validates opened file and directory handles against the
   held workspace root before reading or listing, so an ancestor replacement
   cannot redirect detection outside the workspace. Windows uses native

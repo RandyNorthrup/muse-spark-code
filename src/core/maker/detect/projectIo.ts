@@ -1,12 +1,15 @@
 // The portable Node adapter for M103 detection. No discovery, writes or device opens.
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { constants } from 'node:fs'
 import { lstat, open, opendir, realpath, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import {
+  CHECK_COMMAND_MAX_CHARS,
   MAKER_DETECT_MAX_BYTES,
   MAKER_DETECT_MAX_DEPTH,
+  MAKER_DETECT_MAX_FILES,
+  MAKER_DETECT_IO_TIMEOUT_MS,
   MAKER_PI_COMMAND_TIMEOUT_MS,
   WINDOWS_POWERSHELL_RELATIVE_PATH,
 } from '../../../shared/constants'
@@ -16,6 +19,85 @@ import { windowsProjectIo } from './projectIoWindows'
 import type { ProjectDetectIo } from './projectKinds'
 
 const IGNORED = new Set(['.git', 'node_modules', '.pio', 'build', 'dist', '.venv', '__pycache__'])
+
+// macOS's /dev/fd duplicates a directory fd but cannot opendir it. Perl's core
+// handle-based chdir uses fchdir; both readdir and lstat then stay on that object.
+const DARWIN_LISTING = String.raw`
+use strict;
+use warnings;
+use JSON::PP ();
+use Encode ();
+open(my $held, '<&=0') or die "handle";
+chdir($held) or die "directory";
+opendir(my $listing, '.') or die "listing";
+my @entries;
+while (@entries < $ARGV[0] && defined(my $name = readdir($listing))) {
+  next if $name eq '.' || $name eq '..';
+  lstat($name) or die "entry";
+  my $kind = -f _ ? 'file' : -d _ ? 'directory' : 'other';
+  push @entries, { name => Encode::decode('UTF-8', $name, Encode::FB_CROAK), kind => $kind };
+}
+closedir($listing) or die "close";
+close($held) or die "close";
+print JSON::PP::encode_json(\@entries);
+`
+
+const directoryEntrySchema = z.strictObject({
+  name: z
+    .string()
+    .min(1)
+    .max(CHECK_COMMAND_MAX_CHARS)
+    .refine((name) => name !== '.' && name !== '..' && !/[\0/]/.test(name)),
+  kind: z.enum(['file', 'directory', 'other']),
+})
+
+async function* directoryEntries(
+  directory: FileHandle,
+  maxNames: number,
+): AsyncIterable<z.infer<typeof directoryEntrySchema>> {
+  if (process.platform === 'darwin') {
+    const output = await new Promise<string>((resolve, reject) => {
+      const child = spawn('/usr/bin/perl', ['-e', DARWIN_LISTING, String(maxNames)], {
+        env: {},
+        stdio: [directory.fd, 'pipe', 'ignore'],
+        timeout: MAKER_DETECT_IO_TIMEOUT_MS,
+        killSignal: 'SIGKILL',
+      })
+      const chunks: Buffer[] = []
+      let bytes = 0
+      let hasExceeded = false
+      child.stdout?.on('data', (chunk: Buffer) => {
+        bytes += chunk.length
+        if (bytes > MAKER_DETECT_MAX_FILES * CHECK_COMMAND_MAX_CHARS) {
+          hasExceeded = true
+          child.kill('SIGKILL')
+        } else chunks.push(chunk)
+      })
+      child.once('error', () => {
+        reject(new Error('directory listing failed'))
+      })
+      child.once('close', (code) => {
+        if (code !== 0 || hasExceeded) reject(new Error('directory listing failed'))
+        else resolve(Buffer.concat(chunks).toString('utf8'))
+      })
+    })
+    yield* z.array(directoryEntrySchema).max(maxNames).parse(JSON.parse(output))
+    return
+  }
+  const listing = await opendir(`/proc/self/fd/${String(directory.fd)}`, { bufferSize: 1 })
+  try {
+    for (let names = 0; names < maxNames; names += 1) {
+      const entry = await listing.read()
+      if (entry === null) break
+      let kind: z.infer<typeof directoryEntrySchema>['kind'] = 'other'
+      if (entry.isFile()) kind = 'file'
+      else if (entry.isDirectory()) kind = 'directory'
+      yield { name: entry.name, kind }
+    }
+  } finally {
+    await listing.close()
+  }
+}
 
 /** Linux supplies the opened object's name; macOS binds its canonical name to fstat. */
 async function openedPath(handle: FileHandle, hint: string): Promise<string | undefined> {
@@ -65,30 +147,21 @@ async function* files(root: string, maxNames: number): AsyncIterable<string> {
         constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
       )
       try {
-        // The listing opens only the checked descriptor, never the mutable pathname.
+        // The listing uses only the checked descriptor, never the mutable pathname.
         if ((await confinedPath(directoryHandle, directory, rootHandle, canonical)) !== directory)
           continue
-        const descriptorPath = process.platform === 'linux' ? '/proc/self/fd' : '/dev/fd'
-        const handle = await opendir(`${descriptorPath}/${String(directoryHandle.fd)}`, {
-          bufferSize: 1,
-        })
-        try {
-          let entry = await handle.read()
-          while (entry !== null && names < maxNames) {
-            names += 1
-            const relative = path.join(next.name, entry.name)
-            if (entry.isFile()) yield relative.split(path.sep).join('/')
-            else if (
-              entry.isDirectory() &&
-              next.depth < MAKER_DETECT_MAX_DEPTH &&
-              !IGNORED.has(entry.name)
-            ) {
-              pending.push({ name: relative, depth: next.depth + 1 })
-            }
-            entry = names < maxNames ? await handle.read() : null
+        const entries = directoryEntries(directoryHandle, maxNames - names)
+        for await (const entry of entries) {
+          names += 1
+          const relative = path.join(next.name, entry.name)
+          if (entry.kind === 'file') yield relative.split(path.sep).join('/')
+          else if (
+            entry.kind === 'directory' &&
+            next.depth < MAKER_DETECT_MAX_DEPTH &&
+            !IGNORED.has(entry.name)
+          ) {
+            pending.push({ name: relative, depth: next.depth + 1 })
           }
-        } finally {
-          await handle.close()
         }
       } finally {
         await directoryHandle.close()

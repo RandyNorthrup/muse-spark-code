@@ -1,10 +1,13 @@
 import * as fs from 'node:fs/promises'
+import { renameSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nodeProjectDetectIo } from '../../src/core/maker/detect/projectIo'
 import { windowsProjectIo } from '../../src/core/maker/detect/projectIoWindows'
 import {
+  CHECK_COMMAND_MAX_CHARS,
   MAKER_DETECT_MAX_BYTES,
   MAKER_DETECT_MAX_FILES,
   MAKER_DETECT_IO_TIMEOUT_MS,
@@ -20,11 +23,15 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     lstat: vi.fn(actual.lstat),
   }
 })
-vi.mock('node:child_process', () => ({ execFile: vi.fn() }))
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof child>()
+  return { ...actual, execFile: vi.fn(), spawn: vi.fn(actual.spawn) }
+})
 const native = await vi.importActual<typeof fs>('node:fs/promises')
 const child = await import('node:child_process')
 const nativeChild = await vi.importActual<typeof child>('node:child_process')
 const state = { fixture: '', root: '', outside: '', dummy: '' }
+const platform = process.platform
 
 beforeEach(async () => {
   vi.resetAllMocks()
@@ -33,6 +40,7 @@ beforeEach(async () => {
   vi.mocked(fs.opendir).mockImplementation(native.opendir)
   vi.mocked(fs.realpath).mockImplementation(native.realpath)
   vi.mocked(fs.lstat).mockImplementation(native.lstat)
+  vi.mocked(child.spawn).mockImplementation(nativeChild.spawn)
   state.fixture = await native.realpath(await native.mkdtemp(path.join(tmpdir(), 'm103-d-io-')))
   state.root = path.join(state.fixture, 'ws')
   state.outside = path.join(state.fixture, 'outside')
@@ -136,10 +144,77 @@ function schedule(
     if (selected === undefined) throw new Error('Unknown descriptor')
     return await native.opendir(selected, options)
   })
+  vi.mocked(child.spawn).mockImplementation((_file, args, options) => {
+    const fd = Array.isArray(options.stdio) ? options.stdio[0] : undefined
+    const selected = typeof fd === 'number' ? held.get(fd) : undefined
+    if (selected === undefined) throw new Error('Unknown inherited descriptor')
+    if (selected === nested) isSwapped = true
+    const helper = new nativeChild.ChildProcess()
+    helper.stdout = new PassThrough()
+    void (async () => {
+      const listing = await native.opendir(selected)
+      const entries = []
+      try {
+        while (entries.length < Number(args.at(-1))) {
+          const entry = await listing.read()
+          if (entry === null) break
+          const kind = entry.isDirectory() ? 'directory' : 'file'
+          entries.push({ name: entry.name, kind })
+        }
+      } finally {
+        await listing.close()
+      }
+      helper.stdout?.emit('data', Buffer.from(JSON.stringify(entries)))
+      helper.emit('close', 0)
+    })()
+    return helper
+  })
   return { reads, wereClosed: () => closes.every((check) => check()), didSwap: () => isSwapped }
 }
 
 describe('opened-handle workspace confinement', () => {
+  it('lists ordinary native workspace directories with bounded names and bytes', async () => {
+    vi.mocked(child.execFile).mockImplementation(nativeChild.execFile)
+    await native.writeFile(path.join(state.root, 'sub', 'nested', 'café.scad'), '')
+    expect(
+      await Array.fromAsync(nodeProjectDetectIo.files(state.root, MAKER_DETECT_MAX_FILES)),
+    ).toEqual(
+      expect.arrayContaining(['sub/main.py', 'sub/nested/inside.scad', 'sub/nested/café.scad']),
+    )
+    expect(await Array.fromAsync(nodeProjectDetectIo.files(state.root, 1))).toEqual([])
+    expect(await nodeProjectDetectIo.read(state.root, 'sub/main.py', 1)).toEqual(Buffer.from('i'))
+  })
+  it('keeps listing on the inherited directory when its pathname becomes an outside link', async () => {
+    let isSwapped = false
+    let didSwap = () => isSwapped
+    if (platform === 'darwin') {
+      const nested = path.join(state.root, 'sub', 'nested')
+      let descriptor: number | undefined
+      vi.mocked(fs.open).mockImplementation(async (name, flags, mode) => {
+        const handle = await native.open(name, flags, mode)
+        if (String(name) === nested) descriptor = handle.fd
+        return handle
+      })
+      vi.mocked(child.spawn).mockImplementation((file, args, options) => {
+        if (Array.isArray(options.stdio) && options.stdio[0] === descriptor) {
+          renameSync(nested, path.join(state.fixture, 'held-nested'))
+          symlinkSync(path.join(state.outside, 'nested'), nested, 'dir')
+          isSwapped = true
+        }
+        return nativeChild.spawn(file, args, options)
+      })
+    } else {
+      // Other platforms exercise the inherited-descriptor seam, not native macOS.
+      const world = schedule('darwin', 'listing')
+      didSwap = world.didSwap
+    }
+    const names = await Array.fromAsync(
+      nodeProjectDetectIo.files(state.root, MAKER_DETECT_MAX_FILES),
+    )
+    expect(didSwap()).toBe(true)
+    expect(names).toContain('sub/nested/inside.scad')
+    expect(names).not.toContain('sub/nested/outside.scad')
+  })
   const refusedReads = [
     {
       description: 'refuses an object at the old pathname after the workspace root moves',
@@ -210,6 +285,78 @@ function output(value: unknown) {
     return new nativeChild.ChildProcess()
   })
 }
+
+function listingOutput(text: string, code: number | null = 0) {
+  const helper = new nativeChild.ChildProcess()
+  helper.stdout = new PassThrough()
+  const kill = vi.spyOn(helper, 'kill').mockReturnValue(true)
+  vi.mocked(child.spawn).mockImplementation(() => {
+    queueMicrotask(() => {
+      helper.stdout?.emit('data', Buffer.from(text))
+      helper.emit('close', code)
+    })
+    return helper
+  })
+  return kill
+}
+
+describe('macOS inherited-descriptor helper boundary', () => {
+  it('uses the checked descriptor, a deadline, bounded output and no inherited environment', async () => {
+    const world = schedule('darwin', 'listing')
+    await Array.fromAsync(nodeProjectDetectIo.files(state.root, MAKER_DETECT_MAX_FILES))
+    const call = vi.mocked(child.spawn).mock.calls[0]
+    expect(call?.[0]).toBe('/usr/bin/perl')
+    expect(call?.[1]?.at(-1)).toBe(String(MAKER_DETECT_MAX_FILES))
+    expect(Object.keys(call?.[2]?.env ?? {})).toEqual([])
+    expect(call?.[2]).toMatchObject({
+      stdio: [expect.any(Number), 'pipe', 'ignore'],
+      timeout: MAKER_DETECT_IO_TIMEOUT_MS,
+      killSignal: 'SIGKILL',
+    })
+    expect(world.wereClosed()).toBe(true)
+    expect(fs.opendir).not.toHaveBeenCalled()
+  })
+  it.each([
+    { reason: 'parent name', rows: [{ name: '..', kind: 'directory' }] },
+    { reason: 'escaped name', rows: [{ name: '../outside', kind: 'file' }] },
+    { reason: 'NUL name', rows: [{ name: 'a\0b', kind: 'file' }] },
+    { reason: 'unknown field', rows: [{ name: 'a', kind: 'file', extra: true }] },
+    { reason: 'unknown kind', rows: [{ name: 'a', kind: 'symlink' }] },
+    {
+      reason: 'oversized name',
+      rows: [{ name: 'a'.repeat(CHECK_COMMAND_MAX_CHARS + 1), kind: 'file' }],
+    },
+    {
+      reason: 'excessive names',
+      rows: [
+        { name: 'a', kind: 'file' },
+        { name: 'b', kind: 'file' },
+      ],
+    },
+  ])('refuses $reason and closes owned handles', async ({ rows }) => {
+    const world = schedule('darwin', 'listing')
+    listingOutput(JSON.stringify(rows))
+    await expect(Array.fromAsync(nodeProjectDetectIo.files(state.root, 1))).rejects.toThrow()
+    expect(world.wereClosed()).toBe(true)
+  })
+  it('kills excessive helper output before retaining it and closes owned handles', async () => {
+    const world = schedule('darwin', 'listing')
+    const kill = listingOutput(' '.repeat(MAKER_DETECT_MAX_FILES * CHECK_COMMAND_MAX_CHARS + 1))
+    await expect(Array.fromAsync(nodeProjectDetectIo.files(state.root, 1))).rejects.toThrow()
+    expect(kill).toHaveBeenCalledWith('SIGKILL')
+    expect(world.wereClosed()).toBe(true)
+  })
+  it.each([
+    { reason: 'malformed JSON', text: '[', code: 0 },
+    { reason: 'failed process', text: '[]', code: 1 },
+    { reason: 'terminated process', text: '[]', code: null },
+  ])('refuses $reason and closes owned handles', async ({ text, code }) => {
+    const world = schedule('darwin', 'listing')
+    listingOutput(text, code)
+    await expect(Array.fromAsync(nodeProjectDetectIo.files(state.root, 1))).rejects.toThrow()
+    expect(world.wereClosed()).toBe(true)
+  })
+})
 
 describe('Windows native helper boundary', () => {
   it('refuses a missing or relative system directory without launching a helper', async () => {
