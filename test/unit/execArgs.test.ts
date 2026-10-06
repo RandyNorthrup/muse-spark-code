@@ -4,6 +4,21 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { UI_TEXT } from '../../src/shared/constants'
 
 describe('M80 args (A1–A10, F1)', () => {
+  it('M106 accepts a schema file only on the bounded Model API path and omits the unused option', () => {
+    const values = { backend: 'modelApi', 'max-budget-usd': '1' }
+    const plain = parseExec(values, ['task'])
+    expect(plain.ok && Object.hasOwn(plain.options, 'outputSchema')).toBe(false)
+    expect(parseExec({ ...values, 'output-schema': 'answer.json' }, ['task'])).toMatchObject({
+      ok: true,
+      options: { outputSchema: 'answer.json' },
+    })
+    for (const outputSchema of ['', true, ['schema.json']])
+      expect(parseExec({ ...values, 'output-schema': outputSchema }, ['task']).ok).toBe(false)
+    expect(parseExec({ 'output-schema': 'answer.json' }, ['task'])).toEqual({
+      ok: false,
+      reason: UI_TEXT.execModelApiOnly,
+    })
+  })
   it('A1 keeps safe Muse Code defaults and projects an untrusted serve session', () => {
     const parsed = parseExec({}, ['hi'])
     expect(parsed.ok).toBe(true)

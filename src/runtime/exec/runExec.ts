@@ -50,6 +50,22 @@ import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import { compileOutputSchema, type OutputSchema } from './outputSchema'
+
+/** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
+export interface ExecOutputSchemaPort {
+  /** Only values from an evidence-bearing `state: 'yes'` capability record. */
+  formatsFor(model: string): Promise<readonly ('strict_schema' | 'json_schema' | 'forced_tool')[]>
+  /** Set the session's format only: no dispatch, permission change or cached-prefix mutation. */
+  configure(input: {
+    runtime: RuntimeBackend
+    sessionId: string
+    model: string
+    mode: 'strict_schema' | 'json_schema' | 'forced_tool'
+    schema: Readonly<Record<string, unknown>>
+    signal: AbortSignal
+  }): Promise<void>
+}
 
 export interface ExecDeps {
   options: ExecOptions
@@ -71,6 +87,7 @@ export interface ExecDeps {
   readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
   randomHex: (bytes: number) => string
   log: Logger
+  outputSchema?: ExecOutputSchemaPort
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -196,6 +213,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let closeSession: (() => Promise<unknown>) | undefined
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
+  let outputSchema: OutputSchema | undefined
   const emitted = new Set<string>()
   const sink = createExecSink({
     format: options.output,
@@ -208,6 +226,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     onStalled: () => {
       lifecycle.latch({ kind: 'output_stalled' })
     },
+    outputSchema: () => outputSchema,
   })
   const drain = (target: ExecSink) => {
     const messages = tap?.releasedMessages() ?? []
@@ -298,6 +317,23 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   try {
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (options.outputSchema !== undefined) {
+      let bytes: Uint8Array
+      try {
+        bytes = await lifecycle.race(
+          deps.readFile(
+            path.resolve(cwd, options.outputSchema),
+            EXEC_PROMPT_MAX_BYTES,
+            lifecycle.signal,
+          ),
+        )
+      } catch {
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }))
+      }
+      outputSchema = compileOutputSchema(bytes)
+      if (deps.outputSchema === undefined)
+        throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+    }
     let prompt: string
     try {
       if (options.prompt.kind === 'text') prompt = options.prompt.text
@@ -539,6 +575,29 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               effort = options.effort
             }
             const tier = modelApiPaidTier(model ?? '')
+            if (outputSchema !== undefined) {
+              setup.isUsageError = true
+              const port = deps.outputSchema
+              if (port === undefined || runtime === undefined || model === null)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+              const formats = await lifecycle.race(port.formatsFor(model))
+              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                (candidate) => formats.includes(candidate),
+              )
+              if (mode === undefined)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'output.formats' }))
+              await lifecycle.race(
+                port.configure({
+                  runtime,
+                  sessionId: created.sessionId,
+                  model,
+                  mode,
+                  schema: outputSchema.schema,
+                  signal: lifecycle.signal,
+                }),
+              )
+              setup.isUsageError = false
+            }
             if (ledger !== undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
@@ -787,7 +846,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       )
       const code =
         lifecycle.cause === null
-          ? result.exitCode
+          ? (sink.resultExitCode ?? result.exitCode)
           : exitCodeFor(
               statusForStop(lifecycle.cause),
               lifecycle.cause.kind === 'signal' ? lifecycle.cause.signal : null,

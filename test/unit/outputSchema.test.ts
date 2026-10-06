@@ -19,6 +19,69 @@ const sample = () =>
   })
 
 describe('M106 O2 strict output schema', () => {
+  it('ships additive v1 schema snapshots preserving every base field and event guard', async () => {
+    const read = async (name: string) =>
+      z
+        .record(z.string(), z.unknown())
+        .parse(JSON.parse(await readFile(`docs/schemas/${name}.schema.json`, 'utf8')))
+    const base = await read('exec-result-v1')
+    const result = await read('exec-result-output-schema-v1')
+    const properties = z.record(z.string(), z.unknown()).parse(result['properties'])
+    expect(properties['output']).toEqual({})
+    delete properties['output']
+    const ledger = z.record(z.string(), z.unknown()).parse(properties['ledger'])
+    const variants = z.array(z.record(z.string(), z.unknown())).parse(ledger['anyOf'])
+    const object = variants.find((variant) => variant['type'] === 'object')
+    if (object === undefined) throw new Error('missing ledger object')
+    const fields = z.record(z.string(), z.unknown()).parse(object['properties'])
+    expect(fields['outputSchemaSha256']).toEqual({
+      type: 'string',
+      pattern: String.raw`^[a-f\d]{64}$`,
+    })
+    delete fields['outputSchemaSha256']
+    object['properties'] = fields
+    ledger['anyOf'] = variants
+    properties['ledger'] = ledger
+    const conditions = z.array(z.record(z.string(), z.unknown())).parse(result['allOf'])
+    expect(conditions.at(-2)?.['if']).toEqual({ required: ['output'] })
+    expect(conditions.at(-2)?.['then']).toEqual({
+      properties: {
+        status: { const: 'completed' },
+        ledger: { type: 'object', required: ['outputSchemaSha256'] },
+      },
+    })
+    expect(conditions.at(-1)?.['if']).toEqual({
+      properties: {
+        status: { const: 'completed' },
+        ledger: { type: 'object', required: ['outputSchemaSha256'] },
+      },
+    })
+    expect(conditions.at(-1)?.['then']).toEqual({ required: ['output'] })
+    const restored = {
+      ...result,
+      properties,
+      allOf: conditions.slice(0, -2),
+      'x-runtime-invariants': z
+        .array(z.string())
+        .parse(result['x-runtime-invariants'])
+        .slice(0, -1),
+    }
+    expect(restored).toEqual(base)
+    const baseEvents = await read('exec-event-v1')
+    const events = await read('exec-event-output-schema-v1')
+    const eventVariants = z.array(z.record(z.string(), z.unknown())).parse(events['anyOf'])
+    for (const variant of eventVariants) {
+      const props = z.record(z.string(), z.unknown()).parse(variant['properties'])
+      const type = z.object({ const: z.string() }).parse(props['type']).const
+      if (type !== 'result') {
+        continue
+      }
+
+      expect(props['result']).toEqual(result)
+      variant['properties'] = { ...props, result: base }
+    }
+    expect({ ...events, anyOf: eventVariants }).toEqual(baseEvents)
+  })
   it('validates the captured U10 strict schema and its answer without changing the schema', async () => {
     const capture: unknown = JSON.parse(
       await readFile('test/fixtures/m106/u10-structured-output.json', 'utf8'),
@@ -169,5 +232,8 @@ describe('M106 O2 strict output schema', () => {
     const a = encode(closed({}))
     const b = new TextEncoder().encode(`${new TextDecoder().decode(a)}\n`)
     expect(compileOutputSchema(a).sha256).not.toBe(compileOutputSchema(b).sha256)
+    const bom = Uint8Array.from([239, 187, 191, ...a])
+    expect(compileOutputSchema(bom).sha256).toBe(createHash('sha256').update(bom).digest('hex'))
+    expect(compileOutputSchema(bom).sha256).not.toBe(compileOutputSchema(a).sha256)
   })
 })

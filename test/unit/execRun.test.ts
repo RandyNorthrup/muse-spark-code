@@ -21,7 +21,6 @@ import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
   validateResult,
-  execEventSchema,
   type ExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
@@ -39,7 +38,12 @@ import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
 import { createExecClient } from '../../src/runtime/exec/execClient'
-import { createExecSink } from '../../src/runtime/exec/execOutput'
+import {
+  createExecSink,
+  validateSchemaEvent,
+  validateSchemaResult,
+} from '../../src/runtime/exec/execOutput'
+import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 import * as keyInput from '../../src/runtime/exec/keyInput'
 
 const actualMemoryStore = keyInput.memorySecretStore
@@ -208,13 +212,13 @@ async function harness(
         chunk
           .trim()
           .split('\n')
-          .map((line): ExecEvent => execEventSchema.parse(JSON.parse(line))),
+          .map((line): ExecEvent => validateSchemaEvent(JSON.parse(line))),
       )
       const records = events.filter((event) => event.type === 'result')
       const result =
         records.length === 0
           ? undefined
-          : validateResult(records[0]?.type === 'result' ? records[0].result : undefined)
+          : validateSchemaResult(records[0]?.type === 'result' ? records[0].result : undefined)
       return { code, events, result }
     } finally {
       life.dispose()
@@ -222,6 +226,136 @@ async function harness(
   }
   return { api, deps, cwd, homeDir, out, err, life, store, run, clock }
 }
+
+function recordBodies(deps: ExecDeps): string[] {
+  const bodies: string[] = []
+  const fetch = deps.fetch
+  deps.fetch = async (url, init) => {
+    if (typeof init?.body === 'string') bodies.push(init.body)
+    return await fetch(url, init)
+  }
+  return bodies
+}
+
+const outputSchemaBytes = new TextEncoder().encode(
+  JSON.stringify({
+    type: 'object',
+    properties: { ok: { type: 'boolean' } },
+    required: ['ok'],
+    additionalProperties: false,
+  }),
+)
+
+describe('M106 output schema runtime binding', () => {
+  it('refuses invalid/unreadable schemas and an absent binding before backend creation or HTTP', async () => {
+    for (const phase of ['invalid', 'unreadable', 'unbound']) {
+      const h = await harness()
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      h.deps.readFile = vi.fn(() =>
+        phase === 'unreadable'
+          ? Promise.reject(new Error('unreadable'))
+          : Promise.resolve(
+              phase === 'invalid' ? new TextEncoder().encode('{}') : outputSchemaBytes,
+            ),
+      )
+      if (phase !== 'unbound')
+        h.deps.outputSchema = {
+          formatsFor: () => Promise.resolve(['strict_schema']),
+          configure: () => Promise.resolve(),
+        }
+      h.deps.fetch = vi.fn(h.deps.fetch)
+      const create = vi.spyOn(runtimeBackends, 'createRuntimeBackend')
+      try {
+        const run = await h.run()
+        expect(run.code).toBe(2)
+        expect(run.result).toBeUndefined()
+        expect(h.deps.fetch).not.toHaveBeenCalled()
+        expect(create).not.toHaveBeenCalled()
+      } finally {
+        create.mockRestore()
+      }
+    }
+  })
+  it.each([
+    [['forced_tool', 'json_schema', 'strict_schema'], 'strict_schema'],
+    [['forced_tool', 'json_schema'], 'json_schema'],
+    [['forced_tool'], 'forced_tool'],
+  ] as const)(
+    'selects the strongest captured format %j before the prompt',
+    async (formats, mode) => {
+      const h = await harness([], [{ text: '{"ok":true}' }])
+      h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      h.deps.readFile = vi.fn(() => Promise.resolve(outputSchemaBytes))
+      const configure = vi.fn(() => {
+        expect(h.api.responseBodies()).toHaveLength(0)
+        return Promise.resolve()
+      })
+      h.deps.outputSchema = { formatsFor: vi.fn(() => Promise.resolve(formats)), configure }
+      const run = await h.run()
+      expect(configure).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'muse-spark-1.3-contributor',
+          mode,
+          schema: compileOutputSchema(outputSchemaBytes).schema,
+          signal: h.life.signal,
+        }),
+      )
+      expect(run.code).toBe(0)
+      expect(run.result).toMatchObject({
+        output: { ok: true },
+        ledger: {
+          outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256,
+        },
+      })
+    },
+  )
+  it('refuses an unsupported capability record before inference', async () => {
+    const h = await harness()
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.readFile = () => Promise.resolve(outputSchemaBytes)
+    const configure = vi.fn(() => Promise.resolve())
+    h.deps.outputSchema = { formatsFor: () => Promise.resolve([]), configure }
+    const run = await h.run()
+    expect(run.code).toBe(2)
+    expect(run.result).toBeUndefined()
+    expect(configure).not.toHaveBeenCalled()
+    expect(h.api.responseBodies()).toHaveLength(0)
+  })
+  it('propagates a final schema mismatch to the process code while retaining spend and digest', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.readFile = () => Promise.resolve(outputSchemaBytes)
+    h.deps.outputSchema = {
+      formatsFor: () => Promise.resolve(['strict_schema']),
+      configure: () => Promise.resolve(),
+    }
+    const run = await h.run()
+    expect(run.code).toBe(4)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      exitCode: 4,
+      error: { kind: 'output_schema_mismatch' },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+  })
+  it('does not read capabilities or change request bytes without a schema', async () => {
+    const baseline = await harness()
+    const baselineBodies = recordBodies(baseline.deps)
+    await baseline.run()
+    const enhanced = await harness([], [{ text: 'done' }], { processCwd: baseline.cwd })
+    const enhancedBodies = recordBodies(enhanced.deps)
+    const formatsFor = vi.fn(() => Promise.resolve(['strict_schema'] as const))
+    const configure = vi.fn(() => Promise.resolve())
+    enhanced.deps.outputSchema = { formatsFor, configure }
+    await enhanced.run()
+    expect(formatsFor).not.toHaveBeenCalled()
+    expect(configure).not.toHaveBeenCalled()
+    expect(enhancedBodies).toHaveLength(1)
+    expect(enhancedBodies).toEqual(baselineBodies)
+  })
+})
 function result(r: { result: ExecResult | undefined }) {
   if (r.result === undefined) throw new Error('no result')
   return r.result

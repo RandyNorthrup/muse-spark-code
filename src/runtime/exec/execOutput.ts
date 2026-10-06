@@ -1,7 +1,9 @@
 import { redactSecrets } from '../../core/redact'
+import * as z from 'zod/mini'
 import type { Logger } from '../../host/logger'
 import {
   EXEC_PROTOCOL_VERSION,
+  EXEC_EXIT,
   EXEC_SINK_HIGH_WATER_BYTES,
   EXEC_STOP_GRACE_MS,
   EXEC_USD_DECIMALS,
@@ -13,11 +15,67 @@ import { stderrLogger } from '../stderrLog'
 import type { ExecOutput } from './execArgs'
 import {
   execEventSchema,
+  type ExecEvent,
   type ExecEventBody,
   type ExecResult,
   validateResult,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
+import { outputJsonSchema, type OutputSchema } from './outputSchema'
+
+/** Optional M106 fields; callers without a schema retain M80's exact result. */
+export type SchemaExecResult = ExecResult & {
+  output?: z.core.util.JSONType
+  ledger: (NonNullable<ExecResult['ledger']> & { outputSchemaSha256?: string }) | null
+}
+
+/** Validate the additive fields and every existing M80 invariant at egress. */
+export function validateSchemaResult(value: unknown): SchemaExecResult {
+  const record = z.record(z.string(), z.unknown()).parse(value)
+  const { output, ledger, ...rest } = record
+  const hasOutput = Object.hasOwn(record, 'output')
+  const ledgerRecord = ledger === null ? undefined : z.record(z.string(), z.unknown()).parse(ledger)
+  const { outputSchemaSha256, ...baseLedger } = ledgerRecord ?? {}
+  const hasDigest = ledgerRecord !== undefined && Object.hasOwn(ledgerRecord, 'outputSchemaSha256')
+  const result = validateResult({ ...rest, ledger: ledger === null ? null : baseLedger })
+  if (hasOutput !== (hasDigest && result.status === 'completed'))
+    throw new Error(UI_TEXT.execRequestShape)
+  const digest = hasDigest
+    ? z
+        .string()
+        .check(z.regex(/^[a-f\d]{64}$/u))
+        .parse(outputSchemaSha256)
+    : undefined
+  return {
+    ...result,
+    ...(hasOutput && { output: outputJsonSchema.parse(output) }),
+    ledger:
+      result.ledger === null
+        ? null
+        : {
+            ...result.ledger,
+            ...(digest !== undefined && { outputSchemaSha256: digest }),
+          },
+  }
+}
+
+export type SchemaExecEvent =
+  | Exclude<ExecEvent, { type: 'result' }>
+  | (Extract<ExecEvent, { type: 'result' }> & { result: SchemaExecResult })
+
+export function validateSchemaEvent(value: unknown): SchemaExecEvent {
+  const record = z.record(z.string(), z.unknown()).parse(value)
+  if (record['type'] !== 'result') return execEventSchema.parse(record)
+  const result = validateSchemaResult(record['result'])
+  const { output: _output, ledger, ...base } = result
+  const { outputSchemaSha256: _digest, ...baseLedger } = ledger ?? {}
+  const envelope = execEventSchema.parse({
+    ...record,
+    result: { ...base, ledger: ledger === null ? null : baseLedger },
+  })
+  if (envelope.type !== 'result') throw new Error(UI_TEXT.execRequestShape)
+  return { ...envelope, result }
+}
 
 export interface ExecSink {
   emit(event: ExecEventBody): void
@@ -30,6 +88,7 @@ export interface ExecSink {
   finish(result: ExecResult): Promise<void>
   forceFinish(result: ExecResult): void
   readonly isStalled: boolean
+  readonly resultExitCode: number | undefined
 }
 
 export function redactWhole(text: string, literals: readonly string[]): string {
@@ -62,11 +121,13 @@ export function createExecSink(input: {
   literals: () => readonly string[]
   summary: (line: string) => void
   onStalled: () => void
+  outputSchema?: () => OutputSchema | undefined
 }): ExecSink {
   let seq = 0
   let isFinished = false
   let isStalled = false
   let lastMessage: string | undefined
+  let resultExitCode: number | undefined
   const emittedItems = new Set<string>()
   const checkStall = () => {
     if (!isStalled && (input.out.isClosed || input.out.queuedBytes > EXEC_SINK_HIGH_WATER_BYTES)) {
@@ -81,13 +142,31 @@ export function createExecSink(input: {
     input.out.write(text)
     checkStall()
   }
+  const answerForEgress = (text: string, schema: OutputSchema) => {
+    const original = schema.parseAnswer(text)
+    return original.ok
+      ? schema.parseAnswer(JSON.stringify(redactValue(original.value, input.literals())))
+      : original
+  }
   const emit = (event: ExecEventBody) => {
     if (isFinished) throw new Error(UI_TEXT.execOutputStalled)
     if (event.type === 'result') throw new Error(UI_TEXT.execRequestShape)
-    const normalized =
+    let normalized =
       event.type === 'message' && !event.complete
         ? { ...event, text: UI_TEXT.execMessageWithheld }
         : event
+    const schema = input.outputSchema?.()
+    if (
+      schema !== undefined &&
+      normalized.type === 'message' &&
+      normalized.kind === 'agentMessage'
+    ) {
+      const answer = normalized.complete ? answerForEgress(normalized.text, schema) : undefined
+      normalized = {
+        ...normalized,
+        text: answer?.ok === true ? JSON.stringify(answer.value) : UI_TEXT.execMessageWithheld,
+      }
+    }
     const raw = {
       ...normalized,
       v: EXEC_PROTOCOL_VERSION,
@@ -105,8 +184,35 @@ export function createExecSink(input: {
         ? result
         : { ...result, finalMessage: lastMessage },
     )
-    const redacted = validateResult(redactValue(raw, input.literals()))
-    const envelope = execEventSchema.parse({
+    const redactedBase = validateResult(redactValue(raw, input.literals()))
+    const schema = input.outputSchema?.()
+    let schemaResult: SchemaExecResult = redactedBase
+    if (schema !== undefined && redactedBase.ledger !== null) {
+      // Validate the exact data that leaves egress. Redaction may invalidate an
+      // enum or a required key; it must never turn a mismatch into success.
+      const answer =
+        redactedBase.status === 'completed' ? answerForEgress(raw.finalMessage, schema) : undefined
+      schemaResult = {
+        ...redactedBase,
+        ledger: { ...redactedBase.ledger, outputSchemaSha256: schema.sha256 },
+        ...(answer?.ok === true && {
+          output: answer.value,
+          finalMessage: JSON.stringify(answer.value),
+        }),
+        ...(answer?.ok === false && {
+          status: 'failed',
+          exitCode: EXEC_EXIT.failed,
+          finalMessage: UI_TEXT.execMessageWithheld,
+          error: {
+            kind: 'output_schema_mismatch',
+            message: fill(UI_TEXT.outputSchemaMismatch, { detail: answer.detail }),
+          },
+        }),
+      }
+    }
+    const redacted = validateSchemaResult(schemaResult)
+    resultExitCode = redacted.exitCode
+    const envelope = validateSchemaEvent({
       type: 'result',
       result: redacted,
       v: EXEC_PROTOCOL_VERSION,
@@ -159,6 +265,9 @@ export function createExecSink(input: {
     },
     get isStalled() {
       return checkStall()
+    },
+    get resultExitCode() {
+      return resultExitCode
     },
   }
 }

@@ -1,5 +1,5 @@
-import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
+import { fingerprint } from '../../core/verify/fingerprint'
 import { EXEC_PROMPT_MAX_BYTES, MCP_SCHEMA_LIMITS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 
@@ -32,6 +32,18 @@ const nodeSchema: z.ZodMiniType<SchemaNode> = z.lazy(() =>
     $defs: z.exactOptional(z.record(z.string(), nodeSchema)),
     $ref: z.exactOptional(z.string()),
   }),
+)
+
+// Build from the validation bundle's existing mini API; z.json is not exported there.
+export const outputJsonSchema: z.ZodMiniType<z.core.util.JSONType> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(outputJsonSchema),
+    z.record(z.string(), outputJsonSchema),
+  ]),
 )
 
 export interface OutputSchema {
@@ -75,8 +87,10 @@ function isBounded(value: unknown): boolean {
 export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   if (bytes.byteLength > EXEC_PROMPT_MAX_BYTES) invalid('bytes')
   let decoded: unknown
+  let source: string
   try {
-    decoded = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+    source = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes)
+    decoded = JSON.parse(source.replace(/^\u{FEFF}/u, ''))
   } catch {
     invalid('JSON / UTF-8')
   }
@@ -243,7 +257,7 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   }
   const validator = compile(root)
   return {
-    sha256: createHash('sha256').update(bytes).digest('hex'),
+    sha256: fingerprint(source),
     schema: z.record(z.string(), z.unknown()).parse(decoded),
     parseAnswer(text) {
       let answer: unknown
@@ -255,7 +269,7 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
       if (!isBounded(answer)) return { ok: false, detail: 'depth / nodes' }
       const checked = validator.safeParse(answer)
       return checked.success
-        ? { ok: true, value: z.json().parse(checked.data) }
+        ? { ok: true, value: outputJsonSchema.parse(checked.data) }
         : { ok: false, detail: 'schema' }
     },
   }
