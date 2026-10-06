@@ -19097,6 +19097,17 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**Lane F review corrections (RVM105F, 2026-10-05).** Serialize each session's
+saves and removals, check save generations before releasing references, and
+hold the account storage lock across ownership and session publication. Persist
+metadata-only recovery intents before save/delete mutations; listing retries
+interrupted saves and deletes idempotently, releasing ownership durably before
+removing a session. Combine caller cancellation with the Files request deadline
+for retrieve/list/delete. Always retrieve an existing upload before replacing it:
+local expiry timestamps alone cannot prove unavailability under provider clock
+skew. Each of the four findings gets a regression and byte-exact red drill in
+`docs/certification/m105-f.md`; existing lane W integration blockers remain.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:

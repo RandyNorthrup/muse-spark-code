@@ -190,7 +190,10 @@ export class FilesApi {
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'GET',
-      signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      AbortSignal.any([
+        ...(signal === undefined ? [] : [signal]),
+        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      ]),
       undefined,
       this.deps.expectedAccountId,
     )
@@ -203,7 +206,10 @@ export class FilesApi {
     const files: ProviderFile[] = []
     const seen = new Set<string>()
     let route = '/files'
-    const active = signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
+    const active = AbortSignal.any([
+      ...(signal === undefined ? [] : [signal]),
+      AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+    ])
     for (;;) {
       const response = await this.deps.client.requestFile(
         route,
@@ -228,7 +234,10 @@ export class FilesApi {
     const response = await this.deps.client.requestFile(
       `/files/${fileId.parse(id)}`,
       'DELETE',
-      signal ?? AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      AbortSignal.any([
+        ...(signal === undefined ? [] : [signal]),
+        AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+      ]),
       undefined,
       this.deps.expectedAccountId,
     )

@@ -29,8 +29,48 @@ const bytes = new Uint8Array(capture.bytes).fill(7)
 const digest = createHash('sha256').update(bytes).digest('hex')
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
+  vi.restoreAllMocks()
   for (const close of cleanup.splice(0)) await close()
 })
+
+it.each(['retrieve', 'list', 'delete'] as const)(
+  'combines caller cancellation with the Files deadline for %s',
+  async (method) => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout')
+    const requestFile = vi.fn((_route: string, _method: string, signal: AbortSignal) => {
+      return new Promise<Response>((_resolve, reject) => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            reject(new Error(String(signal.reason)))
+          },
+          { once: true },
+        )
+      })
+    })
+    const api = new FilesApi({
+      provider: 'meta',
+      client: { requestFile },
+      authorizeUpload: () => Promise.resolve(),
+    })
+    for (const isCallerCancelled of [false, true]) {
+      const deadline = new AbortController()
+      timeout.mockReturnValue(deadline.signal)
+      const caller = new AbortController()
+      const pending =
+        method === 'list' ? api.list(caller.signal) : api[method](capture.id, caller.signal)
+      const active = requestFile.mock.calls.at(-1)?.[2]
+      if (isCallerCancelled) caller.abort(new Error('Caller stopped'))
+      else deadline.abort(new Error('Deadline'))
+      const wasAborted = active?.aborted
+      if (!wasAborted) caller.abort(new Error('Fallback cleanup'))
+      await expect(pending).rejects.toThrow(isCallerCancelled ? 'Caller stopped' : 'Deadline')
+      expect(timeout).toHaveBeenLastCalledWith(30_000)
+      expect(active).not.toBe(caller.signal)
+      expect(wasAborted).toBe(true)
+    }
+  },
+)
 
 function client(
   baseUrl: string,

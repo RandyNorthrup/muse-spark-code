@@ -19,6 +19,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M105 Files retrieval, listing and deletion keep the 30-second deadline when
+  a caller supplies cancellation. Existing uploads are retrieved before
+  replacement, so provider clock skew does not force another upload or reject
+  a discarded local source.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

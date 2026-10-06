@@ -33,7 +33,7 @@ const ref = {
 }
 const foreign = { ...receipt, id: 'file-other', filename: 'other.pdf', bytes: 12 }
 
-function setup() {
+function setup(now: () => number = () => 1_001_000) {
   let saved: unknown
   let current: string | undefined = accountId
   let serial = 0
@@ -90,7 +90,7 @@ function setup() {
     provider: 'meta',
     poolBytes: 100 * 1024 ** 3,
     currentAccountId: () => Promise.resolve(current),
-    now: () => 1_001_000,
+    now,
   })
   const source: UploadSource = {
     name: ref.name,
@@ -120,6 +120,21 @@ function setup() {
 }
 
 describe('upload ownership ledger', () => {
+  it('retrieves a locally expired upload under clock skew without reopening a discarded source', async () => {
+    const t = setup(() => 8_200_000)
+    const signal = new AbortController().signal
+    const first = await t.ledger.ensure('s1', sha256, t.source, signal)
+    const open = vi.fn(() => {
+      throw new Error('Source discarded')
+    })
+    const duplicate = await t.ledger.ensure('fork', sha256, { ...t.source, open }, signal)
+    expect(duplicate).toEqual(first)
+    expect(open).not.toHaveBeenCalled()
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'POST')).toHaveLength(1)
+    expect(t.requestFile.mock.calls.filter((call) => call[1] === 'GET')).toHaveLength(1)
+    expect(t.raw()).toMatchObject({ entries: [{ sessions: ['s1', 'fork'] }] })
+  })
+
   it('uploads identical bytes once, shares fork/rewind refs and deletes only after the last session releases', async () => {
     const t = setup()
     const signal = new AbortController().signal

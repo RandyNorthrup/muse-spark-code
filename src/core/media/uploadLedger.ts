@@ -2,12 +2,7 @@
 // windows/processes; provider deletion follows the last durable session release.
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
-import {
-  HTTP_STATUS,
-  MEDIA_SHA256_PATTERN,
-  MILLISECONDS_PER_SECOND,
-  UI_TEXT,
-} from '../../shared/constants'
+import { HTTP_STATUS, MEDIA_SHA256_PATTERN, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../shared/media'
 import { isModelApiError } from '../backends/modelapi/client'
@@ -132,10 +127,9 @@ export class UploadLedger implements SessionUploadLifecycle {
       await this.requireAccount()
       if (!MEDIA_SHA256_PATTERN.test(sha256)) throw new Error('Invalid source digest')
       const existing = state.entries.find(({ file }) => file.sha256 === sha256)
-      let isMissing =
-        existing === undefined ||
-        existing.file.expiresAt <= this.deps.now() / MILLISECONDS_PER_SECOND
-      if (existing !== undefined && !isMissing) {
+      let isMissing = existing === undefined
+      // Provider clocks can lag ours; successful retrieval proves availability.
+      if (existing !== undefined) {
         try {
           await this.files.retrieve(existing.file.fileId, signal)
         } catch (error: unknown) {
