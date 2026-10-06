@@ -209,6 +209,9 @@ The finishing explicit-path commit uses the repository's unmodified hooks.
 
 ## FIXM107C2 — RVM107C2 repair (2026-10-06, Kubuntu)
 
+Repair starts from reviewed HEAD `7c9dd73bc`. The code, regressions, plan,
+changelog and first receipts are committed as **bf00e5c73**, with hooks on.
+
 Review `RVM107C2.report.md` reports one P2 and no P1/P3. The P2 is fixed:
 `GovernedTeamSlots` now requires the same live `TeamCapacityPort` used by
 the picker and calls `isResourceSlotAvailable` after local acquisition
@@ -271,3 +274,35 @@ responsiveness and bundle costs in production. The rig brief overrides
 common.md's historical merge step and prohibits full `npm run quality`;
 the integration lead retains that gate. No merge, push, rebase, credential,
 live/paid call, external message, install or other-lane change occurred.
+
+### Review-repair final scoped gate receipts
+
+Every check below ran directly on Kubuntu, serially with respect to
+Vitest/compiler/ESLint/build work. No repository timeout or gate changed.
+The final restored coverage run remains **29/29**, with the repository's
+default per-test timeout and the 100% coverage counts above. All eight
+post-commit scoped delivery commands below exit **0**; the full five-project
+compiler also passed before the code commit.
+
+| Check                                                               | Receipt                                                                                                 |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`; fresh final `npm run typecheck:unit`           | All five projects pass; final unit compiler includes the production adapter and updated tests           |
+| `npx eslint --max-warnings=0` on the three changed TypeScript files | Zero warnings/errors; no suppression                                                                    |
+| `npx prettier --check` on all six changed files; `git diff --check` | Pass                                                                                                    |
+| `npm run deadcode`                                                  | Pass; only the same vendor/axe-core configuration hints                                                 |
+| `npx jscpd`                                                         | 1,243 files, zero clones                                                                                |
+| `npm run check:l10n`                                                | 14 tables, 164 manifest strings, 639 source files, zero problems                                        |
+| `npm run check:host-api`                                            | 336 APIs, 32 VS Code importers, 26 Node built-ins, 61 theme variables, zero problems; no inventory edit |
+| `npm run build`                                                     | All existing caps, model-text/bundle splits, host globals and 83-package notices pass                   |
+| Normal code-commit hooks                                            | Serial lint-staged passes; staged redacted gitleaks scans 14.89 KB, zero leaks                          |
+
+Production sizes remain extension **446.2/600 KiB**, Model API
+**449.4/475**, ACP **837.9/850**, checkpoint store **77.3/225**, shared
+English **48.7/125**, startup webview **894.8/900** and deferred JavaScript
+**49.7/50**. Governor **61.0 KiB** and its admission shim **1.5 KiB** retain
+their existing W-owned final budget handoff. Fresh production metafile
+inspection, normalizing Windows separators before comparisons, finds
+**zero C2 shipping inputs across all 39 metafiles**, including ACP.
+The required live capacity/registry port therefore remains a qualified
+integration handoff, not a claim of joined shipped behavior. The final
+receipt-only commit again uses explicit paths and unmodified hooks.

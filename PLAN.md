@@ -19633,6 +19633,9 @@ during local acquisition, prove the regressions red before the fix, then
 break the final guard and restore it byte-exact. Record scoped gates in
 `docs/certification/m107-c2-the-team-and-runners.md`; the rig brief leaves
 aggregate quality and the existing M96/M96c production joins with the lead.
+The correction is now proved by 29/29 owning tests, 100% scoped coverage,
+two red/restored guard drills and all required scoped delivery checks.
+The sole reviewed P2 is closed; §9 names the remaining dependency binding.
 
 **M107INT round 3 (2026-10-06, Win11).** Join T2, U and H with the three
 listed no-fast-forward merges. Resolve shared records additively, preserve
