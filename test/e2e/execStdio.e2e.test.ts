@@ -98,6 +98,7 @@ function packagingFixture() {
     'l10n',
     'docs/schemas',
     'test/action',
+    'test/packaging',
   ]) {
     mkdirSync(path.join(dir, folder), { recursive: true })
   }
@@ -114,6 +115,20 @@ function packagingFixture() {
     'import {writeFileSync} from "node:fs"; writeFileSync(process.argv.at(-1), "test fixture notices");',
   )
   writeFileSync(path.join(dir, 'scripts/check-l10n.mjs'), '// test-owned source gate\n')
+  // Inert package fixtures test admission, not real API calls. Give the
+  // packager its new probe entry and check that it receives an actual ACP
+  // archive containing these fixture bundles. Built-process rows below and
+  // real package tests retain the complete native import/require contract.
+  writeFileSync(
+    path.join(dir, 'test/packaging/moduleExports.test.mjs'),
+    String.raw`import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+assert.equal(process.argv[2], 'acp');
+const files = new Set(execFileSync(${JSON.stringify(TAR)}, ['-tzf', process.argv[3]], { encoding: 'utf8' }).split('\n'));
+for (const file of ['acp.js', 'team.js', 'teamScheduler.js', 'teamRunners.js', 'runtime.bundles.json.br'])
+  assert.ok(files.has('package/dist/' + file), file);
+`,
+  )
   writeFileSync(
     path.join(dir, 'package.json'),
     JSON.stringify({
@@ -129,6 +144,9 @@ function packagingFixture() {
     'acp',
     'modelApi',
     'reviewer',
+    'team',
+    'teamScheduler',
+    'teamRunners',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
     'hookRuntime',
@@ -151,6 +169,7 @@ function packagingFixture() {
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
+  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')

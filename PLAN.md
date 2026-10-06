@@ -10018,6 +10018,14 @@ Minimal completion design, pending that choice:
    pair permits an off-by-default production setting. Record paid attempts,
    known/unknown usage, source hashes and the incomplete inventory honestly.
 
+**M96INT3C shared rig refs (2026-10-05).** Both own-history scans are
+clean. The unchanged default command in the shared rig repo includes
+fourteen archived rt snapshot refs containing seven historical findings.
+May the owner export those refs to a verified OS-temporary bundle and
+remove only those refs? The worktree-only rule bars unapproved shared
+metadata changes; the request remains pending. No ignores or history
+rewrites are proposed.
+
 ## 4. Architecture
 
 ```
@@ -20010,6 +20018,22 @@ with three workers. Keep temporary archives outside the repository.
 Windows-native proof is owned by REDWINI96 and lands in round 3d; this
 Mac record cannot certify Windows. No live/paid calls or push are authorized.
 
+**Round 3c late gate findings.** The single authorized full-quality run
+exposes missing recorder vocabulary for the three shipped team bundles,
+a missing translated team paid-row tip, pre-M96 palette expectations and
+fixture inventories lacking the new team browser/Node chunks and runner
+files. Repair product allowlists and reuse existing translated paid consent
+text; retain exact assertions and production admission guards. Await the
+asynchronous paid popup before its no-spend assertion. OpenCode's Bun
+memory refusal on macOS remains: the portable Node stand-in may simulate
+a Linux memory wrapper while real-runtime/refusal tests keep their bounds.
+Observe the real native retirement deadline, then advance only the test clock
+through its exact 5,000 ms boundary; retain real ownership, signalling and
+cleanup. Record scoped rig verification separately from the failed full-quality run;
+do not raise deadlines or coverage thresholds, skip tests, or run quality
+again. Native/Git/HTML timing failures and the staging-hook timing are
+recorded in §7 with their unchanged-profile evidence.
+
 **Round 3b classifier reconciliation.** W's `workerFence.ts` owns the
 single argument classifier. I re-exports it and passes only the argv that
 will execute. W's wrapper tokenizer delegates to it; safe `worktree list`,
@@ -26226,6 +26250,21 @@ Pause local browser gates while that extension is enabled. Hosted CI runs
 remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
+
+**M96INT3C full-profile timing deferral (2026-10-05).** The one requested
+`VITEST_MAX_WORKERS=3 npm run quality` finishes red at coverage tests:
+12,514 pass, 69 fail, 151 existing/platform/setup skips. Besides the
+product/fixture repairs in M96's record, the fixed 5 s test profile times
+out real SSH, native retirement, landing/batch, detached descendants,
+HTML expansion and a VSCE inventory call. A staging hook also exceeds
+its unchanged 10 s deadline under this concurrent coverage profile.
+The rig brief prescribes scoped runs at at most three files with
+`--maxWorkers=3 --testTimeout=120000`; receipts of those runs are separate
+from full-quality certification. Gates remain unchanged. Full-quality
+certification requires a fresh owner-authorized run after these repairs
+and resolution of the shared archived-ref history blocker; round 3c's
+single invocation is never relabelled green. Windows proof belongs to
+REDWINI96/round 3d. No live/paid attempts.
 
 ## 8. Escape hatches register
 

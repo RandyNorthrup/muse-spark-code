@@ -6,7 +6,7 @@ normalization, scenario, timeout or loader check was removed.
 
 D78's FIXDEF follow-up requires: "Offer packed recall only when the request
 contains a packed observation" ([PLAN.md D78](../../PLAN.md#d78--enhancements-available-out-of-the-box-owner-2026-10-04),
-D78’s conditional-recall paragraph in the merged plan). The product already implements this newer decision.
+lines 4761–4763 in this merged plan). The product already implements this newer decision.
 The seven reviewed fixtures inherited from the diet branch make exactly that
 change; round 3c applies the same decision to the two M96 continuation/team
 fixtures. Every changed raw request is checked to differ only by deleting the

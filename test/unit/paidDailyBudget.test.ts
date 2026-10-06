@@ -538,7 +538,9 @@ describe('D78 interactive paid daily budget', () => {
     await paid.gate.review()
     expect(confirmModal).not.toHaveBeenCalled()
     const pending = use()
-    expect(confirmModal).toHaveBeenCalledOnce()
+    await vi.waitFor(() => {
+      expect(confirmModal).toHaveBeenCalledOnce()
+    })
     expect(api.imageBodies()).toEqual([])
     expect(vi.mocked(confirmModal).mock.calls[0]?.[1]?.detail).toContain('$5.00')
     answer.resolve(undefined)

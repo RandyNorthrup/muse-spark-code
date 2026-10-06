@@ -16,6 +16,7 @@ import {
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 
 const metafileSchema = z.looseObject({
   inputs: z.record(z.string(), z.unknown()),
@@ -80,20 +81,30 @@ beforeAll(async () => {
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, deferredTeamView],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
       ...common,
       target: 'node22',
       entryPoints: { acp: 'src/runtime/main.ts' },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, deferredTeamView],
       external: ['@napi-rs/keyring'],
     }),
     build({
       ...common,
       entryPoints: { wire: 'src/shared/wireEntry.ts' },
-      plugins: [sharedUiText, sharedValidation],
+      plugins: [sharedUiText, sharedValidation, deferredTeamView],
+    }),
+    build({
+      ...common,
+      entryPoints: {
+        team: 'src/core/team/teamEntry.ts',
+        teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
+        teamRunners: 'src/host/runners/teamRunnersEntry.ts',
+      },
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
       ...common,

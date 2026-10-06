@@ -1,5 +1,5 @@
 {
-  "status": "preflight green; full quality pending",
+  "status": "full-quality red; late repairs and prescribed scoped verification in progress",
   "rig": "macmini",
   "base": "30105e49",
   "wMerge": "9dcd95cc",
@@ -8,7 +8,12 @@
     "failedBefore": 64,
     "failedAfter": 0,
     "decision": "D78 conditional recall, all 64 pre-D78 fixtures updated; exact raw request matcher unchanged",
-    "table": "m96-int-round3c-d78.json"
+    "table": "m96-int-round3c-d78.json",
+    "planReference": {
+      "file": "PLAN.md",
+      "line": 4761,
+      "section": "D78 FIXDEF"
+    }
   },
   "checks": [
     {
@@ -96,6 +101,79 @@
         "test/unit/teamPlanRecord.test.ts",
         "test/unit/teamStartup.test.mjs"
       ]
+    },
+    {
+      "name": "late-product",
+      "passed": 111,
+      "failed": 0,
+      "files": [
+        "test/unit/flightRecorder.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/paletteRegistry.test.ts"
+      ]
+    },
+    {
+      "name": "late-inventory",
+      "passed": 40,
+      "failed": 0,
+      "files": [
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/webviewBundle.test.mjs"
+      ]
+    },
+    {
+      "name": "late-exec-green",
+      "passed": 38,
+      "failed": 0,
+      "files": ["test/e2e/execStdio.e2e.test.ts"]
+    },
+    {
+      "name": "late-native-ssh",
+      "passed": 46,
+      "failed": 0,
+      "files": [
+        "test/unit/sshRunner.test.ts",
+        "test/unit/teamNativeLifetime.test.ts",
+        "test/unit/teamSchedulerRetire.test.ts"
+      ]
+    },
+    {
+      "name": "late-landing-html",
+      "passed": 55,
+      "failed": 0,
+      "files": [
+        "test/unit/htmlToMarkdown.test.ts",
+        "test/unit/teamLanding.test.ts",
+        "test/unit/teamMergeBatchRepository.test.ts"
+      ]
+    },
+    {
+      "name": "late-package-units",
+      "passed": 59,
+      "failed": 0,
+      "files": [
+        "test/unit/compressedEnglish.test.mjs",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/vsixPackaging.test.mjs"
+      ]
+    },
+    {
+      "name": "portable-plugin-and-host",
+      "passed": 70,
+      "failed": 0,
+      "existingSkipped": 2,
+      "files": ["test/unit/pluginDispatch.test.ts", "test/unit/pluginHost.test.ts"]
+    },
+    {
+      "name": "late-golden-browser",
+      "passed": 126,
+      "failed": 0,
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/paletteRegistry.test.ts"
+      ]
     }
   ],
   "drills": [
@@ -121,11 +199,20 @@
       "sha256": "a80278d8e955c75987bd263432dd9e5268d40dbadc87682b60c3c60dffe8677a",
       "red": "teamHarness 23 size drill pads chunk by 900 KiB; gate exits 1 and names team UI",
       "green": "same test checks exact SHA restoration, then gate exits 0"
+    },
+    {
+      "source": "src/host/team/processLifetime.ts",
+      "beforeSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "restoredSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "redFailed": 1,
+      "greenPassed": 17,
+      "redExit": 1,
+      "greenExit": 0
     }
   ],
   "windowsDependency": "REDWINI96 host proof, merged in round 3d; not certified on macmini",
   "browserBytes": {
-    "startup": 875810,
+    "startup": 875880,
     "startupCap": 921600,
     "teamUi": 16088,
     "teamUiCap": 25600,
@@ -145,7 +232,10 @@
     "duplication": 0,
     "productionBuild": 0,
     "bundleSize": 0,
-    "hostGlobals": 0
+    "hostGlobals": 0,
+    "postRepairTypecheckFiveProjects": 0,
+    "postRepairDuplication": 0,
+    "postRepairProductionBuild": 0
   },
   "packages": {
     "helperless": {
@@ -236,5 +326,49 @@
       ],
       "permission": "shared-ref removal request pending; no refs removed"
     }
+  },
+  "fullQuality": {
+    "command": "VITEST_MAX_WORKERS=3 npm run quality",
+    "invocations": 1,
+    "testedHead": "2622fb4441effb1c5bdebcabeaf551c405aca5f1",
+    "exit": 1,
+    "passed": 12514,
+    "failed": 69,
+    "skipped": 151,
+    "files": {
+      "passed": 573,
+      "failed": 16,
+      "skipped": 8
+    },
+    "unitDurationSeconds": 934.55,
+    "stoppedAt": "coverage test run",
+    "notReached": [
+      "production build",
+      "dependency audit",
+      "accessibility",
+      "default shared-history scan",
+      "SAST"
+    ],
+    "tail": [
+      "",
+      "",
+      " Test Files  16 failed | 573 passed | 8 skipped (597)",
+      "      Tests  69 failed | 12514 passed | 151 skipped (12734)",
+      "   Start at  17:43:47",
+      "   Duration  934.55s (tests 84%, import 6%, setup 5%, environment 2%, transform 2%, worker 1%)",
+      "",
+      "    Isolate  597 workers spawned \u00b7 ~319ms startup each (spawn + environment, per file)",
+      "             at least ~63.20s faster with isolate: false \u2014 reuses workers across files instead of one per file",
+      "",
+      "ERROR: \"test:unit\" exited with 1.",
+      "ERROR: \"quality:gates\" exited with 1."
+    ]
+  },
+  "lateScopedMatrix": {
+    "distinctFiles": 20,
+    "passedDistinct": 510,
+    "existingActualBunSkips": 2,
+    "failureTable": "m96-int-round3c-late.json",
+    "profile": "at most three files; --maxWorkers=3 --testTimeout=120000; original staging hook 10000 ms"
   }
 }

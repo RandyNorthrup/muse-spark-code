@@ -10,7 +10,15 @@ beforeEach(() => {
   vi.resetModules()
   existsSync.mockReturnValue(true)
   readFileSync.mockReturnValue(
-    JSON.stringify({ outputs: { 'dist/webview/main.js': { imports: [] } } }),
+    JSON.stringify({
+      outputs: {
+        'dist/webview/main.js': { imports: [] },
+        'dist/webview/TeamUi.js': {
+          entryPoint: 'src/webview/components/TeamUi.tsx',
+          imports: [],
+        },
+      },
+    }),
   )
   statSync.mockImplementation((file) => ({
     size: file === CONTENT_FILE ? CONTENT_BUDGET_BYTES : 0,
@@ -33,6 +41,10 @@ describe('bundled What’s New content budget', () => {
             imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
           },
           'dist/webview/chunks/eager.js': { imports: [] },
+          'dist/webview/TeamUi.js': {
+            entryPoint: 'src/webview/components/TeamUi.tsx',
+            imports: [],
+          },
         },
       }),
     )

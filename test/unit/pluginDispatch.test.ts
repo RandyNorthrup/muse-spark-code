@@ -28,7 +28,12 @@ import {
   pluginToolName,
   runtimeArguments,
 } from '../../src/core/backends/modelapi/pluginFormats'
-import { HOOK_MAX_RUNNING_COMMANDS, MODEL_API_TOOLS } from '../../src/shared/constants'
+import {
+  HOOK_MAX_RUNNING_COMMANDS,
+  MODEL_API_TOOLS,
+  PLUGIN_CHILD_MAX_HEAP_MB,
+  PLUGIN_CHILD_MAX_MEMORY_BYTES,
+} from '../../src/shared/constants'
 import { expectEnded, markedPid } from './helpers/processes'
 
 const ROOT = '/ws'
@@ -265,11 +270,21 @@ function writePlugin(source: string, name = 'plugin.mjs'): string {
 function host(warnings: string[] = []): PluginHostDeps {
   const dir = mkdtempSync(path.join(tmpdir(), 'm91b-bin-'))
   const bun = path.join(dir, 'bun')
-  // A `bun` beside a real `prlimit`-free PATH: on Linux the host bounds bun
-  // with prlimit, so the stand-in is spawned through the real tool below.
-  writeFileSync(bun, `#!/bin/sh\nexec "${process.execPath}" --input-type=module "$@"\n`, {
-    mode: 0o755,
-  })
+  // Portable Linux fixture: its Bun stand-in is this Node with a real heap
+  // bound. The wrapper checks the exact production prlimit admission args.
+  // pluginHost.test separately proves actual Bun is refused on macOS.
+  writeFileSync(
+    bun,
+    `#!/bin/sh\nexec "${process.execPath}" --max-old-space-size=${String(PLUGIN_CHILD_MAX_HEAP_MB)} --input-type=module "$@"\n`,
+    {
+      mode: 0o755,
+    },
+  )
+  writeFileSync(
+    path.join(dir, 'prlimit'),
+    `#!/bin/sh\n[ "$1" = "--data=${String(PLUGIN_CHILD_MAX_MEMORY_BYTES)}" ] && [ "$2" = "--" ] || exit 64\nshift 2\nexec "$@"\n`,
+    { mode: 0o755 },
+  )
   return {
     env: { PATH: `${path.dirname(process.execPath)}:${dir}:/usr/bin:/bin` },
     containment: () => Promise.resolve({ kind: 'processGroup' }),
@@ -283,7 +298,8 @@ function host(warnings: string[] = []): PluginHostDeps {
 function adapterWith(plugins: PluginHostDeps | undefined): ForeignHookAdapter {
   return createForeignHookAdapter({
     workspaceRoot: ROOT,
-    platform: process.platform,
+    // Payload/dispatcher proof over the portable Linux transport fixture.
+    platform: 'linux',
     io: { realPath: (absolutePath) => Promise.resolve(absolutePath) },
     homeDir: '/home/u',
     ...(plugins !== undefined && { plugins }),

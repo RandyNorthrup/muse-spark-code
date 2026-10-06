@@ -751,3 +751,45 @@ the request to export/remove those shared refs remains pending. No history,
 ignore, gate or shared ref is changed. The mandatory full-quality command
 runs unchanged and its result follows; own-history green does not imply
 that shared-repository gate is green.
+
+## M96INT round 3c full run and late repairs (2026-10-05, macmini)
+
+The sole requested `VITEST_MAX_WORKERS=3 npm run quality` tested
+`2622fb44` and exited 1 at the coverage test stage. Format, global JS/CSS
+lint, five typecheck projects, localization, host API, deadcode, cycles and
+duplication passed first. The test tail is 16 failed / 573 passed / 8 skipped
+files; 69 failed / 12,514 passed / 151 skipped assertions; 934.55 seconds.
+It never reached build, audit, accessibility, history secrets or SAST.
+This is a red full run, with no second invocation and no gate changes.
+
+The inherited D78 failures are all closed and pass in that full run. Its
+new failures and suite setup errors are separately enumerated in
+`m96-int-round3c-late.json`. Two product omissions are repaired: the report's
+strict packaged-frame allowlist now includes the three shipped team Node
+bundles, and the paid worker palette row uses the existing localized price
+consent template as its tooltip. Strict tests stay intact.
+
+The fixture repairs add the real final TeamUi/deferred-team inventory,
+an inert test-owned ACP package probe, D75's explicit team paid row, and
+the async consent boundary. Portable plugin-dispatch fixtures exercise the
+Linux transport with Node and its real heap limit instead of asking Darwin
+to launch a Bun host that the production policy refuses; the production
+Darwin refusal and the existing actual-Linux/Bun cases remain enforced.
+Native retirement still uses real owned processes, signals and cleanup,
+but advances only the deadline's test clock. Changing the production
+5,000 ms deadline to 4,999 fails the new exact-boundary assertion; restoring
+the byte-identical source passes all 17 native lifetime tests.
+
+The remaining failures are full-profile test/hook deadlines under concurrent
+coverage. Their complete prescribed scoped suites pass with at most three
+files, three workers and the brief's 120,000 ms test timeout; the staging
+hook keeps its original 10,000 ms deadline. No profile, isolation, coverage,
+rule, skip, cap or hook deadline is weakened. The late matrix passes 510
+distinct assertions across 20 files, with two existing actual-Bun platform
+skips. This proves the repaired cases in the prescribed rig profile, and
+does not certify a future full-profile run. PLAN §7 records that deferral.
+
+Static checks, final packages and the unreached standalone gates are recorded
+with their actual final source commit in `m96-int-round3c-results.json`.
+Windows remains REDWINI96/round 3d's dependency. Shared archived refs remain
+outside this worktree's authorized mutation scope while permission is pending.

@@ -12,6 +12,7 @@ import { jobSourceReader } from '../../src/host/backend/jobSource'
 import { createNativeOrphanDriver, createOrphanRecovery } from '../../src/host/team/orphanRecovery'
 import * as processOwnership from '../../src/host/team/processOwnership'
 import * as orphanRecovery from '../../src/host/team/orphanRecovery'
+import * as timeouts from '../../src/core/timeouts'
 import * as processTree from '../../src/host/processTree'
 import {
   createNativeTeamProcessDriver,
@@ -455,18 +456,47 @@ describe('M96 K real native lifetime', () => {
       const { child, observer } = f
       const retired = child.retire
       vi.spyOn(observer, 'signal').mockResolvedValue(true)
+      const originalDeadline = timeouts.withDeadline
+      const entered = Promise.withResolvers<number>()
+      vi.spyOn(timeouts, 'withDeadline').mockImplementation(
+        <T>(work: Promise<T>, timeoutMs: number, message: string): Promise<T> => {
+          const bounded = originalDeadline(work, timeoutMs, message)
+          if (message === 'TEAM_RETIREMENT_TIMEOUT') entered.resolve(timeoutMs)
+          return bounded
+        },
+      )
+      // Real native ownership/signalling stays live; only the long deadline's
+      // clock advances. The fixed five-second test gate no longer waits five
+      // seconds just to prove that production's five-second deadline fires.
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
       const retirement = retired()
+      let hasSettled = false
       const result = (async () => {
         try {
           await retirement
           return 'retired'
         } catch (error: unknown) {
           return error instanceof Error ? error.message : 'unexpected error'
+        } finally {
+          hasSettled = true
         }
       })()
       try {
-        expect(await Promise.race([result, delay(7000, 'pending')])).toBe('TEAM_RETIREMENT_TIMEOUT')
+        const deadlineMs = await Promise.race([
+          entered.promise,
+          (async () => {
+            await result
+            return -1
+          })(),
+          delay(7000, -1),
+        ])
+        expect(deadlineMs).toBe(5000)
+        await vi.advanceTimersByTimeAsync(deadlineMs - 1)
+        expect(hasSettled).toBe(false)
+        await vi.advanceTimersByTimeAsync(1)
+        expect(await result).toBe('TEAM_RETIREMENT_TIMEOUT')
       } finally {
+        vi.useRealTimers()
         child.child.kill()
         await result
         await child.ended

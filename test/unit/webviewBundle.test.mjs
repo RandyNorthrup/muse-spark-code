@@ -63,6 +63,7 @@ function sizeFixture(sharedBytes) {
   writeFileSync(path.join(built.fixture, ENTRY), 'x')
   writeFileSync(path.join(built.fixture, 'dist/webview/shared.js'), Buffer.alloc(sharedBytes))
   writeFileSync(path.join(built.fixture, 'dist/webview/deferred.js'), Buffer.alloc(49 * 1024))
+  writeFileSync(path.join(built.fixture, 'dist/webview/TeamUi.js'), '')
   const shared = { path: 'dist/webview/shared.js', kind: 'import-statement', external: false }
   writeFileSync(
     path.join(built.fixture, 'dist/meta/webview.json'),
@@ -77,6 +78,10 @@ function sizeFixture(sharedBytes) {
         },
         'dist/webview/shared.js': { imports: [] },
         'dist/webview/deferred.js': { imports: [] },
+        'dist/webview/TeamUi.js': {
+          entryPoint: 'src/webview/components/TeamUi.tsx',
+          imports: [],
+        },
       },
     }),
   )

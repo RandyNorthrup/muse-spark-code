@@ -15,6 +15,10 @@ happened, not what was planned; superseded entries are kept.
   separately budgeted lazy browser chunk. The package diet archives exact lazy
   bundle bytes and translation values; Brotli level 10 keeps staging within
   its existing deadline. Existing startup, deferred and VSIX caps remain fixed.
+  The report frame allowlist includes the shipped team bundles, and the paid
+  worker row explains its price in the existing localized consent text.
+  Package fixtures follow the final split inventory; the native retirement
+  regression advances its test clock while retaining real process ownership.
 
 - **Traffic browser harness integration.** Load one ESM surface per scenario
   and wait for the Traffic readiness marker before accessibility scanning.
