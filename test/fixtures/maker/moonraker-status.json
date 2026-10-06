@@ -1,0 +1,81 @@
+{
+  "result": {
+    "eventtime": 1015498.61779996,
+    "status": {
+      "webhooks": {
+        "state": "shutdown",
+        "state_message": "Unhandled exception during run\nOnce the underlying issue is corrected, use the\n\"FIRMWARE_RESTART\" command to reset the firmware, reload the\nconfig, and restart the host software.\nPrinter is shutdown\n"
+      },
+      "print_stats": {
+        "filename": "",
+        "total_duration": 0.0,
+        "print_duration": 0.0,
+        "filament_used": 0.0,
+        "state": "standby",
+        "message": "",
+        "info": {
+          "total_layer": null,
+          "current_layer": null
+        }
+      },
+      "toolhead": {
+        "homed_axes": "",
+        "axis_minimum": [-15.0, -15.0, -2.0, 0],
+        "axis_maximum": [235.0, 235.0, 250.0, 0],
+        "print_time": 0.0,
+        "stalls": 0,
+        "estimated_print_time": 0.0,
+        "extruder": "extruder",
+        "position": [0.0, 0.0, 0.0, 0.0],
+        "max_velocity": 300.0,
+        "max_accel": 3000.0,
+        "minimum_cruise_ratio": 0.5,
+        "square_corner_velocity": 5.0,
+        "extra_axes": {
+          "extruder": 3
+        }
+      },
+      "gcode_move": {
+        "speed_factor": 1.0,
+        "speed": 1500.0,
+        "extrude_factor": 1.0,
+        "absolute_coordinates": true,
+        "absolute_extrude": true,
+        "homing_origin": [0.0, 0.0, 0.0, 0.0],
+        "position": [0.0, 0.0, 0.0, 0.0],
+        "gcode_position": [0.0, 0.0, 0.0, 0.0],
+        "axis_map": {
+          "X": 0,
+          "Y": 1,
+          "Z": 2,
+          "E": 3
+        }
+      },
+      "configfile": {
+        "settings": {
+          "printer": {
+            "max_velocity": 300.0
+          },
+          "stepper_x": {
+            "position_min": -15.0,
+            "position_max": 235.0
+          },
+          "stepper_y": {
+            "position_min": -15.0,
+            "position_max": 235.0
+          },
+          "stepper_z": {
+            "position_min": -2.0,
+            "position_max": 250.0
+          },
+          "extruder": {
+            "max_temp": 250.0
+          },
+          "heater_bed": {
+            "max_temp": 130.0
+          }
+        }
+      }
+    }
+  }
+}

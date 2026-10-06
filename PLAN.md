@@ -18954,6 +18954,37 @@ owner's; release assets and install docs ship meanwhile.
 guard ships first and alone if the others slip, because it closes H1–H5 for
 every user.
 
+Lane M review follow-up (FIXM103M): canonicalize G-code once for analysis,
+macro refusal and approved dispatch; move the last approval/access/state
+checks after transport preparation; include the captured active extruder in
+state and limits; fail closed on credential removal; clean CAD invocation
+artifacts. Certify each fix with a failing regression and byte-exact red
+drill in `docs/certification/m103-m.md`. Cross-process registry transactions
+require a host-storage redesign and are tracked as RVM103M-REGISTRY-WRITERS
+in §9; no physical action or live/paid call is authorized by this follow-up.
+
+Round-two follow-up (FIXM103M2): resolve RVM103M2's credential/record race
+with one exclusive cross-process registry lock, revision compare-and-swap,
+and immutable registration-owned secret names. The concrete file store is
+in the per-user data directory; stale locks fail closed for operator recovery.
+Prove two actual Node processes cannot cross-pair credentials. Acknowledged
+sends return a successful outcome with audit status, retry only the audit,
+and never enter the failed-send path. CAD reads a bounded, confined opened
+handle and stages those exact bytes privately for both tools. Each finding
+gets regressions and byte-exact red drills in the lane M certification.
+No live/paid call, hardware use, dependency or shipped surface is added.
+
+Round-three follow-up (FIXM103M3): preserve post-write response loss as
+`sentOutcomeUnknown`, in both the result and device log, and require a
+successful explicit status read before another send. Notification and
+accounting retries must never resend. Bound arcs conservatively across all
+possible active planes when telemetry does not certify one; do not admit
+previously refused commands or guess a new wire field. Replay G17/G18/G19,
+G2/G3, absolute/relative and both units against the available Klipper/GRBL
+simulators; record evidence and any qualification limit. Each guard gets a
+regression and a byte-exact red drill in `docs/certification/m103-m.md`.
+No physical hardware, external network, paid/live call or dependency change.
+
 - **Goal.** Makers get skills, detection, simulation and offline tools that
   work out of the box, and device and machine access that never moves,
   heats, powers or flashes anything without a person approving exactly what
@@ -19419,6 +19450,27 @@ run instead. The pre-existing stale host API file-count record is W-owned;
 W must regenerate and review it with the maker entry/package, then run full
 quality and the platform matrix before integration. No rule, threshold or
 record comparison is weakened. Evidence: `docs/certification/m103-p.md`.
+
+**FIXM103M / FIXM103M2 / FIXM103M3 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
+full-suite runs and assigns integration gates to the lead. This fix lane
+runs its four owning test files, red drills and required static/build checks
+directly on the rig. The existing generated Node import inventory is stale;
+lane W owns regeneration after combining Maker lanes. Full quality,
+coverage, installed-editor/surface acceptance and simulator MCU success
+remain unclaimed. No rule, threshold, budget or ignore is weakened. Receipts
+and named residuals are in `docs/certification/m103-m.md` and §9. FIXM103M2
+resolves all three round-two findings, proves 16 byte-exact red drills and
+passes 189 owning tests, all type checks, changed-file lint/format, dead code,
+duplication, localization and production build. The host API inventory gate
+still reports only its previously assigned generated Node-reader drift;
+regeneration remains lane W's integration work.
+
+FIXM103M3 resolves response uncertainty and the native-confirmed arc-plane
+candidate, passes **249** owning tests and **48** native replay cases, and
+proves five distinct byte-exact red drills. All required static/build checks
+pass except that same generated inventory drift. Surface outcome mapping
+and P3 offline GRBL decimal precision are named in §9; full shipping/editor,
+coverage and physical-device acceptance stay with integration.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -20652,6 +20704,56 @@ before a repaired one loads (2026-09-30).
   PortName board captures and the new lease interleavings on real POSIX rigs
   remain part of the same platform qualification. All three RVM103P4 review
   findings are fixed; no P2/P3 review finding is intentionally deferred.
+
+- **RVM103M3-ARC-PLANE (native planner confirmed, fixed by FIXM103M3):**
+  Klipper offline batch and GRBL native check mode both generate G18/G19 Z
+  sweeps beyond the review's user cap. Telemetry cannot establish the plane,
+  so the analyzer conservatively unions XY/XZ/YZ complete-circle/helical
+  bounds. No previously refused command is admitted. The 48-case replay
+  covers both arc directions, coordinate modes and units; native Klipper's
+  relative/G20 rejections remain explicit. Receipts: `docs/certification/m103-m.md`.
+- **RVM103M3-GRBL-DECIMAL (P3 offline precision, 2026-10-05):** GRBL's
+  eight-digit decoder and float32 arithmetic can quantize repeating absolute
+  inch endpoints by under two micrometers in the capture; the analyzer's
+  double-precision ideal endpoint is not a native numeric emulator. The
+  plane cap remains refused, and GRBL/FluidNC model actuation is prohibited,
+  so no physical action uses this discrepancy. Maker is unshipped. Follow-up:
+  conservative numeric/parser envelopes before any CNC-motion owner decision;
+  no exact native GRBL endpoint-precision claim. The final plane regression
+  uses representable unit conversions and strict captured-envelope checks.
+- **RVM103M3-RESPONSE-LOSS (portable core fixed by FIXM103M3, 2026-10-05):**
+  an error after the synchronous final write guard returns `sentOutcomeUnknown`
+  in the send result and device log. It requires a successful explicit status
+  read before another send; accounting retry never resends. Prewrite errors
+  remain failures. The local fake consumes a relative move, changes reported
+  X 10 → 11 and loses the reply; the immediate retry cannot dispatch. Stop
+  remains available. Receipts and byte-exact drills: `docs/certification/m103-m.md`.
+- **FIXM103M3-SURFACE-OUTCOME (integration qualification, 2026-10-05):**
+  Maker hosts/UI are absent and unshipped at this base and owned by V/R/U/W.
+  The portable core notifies `sentOutcomeUnknown` and returns/logs it even
+  when notification or accounting fails. Every host/shared surface must show
+  “sent — outcome unknown”, the required status read, and audit-only retry;
+  never a failure/success or resend suggestion. Safe for now because Maker
+  is unshipped. Follow-up: localized outcome mapping, shared-surface tests,
+  README/CHANGELOG/reference accuracy and editor acceptance in lane W.
+
+- **RVM103M-REGISTRY-WRITERS (closed by FIXM103M2, 2026-10-05):** the
+  round-two P1 credential cross-pairing supersedes the prior lost-write P2.
+  Every registry mutation now owns the same exclusive cross-process file
+  lock and commits by revision CAS. Records and HTTP lookups use immutable
+  registration UUIDs; cleanup deletes only that UUID's credential. Two real
+  Node processes prove lock exclusion, duplicate refusal, distinct-record
+  retention, removal and replacement ownership. Stale locks fail closed;
+  operator recovery must first ensure the old writer cannot resume. Host
+  adapters must share the same per-user directory and implement the revised
+  snapshot/CAS port; no unlocked writer or legacy id-keyed lookup is allowed.
+  Maker remains unshipped. Receipts: `docs/certification/m103-m.md`.
+- **RVM103M-JOB-MACROS (acceptance 24 deferral, 2026-10-05):** opaque Klipper
+  `PAUSE`/`CANCEL_PRINT` and job pause/cancel remain refused before approval;
+  their motion cannot be bounded by this analyser. This is conservative
+  and cannot actuate a machine. Follow-up: explicitly defer that part of
+  acceptance 24 at M103 integration or certify a separately bounded path;
+  this lane does not claim the full item passed.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through
