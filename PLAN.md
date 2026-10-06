@@ -27544,6 +27544,17 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane N review repair RVM113N (2026-10-06).** Fix all four P2 findings
+within N's network/cache/store modules and owned tests: parse responses before
+scrubbing decoded structured values and persisting them; validate 304 cache
+data with the parsed output schema; serialize each host's rate admission and
+dispatch through its response headers; recheck current network policy
+immediately before every send. Add failing regressions and byte-exact red
+drills in `docs/certification/m113-n-network-sources-(b).md`. No dependency,
+guard widening, command or setting change; W retains public documentation
+and integrated quality. Run scoped checks directly on Kubuntu with default
+test timeouts; the rig brief forbids aggregate quality and branch merges.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -28711,6 +28722,13 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-N-RVM113N bounded rig certification (2026-10-06).** The explicit
+rig/shared brief reserves aggregate quality for the lead and forbids merges.
+Run complete owned suites (at most three files per run), default timeouts,
+scoped static checks and the production build directly in this worktree.
+Existing unused report manifest keys and host API freshness remain W's
+integration handoffs. Record every nonzero gate without weakening it.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with

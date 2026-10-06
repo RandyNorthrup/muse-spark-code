@@ -101,7 +101,7 @@ export function storesReportSource(options: ReportStoreOptions): ReportSourcePor
             continue
           }
           try {
-            const fact = storeFactSchema.parse(await query(adapter.request, adapter.schema))
+            const fact = await query(adapter.request, adapter.schema, storeFactSchema)
             const isLagging =
               compareVersions(
                 fact.version.replace(/^v/, ''),

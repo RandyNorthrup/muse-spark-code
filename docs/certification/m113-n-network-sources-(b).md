@@ -24,8 +24,9 @@ requests, credentials, dependencies, installs or global settings.
   are refused. Requests, bodies, pages and cache indexes are bounded; one
   five-second source deadline covers egress, cache, HTTP and parsing. Abort
   cancels a stalled body even when the transport ignores its signal.
-- Every HTTP body is bounded UTF-8 and schema-validated after the injected
-  scrub. The collected snapshot is scrubbed and validated again. Errors
+- Every HTTP body is bounded UTF-8, parsed with its input schema, then scrubbed
+  as decoded structured data and validated with its output schema. The
+  collected snapshot uses the same structured scrub and is validated again. Errors
   expose fixed technical reasons, never response bodies, stderr or thrown
   source text. Cache identities are scrubbed before SHA-256 and include the
   workspace. Cache values and ETags are scrubbed before storage and again on
@@ -274,3 +275,33 @@ lint-staged's ESLint/Prettier and gitleaks successfully, with no leaks.
 The worktree's `.husky/_/pre-commit` exists. The posting follow-up uses the
 same enabled hooks; its commit receipt is included in the final lane report.
 No source change follows the final follow-up checks.
+
+## Review repair RVM113N (FIXM113N)
+
+Authority: `/home/randy/lanes/_ctx/M113N.rig.md`,
+`codex/common.md` and the complete `codex/RVM113N.report.md`, base
+`24b45a612`. The review confirmed four P2s, no P1s. This repair stays in
+N's owned modules, tests and certification plus PLAN's scoped records. W
+continues to own CHANGELOG/public documentation and wiring; no new public
+feature, command, setting, dependency, capture or model attempt is introduced.
+
+All seven new regression cases failed against the original production code
+(78 existing tests passed), using the three complete owning suites and default
+timeouts. The first finished piece fixes findings 1 and 2:
+
+| Finding                             | Repair                                                                                                                                                                                          | Regression                                                                          | Red drill                                                                                                                    |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| P2.1 decoded credential persistence | Parse the response, scrub decoded strings/field names through the shared `scrubStructured` helper, validate the output, then write the cache. The helper also scrubs cached and collected data. | `scrubs escaped credentials in captured pull titles before persistent cache writes` | `decoded-scrub`: remove the decoded scrub before storage; the complete GitHub suite exits 1 at the named test.               |
+| P2.2 transformed 304 cache output   | Query accepts a separate output schema; store adapters always supply the normalized fact schema. The 304 path validates stored parsed output directly and preserves its observation.            | `reuses transformed store facts on 304 with their output schema`                    | `parsed-304`: replace the cached output validator with the input parser; the complete store suite exits 1 at the named test. |
+
+Both deliberate mutations restored `cache.ts` byte-exact in `finally`,
+SHA-256 `267ff4e7955992cc2932ef538e43fe358de5eafabec3138f39f2ff25aa786b69`.
+Local logs: `temp/fixm113n/baseline.log`, `parsed-cache.log`,
+`drills-parsed.json` and `drill-{decoded-scrub,parsed-304}.log`.
+The escaped title reuses M71's captured pull shape; the store transform is
+explicitly a synthetic adapter-contract input, not an npm capture. Tests
+never use a real credential or service. The post-repair GitHub/store run
+passed all 43 tests with repository default timeouts.
+`npm run typecheck` passed all five projects; ESLint with zero warnings and
+Prettier passed the four TypeScript files in this first piece. The normal
+pre-commit hook is enabled and checks the explicit staged paths.

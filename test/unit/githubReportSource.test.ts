@@ -34,6 +34,33 @@ const ghProbe = {
 }
 
 describe('GitHub report source', () => {
+  it('scrubs escaped credentials in captured pull titles before persistent cache writes', async () => {
+    const secret = `ghp_${'f'.repeat(36)}`
+    const title = `${CAPTURED_PULL_LIST[0]?.title ?? ''} ${secret}`
+    const transport = vi.fn((request: { url: string }) =>
+      Promise.resolve(
+        request.url.includes('/pulls?')
+          ? new Response(
+              JSON.stringify([{ ...CAPTURED_PULL_LIST[0], title }]).replace(
+                secret,
+                () => String.raw`\u0067${secret.slice(1)}`,
+              ),
+            )
+          : Response.json(CAPTURED_CHECKS_FAILED),
+      ),
+    )
+    const rig = networkRig({ transport })
+    const result = await githubReportSource({ ...options, reader: rig.reader }).read(
+      networkContext(),
+    )
+    expect(result.record.status).toBe('partial')
+    expect(result.data?.pullRequests).toHaveLength(1)
+    expect(JSON.stringify(result)).not.toContain(secret)
+    expect(rig.storage.write).toHaveBeenCalled()
+    expect(JSON.stringify(rig.storage.write.mock.calls)).not.toContain(secret)
+    expect(JSON.stringify(rig.entries())).not.toContain(secret)
+  })
+
   it('refuses HEAD check runs for a different commit', async () => {
     const transport = vi.fn((request: { url: string }) =>
       Promise.resolve(

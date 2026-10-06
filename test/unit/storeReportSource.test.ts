@@ -40,6 +40,40 @@ function healthyStores() {
 }
 
 describe('store report source', () => {
+  it('reuses transformed store facts on 304 with their output schema', async () => {
+    // Synthetic adapter-contract input, not a claimed npm wire capture.
+    const url = 'https://registry.npmjs.org/fixture/latest'
+    const transport = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({ wireVersion: '0.14.2' }, { headers: { etag: '"v1"' } }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    const rig = networkRig({ transport })
+    const source = storesReportSource({
+      reader: rig.reader,
+      project: { name: 'fixture', private: false },
+      releaseVersion: '0.14.2',
+      adapters: [
+        {
+          channel: 'npm',
+          request: { url },
+          schema: z.pipe(
+            z.strictObject({ wireVersion: z.string() }),
+            z.transform(({ wireVersion }) => ({ version: wireVersion, url })),
+          ),
+        },
+      ],
+    })
+    const initial = await source.read(networkContext())
+    expect(initial.record.status).toBe('ok')
+    expect(rig.entries()).toEqual([expect.objectContaining({ data: { version: '0.14.2', url } })])
+    const cached = await source.read(networkContext())
+    expect(cached.record).toMatchObject({ status: 'ok', freshness: { state: 'stale' } })
+    expect(cached.data).toEqual(initial.data)
+    expect(transport.mock.calls[1]?.[1]).toBe('"v1"')
+  })
+
   it('reads only applicable public channels and exposes lag for Needs you', async () => {
     const transport = vi.fn((request: { url: string }) =>
       Promise.resolve(

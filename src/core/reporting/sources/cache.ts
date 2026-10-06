@@ -33,6 +33,8 @@ export type ReportNetworkTransport = (
 export type ReportNetworkQuery = <T>(
   request: ReportNetworkRequest,
   schema: z.ZodMiniType<T>,
+  /** Transforms supply their normalized output schema; identity parsers may omit it. */
+  outputSchema?: z.ZodMiniType<T>,
 ) => Promise<T>
 
 /** R binds its export scrub here, including registered values and local roots. */
@@ -118,6 +120,17 @@ function compare(a: string, b: string): number {
   return Number(a > b) - Number(a < b)
 }
 
+/** Scrub decoded strings, including field names, rather than JSON escape sequences. */
+function scrubStructured(value: unknown, scrub: (text: string) => string): unknown {
+  if (typeof value === 'string') return scrub(value)
+  if (Array.isArray(value)) return value.map((item: unknown) => scrubStructured(item, scrub))
+  return value !== null && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.entries(value).map(([name, item]) => [scrub(name), scrubStructured(item, scrub)]),
+      )
+    : value
+}
+
 const HTTP_NOT_MODIFIED = 304
 const HTTP_FORBIDDEN = 403
 const HTTP_TOO_MANY_REQUESTS = 429
@@ -162,6 +175,7 @@ export class ReportNetworkReader {
     schema: z.ZodMiniType<T>,
     signal: AbortSignal,
     workspaceKey: string,
+    outputSchema: z.ZodMiniType<T> = schema,
   ): Promise<{
     data: T
     observedAt: string
@@ -222,7 +236,7 @@ export class ReportNetworkReader {
       if (previous === undefined) throw new ReportNetworkFailure('cache-missing')
       // A 304 never makes the cached observation newer than it was.
       return {
-        data: schema.parse(JSON.parse(this.deps.scrub(JSON.stringify(previous.data)))),
+        data: outputSchema.parse(scrubStructured(previous.data, this.deps.scrub)),
         observedAt: previous.observedAt,
         cached: true,
       }
@@ -237,7 +251,7 @@ export class ReportNetworkReader {
     }
     const raw = await this.body(response, signal)
     signal.throwIfAborted()
-    const data = schema.parse(JSON.parse(this.deps.scrub(raw)))
+    const data = outputSchema.parse(scrubStructured(schema.parse(JSON.parse(raw)), this.deps.scrub))
     const etag = response.headers.get('etag')
     const safeEtag = etag !== null && this.deps.scrub(etag) === etag ? etag : null
     await this.deps.cache.set({ key, etag: safeEtag, observedAt: now, data }, signal)
@@ -338,11 +352,11 @@ export class ReportNetworkReader {
     let isCached = false
     let pages = 0
     const work = async (): Promise<SourceResult<T>> => {
-      const result = await collect(async (request, schema) => {
+      const result = await collect(async (request, schema, outputSchema) => {
         signal.throwIfAborted()
         pages += 1
         if (pages > this.deps.maxPages) throw new ReportNetworkFailure('page-bound')
-        const page = await this.query(request, schema, signal, context.workspaceKey)
+        const page = await this.query(request, schema, signal, context.workspaceKey, outputSchema)
         if (observedAt === null || Date.parse(page.observedAt) < Date.parse(observedAt)) {
           observedAt = page.observedAt
         }
@@ -367,7 +381,7 @@ export class ReportNetworkReader {
                 observedAt,
                 freshness,
               },
-        data: schema.parse(JSON.parse(this.deps.scrub(JSON.stringify(result.data)))),
+        data: schema.parse(scrubStructured(result.data, this.deps.scrub)),
       }
     }
     let abortListener: (() => void) | undefined
