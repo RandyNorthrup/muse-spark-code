@@ -10088,7 +10088,526 @@ security` threshold where its job allows.
       Flatpak (Q-M111); right-to-left languages (Q-M111); our own
       compositor; PXE and HTTP boot; eSIM and SMS.
 
+---
+
+### D92 — Questions that never block (M112, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "verify the questions get pinned same as the allow reject stuff so they
+  dont get lost and if the question times out it should just proceed with
+  other stuff and ask again later but it should not block lets say the
+  question stays up for like 1 minute then collapses but if the user scrolls
+  back in the chat they can answer anytime"
+- "in the chat unanswered questions should be easily identifiable so a user
+  scrolling through the chat can pick them out easily, re-expand them and
+  answer the question"
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **Approvals are pinned; questions are not.** The approvals Muse waits on
+  sit in a dock above the composer (`ApprovalDock.tsx:40–84`, D26), which
+  takes focus unless the user is typing (`DOCK_TYPING_GRACE_MS`,
+  `ApprovalDock.tsx:25–62`). A question card renders only inside its tool
+  row (`ToolRow.tsx:646–653`), and so does an MCP server's form
+  (`ToolRow.tsx:654–662`), so both scroll away.
+- **A question blocks its turn with no deadline.**
+  - Model API: `askUser` awaits `waitFor(signal, …)` until the user answers
+    or Stop aborts the signal (`ModelApiHost.ts:4828–4865`).
+  - Muse Code: `userInput/requested` becomes `questionRequested`
+    (`mapNotification.ts:362–367`), admitted once by the prompt ledger
+    (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
+    `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
+    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
+    (`constants.ts:3172–3176`).
+  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
+    seconds (`constants.ts:717`), after which it is cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+- **A settled question can no longer be answered.** The outcomes are
+  answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
+  settled row drops the card (`uiState.ts:2075–2093`).
+- **What tells the user.** A question raises one notice while the window is
+  unfocused (`turnNotifications.ts:64–71`, under
+  `museSpark.notifyOnBackgroundTurn`). The view's badge is the unread dot
+  only (`ChatViewProvider.ts:27–33`).
+- **A message can reach a running turn.** The controller's `submit` steers
+  into the running turn, and sends a new turn only when the steer was
+  refused with nothing taken (`conversationController.ts:5724–5765`).
+- **Runs nobody watches answer at once.** Headless `exec` counts
+  `question_declined` (`runExec.ts:249–251`); best-of-N candidates and
+  worktree conversations cancel (`worktreeConversationHost.ts:211–215`); the
+  M75 evaluation clarifies with a fixed text (`eval/driver.ts:202–205`).
+  **Scheduled prompts are not among them:** a schedule runs as a turn of the
+  open conversation after the user confirms it
+  (`conversationController.ts:7015–7046`), so its questions are interactive
+  and block today.
+- **ACP.** A client with forms gets the question as `elicitation/create`,
+  and the agent waits for its answer; a client without forms gets the text
+  and an immediate decline (`acp/agent.ts:560–600`). The pinned SDK (1.5.0)
+  withdraws a request it sent, by `$/cancel_request`, when given a
+  `cancellationSignal` (`@agentclientprotocol/sdk/dist/jsonrpc.d.ts:84–92`,
+  `acp.d.ts:172`).
+
+1. **One attention dock.**
+   - `ApprovalDock` becomes `AttentionDock`, still above the composer.
+   - **Approvals come first and are unchanged.** They block, never defer and
+     never collapse. D26's order, D48's paid popup and the focus rule are as
+     today.
+   - **Below them, the question group,** oldest first: waiting questions,
+     then MCP forms, then the open questions (decision 3) as one compact
+     chip, "N open questions", with **Answer**, **Previous** and **Next**.
+   - **One card is full at a time.** While an approval waits, the question
+     group is one line. The dock stays within
+     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
+     scroll, so the composer and the newest reply stay in sight.
+   - **The dock and the row are two views of one question.** The transcript
+     row keeps its card (decision 7); answering either settles both.
+   - **MCP forms join the dock** (a lead addition: they are questions too,
+     and get lost the same way). They keep their 300-second deadline and
+     their cancel. MCP has no late answer, so an expired form says so and
+     cannot be sent.
+
+2. **A question defers instead of blocking.**
+   - **The setting.** `museSpark.questions.deferAfterSeconds`, machine-scoped
+     (D15), so a repository can make questions neither block nor vanish:
+     - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
+     - 0 means never;
+     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
+       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+   - **The clock** starts when the question arrives, in the process that
+     holds the session: the extension host in VS Code; the runtime for the
+     companion page, the native plugins, the TUI, Muse Desktop and ACP
+     clients. It is injected, so the tests drive it.
+   - **At the deadline the backend settles the tool call with a deferral,**
+     and the agent goes on:
+     - **Model API:** `askUser`'s wait resolves with a fourth reply,
+       `deferred`. The tool's output is `QUESTION_MODEL_TEXT.deferred`.
+     - **Muse Code:** `userInput/clarify` with
+       `QUESTION_MODEL_TEXT.deferredClarification`, the shape captured for
+       M46 (2026-09-25). The host keeps the ids it deferred, so the
+       `userInput/settled` that follows (`clarified`) is shown as
+       `deferred`. An explanation the user typed stays `clarified`.
+     - **The text** is fixed English, filled with the question's id, and at
+       most 500 characters for Muse Code's limit: "<harness_note>The user
+       has not answered question {id} yet. Continue with work that does not
+       depend on the answer. Do not guess the answer and do not ask again.
+       The answer will arrive later as a user message that begins "Answer to
+       your earlier question {id}".</harness_note>"
+   - **The cache stays warm.** The system prompt, the tool declarations and
+     `instructions.ts:107`'s line on `ask_user` do not change. Every request
+     before a deferral is byte-identical (the SoL-Pi invariants); the
+     deferral's own request differs only in that tool output.
+   - **Nothing collapses under the user's hands.**
+     - The deferral happens on time, even while the user types in the card.
+     - The card stays full while it holds focus or a draft, and collapses
+       when focus leaves. The draft is kept.
+     - A draft sent after the deferral goes as a late answer (decision 4).
+   - **The dock card says it once.** A quiet line, "Muse keeps working in
+     {seconds} s if you don't answer", is announced on arrival only, never
+     as a ticking live region.
+   - **Stop** settles a waiting question as today (cancelled). A turn that
+     ends any other way (interrupted, failed, the window reloaded) leaves its
+     waiting question open, never lost.
+
+3. **Open questions are kept until settled.**
+   - **States.** `waiting` → `open` (deferred) → `answeredLater`,
+     `answeredOnReask`, `dismissed` or `expired`. A waiting question still
+     settles `answered`, `cancelled` or `clarified` as today.
+   - **One portable registry** (`src/core/questions/**`, no `vscode`) holds
+     them per session, written through a port: the extension's global
+     storage in VS Code, the runtime's data folder elsewhere.
+     - Owner-only files, zod-validated, deleted with their session.
+     - Never exported or logged (ids only), and sent nowhere but to the model
+       inside the answer.
+   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
+     Past it the oldest becomes `expired`, and its row says so.
+   - **They survive** a reload, a resume and another editor. The host posts
+     the open set when a surface attaches. A row found by its item id shows
+     its card; one whose row is not in the loaded history shows in the dock
+     alone.
+   - **Dismiss** (in the card's ⋯ menu) settles an open question without an
+     answer. The agent is told lazily: steered into the running turn if
+     there is one, otherwise put in front of the next message the user
+     sends; never as a turn of its own.
+
+4. **A late answer reaches the agent exactly once.**
+   - It is given from the transcript row or the dock chip, at any time.
+   - **While a turn runs** in that session, it is steered into the turn
+     (`submit`'s steer). A steer refused with nothing taken goes as a new
+     turn, as `submit` already does.
+   - **While the session is idle,** it starts a turn.
+     - The transcript shows the user's own row: "Answer to your earlier
+       question: {header}".
+     - The model reads `QUESTION_MODEL_TEXT.lateAnswer`: the question's id,
+       its text (at most `LATE_ANSWER_QUESTION_MAX_CHARS`), and the answers
+       in the shape `questionResultText` already sends
+       (`ModelApiHost.ts:1294–1306`).
+   - **Both backends alike.** It is the user's own message: it runs in the
+     session's current mode, bills as any user turn, and approves nothing.
+   - **Once.** The registry marks the question before sending, and puts it
+     back only when nothing was taken. A second click or a second surface
+     never sends it twice.
+
+5. **Asked again, answered once.** A question's key is the text of its
+   questions and their option labels: NFC-normalised, trimmed, runs of white
+   space folded, letters lower-cased (`toLowerCase`, no locale), the options
+   as a sorted set.
+   - A new request whose key matches an open question reuses that card,
+     back in the dock as waiting. The answer goes to the new request in its
+     own turn, and the open one becomes `answeredOnReask`, with no late
+     message.
+   - Two waiting requests with one key (two calls in flight) share one card,
+     and one answer settles both.
+
+6. **"Ask again later", bounded.** When a turn of the session ends with open
+   questions:
+   - the dock expands the oldest open question once, unless an approval
+     waits;
+   - `attentionNotice` raises `notifyOpenQuestions`, keyed by session and
+     turn, under the existing setting and only while the window is
+     unfocused (`BackgroundNotifier`'s rule).
+
+   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
+   times in all, and at most one question per turn end. The model is never
+   asked to ask again.
+
+7. **Easy to pick out in the transcript.**
+   - **Waiting and open rows** carry a left accent, the `question` codicon
+     and the label **Open question** before the header. An open row is
+     folded to one line (the header, **Answer** and an expand chevron) and
+     opens in place.
+   - **Settled rows** each have their own label and icon: Answered, Answered
+     later, Answered when asked again, Explained, Declined, Dismissed,
+     Expired. None is told by colour alone; high-contrast themes use
+     `contrastBorder`.
+   - **Moving between them.** **Next open question** and **Previous open
+     question** (`museSpark.nextOpenQuestion`,
+     `museSpark.previousOpenQuestion`) in the palette, on the dock chip and
+     as keys. Proposed: `Ctrl+Alt+J` and `Ctrl+Alt+Shift+J` (`Cmd+Alt+J` and
+     `Cmd+Alt+Shift+J` on macOS), with a `when` on the chat's focus (D15's
+     hygiene). Lane 0 checks them against each editor's default keymap
+     first.
+   - **Counts outside the panel.**
+     - The view's badge shows the open count (tooltip "N open questions"),
+       taking precedence over the unread dot.
+     - An editor tab's title gains "· N open"; the companion page's
+       `document.title` likewise.
+     - The History dialog marks conversations with open questions.
+   - **Screen readers.** The live region speaks the arrival (as today), the
+     deferral ("Moved to open questions; you can answer any time"), a
+     reminder, and a late answer sent. The chip is a button whose name
+     carries the count.
+
+8. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
+   candidates, worktree conversations and the M75 evaluation still decline
+   or clarify at once; M96's workers, when they merge, decline as unattended
+   work does. Scheduled prompts are interactive (above) and get decision 2.
+   `docs/ci.md` and the README say so.
+
+9. **Every editor** (D84):
+
+   | Surface                                                                                                           | The question                                                                                                | Deferral clock                                                                            | Late answer                                                                                                                        | Counts and keys                                                             | When                                           |
+   | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+   | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia; Remote SSH, WSL, Dev Containers, Codespaces           | `AttentionDock` in the sidebar and every editor tab; the row's card                                         | the extension host                                                                        | steered, or a new turn (`submit`)                                                                                                  | the view badge, the tab title, the History marker; the commands and keys    | M112                                           |
+   | JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                                                  | the same panel through the bridges                                                                          | the runtime                                                                               | as VS Code                                                                                                                         | MHP's status item carries the count; each bridge maps it to its tool window | contract and fakes in M112; wired by M104b–d   |
+   | The companion page                                                                                                | the same panel                                                                                              | the runtime                                                                               | as VS Code                                                                                                                         | `document.title`; the page's keys                                           | M112 once M104 lane C has merged, else with it |
+   | ACP clients with forms (Zed, Xcode 27, JetBrains AI Assistant, Neovim, Emacs, Sublime and the rest of D62's list) | `elicitation/create`, as today                                                                              | the agent: at the deadline it defers the call and withdraws the form (`$/cancel_request`) | `/answer <n> <text>`; a form returned after the deadline is a late answer: steered into a running prompt, else put before the next | `/questions` lists the open ones; one notice per deferral                   | M112                                           |
+   | ACP clients without forms                                                                                         | the text, then deferred at once (today: declined), so the agent goes on and the user answers with `/answer` | —                                                                                         | `/answer <n> <text>`                                                                                                               | `/questions`                                                                | M112                                           |
+   | Headless `exec`                                                                                                   | declined at once (unchanged)                                                                                | —                                                                                         | —                                                                                                                                  | `question_declined`                                                         | unchanged                                      |
+   | The TUI (M110a0 lane T)                                                                                           | its question view, pinned above the input line                                                              | the runtime                                                                               | as the runtime                                                                                                                     | the status line's count; a key for the next open question                   | with lane T, on lane 0's MHP messages          |
+   | Muse Desktop (M111b)                                                                                              | the panel inside the workbench                                                                              | the node                                                                                  | as the runtime                                                                                                                     | the bar's agents item shows the count                                       | with M111b                                     |
+   | The Muse Code backend, in any editor                                                                              | as its editor                                                                                               | its host                                                                                  | `turn/steer`, or a new turn                                                                                                        | as its editor                                                               | M112                                           |
+
+10. **Text, help and docs.**
+    - Every string is in `en.ts` and the 14 tables.
+    - The model's text is a block of its own, `QUESTION_MODEL_TEXT`, declared
+      for its readers (`dist/extension.js`, `dist/modelApi.js`,
+      `dist/acp.js`), which the split check guards.
+    - The setting, the two commands, the dock and `/answer` join the `/help`
+      reference (`src/shared/featureCatalog.ts`, `check:reference`).
+
+11. **No dependency, nothing new at startup.** The dock replaces a component
+    already in the webview's startup bundle; the registry is small and pure;
+    nothing loads at activation that did not before; no cap rises (D6).
+
+---
+
+### D93 — Deterministic reports: `/report` (M113, 2026-10-05)
+
+The owner, 2026-10-05: "we also need some sort of deterministic report
+generation system that triggers from slash commands maybe /report [project]
+or /report [milestone {12}] or something to that effect that generates a
+report similar to the one you are generating for me but the same each time
+same with usage reports etc this should be a robust system and cover all of
+the relevant things".
+
+The reports the lead gives him put **what is blocked on him and any failed
+release channel at the top**, then releases and channels, the milestones and
+lanes, CI, usage and the next steps, in a few lines. D93 makes that a product
+feature for every user and every project, generated by code, never by a
+model.
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **No `/report`.** The panel's slash commands are `SLASH_COMMAND_NAMES`
+  (`constants.ts:3984–4000`); `/changes` opens the review pane (M70).
+- **The runtime's `report` is M93's problem report** (`cliArgs.ts:210–240`,
+  `src/runtime/reportCommand.ts`). It takes no positional argument, and
+  `dist/report.js` is its dialog's bundle.
+- **A conversation's history, portable and scrubbed,** is M84's export
+  source (`sessionTransfer.ts:468–518`: `SessionExportSource` and
+  `buildSessionExport` with its scrub).
+- **Usage** today is Account & usage (`src/shared/usage.ts`), the paid
+  tallies (D34, D78), Tab's ledger (M94) and Muse Code's trace logs
+  (`src/host/usage/traceLogs.ts`). M102 (0.15.0) adds the journal under
+  `<agentDataFolder>/usage/v1/`, with `aggregate.ts` and `usageText.ts`.
+- **No gate run outlives its session.** The verify loop's record is per
+  session and in memory (`verifyLedger.ts`).
+- **Versioned, checked schemas** live in `docs/schemas/**`, with
+  `npm run schema:exec -- --check` (M80).
+- **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
+Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
+  first; 110 `### M…` headings carry 95 status lines, in free prose ("built
+  and certified", "merged as PR #36 at `4694803`", "planned, documentation
+  only").
+
+1. **Deterministic means four things.**
+   - **No model call anywhere in generation.** The reporting bundle may not
+     import `src/core/backends/**` or the paid gate; the split check fails
+     it.
+   - **Same inputs, same bytes.** One `asOf` stamp, injectable (`--as-of`).
+     Collectors read no clock, random number, environment or file except
+     through the snapshot (an ESLint `no-restricted-syntax` and
+     `no-restricted-imports` block on `src/core/reporting/collect/**`).
+   - **Stable order.** Every list declares its sort key, compared by code
+     unit, never `localeCompare`.
+   - **Honest sources.** Each section names its sources and their freshness.
+     A missing source is an explicit row, "unavailable: {reason}", never
+     omitted and never faked.
+
+2. **One pipeline.**
+   1. **Sources** are read once into a `SourceSnapshot`: per source its id,
+      status (`ok`, `partial`, `unavailable` or `notApplicable`), reason,
+      `observedAt` and freshness against `asOf`.
+   2. **Collectors,** one per kind, are pure functions of the snapshot and
+      the options.
+   3. **`report-v1`** is a versioned JSON document (zod, with a generated
+      JSON Schema at `docs/schemas/report-v1.schema.json` and
+      `npm run schema:report -- --check`). It holds no translated text:
+      labels are keys.
+   4. **Renderers** (decision 7) are pure functions of the document, the
+      locale and the theme. `--from <file.json>` re-renders a saved report
+      byte for byte.
+
+3. **Every report has one shape.**
+   - **The header:** kind, scope, `asOf`, the generator's version and the
+     content hash (SHA-256 of the canonical JSON without `asOf`).
+   - **Needs you,** first: the plan's open questions for the owner (§3),
+     failed or lagging release channels, a failing CI run on the default
+     branch, and in a session report the agent's open questions (M112).
+   - **The kind's sections** (decision 4).
+   - **Sources:** every source with its status and freshness, including the
+     unavailable and not-applicable ones with their reasons.
+   - **The footer:** the renderer's version, the ICU version and the locale.
+   - **Short by default:** each section shows at most `REPORT_SECTION_ROWS`
+     (10) rows and "N more"; `--full` shows them all.
+
+4. **The kinds.** All are planned; the phase says when each ships (M113).
+
+   | Kind                          | Scope argument                                                                                                                                                | Sections                                                                                                                                                                                                                                                | Sources                                                                          | Phase                   | Waits for                            |
+   | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------- | ------------------------------------ |
+   | `project`                     | —                                                                                                                                                             | Needs you; releases and channels; milestones (in progress, blocked, the delivery order's next three); lanes; open pull requests; CI on the default branch; usage over 7 days; risks (§8 rows and §9 residuals added since the last release); next steps | the plan, git, the changelog, certification, GitHub, the stores, the journal     | a (local), b (network)  | usage: M102                          |
+   | `milestone <id>`              | `12`, `M12`, `m103`, `M110a0`, `m91b`                                                                                                                         | status and date; goal; each dependency with its status; lanes (declared, branch, merged, pull request, certification); the certification checklist (done of total, open items verbatim); gates; residuals (§8, §9); §3 questions naming it              | the plan, git, certification, GitHub                                             | a; pull requests b      | —                                    |
+   | `release <version>`           | `0.14.0`, `v0.14.0`, `latest`                                                                                                                                 | the changelog section; the tag (commit, date); each channel (GitHub release and assets, Marketplace, Open VSX, npm) with its version and lag; the release record (§10); CI on the tag                                                                   | the changelog, git, the plan's §10, GitHub, the stores                           | a (local), b (channels) | —                                    |
+   | `usage [period] [--by …]`     | `today`, `7d`, `30d`, `90d`, `week`, `month`, `YYYY-MM`, `YYYY-MM-DD..YYYY-MM-DD`; `--by model`, `provider`, `kind`, `tool`, `session`, `client` or `account` | totals with certainty; the chosen breakdown; limits (plan windows, budgets); the same numbers as M102's page                                                                                                                                            | M102's journal through its `aggregate.ts`                                        | a, once M102 has merged | M102; `--by account`: M108           |
+   | `session`                     | the current conversation, or `--session <id>`                                                                                                                 | model and backend; turns; tokens and cost with certainty; tools by name and outcome; files changed (+ and −); approvals by decision; questions (answered, open, dismissed); checks run; paid uses                                                       | M84's export source, the session's usage, M112's registry, the check-run journal | a                       | M112's lane 0 (the registry's types) |
+   | `changes [since <ref\|date>]` | since the last tag by default                                                                                                                                 | commits grouped by milestone (from their branches and subjects); files by area (AGENTS.md's layout table); the changelog's Unreleased; pull requests merged                                                                                             | git, the changelog, GitHub                                                       | a; pull requests b      | —                                    |
+   | `quality`                     | —                                                                                                                                                             | the gates (`package.json`'s `quality` script, as declared); each check's last local run; CI's last runs on HEAD and the default branch; certification coverage of the newest milestones                                                                 | the check-run journal (decision 9), GitHub, certification                        | b                       | —                                    |
+   | `fleet`                       | —                                                                                                                                                             | agents now: sessions, subagents, best-of-N candidates, schedules, background tasks; team workers and lanes; paired devices; nodes                                                                                                                       | the hosts' live state; M96's team host; M100; M110                               | b (local agents), c     | M96; M100; M110a                     |
+   | `security`                    | —                                                                                                                                                             | the vault's tier; items by kind; grants, uses, denials and locks, never a value; developer options' audit (D88's amendment)                                                                                                                             | M109's audit; the developer audit                                                | c                       | M109                                 |
+   | `accounts`                    | —                                                                                                                                                             | accounts per provider, their placement, thresholds and use, swaps and stops, confirmations (labels resolved locally)                                                                                                                                    | M108                                                                             | c                       | M108                                 |
+   | `/report` alone               | —                                                                                                                                                             | the picker: every kind with its last report's age; **Report a problem…** opens M93's dialog                                                                                                                                                             | —                                                                                | a                       | —                                    |
+
+5. **The plan reader, with a written contract (`plan-format` v1).**
+   - **What it reads.** Sections (`## <n>. <title>`); decisions
+     (`### D<n>[a-z]? — <title> (<refs>, <date>)`); milestones (`### M<n><suffix>
+— <title> (<refs>)`, and the upper-case working ids such as `CIFIX14C`);
+     the status line (`**Status <YYYY-MM-DD>[ (<note>)]: <phrase>.**`, mapped
+     to a state by a fixed phrase table: planned, building, built,
+     certified, merged, released, complete, superseded, waiting); checklist
+     items (`- [ ]`, `- [x]`); lanes tables (a header row starting `| Lane`);
+     §3's question entries (`- **Q-<id> — <title> (<date>).**` and the
+     older `### Q-<id>` form); §8's rows; §10's release records; and the
+     **Delivery order** list at §6's head (`N. **<item>** — <reason>.
+Needs: <items>.`).
+   - **Drift fails loudly.** A new gate, `check:plan`, runs the reader over
+     the whole file and fails on: an unknown heading form in §6; a milestone
+     outside §6; a duplicate section number; a milestone without a status
+     line; a status phrase outside the table; a lanes table with unknown
+     columns; a delivery-order entry not in its form. Reports show the same
+     drift as a "Plan format" row and never guess.
+   - **Today's drift is fixed, not grandfathered.** Lane P moves M98 into §6,
+     merges the two §7s, and adds the missing status lines from each
+     milestone's certification record or git history (documentation only),
+     so the gate holds over the whole file with no baseline or ignore list.
+   - **Other projects.** The reader also takes the high-quality-projects
+     skill's `quality-ledger` fence (its JSON, `schema_version` 1, parsed by
+     zod). A project with neither has "no plan", and its project report
+     still gives git, the changelog and CI.
+   - **Milestone ids** are case-insensitive with the `M` optional (`12`,
+     `M12`, `m103`, `M110a0`). An exact match only; an unknown id exits 3
+     and names the nearest ids (edit distance, ties broken by id).
+   - **Lane status comes from evidence, not prose:** the declared lane from
+     its table; its branch (a local or remote ref matching
+     `feature/m<id>-…` or `m<id>/<lane>`); whether it is merged into the
+     default branch (`git merge-base --is-ancestor`); its pull request
+     (GitHub, where allowed); its certification record
+     (`docs/certification/m<id>-<lane>.md`, or `m<id>.md`). A fixed table
+     derives the word: merged, in review, in progress or planned.
+   - **Next steps** are the first delivery-order entries not complete whose
+     **Needs** are complete.
+
+6. **Sources, and when the network is used.**
+   - **Local:** the plan; git (log, tags, branches and worktrees, bounded by
+     `REPORT_GIT_MAX_COMMITS`); the changelog (Keep a Changelog sections);
+     `docs/certification/**`; M84's export source for sessions; M102's
+     journal; M112's registry; the check-run journal (decision 9).
+   - **Network, never by default in a terminal:**
+     - **GitHub** (pull requests, check runs, workflow runs, releases and
+       their assets) through VS Code's GitHub sign-in and M71's REST client;
+       or the user's own `gh api`, so no token enters our process; or the
+       unauthenticated public API.
+     - **The store channels** (the Visual Studio Marketplace, Open VSX, npm)
+       through their public endpoints, only for a project that publishes
+       there (`package.json`'s `publisher` and `engines.vscode`, or a
+       non-private package).
+   - **`museSpark.reports.network`**, machine-scoped:
+     - `whenSignedIn` (the default): GitHub only while the editor is signed
+       in to GitHub for M71 and the remote is GitHub; the stores' public
+       endpoints too;
+     - `always`;
+     - `off`.
+
+     The runtime and the CLI use the network only with `--network`, D65's
+     egress floor. _Reason it is not plainly on:_ a report must render the
+     same offline and in CI, and egress follows a consent the user already
+     gave.
+
+   - **Rate limits.** The reader honours `x-ratelimit-remaining`,
+     `x-ratelimit-reset` and `retry-after`, stops at
+     `REPORT_GITHUB_RATE_FLOOR`, and marks the rest "unavailable:
+     rate-limited until {time}". Requests are conditional (ETags) into a
+     cache under `<agentDataFolder>/reports/v1/cache/`, whose age is the
+     source's freshness. Pages are bounded.
+   - **Timeouts** per source (`REPORT_SOURCE_TIMEOUT_MS`); the network
+     sources sit outside the local time budget (decision 14).
+
+7. **Four formats.**
+   - **Markdown:** GitHub-flavoured tables, LF, one trailing newline.
+   - **HTML:** one static document, inline CSS from the theme tokens, no
+     script and no remote resource. The report tab shows it under the
+     webview's CSP.
+   - **Text:** 80 columns, for the TUI, the CLI and ACP clients without
+     Markdown.
+   - **JSON:** `report-v1` itself, canonical (schema key order, two-space
+     indent, LF).
+   - **Dates and times** are ISO 8601 with the report's offset in every
+     format: technical detail under rule 5's allowance, and identical across
+     ICU builds. Numbers, money and durations go through the existing `Intl`
+     helpers in the display language. The footer names the ICU version, so a
+     byte difference between two runtimes is explained, not hidden.
+     Determinism is promised for the same inputs, locale and runtime build.
+
+8. **Redaction on every renderer.** Every string from a source passes the
+   export's scrub (credential shapes, the key digest, account ids, local
+   roots shown as `~` or the workspace's name) once when the snapshot is
+   taken, and each renderer's output passes it again. Paths are
+   workspace-relative. Commit subjects, pull request titles and changelog
+   lines are data: shown verbatim after the scrub, and escaped for each
+   format (Markdown table pipes, HTML entities).
+
+9. **A small check-run journal, so "the last gate run" exists.** The verify
+   loop's check runs (M68) and, once merged, M96c's check slots append
+   `{check, outcome, durationMs, commit, at}` (never the command line or its
+   output) to `<agentDataFolder>/reports/v1/checks/<workspaceKey>.jsonl`,
+   at most `REPORT_CHECK_RUNS_MAX` (500) per workspace. The `quality` kind
+   reads it beside CI's runs.
+
+10. **History and diff.**
+    - **Kept.** `museSpark.reports.keepHistory` (on) keeps each generated
+      report's JSON under
+      `<agentDataFolder>/reports/v1/history/<workspaceKey>/<kind>/`, the
+      newest `REPORT_HISTORY_MAX_PER_KIND` (50) per kind. It is listed in the
+      report tab, by `report history` and by ACP's `/report history`.
+    - **Diff with the previous report** is pure, over two `report-v1`
+      documents by section and row key: added, removed, changed (field by
+      field) and the unchanged count, rendered as a section of its own. The
+      same content hash says "No change since {asOf}".
+
+11. **Every editor** (D84):
+
+    | Surface                                          | How                                                                                                                                                                                                                                                                                                                                                     | Output                                                                                                                                                                                                                  | When                                |
+    | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+    | VS Code family                                   | `/report` and `/report <kind> …` in the composer, run by the host and never sent to the model; the palette's **Show report…**; Account & usage's **Usage report**                                                                                                                                                                                       | the report tab (a `WebviewPanel`, `dist/reportingPanel.js`): **Save as…** (md, html, json, txt, through the save dialog), **Copy as Markdown**, **Attach to message**, **History**, **Diff with previous**, **Refresh** | M113a                               |
+    | JetBrains IDEs, Visual Studio, Eclipse (M104b–d) | the embedded panel's `/report`; MHP's `reports/run`, `reports/history` and `reports/open`                                                                                                                                                                                                                                                               | the same tab in the host's web view; saved through the host's dialog                                                                                                                                                    | contract in M113a; wired by M104b–d |
+    | The companion page                               | `/report`                                                                                                                                                                                                                                                                                                                                               | the page's report view                                                                                                                                                                                                  | M113a                               |
+    | ACP clients                                      | `/report <kind> …` in `available_commands_update`                                                                                                                                                                                                                                                                                                       | Markdown in an agent message (text for clients without Markdown); `--save` adds it to the history                                                                                                                       | M113a                               |
+    | Any terminal                                     | `muse-spark-code-acp report <kind> [args] [--format md\|html\|json\|text] [--out <file>] [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>] [--diff previous\|<file.json>] [--full] [--strict] [--fail-on <conditions>]`; `report history`. Bare `report` stays M93's problem report, unchanged, and `report problem` becomes its alias | stdout, or `--out`                                                                                                                                                                                                      | M113a                               |
+    | CI and headless runs                             | the same CLI command (`exec` is unchanged); `--fail-on` makes a report a gate                                                                                                                                                                                                                                                                           | exit codes (decision 15)                                                                                                                                                                                                | M113a                               |
+    | The TUI (M110a0 lane T)                          | a Reports view and `:report`                                                                                                                                                                                                                                                                                                                            | the text renderer                                                                                                                                                                                                       | with lane T                         |
+    | Muse Desktop (M111b)                             | the bottom panel's Reports tab; the launcher's **Report…**                                                                                                                                                                                                                                                                                              | the HTML renderer                                                                                                                                                                                                       | with M111b                          |
+
+12. **Languages and accessibility.**
+    - Labels live in a table family of their own on M102's second-table
+      mechanism (`src/shared/l10n/reportEn.ts`, `l10n/report.<lang>.json`), in
+      all 14 languages. Data stays as it came.
+    - The HTML has a heading outline, tables with `<caption>` and `scope`, and
+      a status word beside every icon or colour. It passes axe in VS Code's
+      four themes and at 320 px. The text format reads in order to a screen
+      reader.
+
+13. **Gated by capability** (the multi-vendor rule). A section that depends
+    on a provider's feature appears only where the source reports it:
+    cache columns where a provider reports cached tokens, Muse Code's plan
+    windows on Muse Code, account rows after M108. Elsewhere it is listed
+    under Sources as not applicable, with the reason; never dropped
+    silently.
+
+14. **Fast, and nothing at startup.** A local report finishes within
+    `REPORT_LOCAL_BUDGET_MS` (2,000 ms) on this repository (a 26,000-line
+    plan, its git history within the commit bound) on each rig, the network
+    excluded; the plan's parse within 200 ms. The engine is a lazy bundle,
+    `dist/reporting.js`, loaded on the first report; activation gains
+    nothing.
+
+15. **Exit codes** (the CLI):
+    - 0: generated, even with unavailable sources (they are in the report);
+    - 1: generation failed;
+    - 2: a usage error (the runtime's existing code);
+    - 3: not found (a milestone, release or session);
+    - 4: a `--fail-on` condition held: `unavailable`, `drift`, `blocked`,
+      `channelLag` or `ciFailing`. `--strict` means
+      `--fail-on unavailable,drift`.
+
+16. **What it never does:** call a model; use the network without the
+    setting or the flag; write into the workspace unless the user saves
+    there; post a report anywhere (Q-M113); read another agent's private
+    files (Q-M113).
+
 ## 3. Open questions (need the owner)
+
+- **Q-M113 — Two limits on `/report` (2026-10-05).** Nothing here blocks a
+  lane; each default is built.
+  1. **Other agents' fleets and usage.** The reports the lead writes count
+     Claude Code's weekly usage and the Codex and Muse lanes on the rigs.
+     The product can read only what it runs itself, plus git, the plan and
+     GitHub. Reading another agent's private files (Claude Code's or Codex's
+     own logs and limits) would be a new data source of someone else's.
+     **Default:** not read. Those lanes appear in reports as their branches,
+     worktrees, pull requests and certification records.
+  2. **Posting reports.** A report could be posted as a pull request comment,
+     an issue, or a pinned status issue kept up to date. **Default:** no
+     posting; **Save as…**, **Copy as Markdown** and the CLI's `--out` only.
 
 - **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
   and certifies on fakes and the rigs meanwhile; nothing here blocks M110a0's
@@ -10581,6 +11100,77 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### Delivery order (2026-10-06)
+
+The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff
+properly so smaller things get done quicker if able and in such a way that we
+dont put the cart before the horse … do things in a proper logical order".
+
+The rule: nothing starts before what it depends on, and where two items are
+free to go, the smaller goes first. Each **Needs** below was read from that
+milestone's own **Depends on** and lanes table. M113's plan reader (lane P)
+reads this list for `/report project`'s next steps, so each entry keeps the
+form `N. **Item** — reason. Needs: items.` Milestones already in a release
+train, and those waiting on outside events, keep their own status lines.
+
+1. **0.14.1** — in CI: the shell credential fence, the third startup diet and
+   the badge fixes. Needs: nothing.
+2. **0.14.2: the `/help` reference** (lane HELPREF) — small, and the owner
+   asked for it as soon as possible; M112 and M113 add their rows to its
+   `featureCatalog`. Needs: 0.14.1.
+3. **M112: questions that never block** (D92) — small (about 48
+   lane-hours), in 0.14.3, or folded into 0.14.2 when both are ready
+   together. Needs: main only; its native-host, TUI and desktop rows wait for
+   M104, M110a0 and M111b and block nothing.
+4. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
+   and the team, the usage journal and the rest of the batch; most later
+   milestones build on M95 and M102. Needs: main.
+5. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
+   companion server and the native bridges, which every later editor row
+   uses. Needs: 0.15.0.
+6. **M100: paired devices, first slice** (D80) — missing from the order as
+   given; added here. Its lanes S and E gate M107's relocation, M108's
+   devices, M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
+7. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
+   (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
+   M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
+   needs FIXM101P2.
+8. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
+   only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
+   M102 for J.
+9. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need nothing
+   unmerged, so it can run beside M107. Needs: M81's A1 for L; M96 for R, and
+   M100 and M107's R for R's device part; lane M moves each store as its
+   owner merges (M95 K, M108 K, M100 P, M103, M85).
+10. **M108: several accounts per provider** (D88) — corrected: it does not
+    need M109; M109's lane M moves M108's account secrets into the vault
+    whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
+    M106's lane R for T; M100 and M107's R for D.
+11. **M105: multimodal input** (D85) — after the governor, vault and accounts
+    by size only; nothing in it waits for M107–M109, and delivery a (the
+    Files API and the media core) can move up if a slot frees. Needs: M95's
+    lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
+12. **M113: deterministic reports** (D93) — runs beside everything from
+    M112's lane 0 on. Needs: nothing new for the engine and the project,
+    milestone, release, changes and session kinds; M102 for usage; M108 for
+    accounts; M109 for security; M96 and, for nodes, M110a for fleet;
+    M110a0's lane T for the TUI; M111b for the desktop.
+13. **M110a0: the home node, then M110os's first image** (D90) — placed by
+    size (about 320 lane-hours), not by dependency: it needs none of M100,
+    M107, M108 or M109, and can start right after 0.16.0 when the owner wants
+    it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
+    M80 and M89.
+14. **M110's later phases** — each phase's row in M110's roadmap names its
+    own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
+    M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
+    after M110a and M110b; M110d to M110h after them. Needs: M110a0.
+15. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+    M110os (OS1, OS2 and OS4). M111a0 needs nothing; M111a is built on a
+    Debian 13 virtual machine; M111b runs on fakes and is wired on M104a and
+    M110a0; M111c's sections join as M96, M100, M102, M103, M108, M109 and
+    M110b merge. Needs: M104a and M110a0 for M111b's wiring; M110os for
+    M111os and M111i.
 
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
@@ -24212,6 +24802,467 @@ merges before its contracts freeze.
         measured
   - [ ] Editor rows recorded (the Desk column); the full gate green; no
         live or paid call without CLAUDE.md's count first
+
+---
+
+### M112 — Questions that never block (D92)
+
+**Status 2026-10-05: planned.** Small: about 48 lane-hours in lane 0 and
+three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
+ready together). Lanes Q, U and A start together once lane 0's contracts
+freeze, and none waits on an unmerged milestone. The native-host, TUI and
+desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
+lane T and M111b. One short live check per backend (step 3).
+
+- **Goal.** A question from the agent is pinned above the composer like an
+  approval, so it is never lost. If the user has not answered after a minute,
+  the agent carries on with work that does not depend on the answer, and the
+  question folds into a chip. It stays easy to find and answer at any time,
+  from the dock or the transcript, and the answer reaches the agent exactly
+  once. Approvals stay exactly as they are.
+- **Depends on.** Main only:
+  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
+  - M16's question card and M46's `userInput/clarify`;
+  - M82's background notices and M6's view badge;
+  - the controller's steer path (`conversationController.ts:5724–5765`);
+  - M63's ACP agent, and M91 lane M's MCP forms;
+  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
+    rows land with lane HELPREF.
+- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
+  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
+  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
+  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
+  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
+  harness screenshots, certification.
+- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
+  3,600), machine-scoped. The runtime reads the same key from its settings
+  store once M104 lane B has one, and `--questions-defer-after <seconds>`
+  until then.
+- **Commands.** **Next open question** and **Previous open question**, with
+  keys; ACP's `/answer <n> <text>` and `/questions`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m112-questions`, under M87's region rules. Muse implements U and
+  A, Codex reviews each in one pass by class, and the lead integrates. Q
+  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
+  **Order:**
+  1. Lane 0.
+  2. Q, U and A in parallel against lane 0's fakes.
+  3. The lead's integration, the live checks and the full gate.
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
+| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
+| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
+| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
+| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
+
+- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
+  alone against them:
+  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
+    `userInputId`, session, item and turn ids, the questions, the key, the
+    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
+    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
+    registry's port (`load`, `save` and `remove` per session; `now`;
+    `setTimer`; `deliver`).
+  - **`agentEvents.ts`:** `questionSettled.outcome` gains
+    `QUESTION_OUTCOME_DEFERRED`.
+  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
+    resolving once the tool call is settled. Both hosts implement it.
+  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
+    session; webview to host, `answerOpenQuestion` (answers or an
+    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
+    previous). Each zod-parsed (rule 7).
+  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
+    `questions/answer`, `questions/dismiss`, and the count on the status
+    item, for the bridges and the TUI.
+  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
+    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
+    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
+    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
+    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
+  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
+    500 characters once filled), `lateAnswer`, `dismissed`.
+  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
+    setting and the two commands in `package.nls*.json`.
+- **Steps.**
+  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
+     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
+     `ask_user` tool output the Model API already sends.
+  2. Q, U and A against the fakes, each with its drills.
+  3. **The live checks** (owner-authorized live spend, the contributor model,
+     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
+     CLAUDE.md's rule), with the deadline at 10 seconds:
+     - **Model API:** one turn that asks, defers and carries on, then a late
+       answer as a new turn. Expected: 3 inference requests.
+     - **Muse Code:** the same in two turns, counted from the CLI's trace
+       log.
+     - The record states what the model did after the deferral: carried on,
+       did not guess, did not ask again. If it guessed or asked again, lane 0
+       revises the text and the check runs once more.
+  4. The lead's integration, the full gate and the README shots.
+- **Acceptance** (fakes unless named; no model call outside step 3):
+  1. **Pinned.**
+     - A question's card appears in the dock and in its row. Answering in
+       either settles both.
+     - Approvals stay first, block and never defer (a red drill lets the
+       clock defer an approval, and the test fails).
+     - An MCP form sits in the dock with its 300-second deadline unchanged.
+  2. **Deferral.**
+     - At 60 seconds on the fake clock, the Model API's tool output is
+       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
+     - Muse Code receives `userInput/clarify` with at most 500 characters,
+       and the settled row reads Deferred. A user's own explanation stays
+       Explained (a red drill maps every clarification to deferred, and the
+       test fails).
+     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
+       red drill reads it, and the test fails).
+  3. **The cache.** Every request before a deferral is byte-identical to
+     today's goldens; the deferral's request differs only in that tool
+     output.
+  4. **Under the user's hands.** A card holding focus or a draft does not
+     fold; the draft survives the fold and is sent as a late answer.
+  5. **Late answers.**
+     - During a turn: one steer. A refused steer: one new turn. Idle: one new
+       turn showing "Answer to your earlier question".
+     - Exactly once: a double click, and the same answer from two surfaces,
+       send one message (a red drill drops the mark, and the test fails).
+  6. **Asked again.** A re-asked question shows one card; one answer settles
+     both requests; the open one becomes Answered when asked again, with no
+     late message.
+  7. **Reminders.** A turn ending with open questions expands the oldest once
+     and raises one notice (window unfocused, setting on). No question is
+     expanded more than twice, and no model request follows (a spy counts
+     none; a red drill removes the bound, and the test fails).
+  8. **Kept.**
+     - Open questions survive a reload, a resume and a second surface.
+     - The 21st open question expires the oldest, which says so.
+     - Deleting the session deletes them.
+     - No question text reaches a log (a planted canary).
+  9. **Easy to pick out.**
+     - The accent, icon and label on waiting and open rows; each settled
+       state's own label.
+     - Next and Previous cycle in transcript order; the keys work only with
+       the chat focused.
+     - The badge's count and tooltip, the tab title, the History marker.
+     - The live region's texts for arrival, deferral, reminder and late
+       answer.
+     - axe passes in VS Code's four themes and at 320 px for: waiting,
+       open, the chip, an approval with a question, and each settled state.
+  10. **Runs nobody watches.** `exec` still emits `question_declined` and
+      starts no clock; best-of-N and worktree conversations cancel; the M75
+      evaluation clarifies; a scheduled prompt's question defers.
+  11. **ACP.**
+      - With forms: at the deadline the call defers and the fake client
+        records `$/cancel_request`.
+      - A client that answers anyway after the deadline delivers a late
+        answer: steered into a running prompt, else put before the next one.
+      - Without forms: the question as text, deferred at once, answered by
+        `/answer`. `/questions` lists the open ones.
+  12. **Editors.** The companion page; the native hosts' count through fake
+      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
+      lane 0's MHP fakes, or named as waiting for their lanes.
+  13. **Budgets.** As below; activation unchanged.
+- **Tests.** Every test can fail: each runs against a fake that can be made
+  to lie (the clock, the session, the store, the ACP client), and each has a
+  red drill recorded in `docs/certification/m112-<lane>.md`:
+  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
+  - `questionKey.test.ts`;
+  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
+  - `modelApiQuestionDeferral.test.ts` and the request goldens;
+  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
+    set);
+  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
+    focus and drafts, jumps);
+  - `openQuestionNotices.test.ts` (reminders and their bound);
+  - `acpQuestionDeferral.test.ts`;
+  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
+    Model API through a deferral, a late steer and a late new turn.
+
+  **Red drills:**
+  - remove the clock (the turn blocks);
+  - defer an approval;
+  - show a user's explanation as deferred;
+  - send a late answer twice;
+  - fold a card under focus;
+  - remove the reminder bound;
+  - start a clock in `exec`;
+  - fill the clarification past 500 characters;
+  - drop the Open question label;
+  - read the workspace setting.
+
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
+  `test:a11y`, the request goldens, `check:reference`.
+- **Security.**
+  - An answer is the user's own message: it approves nothing, changes no
+    mode and grants no rule. Approvals and D48's paid popup never enter the
+    question path.
+  - The registry holds question text and the user's drafts: owner-only,
+    deleted with the session, never in a log, an export or a report beyond
+    counts.
+  - A noisy agent is bounded: one card per key, 20 open per session, two
+    reminders per question.
+  - Agent-written text is rendered as text, as today.
+  - PLAN §9 records the residual: an agent that ignores the deferral note and
+    guesses an answer is not stopped by this milestone; the live check
+    records how the contributor model behaves.
+- **Docs.** README ("Questions": the dock, the minute, open questions,
+  answering later, the keys, the setting, what headless runs do); CHANGELOG;
+  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
+  plan; certification.
+- **Performance and bundles.**
+
+  | Artifact               |                    M112 adds (target) | Cap                                                            |
+  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
+  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
+  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
+  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
+  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
+  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
+
+- **Size.** S: about 48 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contracts and the keymap check recorded
+  - [ ] Lanes Q, U and A with their drills
+  - [ ] The live checks counted from the trace logs, with what the model did
+        after the deferral
+  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+---
+
+### M113 — Deterministic reports: `/report` (D93)
+
+**Status 2026-10-05: planned.** No model call is needed anywhere in this
+milestone. It lands in three deliveries:
+
+- **a:** the engine, the schema, the plan reader and its gate, the local
+  sources, the renderers, and the project, milestone, release, changes,
+  session and usage kinds, in every editor that exists;
+- **b:** the network sources (GitHub and the stores), history and diff, the
+  check-run journal, and the quality and local fleet kinds;
+- **c:** the kinds and surfaces that wait for other milestones: accounts
+  (M108), security (M109), fleet's devices and nodes (M100, M110a), the TUI
+  (M110a0's lane T), Muse Desktop (M111b).
+
+Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
+soon as M112's lane 0 has published the registry's types (for the session
+kind). The usage kind waits for M102, the native-host rows for M104b–d.
+
+- **Goal.** Any user types `/report project`, `/report milestone 12` or
+  `/report usage 30d --by model` in any editor, or runs the same from a
+  terminal or CI, and gets a short report with what needs them at the top.
+  It is generated by code from named sources, the same bytes every time for
+  the same inputs, saved, comparable with the last one, and honest about
+  every source it could not read.
+- **Depends on.**
+  - **Main:** M84's export source and scrub; M71's GitHub sign-in and REST
+    client; M80's schema versioning; M93's `report` command (kept); D60's
+    host API record; the panel's slash commands (M38).
+  - **M112's lane 0:** the open-question registry's types, for the session
+    kind.
+  - **M102 (D82):** the journal and `aggregate.ts` for the usage kind, and
+    the second table family for the strings. Before M102, the strings sit in
+    the main table's regional block.
+  - **M104:** MHP and the companion server for the native hosts and the
+    companion page; M104 lane B's runtime settings store.
+  - **M96, M96c, M100, M108, M109, M110a, M110a0's lane T, M111b:** the
+    delivery c rows, each as it merges.
+- **Scope.** D93 entire; strings in all 14 tables; README ("Reports": every
+  kind, the formats, the CLI and its exit codes, what is never done),
+  PRIVACY (what the history and the check-run journal hold), SECURITY (the
+  network sources, redaction), CHANGELOG, `docs/acp.md` (`/report`),
+  `docs/ci.md` (`report` in CI and `--fail-on`), `docs/schemas/report-v1.schema.json`,
+  `docs/ide-compatibility/**` rows, the `/help` rows, certification.
+- **Settings.** `museSpark.reports.network` (`whenSignedIn`; `always`, `off`)
+  and `museSpark.reports.keepHistory` (on), machine-scoped. The runtime reads
+  them from its settings store, and the CLI takes `--network`.
+- **Commands.** **Show report…**; the composer's `/report`; ACP's `/report`;
+  the CLI's `report <kind>` and `report history`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m113-reports`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, and the lead integrates. P (the plan reader
+  and its gate) and N (the network, the rate limits and the cache) go to
+  Codex or Claude. **Order:**
+  1. Lane 0.
+  2. P, S, R and V in parallel against lane 0's fakes; K once P's and S's
+     interfaces exist.
+  3. X after K and R; N and H after R; K's b kinds after N.
+  4. Delivery c's rows as their milestones merge.
+  5. W last.
+
+| Lane                                          | Items                                                                                                                                                                                                                                                                                                                                                                      | Files it owns                                                                                                                                             | Its regions in shared files                                                                                                                                                                                                                                                                                                                            | Starts                       | Rig      | Hours |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)            | The contracts below; every string; the fakes: a snapshot builder, a fixture repository built with fixed author and committer dates, a fixture plan in each accepted format, recorded GitHub and store responses with their rate-limit headers, a fake journal, a fake registry, a fake clock                                                                               | new `src/shared/reportSchema.ts`, `src/core/reporting/sources/types.ts`, `test/unit/helpers/reporting/**`, `docs/certification/m113-contracts.md`         | `constants.ts` (`REPORT_*`); `en.ts` (the command, the palette item, `/report`'s description) and the 14 tables; the report table family (on M102's mechanism, else a regional block); `package.nls*.json`; `SLASH_COMMAND_NAMES` (`report`); `src/shared/hostApi/**` (`reports/*`, with M104 lane 0's owner); `docs/schemas/` (the generator's entry) | day 0                        | Kubuntu  |    10 |
+| P The plan reader and `check:plan`            | D93.5: the `plan-format` v1 grammar; the status phrase table built from every phrase in today's file; the lanes tables; §3, §8 and §10; the delivery-order list; the `quality-ledger` fence; drift and its messages; milestone id matching; the `check:plan` gate; **today's drift fixed in PLAN.md** (M98 into §6, one §7, the missing status lines), documentation only  | new `src/core/reporting/plan/**`, `scripts/check-plan.mjs`                                                                                                | `package.json` (`check:plan` in `quality:gates`); PLAN.md (the drift fixes only)                                                                                                                                                                                                                                                                       | after 0                      | Kubuntu  |    16 |
+| S Local sources                               | D93.6's local sources: git (log, tags, branches, worktrees, ancestry, bounded), the changelog, `docs/certification/**`, M84's export source for sessions, the session's usage, M112's registry, the workspace's key; each source's status, reason and freshness                                                                                                            | new `src/core/reporting/sources/{git,changelog,certification,session,questions}.ts`, `src/host/reporting/sources.ts`, `src/runtime/reporting/sources.ts`  | `src/core/git/**` (read-only calls, with M71's owner); `src/core/export/sessionTransfer.ts` (the source's export, with M84's owner)                                                                                                                                                                                                                    | after 0                      | Win11 VM |    12 |
+| K Kinds                                       | D93.4: the collectors for project, milestone, release, changes and session (a); usage once M102 merges (a); quality and fleet's local agents (b); accounts, security and fleet's devices and nodes (c); Needs you; next steps from the delivery order; the row caps and `--full`                                                                                           | new `src/core/reporting/collect/**`                                                                                                                       | `src/core/usage/aggregate.ts` (a read, with M102's owner); `src/shared/diffTally.ts` (moved from `src/webview/diffTally.ts` so the session kind and the webview share it)                                                                                                                                                                              | after P's and S's interfaces | Kubuntu  |    22 |
+| R Renderers, redaction, determinism           | D93.7 and 8: Markdown, HTML, text and canonical JSON; the scrub at the snapshot and again on each output; escaping per format; ISO dates; the footer; the golden snapshots per kind and format; the determinism harness (two renders in one process and in two child processes with different `TZ` and `LANG`, byte-compared); the JSON Schema generator and its `--check` | new `src/core/reporting/render/**`, `scripts/schema-report.mjs`, `test/fixtures/reports/**`                                                               | `src/core/export/**` (the scrub, reused, with M84's owner); `package.json` (`schema:report`)                                                                                                                                                                                                                                                           | after 0                      | Mac mini |    16 |
+| V VS Code surfaces                            | D93.11's VS Code row: `/report` in the composer and the picker; the report tab with Save as, Copy as Markdown, Attach to message, History, Diff with previous and Refresh; Account & usage's **Usage report**; harness scenes and axe                                                                                                                                      | new `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts` (→ `dist/reportingPanel.js`), `src/webview/reporting/**` (a lazy chunk) | `src/shared/palette.ts` (the item); `conversationController.ts` (the slash region: run by the host, never sent to the model); `UsageDialog.tsx` (the button); `extension.ts` (the command, loaders only); `styles.css` (its region); `test/harness` scenes                                                                                             | after 0; finished after R    | Mac mini |    18 |
+| X The runtime, ACP, the companion, MHP        | D93.11's other rows: the CLI's `report <kind>` beside M93's bare `report` and its `report problem` alias, the flags and exit codes; ACP's `/report` and `/report history`; the companion page's view; MHP's `reports/*` through fake bridges; the TUI's and the desktop's hooks on the same calls                                                                          | new `src/runtime/reporting/reportsCommand.ts`, `src/acp/reports.ts`                                                                                       | `src/runtime/cliArgs.ts` (`report`'s positionals; bare `report` unchanged); `src/runtime/main.ts`; `src/acp/agent.ts` (commands); `src/runtime/companion/server.ts` (the route, with M104 lane C's owner); `scripts/package-acp.mjs`                                                                                                                   | after K and R                | Win11 VM |    14 |
+| N Network sources (b)                         | D93.6's network: GitHub through M71's client, `gh api` or the public API; the store channels; `museSpark.reports.network` and `--network`; rate limits; ETags and the cache; per-source timeouts; channel lag for **Needs you**                                                                                                                                            | new `src/core/reporting/sources/{github,stores}.ts`, `src/core/reporting/sources/cache.ts`                                                                | `src/core/git/github.ts` and `githubRemote.ts` (the REST client's read calls, with M71's owner); the network posture's egress check (`src/host/networkPosture.ts`, with its owner)                                                                                                                                                                     | after R                      | Mac mini |    14 |
+| H History, diff and the check-run journal (b) | D93.9 and 10: the history store and its bound; `report history`; the diff and its section; "No change since"; the check-run journal written by M68's runner (and M96c's slots once merged)                                                                                                                                                                                 | new `src/core/reporting/history.ts`, `src/core/reporting/diff.ts`, `src/core/reporting/checkRuns.ts`                                                      | `src/core/verify/checkCommands.ts` and the verify loop's run site (one append call, with M68's owner); M96c's check slots (the same call, once merged)                                                                                                                                                                                                 | after R                      | Win11 VM |    10 |
+| W Wiring, docs and gates (last)               | `dist/reporting.js` and `dist/reportingPanel.js`, budgets and the split rule (no backend import), `package.json`, the docs, the `/help` rows, registry rows, certification, the full gate                                                                                                                                                                                  | `docs/certification/m113*.md`                                                                                                                             | `scripts/build.mjs`; the bundle-size and split gates; the host API record; knip and dpdm entries; `.vscodeignore`; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; `src/shared/featureCatalog.ts`; AGENTS.md's layout; PLAN                                                                            | last                         | Kubuntu  |     8 |
+
+Total: about 140 lane-hours: a about 105, b about 30, and c about 5 as its
+milestones merge.
+
+- **Lane 0's contracts,** frozen before the other lanes start:
+  - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
+    sections with typed rows and stable row keys, sources, footer) as zod;
+    the kind ids; each section's declared sort key.
+  - **`src/core/reporting/sources/types.ts`:** the `SourceSnapshot`, each
+    source's record (id, status, reason, `observedAt`, freshness) and the
+    source port per kind of source, so S and N fill one shape.
+  - **The collector signature:** `(snapshot, options) => ReportDocument`,
+    with `options` holding `asOf`, the scope argument and `full`.
+  - **The renderer signature:** `(document, locale, theme) => string`.
+  - **MHP:** `reports/run`, `reports/history`, `reports/open` (with M104 lane
+    0's owner).
+  - **Constants:** `REPORT_SECTION_ROWS` (10), `REPORT_GIT_MAX_COMMITS`
+    (5,000), `REPORT_SOURCE_TIMEOUT_MS` (5,000), `REPORT_GITHUB_RATE_FLOOR`
+    (10), `REPORT_CHECK_RUNS_MAX` (500), `REPORT_HISTORY_MAX_PER_KIND` (50),
+    `REPORT_LOCAL_BUDGET_MS` (2,000), the exit codes.
+  - **Strings:** every label key and its English text; the CLI's usage text.
+- **Steps.**
+  1. Lane 0.
+  2. Delivery a: P, S, R and V, then K and X; the plan's drift fixed and
+     `check:plan` turned on in the same merge.
+  3. Delivery b: N, H, and K's b kinds.
+  4. Delivery c's rows as M108, M109, M100, M110a, M110a0's lane T and
+     M111b merge, each with its own goldens.
+  5. Lane W.
+- **Acceptance** (fakes unless named; no model calls):
+  1. **Determinism.**
+     - Two renders of every kind and format, in one process and in two child
+       processes with different `TZ` and `LANG`, are byte-identical for the
+       same `--as-of` and `--lang` (a red drill puts `Date.now()` in a
+       collector, and the test fails).
+     - Reordering a source's rows changes nothing (a red drill sorts by
+       insertion order, and the golden fails).
+     - `--from` re-renders a saved JSON byte for byte.
+     - The reporting bundle imports no backend (a red drill imports the
+       Model API client, and the split check fails).
+  2. **The goldens.** Each kind's Markdown, HTML, text and JSON match their
+     goldens on the fixture repository; JSON validates against the committed
+     schema, and `schema:report -- --check` fails a stale schema.
+  3. **The plan reader.**
+     - This repository's PLAN.md parses with zero drift after lane P's fixes.
+     - Each drift kind in a fixture plan fails `check:plan` with its message
+       and line, and shows as a Plan format row in a report.
+     - `12`, `M12`, `m12` find M12; `M110a0` and `m91b` find theirs; `M999`
+       exits 3 and names the nearest ids.
+     - A `quality-ledger` fixture gives its work and requirements; a project
+       without a plan reports git, the changelog and CI.
+  4. **Honest sources.** With git, the changelog, the network or the journal
+     removed, each report names that source as unavailable with its reason,
+     and no section is silently missing (a red drill drops the row, and the
+     test fails).
+  5. **Needs you first.** A fixture with §3 entries, a channel behind the
+     tag and a failing CI run puts all three at the top of the project
+     report, in that order.
+  6. **Network.**
+     - With `off`, or without `--network`, a spy sees no request.
+     - With `whenSignedIn` and no sign-in, GitHub is unavailable, saying why.
+     - A recorded rate-limit floor stops the reader and names the reset
+       time; a 304 reuses the cache with its age as freshness.
+     - `gh api` runs with no token in our arguments or environment (a
+       process spy).
+  7. **Redaction.** Canary keys planted in a commit subject, a pull request
+     title, a changelog line and a session's tool output appear in no
+     output of any format (rule 8's grep test).
+  8. **History and diff.** The 51st report of a kind drops the oldest; the
+     diff of two fixture reports lists exactly the added, removed and changed
+     rows; the same hash says "No change since".
+  9. **The check-run journal** holds no command line or output (a canary),
+     is bounded at 500, and feeds the quality kind.
+  10. **Editors.**
+      - VS Code: `/report`, the picker, the tab's actions, the save dialog;
+        harness scenes pass axe in four themes and at 320 px.
+      - The companion page; the native hosts through fake JCEF, WebView2 and
+        SWT bridges.
+      - ACP: `/report` replies in Markdown, and in text for a client without
+        it.
+      - The CLI: every format and flag; bare `report` is still M93's
+        problem report, byte for byte; each exit code from its fixture.
+      - The TUI and the desktop on the MHP fakes, or named as waiting.
+  11. **Speed.** A local project report of this repository within 2 seconds
+      on each rig, and the plan's parse within 200 ms; the figures in the
+      certification record.
+  12. **Budgets.** As below; activation unchanged.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m113-<lane>.md`:
+  - `planReader.test.ts` (every grammar row and drift kind; this
+    repository's plan);
+  - `checkPlan.test.ts`;
+  - `gitSource.test.ts` and `changelogSource.test.ts`;
+  - `collect.<kind>.test.ts` per kind;
+  - `render.<format>.test.ts` and `determinism.test.ts`;
+  - `reportRedaction.test.ts`;
+  - `githubSource.test.ts` (rate limits, ETags, `gh`) and
+    `storeSource.test.ts`;
+  - `reportHistory.test.ts` and `reportDiff.test.ts`;
+  - `checkRuns.test.ts`;
+  - `reportsCommand.test.ts` (flags, formats, exit codes, bare `report`);
+  - `acpReports.test.ts`;
+  - the e2e `reports.e2e.test.ts`: the fixture repository through the CLI,
+    and through the panel against the fake host.
+
+  **Red drills:**
+  - read the clock in a collector;
+  - sort by insertion order;
+  - import a backend into the reporting bundle;
+  - drop an unavailable source's row;
+  - accept a milestone heading outside §6;
+  - leak a canary through one renderer;
+  - make a request with the network off;
+  - write a command line into the check-run journal;
+  - change bare `report`'s output.
+
+- **Gates.** The full `npm run quality` with `check:plan` added to it,
+  `check:l10n`, `schema:report -- --check`, the host API record, D6's budgets
+  and the split guard (no backend under `src/core/reporting`), `test:a11y`,
+  `check:reference`, semgrep, gitleaks over the fixtures.
+- **Security.**
+  - No model call and no paid call, by construction and by the split check.
+  - The network only under the setting or the flag; GitHub's credential is
+    VS Code's session or the user's `gh`, never read into our process.
+  - Every output scrubbed twice; paths workspace-relative.
+  - Reports are written only to the history folder (owner-only) or where the
+    user saves them.
+  - Source text is data: escaped per format; the HTML has no script and no
+    remote resource.
+  - PLAN §9 records the residual: a secret in a source that the scrub's
+    shapes do not know (a custom token format) can reach a report; the
+    redactor's registered values (D74) narrow it.
+- **Docs.** README ("Reports"); PRIVACY; SECURITY; `docs/acp.md`;
+  `docs/ci.md` (a report as a CI gate); CHANGELOG; the `/help` rows; this
+  plan; certification.
+- **Performance and bundles.**
+
+  | Artifact                       |                     M113 adds (target) | Cap                                                     |
+  | ------------------------------ | -------------------------------------: | ------------------------------------------------------- |
+  | `dist/extension.js`            |   ≤ 1 KiB (the command and the loader) | 600 KiB, unchanged                                      |
+  | `dist/reporting.js` (new)      |                                ~60 KiB | measured + 15%, rounded up to 25 KiB                    |
+  | `dist/reportingPanel.js` (new) |                                ~10 KiB | measured + 15%, rounded up to 25 KiB                    |
+  | Webview reporting chunk        |                                ~12 KiB | inside the 50 KiB optional total, or its own page entry |
+  | `dist/acp.js`                  | ≤ 2 KiB (the command; the engine lazy) | 850 KiB, unchanged                                      |
+  | `dist/uiText.js`               |                              ≤ 0.5 KiB | 125 KiB, unchanged (labels in their own table family)   |
+
+- **Size.** M–L: about 140 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] `check:plan` green over this repository's plan with no baseline, and
+        each drift kind drilled
+  - [ ] Delivery a's lanes with drills; determinism byte-compared across
+        processes, time zones and languages
+  - [ ] Delivery b's network, history and journal, with the rate-limit and
+        redaction drills
+  - [ ] Delivery c's rows with M108, M109, M100, M110a, M110a0's lane T and
+        M111b, or each named as waiting
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        the speed figures; budgets measured; the full gate green
 
 ## 7. Gates
 
