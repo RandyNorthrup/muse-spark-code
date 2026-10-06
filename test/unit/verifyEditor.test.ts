@@ -1105,38 +1105,28 @@ describe('JSON diagnostics without a native report', () => {
     expect(set).not.toHaveBeenCalled()
   })
 
-  it('keeps stale malformed disk text unchecked after an empty collection-clear event', async () => {
-    const diskText = '{"new": 1 "broken": 2}'
-    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
-    const pending = editor().verify.diagnosticsAfterEdit(
-      [{ ...file, fingerprint: fingerprint(diskText) }],
-      new AbortController().signal,
-    )
-    setTimeout(() => {
-      report(file.absolute)
-    }, 5)
-    const [result] = await pending
-    expect(result?.unchecked).toBe('noReport')
-    expect(result?.entries).toEqual([])
-    expect(set).not.toHaveBeenCalled()
-  })
-
-  it('keeps stale valid editor text unchecked after an empty collection-clear event', async () => {
-    state.text = '{}'
-    const diskText = '{"new": 1 "broken": 2}'
-    vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
-    const pending = editor().verify.diagnosticsAfterEdit(
-      [{ ...file, fingerprint: fingerprint(diskText) }],
-      new AbortController().signal,
-    )
-    setTimeout(() => {
-      report(file.absolute)
-    }, 5)
-    const [result] = await pending
-    expect(result?.unchecked).toBe('noReport')
-    expect(result?.entries).toEqual([])
-    expect(set).not.toHaveBeenCalled()
-  })
+  it.each([
+    ['malformed disk', false],
+    ['valid editor', true],
+  ])(
+    'keeps stale %s text unchecked after an empty collection-clear event',
+    async (_label, isValid) => {
+      if (isValid) state.text = '{}'
+      const diskText = '{"new": 1 "broken": 2}'
+      vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode(diskText))
+      const pending = editor().verify.diagnosticsAfterEdit(
+        [{ ...file, fingerprint: fingerprint(diskText) }],
+        new AbortController().signal,
+      )
+      setTimeout(() => {
+        report(file.absolute)
+      }, 5)
+      const [result] = await pending
+      expect(result?.unchecked).toBe('noReport')
+      expect(result?.entries).toEqual([])
+      expect(set).not.toHaveBeenCalled()
+    },
+  )
 
   it.each([
     ['snapshot read', 3],
@@ -1164,12 +1154,17 @@ describe('JSON diagnostics without a native report', () => {
     },
   )
 
-  it('refuses a document generation change while the JSON fallback settles', async () => {
+  it.each([
+    ['refuses a document generation change while the JSON fallback settles', false],
+    ['refuses a disk change while JSON fallback settles without an edited fingerprint', true],
+  ])('%s', async (_title, shouldChangeDisk) => {
     state.version = 1
     set.mockImplementation((_uri, entries) => {
       held = [...entries]
       report(file.absolute)
-      state.version = 2
+      if (shouldChangeDisk)
+        vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('{}'))
+      else state.version = 2
     })
     const [result] = await editor().verify.diagnosticsAfterEdit(
       [file],
@@ -1191,21 +1186,6 @@ describe('JSON diagnostics without a native report', () => {
     )
     expect(result?.unchecked).toBe('changed')
     expect(set).not.toHaveBeenCalled()
-  })
-
-  it('refuses a disk change while JSON fallback settles without an edited fingerprint', async () => {
-    set.mockImplementation((_uri, entries) => {
-      held = [...entries]
-      report(file.absolute)
-      vi.mocked(workspace.fs.readFile).mockResolvedValue(new TextEncoder().encode('{}'))
-    })
-    const [result] = await editor().verify.diagnosticsAfterEdit(
-      [file],
-      new AbortController().signal,
-    )
-    expect(result?.unchecked).toBe('noReport')
-    expect(result?.entries).toEqual([])
-    expect(remove).toHaveBeenCalledWith(uri)
   })
 
   it('stops an active native wait on disposal without creating fallback resources', async () => {
