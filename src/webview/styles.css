@@ -3982,6 +3982,32 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 @media (forced-colors: active) {
+  /* Forced colours remove inset shadows. System-colour outlines keep hover,
+     keyboard focus and pressed feedback visible without moving the content. */
+  .chat-control:not(.goal-edit-input, .code-block-body):hover:not(
+      :disabled,
+      [aria-disabled='true'],
+      :focus-visible
+    ) {
+    outline: 1px solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):is(:focus-visible, :active):not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline: var(--ms-focus-width) solid Highlight;
+    outline-offset: var(--ms-focus-offset);
+  }
+
+  .chat-control:not(.goal-edit-input, .code-block-body):active:not(
+      :disabled,
+      [aria-disabled='true']
+    ) {
+    outline-offset: 0;
+  }
+
   :is(
     .jump-latest,
     .tool-expand,

@@ -27516,6 +27516,16 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   red drill in `docs/certification/m114-p1.md`. No new dependency or behaviour
   port. S/lead retain integrated goldens, shared changelog and full quality.
 
+- **P1 forced-colors repair scope (RVM114P12, 2026-10-06):** close the
+  remaining P2 within the conversation's existing enabled-control guard.
+  Use a system-colour outline with a distinct pressed offset because forced
+  colours suppress inset shadows. Verify idle, hover, pressed, keyboard
+  focus and disabled states with forced-colors emulation in all six themes,
+  including actual Send/Stop, Jump, task and context controls at 320 px.
+  Record a failing regression and byte-exact red drills in
+  `docs/certification/m114-p1.md`. No dependency, guard widening or other
+  lane's file changes; S/lead keep the existing integration handoffs.
+
 - **Lane A capture storage decision (lead, 2026-10-06):** keep the 804
   before PNGs outside git to bound repository size, at
   `/home/randy/archive/m114-a-before-17d7`. Commit only their manifest,
@@ -28969,6 +28979,17 @@ leaves that generated document untouched. S runs
 `npm run check:host-api -- --write`, reviews the source-path-only row and
 reruns the gate. This documentation gate is deferred, never claimed green.
 
+**M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
+The rig/shared brief forbids full quality/full unit runs and other lanes'
+file edits. P1 runs the five compiler projects, owning regressions and red
+drills, scoped lint/format, dead-code, duplication, localization and the
+production build. `check:host-api` retains its one inherited mismatch:
+the source inventory lists 50 roles, including contrastActiveBorder, while
+omitting the imported extended-role sheet. Lane 0/S own both inventories
+and the generated record; the lead owns aggregate quality and S owns reviewed
+goldens/shared changelog. No threshold, guard or hook is weakened, and no
+RVM114P12 finding is deferred.
+
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor
 file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
@@ -29581,6 +29602,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM114P12 forced-colors repair (2026-10-06):** the remaining P2 is
+  fixed with system-colour hover/focus/pressed outlines and a distinct
+  pressed offset, inside the existing enabled conversation-control guard.
+  All 89 owning review regressions pass with default timeouts, including
+  forced-colors probes in all six themes and actual narrow-panel controls.
+  Deliberate failures and byte-exact restoration are recorded in
+  `docs/certification/m114-p1.md`; no finding from this review is left as a
+  residual. Lane 0/S inventories, shared changelog/goldens, the 4 KiB
+  compaction target and lead aggregate quality retain their existing owners.
 
 - **RVM114P1 review repair (2026-10-06):** all three P2s and both P3s are
   fixed, with regression tests and nine byte-exact red drills recorded in
