@@ -92,30 +92,31 @@ function credentialHarness() {
   }
 }
 
-function holdCredentialRead(vault: AccountCredentialVault) {
+function pendingCredentialDispatch(h: ReturnType<typeof credentialHarness>) {
   const entered = Promise.withResolvers<undefined>()
   const held = Promise.withResolvers<AccountCredential | undefined>()
-  vi.spyOn(vault, 'read').mockImplementationOnce(() => {
+  vi.spyOn(h.rawVault, 'read').mockImplementationOnce(() => {
     entered.resolve(undefined)
     return held.promise
   })
-  return { entered: entered.promise, held }
+  const dispatch = vi.fn(() => Promise.resolve())
+  const pending = h.store.useCredential('vendor', 'work', origin, dispatch)
+  const outcome = (async () => {
+    try {
+      await pending
+      return undefined
+    } catch (error) {
+      return error
+    }
+  })()
+  return { entered: entered.promise, held, dispatch, outcome }
 }
 
 describe('M108 account metadata and clients', () => {
   it('invalidates a pending credential dispatch across removal and re-addition', async () => {
     const h = credentialHarness()
     await h.store.setCredential('vendor', 'work', workRecord)
-    const { entered, held } = holdCredentialRead(h.rawVault)
-    const dispatch = vi.fn(() => Promise.resolve('dispatched'))
-    const pending = h.store.useCredential('vendor', 'work', origin, dispatch)
-    const outcome = (async () => {
-      try {
-        return await pending
-      } catch (error) {
-        return error
-      }
-    })()
+    const { entered, held, dispatch, outcome } = pendingCredentialDispatch(h)
     await entered
     const remover = new AccountStore(h.metadata, h.credentials)
     await remover.remove('vendor', 'work')
@@ -259,21 +260,22 @@ describe('M108 account metadata and clients', () => {
   it('checks the configured origin again immediately before a pending dispatch', async () => {
     const h = credentialHarness()
     await h.store.setCredential('vendor', 'work', workRecord)
-    const { entered, held } = holdCredentialRead(h.rawVault)
-    const dispatch = vi.fn(() => Promise.resolve())
-    const pending = h.store.useCredential('vendor', 'work', origin, dispatch)
-    const outcome = (async () => {
-      try {
-        await pending
-        return undefined
-      } catch (error) {
-        return error
-      }
-    })()
+    const { entered, held, dispatch, outcome } = pendingCredentialDispatch(h)
     await entered
     h.configure({ origin: 'https://changed.invalid' })
     held.resolve(workRecord)
     expect(await outcome).toMatchObject({ code: 'originMismatch' })
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  it('rechecks credential eligibility after the product changes during a pending lookup', async () => {
+    const h = credentialHarness()
+    await h.store.setCredential('vendor', 'work', workRecord)
+    const { entered, held, dispatch, outcome } = pendingCredentialDispatch(h)
+    await entered
+    h.configure({ policyProvider: 'github', product: 'copilot' })
+    held.resolve(workRecord)
+    expect(await outcome).toMatchObject({ code: 'notOffered' })
     expect(dispatch).not.toHaveBeenCalled()
   })
 

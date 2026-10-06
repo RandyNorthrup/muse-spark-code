@@ -242,6 +242,7 @@ export class AccountStore {
     if (generation !== (AccountStore.generations.get(key) ?? 0) || AccountStore.removing.has(key)) {
       throw new AccountStoreError('invalidAccount')
     }
+    if (current.auth !== 'none') this.assertCredentialsOffered(current)
     const currentBinding = this.binding(current, account)
     if (currentBinding.origin !== binding.origin || current.auth !== entry.auth) {
       throw new AccountStoreError('originMismatch')

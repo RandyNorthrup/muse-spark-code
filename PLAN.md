@@ -19837,6 +19837,9 @@ Each joins when its dependency merges, and none blocks the others.
 Extend shared literal scrubbing to JSON, URL, base64/base64url and hexadecimal
 forms through one matcher; invalidate pending account dispatches by removal
 generation and serialize mutations across store instances in this process.
+Recheck the current product's credential eligibility at dispatch as well as
+its account membership, auth mode and origin, so metadata edits cannot bypass
+the existing not-offered/Muse Code capture guards while a lookup is pending.
 Local maintenance reads retain the stored origin for revocation and cleanup;
 an explicit origin rebind asks the injected user-confirmation port before
 writing the same account's credential at the new origin. Certify regressions
