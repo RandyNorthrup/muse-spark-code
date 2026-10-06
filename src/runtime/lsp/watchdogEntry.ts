@@ -19,6 +19,7 @@ if (!Number.isSafeInteger(owner) || owner <= 1 || process.platform === 'win32')
   throw new Error('EWATCH_OWNER')
 const state: {
   root?: number
+  owner?: ProcessIdentity
   input: string
   isEnding: boolean
   scanning?: Promise<void>
@@ -53,31 +54,42 @@ function table(): Promise<readonly ProcessIdentity[]> {
     )
   })
 }
+function isTracked(row: ProcessIdentity | undefined): boolean {
+  return row !== undefined && tracked.get(row.pid)?.born === row.born
+}
 async function scan(): Promise<void> {
   const rows = await table()
+  const current = new Map(rows.map((row) => [row.pid, row]))
+  const root = state.root === undefined ? undefined : current.get(state.root)
+  const parent = current.get(owner)
   let isChanged = true
   while (isChanged) {
     isChanged = false
     for (const row of rows) {
       if (row.pid === process.pid || tracked.has(row.pid)) continue
-      if (!(
-        row.pid === state.root ||
-        row.parent === state.root ||
-        tracked.has(row.parent) ||
-        (state.root !== undefined && row.group === state.root)
-      )) {
-        continue
-      }
-
+      const isRoot =
+        row.pid === state.root &&
+        row.parent === owner &&
+        state.owner !== undefined &&
+        parent?.born === state.owner.born
+      const isGroup = row.group === root?.group && isTracked(root)
+      if (!isRoot && !isGroup && !isTracked(current.get(row.parent))) continue
       if (tracked.size >= LSP_LIMITS.watchdogProcesses) throw new Error('EWATCH_CAP')
       tracked.set(row.pid, row)
       isChanged = true
     }
   }
 }
-function kill(pid: number): void {
+async function kill(identity: ProcessIdentity, deadline: number): Promise<void> {
+  if (Date.now() >= deadline) throw new Error('EWATCH_EXIT')
+  // Re-read each PID's birth immediately before its signal; group signals
+  // could include an untracked/recycled member and are never authority.
+  const rows = await table()
+  if (Date.now() >= deadline) throw new Error('EWATCH_EXIT')
+  const current = rows.find((row) => row.pid === identity.pid)
+  if (current?.born !== identity.born || !isTracked(current)) return
   try {
-    process.kill(pid, 'SIGKILL')
+    process.kill(identity.pid, 'SIGKILL')
   } catch (error: unknown) {
     if (!(error instanceof Error && 'code' in error && error.code === 'ESRCH'))
       state.isFailed = true
@@ -87,27 +99,21 @@ async function stop(): Promise<void> {
   if (state.isEnding) return
   state.isEnding = true
   clearInterval(timer)
+  const deadline = Date.now() + RUNTIME_STOP.exitMs
   try {
     await state.scanning
     await scan()
-    // Verify ownership immediately before signalling a group or a recycled PID.
     const rows = await table()
-    if (
-      state.root !== undefined &&
-      rows.some((row) => row.group === state.root && tracked.get(row.pid)?.born === row.born)
-    )
-      kill(-state.root)
-    for (const row of rows) if (tracked.get(row.pid)?.born === row.born) kill(row.pid)
-    const deadline = Date.now() + RUNTIME_STOP.exitMs
+    for (const row of rows) if (isTracked(row)) await kill(row, deadline)
     for (;;) {
       const observed = await table()
-      const alive = observed.filter((row) => tracked.get(row.pid)?.born === row.born)
+      const alive = observed.filter((row) => isTracked(row))
       if (alive.length === 0) break
       if (Date.now() >= deadline) {
         state.isFailed = true
         break
       }
-      for (const row of alive) kill(row.pid)
+      for (const row of alive) await kill(row, deadline)
       await new Promise<void>((resolve) => {
         setTimeout(resolve, RUNTIME_STOP.pollMs)
       })
@@ -157,4 +163,17 @@ process.stdin.once('error', () => {
 process.once('SIGTERM', () => {
   void stop()
 })
-process.stdout.write('READY\n')
+// Capture the supervisor's birth before publishing READY or accepting a root.
+async function start(): Promise<void> {
+  try {
+    const rows = await table()
+    const captured = rows.find((row) => row.pid === owner)
+    if (captured === undefined) throw new Error('EWATCH_OWNER')
+    state.owner = captured
+    if (!state.isEnding) process.stdout.write('READY\n')
+  } catch {
+    state.isFailed = true
+    void stop()
+  }
+}
+void start()

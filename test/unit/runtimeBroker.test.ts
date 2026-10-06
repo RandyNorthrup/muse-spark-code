@@ -1,5 +1,6 @@
-import { mkdtemp, readFile, mkdir, writeFile, rm } from 'node:fs/promises'
-import { createConnection } from 'node:net'
+import { mkdtemp, readFile, mkdir, writeFile, rm, chmod, symlink } from 'node:fs/promises'
+import * as fs from 'node:fs/promises'
+import { createConnection, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -9,6 +10,8 @@ import { LSP_LIMITS } from '../../src/shared/constants'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { initialize } from './helpers/lspClient'
 import { removeFolder } from './helpers/temporaryFolders'
+
+vi.mock('node:fs/promises', async (importOriginal) => ({ ...(await importOriginal<typeof fs>()) }))
 
 const folders: string[] = []
 afterEach(async () => {
@@ -28,6 +31,87 @@ const services = {
 const deadOwner = { pid: 2_147_483_647, token: 'a'.repeat(64), configuration: 'same' }
 
 describe('M104L workspace broker', () => {
+  it
+    .runIf(process.platform !== 'win32')
+    .each([
+      'registryMode',
+      'folderMode',
+      'recordMode',
+      'registrySymlink',
+      'recordSymlink',
+      'foreignOwner',
+    ])('refuses forged broker authority with %s before dialing or launching', async (fault) => {
+    const root = await fixture()
+    const actual = path.join(root, 'private')
+    await mkdir(actual, { mode: 0o700 })
+    const registry = fault === 'registrySymlink' ? path.join(root, 'alias') : actual
+    if (fault === 'registrySymlink') await symlink(actual, registry)
+    const workspace = process.cwd()
+    const folder = path.join(actual, `lsp-${workspaceKey(workspace)}`)
+    await mkdir(folder, { mode: 0o700 })
+    const pipe = path.join(root, 'forged.sock')
+    const connections = vi.fn((socket: ReturnType<typeof createConnection>) => socket.destroy())
+    const server = createServer(connections)
+    await new Promise<void>((resolve) => {
+      server.listen(pipe, resolve)
+    })
+    const record = path.join(folder, fault === 'recordSymlink' ? 'real.json' : 'owner.json')
+    await writeFile(
+      record,
+      JSON.stringify({ pid: process.pid, token: 'a'.repeat(64), pipe, configuration: 'same' }),
+      { mode: 0o600 },
+    )
+    switch (fault) {
+      case 'recordSymlink': {
+        await symlink(record, path.join(folder, 'owner.json'))
+        break
+      }
+      case 'registryMode': {
+        await chmod(actual, 0o755)
+        break
+      }
+      case 'folderMode': {
+        await chmod(folder, 0o755)
+        break
+      }
+      case 'recordMode': {
+        {
+          await chmod(record, 0o644)
+          // No default
+        }
+        break
+      }
+    }
+    const metadata = vi.spyOn(fs, 'lstat')
+    if (fault === 'foreignOwner') {
+      const info = await fs.stat(actual, { bigint: true })
+      info.uid += 1n
+      metadata.mockResolvedValueOnce(info)
+    }
+    const launch = vi.fn()
+    try {
+      const connecting = (async () => {
+        const socket = await connectWorkspaceBroker({
+          registry,
+          workspace,
+          configuration: 'same',
+          launch,
+        })
+        socket.destroy()
+        return socket
+      })()
+      await expect(connecting).rejects.toThrow('ELSP_PRIVATE')
+      expect(connections).not.toHaveBeenCalled()
+      expect(launch).not.toHaveBeenCalled()
+    } finally {
+      metadata.mockRestore()
+      await new Promise<void>((resolve) => {
+        server.close(() => {
+          resolve()
+        })
+      })
+    }
+  })
   it('three simultaneous frontends share exactly one workspace owner and keep independent initialization', async () => {
     const registry = await fixture()
     const workspace = process.cwd()
@@ -132,10 +216,11 @@ describe('M104L workspace broker', () => {
     const registry = await fixture()
     const workspace = process.cwd()
     const folder = path.join(registry, `lsp-${workspaceKey(workspace)}`)
-    await mkdir(folder)
+    await mkdir(folder, { mode: 0o700 })
     await writeFile(
       path.join(folder, 'owner.json'),
       JSON.stringify({ ...deadOwner, pipe: path.join(folder, 'socket') }),
+      { mode: 0o600 },
     )
     const worker = Promise.withResolvers<Awaited<ReturnType<typeof startWorkspaceBroker>>>()
     const launch = vi.fn(() => {
@@ -195,11 +280,12 @@ describe('M104L workspace broker', () => {
     const registry = await fixture()
     const workspace = process.cwd()
     const folder = path.join(registry, `lsp-${workspaceKey(workspace)}`)
-    await mkdir(folder)
-    await mkdir(`${folder}.recover`)
+    await mkdir(folder, { mode: 0o700 })
+    await mkdir(`${folder}.recover`, { mode: 0o700 })
     await writeFile(
       path.join(folder, 'owner.json'),
       JSON.stringify({ ...deadOwner, pipe: path.join(folder, 'socket') }),
+      { mode: 0o600 },
     )
     const clock = vi
       .spyOn(Date, 'now')

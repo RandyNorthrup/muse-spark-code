@@ -18937,9 +18937,19 @@ ACLs) before trusting them. Queue Stop across guardian startup, recheck
 cancellation after final edit admission, let Stop/shutdown bypass ordinary
 request saturation, snooze denied Tab per connection, and build the guardian
 fixture in supervisor tests. Each finding gets a regression and byte-exact
-red drill in `docs/certification/m104-l.md`. Existing controller/native and
-POSIX observation limits remain unqualified. Aggregate quality stays with
-the lead per §7; no merges are authorized by this repair brief.
+red drill in `docs/certification/m104-l.md`. A small lane-local registry
+module is necessary because broker and independent Stop must enforce the
+same ownership/ACL checks without pulling the LSP server into activation.
+It uses the existing exact BigInt file-identity sampler and a fixed single
+record link count in LSP_LIMITS. Stop record filenames use independent UUIDs,
+so OS ACL helpers receive paths without a bearer embedded in the name.
+Fresh per-signal identity queries share the existing Stop deadline, checked
+before and after each query; expired admission sends no signal.
+The synthetic guardian's actual path-built import is declared as a Knip
+entry, matching the existing process-table fixture; no rule/ignore changes.
+Existing controller/native and POSIX observation limits remain unqualified.
+Aggregate quality stays with the lead per §7; no merges are authorized by
+this repair brief.
 
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain

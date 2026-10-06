@@ -1,6 +1,6 @@
 // One authenticated local workspace runtime; stdio frontends own only their connection.
 import { randomBytes, randomUUID } from 'node:crypto'
-import { mkdir, open, rm, stat, writeFile } from 'node:fs/promises'
+import { rm, stat } from 'node:fs/promises'
 import { createConnection, createServer, type Socket } from 'node:net'
 import path from 'node:path'
 import * as z from 'zod/mini'
@@ -8,6 +8,7 @@ import { LSP_LIMITS, RUNTIME_STOP } from '../../shared/constants'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
 import { workspaceKey } from '../dataFolder'
 import { serveLsp, type LspServices } from './server'
+import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
 
 const ownerSchema = z.strictObject({
   pid: z.int().check(z.gte(1)),
@@ -25,7 +26,8 @@ function folderOf(registry: string, workspace: string): string {
   return path.join(registry, `lsp-${workspaceKey(workspace)}`)
 }
 async function recordAt(folder: string, name: string): Promise<unknown> {
-  const handle = await open(path.join(folder, name), 'r')
+  await privateDirectory(folder)
+  const handle = await openPrivateRecord(path.join(folder, name))
   try {
     const bytes = Buffer.alloc(LSP_LIMITS.recordBytes + 1)
     const { bytesRead } = await handle.read(bytes)
@@ -45,9 +47,15 @@ async function ownerAt(folder: string) {
 async function recover(folder: string): Promise<void> {
   const lock = `${folder}.recover`
   try {
-    await mkdir(lock, { mode: LSP_LIMITS.directoryMode })
+    const created = await privateDirectory(lock, true)
+    if (!created.isNew) return
   } catch (error: unknown) {
-    if (error instanceof Error && 'code' in error && error.code === 'EEXIST') return
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'EEXIST' || error.code === 'ENOENT')
+    )
+      return
     throw error
   }
   try {
@@ -57,18 +65,21 @@ async function recover(folder: string): Promise<void> {
       return
     } catch (error: unknown) {
       // A malformed worker record is not authority to start a second runtime.
+      if (error instanceof Error && error.message === 'ELSP_PRIVATE') throw error
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) return
     }
     try {
       const worker = await ownerAt(path.join(folder, 'worker'))
       if (isProcessAlive(worker.pid)) return
     } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'ELSP_PRIVATE') throw error
       if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) return
     }
     try {
       const starting = startingSchema.parse(await recordAt(folder, 'starting.json'))
       if (!isProcessAlive(starting.pid)) await rm(folder, { recursive: true, force: true })
-    } catch {
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'ELSP_PRIVATE') throw error
       let info
       try {
         info = await stat(folder)
@@ -90,7 +101,9 @@ export async function startWorkspaceBroker(
   configuration: string,
   services: LspServices,
 ) {
+  await privateDirectory(registry)
   const folder = folderOf(registry, workspace)
+  await privateDirectory(folder)
   const token = randomBytes(LSP_LIMITS.tokenBytes).toString('hex')
   const pipe =
     process.platform === 'win32'
@@ -106,8 +119,9 @@ export async function startWorkspaceBroker(
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
   }
   // A second worker must never unlink the first worker's active socket/record.
-  await mkdir(lock, { mode: LSP_LIMITS.directoryMode })
-  await writeFile(path.join(lock, 'owner.json'), record, { mode: LSP_LIMITS.fileMode, flag: 'wx' })
+  const created = await privateDirectory(lock, true)
+  if (!created.isNew) throw new Error('ELSP_OWNED')
+  await writePrivateRecord(path.join(lock, 'owner.json'), record)
   const clients = new Set<Socket>()
   let idle: ReturnType<typeof setTimeout> | undefined
   let closing: Promise<void> | undefined
@@ -190,10 +204,7 @@ export async function startWorkspaceBroker(
       server.listen(pipe, resolve)
     })
     const temporary = path.join(folder, 'owner.tmp')
-    await writeFile(temporary, record, {
-      mode: LSP_LIMITS.fileMode,
-      flag: 'wx',
-    })
+    await writePrivateRecord(temporary, record)
     const { rename } = await import('node:fs/promises')
     await rename(temporary, path.join(folder, 'owner.json'))
     process.once('SIGTERM', onSignal)
@@ -216,7 +227,7 @@ export interface BrokerLaunch {
 
 /** Exclusive startup directory, then a validated private record. A dead owner is replaceable. */
 export async function connectWorkspaceBroker(deps: BrokerLaunch): Promise<Socket> {
-  await mkdir(deps.registry, { recursive: true, mode: LSP_LIMITS.directoryMode })
+  await privateDirectory(deps.registry, true)
   const folder = folderOf(deps.registry, deps.workspace)
   const deadline = Date.now() + LSP_LIMITS.startupMs
   let didLaunch = false
@@ -243,19 +254,24 @@ export async function connectWorkspaceBroker(deps: BrokerLaunch): Promise<Socket
         })
       })
     } catch (error: unknown) {
-      if (error instanceof Error && error.message === 'ELSP_CONFIGURATION') throw error
+      if (
+        error instanceof Error &&
+        (error.message === 'ELSP_CONFIGURATION' || error.message === 'ELSP_PRIVATE')
+      )
+        throw error
       if (Date.now() >= deadline) throw new Error('ELSP_STARTUP', { cause: error })
     }
     try {
-      await mkdir(folder, { mode: LSP_LIMITS.directoryMode })
+      const created = await privateDirectory(folder, true)
+      if (!created.isNew) throw Object.assign(new Error('ELSP_OWNED'), { code: 'EEXIST' })
       if (didLaunch) {
         await rm(folder, { recursive: true, force: true })
         throw new Error('ELSP_STARTUP')
       }
-      await writeFile(path.join(folder, 'starting.json'), JSON.stringify({ pid: process.pid }), {
-        flag: 'wx',
-        mode: LSP_LIMITS.fileMode,
-      })
+      await writePrivateRecord(
+        path.join(folder, 'starting.json'),
+        JSON.stringify({ pid: process.pid }),
+      )
       try {
         deps.launch()
         didLaunch = true

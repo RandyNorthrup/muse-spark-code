@@ -427,21 +427,21 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 42    |
+| `node:buffer`          | 43    |
 | `node:child_process`   | 16    |
 | `node:crypto`          | 54    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
-| `node:fs`              | 35    |
-| `node:fs/promises`     | 52    |
+| `node:fs`              | 36    |
+| `node:fs/promises`     | 53    |
 | `node:http`            | 7     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 9     |
 | `node:os`              | 10    |
 | `node:path`            | 91    |
-| `node:process`         | 2     |
+| `node:process`         | 3     |
 | `node:stream`          | 16    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |

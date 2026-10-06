@@ -75,16 +75,16 @@ function start(cwd: string, source: string, args: readonly string[] = [], guardi
 describe('M104H2 runtime supervision', () => {
   it('accepts a disappearing owner record but preserves other open failures', async () => {
     const registry = path.join(directory, 'race-owners')
-    await fs.mkdir(registry)
+    await fs.mkdir(registry, { mode: 0o700 })
     const record = path.join(registry, `${workspaceKey(directory)}-race.json`)
-    await writeFile(record, '{}')
+    await writeFile(record, '{}', { mode: 0o600 })
     const opening = vi.spyOn(fs, 'open')
     try {
       opening.mockRejectedValueOnce(
         Object.assign(new Error('fixture vanished'), { code: 'ENOENT' }),
       )
       await expect(stopWorkspace(registry, directory)).resolves.toBeUndefined()
-      expect(opening).toHaveBeenCalledWith(record, 'r')
+      expect(opening).toHaveBeenCalledWith(record, expect.any(Number))
       opening.mockRejectedValueOnce(
         Object.assign(new Error('fixture forbidden'), { code: 'EACCES' }),
       )
@@ -329,6 +329,7 @@ describe('M104H2 runtime supervision', () => {
     expect(pipe).not.toContain(record.token)
     let lingering: ReturnType<typeof createConnection> | undefined
     try {
+      expect(file.includes(record.token)).toBe(false)
       const socket = createConnection(pipe)
       await new Promise<void>((resolve, reject) => {
         socket.resume()
@@ -384,7 +385,7 @@ describe('M104H2 runtime supervision', () => {
     const registry = path.join(directory, 'owners')
     const record = path.join(registry, `${workspaceKey(directory)}-bad.json`)
     try {
-      await writeFile(record, JSON.stringify({ pipe: 'bad', token: 'short' }))
+      await writeFile(record, JSON.stringify({ pipe: 'bad', token: 'short' }), { mode: 0o600 })
       await expect(stopWorkspace(registry, directory)).rejects.toThrow()
       await writeFile(record, 'x'.repeat(4096))
       await expect(stopWorkspace(registry, directory)).rejects.toThrow('ESTOP_RECORD')

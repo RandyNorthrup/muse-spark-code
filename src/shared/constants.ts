@@ -5353,6 +5353,7 @@ export const LSP_LIMITS = {
   diagnosticSeverities: 4,
   watchdogScanMs: 1000,
   watchdogPollMs: 250,
+  recordLinkCount: 1n,
   watchdogProcesses: 512,
   requestMs: 30_000,
   startupMs: 10_000,

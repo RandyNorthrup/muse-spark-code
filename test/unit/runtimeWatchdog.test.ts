@@ -59,6 +59,65 @@ async function waitExited(pid: number) {
 
 // Windows uses the kill-on-close job instead, exercised by runtimeSupervisor.test.ts.
 describe.skipIf(process.platform === 'win32')('M104L independent POSIX guardian', () => {
+  it.each(['parent', 'root', 'group', 'owner', 'signal', 'deadline'])(
+    'never enrolls or signals unrelated descendants after recycled %s identity',
+    async (fault) => {
+      const source = await readFile('src/runtime/lsp/watchdogEntry.ts', 'utf8')
+      const helper = JSON.stringify(path.resolve('test/unit/helpers/recycledWatchdogProcess.ts'))
+      const synthetic = path.join(folder, `recycled-${fault}.js`)
+      await build({
+        stdin: {
+          contents: source
+            .replace(
+              "import { execFile } from 'node:child_process'",
+              () => `import { execFile } from ${helper}`,
+            )
+            .replace("import process from 'node:process'", () => `import process from ${helper}`),
+          resolveDir: path.resolve('src/runtime/lsp'),
+          sourcefile: 'watchdogEntry.ts',
+          loader: 'ts',
+        },
+        outfile: synthetic,
+        bundle: true,
+        platform: 'node',
+        format: 'cjs',
+        target: 'node22',
+        logLevel: 'silent',
+      })
+      const guard = spawn(process.execPath, [synthetic, fault], {
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: withoutCredentials(process.env),
+      })
+      const bytes: Buffer[] = []
+      guard.stdout.on('data', (chunk: Buffer) => {
+        bytes.push(chunk)
+      })
+      try {
+        await new Promise<void>((resolve) => {
+          guard.once('close', () => {
+            resolve()
+          })
+        })
+        const result = z
+          .strictObject({ signals: z.array(z.int()), code: z.int() })
+          .parse(JSON.parse(Buffer.concat(bytes).toString('utf8')))
+        if (fault === 'deadline') {
+          expect(result.code).toBe(1)
+          expect(result.signals).toEqual([])
+          return
+        }
+        expect(result.code).toBe(0)
+        expect(result.signals).not.toContain(202)
+        expect(result.signals.every((pid) => pid > 0)).toBe(true)
+        if (['root', 'owner', 'signal'].includes(fault)) expect(result.signals).not.toContain(100)
+        else if (fault === 'parent') expect(result.signals).not.toContain(101)
+        if (fault === 'owner') expect(result.signals).toEqual([])
+        else expect(result.signals.length).toBeGreaterThan(0)
+      } finally {
+        guard.kill('SIGKILL')
+      }
+    },
+  )
   it('fails without signalling a group when its current identities cannot be read', async () => {
     const failing = path.join(folder, 'failing-watchdog.js')
     const source = await readFile('src/runtime/lsp/watchdogEntry.ts', 'utf8')

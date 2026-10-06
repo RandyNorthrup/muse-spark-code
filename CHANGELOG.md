@@ -37,6 +37,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The POSIX guardian verifies parent/root birth identities before enrolling
+  descendants and rechecks each process before an individual signal. Broker
+  and Stop records require an owner-only namespace, no symlinks, verified
+  permissions/ACLs and exact file identity; unsafe existing records refuse.
+
 - LSP Stop and shutdown bypass saturated ordinary requests; independent Stop
   waits across guardian startup. Suggested edits recheck cancellation after
   final policy admission. Deny or closing Tab consent snoozes that editor

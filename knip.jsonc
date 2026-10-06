@@ -74,6 +74,8 @@
     "test/unit/helpers/fakeMcpServer.mjs",
     "test/unit/helpers/fakeLsp.ts",
     "test/unit/helpers/failingProcessTable.ts",
+    // Imported into the actual guardian by the synthetic PID/birth fixture bundle.
+    "test/unit/helpers/recycledWatchdogProcess.ts",
     "test/unit/helpers/supervisorParent.ts",
     "test/unit/helpers/runtimeLspParent.ts",
     // A bounded orphan-child process drill, launched by path at runtime.

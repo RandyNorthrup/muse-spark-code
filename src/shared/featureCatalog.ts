@@ -4,7 +4,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'lsp',
     behavior:
-      'Stdio LSP frontend. One private broker per canonical workspace; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
+      'Stdio LSP frontend. One broker per canonical workspace, with owner/mode/symlink/ACL-verified private directories and records; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
   },
   {
     command: 'lsp --workspace <directory>',
@@ -23,7 +23,7 @@ export const FEATURE_CATALOG = [
   {
     command: 'supervise <runtime arguments>',
     behavior:
-      'Run the installed runtime behind independent authenticated Stop control. Stop during guardian startup waits for the child and cleanup. POSIX guardian observes detached descendants and refuses unverified signals after a process-table failure; Windows uses the existing kill-on-close job launcher.',
+      'Run the installed runtime behind independent authenticated Stop control. Stop during guardian startup waits for the child and cleanup. POSIX guardian verifies current PID/birth identity during ownership discovery and before each individual signal, and refuses signals after a process-table failure; Windows uses the existing kill-on-close job launcher.',
   },
   {
     command: 'stop',

@@ -1,16 +1,7 @@
 // Independent process supervision: Stop never enters the model/request queue.
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
-import {
-  chmod,
-  mkdir,
-  mkdtemp,
-  open,
-  readdir,
-  rm,
-  writeFile,
-  type FileHandle,
-} from 'node:fs/promises'
+import { mkdtemp, readdir, rm, type FileHandle } from 'node:fs/promises'
 import { createConnection, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -24,6 +15,7 @@ import { RUNTIME_STOP } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { withoutCredentials } from '../credentialVariables'
 import { isProcessAlive } from '../../host/checkpoints/windowPresence'
+import { privateDirectory, openPrivateRecord, writePrivateRecord } from './registry'
 
 // Private child diagnostics never enter the editor log.
 const log = () => {
@@ -85,6 +77,7 @@ async function groupExited(pid: number | undefined): Promise<void> {
 
 /** The supervisor owns pipes and a group/job; the child never owns Stop. */
 export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
+  await privateDirectory(deps.registry, true)
   const env = withoutCredentials(deps.env)
   let jobExecutablePath: string | undefined
   if (process.platform === 'win32') {
@@ -98,15 +91,13 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
     })()
     if (jobExecutablePath === undefined) throw new Error('ESTOP_JOB')
   }
-  await mkdir(deps.registry, { recursive: true, mode: RUNTIME_STOP.directoryMode })
-  await chmod(deps.registry, RUNTIME_STOP.directoryMode)
   const directory = await mkdtemp(path.join(tmpdir(), 'muse-stop-'))
   const token = randomBytes(RUNTIME_STOP.tokenBytes).toString('hex')
   const pipe =
     process.platform === 'win32'
       ? String.raw`\\.\pipe\muse-stop-${randomUUID()}`
       : path.join(directory, 'control')
-  const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${token}.json`)
+  const record = path.join(deps.registry, `${workspaceKey(deps.cwd)}-${randomUUID()}.json`)
   let child: ChildProcessWithoutNullStreams | undefined
   let watchdog: ChildProcessWithoutNullStreams | undefined
   let watchdogDone: Promise<number> | undefined
@@ -197,10 +188,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
       control.once('error', reject)
       control.listen(pipe, resolve)
     })
-    await writeFile(record, JSON.stringify({ pid: process.pid, pipe, token }), {
-      flag: 'wx',
-      mode: RUNTIME_STOP.fileMode,
-    })
+    await writePrivateRecord(record, JSON.stringify({ pid: process.pid, pipe, token }))
     process.on('SIGTERM', stop)
     process.on('SIGINT', stop)
     if (process.platform !== 'win32') {
@@ -309,6 +297,7 @@ export async function superviseRuntime(deps: SupervisorDeps): Promise<number> {
 export async function stopWorkspace(registry: string, cwd: string): Promise<void> {
   let files: string[]
   try {
+    await privateDirectory(registry)
     files = await readdir(registry)
   } catch (error: unknown) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
@@ -321,7 +310,7 @@ export async function stopWorkspace(registry: string, cwd: string): Promise<void
       owners.slice(offset, offset + RUNTIME_STOP.owners).map(async (file) => {
         let handle: FileHandle
         try {
-          handle = await open(path.join(registry, file), 'r')
+          handle = await openPrivateRecord(path.join(registry, file))
         } catch (error: unknown) {
           // The owner removes its private record when it finishes stopping.
           if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return
