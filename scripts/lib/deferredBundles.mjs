@@ -35,6 +35,41 @@ export const PLUGIN_HOOKS_ONLY = [
 ]
 export const DEFERRED = [
   {
+    output: 'dist/modelApiBoundaries.js',
+    metafile: 'dist/meta/modelApiBoundaries.json',
+    files: [
+      'src/shared/modelApiBoundariesEntry.ts',
+      'src/core/backends/modelapi/schemas.ts',
+      'src/shared/teamConversation.ts',
+    ],
+  },
+  {
+    output: 'dist/teamScheduler.js',
+    metafile: 'dist/meta/teamScheduler.json',
+    files: [
+      'src/core/team/teamSchedulerEntry.ts',
+      'src/core/team/scheduler/board.ts',
+      'src/core/team/scheduler/slots.ts',
+      'src/core/team/teamPool.ts',
+    ],
+  },
+  {
+    output: 'dist/teamRunners.js',
+    metafile: 'dist/meta/teamRunners.json',
+    files: [
+      'src/host/runners/teamRunnersEntry.ts',
+      'src/host/runners/sshRunner.ts',
+      'src/host/team/checkSlots.ts',
+      'src/host/modelsPanelTraffic.ts',
+    ],
+  },
+  {
+    output: 'dist/team.js',
+    metafile: 'dist/meta/team.json',
+    files: ['src/core/team/teamEntry.ts', 'src/core/team/teamTools.ts', 'src/core/team/roster.ts'],
+  },
+
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [
@@ -362,6 +397,9 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
+  [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
+  [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
+  [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -375,7 +413,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
+          /\/(?:teamEntry|teamSchedulerEntry|teamRunnersEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (args.kind !== 'dynamic-import') return
@@ -399,6 +437,23 @@ export const sharedWire = {
     build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
       return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+    })
+  },
+}
+
+// Share captured Model API validators and pure team admission across Node
+// consumers; browser validators retain their original inline implementation.
+/** @type {import('esbuild').Plugin} */
+export const sharedModelApiBoundaries = {
+  name: 'shared-model-api-boundaries',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:schemas|teamConversation)(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return ['src/core/backends/modelapi/schemas.ts', 'src/shared/teamConversation.ts'].some(
+        (file) => source === path.resolve(file),
+      )
+        ? { path: './modelApiBoundaries.js', external: true }
+        : undefined
     })
   },
 }

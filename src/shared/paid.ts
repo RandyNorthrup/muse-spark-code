@@ -25,6 +25,9 @@ import {
 import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
 
+const paidCountSchema = z.optional(z.int().check(z.nonnegative()))
+const paidCostSchema = z.optional(z.number().check(z.nonnegative()))
+
 /** What this window used of each paid feature since it opened. */
 export const paidTallySchema = z.object({
   webSearches: z.number(),
@@ -32,21 +35,26 @@ export const paidTallySchema = z.object({
   voiceSeconds: z.number(),
   scheduledRuns: z.number(),
   // Optional for panels saved before M48; absent means no child use recorded.
-  subagentRequests: z.optional(z.int().check(z.nonnegative())),
-  subagentUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  subagentTokens: z.optional(z.int().check(z.nonnegative())),
-  subagentCostUsd: z.optional(z.number().check(z.nonnegative())),
+  subagentRequests: paidCountSchema,
+  subagentUnknownRequests: paidCountSchema,
+  subagentTokens: paidCountSchema,
+  subagentCostUsd: paidCostSchema,
   // Optional for panels saved before M78; absent means no review made.
-  autoReviews: z.optional(z.int().check(z.nonnegative())),
-  autoReviewUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  autoReviewTokens: z.optional(z.int().check(z.nonnegative())),
-  autoReviewCostUsd: z.optional(z.number().check(z.nonnegative())),
+  autoReviews: paidCountSchema,
+  autoReviewUnknownRequests: paidCountSchema,
+  autoReviewTokens: paidCountSchema,
+  autoReviewCostUsd: paidCostSchema,
   // Best-of-N runs started this window (M77); absent means none.
-  bestOfNAttempts: z.optional(z.int().check(z.nonnegative())),
-  bestOfNRequests: z.optional(z.int().check(z.nonnegative())),
-  bestOfNUnknownRequests: z.optional(z.int().check(z.nonnegative())),
-  bestOfNTokens: z.optional(z.int().check(z.nonnegative())),
-  bestOfNCostUsd: z.optional(z.number().check(z.nonnegative())),
+  bestOfNAttempts: paidCountSchema,
+  bestOfNRequests: paidCountSchema,
+  bestOfNUnknownRequests: paidCountSchema,
+  bestOfNTokens: paidCountSchema,
+  bestOfNCostUsd: paidCostSchema,
+  // Team tasks started this window (M96 lane A, PLAN.md D75); absent means none.
+  teamWorkerRequests: paidCountSchema,
+  teamWorkerUnknownRequests: paidCountSchema,
+  teamWorkerTokens: paidCountSchema,
+  teamWorkerCostUsd: paidCostSchema,
   // Tab suggestion requests sent this window (M94, PLAN.md D73); absent
   // means none. Lane L counts them, lane U shows them in Account & usage.
   tabRequests: z.optional(z.int().check(z.nonnegative())),
@@ -85,6 +93,18 @@ export interface SubagentUsage {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cachedTokens: number
+}
+
+/** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
+export interface TeamWorkerConfirmation {
+  /** Missing means Meta; other key-billed providers use the unknown-price path. */
+  readonly provider?: string
+  /** The adapter's tariff identity; changing it asks again even for the same model. */
+  readonly priceTier?: string
+  readonly role: string
+  readonly modelId: string
+  /** The task's token ceiling, from the entry's `task` caps or the level. */
+  readonly taskCeilingTokens: number
 }
 
 /** Unknown model tariffs cannot authorize a paid child task. */
@@ -173,6 +193,15 @@ export type PaidUseRequest =
       readonly requestCeilingPerAttempt: number
     }
   | {
+      readonly feature: 'teamWorkers'
+      /** The key tasks one `delegate` call starts: each model's prices and each task's ceiling. */
+      readonly tasks: readonly TeamWorkerConfirmation[]
+      /** The shared daily team budget the popup names; undefined while lanes 0/X land the setting. */
+      readonly dailyBudgetUsd: number | undefined
+      /** Required by the unpriced-provider admission path before it dispatches. */
+      readonly dailyBudgetTokens?: number
+    }
+  | {
       // Inline completions (M94, PLAN.md D73; lane L): the request's model
       // (its per-token rates are quoted) and today's budget cap the popup.
       readonly feature: 'tab'
@@ -192,8 +221,8 @@ export type PaidUseRequest =
 
 /**
  * The paid features a window can use (M44, PLAN.md D37): every one on the
- * Model API backend; on Muse Code, the ones billed to a stored key that it
- * has no subscription equivalent for; none otherwise.
+ * Model API backend; on Muse Code, the extension's features billed to a
+ * stored key, including key-billed team tasks; none without that key.
  */
 export function usablePaidFeatures(
   backend: BackendKind | undefined,
@@ -234,6 +263,11 @@ export function paidCostUsd(feature: PaidFeature, tally: PaidTally): number {
       // estimate. Count only reported costs here, not unknown HTTP tries.
       return tally.bestOfNCostUsd ?? 0
     }
+    case 'teamWorkers': {
+      // A worker's tokens already count in the conversation's estimate
+      // through the ledger; the row prices the reported part apart.
+      return tally.teamWorkerCostUsd ?? 0
+    }
     case 'tab': {
       // Tab requests are billed apart from every conversation, so they are
       // counted here alone. Count only reported costs, not unknown tries.
@@ -268,6 +302,7 @@ export function listedPaidFeatures(
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
       (feature === 'bestOfN' && (tally.bestOfNAttempts ?? 0) > 0) ||
+      (feature === 'teamWorkers' && (tally.teamWorkerRequests ?? 0) > 0) ||
       (feature === 'tab' && (tally.tabRequests ?? 0) > 0) ||
       (feature === 'hookModels' && (tally.hookModelRuns ?? 0) > 0) ||
       (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
@@ -279,7 +314,7 @@ export function paidTotalUsd(tally: PaidTally): number {
   // Child token cost is already part of the conversation's token estimate.
   let total = 0
   for (const feature of PAID_FEATURES) {
-    if (feature !== 'subagents') {
+    if (feature !== 'subagents' && feature !== 'teamWorkers') {
       total += paidCostUsd(feature, tally)
     }
   }
@@ -299,6 +334,7 @@ export function paidFeatureName(feature: PaidFeature): string {
     subagents: UI_TEXT.paidSubagentsName,
     autoReviewer: UI_TEXT.paidAutoReviewerName,
     bestOfN: UI_TEXT.paidBestOfNName,
+    teamWorkers: UI_TEXT.paidTeamWorkersName,
     tab: UI_TEXT.paidTabName,
     hookModels: UI_TEXT.paidHookModelName,
     judge: UI_TEXT.paidJudgeName,
@@ -416,6 +452,11 @@ export function paidFeaturePrice(feature: PaidFeature): string {
           BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
         ),
       ].join('\n')
+    }
+    case 'teamWorkers': {
+      // The popup quotes each started task's own model and ceiling
+      // (teamWorkerPrice); the setting names the tiers it may bill.
+      return tokenRatesByTier()
     }
     case 'hookModels': {
       return [

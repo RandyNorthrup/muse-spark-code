@@ -277,10 +277,14 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
 function paidItems(context: PaletteContext): readonly PaletteItem[] {
   return usablePaidFeatures(context.backend, context.isKeyStored).map((feature) => {
     const isOn = context.paidFeatures.includes(feature)
+    const price = paidFeaturePrice(feature)
     return {
       id: `paid:${feature}`,
       label: fill(UI_TEXT.paidToggleLabel, { feature: paidFeatureName(feature) }),
-      detail: paidFeaturePrice(feature),
+      detail: price,
+      ...(feature === 'teamWorkers' && {
+        tip: fill(UI_TEXT.paidConfirmTeamWorkers, { price }),
+      }),
       widget: { kind: 'toggle', isOn },
       action: { type: 'setPaidFeature', feature, isOn: !isOn },
     }

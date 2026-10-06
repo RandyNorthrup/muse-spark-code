@@ -75,6 +75,12 @@ export interface InstructionFacts {
    * Undefined on the parent conversation itself.
    */
   readonly agent?: { readonly id: string; readonly source: AgentSource; readonly prompt: string }
+  /**
+   * M96 (PLAN.md D75): the roster's stable part with the rubric and the
+   * guidance, fixed for the conversation from its first request and never
+   * rewritten. Only in a team conversation.
+   */
+  readonly teamRoster?: string
 }
 
 const PARAGRAPH = '\n\n'
@@ -266,6 +272,7 @@ export function instructionsFor(facts: InstructionFacts): string {
     rulesText(facts.context.rules),
     skillsText(facts.context),
     agentsText(facts.context),
+    facts.teamRoster,
     agentRoleText(facts.agent),
     memoryText(facts),
     facts.repoMap,

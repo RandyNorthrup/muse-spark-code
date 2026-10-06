@@ -16,6 +16,7 @@
 import { execFileSync } from 'node:child_process'
 import {
   copyFileSync,
+  cpSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -33,7 +34,11 @@ const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
   'modelApi.js',
+  'modelApiBoundaries.js',
   'reviewer.js',
+  'team.js',
+  'teamRunners.js',
+  'teamScheduler.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
@@ -108,6 +113,7 @@ for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
+cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
 const tables = readdirSync('l10n')
   .filter((file) => /^ui\.[^/]+\.json$/.test(file))
   .map((file) => [

@@ -84,6 +84,7 @@ import type { ToolClass } from './permissions'
 import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
+import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
 
 import type { ShellResult } from '../../shellResult'
@@ -483,6 +484,13 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   [MODEL_API_SUBAGENT_TOOLS.sendMessage]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.readResult]: 'interactive',
   [MODEL_API_SUBAGENT_TOOLS.cancel]: 'interactive',
+  // The team runner owns delegation and merge consent (D75), just as each
+  // run_checks command owns its approval. No ordinary card grants a paid use.
+  roster: 'read',
+  collect: 'read',
+  delegate: 'interactive',
+  cancel: 'interactive',
+  merge: 'interactive',
   // M49 (PLAN.md D41): a memory write is judged as an edit, never a protected one.
   [MODEL_API_TOOLS.readMemory]: 'read',
   [MODEL_API_TOOLS.addMemory]: 'edit',
@@ -580,6 +588,8 @@ export interface ToolDefinitionOptions {
   readonly hasImageGeneration?: boolean
   /** Child sessions cannot spawn again (M48, PLAN.md D45). */
   readonly hasSubagents?: boolean
+  /** A team conversation declares the team's five tools instead (M96, PLAN.md D75). */
+  readonly teamTools?: typeof TEAM_TOOL_DEFINITIONS
   /** Child sessions cannot ask the panel or set its task list. */
   readonly isSubagent?: boolean
   /** Muse Code's memory tools, trusted workspaces only (M49, PLAN.md D41). */
@@ -800,6 +810,10 @@ export function toolDefinitions(
           define(tool.name, tool.description, tool.properties, tool.required),
         )
       : []),
+    // M96 (PLAN.md D75): the orchestrator's five, never beside M48's six.
+    ...(options.teamTools ?? []).map((tool) =>
+      define(tool.name, tool.description, tool.properties, tool.required),
+    ),
     ...(options.hasMemory === true
       ? MEMORY_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),

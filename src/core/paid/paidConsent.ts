@@ -16,7 +16,7 @@
 // (D62) say the same.
 
 import { PAID_FEATURES, type PaidFeature, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
+import { fill, formatNumber, formatUsd, uiLocale } from '../../shared/l10n/text'
 import {
   paidFeaturePrice,
   autoReviewPrice,
@@ -29,14 +29,19 @@ import {
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
 
+async function paidTeamRuntime() {
+  const entry = await import('../team/teamEntry')
+  return entry.createTeamRuntime(UI_TEXT, uiLocale())
+}
+
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
 
 /** The popup's question and what it says about the use, in the display language. */
-export function paidUseQuestion(request: PaidUseRequest): {
+export async function paidUseQuestion(request: PaidUseRequest): Promise<{
   readonly title: string
   readonly detail: string
-} {
+}> {
   switch (request.feature) {
     case 'judge': {
       const price = autoReviewPrice(request.modelId)
@@ -122,6 +127,10 @@ export function paidUseQuestion(request: PaidUseRequest): {
         }),
       }
     }
+    case 'teamWorkers': {
+      const runtime = await paidTeamRuntime()
+      return runtime.teamWorkerQuestion(request)
+    }
     case 'hookModels': {
       return {
         title: fill(UI_TEXT.paidHookModelTitle, { event: request.event }),
@@ -181,6 +190,11 @@ export interface PaidUseConsentDeps {
   /** The features allowed always in this workspace, still valid (the host drops lapsed ones). */
   readonly readGrants: () => ReadonlySet<PaidFeature>
   readonly writeGrants: (grants: ReadonlySet<PaidFeature>) => Promise<void>
+  /** Valid workspace scopes, invalidated with price acceptance/setting changes like ordinary grants.
+   * Both stores are required to offer team Always; a feature-only legacy grant never authorizes it.
+   */
+  readonly readTeamGrants?: () => ReadonlySet<string>
+  readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   readonly log: CoreLogger
@@ -292,7 +306,12 @@ export class PaidUseConsent {
 
   /** Whether the feature is on and allowed always here, so its next use asks nothing. */
   public isRemembered(feature: PaidFeature): boolean {
-    return this.deps.isOn(feature) && this.deps.canRemember() && this.deps.readGrants().has(feature)
+    return (
+      feature !== 'teamWorkers' &&
+      this.deps.isOn(feature) &&
+      this.deps.canRemember() &&
+      this.deps.readGrants().has(feature)
+    )
   }
 
   /** The features that no longer ask in this workspace, in their fixed order. */
@@ -313,7 +332,14 @@ export class PaidUseConsent {
     if (!this.isEnabled(feature)) {
       return false
     }
-    if (!requiresAsking && this.isRemembered(feature)) {
+    if (request.feature === 'teamWorkers') {
+      const runtime = await paidTeamRuntime()
+      return await runtime.canUseTeam(this.deps, request, requiresAsking, () => {
+        this.notify()
+      })
+    }
+    const isRemembered = this.isRemembered(feature)
+    if (!requiresAsking && isRemembered) {
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       return true
     }
@@ -354,7 +380,7 @@ export class PaidUseConsent {
   public async forget(): Promise<void> {
     const hasWindowOnce = this.windowOnce.size > 0
     this.windowOnce.clear()
-    if (this.deps.readGrants().size === 0) {
+    if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {
       if (hasWindowOnce) {
         this.deps.log.info('Paid uses ask again in this window')
         this.notify()
@@ -362,6 +388,7 @@ export class PaidUseConsent {
       return
     }
     await this.deps.writeGrants(new Set())
+    await this.deps.writeTeamGrants?.(new Set())
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
   }

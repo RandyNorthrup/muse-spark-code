@@ -22,12 +22,16 @@ const HOST_BUNDLES = [
   'dist/conversation.js',
   'dist/tab.js',
   'dist/modelApi.js',
+  'dist/modelApiBoundaries.js',
   'dist/providers.js',
   'dist/validation.js',
   'dist/modelsPanel.js',
   'dist/review.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
+  'dist/team.js',
+  'dist/teamRunners.js',
+  'dist/teamScheduler.js',
   // M91: the imported hooks' adapters, the hook and MCP-form runtime, and
   // the window's extension hook runner.
   'dist/foreignHooks.js',

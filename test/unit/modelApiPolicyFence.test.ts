@@ -21,6 +21,7 @@ import {
 } from '../../src/core/backends/modelapi/tools'
 import type { VerifyHooks } from '../../src/core/backends/modelapi/verifyLoop'
 import type { LanguageServiceHost } from '../../src/core/codeIntel/languageService'
+import { isTeamTool } from '../../src/core/team/teamTools'
 import type { McpTool } from '../../src/core/mcp'
 import type { PermissionSettings } from '../../src/core/permissionSettings'
 import type { WebFetcher } from '../../src/core/web/webFetch'
@@ -111,8 +112,10 @@ type HoldPoint =
   | 'fetch'
   | 'browser'
   | 'shell'
+  | 'shellEntry'
   | 'question'
   | 'childReply'
+  | 'team'
 
 type Hold =
   | { readonly at: HoldPoint; readonly path?: string }
@@ -134,6 +137,7 @@ type Change =
   | { readonly kind: 'forbid' }
   | { readonly kind: 'mode'; readonly mode: string }
   | { readonly kind: 'trust' }
+  | { readonly kind: 'inPlace' }
 
 interface Call {
   readonly name: string
@@ -151,6 +155,7 @@ interface FenceCase {
   readonly replies?: readonly ScriptedReply[]
   readonly mode?: string
   readonly platform?: NodeJS.Platform
+  readonly automaticChecks?: boolean
   readonly hold: Hold
   readonly change: Change
   /** What must reach no request: the marker unless said; null where the outcome carries only what the model sent. */
@@ -192,6 +197,28 @@ function childControl(tool: string, args: unknown): FenceCase {
 }
 
 const CASES: readonly FenceCase[] = [
+  {
+    tool: 'roster',
+    args: {},
+    hold: { at: 'none', reason: 'The roster is synchronous after admission.' },
+    change: { kind: 'trust' },
+    leak: null,
+  },
+  ...[
+    {
+      tool: 'delegate',
+      args: {
+        tasks: [{ role: 'qa', brief: 'Test.', reason: { code: 'specialty', detail: 'Tests.' } }],
+      },
+    },
+    { tool: 'collect', args: { task_ids: ['t1'] } },
+    { tool: 'cancel', args: { task_ids: ['t1'] } },
+    { tool: 'merge', args: { task_id: 't1' } },
+  ].map((tool): FenceCase => ({
+    ...tool,
+    hold: { at: 'team' },
+    change: { kind: 'trust' },
+  })),
   {
     tool: 'read_file',
     args: { path: 'private.txt' },
@@ -559,7 +586,7 @@ function heldService(service: LanguageServiceHost, isHeld: boolean, held: Gate, 
 
 /** A host with every tool the dispatcher knows, the case's I/O held at its gate. */
 function fixture(c: FenceCase) {
-  const state = { settings: NO_RULES, isTrusted: true }
+  const state = { settings: NO_RULES, isTrusted: true, isInPlaceActive: false }
   const held = gate()
   const point = c.hold.at
   const target = 'path' in c.hold ? c.hold.path : undefined
@@ -607,7 +634,11 @@ function fixture(c: FenceCase) {
     },
     runShell: async (...args: Parameters<ToolIo['runShell']>) => {
       count()
-      return await base.runShell(...args)
+      if (point === 'shellEntry') await held.hold()
+      const result = base.runShell(...args)
+      // An unexpected dispatch settles too, so the assertion proves entry refusal.
+      if (point === 'shellEntry') base.runs.at(-1)?.finish({ stdout: 'would write' })
+      return await result
     },
     reserveFile: async (...args: Parameters<ToolIo['reserveFile']>) => {
       count()
@@ -691,6 +722,53 @@ function fixture(c: FenceCase) {
   const log = new FakeLogOutputChannel()
   const host = new ModelApiHost({
     ...disabledPaidFeatures,
+    ...(isTeamTool(c.tool) && {
+      teamDecisionSource: () => ({
+        teamSwitchOn: true,
+        soloTemplate: false,
+        orchestratorModelId: 'muse-spark-1.3',
+        teamWorkersOn: false,
+        customEntries: [
+          {
+            entryId: 'other',
+            modelId: 'other',
+            kind: 'engine',
+            billsKey: false,
+            isAvailable: true,
+          },
+        ],
+        isSameModel: (a: string, b: string) => a === b,
+        isEntryReady: () => true,
+      }),
+      teamRosterData: () => ({ stable: [] }),
+      teamRunner: {
+        preview: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        delegate: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        collect: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        cancel: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+        merge: async () => {
+          count()
+          await held.hold()
+          return { output: MARKER, visibleOutput: '' }
+        },
+      },
+    }),
     isPaidFeatureOn: (feature) => PAID.has(feature),
     allowsPaidUse: () => Promise.resolve(true),
     notePaidUse: (feature) => {
@@ -715,6 +793,7 @@ function fixture(c: FenceCase) {
     },
     // The live state each case changes.
     isWorkspaceTrusted: () => state.isTrusted,
+    isTeamInPlaceActive: () => state.isInPlaceActive,
     permissionSettings: () => state.settings,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     sessionBudgetUsd: () => 0,
@@ -751,7 +830,7 @@ function fixture(c: FenceCase) {
     // Packing (M73) offers recall_output: only its row packs.
     observationPacking: () => c.tool === 'recall_output',
     // The checks would run after every edit: only the case that runs them has them.
-    ...(c.tool === 'run_checks' && { verify }),
+    ...((c.tool === 'run_checks' || c.automaticChecks === true) && { verify }),
     loadHooks: () => Promise.resolve([]),
   })
   // The I/O so far: the fakes' counter, the MCP server's calls and every request.
@@ -782,6 +861,10 @@ function land(change: Change, f: Fixture, setMode: (mode: string) => Promise<voi
     }
     case 'trust': {
       f.state.isTrusted = false
+      return
+    }
+    case 'inPlace': {
+      f.state.isInPlaceActive = true
     }
   }
 }
@@ -1011,6 +1094,84 @@ describe("the dispatcher's live policy fence over every tool (M78)", () => {
         const output = outputOf(f, 'fenced')
         expect(output).toBeDefined()
         expect(output).not.toContain(MODEL_API_MODEL_TEXT.toolRefusedByPolicyChange)
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+
+  it.each(['bash', 'run_checks', 'edit_file'] as const)(
+    'rechecks the in-place writer after awaited %s process entry',
+    async (tool) => {
+      const argsByTool = {
+        bash: { command: 'touch forbidden', description: 'write' },
+        edit_file: { path: 'notes.txt', find: 'before', replace: 'after', then_run: 'npm test' },
+        run_checks: {},
+      }
+      const { f } = await runCase({
+        tool,
+        args: argsByTool[tool],
+        hold: { at: 'shellEntry' },
+        change: { kind: 'inPlace' },
+      })
+      try {
+        expect(f.io.runs).toHaveLength(0)
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+
+  it('rechecks the in-place writer after awaited automatic check process entry', async () => {
+    const { f } = await runCase({
+      tool: 'edit_file',
+      args: { path: 'notes.txt', find: 'before', replace: 'after' },
+      automaticChecks: true,
+      hold: { at: 'shellEntry' },
+      change: { kind: 'inPlace' },
+    })
+    try {
+      expect(f.io.runs).toHaveLength(0)
+    } finally {
+      await f.host.close()
+    }
+  })
+
+  it.each(['edit_file', 'write_file'] as const)(
+    'rechecks the in-place writer after awaited native %s I/O',
+    async (tool) => {
+      const { f } = await runCase({
+        tool,
+        args:
+          tool === 'edit_file'
+            ? { path: 'notes.txt', find: 'before', replace: 'after' }
+            : { path: 'fresh.txt', content: 'after' },
+        hold: { at: tool === 'edit_file' ? 'readFile' : 'realPath' },
+        change: { kind: 'inPlace' },
+      })
+      try {
+        expect(f.io.files.get(`${ROOT}/notes.txt`)).toBe(FILES['notes.txt'])
+        expect(f.io.files.has(`${ROOT}/fresh.txt`)).toBe(false)
+        expect(outputOf(f, 'fenced')).toContain('writing in place')
+      } finally {
+        await f.host.close()
+      }
+    },
+  )
+
+  it.each(['service', 'readFile', 'afterWrite'] as const)(
+    'rechecks the in-place writer after awaited rename %s',
+    async (at) => {
+      const { f } = await runCase({
+        tool: 'rename_symbol',
+        args: { path: 'src/a.ts', line: 1, column: 17, new_name: 'welcome' },
+        hold: { at, ...(at === 'afterWrite' && { path: 'src/a.ts' }) },
+        change: { kind: 'inPlace' },
+      })
+      try {
+        if (at !== 'afterWrite') expect(f.io.files.get(A)).toBe(FILES['src/a.ts'])
+        expect(f.io.files.get(B)).toBe(FILES['src/b.ts'])
+        expect(outputOf(f, 'fenced')).toContain('writing in place')
       } finally {
         await f.host.close()
       }

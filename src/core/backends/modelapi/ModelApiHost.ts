@@ -441,6 +441,7 @@ import {
   type VisibleFile,
 } from './tools'
 import {
+  delegationFamily,
   isSubagentTool,
   sendMessageArgs,
   spawnArgs,
@@ -450,6 +451,22 @@ import {
   targetArgs,
   waitArgs,
 } from './subagentTools'
+import type { TeamStateChange } from '../../team/roster'
+import {
+  decideTeamConversationMode,
+  teamInPlaceRefusalFor,
+  TEAM_BOOTSTRAP_MODEL_TEXT,
+  type TeamConversationMode,
+} from '../../../shared/teamConversation'
+import { TEAM_TOOL_NAMES } from '../../../shared/constants'
+import type { TeamCommandRecord, TeamCommandRegistry, TeamToolName } from '../../team/teamTools'
+import type { createTeamRuntime } from '../../team/teamEntry'
+import type {
+  TeamDecisionSource,
+  TeamRosterLive,
+  TeamStableRole,
+  TeamToolRunner,
+} from '../../team/teamSeams'
 import {
   authorizeThenGuard,
   type CheckRun,
@@ -724,6 +741,29 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * means none are set.
    */
   readonly permissionSettings?: (() => PermissionSettings) | undefined
+  /**
+   * M96 lane T: the team seams lanes R/A/K own. All optional: without them
+   * every conversation is single-model, exactly as today.
+   * - `teamDecisionSource` reads the workspace team and the latest probe
+   *   results (lanes R/K) once per conversation start;
+   * - `teamRosterData` reads the roles and the live headroom (lanes R/A);
+   * - `teamRunner` runs delegate/collect/cancel/merge (lanes A/W/I);
+   * - `isTeamInPlaceActive` reports a running `in-place` worker task (lane W).
+   */
+  readonly teamDecisionSource?: (() => TeamDecisionSource | undefined) | undefined
+  readonly teamRosterData?:
+    | (() =>
+        { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined)
+    | undefined
+  readonly teamRunner?: TeamToolRunner | undefined
+  readonly isTeamInPlaceActive?: (() => boolean) | undefined
+  /** Drain only state transitions and config edits; ordinary consumption stays in tool results. */
+  readonly takeTeamChanges?:
+    | ((sessionId: string) => {
+        readonly states: readonly TeamStateChange[]
+        readonly edits: readonly string[]
+      })
+    | undefined
 }
 
 const NO_ENVIRONMENT: EnvironmentFacts = { git: undefined }
@@ -2111,6 +2151,24 @@ export class ModelApiSession implements AgentSession {
   private readonly children = new Map<string, ChildRecord>()
   private readonly spawnCommands = new Map<string, string>()
   private readonly pendingChildResults: PendingChildResult[] = []
+  /**
+   * M96 lane T: the conversation's declared delegation family, decided from
+   * the latest probe results already known at its first request and kept
+   * with it (PLAN.md D75). A mode change mid-conversation waits for the next
+   * conversation; a resumed conversation keeps its declared set.
+   */
+  private teamMode: TeamConversationMode | undefined
+  /** M96 lane T: `command_id` claims, kept with the conversation. */
+  private teamCommands: TeamCommandRegistry | undefined
+  private storedTeamCommands: Readonly<Record<string, TeamCommandRecord>> = {}
+  private teamRuntime: ReturnType<typeof createTeamRuntime> | undefined
+  private teamRuntimeLoading: Promise<void> | undefined
+
+  /**
+   * M96 lane T: the roster's stable part as the first request sent it, never
+   * rewritten; a team edit reaches the model only as structured tool data.
+   */
+  private teamRosterStable: string | undefined
   /** The contributor-tier models the user said yes to for an agent's run, in this session (M76). */
   private readonly confirmedContributorModels = new Set<string>()
   private childTaskGrant: ChildTaskGrant | undefined
@@ -2284,7 +2342,7 @@ export class ModelApiSession implements AgentSession {
     approvalMode: ApprovalMode,
     private readonly deps: ModelApiHostDeps,
     private readonly onChanged: () => void,
-    private readonly onPersisted: (kind?: 'budget' | 'refund') => Promise<void>,
+    private readonly onPersisted: (kind?: 'budget' | 'refund' | 'team') => Promise<void>,
     private readonly onDispose: () => void,
     private readonly isHostClosing: () => boolean,
     private readonly isSubagent = false,
@@ -2347,6 +2405,23 @@ export class ModelApiSession implements AgentSession {
         run: (id, occurrenceMs, confirmed) => this.runSchedule(id, occurrenceMs, confirmed),
       }
     }
+  }
+
+  private get team(): ReturnType<typeof createTeamRuntime> {
+    if (this.teamRuntime === undefined) throw new Error('team runtime was not prepared')
+    return this.teamRuntime
+  }
+
+  private async prepareTeamRuntime(): Promise<void> {
+    this.teamRuntimeLoading ??= (async () => {
+      const entry = await import('../../team/teamEntry.js')
+      this.teamRuntime = entry.createTeamRuntime(UI_TEXT, uiLocale())
+      this.teamCommands = new this.teamRuntime.TeamCommandRegistry(async () => {
+        if (this.deps.store !== undefined) await this.onPersisted('team')
+      })
+      this.teamCommands.restore(this.storedTeamCommands)
+    })()
+    await this.teamRuntimeLoading
   }
 
   private emit(event: AgentEvent): void {
@@ -3227,6 +3302,42 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
+  /**
+   * M96 lane T: the conversation's delegation family, decided once at its
+   * first request from the latest probe results already known, then kept.
+   * Without a decision source every conversation is single-model, exactly as
+   * today: nothing team-related loads or changes requests.
+   */
+  private teamModeForRequest(): TeamConversationMode {
+    const decided = this.teamMode
+    if (decided !== undefined) {
+      return decided
+    }
+    const source = this.deps.teamDecisionSource?.()
+    const mode: TeamConversationMode =
+      source === undefined || this.isSubagent
+        ? 'single-model'
+        : decideTeamConversationMode(source).mode
+    this.teamMode = mode
+    return mode
+  }
+
+  /**
+   * M96 lane T: the roster's stable part as the first request sends it. It is
+   * fixed then and never rewritten, so the cached prefix holds.
+   */
+  private teamRosterForRequest(): string | undefined {
+    if (this.teamModeForRequest() !== 'team') {
+      return undefined
+    }
+    if (this.teamRosterStable !== undefined) {
+      return this.teamRosterStable
+    }
+    const data = this.deps.teamRosterData?.()
+    this.teamRosterStable = this.team.buildStableRosterSection(data?.stable ?? [])
+    return this.teamRosterStable
+  }
+
   /** The agent's own instructions and tools, or the Reviewer's. */
   private promptAndTools(today: string): {
     readonly instructions: string
@@ -3257,6 +3368,11 @@ export class ModelApiSession implements AgentSession {
     const goalSection = goalInstructions(this.goal)
     const repoMap = this.promptRepoMap()
     const role = this.agentRole()
+    // M96 lane T: a team conversation declares the team's five tools and none
+    // of M48's six; every other conversation declares exactly what it declares
+    // today. The declared set is fixed for the conversation.
+    const teamMode = this.teamModeForRequest()
+    const teamRoster = this.teamRosterForRequest()
     return {
       instructions: instructionsFor({
         workspaceRoot: this.deps.workspaceRoot,
@@ -3273,10 +3389,12 @@ export class ModelApiSession implements AgentSession {
         // The agents catalogue invites a spawn, which asks its paid popup:
         // hidden while paid subagents are off, from a child, which cannot
         // spawn, and once the workspace is no longer trusted (M76 review).
+        // A team conversation never invites one: it declares the team tools.
         context: {
           ...context,
-          agents: this.isAgentCatalogueOffered() ? context.agents : [],
+          agents: teamMode === 'team' || !this.isAgentCatalogueOffered() ? [] : context.agents,
         },
+        ...(teamRoster !== undefined && { teamRoster }),
         verify: {
           isDiagnosticsOn: this.deps.verify?.isDiagnosticsOn() === true,
           checks: this.canRunVerifyCommands() ? this.checkCommands() : [],
@@ -3423,13 +3541,25 @@ export class ModelApiSession implements AgentSession {
     hasMemory: boolean,
     isSubagent = this.isSubagent,
   ): readonly ToolDefinition[] {
+    // M96 lane T: `delegate` replaces `subagent_spawn` in a team
+    // conversation, `collect` replaces wait/status/read-result, and `cancel`
+    // replaces cancel. A single-model conversation keeps M48's tools exactly
+    // as today. The family is fixed for the conversation.
+    const teamMode = this.teamModeForRequest()
     const own = toolDefinitions(this.deps.platform, {
       hasShell,
       // then_run runs any command: only where the shell tool is (M76).
       hasThenRun: hasShell && this.canRunShell(),
       hasSkills,
       hasImageGeneration: this.deps.isPaidFeatureOn('imageGeneration'),
-      hasSubagents: !isSubagent && this.deps.isPaidFeatureOn('subagents'),
+      hasSubagents:
+        delegationFamily(teamMode) === 'subagents' &&
+        !isSubagent &&
+        this.deps.isPaidFeatureOn('subagents'),
+      ...(delegationFamily(teamMode) === 'team' &&
+        !isSubagent && {
+          teamTools: this.team.TEAM_TOOL_DEFINITIONS,
+        }),
       isSubagent,
       hasMemory,
       hasPackedRecall: this.canPack(),
@@ -7490,6 +7620,151 @@ export class ModelApiSession implements AgentSession {
     return subagentFailure(`unknown tool ${call.name}`)
   }
 
+  /**
+   * M96 lane T: while an `in-place` worker task runs, the orchestrator's
+   * tools that can write are refused at call admission ("a worker is writing
+   * in place"): edits, `rename_symbol`, the shell, `then_run` and `merge`.
+   * `then_run` rides on the edit tools, so refusing them refuses it.
+   */
+  private inPlaceRefusalFor(name: string): ToolOutcome | undefined {
+    if (this.isSubagent || this.deps.isTeamInPlaceActive?.() !== true) {
+      return undefined
+    }
+    const external = this.externalTool(name)
+    return teamInPlaceRefusalFor({
+      name,
+      capability: classifyTool(name),
+      isExternalWriter:
+        external?.kind === 'mcp'
+          ? !external.ref.isReadOnly
+          : external?.kind === 'ide' && external.tool.annotations?.['readOnlyHint'] !== true,
+      isUnknownMcp: external === undefined && name.startsWith('mcp__'),
+      detail: UI_TEXT.teamInPlaceOrchestratorRefused,
+    })
+  }
+
+  /** M96 lane T: the five team tools at call admission. */
+  private async runTeamTool(
+    name: TeamToolName,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
+    if (this.isSubagent || this.teamModeForRequest() !== 'team') {
+      const reason = fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool: call.name })
+      return { output: reason, visibleOutput: reason, failureReason: reason }
+    }
+    if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
+      return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
+    }
+    if (
+      this.approvalMode === 'denyUnmatched' &&
+      (name === 'merge' || (name === 'delegate' && argumentsOf(call)['dry_run'] !== true))
+    ) {
+      return this.refusedByMode(call).outcome
+    }
+    const parsed = this.team.parseTeamArgs(name, argumentsOf(call))
+    if (!parsed.ok) {
+      return {
+        output: `Error: ${parsed.reason}`,
+        visibleOutput: parsed.reason,
+        failureReason: parsed.reason,
+      }
+    }
+    if (name === 'roster') {
+      return this.answerRoster()
+    }
+    const runner = this.deps.teamRunner
+    if (name === 'delegate') {
+      return await this.runDelegate(parsed.args, runner, signal)
+    }
+    if (runner === undefined) {
+      return this.unavailableTeamTool(name)
+    }
+    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    if (name === 'collect') {
+      // Validated above; the wait is clamped to the backend's bound here.
+      const reparsed = this.team.collectArgs.safeParse(parsed.args)
+      if (!reparsed.success) {
+        const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidCollectArguments
+        return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+      }
+      const { wait_seconds: wait, ...rest } = reparsed.data
+      return await runner.collect(
+        {
+          ...rest,
+          wait_seconds: this.team.clampCollectWait(wait ?? 0),
+        },
+        context,
+      )
+    }
+    return name === 'cancel'
+      ? await runner.cancel(parsed.args, context)
+      : await runner.merge(parsed.args, context)
+  }
+
+  private unavailableTeamTool(name: TeamToolName): ToolOutcome {
+    const visible = fill(UI_TEXT.teamRunnerUnavailable, { tool: name })
+    return {
+      output: this.team.teamRunnerMissing(name),
+      visibleOutput: visible,
+      failureReason: visible,
+    }
+  }
+
+  /** M96 lane T: `roster` answers the stable part with the live numbers, direct from the seams. */
+  private answerRoster(): ToolOutcome {
+    const data = this.deps.teamRosterData?.()
+    if (data === undefined) {
+      return this.unavailableTeamTool('roster')
+    }
+    const stable = this.team.buildStableRosterSection(data.stable)
+    const live = data.live === undefined ? '' : `\n\n${this.team.buildRosterLive(data.live)}`
+    return { output: `${stable}${live}`, visibleOutput: '' }
+  }
+
+  /**
+   * M96 lane T: `delegate` at call admission. A team conversation whose last
+   * ready distinct entry went away keeps its declared tools, but from the
+   * next turn `delegate` is refused. `dry_run` answers the plan card without
+   * starting or spending anything; a retry with the same `command_id` and
+   * tasks replays the recorded answer. Anything else needs the team runner.
+   */
+  private async runDelegate(
+    args: unknown,
+    runner: TeamToolRunner | undefined,
+    signal: AbortSignal,
+  ): Promise<ToolOutcome> {
+    const parsed = this.team.delegateArgs.safeParse(args)
+    if (!parsed.success) {
+      const reason = TEAM_BOOTSTRAP_MODEL_TEXT.invalidDelegateArguments
+      return { output: `Error: ${reason}`, visibleOutput: reason, failureReason: reason }
+    }
+    const now = this.deps.teamDecisionSource?.()
+    if (now === undefined || decideTeamConversationMode(now).mode !== 'team') {
+      return {
+        output: this.team.singleModelAgainRefusal(),
+        visibleOutput: UI_TEXT.teamSingleModelAgain,
+        failureReason: UI_TEXT.teamSingleModelAgain,
+      }
+    }
+    const { tasks, command_id: commandId, dry_run: dryRun } = parsed.data
+    if (runner === undefined) {
+      return this.unavailableTeamTool('delegate')
+    }
+    const context = { sessionId: this.sessionId, approvalMode: this.approvalMode, signal }
+    if (dryRun === true) return await runner.preview(parsed.data, context)
+    const commands = this.teamCommands
+    if (commands === undefined) throw new Error('team commands were not prepared')
+    return await commands.run(commandId, tasks, () => {
+      signal.throwIfAborted()
+      return runner.delegate(parsed.data, {
+        sessionId: this.sessionId,
+        approvalMode: this.approvalMode,
+        signal,
+      })
+    })
+  }
+
   private async perform(
     itemId: string,
     call: FunctionCallItem,
@@ -7503,6 +7778,19 @@ export class ModelApiSession implements AgentSession {
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
   ): Promise<Performed> {
+    // M96 lane T: while an `in-place` worker task runs, the orchestrator's
+    // writing tools are refused at call admission, in every mode.
+    const inPlace = this.inPlaceRefusalFor(call.name)
+    if (inPlace !== undefined) {
+      return { outcome: inPlace }
+    }
+    // M96 lane T: the five team tools, answered by the roster and the team
+    // runner lanes A/W/I supply.
+    const teamTool = TEAM_TOOL_NAMES.find((tool) => tool === call.name)
+    if (teamTool !== undefined) {
+      const outcome = await this.runTeamTool(teamTool, call, signal)
+      return { outcome: this.teamEventsOutcome(teamTool, outcome) }
+    }
     const external = this.externalTool(call.name)
     if (external !== undefined) {
       return { outcome: await this.performExternal(itemId, external, call, signal) }
@@ -7595,6 +7883,8 @@ export class ModelApiSession implements AgentSession {
     isCurrent: () => boolean,
   ): NonNullable<EditFormatter['assertCanWrite']> {
     return (target) => {
+      const inPlace = this.inPlaceRefusalFor(call.name)
+      if (inPlace !== undefined) throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)
       if (
         !isCurrent() ||
         this.deps.io.hasUnsavedChanges(target.absolute) ||
@@ -8947,6 +9237,9 @@ export class ModelApiSession implements AgentSession {
         seen: this.seenFiles,
         signal,
         beforeAccess: (file) => {
+          const inPlace = this.inPlaceRefusalFor(call.name)
+          if (inPlace !== undefined)
+            throw new CodeIntelRefusal(inPlace.output, inPlace.visibleOutput)
           if (
             this.isDisposed ||
             this.isHostClosing() ||
@@ -9000,7 +9293,13 @@ export class ModelApiSession implements AgentSession {
         isRejected: true,
       }
     }
-    const isAllowed = this.verificationAdmission(signal)
+    const inPlace = this.inPlaceRefusalFor(call.name)
+    if (inPlace !== undefined) {
+      return { outcome: inPlace, isRejected: true }
+    }
+    const current = this.verificationAdmission(signal)
+    const isAllowed: CallAdmission = (detached) =>
+      current(detached) && this.inPlaceRefusalFor(call.name) === undefined
     const external = this.externalTool(call.name)
     if (external !== undefined && this.isSideChat) {
       return {
@@ -10161,7 +10460,9 @@ export class ModelApiSession implements AgentSession {
     const wasTrusted = this.deps.isWorkspaceTrusted()
     // Filtering denied files out of lookup must not authorize checks over the revoked edit.
     const isAllowed: CallAdmission = (canRunDetached) =>
-      admission(canRunDetached) && this.verificationAllowed(edited, undefined, wasTrusted)
+      admission(canRunDetached) &&
+      this.inPlaceRefusalFor(VERIFY_TOOLS.runChecks) === undefined &&
+      this.verificationAllowed(edited, undefined, wasTrusted)
     const { verify } = this.deps
     const { signal } = turn.abort
     if (verify === undefined || isAbortRequested(signal)) {
@@ -10372,8 +10673,19 @@ export class ModelApiSession implements AgentSession {
     })
   }
 
+  private teamEventsOutcome(name: TeamToolName, outcome: ToolOutcome): ToolOutcome {
+    if (this.isSubagent || this.isReviewing() || this.teamModeForRequest() !== 'team')
+      return outcome
+    if (!['roster', 'delegate', 'collect'].includes(name)) return outcome
+    const changes = this.deps.takeTeamChanges?.(this.sessionId)
+    if (changes === undefined) return outcome
+    const events = this.team.formatStateChangeNote(changes.states, changes.edits)
+    return events === undefined ? outcome : { ...outcome, output: `${outcome.output}\n${events}` }
+  }
+
   private async loop(turn: ActiveTurn): Promise<void> {
     const { signal } = turn.abort
+    if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
     let stopContinuations = 0
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
@@ -11461,6 +11773,7 @@ export class ModelApiSession implements AgentSession {
       outcome: 'returned' | 'uncertain' | 'rate-limited',
     ) => void,
   ): Promise<CompactOutcome> {
+    if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     if (!this.hasCompactableHistory(isSummaryFork)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
@@ -12875,6 +13188,15 @@ export class ModelApiSession implements AgentSession {
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
       ...(packedCallIds !== undefined && { packedCallIds }),
       ...(this.spawnCommands.size > 0 && { spawnCommands: Object.fromEntries(this.spawnCommands) }),
+      // M96 lane T: the declared delegation family, so a resumed
+      // conversation keeps its declared set, with its `command_id` claims.
+      // The roster's stable part is kept too, byte for byte: it is never
+      // rewritten, so the cached prefix holds across the resume.
+      ...(this.teamMode !== undefined && { teamMode: this.teamMode }),
+      ...(this.teamRosterStable !== undefined && { teamRoster: this.teamRosterStable }),
+      ...(Object.keys(this.teamCommands?.snapshot() ?? this.storedTeamCommands).length > 0 && {
+        teamCommands: this.teamCommands?.snapshot() ?? this.storedTeamCommands,
+      }),
       ...(this.pendingChildResults.length > 0 && {
         pendingChildResults: this.pendingChildResults.map((pending) => storedPending(pending)),
       }),
@@ -12954,6 +13276,12 @@ export class ModelApiSession implements AgentSession {
     const savedCommands = Object.entries(stored.spawnCommands ?? {})
     for (const [commandId, childId] of savedCommands) {
       this.spawnCommands.set(commandId, childId)
+    }
+    // M96 lane T: a resumed conversation keeps its declared set.
+    this.teamMode = stored.teamMode ?? 'single-model'
+    this.teamRosterStable = stored.teamRoster
+    if (stored.teamCommands !== undefined) {
+      this.storedTeamCommands = stored.teamCommands
     }
     const savedChildren = stored.children ?? []
     for (const saved of savedChildren) {
@@ -13513,6 +13841,25 @@ export class ModelApiHost implements AgentHost {
       : this.queueSave(snapshot, store, false))
   }
 
+  /** Persist retry claims without putting an unanswered call in replay. */
+  private persistTeamCommands(session: ModelApiSession): Promise<void> {
+    const { store } = this.deps
+    if (store === undefined) return Promise.resolve()
+    const snapshot = this.ownedSnapshot(session.snapshot())
+    const last = this.lastSaved.get(snapshot.sessionId)
+    if (last === undefined) return Promise.reject(new Error(UI_TEXT.historyUnavailable))
+    return this.queueSave(
+      {
+        ...last,
+        ...(snapshot.teamMode !== undefined && { teamMode: snapshot.teamMode }),
+        ...(snapshot.teamRoster !== undefined && { teamRoster: snapshot.teamRoster }),
+        ...(snapshot.teamCommands !== undefined && { teamCommands: snapshot.teamCommands }),
+      },
+      store,
+      false,
+    )
+  }
+
   /** A schedule create needs proof its owning session was saved before success. */
   private persistStrict(session: ModelApiSession): Promise<void> {
     const { store } = this.deps
@@ -13546,10 +13893,11 @@ export class ModelApiHost implements AgentHost {
         void this.persist(session)
         this.announce(session)
       },
-      (kind) =>
-        kind === 'budget' || kind === 'refund'
-          ? this.persistBudgetReservation(session, kind === 'refund')
-          : this.persistStrict(session),
+      (kind) => {
+        if (kind === 'budget' || kind === 'refund')
+          return this.persistBudgetReservation(session, kind === 'refund')
+        return kind === 'team' ? this.persistTeamCommands(session) : this.persistStrict(session)
+      },
       () => {
         this.sessions.delete(sessionId)
         this.lastSaved.delete(sessionId)

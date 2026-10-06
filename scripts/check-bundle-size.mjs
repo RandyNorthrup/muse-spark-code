@@ -27,6 +27,9 @@ const BUDGETS = [
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // TRAIN15C: shared captured validators and pure team call admission:
+  // 16,991 bytes +15%, rounded up to 25 KiB (D6).
+  { path: 'dist/modelApiBoundaries.js', budgetKiB: 25 },
   // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
   { path: 'dist/providers.js', budgetKiB: 125 },
@@ -40,6 +43,13 @@ const BUDGETS = [
   { path: 'dist/sessionBoard.js', budgetKiB: 75 },
   // M78b: paid Auto review after consent, 55.2 KiB with the same rule.
   { path: 'dist/reviewer.js', budgetKiB: 75 },
+  // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
+  // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
+  { path: 'dist/team.js', budgetKiB: 75 },
+  // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamRunners.js', budgetKiB: 75 },
+  // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
+  { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
   // loaded the first time a session holding one runs a hook: 64.9 KiB when
   // split out (2026-10-04). 85.7 KiB once the imported records' reader moved

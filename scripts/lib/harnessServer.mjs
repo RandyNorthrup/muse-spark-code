@@ -7,6 +7,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
+import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
@@ -18,6 +19,13 @@ export function bundleFor(scenario) {
 // Real time for one page; a hung browser fails rather than producing an empty result.
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
+export const TRAFFIC_SCENARIOS = [
+  'team-traffic',
+  'team-traffic-320',
+  'team-traffic-hints',
+  'team-traffic-recovery',
+  'runners',
+]
 export const SCENARIOS = [
   'empty',
   'signin',
@@ -97,8 +105,13 @@ export const SCENARIOS = [
   'checkpoint-read-only',
   'checkpoint-read-only-narrow',
   'checkpoint-legacy',
+  ...TRAFFIC_SCENARIOS,
   'agents',
   'agents-off',
+  // M96 lane U2: the team tree (and at 320 px), and the transcript cards.
+  'team-tree',
+  'team-tree-320',
+  'team-cards',
   'usage-api',
   // M95: Account & usage with per-provider rows and key usage.
   'usage-providers',
@@ -215,7 +228,8 @@ const CONTENT_TYPES = {
 }
 
 /** Serves `repoRoot` on an unused loopback port: `{ server, port }`. */
-export function serveRepo(repoRoot) {
+export async function serveRepo(repoRoot) {
+  await buildTrafficHarness()
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
     const target = path.resolve(repoRoot, `.${decodeURIComponent(url.pathname)}`)
@@ -233,7 +247,7 @@ export function serveRepo(repoRoot) {
       response.writeHead(404).end()
     }
   })
-  return new Promise((resolve) => {
+  return await new Promise((resolve) => {
     server.listen(0, LOOPBACK, () => {
       resolve({ server, port: server.address().port })
     })
@@ -249,11 +263,18 @@ export function serveRepo(repoRoot) {
  * scrollbars headless Chrome otherwise hides, as its check measures one.
  */
 export const SIZED_SCENARIOS = {
+  ...Object.fromEntries(
+    TRAFFIC_SCENARIOS.map((scenario) => [
+      scenario,
+      { width: scenario === 'team-traffic-320' ? 320 : 690, ready: 'body[data-traffic-ready]' },
+    ]),
+  ),
+  'share-narrow': { width: 320, ready: '[role="dialog"]' },
+  'team-tree-320': { width: 320, ready: '[role="dialog"]' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },
   'judge-usage': { width: 690, ready: '[role="dialog"]' },
-  'share-narrow': { width: 320, ready: '[role="dialog"]' },
   // M91 lane M: the MCP elicitation form at the panel's narrowest width.
   'elicitation-narrow': { width: 320, ready: 'form' },
   'report-narrow': { width: 320, ready: '[role="dialog"]' },

@@ -1,0 +1,613 @@
+{
+  "status": "uncertified: single full-quality invocation exited 1; all repaired scoped cases, final standalone gates and packages pass; fresh full-profile and REDWINI96 Windows proof remain",
+  "rig": "macmini",
+  "base": "30105e49",
+  "wMerge": "9dcd95cc",
+  "dietMergeParent": "be00b172",
+  "D78": {
+    "failedBefore": 64,
+    "failedAfter": 0,
+    "decision": "D78 conditional recall, all 64 pre-D78 fixtures updated; exact raw request matcher unchanged",
+    "table": "m96-int-round3c-d78.json",
+    "planReference": {
+      "file": "PLAN.md",
+      "line": 4769,
+      "section": "D78 FIXDEF"
+    }
+  },
+  "checks": [
+    {
+      "name": "mcp",
+      "passed": 76,
+      "failed": 0,
+      "files": [
+        "test/unit/mcpPool.test.ts",
+        "test/unit/teamMcpBridge.test.ts",
+        "test/unit/teamMcpServer.test.ts"
+      ]
+    },
+    {
+      "name": "paid",
+      "passed": 45,
+      "failed": 0,
+      "files": [
+        "test/unit/paidConsent.test.ts",
+        "test/unit/paidHookModels.test.ts",
+        "test/unit/teamWorkersPaid.test.ts"
+      ]
+    },
+    {
+      "name": "package-team",
+      "passed": 51,
+      "failed": 0,
+      "files": [
+        "test/unit/teamActivationGraph.test.ts",
+        "test/unit/teamConstants.test.ts",
+        "test/unit/teamRuntimePackage.test.mjs"
+      ]
+    },
+    {
+      "name": "transcript",
+      "passed": 92,
+      "failed": 0,
+      "files": [
+        "test/unit/TeamCards.test.tsx",
+        "test/unit/Transcript.test.tsx",
+        "test/unit/reportProblemRows.test.tsx"
+      ]
+    },
+    {
+      "name": "browser",
+      "passed": 22,
+      "failed": 0,
+      "files": ["test/unit/teamHarness.test.mjs"]
+    },
+    {
+      "name": "package-units-green",
+      "passed": 59,
+      "failed": 0,
+      "files": [
+        "test/unit/compressedEnglish.test.mjs",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/vsixPackaging.test.mjs"
+      ]
+    },
+    {
+      "name": "d78-ui-startup-green",
+      "passed": 116,
+      "failed": 0,
+      "files": [
+        "test/unit/UsageDialog.test.tsx",
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
+    },
+    {
+      "name": "paid-merge-fix",
+      "passed": 50,
+      "failed": 0,
+      "files": [
+        "test/unit/paidFeatures.test.ts",
+        "test/unit/paidHookModels.test.ts",
+        "test/unit/judgeConsent.test.ts"
+      ]
+    },
+    {
+      "name": "committed-proof",
+      "passed": 8,
+      "failed": 0,
+      "files": [
+        "test/unit/teamWorkerCertification.test.ts",
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
+    },
+    {
+      "name": "late-product",
+      "passed": 111,
+      "failed": 0,
+      "files": [
+        "test/unit/flightRecorder.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/paletteRegistry.test.ts"
+      ]
+    },
+    {
+      "name": "late-inventory",
+      "passed": 40,
+      "failed": 0,
+      "files": [
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/webviewBundle.test.mjs"
+      ]
+    },
+    {
+      "name": "late-exec-green",
+      "passed": 38,
+      "failed": 0,
+      "files": ["test/e2e/execStdio.e2e.test.ts"]
+    },
+    {
+      "name": "late-native-ssh",
+      "passed": 46,
+      "failed": 0,
+      "files": [
+        "test/unit/sshRunner.test.ts",
+        "test/unit/teamNativeLifetime.test.ts",
+        "test/unit/teamSchedulerRetire.test.ts"
+      ]
+    },
+    {
+      "name": "late-landing-html",
+      "passed": 55,
+      "failed": 0,
+      "files": [
+        "test/unit/htmlToMarkdown.test.ts",
+        "test/unit/teamLanding.test.ts",
+        "test/unit/teamMergeBatchRepository.test.ts"
+      ]
+    },
+    {
+      "name": "late-package-units",
+      "passed": 59,
+      "failed": 0,
+      "files": [
+        "test/unit/compressedEnglish.test.mjs",
+        "test/unit/uiTextRegions.test.mjs",
+        "test/unit/vsixPackaging.test.mjs"
+      ]
+    },
+    {
+      "name": "portable-plugin-and-host",
+      "passed": 70,
+      "failed": 0,
+      "existingSkipped": 2,
+      "files": ["test/unit/pluginDispatch.test.ts", "test/unit/pluginHost.test.ts"]
+    },
+    {
+      "name": "late-golden-browser",
+      "passed": 126,
+      "failed": 0,
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/paletteRegistry.test.ts"
+      ]
+    },
+    {
+      "name": "final-committed-proof",
+      "passed": 8,
+      "failed": 0,
+      "files": [
+        "test/unit/teamWorkerCertification.test.ts",
+        "test/unit/teamPlanRecord.test.ts",
+        "test/unit/teamStartup.test.mjs"
+      ]
+    },
+    {
+      "name": "late-lint-retest",
+      "passed": 72,
+      "failed": 0,
+      "files": [
+        "test/e2e/execStdio.e2e.test.ts",
+        "test/unit/paidDailyBudget.test.ts",
+        "test/unit/teamNativeLifetime.test.ts"
+      ]
+    },
+    {
+      "name": "final-a11y-units",
+      "passed": 41,
+      "failed": 0,
+      "files": [
+        "test/unit/DiffTallyRow.test.tsx",
+        "test/unit/diffTally.test.ts",
+        "test/unit/reportProblemDialog.test.tsx"
+      ]
+    },
+    {
+      "name": "final-source-proof",
+      "passed": 92,
+      "failed": 0,
+      "files": [
+        "test/unit/modelApiGoldenRequests.test.ts",
+        "test/unit/teamHarness.test.mjs",
+        "test/unit/teamWorkerCertification.test.ts"
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "source": "src/core/backends/modelapi/modelApiHost.ts",
+      "beforeSha256": "b45c69fcdad4c74eee07ef3bcc14d5563c21adf1b40099264966553f2f03af9b",
+      "restoredSha256": "b45c69fcdad4c74eee07ef3bcc14d5563c21adf1b40099264966553f2f03af9b",
+      "redFailed": 64,
+      "greenPassed": 69,
+      "redExit": 1,
+      "greenExit": 0
+    },
+    {
+      "file": "dist/meta/webview.json",
+      "beforeSha256": "a2f416f4f0166a51ad54bd025c277d509560f2771a9b08d7610996976f20a0f2",
+      "restoredSha256": "a2f416f4f0166a51ad54bd025c277d509560f2771a9b08d7610996976f20a0f2",
+      "redExit": 1,
+      "greenExit": 0,
+      "reason": "TeamTree omitted from separately budgeted closure"
+    },
+    {
+      "source": "dist/webview/chunks/TeamUi-XFPOB7VO.js",
+      "sha256": "a80278d8e955c75987bd263432dd9e5268d40dbadc87682b60c3c60dffe8677a",
+      "red": "teamHarness 23 size drill pads chunk by 900 KiB; gate exits 1 and names team UI",
+      "green": "same test checks exact SHA restoration, then gate exits 0"
+    },
+    {
+      "source": "src/host/team/processLifetime.ts",
+      "beforeSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "restoredSha256": "485c6dc2ed9a1ef4da68e15907db9467360206371681e1070f5b9aa486020409",
+      "redFailed": 1,
+      "greenPassed": 17,
+      "redExit": 1,
+      "greenExit": 0
+    },
+    {
+      "source": "src/webview/styles.css",
+      "beforeSha256": "34a1bc61ee00d9abf681dbc7c6cf8594d119287c56f108aef706fe25b8052833",
+      "redExit": 1,
+      "restoredSha256": "34a1bc61ee00d9abf681dbc7c6cf8594d119287c56f108aef706fe25b8052833",
+      "greenExit": 0,
+      "redRule": "color-contrast",
+      "redElements": 2,
+      "redPages": 4,
+      "greenPages": 4,
+      "greenViolations": 0,
+      "greenUndecided": 0
+    }
+  ],
+  "windowsDependency": "REDWINI96 host proof, merged in round 3d; not certified on macmini",
+  "browserBytes": {
+    "startup": 875986,
+    "startupCap": 921600,
+    "teamUi": 16088,
+    "teamUiCap": 25600,
+    "ordinaryDeferred": 51098,
+    "ordinaryDeferredCap": 51200
+  },
+  "gates": {
+    "typecheckFiveProjects": 0,
+    "l10n": 0,
+    "hostApi": 0,
+    "bundleSplit": 0,
+    "notices": 0,
+    "lintOriginal": 1,
+    "lintRepairedPaths": 0,
+    "deadcode": 0,
+    "cycles": 0,
+    "duplication": 0,
+    "productionBuild": 0,
+    "bundleSize": 0,
+    "hostGlobals": 0,
+    "postRepairTypecheckFiveProjects": 0,
+    "postRepairDuplication": 0,
+    "postRepairProductionBuild": 0,
+    "postRepairAudit": 0,
+    "finalWebviewTypecheck": 0,
+    "finalA11yChangedPathsLint": 0,
+    "finalA11yTargeted": {
+      "exit": 0,
+      "pages": 16,
+      "violations": 0,
+      "undecided": 0,
+      "missingResults": 0,
+      "exempt": 0
+    },
+    "finalUnitTypecheck": 0,
+    "finalA11yComplete": {
+      "exit": 0,
+      "pages": 652,
+      "scenarios": 163,
+      "themes": 4,
+      "violations": 0,
+      "undecided": 0,
+      "exempt": 0,
+      "missingResults": 0
+    },
+    "finalSourceSast": 0,
+    "finalSourceL10N": 0,
+    "finalSourceAudit": 0,
+    "finalSastRules": 529,
+    "finalSastFiles": 1471,
+    "finalSastFindings": 0
+  },
+  "packages": {
+    "helperless": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2122220,
+      "sha256": "29cbe36d5709d7cc316c23afa337579be010d0782229a8aca976169d1d31ec25",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": false,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+      "capBytes": 2252800,
+      "headroomBytes": 130580
+    },
+    "universal": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2205039,
+      "sha256": "cf165bf4e90b755ad2fe579677d5b95535516df0649276e499a704d61f7a1650",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": true,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+      "capBytes": 2252800,
+      "headroomBytes": 47761
+    },
+    "acp": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-qmc333p1/acp-muse-spark-code-acp-0.14.0.tgz",
+      "bytes": 1088802,
+      "sha256": "642d4a32e6eb4dacd8b3afecc86327bdbf1ba15b44c314cbbcb303a7d40bae89"
+    }
+  },
+  "nativeHelper": {
+    "provenance": "built locally from integrated Dictation.swift and package version 0.14.0",
+    "architectures": ["x86_64", "arm64"],
+    "bytes": 290816,
+    "sha256": "74193576f7c3a8291d5fae7debfebbb9d44ab4e40b0a765470fd35bca9e74bf0",
+    "disclaimCheck": "pending disclaimed request, SIGTERM ends parent and child, exit 143"
+  },
+  "packagedLoaderProof": {
+    "vsix": {
+      "passed": 37,
+      "failed": 0
+    },
+    "acp": {
+      "passed": 18,
+      "failed": 0
+    }
+  },
+  "sourceCommit": "f084b2b0d4f77da44e762860b0d655d88b6dbe62",
+  "historySecrets": {
+    "head": {
+      "exit": 0
+    },
+    "bundle": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q0iyfs5_/integration.bundle",
+    "isolatedOwnHistory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-history-q0iyfs5_/integration.git",
+    "sharedRefsChanged": false,
+    "default-own": {
+      "exit": 0
+    },
+    "commitsScanned": 1095,
+    "findingsOwnHistory": 0,
+    "sharedDefault": {
+      "exit": 1,
+      "findings": 7,
+      "outsideHead": true,
+      "archivedRefs": [
+        "refs/archive/2026-10-05/rt-fixm95x-baseline",
+        "refs/archive/2026-10-05/rt-fixm95x-drills",
+        "refs/archive/2026-10-05/rt-fixm95x-dup",
+        "refs/archive/2026-10-05/rt-fixm95x-final-gates",
+        "refs/archive/2026-10-05/rt-fixm95x-gates",
+        "refs/archive/2026-10-05/rt-fixm95x-green",
+        "refs/archive/2026-10-05/rt-fixm95x-merged",
+        "refs/archive/2026-10-05/rt-fixm95x-red-before",
+        "refs/archive/2026-10-05/rt-m95t",
+        "refs/archive/2026-10-05/rt-m95t-check",
+        "refs/archive/2026-10-05/rt-m95t-lint",
+        "refs/archive/2026-10-05/rt-m95t-record",
+        "refs/archive/2026-10-05/rt-m95t-type",
+        "refs/archive/2026-10-05/rt-star"
+      ],
+      "permission": "shared-ref removal request pending; no refs removed",
+      "commitsScanned": 1585
+    },
+    "testedHead": "f084b2b0d4f77da44e762860b0d655d88b6dbe62"
+  },
+  "fullQuality": {
+    "command": "VITEST_MAX_WORKERS=3 npm run quality",
+    "invocations": 1,
+    "testedHead": "2622fb4441effb1c5bdebcabeaf551c405aca5f1",
+    "exit": 1,
+    "passed": 12514,
+    "failed": 69,
+    "skipped": 151,
+    "files": {
+      "passed": 573,
+      "failed": 16,
+      "skipped": 8
+    },
+    "unitDurationSeconds": 934.55,
+    "stoppedAt": "coverage test run",
+    "notReached": [
+      "production build",
+      "dependency audit",
+      "accessibility",
+      "default shared-history scan",
+      "SAST"
+    ],
+    "tail": [
+      "",
+      "",
+      " Test Files  16 failed | 573 passed | 8 skipped (597)",
+      "      Tests  69 failed | 12514 passed | 151 skipped (12734)",
+      "   Start at  17:43:47",
+      "   Duration  934.55s (tests 84%, import 6%, setup 5%, environment 2%, transform 2%, worker 1%)",
+      "",
+      "    Isolate  597 workers spawned \u00b7 ~319ms startup each (spawn + environment, per file)",
+      "             at least ~63.20s faster with isolate: false \u2014 reuses workers across files instead of one per file",
+      "",
+      "ERROR: \"test:unit\" exited with 1.",
+      "ERROR: \"quality:gates\" exited with 1."
+    ]
+  },
+  "lateScopedMatrix": {
+    "distinctFiles": 20,
+    "passedDistinct": 510,
+    "existingActualBunSkips": 2,
+    "failureTable": "m96-int-round3c-late.json",
+    "profile": "at most three files; --maxWorkers=3 --testTimeout=120000; original staging hook 10000 ms"
+  },
+  "preflightPackages": {
+    "helperless": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/helperless-muse-spark-code-0.14.0.vsix",
+      "bytes": 2121414,
+      "sha256": "f0dcd7e7e789eba4006218d14cb5e2c0082bb90542d705471106011d89fd7db8",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": false,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "universal": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/universal-muse-spark-code-0.14.0.vsix",
+      "bytes": 2204233,
+      "sha256": "7315f8c0ea2562c8bdba1c02c860489ae477f1731394c79d822dd127619c1b61",
+      "requiredFiles": {
+        "dist/team.js": true,
+        "dist/teamScheduler.js": true,
+        "dist/teamRunners.js": true,
+        "dist/runtime.bundles.json.br": true,
+        "native/runner/runner-helper.sh": true,
+        "native/runner/runner-helper.ps1": true
+      },
+      "macHelperPresent": true,
+      "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-XFPOB7VO.js"]
+    },
+    "acp": {
+      "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-packages-yb7snqm7/acp-muse-spark-code-acp-0.14.0.tgz",
+      "bytes": 1088885,
+      "sha256": "b0d44c8bf5310208455f08ceed90bde8c840b06e22354831aeadd4692867b9d8"
+    }
+  },
+  "packageCapBytes": 2252800,
+  "dependencyAuditRepair": {
+    "advisory": "GHSA-68fv-2mgg-jv7q",
+    "package": "source-map-js",
+    "before": "1.2.1",
+    "after": "1.2.2",
+    "developmentOnly": true,
+    "ships": false,
+    "shippedMetafileInputs": 0,
+    "peerDependencies": {},
+    "registryPublished": "2026-09-30T14:08:09.382Z",
+    "integrity": "sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==",
+    "initialAuditExit": 1,
+    "repairedAuditExit": 0,
+    "privateFullLockInstall": {
+      "directory": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-install-proof-q5nu7h_n",
+      "command": "npm ci --ignore-scripts --no-audit --no-fund --cache <owned OS cache>",
+      "exit": 0,
+      "worktreeInstallChanged": false,
+      "lockedVersion": "1.2.2",
+      "sharedInstalledVersion": "1.2.1",
+      "privateInstalledVersion": "1.2.2",
+      "lockSha256": "b8719e00bb2fff849dfa25fa0d19a424d64bad774fd9f47bb4296e72f2f6ab72"
+    },
+    "sharedInstallChanged": false,
+    "exceptionsChanged": false
+  },
+  "standaloneInitialGates": {
+    "audit": {
+      "command": "npm run security:audit",
+      "exit": 1,
+      "seconds": 2.72
+    },
+    "a11y": {
+      "command": "npm run test:a11y",
+      "exit": 1,
+      "seconds": 491.08
+    },
+    "sast": {
+      "command": "npm run security:sast",
+      "exit": 0,
+      "seconds": 87.41
+    },
+    "l10n": {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 3.51
+    },
+    "host-api": {
+      "command": "npm run check:host-api",
+      "exit": 0,
+      "seconds": 17.64
+    }
+  },
+  "postRepairPackageHistory": {
+    "42fb18e2": {
+      "helperless": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/helperless-muse-spark-code-0.14.0.vsix",
+        "bytes": 2121944,
+        "sha256": "9e680043277dab41d6ed4500b52e6725b262f6a329d20d1ec734d2a15afced77",
+        "requiredFiles": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true
+        },
+        "macHelperPresent": false,
+        "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+        "capBytes": 2252800,
+        "headroomBytes": 130856
+      },
+      "universal": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/universal-muse-spark-code-0.14.0.vsix",
+        "bytes": 2204763,
+        "sha256": "3655a71d955707a2e5bffdae0700ec0f37be01a5a2f6be5556654005507b75a3",
+        "requiredFiles": {
+          "dist/team.js": true,
+          "dist/teamScheduler.js": true,
+          "dist/teamRunners.js": true,
+          "dist/runtime.bundles.json.br": true,
+          "native/runner/runner-helper.sh": true,
+          "native/runner/runner-helper.ps1": true
+        },
+        "macHelperPresent": true,
+        "browserTeamUi": ["extension/dist/webview/chunks/TeamUi-STNZ6P4S.js"],
+        "capBytes": 2252800,
+        "headroomBytes": 48037
+      },
+      "acp": {
+        "path": "/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m96-int3c-final-packages-f1vojixs/acp-muse-spark-code-acp-0.14.0.tgz",
+        "bytes": 1088802,
+        "sha256": "642d4a32e6eb4dacd8b3afecc86327bdbf1ba15b44c314cbbcb303a7d40bae89"
+      }
+    }
+  },
+  "standaloneFinalSourceGates": {
+    "sast": {
+      "command": "npm run security:sast",
+      "exit": 0,
+      "seconds": 84.92
+    },
+    "l10n": {
+      "command": "npm run check:l10n",
+      "exit": 0,
+      "seconds": 3.03
+    },
+    "audit": {
+      "command": "npm run security:audit",
+      "exit": 0,
+      "seconds": 2.99
+    }
+  },
+  "receiptCommitChanges": "Only PLAN and certification records follow source f084b2b0; they are excluded from shipped packages. Final receipt HEAD scans are reported after committing."
+}

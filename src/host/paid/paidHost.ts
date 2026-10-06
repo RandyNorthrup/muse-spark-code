@@ -85,6 +85,7 @@ function confirmationDetail(feature: PaidFeature): string {
     subagents: UI_TEXT.paidConfirmSubagents,
     autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
     bestOfN: UI_TEXT.paidConfirmBestOfN,
+    teamWorkers: UI_TEXT.paidConfirmTeamWorkers,
     // Tab (M94, PLAN.md D73): the confirmation quotes both tiers' rates
     // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
     // own model instead (paidConsent.ts).
@@ -155,7 +156,7 @@ export async function askPaidUse(
   if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
     return 'deny'
   }
-  const { title, detail } = paidUseQuestion(request)
+  const { title, detail } = await paidUseQuestion(request)
   const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
   const always: vscode.MessageItem = { title: UI_TEXT.paidAllowAlways }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }

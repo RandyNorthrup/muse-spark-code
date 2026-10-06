@@ -5,6 +5,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import { UsageDialog, type UsageDialogProps } from '../../src/webview/components/UsageDialog'
+import type { TeamUsageSummary } from '../../src/shared/teamView'
 
 const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
@@ -81,6 +82,12 @@ function renderDialog(overrides: Partial<UsageDialogProps> = {}) {
   return { ...props, unmount: view.unmount }
 }
 
+async function renderPaidDialog(overrides: Partial<UsageDialogProps>) {
+  const props = renderDialog(overrides)
+  await screen.findByText(/^Estimated (?:paid|extra-feature) total$/)
+  return props
+}
+
 function providersReport(): Partial<UsageDialogProps> {
   return {
     report: {
@@ -146,8 +153,8 @@ describe('UsageDialog', () => {
     expect(screen.getByRole('button', { name: 'Install Muse Code' })).toBeInTheDocument()
   })
 
-  it('shows CLI install and key replacement inside its modal without running either on open', () => {
-    const props = renderDialog({
+  it('shows CLI install and key replacement inside its modal without running either on open', async () => {
+    const props = await renderPaidDialog({
       auth: {
         status: 'signedIn',
         detail: undefined,
@@ -471,8 +478,8 @@ describe('UsageDialog insights fallback (M18)', () => {
 })
 
 describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
-  it('shows unknown child request cost without claiming it was free', () => {
-    renderDialog({
+  it('shows unknown child request cost without claiming it was free', async () => {
+    await renderPaidDialog({
       report: {
         backend: 'modelApi',
         subscription: undefined,
@@ -503,8 +510,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     providers: undefined,
   }
 
-  it('tallies this window’s paid use with each feature’s state and estimated cost', () => {
-    renderDialog({
+  it('tallies this window’s paid use with each feature’s state and estimated cost', async () => {
+    await renderPaidDialog({
       report: modelApiReport,
       paid: {
         features: ['webSearch'],
@@ -522,9 +529,9 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('published prices, read on 2026-09-24')
   })
 
-  it('names what is allowed always in this workspace, and asks again on request (M58)', () => {
+  it('names what is allowed always in this workspace, and asks again on request (M58)', async () => {
     const onForgetPaidUse = vi.fn()
-    renderDialog({
+    await renderPaidDialog({
       report: modelApiReport,
       onForgetPaidUse,
       paid: {
@@ -544,8 +551,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(onForgetPaidUse).toHaveBeenCalledTimes(1)
   })
 
-  it('offers no "Ask again" while every paid use still asks (M58)', () => {
-    renderDialog({
+  it('offers no "Ask again" while every paid use still asks (M58)', async () => {
+    await renderPaidDialog({
       report: modelApiReport,
       paid: {
         features: ['webSearch'],
@@ -557,8 +564,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(screen.queryByRole('button', { name: 'Ask again every time' })).not.toBeInTheDocument()
   })
 
-  it('counts scheduled runs without adding their tokens twice to the paid extra total (M52)', () => {
-    renderDialog({
+  it('counts scheduled runs without adding their tokens twice to the paid extra total (M52)', async () => {
+    await renderPaidDialog({
       report: modelApiReport,
       paid: {
         features: ['scheduledPrompts'],
@@ -574,8 +581,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.0000')
   })
 
-  it('counts the Auto reviewer’s reviews and adds their cost to the extra total (M78)', () => {
-    renderDialog({
+  it('counts the Auto reviewer’s reviews and adds their cost to the extra total (M78)', async () => {
+    await renderPaidDialog({
       report: modelApiReport,
       paid: {
         features: ['autoReviewer'],
@@ -604,8 +611,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(screen.getByRole('dialog')).not.toHaveTextContent('Paid features')
   })
 
-  it('tallies the key’s images and voice on the Muse Code backend with a stored key (M44)', () => {
-    renderDialog({
+  it('tallies the key’s images and voice on the Muse Code backend with a stored key (M44)', async () => {
+    await renderPaidDialog({
       paid: {
         features: ['imageGeneration'],
         tally: { webSearches: 0, images: 3, voiceSeconds: 0, scheduledRuns: 0 },
@@ -620,8 +627,8 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
     expect(dialog).not.toHaveTextContent('Web search (')
   })
 
-  it('keeps a feature this window used on another backend in the list and the total (the review of PR #30)', () => {
-    renderDialog({
+  it('keeps a feature this window used on another backend in the list and the total (the review of PR #30)', async () => {
+    await renderPaidDialog({
       paid: {
         features: ['imageGeneration'],
         tally: { webSearches: 4, images: 3, voiceSeconds: 0, scheduledRuns: 0 },
@@ -674,6 +681,72 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
   })
 })
 
+describe('UsageDialog Team section (M96 lane U2)', () => {
+  const team: TeamUsageSummary = {
+    today: { tasks: 3, inputTokens: 80_000, outputTokens: 20_000, costUsd: 1.2, estimated: false },
+    window: { tasks: 5, inputTokens: 100_000, outputTokens: 40_000, costUsd: 2.5, estimated: true },
+    byRole: [
+      {
+        roleId: 'engineering',
+        name: 'engineering',
+        figures: {
+          tasks: 3,
+          inputTokens: 80_000,
+          outputTokens: 20_000,
+          costUsd: 1.2,
+          estimated: false,
+        },
+      },
+    ],
+    byEntry: [
+      {
+        entryId: 'e1',
+        roleId: 'engineering',
+        label: 'engineering · entry 1',
+        payKind: 'key',
+        figures: {
+          tasks: 2,
+          inputTokens: 70_000,
+          outputTokens: 10_000,
+          costUsd: 1,
+          estimated: false,
+        },
+      },
+      {
+        entryId: 'e2',
+        roleId: 'engineering',
+        label: 'engineering · entry 2',
+        payKind: 'local',
+        figures: {
+          tasks: 1,
+          inputTokens: 10_000,
+          outputTokens: 10_000,
+          costUsd: 0,
+          estimated: true,
+        },
+      },
+    ],
+  }
+
+  it('shows today and the window, per role and per entry, with estimated marked', async () => {
+    renderDialog({ team })
+    await screen.findByText('Today')
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Team')
+    expect(dialog).toHaveTextContent('Today')
+    expect(dialog).toHaveTextContent('This window')
+    expect(dialog).toHaveTextContent('engineering')
+    expect(dialog).toHaveTextContent('engineering · entry 1 (key)')
+    expect(dialog).toHaveTextContent('engineering · entry 2 (local)')
+    expect(dialog).toHaveTextContent('estimated')
+  })
+
+  it('stays today’s dialog without a team', () => {
+    renderDialog({})
+    expect(screen.getByRole('dialog')).not.toHaveTextContent('This window')
+  })
+})
+
 describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
   const tabReport = {
     backend: 'modelApi' as const,
@@ -683,8 +756,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     insights: undefined,
   }
 
-  it('shows requests, tokens, today and window costs, and the budget while Tab is on', () => {
-    renderDialog({
+  it('shows requests, tokens, today and window costs, and the budget while Tab is on', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: ['tab'],
@@ -717,8 +790,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).toHaveTextContent('Estimated extra-feature total$0.1200')
   })
 
-  it('shows the configured budget, no made-up today, and wraps its facts (RVM94HU 23–25)', () => {
-    renderDialog({
+  it('shows the configured budget, no made-up today, and wraps its facts (RVM94HU 23–25)', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: ['tab'],
@@ -747,8 +820,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(label.nextElementSibling).toHaveClass('usage-paid-child')
   })
 
-  it('counts one request in the singular', () => {
-    renderDialog({
+  it('counts one request in the singular', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: ['tab'],
@@ -771,8 +844,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).not.toHaveTextContent('1 Tab requests')
   })
 
-  it('names requests with no reported cost yet instead of claiming they were free', () => {
-    renderDialog({
+  it('names requests with no reported cost yet instead of claiming they were free', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: ['tab'],
@@ -794,8 +867,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('2 requests have no reported cost yet')
   })
 
-  it('says off with the budget, not zeros as if it ran, while Tab never ran here', () => {
-    renderDialog({
+  it('says off with the budget, not zeros as if it ran, while Tab never ran here', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: [],
@@ -810,8 +883,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(label.nextElementSibling).not.toHaveTextContent('$0.00')
   })
 
-  it('keeps real history visible after Tab is turned off', () => {
-    renderDialog({
+  it('keeps real history visible after Tab is turned off', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: [],
@@ -836,8 +909,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
     expect(dialog).toHaveTextContent('Daily budget: $1.00')
   })
 
-  it('marks Tab allowed always in this workspace like every paid feature (M58)', () => {
-    renderDialog({
+  it('marks Tab allowed always in this workspace like every paid feature (M58)', async () => {
+    await renderPaidDialog({
       report: tabReport,
       paid: {
         features: ['tab'],
@@ -862,8 +935,8 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
 })
 
 describe('M98 Judge usage row', () => {
-  it('shows paid judge calls, known tokens, costs and retained unknown calls', () => {
-    renderDialog({
+  it('shows paid judge calls, known tokens, costs and retained unknown calls', async () => {
+    await renderPaidDialog({
       ...modelApiCostCase(),
       paid: {
         features: ['judge'],
@@ -883,8 +956,8 @@ describe('M98 Judge usage row', () => {
     expect(screen.getByText(/1 request has no reported cost yet/)).toBeVisible()
   })
 
-  it('does not present an unknown judge bill as zero', () => {
-    renderDialog({
+  it('does not present an unknown judge bill as zero', async () => {
+    await renderPaidDialog({
       ...modelApiCostCase(),
       paid: {
         features: ['judge'],

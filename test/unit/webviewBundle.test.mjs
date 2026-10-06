@@ -67,6 +67,7 @@ function sizeFixture(sharedBytes) {
   writeFileSync(path.join(built.fixture, ENTRY), 'x')
   writeFileSync(path.join(built.fixture, 'dist/webview/shared.js'), Buffer.alloc(sharedBytes))
   writeFileSync(path.join(built.fixture, 'dist/webview/deferred.js'), Buffer.alloc(49 * 1024))
+  writeFileSync(path.join(built.fixture, 'dist/webview/TeamUi.js'), '')
   const shared = { path: 'dist/webview/shared.js', kind: 'import-statement', external: false }
   writeFileSync(
     path.join(built.fixture, 'dist/meta/webview.json'),
@@ -81,6 +82,10 @@ function sizeFixture(sharedBytes) {
         },
         'dist/webview/shared.js': { imports: [] },
         'dist/webview/deferred.js': { imports: [] },
+        'dist/webview/TeamUi.js': {
+          entryPoint: 'src/webview/components/TeamUi.tsx',
+          imports: [],
+        },
       },
     }),
   )
@@ -107,22 +112,25 @@ describe('the production webview chunks (FIX78W)', () => {
     )
   })
 
-  it('loads provider usage from the usage dialog only through a nested dynamic import', () => {
-    const source = 'src/webview/components/ProviderUsageSection.tsx'
-    const owners = Object.entries(built.outputs).filter(([, output]) =>
-      Object.hasOwn(output.inputs, source),
-    )
-    expect(owners).toHaveLength(1)
-    const [[file, output]] = owners
-    expect(output.entryPoint).toBe(source)
-    expect(initialOutputs().has(file)).toBe(false)
-    const usage = Object.values(built.outputs).find(
-      (output) => output.entryPoint === 'src/webview/components/UsageDialog.tsx',
-    )
-    expect(usage.imports).toContainEqual(
-      expect.objectContaining({ path: file, kind: 'dynamic-import' }),
-    )
-  })
+  it.each(['ProviderUsageSection', 'PaidUsageSection'])(
+    'loads %s from the usage dialog only through a nested dynamic import',
+    (name) => {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      const [[file, output]] = owners
+      expect(output.entryPoint).toBe(source)
+      expect(initialOutputs().has(file)).toBe(false)
+      const usage = Object.values(built.outputs).find(
+        (output) => output.entryPoint === 'src/webview/components/UsageDialog.tsx',
+      )
+      expect(usage.imports).toContainEqual(
+        expect.objectContaining({ path: file, kind: 'dynamic-import' }),
+      )
+    },
+  )
 
   it.each([
     'src/shared/l10n/en.ts',

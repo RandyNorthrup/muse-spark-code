@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-05",
+  "machine": "macmini",
+  "branch": "m96c/int",
+  "testedHead": "258ad3d7",
+  "source": "src/core/team/mergeQueue.ts",
+  "mutation": "Serial admission trials use initial instead of the last admitted tree.",
+  "sha256Before": "3345353d0fe50a04530d9601730e99bd698585db76092cad357150328ce28e4d",
+  "sha256AfterRestore": "3345353d0fe50a04530d9601730e99bd698585db76092cad357150328ce28e4d",
+  "testFiles": ["test/unit/teamMergeBatchRepository.test.ts"],
+  "flags": ["--maxWorkers=3", "--testTimeout=120000"],
+  "red": {
+    "exitCode": 1,
+    "total": 4,
+    "passed": 1,
+    "failed": 3,
+    "failedTests": [
+      "cumulative batches on real repositories checks actual merged files and lands the exact last passing tree: culprit",
+      "cumulative batches on real repositories checks actual merged files and lands the exact last passing tree: interaction",
+      "cumulative batches on real repositories checks actual merged files and lands the exact last passing tree: dependency"
+    ]
+  },
+  "restoredGreen": {
+    "exitCode": 0,
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "failedTests": []
+  }
+}

@@ -17,6 +17,24 @@ const compare = (left, right) => left.localeCompare(right, 'en')
 
 async function exercise(api, name, table) {
   switch (name) {
+    case 'modelApiBoundaries.js': {
+      const valid = api.inputTokensSchema.safeParse({ input_tokens: 1 }).success
+      const invalid = api.inputTokensSchema.safeParse({ input_tokens: -1 }).success
+      assert.equal(valid, true)
+      assert.equal(invalid, false)
+      const decision = api.decideTeamConversationMode({ teamSwitchOn: false })
+      assert.deepEqual(decision, { mode: 'single-model', reason: 'team-off' })
+      const detail = `fixture: ${table.teamInPlaceOrchestratorRefused}`
+      const refusal = api.teamInPlaceRefusalFor({
+        name: 'shell',
+        capability: 'shell',
+        isExternalWriter: false,
+        isUnknownMcp: false,
+        detail,
+      })
+      assert.equal(refusal.visibleOutput, detail)
+      return { valid, invalid, decision, refusal }
+    }
     case 'hookRuntime.js': {
       return api.parseElicitationParams({ message: 'Who?', requestedSchema: {} })
     }

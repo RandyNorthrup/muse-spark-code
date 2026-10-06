@@ -25,6 +25,14 @@ import {
 } from '../../shared/agentEvents'
 import { PAID_FEATURES, TASK_REQUESTS } from '../../shared/constants'
 import { NOTICE_ACTIONS, NOTICE_LEVELS, reportEventRefSchema } from '../../shared/protocol'
+import {
+  teamMergeFields,
+  teamPlanFields,
+  teamReportFields,
+  teamSwitchFields,
+  teamWaitingFields,
+  teamWorkerLabelSchema,
+} from '../../shared/teamView'
 
 const pendingApprovalSchema = z.object({
   approvalId: z.string(),
@@ -225,6 +233,12 @@ const toolEntrySchema = z.object({
   backgroundInitiator: z.optional(z.string()),
   /** A call billed on top of tokens (M33, PLAN.md D30): the row says it is paid. */
   paid: z.optional(z.enum(PAID_FEATURES)),
+  /**
+   * A worker's own card, routed to the main panel (M96 lane U2): the role,
+   * the agent and the task, drawn by the panel's chrome, never by the
+   * worker (D75, threat T8).
+   */
+  teamWorker: z.optional(teamWorkerLabelSchema),
   /** Pictures the tool reported the model saw (`modelVisibleContent`, M43), by path. */
   images: z.optional(z.readonly(z.array(z.string()))),
   /** The verify loop's row (M68): the files, their errors and warnings, each check. */
@@ -344,6 +358,49 @@ const itemEntrySchema = z.object({
   text: z.optional(z.string()),
 })
 
+/**
+ * The team's transcript cards (M96 lane U2, PLAN.md D75): the delegation
+ * card and plan, the switch row, the "waiting for you" card, the merge
+ * card and each task's report row. Lanes T/A/W create these from the
+ * orchestrator's tools; the webview renders them from these fields.
+ */
+const teamPlanEntrySchema = z.object({
+  kind: z.literal('teamPlan'),
+  id: z.string(),
+  status: z.string(),
+  ...teamPlanFields,
+})
+
+const teamSwitchEntrySchema = z.object({
+  kind: z.literal('teamSwitch'),
+  id: z.string(),
+  status: z.string(),
+  ...teamSwitchFields,
+})
+
+const teamWaitingEntrySchema = z.object({
+  kind: z.literal('teamWaiting'),
+  id: z.string(),
+  status: z.string(),
+  ...teamWaitingFields,
+  teamDecision: z.optional(z.string()),
+})
+
+const teamMergeEntrySchema = z.object({
+  kind: z.literal('teamMerge'),
+  id: z.string(),
+  status: z.string(),
+  ...teamMergeFields,
+  teamDecision: z.optional(z.string()),
+})
+
+const teamReportEntrySchema = z.object({
+  kind: z.literal('teamReport'),
+  id: z.string(),
+  status: z.string(),
+  ...teamReportFields,
+})
+
 const errorEntrySchema = z.object({
   kind: z.literal('error'),
   id: z.string(),
@@ -390,6 +447,11 @@ export const transcriptEntrySchema = z.discriminatedUnion('kind', [
   userShellEntrySchema,
   subagentEntrySchema,
   workflowEntrySchema,
+  teamPlanEntrySchema,
+  teamSwitchEntrySchema,
+  teamWaitingEntrySchema,
+  teamMergeEntrySchema,
+  teamReportEntrySchema,
   itemEntrySchema,
   errorEntrySchema,
   noticeEntrySchema,

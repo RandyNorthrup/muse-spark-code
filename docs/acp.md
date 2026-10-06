@@ -436,6 +436,14 @@ sends no model request. Its exec result retains the response-proof contract:
 claiming a completed model response. Attachments or additional arguments remain ordinary
 prompts, rather than being silently discarded as command input.
 
+The unreleased M96c adapters are packaged behind the team factory: the board
+and scheduler load from `dist/teamScheduler.js`, runner and Traffic host
+capabilities from `dist/teamRunners.js`. Both native runner helpers ship with
+the ACP package. These factories need the editor/window runtime to supply
+journalled launch, ownership, permissions and landing; team dispatch and the
+Traffic/Runners panel remain unavailable until those bindings are integrated.
+Packaging them does not enable remote execution or spend.
+
 ## Report a problem (M93)
 
 `muse-spark-code-acp report` prints the same kind of scrubbed problem report

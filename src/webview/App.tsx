@@ -74,7 +74,10 @@ import { Palette, type PaletteKeys, type PaletteView } from './components/Palett
 import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
 import { SignIn } from './components/SignIn'
 import { TodoPanel } from './components/TodoPanel'
+import type { TeamTreeActions } from './components/TeamTree'
+import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
+import type { TeamCardActions } from './components/TeamCards'
 import { diffTally } from './diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
@@ -1043,6 +1046,51 @@ export function App({
       postMessage({ type: 'cancelQuestion', userInputId })
     },
     [dispatch, postMessage],
+  )
+  // The team's waiting and merge cards (M96 lane U2): the answers post to
+  // the host, which lanes T/A/W answer. The cards lock locally until the
+  // host's next update replaces the row.
+  const teamActions = useMemo<TeamCardActions>(
+    () => ({
+      onAnswerWaiting: (waitingId, choice) => {
+        postMessage({ type: 'answerTeamWaiting', waitingId, choice })
+      },
+      onDecideMerge: (taskId, decision) => {
+        postMessage({ type: 'decideTeamMerge', taskId, decision })
+      },
+      onReviewDiff: (taskId) => {
+        postMessage({ type: 'reviewTeamDiff', taskId })
+      },
+    }),
+    [postMessage],
+  )
+  // The Agent map's team tree (M96 lane U2): every button posts to the
+  // host; the tree itself renders from the host's `teamTree` message.
+  const teamTreeActions = useMemo<TeamTreeActions>(
+    () => ({
+      onOpenTranscript: (taskId) => {
+        postMessage({ type: 'openTeamTaskTranscript', taskId })
+      },
+      onStopTask: (taskId) => {
+        postMessage({ type: 'stopTeamTask', taskId })
+      },
+      onReviewDiff: (taskId) => {
+        postMessage({ type: 'reviewTeamDiff', taskId })
+      },
+      onDecideMerge: (taskId, decision) => {
+        postMessage({ type: 'decideTeamMerge', taskId, decision })
+      },
+      onEditRole: (roleId) => {
+        postMessage({ type: 'openTeamRoles', roleId })
+      },
+      onResetEntry: (entryId) => {
+        postMessage({ type: 'resetTeamEntry', entryId })
+      },
+      onStopAll: () => {
+        postMessage({ type: 'stopAllTeamTasks' })
+      },
+    }),
+    [postMessage],
   )
   const onClarifyQuestion = useCallback(
     (userInputId: string, text: string) => {
@@ -2048,6 +2096,7 @@ export function App({
           onQuote={onQuote}
           onCopyQuote={onCopyQuote}
           onCloseQuoteMenu={onCloseQuoteMenu}
+          teamActions={teamActions}
           onEditQueued={onEditQueued}
           // A Model API steer waits for the next request; Muse Code's reaches the turn at once.
           canEditSteered={state.auth.backend === 'modelApi'}
@@ -2169,6 +2218,8 @@ export function App({
         onClose={closeOverlay}
         workflows={workflows}
         workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
+        team={state.teamTree}
+        teamActions={teamTreeActions}
       />
     ) : null
   const history =
@@ -2230,6 +2281,7 @@ export function App({
         report={state.usageReport}
         usage={state.usage}
         context={state.context}
+        team={state.usageReport?.team}
         modelId={state.model?.modelId}
         modelPricing={state.models.find((model) => model.modelId === state.model?.modelId)?.pricing}
         paid={state.paid}
@@ -2315,6 +2367,10 @@ export function App({
           agentCount={agentCount}
           runningAgentCount={runningAgentCount}
           runningTaskCount={backgroundTasks.filter((task) => isRunningTask(task)).length}
+          teamTaskCount={state.teamTree === undefined ? 0 : teamTaskCount(state.teamTree)}
+          runningTeamTaskCount={
+            state.teamTree === undefined ? 0 : teamRunningTaskCount(state.teamTree)
+          }
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />

@@ -10,6 +10,7 @@ happened, not what was planned; superseded entries are kept.
 ### Highlights
 
 - **Bring your own model.** Manage captured provider formats and local models in Models & Agents, with credentials held by the host. <!-- try: command museSpark.modelsAndAgents -->
+
 - **Preserve long-task context.** Sticky packed output, literal recall, cache-stable prompts and capability-gated strict tools share the editor and ACP engine; automatic compaction remains inactive pending evaluation.
 
 ### Added
@@ -25,6 +26,7 @@ with Your Own Model` wizard (in-memory draft; Save writes
   diffs, removal with Undo, import/export without secrets, and the
   workspace preset suggestion.
 
+
 - **First-run and usage UI for bring-your-own providers (M95 lane U).**
   The sign-in gate offers Start with your own model beside the other two
   (ranked equally with no backend set up); a finished setup confirms once
@@ -33,34 +35,130 @@ with Your Own Model` wizard (in-memory draft; Save writes
   the composer pill names the provider; Account & usage lists per-provider
   tallies with OpenRouter key usage and unpriced/local costs. A confidential
   workspace hides training models from the list and refuses them on switch.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
+
 - Windows shell directory tracking now uses the native long workspace path
   when starting or resetting a command, so 8.3 aliases keep the correct cwd
   and workspace-relative directory tail.
+
 - Production bundle regression tests now build their own compressed English and
   shared wire fixtures, so macOS CI's test job works without a prior build.
+
 - Windows CI hook fixtures now use the platform their captured paths describe;
   Cline discovery exercises both POSIX and Windows path handling on every OS.
   Deferred-bundle checks load their in-memory builds without requiring stale
   or pre-existing files in `dist`.
+
 - Cline hook quoting is checked through native PowerShell on Windows and the
   POSIX shell on Unix, without requiring a Windows Bash installation.
+
 - Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
   missing-browser-chunk checks accept Windows filesystem error paths.
+
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
 
+- **M96 integration round 3c (unreleased internals).** Reconcile W's final
+  worker fixes with the shared Git classifier and retain the D78 conditional
+  recall request contract. Tree, cards, worker labels and team usage share a
+  separately budgeted lazy browser chunk. The package diet archives exact lazy
+  bundle bytes and translation values; Brotli level 10 keeps staging within
+  its existing deadline. Existing startup, deferred and VSIX caps remain fixed.
+  The report frame allowlist includes the shipped team bundles, and the paid
+  worker row explains its price in the existing localized consent text.
+  Package fixtures follow the final split inventory; the native retirement
+  regression advances its test clock while retaining real process ownership.
+
+
+- **Traffic browser harness integration.** Load one ESM surface per scenario
+  and wait for the Traffic readiness marker before accessibility scanning.
+  Browser regressions cover all five Traffic and runner scenarios.
+
+
+- **Team settlement integration (unreleased internals).** A and K share
+  one durable settlement algorithm while keeping their own error messages.
+  End-write recovery tests arm their injected failure before a child can exit.
+
+
+- **M96c X2 package adapters (unreleased internals).** The team factory loads
+  board/scheduler tools and runner/Traffic host capabilities on demand; VSIX
+  and ACP packages include their bundles and runner helpers. Tool schemas
+  are generated from the production validators. The missing Models & Agents
+  panel and team runtime bindings remain an integration prerequisite.
+  The English fallback uses a lossless build-time encoding; strings and
+  installed-language behavior are unchanged.
+
+
+- **Team strings, constants and schemas (M96 lane 0, unreleased
+  internals).** Shared pool, task, usage, ledger and Agent map contracts,
+  charter templates and recovery/landing text with all 14 translations.
+  Pool entries retain model settings, and ledger task rows retain their
+  required task identity. Team validators install when the team activates,
+  keeping single-model activation, Model API and ACP bundles free of them.
+
+
+- **Agent roles, charters and tool sets (M96 lane R, unreleased
+  internals).** The new `src/core/team/` holds the seven built-in roles
+  and their generated `AGENT.md` files, the role keys on M76's parser with
+  shadow-only narrowing and the new-id ceiling, the seven-part charter
+  generator, the one tool-set definition behind allowlists, the charter's
+  "You may" line and the panel checklist, the model-into-role capability
+  check, same-model identity, and the workspace team with the
+  `.muse/team.json` lowering merge — with tests, translations and the red
+  drills in `docs/certification/m96-r.md`. Nothing team-related loads or
+  changes requests for a single model.
+
+
+- **M96 agent roles, lane A (pools, accounting and the ledger)**: pool selection takes the first entry with headroom and moves down the line at a cap, a rate limit or a usage limit, with one switch row and one `TeamAgentSwitch` per move; `continue on next` hands the task off with a brief on the same branch; the exhausted policy answers `ask` (Queue it, Main agent does it, Raise a limit…, Cancel), `queue` (recoverable reasons only, then it asks) or `self`; meters sum ledger rows plus open reservations per measure and window, reported or estimated, charged to the sending entry; the ledger keeps one redacted row per delegation in a daily append-only file, with interrupted rows and retention rollups. New paid feature `teamWorkers` (`museSpark.modelApiTeamWorkers`, on with one price question before the first charge): each delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget.
+
+
+- **Team templates, autofill, intensity, validation, preview and transfer
+  (M96 lane F).** Pure core: the four team templates with suggested pools,
+  the four suggestion kinds with reasons, dismissals and learning from the
+  local record, the five intensity levels with custom-role keeping and the
+  throttle backoff, per-model settings with cost notes, inline cap
+  validation, the no-model-call preview with cost ranges, and credential-
+  free export with strict import. Strings in all 14 tables.
+
+
+- **Team workspaces and integration (M96 lane I).** `src/core/team/` holds the
+  `agents/<role>/<task-id>` workspaces on the Best-of-N infrastructure
+  (shared clones with no remote, scratch copies for read-only workers, the
+  end-of-task commit and fetch), the ref fence (the worker git guard, the
+  read-only shell list, the credential-free environment, the `agents/` ref
+  check), the per-file three-way merge with `git merge-file` (conflicts with
+  markers, protected paths, `write-paths`, Undo merge), and review-before-merge
+  with the reviewer pick that differs from every author.
+
+
+- **The Agent map's team tree and transcript cards (M96 lane U2).** Once
+  the team runs, the Agent map grows a team tree — the orchestrator at the
+  root, roles with mode and tools, pool entries with caps and headroom, and
+  each entry's workers with Open transcript, Stop, Review diff, Merge and
+  Discard — with WAI-ARIA tree keyboard support and the same items at
+  320 px. The orchestrator's transcript shows the delegation plan, one row
+  per switch, the four-choice "waiting for you" card, the merge card and
+  each task's report row; a worker's own approval or question card carries
+  the panel-drawn role, agent and task label. Account & usage gains a Team
+  section, and the header pill counts team tasks. With one model the panel
+  is exactly today's: no team UI loads or changes requests.
+
 ### Changed
+
+- Share captured Model API validators and pure team admission in an independently budgeted Node bundle; load paid usage rows only when the report includes paid features. Existing size caps and usage behavior stay fixed.
 
 - Account & usage loads provider tallies in their own chunk when a nonempty
   provider report is shown, keeping the original deferred bundle allowance.
+
 
 - Chat, Models and What's New share one browser splitting build; common React,
   validation, bridge and localization code ship once. The exact provider
   catalogue uses the verified lazy runtime archive, reducing the VSIX while
   retaining every existing startup and package cap.
+
 
 - Smaller universal VSIX and ACP packages: runtime translations, lazy English
   regions share a bounded Brotli archive; exact lazy Node sources use a separate
@@ -68,6 +166,7 @@ with Your Own Model` wizard (in-memory draft; Save writes
   Bundle checksums preserve the compiled bytes and filename; damaged tables
   retain the existing English fallback. Lossless walkthrough image compression
   preserves every pixel. Activation code and all package caps stay unchanged.
+
 
 - M101 integration: combine release 0.14.0 and reviewed cache, compaction,
   overflow, tools and provider lanes. Bind strict schemas to selected model
@@ -82,14 +181,23 @@ with Your Own Model` wizard (in-memory draft; Save writes
   privacy checks and picker host actions, retain browser array bounds in strict
   schemas, and align shipped browser/worker package records.
 
+- Smaller universal VSIX and ACP packages: runtime translations, lazy English
+  regions share a bounded Brotli archive; exact lazy Node sources use a separate
+  solid archive so translation damage preserves backend availability.
+  Bundle checksums preserve the compiled bytes and filename; damaged tables
+  retain the existing English fallback. Lossless walkthrough image compression
+  preserves every pixel. Activation code and all package caps stay unchanged.
+
 ### Fixed
 
 - Archived Node bundles retain their named exports under native `import()` and
   `require()`, restoring lazy hooks, MCP forms, Auto review and deferred panels.
   Both package jobs now compare every Node module's exports and selected
   function calls with the unpacked build.
+
 - The VSIX packaging unit suite now builds its own English fixtures from source,
   so a fresh checkout can run it before a production build.
+
 
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
@@ -101,6 +209,7 @@ with Your Own Model` wizard (in-memory draft; Save writes
   overrides. Session saves coalesce into one in-flight write plus the latest;
   parallel save failures are observed immediately while other sessions drain.
   History listing validates headers without replay/transcript validation.
+
 - M101 lane P1 (BYO codecs): one bad history item no longer breaks later
   requests. Blank text is dropped, empty tool results ride as
   `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
@@ -124,28 +233,34 @@ with Your Own Model` wizard (in-memory draft; Save writes
   own `__proto__` keys as data, including Anthropic tool arguments.
   Fakes only; no live
   or paid model call.
+
 - M101 tool correctness: atomic multi-edit calls are schema-valid, fuzzy
   matching preserves newlines and yields to Stop, read paging keeps its
   next offset, file URLs decode before confinement, and ACP previews name
   the same targets. Shell originals remain recallable above the first-send
   budget, background completions pack, and new failures are translated.
 
+
 - M101 tool safety: cut-short replies refuse every tool call, including
   completed items, show failed tool rows and explain why the turn failed
   across all five provider codecs.
+
 - M101 review repairs keep Gemini goal progress as trailing user context and
   Chat/OpenRouter rolling cache markers on historical messages. Pending
   Manual approvals preserve sticky packed ids for safe crash recovery, even
   without a token/spend change. ACP and headless Model API conversations now
   share observation packing and exact literal `recall_output` with the panel.
+
 - M101 adds case-sensitive literal search to `recall_output`, keeps its
   declaration stable for a tool-capable packing session, and restores sticky
   packing ids across resume, fork and rewind. Cache misses are logged only
   where the selected format reports cached usage; all new text is translated
   into the 14 display languages.
+
 - M101 keeps goal progress outside the cached instruction prefix, places
   Anthropic’s rolling breakpoint before the transient progress message, and
   fixes the local prompt date once per session across resume and fork.
+
 - Automatic compaction stops during pending dependencies, honours a memory
   hook's request to stop, and ends goal work when a summary spends its token
   budget while preserving separate user input. Stopped unsent reservations are
@@ -155,9 +270,11 @@ with Your Own Model` wizard (in-memory draft; Save writes
   respective input sizes. The plan
   distinguishes this candidate's packing default from released main's default.
 
+
 - Carry the existing release repairs into the candidate's five test fixtures:
   include the required validation bundle, check module script tags, and await
   the deferred Account & usage dialog.
+
 
 - The Model API engine now has automatic compaction economics, settled-tool
   boundary decisions, and one classified overflow recovery attempt per turn.
@@ -169,11 +286,13 @@ with Your Own Model` wizard (in-memory draft; Save writes
   If accounting fails during an HTTP retry notice, that dispatched attempt
   is settled once and the turn stops; cleanup cannot tally it a second time.
 
+
 - Compaction keeps media removed by Stop out of its request and resolves the
   selected model's capabilities after hooks. File snapshots report successful
   effective tool results. Final-admission refusal rolls back unsent summary
   forks; already compacted sources can be summary-forked. ACP editors and
   headless prompts route `/compact` to the same backend compaction core.
+
 
 - Model API compaction reuses the sent cached prefix where supported,
   snapshots exact open tasks and replay-derived file paths, and keeps recent
@@ -183,6 +302,7 @@ with Your Own Model` wizard (in-memory draft; Save writes
   stream failures share the turn retry limit. Returned tools never run.
   The summary-fork engine action is opt-in and requires injected paid
   admission; it remains unavailable in the UI until D78 is wired.
+
 - Model API turns recognize context overflow and show “Context window full:
   /compact or /handoff”. Context pressure, request admission and text-file
   read budgets follow the selected model's supplied window. Admission checks
@@ -194,10 +314,12 @@ with Your Own Model` wizard (in-memory draft; Save writes
   available and rate limits keep their existing retry path. BYO registry wiring and certified production activation of automatic
   recovery remain integration work.
 
+
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage
   loads on demand with a dismissible loading modal. Chat's unchanged startup
   budget counts every static JavaScript chunk; the package ships all chunks.
+
 
 - M95 integration uses one strict Models panel bridge and includes the captured
   Chat and Ollama codecs in the lazy provider bundle. Z.ai key checks use a
@@ -205,12 +327,14 @@ with Your Own Model` wizard (in-memory draft; Save writes
   harness readiness and selected-description contrast survive combined builds.
   Native Chat reasoning fragments copy future fields without setter mutation;
   serial SAST scans complete at unchanged rule deadlines without timeout warnings.
+
 - The M95 Chat codec keeps impossible cache accounting unknown, fails
   corrupt response chunks, and preserves tool-call identity across fragments
   and responses, including Fireworks' captured nullable continuation IDs.
   Vision-capable models accept image input and image tool results; retained
   completed hosted search survives a provider switch as plain text. Packed
   output and compaction requests now have checked-in byte goldens.
+
 - M95 integration keeps all captured provider codecs and provider core in
   `dist/providers.js`, with required membership and exclusion checks and a
   measured bundle budget. The Models panel emits the script and stylesheet
@@ -224,6 +348,7 @@ with Your Own Model` wizard (in-memory draft; Save writes
   and error colors, valid usage markup and accessible checkbox targets.
   The harness routes the BYO chat palette to the chat bundle.
 
+
 - Provider endpoint checks classify equivalent IPv6 spellings consistently and
   restrict plain HTTP to literal loopback or localhost. Budget admission reserves
   full input cost; settlement counts fresh, cached and cache-written input once.
@@ -234,20 +359,25 @@ with Your Own Model` wizard (in-memory draft; Save writes
   and recommendations exclude non-callable models. The provider wizard requires
   endpoint validation and private-network consent before saving, and connection
   edits clear dependent credentials, tests and consent.
+
 - Provider descriptions, key hints, privacy explanations, wizard and validation
   messages, suggestions and scan summaries follow the installed display language
   in all fourteen translations, including localized counts and currency.
+
 - Gemini codec: count billed thinking in output usage, require a successful
   terminal reason, and retain live item identities. Regression checks include
   the unit TypeScript project and the real host's live message/thinking rows.
+
 - Gemini tool-result images now fail with an explicit named error pending a
   supported captured replay shape. Checked-in exact request bytes cover first
   turns, signed tool loops, user images, packed output and compaction; session
   growth preserves every earlier content entry and stable request field.
+
 - Harden the pending Anthropic provider codec: bound stream accumulation,
   reject malformed deltas, preserve cache-write usage and TTL counts, apply
   rolling cache breakpoints, and translate local errors. Native request
   goldens and the codec bundle exclusion guard cover the review regressions.
+
 - **M95 provider host review repairs.** Stored-key tests and scans refuse an
   edited origin; panel failures use fixed text, and password-box/OAuth keys
   remain in host-owned drafts. The panel uses the Models bridge and stylesheet.
@@ -256,16 +386,19 @@ with Your Own Model` wizard (in-memory draft; Save writes
   writes/removal recovery preserve provider state. Auth recognizes configured
   local models. Canonical exports retain model options and the default model.
   Final integration certification and the activation-growth residual remain open.
+
 - Confidential workspaces resolve current bring-your-own model privacy
   before selection, including first setup; unknown models and failed
   resolution are refused. Bare Muse-only pickers retain their existing
   rows and keyboard wrapping.
+
 - The Models panel requests provider edit drafts explicitly, keeps grid
   shortcuts within the grid, and clears inaccessible active references.
   Its JavaScript and CSS now build at the host's expected paths. Theme
   colors, usage-list markup and checkbox targets pass the four-theme
   accessibility checks; five German, French and Italian labels are
   translated without localization exceptions.
+
 
 - **M95 Ollama codec review repairs.** Native tool identities preserve
   growing-session history, reasoning replays only to its producing model,
@@ -274,13 +407,16 @@ with Your Own Model` wizard (in-memory draft; Save writes
   decode fixtures; five byte goldens and translated codec errors cover the
   repaired seam. Provider integration and full milestone certification remain
   separate gates.
+
 - **Provider account IDs stay redacted across session export boundaries.**
   Whole-string redaction validates slice cuts, including `team id` followed
   by a newline and UUID; serialized OpenAI and Anthropic account headers
   are redacted in logs and exports while retaining JSON names and quotes.
+
 - **Offline provider catalogue replay avoids deep Buffer assertion cost.**
   Tests compare byte length and SHA-256 without changing the default timeout
   or the sealed snapshot integrity checks.
+
 - **M101 lane T: tool and packing correctness.** A packed placeholder trims
   the tail from its front so the final lines (a shell result's exit code)
   survive, a single long line packs to about a 1k excerpt, and packing that
@@ -296,6 +432,339 @@ with Your Own Model` wizard (in-memory draft; Save writes
   `then_run` output rides whole while the session packs observations, so it
   stays recoverable through `recall_output`; a non-string `then_run` is
   reported instead of silently dropped; output clips never split a character.
+
+- Team staging reads independent Git mode metadata concurrently, keeping
+  its raw-byte, executable-mode and final snapshot checks.
+
+- POSIX runner jobs remove credential variables without starting a process
+  for each environment name. Matching remains case-insensitive, and the
+  helper restores its previous shell option afterward.
+
+- Paid-consent regression tests share their exact pending-popup assertions,
+  clearing the zero-duplication gate while preserving both Allow-once and
+  Deny coverage.
+
+
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+
+
+- **Diff counter contrast checks.** The existing sign and count share one
+  colored text span, preserving totals and translated order while allowing
+  single-digit contrast measurement. The report browser fixture checks its
+  controls after the lazy dialog renders.
+
+
+- **Development dependency audit.** Pin `source-map-js` to 1.2.2 for the
+  indexed-source-map denial-of-service advisory. The dependency is not shipped;
+  the audit rule and existing exception list stay unchanged.
+
+
+- Team workers and read-only Git calls share one classifier, including wrapper
+  inspection, clustered short-option refusals, exact argv and safe listings.
+  The workspace team reader preserves validated scheduler shared-file rules.
+
+
+- Team checks validate and quote scoped files for the destination operating
+  system and guard the final command before dispatch. Persistent check slots
+  own their Git objects and release cancelled snapshots only when every
+  launched child has proved retirement.
+
+- Runner supervisors release their own setup-cache lease after timeout
+  retirement. Output polling checks original bytes before streaming UTF-8,
+  Windows launches refuse commands over the process limit with a translated
+  reason, and the native Windows job separates initialization from argument
+  assignment.
+
+
+- M96 team launcher foundations now prove process ownership at each signal,
+  use stable Linux pidfds, cancel held launches during disposal, retry failed
+  retirement, and use monotonic deadlines. Advisory hints validate the opened
+  inode; damaged recovery records warn without hiding valid launches. Product
+  wiring and Windows runtime certification remain part of M96 integration.
+
+- M96 team recovery now uses recorded process identity rather than marker text;
+  macOS reads libproc and a separate environment projection. Retirement avoids
+  waiting for unowned processes, Windows hints consume the ACL-verified handle,
+  Windows END waits for helper closure without another STOP, and damaged foreign
+  journal directories warn without hiding valid launches.
+
+
+- M96's team view validators and paid-team pricing load from the existing
+  team bundle on use. Ordinary startup discards unused role tables and shares
+  identical scalar validators and paid-usage settlement code. Paid questions
+  recheck cancellation and feature state after loading.
+
+
+- **Final role ceilings (M96 lane R).** An empty final delegate intersection
+  withdraws every delegation tool, so admission and the charter agree that
+  the worker cannot delegate. Offered configured MCP tools survive personal
+  allowlists and session inheritance, while runtime and project ceilings
+  still narrow them. Charters consume the frozen final toolset and preserve
+  built-in QA's test-only shell and research/review's read-only shell policy.
+
+
+- **Role resolution redesigned (M96 lane R, round 3).** All role files,
+  catalogues, permission modes and runtime ceilings are captured before
+  resolution. Any missing, unreadable, malformed or ambiguous input refuses
+  the whole catalogue with a translated reason. One pure permission meet
+  narrows every applicable ceiling, conservatively proves write-glob
+  inclusion, and supplies the exact tool set for charters. Orchestrator
+  snapshots retain full agent identity and model settings, including Default
+  entries; conflicting model identities refuse.
+
+
+- **Project-role restrictions (M96 lane R).** Every project role, including
+  a new id with a hash allowance, refuses in-place work, model selection
+  and skills. Missing permission modes resolve to the strictest ceiling.
+  Write-path narrowing accepts literal paths and confined subtrees; partial
+  tool meets generate charters naming only the available capabilities.
+
+
+- **The M96 round-4 plan remains the plan of record.** Lane 0 and R keep
+  the approved descendant-retirement, recovery and separate team-host rules.
+
+
+- **M96 second-review ledger repairs:** retention preserves concurrent and
+  later usage settlements, takeover refuses a stale durable snapshot, and
+  persistence strips unapproved fields, including nested private content.
+  Team price questions identify provider/tariff, quote Meta rates only for
+  verified Meta tariffs, and use unknown-price token ceilings otherwise;
+  provider-key billing text has translations in all 14 languages. The
+  integration adapter must refresh entry caps immediately before dispatch.
+
+
+- **M96 review repairs:** computed worker ceilings preserve zero and partial
+  provider limits; cooldowns only lengthen, and spend caps use the UI locale.
+  Ledger publications and resets serialize with generation acknowledgements;
+  timer failures log fixed words and retry with bounded backoff. Resets count
+  later settlement deltas, and retention consults every day's task state.
+  Paid team consent scopes Always to provider/model/tariff; unpriced popups
+  show task/day token ceilings, with translations in all 14 languages. Key-billed
+  team work is available in the Muse Code paid-feature list. The integration
+  host must supply scoped grant persistence before offering team Always.
+
+
+- **M96 lane A, round 4:** uncertain descendants retain worker and shell slots;
+  replacement admission needs spare capacity. Pool budgets include the first
+  request and throttle recovery respects lowered ceilings. Recovery requires
+  an explicit takeover decision and writes only this window's ledger. Retention
+  preserves cumulative usage and reset boundaries without touching other owners.
+
+
+- **M96 claim accounting:** an injected D78 journal contract covers shared paid,
+  team and workspace budgets, token measures, a durable latest day and restart
+  lookup/settlement by claim id. Lost acknowledgements retry without another
+  charge or refund; unknown usage retains the whole reservation. Integration
+  must wire the durable adapter before dispatching team requests.
+
+
+- **Single-model activation stays quiet:** the default-on team-worker
+  setting no longer opens a price confirmation at activation. The host must
+  declare a runnable team before workers are available; the first paid use
+  keeps the three-choice popup.
+
+
+- **Team MCP dispatch permissions.** Queued tool calls retain their admitted
+  server, catalogue generation, tool and permission class. Registry dispatch
+  rechecks that binding, current assignment and exact lease; changed tools are
+  refused before transport dispatch with a translated error.
+
+
+- **Team repository resource limits.** User and repository declarations now
+  require positive safe integer limits; direct repository application refuses
+  invalid limits without blocking an otherwise available shared server.
+
+
+- **Team lease and call identities.** The shared-resource foundation now
+  gives each lease a window/task/attempt/server-bound id and generation,
+  and each call an independent state. Cancelled re-entry and old completions
+  cannot release replacement ownership. Shared limits count concurrent calls;
+  invalid local arguments create no call liability. Configured MCP clients
+  have separate server endpoints and cancellation namespaces.
+
+- **IDE MCP startup ordering.** Closing during startup closes the pending
+  listener and leaves no endpoint; a later start still works.
+
+- **Team resource ownership.** Take back and retirement retain exclusive
+  resources until every earlier call is terminal, the server exits, or the
+  user chooses Release anyway. Unassigned servers reach no worker role.
+
+
+- **Team MCP bridge lifecycle.** Local timeouts retain ownership; worker
+  server lists require user assignment. Caller removal and disposal cancel
+  engine calls and queued admission, and a pending start cannot reopen a
+  disposed bridge. Loopback auth-negative tests now send no credentials,
+  and endpoint tests release their exclusive lease before switching holders.
+
+
+- **Team configuration validation and transfer (M96 lane F).** Templates
+  use D75's enforced tool groups, all planned cap measures are accepted,
+  numeric limits and daily token budgets are validated, and exports keep
+  role policies and entry concurrency while stripping extra nested fields.
+
+
+- **Team intensity, suggestions and estimates (M96 lane F).** Re-apply
+  uses the current level, zero ceilings keep workers stopped, budget
+  suggestions learn from local records, and effort follows provider tier
+  order. Unsupported settings stay hidden and thinking budgets are carried
+  in task settings. Preview resolves live Default, unknown billed prices
+  are shown as unknown, and subscription/local tokens incur no key-model
+  estimate.
+
+
+- **M96 integration:** ordinary activation, Model API and ACP bundles exclude
+  the team runtime. Team conversations load tools and roster from their lazy
+  bundle; shared constants and translated message contracts stay consistent.
+  Single-model conversations retain the in-place refusal while another
+  conversation has a worker writing in the workspace.
+
+
+- Hardened team orchestration against MCP write bypasses and writes admitted
+  before an in-place worker starts; team state changes remain structured tool
+  data. Retry claims survive uncertain starts and conversation reopening,
+  unavailable endpoints refuse, interrupted startup and metadata saves clean
+  up, and team arguments have explicit size limits (M96 lane T, RVM96D).
+
+- **Team worker race and lifecycle guards (M96, RVM96W3).** Admission keeps
+  an opaque native root identity through startup and subsequent mediated
+  operations. Prompt and ACP file operations check and use one open handle;
+  write-path policy cannot authorize a different target. Bare parent arguments,
+  directory-changing short options and Windows Git executable wrappers refuse
+  before approval. Final non-text ACP messages discard earlier draft reports,
+  model selection cannot reset the role mode, and cancellation has a deadline
+  even when the agent stops draining its input. No live/vendor certification
+  or OS sandbox claim is added.
+
+
+- **Team worker fence redesign (M96, round 3).** Muse Code, ACP and engine
+  workers share native filesystem identity admission, including Windows UNC,
+  device, short-name, junction and subst aliases. Every mediated path and
+  command rechecks its copy; unresolved targets refuse. Wrapped Git ref
+  changes and unsafe command paths refuse before approval, and Git cannot
+  use clone-config askpass or credential helpers. ACP keeps final messages
+  separate, preserves non-success stop reasons, confirms legacy modes and
+  protocol version, and flushes cancellation before process cleanup.
+  Malformed engine reports retain the last message; bounded file excerpts
+  are labelled and summaries clip complete Unicode characters. Windows
+  regression evidence and remaining capture gates are recorded in
+  `docs/certification/m96-w.md`.
+
+
+- **Team worker confinement (M96, RVM96A).** Prompt assembly excludes
+  private/protected file data, bounds UTF-8 bytes and preserves named paths.
+  Child environments start empty with explicit runtime/profile allowlists
+  and pinned Git credential isolation. Reports require a meaningful summary
+  and blocked results require a question. Worker/ACP admission and lifecycle
+  repairs are certified in `docs/certification/m96-w.md`. Worker roots are
+  proven disjoint from the checkout before startup; unresolved/out-of-role
+  requests and Git ref/worktree mutations are refused before approval.
+  Uncaptured native-server exclusion now prevents worker startup.
+  ACP accepts standard object text chunks and authentication errors,
+  advertises only implemented capabilities, and requires selected-model
+  readback before prompting. Abort signals interrupt startup and pending
+  turns; failure and completion dispose sessions and owned ACP children.
+
+- **Lower Windows team fixture cost (WINI96).** Tests reuse prepared,
+  independent repository and workspace copies, batch fixture commits with
+  Git fast-import, and read immutable blobs through one Git batch per
+  repository. Every original assertion and default deadline remains.
+  Windows merge and workspace suite times fall roughly by half; three
+  default-timeout cases still block complete native verification, recorded
+  in M96 lane I's certification.
+
+
+- **Team merge transactions (RVM96I2C lane I).** Landing compares each
+  target's current bytes and permissions with its planned base, prepares
+  replacement bytes before touching the target, and rolls back landed files
+  on a later refusal. Errors carry the Undo record and rollback outcomes;
+  Undo verifies its restored bytes. Worker bases honour local and global Git
+  excludes, extension-owned worker-copy Git disables configured programs,
+  clustered unsafe options and doubled `git` commands refuse, and read-only
+  patch output remains available. Ref-lock failures retain their real error,
+  symlink blobs refuse, executable flips preserve private permissions, binary
+  rework keeps the worker's bytes, and 8.3 fixture listings stay bounded.
+  Windows default-timeout verification remains blocked; see M96 lane I's
+  certification record.
+
+
+- **Windows team paths (M96 lane I).** Canonical containment accepts drive
+  letter and directory casing differences and extended namespace spellings.
+  Junction ancestors remain refused for merge, deletion, cleanup and Undo;
+  cleanup unlinks a replaced copy without following it. Ambiguous 8.3 aliases
+  remain refused. Real-Git fixtures handle Windows path separators and quote
+  inert arguments consistently across shells.
+
+
+- **Team workspace security (RVM96B lane I).** Read-only commands require
+  exact arguments and trusted Git execution; worker environments cannot
+  restore Git helpers or SSH agents. Cleanup refuses linked storage parents,
+  task publication uses atomic ref compare-and-swap, untracked source enters
+  the worker base, and ignored scratch writes count as breaches. Merges
+  re-read live task refs, validate every path ancestor, honour charter globs,
+  handle multiple conflict hunks, and return conflicts to the task copy for
+  rework. Executable modes survive merge/Undo, and completed review provenance
+  enforces a different-model requirement.
+
+
+- **Team UI review corrections (RVM96B, findings 13–23).** Completed and
+  host-confirmed cards remain locked after replay; a refused request can
+  be answered again. The tree has one Tab stop with keyboard-accessible
+  actions and recovers from a removed focused task. Queued/interrupted
+  work no longer looks running; completions produce a polite summary, and
+  the host can explicitly remove the team view. Team buttons meet target
+  sizes in all four themes, the narrow harness is truly 320 px, and known
+  statuses and entry names are localized. Merge cards show bounded file,
+  protected-path, conflict and review details. Tree/cards load through
+  dynamic imports, with all shipped chunks inside the existing aggregate
+  webview budget and the existing nonce policy.
+
+
+- **Team pipelines and history hardenings (lane L, review RVM96A).** A
+  step result whose kind does not belong to the step is refused, so a bare
+  `work-done` can never stand in for the review's findings or the check's
+  pass/fail. Round limits are positive integers in full definitions and
+  project narrowings alike (fractional bounds no longer load). Token totals
+  count input plus output only: cached input and reasoning output are
+  subsets, never added again. `Today` totals use the caller's local calendar
+  day in the injected time zone. Rows and filters carry per-agent identity
+  with per-agent totals. `done` (a success needing no merge) is counted
+  separately from `merged`. CSV export prefixes formula-opening cells
+  (`= + - @`, tab, carriage return) with a single quote.
+
+
+- **M96 integration on Windows:** ACP process fixtures use native file URLs and
+  path rules; all workers share the mandatory environment fence. Cleanup tests
+  prove junction and noncanonical case spelling refusals on Windows. Successful
+  tasks without a merge retain `done` through both ledger schemas. Browser builds
+  share the verified-identical JavaScript grammar inside TypeScript and emit
+  UTF-8, preserving every language inside the unchanged aggregate cap. Missing,
+  duplicate or changed vendor grammar declarations stop the build.
+
+- The VSIX packaging unit suite now builds its own English fixtures from source,
+  so a fresh checkout can run it before a production build.
 
 ### Security
 

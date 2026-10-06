@@ -1,0 +1,99 @@
+{
+  "teamMergeOptionsSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "task_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+      },
+      "on_conflict": { "default": "rework", "type": "string", "enum": ["rework", "markers"] }
+    },
+    "required": ["task_id"],
+    "additionalProperties": false
+  },
+  "teamRescheduleSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "task_ids": {
+        "minItems": 1,
+        "maxItems": 64,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+        }
+      },
+      "priority": { "type": "string", "enum": ["urgent", "high", "normal", "low"] },
+      "hold": { "type": "boolean" },
+      "depends_on": {
+        "maxItems": 64,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+            },
+            "on": { "type": "string", "enum": ["merged", "done"] }
+          },
+          "required": ["task"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["task_ids"],
+    "additionalProperties": false
+  },
+  "teamSchedulerFieldsSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "key": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+      },
+      "depends_on": {
+        "maxItems": 64,
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "task": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]*$"
+            },
+            "on": { "type": "string", "enum": ["merged", "done"] }
+          },
+          "required": ["task"],
+          "additionalProperties": false
+        }
+      },
+      "priority": {
+        "default": "normal",
+        "type": "string",
+        "enum": ["urgent", "high", "normal", "low"]
+      },
+      "size": { "default": "M", "type": "string", "enum": ["S", "M", "L", "XL"] },
+      "writes": {
+        "maxItems": 256,
+        "type": "array",
+        "items": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "overlap": { "default": "serialize", "type": "string", "enum": ["serialize", "allow"] }
+    },
+    "additionalProperties": false
+  }
+}

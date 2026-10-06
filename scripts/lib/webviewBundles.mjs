@@ -45,6 +45,12 @@ export function webviewEntryMetafile(meta, entry) {
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
+    // TRAIN15C: 4,018 bytes +15%, rounded up to 25 KiB (D6).
+    name: 'paid usage',
+    entries: ['src/webview/components/PaidUsageSection.tsx'],
+    budgetKiB: 25,
+  },
+  {
     name: 'provider usage',
     entries: ['src/webview/components/ProviderUsageSection.tsx'],
     budgetKiB: 25,
@@ -89,6 +95,13 @@ export function webviewDeferredBudgetGroups(meta) {
     for (const file of outputs) if (!legacy.has(file)) assigned.add(file)
     return { ...budget, outputs }
   })
+  const teamOutputs = Object.values(meta.outputs).some(
+    (output) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
+  )
+    ? webviewTeamOutputs(meta)
+    : []
+  for (const file of teamOutputs) assigned.add(file)
+  groups.push({ name: 'team UI', budgetKiB: 25, outputs: teamOutputs })
   groups.unshift({
     name: 'deferred JS',
     budgetKiB: 50,
@@ -108,3 +121,26 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'HistoryDialog',
   'ReportDialog',
 ]
+
+// Team-only static dependencies have their own cap. Dependencies shared with
+// startup or another deferred surface stay charged to those existing budgets.
+export function webviewTeamOutputs(meta) {
+  const team = new Set()
+  const other = new Set(webviewStartupOutputs(meta))
+  const visit = (file, outputs) => {
+    if (outputs.has(file)) return
+    const output = meta.outputs[file]
+    if (output === undefined) throw new Error(`Missing webview output: ${file}`)
+    outputs.add(file)
+    for (const imported of output.imports) {
+      if (!imported.external && imported.kind !== 'dynamic-import') visit(imported.path, outputs)
+    }
+  }
+  for (const [file, output] of Object.entries(meta.outputs)) {
+    if (!file.endsWith('.js') || output.entryPoint === undefined) continue
+    if (output.entryPoint === 'src/webview/components/TeamUi.tsx') visit(file, team)
+    else if (file !== 'dist/webview/main.js') visit(file, other)
+  }
+  if (team.size === 0) throw new Error('Missing deferred team UI chunk')
+  return [...team.difference(other)]
+}

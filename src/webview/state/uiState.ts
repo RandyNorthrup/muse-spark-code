@@ -69,6 +69,7 @@ import type {
   SubscriptionUsage,
   UsageInsights,
 } from '../../shared/usage'
+import type { TeamTreeData, TeamUsageSummary, TeamWorkerLabel } from '../../shared/teamView'
 import { goalStatusLabel, toolLabel } from '../toolPresentation'
 import {
   type GitFormEdit,
@@ -101,6 +102,14 @@ import {
   type UsageSummary,
   type WorkflowChild,
 } from './transcriptEntries'
+import {
+  mergeTeamEntry,
+  teamEntryForItem,
+  teamWorkers,
+  isRunningTeamWorker,
+  isFinishedTeamWorker,
+  teamWorkerStatusLabel,
+} from './teamEntries'
 
 export type {
   ChildTranscript,
@@ -121,6 +130,8 @@ export interface UsageReport {
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
   /** This window's tallies per BYO provider (M95); undefined until one is used. */
   readonly providers: readonly ProviderUsageRow[] | undefined
+  /** The Team section (M96 lane U2); absent where the team cannot run. */
+  readonly team?: TeamUsageSummary | undefined
 }
 
 /**
@@ -348,6 +359,12 @@ export interface UiState {
   readonly context: ContextSummary | undefined
   /** undefined until the host answered `readUsage` for this window. */
   readonly usageReport: UsageReport | undefined
+  /**
+   * The Agent map's team tree (M96 lane U2); undefined where the team
+   * cannot run (off, Solo, single-model mode, no runnable role): the map,
+   * the pill and the dialog are today's.
+   */
+  readonly teamTree: TeamTreeData | undefined
   /** What the next message replies to or quotes (M17); the composer chip. */
   readonly reference: ChatReference | undefined
   /** Subagent transcripts by child session id (M14). */
@@ -631,6 +648,7 @@ export const initialUiState: UiState = {
   usage: undefined,
   context: undefined,
   usageReport: undefined,
+  teamTree: undefined,
   reference: undefined,
   childTranscripts: {},
   childOwners: {},
@@ -1078,6 +1096,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     isBackground: isBackgrounded(item) === true,
     backgroundInitiator: item.backgroundInitiator,
     paid: item.paid,
+    teamWorker: item.teamWorker,
     images: reportedImages(item),
     verifySummary: item.verifySummary,
     thenRun: item.thenRun,
@@ -1183,13 +1202,16 @@ function entryFor(item: ItemSnapshot, at: number, seq: number): TranscriptEntry 
       return workflowEntry(item)
     }
     default: {
-      return {
-        kind: 'item',
-        id: item.itemId,
-        itemKind: item.kind,
-        status: item.status,
-        text: item.fallbackText ?? item.text,
-      }
+      // The team's cards (M96 lane U2); anything else keeps today's row.
+      return (
+        teamEntryForItem(item) ?? {
+          kind: 'item',
+          id: item.itemId,
+          itemKind: item.kind,
+          status: item.status,
+          text: item.fallbackText ?? item.text,
+        }
+      )
     }
   }
 }
@@ -1232,6 +1254,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         isBackground: isBackgrounded(item) ?? entry.isBackground,
         backgroundInitiator: item.backgroundInitiator ?? entry.backgroundInitiator,
         paid: item.paid ?? entry.paid,
+        teamWorker: item.teamWorker ?? entry.teamWorker,
         images: reportedImages(item) ?? entry.images,
         verifySummary: item.verifySummary ?? entry.verifySummary,
         thenRun: item.thenRun ?? entry.thenRun,
@@ -1288,6 +1311,14 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     }
     case 'item': {
       return { ...entry, status: item.status, text: item.fallbackText ?? item.text ?? entry.text }
+    }
+    case 'teamPlan':
+    case 'teamSwitch':
+    case 'teamWaiting':
+    case 'teamMerge':
+    case 'teamReport': {
+      // The team's cards (M96 lane U2): the host's latest status wins.
+      return mergeTeamEntry(entry, item) ?? entry
     }
     default: {
       return entry
@@ -2548,6 +2579,8 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         // No account identity accompanies authState: discard prior-account
         // usage even if the backend name stays the same.
         usageReport: undefined,
+        // The tree names the account's models: it goes with the usage.
+        teamTree: undefined,
         auth: {
           status: message.status,
           detail: message.detail,
@@ -2680,6 +2713,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           subscription: message.subscription,
           account: message.account,
           insights: message.insights,
+          team: message.team,
           providers: message.providers === undefined ? undefined : [...message.providers],
         },
       }
@@ -2692,6 +2726,42 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
         fill(UI_TEXT.setupComplete, { provider: message.provider, model: message.model }),
       )
+    }
+    case 'teamTree': {
+      // The ledger's live view (M96 lane U2): the tree replaces wholesale.
+      const before = new Map(
+        (state.teamTree === undefined ? [] : teamWorkers(state.teamTree)).map((worker) => [
+          worker.taskId,
+          worker.status,
+        ]),
+      )
+      const finished = teamWorkers(message.tree).filter((worker) => {
+        const previous = before.get(worker.taskId)
+        return (
+          previous !== undefined &&
+          isRunningTeamWorker(previous) &&
+          isFinishedTeamWorker(worker.status)
+        )
+      })
+      const finishedById = new Map(finished.map((worker) => [worker.taskId, worker]))
+      const summaries = Array.from(finishedById.values(), (worker) =>
+        fill(UI_TEXT.teamWorkerFinished, {
+          task: worker.brief,
+          status: teamWorkerStatusLabel(worker.status),
+        }),
+      )
+      return announce(
+        { ...state, teamTree: message.tree },
+        summaries.length === 0 ? undefined : summaries.join(' '),
+      )
+    }
+    case 'clearTeamTree': {
+      return {
+        ...state,
+        teamTree: undefined,
+        usageReport:
+          state.usageReport === undefined ? undefined : { ...state.usageReport, team: undefined },
+      }
     }
     case 'sharePreview': {
       return {
@@ -3675,6 +3745,8 @@ export interface WaitingApproval {
   readonly entryId: string
   readonly toolName: string
   readonly approval: PendingApproval
+  /** A worker's own approval: the card's role-agent-task label (M96 lane U2). */
+  readonly teamWorker?: TeamWorkerLabel | undefined
 }
 
 /** The approvals waiting, oldest first: the order their rows stand in. */
@@ -3684,7 +3756,12 @@ export function waitingApprovals(
   const waiting: WaitingApproval[] = []
   for (const entry of transcript) {
     if (entry.kind === 'tool' && entry.approval !== undefined) {
-      waiting.push({ entryId: entry.id, toolName: entry.tool, approval: entry.approval })
+      waiting.push({
+        entryId: entry.id,
+        toolName: entry.tool,
+        approval: entry.approval,
+        teamWorker: entry.teamWorker,
+      })
     }
   }
   return waiting

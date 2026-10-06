@@ -27,6 +27,10 @@ import { estimateCostUsd } from '../usage/insights'
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
+  /** Lane T: a runnable distinct-model team in this conversation, with a key.
+   * Absence keeps workers unavailable and loads no team code at activation.
+   */
+  readonly isTeamAvailable?: () => boolean
   /** Backend availability never changes the user's setting or accepted price. */
   readonly isAvailable?: (feature: PaidFeature) => boolean
   /** D78: an unconfigured default offers the feature; use still requires consent. */
@@ -112,13 +116,13 @@ export class PaidFeatureGate {
 
   /** Availability only: paidConsent and the request boundary authorize spending. */
   public isOn(feature: PaidFeature): boolean {
-    return (
-      this.deps.isSettingOn(feature) &&
-      this.deps.isAvailable?.(feature) !== false &&
-      (AVAILABLE_BY_DEFAULT.has(feature) ||
-        this.deps.isDefaultOn?.(feature) === true ||
-        this.deps.readAccepted().has(feature))
-    )
+    return feature === 'teamWorkers'
+      ? this.deps.isSettingOn(feature) && this.deps.isTeamAvailable?.() === true
+      : this.deps.isSettingOn(feature) &&
+          this.deps.isAvailable?.(feature) !== false &&
+          (AVAILABLE_BY_DEFAULT.has(feature) ||
+            this.deps.isDefaultOn?.(feature) === true ||
+            this.deps.readAccepted().has(feature))
   }
 
   /** The features that are on, in their fixed order. */
@@ -158,6 +162,7 @@ export class PaidFeatureGate {
         await this.setAccepted(feature, true)
         this.deps.log.info(`Paid feature ${feature} on; its first use asks`)
       } else if (
+        feature !== 'teamWorkers' &&
         isSettingOn &&
         !isAccepted &&
         feature !== 'judge' &&
@@ -235,6 +240,33 @@ export class PaidUsage {
 
   public constructor(private readonly log: CoreLogger) {}
 
+  private addTaskUsage(
+    kind: 'teamWorker' | 'bestOfN',
+    modelId: string,
+    usage: SubagentUsage,
+  ): void {
+    if (modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate ' + kind + ' use for an unpriced model')
+    }
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    ) {
+      throw new Error(kind + ' usage must be valid nonnegative token counts')
+    }
+    const unknownKey = `${kind}UnknownRequests` as const
+    const tokenKey = `${kind}Tokens` as const
+    const costKey = `${kind}CostUsd` as const
+    const unknown = this.tally[unknownKey] ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      [unknownKey]: unknown - 1,
+      [tokenKey]: (this.tally[tokenKey] ?? 0) + usage.inputTokens + usage.outputTokens,
+      [costKey]: (this.tally[costKey] ?? 0) + estimateCostUsd(usage, modelId),
+    }
+    for (const listener of this.listeners) listener()
+  }
   public get current(): PaidTally {
     return this.tally
   }
@@ -289,6 +321,15 @@ export class PaidUsage {
         this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
         break
       }
+      case 'teamWorkers': {
+        this.tally = {
+          ...tally,
+          teamWorkerRequests: (tally.teamWorkerRequests ?? 0) + units,
+          teamWorkerUnknownRequests: (tally.teamWorkerUnknownRequests ?? 0) + units,
+        }
+        break
+      }
+
       case 'tab': {
         this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
         break
@@ -379,6 +420,11 @@ export class PaidUsage {
     for (const listener of this.listeners) listener()
   }
 
+  /** One team task's reported usage; never replayed from storage (M96 lane A). */
+  public addTeamWorkerUsage(modelId: string, usage: SubagentUsage): void {
+    this.addTaskUsage('teamWorker', modelId, usage)
+  }
+
   /** One prompt/agent hook run started; its cost settles when reported. */
   public addHookModelRun(): void {
     this.add('hookModels', 1)
@@ -445,24 +491,7 @@ export class PaidUsage {
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate best-of-N use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Best-of-N usage must be valid nonnegative token counts')
-    }
-    const unknown = this.tally.bestOfNUnknownRequests ?? 0
-    if (unknown === 0) return
-    this.tally = {
-      ...this.tally,
-      bestOfNUnknownRequests: unknown - 1,
-      bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
-    }
-    for (const listener of this.listeners) listener()
+    this.addTaskUsage('bestOfN', modelId, usage)
   }
 }
 

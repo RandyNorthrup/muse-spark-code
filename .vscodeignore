@@ -3,9 +3,13 @@
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js
+!dist/modelApiBoundaries.js
 !dist/providers.js
 !dist/sessionBoard.js
 !dist/reviewer.js
+!dist/team.js
+!dist/teamRunners.js
+!dist/teamScheduler.js
 !dist/foreignHooks.js
 !dist/hookRuntime.js
 !dist/extensionHooks.js
@@ -49,6 +53,7 @@
 !media/icon.svg
 !media/icon.png
 !resources/walkthrough/**
+!native/runner/**
 !native/windows/dictate.ps1
 !native/windows/capture.ps1
 !native/windows/MuseSparkMcpJob.cs

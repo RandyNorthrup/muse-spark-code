@@ -50,6 +50,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
@@ -63,16 +64,21 @@ import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
+import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
+import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import {
   sharedUiText,
   sharedValidation,
   deferredCohort,
   sharedWire,
+  sharedModelApiBoundaries,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
 } from './lib/whatsNewContent.mjs'
+
+execFileSync(process.execPath, ['scripts/team-tool-schemas.mjs'], { stdio: 'inherit' })
 
 const args = new Set(process.argv.slice(2))
 const isProduction = args.has('--production')
@@ -96,6 +102,12 @@ const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
 const PROVIDERS_OUTFILE = 'dist/providers.js'
 const SESSION_BOARD_ENTRY = 'src/host/sessionBoardEntry.ts'
 const SESSION_BOARD_OUTFILE = 'dist/sessionBoard.js'
+const TEAM_ENTRY = 'src/core/team/teamEntry.ts'
+const TEAM_OUTFILE = 'dist/team.js'
+const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
+const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
+const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
+const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -193,7 +205,14 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    deferredTeamView,
+    sharedWire,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -217,6 +236,8 @@ const modelApiOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedModelApiBoundaries,
+    deferredTeamView,
     compressedModelText(isProduction),
   ],
   entryPoints: [MODEL_API_ENTRY],
@@ -224,6 +245,14 @@ const modelApiOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiBoundariesOptions = {
+  ...modelApiOptions,
+  entryPoints: ['src/shared/modelApiBoundariesEntry.ts'],
+  outfile: 'dist/modelApiBoundaries.js',
+  plugins: [sharedUiText, sharedValidation, compressedModelText(isProduction)],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -238,6 +267,28 @@ const sessionBoardOptions = {
   ...modelApiOptions,
   entryPoints: [SESSION_BOARD_ENTRY],
   outfile: SESSION_BOARD_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [TEAM_ENTRY],
+  outfile: TEAM_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamSchedulerOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_SCHEDULER_ENTRY],
+  outfile: TEAM_SCHEDULER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const teamRunnersOptions = {
+  ...teamOptions,
+  entryPoints: [TEAM_RUNNERS_ENTRY],
+  outfile: TEAM_RUNNERS_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -271,7 +322,7 @@ const pluginHooksOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reviewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [REVIEW_ENTRY],
   outfile: REVIEW_OUTFILE,
   platform: 'node',
@@ -285,7 +336,7 @@ const reviewOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const reportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [REPORT_ENTRY],
   outfile: REPORT_OUTFILE,
   platform: 'node',
@@ -298,7 +349,7 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const recorderOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [RECORDER_ENTRY],
   outfile: RECORDER_OUTFILE,
   platform: 'node',
@@ -309,7 +360,7 @@ const recorderOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const planMarkdownOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [PLAN_MARKDOWN_ENTRY],
   outfile: PLAN_MARKDOWN_OUTFILE,
   platform: 'node',
@@ -352,7 +403,7 @@ const museCodeReviewerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const whatsNewOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [WHATS_NEW_ENTRY],
   outfile: WHATS_NEW_OUTFILE,
   platform: 'node',
@@ -390,7 +441,7 @@ const modelsPanelOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const agentImportOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [AGENT_IMPORT_ENTRY],
   outfile: AGENT_IMPORT_OUTFILE,
   platform: 'node',
@@ -409,7 +460,7 @@ const tabOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const bundledSkillsOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [BUNDLED_SKILLS_ENTRY],
   outfile: BUNDLED_SKILLS_OUTFILE,
   platform: 'node',
@@ -439,7 +490,7 @@ const imageResizeWorkerOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const conversationGitOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [CONVERSATION_GIT_ENTRY],
   outfile: CONVERSATION_GIT_OUTFILE,
   platform: 'node',
@@ -451,7 +502,7 @@ const conversationGitOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const checkpointStoreOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [CHECKPOINT_STORE_ENTRY],
   outfile: CHECKPOINT_STORE_OUTFILE,
   platform: 'node',
@@ -462,7 +513,7 @@ const checkpointStoreOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [BROWSER_CHECK_ENTRY],
   outfile: BROWSER_CHECK_OUTFILE,
   platform: 'node',
@@ -473,7 +524,7 @@ const browserCheckOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const browserRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
   entryPoints: [BROWSER_RUNTIME_ENTRY],
   outfile: BROWSER_RUNTIME_OUTFILE,
   platform: 'node',
@@ -484,7 +535,14 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    deferredTeamView,
+    sharedWire,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -529,7 +587,7 @@ const validationOptions = {
 
 const wireOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation],
+  plugins: [sharedUiText, sharedValidation, deferredTeamView],
   entryPoints: ['src/shared/wireEntry.ts'],
   outfile: 'dist/wire.js',
 }
@@ -572,7 +630,9 @@ const browserReviewComment = {
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction ? [compactBrowserEnglish, browserReviewComment] : [browserReviewComment],
+  plugins: isProduction
+    ? [sharedHighlightGrammar, compactBrowserEnglish, browserReviewComment]
+    : [sharedHighlightGrammar, browserReviewComment],
   charset: 'utf8',
   entryPoints: {
     main: WEBVIEW_ENTRY,
@@ -634,6 +694,9 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(reviewerOptions),
+    esbuild.context(teamOptions),
+    esbuild.context(teamRunnersOptions),
+    esbuild.context(teamSchedulerOptions),
     esbuild.context(foreignHooksOptions),
     esbuild.context(hookRuntimeOptions),
     esbuild.context(pluginHooksOptions),
@@ -655,6 +718,7 @@ if (isWatch) {
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(modelApiBoundariesOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -675,6 +739,9 @@ if (isWatch) {
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
     reviewer: esbuild.build(reviewerOptions),
+    team: esbuild.build(teamOptions),
+    teamRunners: esbuild.build(teamRunnersOptions),
+    teamScheduler: esbuild.build(teamSchedulerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),
     hookRuntime: esbuild.build(hookRuntimeOptions),
     pluginHooks: esbuild.build(pluginHooksOptions),
@@ -701,6 +768,7 @@ if (isWatch) {
     ),
     validation: esbuild.build(validationOptions),
     wire: esbuild.build(wireOptions),
+    modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
@@ -746,6 +814,9 @@ if (isWatch) {
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)
   reportSize(REVIEWER_OUTFILE)
+  reportSize(TEAM_OUTFILE)
+  reportSize(TEAM_RUNNERS_OUTFILE)
+  reportSize(TEAM_SCHEDULER_OUTFILE)
   reportSize(FOREIGN_HOOKS_OUTFILE)
   reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)

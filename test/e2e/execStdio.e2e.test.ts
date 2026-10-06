@@ -134,7 +134,7 @@ function packagingFixture() {
 import { execFileSync } from 'node:child_process';
 assert.equal(process.argv[2], 'acp');
 const files = new Set(execFileSync(${JSON.stringify(TAR)}, ['-tzf', process.argv[3]], { encoding: 'utf8' }).split('\n'));
-for (const file of ['acp.js', 'modelApi.js', 'runtime.bundles.json.br'])
+for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js', 'teamScheduler.js', 'teamRunners.js', 'runtime.bundles.json.br'])
   assert.ok(files.has('package/dist/' + file), file);
 `,
   )
@@ -152,7 +152,11 @@ for (const file of ['acp.js', 'modelApi.js', 'runtime.bundles.json.br'])
   for (const bundle of [
     'acp',
     'modelApi',
+    'modelApiBoundaries',
     'reviewer',
+    'team',
+    'teamScheduler',
+    'teamRunners',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
     'foreignHooks',
     'hookRuntime',
@@ -176,6 +180,7 @@ for (const file of ['acp.js', 'modelApi.js', 'runtime.bundles.json.br'])
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
+  cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')

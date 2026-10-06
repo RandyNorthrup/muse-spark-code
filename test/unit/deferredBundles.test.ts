@@ -22,8 +22,10 @@ import {
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedModelApiBoundaries,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const metafileSchema = z.looseObject({
@@ -102,7 +104,14 @@ beforeAll(async () => {
         searchWorker: 'src/host/backend/searchWorker.ts',
         imageResizeWorker: 'src/core/imageResizeWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        deferredTeamView,
+        sharedModelApiBoundaries,
+      ],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
@@ -110,13 +119,43 @@ beforeAll(async () => {
       outdir: 'dist',
       target: 'node22',
       entryPoints: { acp: 'src/runtime/main.ts' },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        deferredTeamView,
+        sharedModelApiBoundaries,
+      ],
       external: ['@napi-rs/keyring'],
     }),
     build({
       ...common,
       outdir: 'dist',
       entryPoints: { wire: 'src/shared/wireEntry.ts' },
+      plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: {
+        team: 'src/core/team/teamEntry.ts',
+        teamScheduler: 'src/core/team/teamSchedulerEntry.ts',
+        teamRunners: 'src/host/runners/teamRunnersEntry.ts',
+      },
+      plugins: [
+        sharedUiText,
+        sharedValidation,
+        deferredCohort,
+        sharedWire,
+        sharedModelApiBoundaries,
+      ],
+      external: ['vscode', '@napi-rs/keyring'],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
     }),
     build({
@@ -348,6 +387,19 @@ describe('deferred cohort bundles', () => {
       }
     }
     expect(inputs('providers')).toContain('src/core/providers/providersFile.ts')
+  })
+
+  it('shares the captured Model API validators and pure team admission across Node consumers', () => {
+    for (const source of [
+      'src/core/backends/modelapi/schemas.ts',
+      'src/shared/teamConversation.ts',
+    ]) {
+      expect(inputs('modelApiBoundaries')).toContain(source)
+      for (const parent of ['extension', 'modelApi', 'acp', 'providers']) {
+        expect(inputs(parent)).not.toContain(source)
+      }
+    }
+    expect(bundleText('modelApi')).toContain('./modelApiBoundaries.js')
   })
 
   it('keeps paid review execution out of the session first-turn bundle', () => {

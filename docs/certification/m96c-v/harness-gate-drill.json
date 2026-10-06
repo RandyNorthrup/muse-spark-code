@@ -1,0 +1,20 @@
+{
+  "command": ["npm", "run", "test:a11y", "--", "team-traffic"],
+  "exitCode": 1,
+  "failures": [
+    "dark/team-traffic: no result: Error: Traffic scenario did not finish rendering",
+    "hc-dark/team-traffic: no result: Error: Traffic scenario did not finish rendering",
+    "light/team-traffic: no result: Error: Traffic scenario did not finish rendering",
+    "hc-light/team-traffic: no result: Error: Traffic scenario did not finish rendering"
+  ],
+  "sha256Before": "5e8b204a7d35326fd5cf0aec3d1cd77aed7f03502c44639aca16b6de5bfa7a97",
+  "sha256Restored": "5e8b204a7d35326fd5cf0aec3d1cd77aed7f03502c44639aca16b6de5bfa7a97",
+  "change": {
+    "before": "document.body.dataset['trafficReady'] = scenario",
+    "after": "document.body.dataset['trafficReady'] = 'not-ready'"
+  },
+  "restoredExitCode": 0,
+  "restoredSummary": [
+    "a11y: 4 pages (1 scenarios \u00d7 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result"
+  ]
+}

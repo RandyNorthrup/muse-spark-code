@@ -18,12 +18,16 @@
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",
+    "src/shared/modelApiBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
+
+    // The Node-only team schema proxy selected by the production resolver (M96, D6).
+    "src/host/teamViewBundle.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
@@ -76,6 +80,8 @@
     "test/e2e/fake-muse/serve.mjs",
     // The fake stdio MCP server the M50 tests start as a child process.
     "test/unit/helpers/fakeMcpServer.mjs",
+    // The fake stdio ACP agent the M96 lane W tests start as a child process.
+    "test/unit/helpers/fakeTeamAcpAgent.mjs",
     // A bounded orphan-child process drill, launched by path at runtime.
     "test/unit/helpers/fakeMcpOrphan.mjs",
     // The Windows job drills launch these finite binary, owner-exit and

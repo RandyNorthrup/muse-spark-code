@@ -14,9 +14,11 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15C): the deferred cap is recovered at its
-original allowance; the three ordered input merges continue below. Full
-release certification waits for M95/M102 and the lead’s aggregate gate.**
+**Current disposition (TRAIN15C): stage 4 recovers the original deferred cap.
+The M96 integration candidate is resolved and independently checked below;
+Model API remains 63 bytes over after two bounded fixes, so that recovery path
+and the two subsequent input merges are held by the shared stop rule. Full
+release certification waits for M95/M102 and the lead's aggregate gate.**
 
 **First-run disposition:** budget stop after M101. The original receipt follows;
 the resumed measurements and bounded stop are appended below.
@@ -365,3 +367,137 @@ extra merge, push, rebase, hook change or full quality run occurs.
 | Stage                          | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX | VSIX headroom |
 | ------------------------------ | -----------: | ----------: | -----------: | ------: | -------------: | ------------: |
 | Stage 4 / provider usage split |      456,846 |     486,338 |      797,449 | 843,696 |      2,214,704 |        38,096 |
+
+## TRAIN15C — Stage 5: M96 integration candidate
+
+Start the authorized `--no-ff` merge of `m96/int3d` (`0f0ce2ce`) from
+`532aca298`. Resolve 22 conflict paths by preserving the combined provider,
+team, paid-feature, localization, harness and request behavior. PLAN retains
+all inherited decisions and milestones; the released changelog remains
+byte-identical, with one Unreleased section and bounded Highlights. Union
+actual translated tables and their allowed-English records; regenerate host
+API records from the combined source rather than merging the generated file.
+The help reference/catalogue generator remains absent in this worktree.
+
+The build retains the shared chat/Models/What's New browser graph and M96's
+verified-identical JavaScript grammar shared inside TypeScript. Keep M101's
+`collectText`/compaction path and add M96 team preparation at that existing
+entry; preserve both provider models/setup state and the new team/traffic
+protocol and UI. Restore the inherited Judge invariance assertions which the
+incoming golden test replaced. Only M96's two newly added request fixtures
+(08/09) change to the current M101 multi-edit `edit_file` schema and resulting
+stable cache prefix; the original seven baseline fixtures remain untouched.
+
+The first combined build is Model API **494,346 / 486,400** (+7,946) and original
+deferred JS **51,618 / 51,200** (+418). Move the paid usage section, including
+team-worker tallies, into a nested dynamic import under its original nonempty
+paid-feature condition. Keep the existing modal and its controls available
+while it loads. The measured closure is **4,018 bytes**, with a new **25 KiB**
+allowance from D6's measured +15%, rounded-to-25-KiB rule. Existing caps stay
+fixed; original deferred JS is recovered to **48,104 / 51,200**.
+
+Share the unchanged captured Model API validators and pure team
+conversation/admission implementation in `dist/modelApiBoundaries.js`, loaded
+by their existing Node consumers. Browser/integration validation remains
+inline. Installed-language details are passed into the pure refusal helper;
+no UI table state or wire schema changes. Register the new artifact in the
+build, size/split/global guards, VSIX allowlist, ACP package and production
+fixture/declaration records. Its first measured **16,991 bytes** grants
+**25 KiB** by the same D6 rule. Sharing that boundary leaves Model API at
+**486,677** (+277); sharing the existing team bootstrap text through it leaves
+**486,463** (+63). The raw-size gate remains red after two distinct fixes.
+
+The shared owner rule says: “If the same test fails twice after two different
+fixes, STOP that path: write down in your report what you tried and why it
+failed, and move on or end the lane.” Both attempts remove duplication, but
+63 bytes remain beyond the frozen cap. Further Model API recovery and ordered
+merges are held pending an explicit continuation decision; independent checks
+and archive measurements continue to make this candidate reviewable. This is
+not a build/package pass or release certification. The stop is also recorded
+in PLAN §7.
+
+All five compiler projects pass; the final unit project is rechecked after the
+fixture repairs. Scoped ESLint and supported-format Prettier pass. Plain knip,
+cycles, localization (14 tables, 173 manifest strings, 762 source files,
+zero problems), host API and exec schemas pass. The duplication gate first
+finds seven cloned lines between the baseline read request and the restored
+Judge helper; both now call that existing helper and the unchanged zero-clone
+gate passes. The initial formatting wrapper included unsupported C#/PowerShell
+formats; the corrected wrapper checks the repository's supported formats.
+Native platform compilation remains the lead's matrix proof.
+
+The first 116-file owning sweep runs in 39 sequential batches of at most three
+files, with three workers and the brief's 120-second timeout: **2,994 passed,
+29 failed, 24 pending**. Repairs preserve the assertions: include the new
+required module in the inert headless package fixture and tar assertion;
+build the grammar fixture from today's lazy runtime and alias module;
+set/restore a fixed mask around the two full-permission fixture assertions;
+check the first held OS confirmation separately from the later executable
+identity, which is intentionally journalled after exec. Use the installed
+`/opt/google/chrome/chrome` through the supported `CHROME_PATH`, with no install
+or public network request. Real theme, narrow-panel and CSP checks pass.
+The browser size drill now locates TeamUi by its metafile entry point, retaining
+its deliberate overflow and exact SHA restore. Its restored global size check
+is held by the same Model API cap; no assertion is weakened to hide it.
+
+The seven worker/process sources match their incoming certification hashes
+byte-exact. Refresh only the combined constants binding, retaining the original
+hash and historical provenance in `m96-w.md`. The inherited source-binding
+suite reads committed HEAD, so its first run correctly fails while the new
+worker paths are still in the unfinished merge; recheck it after the local
+review checkpoint. This is a commit-dependent check, not a skipped guard.
+
+Five deliberate regressions exit 1 with SHA-256-exact restores: remove the paid
+usage budget; make paid usage a static import; remove captured-validator exports
+from the new boundary; release a native command without awaiting its first
+confirmation save; make the built packaged negative-input validator accept a
+negative count. The native import/require probe adds actual captured-validator
+and pure team-admission calls, including the localized refusal detail. Restored
+controls pass **95 tests**, and the ACP native probe passes **20 module checks**.
+A further save-after-resume control checks the durability invariant directly.
+
+`npm run package` exits **1** at Model API **486,463 / 486,400** (+63). Independent
+split/readership, host-global and notices gates pass. The actual universal VSIX
+passes exact-stage localization, static badges with the named public-network
+skip, and **42 native import/require module checks**, but exits **1** at its
+size cap: **2,397,730 / 2,252,800** (+144,930). Actual ACP packaging passes,
+including its 20 module checks. No release certification or supported-headless
+claim follows from those standalone checks.
+
+| Stage                   | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX | VSIX headroom |
+| ----------------------- | -----------: | ----------: | -----------: | ------: | -------------: | ------------: |
+| Stage 5 / M96 candidate |      454,262 |     486,463 |      821,206 | 840,264 |      2,397,730 |  **−144,930** |
+
+| Browser allowance    |   Bytes | Frozen cap | Result |
+| -------------------- | ------: | ---------: | ------ |
+| Models startup       | 447,584 |    486,400 | pass   |
+| What's New startup   |   1,351 |     25,600 | pass   |
+| Original deferred JS |  48,104 |     51,200 | pass   |
+| Paid usage           |   4,018 |     25,600 | pass   |
+| Provider usage       |   1,683 |     25,600 | pass   |
+| Highlighting         |  90,229 |    128,000 | pass   |
+| Action dialogs       |   9,490 |     25,600 | pass   |
+| Tasks                |   1,424 |     25,600 | pass   |
+| Team UI              |  16,132 |     25,600 | pass   |
+
+The universal archive grows **183,026 bytes** from stage 4. Its translation
+archive contributes **+86,240 compressed bytes**, its runtime archive **+40,623**,
+and packaged changelog **+8,156**. The JSON receipt retains the largest 20
+individual entry deltas, both raw and compressed; browser chunk hashes change,
+so new hashed entries must be read alongside removed entries rather than as
+net new features. No test/dev-only payload is identified for safe exclusion.
+The incoming M96 quality-10 packaging codec retains its approved deadline
+rationale; no timeout or size cap changes. Both remaining input branches stay
+held, and M95/M102/full quality/native/hosted proof remains with the lead.
+
+The final three-file replay passes **119 tests** and fails only the browser
+drill's restored global size assertion at the known Model API overflow. Its
+positive theme/CSP/package tests and its deliberate TeamUi overflow check pass;
+the chunk restores byte-exact. The save-after-resume control directly fails
+both held-disposal and durable-first-confirmation tests, then the restored
+native suite passes. Two more native controls intentionally return the wrong
+team-off decision and the wrong caller-supplied refusal detail; both fail,
+restore the built boundary byte-exact, and the complete ACP native probe passes
+20/20 again. The receipt retains all eight controls, their target hashes and
+exact owning files. Size recovery is still awaiting the owner's explicit
+response to the shared-rule override request; elapsed time grants no approval.

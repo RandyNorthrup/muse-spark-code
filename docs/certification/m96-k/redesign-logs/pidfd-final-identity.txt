@@ -1,0 +1,38 @@
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --testTimeout=120000
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/lanes/REDM96K
+
+ ❯ test/unit/teamNativeLifetime.test.ts (18 tests | 1 failed) 11225ms
+   ❯ M96 K real native lifetime (18)
+     × signals Linux through a stable pidfd and rejects a changed final identity 291ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/teamNativeLifetime.test.ts > M96 K real native lifetime > signals Linux through a stable pidfd and rejects a changed final identity
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/unit/teamNativeLifetime.test.ts:500:95
+    498|         const identity = await observer.observe(confirmation.pid)
+    499|         if (identity === undefined) throw new Error('pidfd fixture mis…
+    500|         expect(await observer.signal({ ...identity, startTime: 'reused…
+       |                                                                                               ^
+    501|           false,
+    502|         )
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 17 passed (18)
+   Start at  12:45:11
+   Duration  12.21s (tests 93%, transform 4%, import 2%, setup 1%)

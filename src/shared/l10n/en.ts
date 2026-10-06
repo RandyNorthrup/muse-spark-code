@@ -541,6 +541,44 @@ export const EN = {
     'No MCP server is loaded: {servers} set both “required” and “mode”. Keep only “mode”.',
   mcpNoServersUnreadable:
     'No MCP server is loaded: Muse Code’s settings file could not be read ({reason}).',
+  // Shared resources (M96 lane B, D75): the registry, the leases and the bridge.
+  teamResourcesTitle: 'Tools and devices',
+  teamResourcesDetail: 'Which MCP servers and devices the team shares, and who may use them',
+  teamResourcesKindLabel: 'Kind',
+  teamResourcesKindExclusive: 'Exclusive',
+  teamResourcesKindExclusiveDetail:
+    'One at a time: a browser, a device or a fixed port. Calls wait for the lease.',
+  teamResourcesKindShared: 'Shared',
+  teamResourcesKindSharedDetail: 'Up to its limit at once. Further calls wait in its queue.',
+  teamResourcesKindFree: 'Free',
+  teamResourcesKindFreeDetail: 'No lease. Any worker calls it any time.',
+  teamResourcesRolesLabel: 'Roles that may use it',
+  // {count}: the shared resource's concurrency limit, a number.
+  teamResourcesLimitLabel: 'At most {count} at once',
+  // {role}: the holding role's name; {taskId}: the holding task's id.
+  teamResourceBusy: 'resource busy, held by {role} task {taskId}',
+  teamToolBindingChanged:
+    'The tool or its permissions changed while waiting, or its lease is no longer held. The call was refused; list the tools again before retrying.',
+  teamLeaseTakeBack: 'Take back',
+  teamLeaseTakeBackDetail:
+    'The lease moves to the orchestrator; the holder’s next call is told the resource is busy.',
+  teamLeaseRestartServer: 'Restart server',
+  teamLeaseRestartServerDetail:
+    'Ends the server the window started; the lease is released once its process has exited.',
+  teamLeaseReleaseAnyway: 'Release anyway',
+  teamLeaseReleaseAnywayDetail:
+    'Releases the lease as your decision. The earlier call may still be acting on the resource.',
+  // {server}: the exclusive server's name.
+  teamLeaseElsewhereTitle: 'Another window runs {server}',
+  // {window}: the other window's name; {server}: the exclusive server's name.
+  teamLeaseElsewhereDetail:
+    '{window} is using {server}. Starting it here too can take it from that window.',
+  teamLeaseStartAnyway: 'Start here anyway',
+  teamLeaseWait: 'Wait',
+  teamLeaseOpenWindow: 'Open that window',
+  // {server}: the exclusive server's name.
+  teamMoveToBridgeDetail:
+    'Remove {server} from Muse Code’s settings file (the extension never writes it), and add it to the extension’s own MCP configuration, where the bridge serves it to every worker.',
   hooksTitle: 'Muse Code hooks',
   hooksTitleModelApi: 'Model API hooks',
   hooksWarning: 'Hooks run through your shell, outside Muse Code’s sandbox and approvals',
@@ -1780,6 +1818,232 @@ export const EN = {
   agentMapTitle: 'Agent map',
   agentMapHint: 'click an agent for details',
   agentMapEmpty: 'No subagents in this conversation.',
+  // M96c (D75): scheduler, Traffic, recovery and user-level runners.
+  teamTraffic: {
+    title: 'Traffic',
+    score: 'Priority {priority} × critical path {criticalPath} × fit {fit}',
+    afterTask: 'After task {task}: {path}',
+    size: 'Size',
+    waitingApproval: 'Waiting for approval',
+    attemptRunning: 'Attempt running',
+    attemptRetiring: 'Attempt retiring',
+    attemptRetired: 'Attempt retired',
+    attemptUncertain: 'Attempt uncertain',
+    attemptInterrupted: 'Attempt interrupted',
+    diverging: 'Diverging',
+    flaky: 'Flaky check',
+    notReviewed: 'Not reviewed',
+    sameModelReview: 'Same-model review',
+    priority: 'Priority',
+    writeSet: 'Write-set',
+    resources: 'Resources',
+    diskUse: 'Disk use',
+    queuePosition: 'Queue position {position}: {reason}',
+    workerCount: forms({ one: '{count} worker', other: '{count} workers' }),
+    machineLoad: forms({
+      one: '{count} window runs {workers} on this machine.',
+      other: '{count} windows run {workers} on this machine.',
+    }),
+    board: 'Task board',
+    lanes: 'Lanes',
+    leases: 'Leases',
+    otherWindows: 'Other windows',
+    recovery: 'Recovery',
+    conflicts: 'Predicted conflicts',
+    mergeQueue: 'Merge queue',
+    metrics: 'Metrics',
+    noTasks: 'No tasks on the board',
+    pauseQueue: 'Pause queue',
+    resumeQueue: 'Resume queue',
+    runNext: 'Run next',
+    hold: 'Hold',
+    release: 'Release',
+    reassign: 'Reassign…',
+    handOffAnyway: 'Hand off anyway',
+    continueAnyway: 'Continue anyway',
+    restartTeamHost: 'Restart the team host',
+    cancel: 'Cancel task',
+    serialize: 'Serialize',
+    letBothRun: 'Let both run',
+    openWindow: 'Open that window',
+    takeBack: 'Take back',
+    pause: 'Pause',
+    retry: 'Retry',
+    remove: 'Remove',
+    landNow: 'Land now',
+    landWithoutChecks: 'Land without checks',
+    undoBatch: 'Undo batch',
+    cleanup: 'Clean up',
+    apply: 'Apply',
+    openTerminal: 'Open a terminal here',
+    recover: 'Recover',
+    stop: 'Stop process',
+    keep: 'Keep',
+    showTerminal: 'Show in a terminal',
+    takeOver: 'Take over',
+    newTask: 'Continue here as a new task',
+    includeEdits: 'Include its uncommitted edits',
+    hostBusy: 'Host busy',
+    exclusiveWriter: 'Exclusive writer',
+  },
+  teamTrafficDetails: {
+    changedSinceOpened:
+      'This work changed since you opened it. Review the current state and try again.',
+    freeSlots: 'Free slots',
+    processWorkers: 'Process workers',
+    heavyCommands: 'Heavy commands',
+    raiseLimit: 'Raise a limit…',
+    resume: 'Resume task',
+    discard: 'Discard task',
+    restartServer: 'Restart server',
+    releaseAnyway: 'Release anyway',
+    waiting: 'Waiting',
+    checking: 'Checking batch',
+    serial: 'Serial admission',
+    returned: 'Candidate sent back',
+    admitted: 'Admitted',
+    matched: 'Matched',
+    uncertain: 'Uncertain',
+    staleHint: 'Stale hint',
+    advisoryExceeded: 'The advisory total exceeds this window’s worker cap.',
+    ownerMayBeLive: 'Another window may still own this work. Taking over can break its task.',
+    predictedRate: 'Predicted conflicts per writing task',
+    mergeRate: 'Merge conflicts per landing',
+    reviewRounds: 'Review rounds after the first',
+    reassignments: 'Reassignments',
+    candidatesReturned: 'Candidates sent back',
+    runnerInvalid: 'Check the runner fields. Credentials and SSH options are not allowed.',
+    runnerId: 'Runner ID',
+  },
+  teamStallReasons: {
+    noProgress: 'No progress',
+    outOfSteps: 'Request limit reached',
+    rateLimited: 'Rate limited',
+    usageLimited: 'Usage limit reached',
+    providerDown: 'Provider unavailable',
+    crashed: 'Worker crashed',
+  },
+  teamSharedFileKinds: { text: 'Plain text', 'json-table': 'JSON table', changelog: 'Changelog' },
+  teamTaskSizes: { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra large' },
+  teamTaskStates: {
+    queued: 'Queued',
+    ready: 'Ready',
+    running: 'Running',
+    blocked: 'Blocked',
+    review: 'In review',
+    merge: 'Awaiting merge',
+    merged: 'Merged',
+    done: 'Done',
+    discarded: 'Discarded',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    redesign: 'Needs redesign',
+    waitingApproval: 'Waiting for approval',
+    waitingForYou: 'Waiting for you',
+    capped: 'Capped',
+    interrupted: 'Interrupted',
+    notStaffed: 'Not staffed',
+  },
+  teamPriorities: {
+    urgent: 'Urgent',
+    high: 'High',
+    normal: 'Normal',
+    low: 'Low',
+  },
+  teamSchedulerSettings: {
+    integrationFlow: 'Integration flow',
+    full: 'Full',
+    reviewAutomatically: 'Review automatically',
+    manual: 'Manual',
+    onStall: 'When a task stalls',
+    reassign: 'Reassign',
+    ask: 'Ask',
+    stop: 'Stop',
+    sharedFiles: 'Shared files',
+    dependencyInstallation: 'Dependency installation',
+    checkSlots: 'Check slots',
+    perCopy: 'Each working copy',
+  },
+  teamTrafficMetrics: {
+    utilisation: 'Lane utilisation',
+    queueDepth: 'Queue depth',
+    waitMedian: 'Median wait',
+    waitP90: '90th percentile wait',
+    conflictRate: 'Conflict rate',
+    reworkRate: 'Rework rate',
+    costPerMerge: 'Cost per merged change',
+    timeToMerge: 'Time to merge',
+    estimated: 'Estimated',
+    reported: 'Reported',
+    today: 'Today',
+    week: 'This week',
+    allTime: 'All time',
+  },
+  teamRunners: {
+    title: 'Runners',
+    add: 'Add runner…',
+    testAll: 'Test runners',
+    test: 'Test runner',
+    destination: 'SSH destination',
+    port: 'SSH port',
+    os: 'Operating system',
+    workFolder: 'Work folder',
+    maxJobs: 'Maximum jobs',
+    labels: 'Labels',
+    commandClasses: 'Command classes',
+    tests: 'Tests',
+    builds: 'Builds',
+    typeChecks: 'Type checks',
+    declared: 'Declared commands',
+    setupCommand: 'Setup command',
+    cacheKey: 'Cache key',
+    environmentNames: 'Environment names',
+    online: 'Online',
+    offline: 'Offline',
+    busy: 'All slots busy',
+    testFailed: 'Runner self-test failed',
+    commandTooLong:
+      'The Windows runner command exceeds the process command-line limit. Shorten the setup command or check.',
+    hostKeyNotice:
+      'Connect once from your own terminal to verify and trust this host key: {fingerprint}.',
+    inputHangNotice:
+      'The remote shell waited for input. Use the scheduled-task wrapper and test again.',
+    environmentNotice: 'Only these environment names are passed. Credentials are always excluded.',
+    trustNotice: 'Runners execute project code and receive snapshots only in a trusted workspace.',
+  },
+  teamTrafficNotices: {
+    queuePaused:
+      'The queue is paused after a reload. Resume queue to start queued tasks; paid work checks consent again.',
+    windowCaps: 'Caps apply to this window. Other windows’ counts are advisory.',
+    uncertainAttempt:
+      'The earlier attempt has not stopped. Its slots remain counted and its working copy cannot be reused.',
+    userDecision:
+      'Continuing is your decision, not proof that every descendant stopped. An earlier process may still act on its resources.',
+    handoffUnavailable:
+      'A replacement cannot start: {reason}. Raise a limit or restart the team host.',
+    snapshotChanged:
+      'The working snapshot or check identity changed. The queue will merge and test again.',
+    lockHeld:
+      'Git’s lock is held: {path}. Apply later or open a terminal; the extension never removes another process’s lock.',
+    changedDuringLanding:
+      'Changed during landing: {path}. Undo merge is available only while the landed bytes still match.',
+    unverifiedCheck: 'Unverified check: {command}. No matching command was run by this attempt.',
+    journalBroken:
+      'The team journal could not be read: {path}. The broken file was kept; review recovery before resuming.',
+    dependencyBlocked:
+      'Dependency {task} did not finish successfully. This task is blocked; re-delegate or cancel it.',
+    paidNotice:
+      'Paid extras are enabled for your chosen setup. Before the first charge, accept the price: {price}. Shared daily budget: {budget}, set by museSpark.paidDailyBudgetUsd. Your subscription does not pay for these calls.',
+  },
+  teamSchedulerCommands: {
+    showTeamTraffic: 'Show Team Traffic',
+    pauseTeamQueue: 'Pause Team Queue',
+    resumeTeamQueue: 'Resume Team Queue',
+    addRunner: 'Add Runner…',
+    testRunners: 'Test Runners',
+    cleanUpAgentBranches: 'Clean Up Agent Branches',
+    showAllWorkspacesAgents: 'Show All Workspaces’ Agents',
+  },
   // A subagent's or background task's status as Muse Code reports it; one
   // not listed here is shown as it came.
   agentStatuses: {
@@ -1861,6 +2125,83 @@ export const EN = {
   backgroundTasksLabel: 'Background tasks',
   backgroundBadge: 'background',
   subagentRowLabel: 'Agent',
+  // The team tree and cards (M96 lane U2): the Agent map's team tree, the
+  // delegation, switch, waiting-for-you and merge cards, the worker label's
+  // group excluded (it splices technical names), and the Usage Team section.
+  teamTreeLabel: 'Team',
+  teamWorkerMerged: 'merged',
+  teamWorkerDiscarded: 'discarded',
+  teamRunningOf: '{used} of {amount} running',
+  teamWorkerFinished: 'Team task {task}: {status}.',
+  teamTreeKeyboardHint:
+    'Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.',
+  teamMergeAffectedFiles: 'Affected files',
+  teamMergeProtectedPaths: 'Protected paths',
+  teamMergeConflictPaths: 'Conflict paths',
+  teamMergeDetailsMissing:
+    'File details are unavailable. Review the diff before requesting a new merge card.',
+  teamMergeReviewVerdict: 'Review verdict',
+  teamMergeNoPaths: 'None',
+  teamRunningCount: forms({ one: '{count} running', other: '{count} running' }),
+  teamMergeMorePaths: forms({ one: 'and {count} more', other: 'and {count} more' }),
+  teamOrchestrator: 'Orchestrator',
+  teamOrchestratorDefault: 'Default',
+  teamOrchestratorOverride: 'Override',
+  // An entry the host gave no model name; {number} counts from 1.
+  teamEntryUntitled: 'Entry {number}',
+  // A pool entry's state; one not listed here is shown as it came.
+  teamEntryStates: {
+    ready: 'ready',
+    capped: 'capped',
+    rateLimited: 'rate limited',
+    usageLimited: 'at usage limit',
+    unavailable: 'unavailable',
+  },
+  teamCapUsed: '{used} of {amount}',
+  teamEstimated: 'estimated',
+  teamOpenTranscript: 'Open transcript',
+  teamReviewDiff: 'Review diff',
+  teamMergeAction: 'Merge',
+  teamDiscardAction: 'Discard',
+  teamResetEntry: 'Reset',
+  teamEditRole: 'Edit in Roles section',
+  teamStopAll: 'Stop all team tasks',
+  teamQueuedGroup: 'Queued',
+  teamUnmergedGroup: 'Unmerged',
+  teamInterruptedGroup: 'Interrupted',
+  teamTasksCount: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  teamPlanTitle: 'Delegation plan',
+  teamPlanDelegated: 'Delegated',
+  teamPlanKept: 'Kept by the main agent',
+  teamPlanDryRun: 'Plan only: nothing started or spent.',
+  // Why a task moved entries; one not listed here is shown as it came.
+  teamSwitchReasons: {
+    cap: 'cap reached',
+    concurrency: 'no free slot',
+    rateLimited: 'rate limited',
+    usageLimit: 'usage limit',
+    unavailable: 'unavailable',
+    reset: 'reset',
+    usageLimited: 'usage limit',
+    notStaffed: 'not staffed',
+  },
+  teamWaitingTitle: 'Waiting for you',
+  teamWaitingQueue: 'Queue it',
+  teamWaitingSelf: 'Main agent does it',
+  teamWaitingRaise: 'Raise a limit…',
+  teamWaitingCancel: 'Cancel',
+  teamMergeTitle: 'Merge',
+  teamMergeNotReviewed: 'Not reviewed',
+  teamMergeSameModel: 'Reviewed by the same model',
+  teamMergeBranchMoved: 'The branch moved during the task.',
+  teamMergeConflict: 'Conflicts need resolving before merge.',
+  teamReportTitle: 'Report',
+  teamUsageTitle: 'Team',
+  teamUsageToday: 'Today',
+  teamUsageWindow: 'This window',
+  teamUsageTasks: 'Tasks',
+  teamUsageTokens: 'Tokens',
+  teamUsageCost: 'Cost',
   usageAccount: 'Account',
   usageAddModelApiKey: 'Add Model API key',
   usageReplaceModelApiKey: 'Replace Model API key',
@@ -2600,6 +2941,35 @@ export const EN = {
     'The same prompt runs in separate worktrees, each billed to your Model API key. {price} Each run asks for approval in every permission mode, including Bypass, unless you allow best-of-N always in this workspace. Actual cost depends on tokens used; other paid tools cost extra. Model API backend only.',
   usagePaidBestOfNAttempts: forms({ one: '{count} attempt', other: '{count} attempts' }),
   usagePaidBestOfNIncluded: 'Reported token estimate: {cost}',
+  // Team workers billed to a key (M96 lane A, PLAN.md D75): the paid feature,
+  // its per-task popup lines and its confirmation. {budget} is the shared
+  // daily team budget in the display language's money format.
+  paidTeamWorkersName: 'Team workers',
+  paidTeamWorkerRates:
+    '{model}: {input} input, {cached} cached input, {output} output per million tokens; up to {tokens} tokens per task.',
+  paidTeamWorkerUnpriced:
+    'The price is unknown; up to {tokens} tokens per task. Daily token limits apply.',
+  paidTeamWorkerTokenBudget: 'Shared daily team token ceiling: {tokens} tokens.',
+  paidTeamWorkerLine: '{role} on {model}: {rates}',
+  paidTeamWorkerBudget: 'Shared daily team budget: {budget}.',
+  paidTeamWorkersTitle: 'Approve paid team tasks?',
+  paidTeamWorkersDetail:
+    '{tasks}\n\nBilled to your API key for each task’s provider. Actual cost depends on tokens used. Allow once covers these tasks only.',
+  paidConfirmTeamWorkers:
+    'Team tasks run on models billed to your Model API key. {price} The first delegate call that starts key tasks asks for approval in every permission mode, including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are not paid uses. Actual cost depends on tokens used; other paid tools cost extra.',
+  usagePaidTeamTasks: forms({ one: '{count} team task', other: '{count} team tasks' }),
+  // Team pool selection (M96 lane A, PLAN.md D75): the switch row and its
+  // reasons, and the two refusals callers surface. {measure} and {window}
+  // are D75's code words (tokens/day); {used} and {amount} are formatted
+  // counts in the display language.
+  teamSwitchReasonCap: '{measure}/{window} cap met, {used} of {amount} used',
+  teamSwitchReasonConcurrency: 'no free running slot',
+  teamSwitchReasonRateLimited: 'rate-limited by the provider',
+  teamSwitchReasonUsageLimit: 'subscription usage limit reached',
+  teamSwitchReasonUnavailable: 'agent unavailable',
+  teamSwitchReasonReset: 'headroom back after reset',
+  teamPoolNotStaffed: 'Role {role} has no entries in its pool: it is not staffed.',
+  teamCapExceeded: '{entry} has no {measure}/{window} headroom left ({used} of {amount} used).',
   // Inline completions (M94, PLAN.md D73): the paid feature, the
   // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
   // and the Account & usage row. {price} is a dollar amount in the display
@@ -2797,6 +3167,14 @@ export const EN = {
     'No verified price is available for this model. The child task cannot start.',
   subagentPlanMode: 'Plan mode refuses paid child tasks; switch mode and approve a new task.',
   subagentWebSearchOff: 'Web search was turned off before this child request; no request was sent.',
+  // M96 (PLAN.md D75): the orchestrator's writing tools wait while an
+  // in-place worker task runs, in every mode.
+  teamInPlaceOrchestratorRefused:
+    'A team worker is writing in this workspace: edits, the shell and merges wait until its task ends.',
+  // M96 (PLAN.md D75): a team conversation whose last ready entry went away
+  // keeps its tools; from the next turn `delegate` is refused.
+  teamSingleModelAgain: 'Only one model is ready: the team applies from a new conversation.',
+  teamRunnerUnavailable: '{tool} is unavailable: the team runner has not loaded in this window.',
   webSearchFailed: 'The search failed',
   // Under a reply that cites web pages (M33).
   citationsHeading: 'Sources',
@@ -3416,6 +3794,271 @@ export const EN = {
   ollamaMalformedFrame: 'Malformed Ollama stream frame.',
   ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
   ollamaFinishReason: 'Ollama finished with reason "{reason}".',
+
+  // M96 lane R (PLAN.md D75): agent roles. {role}: the role id.
+  teamCapabilityNoTools: 'This model cannot call tools, so it cannot run the {role} role.',
+  // {tokens}: the model's window; {minimum}: what every role needs.
+  teamCapabilitySmallWindow:
+    'This model’s context window ({tokens} tokens) is below the {minimum} tokens every role needs.',
+  // {tokens}: the model's window; {recommended}: the role's recommendation; {role}: the role id.
+  teamCapabilityWarnWindow:
+    'This model’s context window ({tokens} tokens) is below the {recommended} tokens recommended for the {role} role.',
+  // {role}: the role id.
+  teamCapabilityWarnImages:
+    'This model takes no image input, which the {role} role works better with.',
+  teamCapabilityWarnReasoning:
+    'This model has no reasoning tier, which the {role} role works better with.',
+  // {model}: the model id; {role}: the role id.
+  teamCapabilityUnknown:
+    'The capabilities of {model} are unknown; it was not checked for the {role} role.',
+  // A role or team.json file refused whole. {file}: the file; {detail}: the technical reason.
+  teamRoleFileRefused: '{file}: {detail}',
+  teamRoleResolutionUnknown:
+    'Role resolution refused because an input is missing, unreadable, malformed or ambiguous.',
+  teamRoleGlobUnproven: 'Write-path inclusion cannot be proved.',
+  teamRoleNotFound: 'Role {role} is not in the complete catalogue.',
+  teamJsonRefused: '{file}: {detail}',
+  // {id}: the project role; {detail}: the wider asks.
+  teamRoleNeedsAllowance:
+    'The project role {id} asks for {detail}; it runs read-only until allowed for this workspace.',
+  // M96 (PLAN.md D75): the team. Every role, pool, task, ledger and hint
+  // string the Roles section, the Agent map and the cards show. Text the
+  // model reads is TEAM_MODEL_TEXT in constants.ts and stays English.
+  teamRolesTitle: 'Roles',
+  teamAgentsTitle: 'Agent map',
+  teamHistoryTitle: 'Team history',
+  teamOrchestratorSlot: 'Orchestrator',
+  teamResetToDefault: 'Reset to Default',
+  teamAddCustomRole: 'Add custom role',
+  teamCharterEnforced: 'The harness enforces this',
+  teamAccessModes: {
+    readOnly: 'Read-only',
+    ownBranch: 'Own branch',
+    inPlace: 'In place',
+  },
+  teamInPlaceConfirm:
+    'A worker in this role writes in your own tree, beside your own edits. Only writers you allow here run this way: never a repository, a project role or a template.',
+  teamToolChecklist: 'Tool set',
+  teamAddEntry: 'Add entry',
+  teamDefaultEntry: 'Default',
+  // {model}: what Default resolves to now, for example a model and backend.
+  teamDefaultResolves: 'Default ({model})',
+  // {model}: the entry's model; {reason} or {warning}: what the check found.
+  teamCapabilityRefused: '{model} cannot take this role: {reason}.',
+  teamCapabilityWarning: '{model}: {warning}.',
+  teamIntensityTitle: 'Intensity',
+  // M96 lane F (PLAN.md D75): team templates, autofill, intensity, model
+  // settings, cap validation, preview and transfer.
+  teamTemplateSolo: 'Solo',
+  teamTemplatePair: 'Pair (code + review)',
+  teamTemplateFull: 'Full team',
+  teamTemplateCustom: 'Custom',
+  // {step}: the guided first run's step number.
+  teamSetupStep: 'Set-up step {step}',
+  teamIntensityLevels: {
+    minimal: 'Minimal',
+    light: 'Light',
+    balanced: 'Balanced',
+    heavy: 'Heavy',
+    max: 'Max',
+  },
+  // {cost}: the level's dollars per hour; {tokens}: its tokens per hour.
+  teamIntensityCost: '{cost} per hour, about {tokens} tokens',
+  teamTemplates: {
+    solo: 'Solo',
+    pair: 'Pair (code + review)',
+    full: 'Full team',
+    custom: 'Custom',
+  },
+  teamTemplateDetails: {
+    solo: 'No delegation: exactly today’s chat.',
+    pair: 'Engineering and code review on different vendors.',
+    full: 'Research, design, engineering, QA, code review and docs, with marketing offered.',
+    custom: 'Start empty and add what you need.',
+  },
+  teamSetupSteps: {
+    template: 'Template',
+    agents: 'Agents found',
+    pools: 'Pools',
+    limits: 'Limits',
+    preview: 'Preview',
+  },
+  // Cap prefills, each with its reason (D75). {amount}: the suggested cap;
+  // {window}: its window; {role}: the role; {count}: the learned tasks.
+  teamCapPrefillDefault: '{amount} per {window}: the default for {role}.',
+  teamCapPrefillLearned: '{amount}: the median of your last {count} {role} tasks.',
+  // Inline cap validation (D75). {label}: the cap; {minimum}: one request's
+  // minimum in tokens.
+  teamCapBelowMinimum: '{label} is below one request’s minimum ({minimum}).',
+  teamCapTaskAboveDay: 'A task cap above the same measure’s day cap never fills.',
+  teamCapDollarsUnpriced: 'A dollar cap needs a priced model: use a token cap.',
+  teamCapUnpricedNeedsCaps:
+    'A model without a price joins a pool only with token caps in both the task and the day window.',
+  teamCapConcurrentAboveGlobal: 'Above the global caps: it runs at the ceiling.',
+  teamCapDayAboveBudget: 'Above the team’s daily budget: it stops at the budget.',
+  teamSuggestionAccept: 'Accept',
+  teamSuggestionChange: 'Change',
+  teamSuggestionDismiss: 'Dismiss',
+  // Autofill suggestions, each with its reason (D75).
+  teamSuggestReviewVendor: 'Review on {model}: another vendor than {other}.',
+  teamSuggestCheapest: '{model} passes the capability check and costs least here.',
+  teamSuggestFallback: 'One entry only: add a fallback ({model}).',
+  teamSuggestBudgetCaps: 'Day caps that fit the daily budget left: {amount}.',
+  teamSuggestLearned: '{median} from your last {count} {role} tasks.',
+  teamPreviewTitle: 'Preview',
+  teamPreviewSample: 'Sample task',
+  // {cost}: the labelled cost of one orchestrator turn.
+  teamTryWithOrchestrator: 'Try with the orchestrator ({cost})',
+  teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
+  teamEntryMissing: 'Missing: map it to one of your agents or remove it.',
+  teamIncludeTranscripts: 'Include transcripts',
+  // The tree's states (D75). Entry states with a time or reason ride in the
+  // templates below.
+
+  // {time}: when the mark lifts; {reason}: why the entry cannot run.
+  teamEntryRateLimited: 'Rate-limited until {time}.',
+  teamEntryUsageLimited: 'At its usage limit until {time}.',
+  teamEntryUnavailable: 'Unavailable: {reason}.',
+  teamEntryCapped: 'Capped: {reason}.',
+  teamResumeAction: 'Resume',
+  teamTakeBack: 'Take back',
+  teamMoveToBridge: 'Move to the shared bridge',
+  teamResetRecord: 'Reset record',
+  // One transcript row per switch (D75). {role}: the role; {from} and {to}:
+  // the entries; {reason}: one of teamSwitchReasons with its figures.
+  teamSwitchRow: '{role}: {from} → {to}, {reason}',
+  teamWaitingForYou: 'Waiting for you',
+  teamChoiceQueue: 'Queue it',
+  teamChoiceSelf: 'Main agent does it',
+  teamChoiceRaise: 'Raise a limit…',
+  teamChoiceCancel: 'Cancel',
+  teamNotStaffed: 'Not staffed: the pool is empty.',
+  teamOnlyOneModel: 'Only one model is ready: the team applies from a new conversation.',
+  teamUndoMerge: 'Undo merge',
+  teamBranchMoved: 'The branch moved during the task.',
+  // {file}: the file whose merge conflicts.
+  teamMergeConflicted: '{file} has conflicts.',
+  teamNoSecondModel:
+    'The team is on, but only one model is ready, so this conversation works as today. Add a second model to a role to start the team.',
+  // The paid feature `teamWorkers` (D48, rule 12): asked once before the
+  // first charge, with the price and the shared daily budget. {price}: each
+  // model's prices; {ceiling}: each task's ceiling; {budget}: the shared
+  // daily budget.
+  teamWorkersName: 'Team workers',
+  teamPaidTitle: 'Let team workers use your key?',
+  teamPaidDetail: '{price}\nEach task is capped at {ceiling}. Shared daily budget: {budget}.',
+  // {task} and {day}: the token ceilings of an unpriced key model.
+  teamPaidUnknownPrice:
+    'The price is unknown: this entry runs under token ceilings of {task} per task and {day} per day.',
+  // {command}: the external agent's command line.
+  teamPaidExternalOnce:
+    '{command} runs under its own rules, billed however it is paid. The first task in each workspace asks once.',
+  // Lane K's hints, orphans, probes and refusals (M96, D75). {file}: the
+  // file or journal; {server}: the exclusive server; {unread}: the tasks
+  // that could not be read.
+  teamHintContinue: 'Continue',
+  teamHintWait: 'Wait',
+  teamHintOpenWindow: 'Open that window',
+  teamHintStartAnyway: 'Start here anyway',
+  teamHintsOff: 'Team hints are off: the hints folder cannot be used. Nothing else changes.',
+  teamHintFileClash: '{file} is open in another window.',
+  teamHintServerRunning: '{server} runs in another window.',
+  teamRetry: 'Retry',
+  teamOpenTerminalHere: 'Open a terminal here',
+  teamRestartServer: 'Restart server',
+  teamTestAgain: 'Test again',
+  teamOpenProviderSettings: 'Open provider settings',
+  teamOrphanKeep: 'Keep',
+  teamOrphanShowTerminal: 'Show in a terminal',
+  teamJournalBroken: '{file} did not parse and was moved aside. {unread} tasks could not be read.',
+  teamNoSubtaskSlot: 'No free slot for a sub-task: the orchestrator does it itself.',
+  teamHostBusy: 'Host busy',
+  // Lane M96-0b: recovery and landing actions (round-4 plan). Button labels
+  // use the plan's exact words; each explanation names what the action ends
+  // or risks. {sessions}: the team worker sessions to end; {server}: the
+  // exclusive server; {files}: the files that changed; {task}: the old task.
+  teamRestartTeamHost: 'Restart the team host',
+  teamRestartTeamHostDetail:
+    'Ends only this window’s team worker sessions ({sessions}). The conversation’s own sessions are untouched.',
+  teamContinueAnyway: 'Continue anyway',
+  teamContinueAnywayWarning:
+    'Retirement cannot be proved here (macOS, and Linux without a user scope). Continuing records your decision that the earlier attempt has stopped, not proof.',
+  teamReleaseAnyway: 'Release anyway',
+  teamReleaseAnywayWarning:
+    'Releases {server} as your decision, not as proof: the earlier call may still be acting on the resource.',
+  teamTakeOver: 'Take over',
+  teamTakeOverWarning:
+    'Take over marks the old task interrupted in this window’s records and offers to discard its copy and branch. If the other window is still open, its task breaks.',
+  teamContinueHereAsNewTask: 'Continue here as a new task',
+  teamContinueHereAsNewTaskDetail:
+    'Starts a new task in a fresh working copy from the old task’s last commit. The old task keeps its id, its copy, its branch and its journal row, untouched.',
+  teamIncludeUncommittedEdits: 'Include its uncommitted edits',
+  teamIncludeUncommittedEditsDetail:
+    'Reads a snapshot of the old copy through a temporary index: a read, never a write.',
+  teamLandingApply: 'Apply',
+  teamChangedDuringLanding: forms({
+    one: '{count} file changed during landing: {files}.',
+    other: '{count} files changed during landing: {files}.',
+  }),
+  // A Roles-section setting: probing is setup traffic, authorized by
+  // configuring a second model.
+  teamCheckModelsOnOpen: 'Check the team’s models when this window opens',
+  teamCheckModelsOnOpenDetail:
+    'When on, and a role has a distinct custom model, the panel probes the team’s models once when the window opens. Configuring a second model is what authorizes this traffic.',
+  teamDuplicateJournal:
+    'Another window’s journal ({task}) may belong to a window that is still open. Nothing here writes its copy, branch or journal row.',
+  teamThrottledByProvider: 'throttled by provider',
+  // {low}, {high}: dollars per hour; {tokens}: tokens per hour.
+  teamLevelCost: '{low}–{high} per hour, {tokens} tokens',
+  teamLevelCostTokens: '{tokens} tokens per hour',
+  teamSettingCostEffort: 'Higher effort is slower, about twice the tokens per step up',
+  teamSettingCostThinking: 'Thinking adds reasoning tokens to every task',
+  teamSettingCostServiceTier: 'Priority tiers cost more per token',
+  teamSettingCostMaxOutput: 'A higher cap lets long answers finish, at their token cost',
+  teamSettingCostSampling: 'Sampling changes style, not cost',
+  teamSettingCostVerbosity: 'Higher verbosity uses more output tokens',
+  teamSettingCostParallel: 'Parallel tool calls finish faster at the same token cost',
+  teamSettingCostContextCap: 'A lower cap compacts earlier and bounds each reservation',
+  // {minimum}: the token floor below which a cap cannot serve one request.
+  teamCapTokenTooSmall: 'Below one request’s minimum of {minimum} tokens',
+  teamCapInvalidAmount: 'Use a finite positive cap; token and task counts must be whole numbers',
+  teamCapInvalidConcurrent: 'Running concurrency must be a whole number of at least one',
+  teamCapDollarUnpriced: 'A dollar cap needs a priced model; use a token cap',
+  // {budget}: the team's daily budget.
+  teamCapDayAboveBudgetDetail: 'Above the team’s daily budget of {budget}',
+  // {maximum}: the global running limit.
+  teamCapConcurrentAboveGlobalDetail: 'Above the global limit of {maximum} running',
+  teamCapUnpricedKeyNeedsCaps: 'An unpriced key model needs both a task and a day token cap',
+  // {model}: the suggested model; {vendor}: its vendor.
+  teamSuggestReviewVendorDetail:
+    'Review on {model} ({vendor}), a different vendor from engineering',
+  // {model}: the suggested model; {role}: the role it would serve.
+  teamSuggestCheapestDetail: '{model} is the cheapest model that can do {role} work',
+  teamSuggestFreeLocal: '{model} is free and local, and can do {role} work',
+  // {role}: the single-entry pool; {model}: the suggested second entry.
+  teamSuggestFallbackDetail: '{role} has one entry; add {model} as its fallback',
+  // {role}: the role; {amount}: the suggested day cap.
+  teamSuggestBudget: '{role} day cap of {amount}, from the remaining daily budget',
+  teamPreviewFeatureTests: 'A feature with tests',
+  teamPreviewResearchLibrary: 'Research a library',
+  teamPreviewReviewBranch: 'Review my branch',
+  // {low}, {high}: the estimated cost range; {tokens}: the token figure.
+  teamPreviewCost: '{low}–{high} for about {tokens} tokens',
+  teamPreviewCostTokens: 'About {tokens} tokens; no priced entry takes part',
+  teamPreviewCostUnknown: 'About {tokens} tokens; price unknown',
+  teamLevelCostUnknown: '{tokens} tokens per hour; price unknown',
+  // {count}: the steps the caps moved off the first entry.
+  teamPreviewSwitches: forms({
+    one: '{count} switch forced by caps',
+    other: '{count} switches forced by caps',
+  }),
+  // {cost}: the one orchestrator turn's estimated cost.
+  teamPreviewDryRunCost: 'Try with the orchestrator first: one turn, about {cost}',
+  // {key}: the unknown setting; the whole file is refused.
+  teamImportUnknownKey: 'Unknown setting {key}: the file was refused whole',
+  // {model}: the entry's model reference.
+  teamImportMissingEntry:
+    '{model} is not installed here; map it to one of your models or remove it',
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

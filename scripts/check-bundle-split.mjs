@@ -87,6 +87,7 @@ import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
+  webviewTeamOutputs,
 } from './lib/webviewBundles.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
@@ -236,6 +237,43 @@ for (const name of [
 const activation = inputsOf(BUNDLES.activation)
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
+// M96 round 3a: the Node proxies defer concrete view validators to team.js.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  if (inputsOf(bundle).has('src/shared/teamView.ts')) {
+    problems.push(`${bundle.output} carries the eager team view validators`)
+  }
+}
+// M96 acceptance 47: the team factory installs these validators on activation.
+// A single-model user must never pay their eager loading cost in any backend.
+for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+  for (const file of inputsOf(bundle).keys()) {
+    if (/^src\/(core|host)\/(?:team|runners)\//.test(file)) {
+      problems.push(bundle.output + ' carries ' + file + ', which loads only with the team')
+    }
+  }
+  if (inputsOf(bundle).has('src/shared/team.ts')) {
+    problems.push(`${bundle.output} carries src/shared/team.ts, which loads only with the team`)
+  }
+}
+// The session's model text is its own object (M70 budget repair). esbuild
+// keeps property names: these belong only to MODEL_API_MODEL_TEXT, which
+// the activation and ACP loaders must discard with the unused export.
+for (const bundle of [BUNDLES.activation, BUNDLES.acp]) {
+  if (/\bcompactionPrompt:/.test(readFileSync(bundle.output, 'utf8'))) {
+    problems.push(`${bundle.output} carries the Model API session's model text`)
+  }
+}
+for (const bundle of DEFERRED) {
+  const inputs = inputsOf(bundle)
+  for (const file of bundle.files) {
+    for (const parent of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+      if (inputsOf(parent).has(file)) {
+        problems.push(`${parent.output} carries ${file}, which loads only on its first action`)
+      }
+    }
+    if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
+  }
+}
 const extensionHooks = inputsOf({
   output: 'dist/extensionHooks.js',
   metafile: 'dist/meta/extensionHooks.json',
@@ -635,6 +673,31 @@ if (
   problems.push(`${BUNDLES.acp.output} no longer loads the shared recorder`)
 }
 
+// M96 U2: a single-model chat fetches only the static ESM closure. Team
+// renderers must occur exclusively beyond dynamic-import edges.
+const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+const initialWebview = new Set()
+function visitTeamWebview(output) {
+  if (initialWebview.has(output)) return
+  initialWebview.add(output)
+  const imports = webview.outputs[output].imports
+  for (const entry of imports) {
+    if (!entry.external && entry.kind === 'import-statement') visitTeamWebview(entry.path)
+  }
+}
+visitTeamWebview('dist/webview/main.js')
+const TEAM_UI_ONLY = ['src/webview/components/TeamTree.tsx', 'src/webview/components/TeamCards.tsx']
+for (const file of TEAM_UI_ONLY) {
+  const carrying = Object.entries(webview.outputs).filter(
+    ([, output]) => (output.inputs[file]?.bytesInOutput ?? 0) > 0,
+  )
+  if (carrying.length === 0) problems.push(`webview no longer carries ${file}`)
+  for (const [output] of carrying) {
+    if (initialWebview.has(output))
+      problems.push(`${output} carries ${file} in the initial webview graph`)
+  }
+}
+
 // What's New's page script (M99) is a few lines that pass clicks back: it
 // carries no package, not the display table and not constants.ts (which
 // re-exports that table), only the script and its markup contract.
@@ -731,6 +794,18 @@ function shipped(output) {
   return bundle ?? { output, metafile: '' }
 }
 const TEXT_BLOCKS = [
+  {
+    block: 'TEAM_MODEL_TEXT',
+    sentinels: ['toolTheRoleToRunEG'],
+    readers: ['dist/team.js', 'dist/teamScheduler.js'],
+  },
+  {
+    block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
+    sentinels: ['undeclaredTool'],
+    readers: ['dist/modelApiBoundaries.js'],
+  },
+  // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
+  { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
@@ -946,6 +1021,9 @@ const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
   'src/webview/highlightRuntime.ts',
+  'src/webview/components/TeamUi.tsx',
+  'src/webview/components/TeamTree.tsx',
+  'src/webview/components/TeamCards.tsx',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
@@ -996,6 +1074,16 @@ const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
 for (const file of builtChunks) {
   if (!reachableWebview.has(`${chunks}/${file}`) && !otherPageChunks.has(`${chunks}/${file}`))
     problems.push(`Stale webview chunk ${file}`)
+}
+
+// M96: both renderers must share one optional entry and one independent cap.
+const teamUiOutputs = webviewTeamOutputs(webviewMeta)
+for (const source of ['TeamUi', 'TeamTree', 'TeamCards']) {
+  const carrying = teamUiOutputs.filter((file) =>
+    Object.hasOwn(webviewMeta.outputs[file].inputs, `src/webview/components/${source}.tsx`),
+  )
+  if (carrying.length !== 1)
+    problems.push(`${source} must occur in the separately budgeted team UI chunk`)
 }
 
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.

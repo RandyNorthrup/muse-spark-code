@@ -9,7 +9,17 @@
 // only the row it changes. The rows carry no alert roles: the app's single
 // live region reads failures and turn ends out once (M25).
 
-import { memo, type ReactNode, useDeferredValue, useId, useMemo, useRef, useState } from 'react'
+import {
+  lazy,
+  Suspense,
+  memo,
+  type ReactNode,
+  useDeferredValue,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { CitationSummary, QuestionAnswer } from '../../shared/agentEvents'
 import { UI_TEXT } from '../../shared/constants'
 import {
@@ -49,12 +59,18 @@ import { type QuoteIntent, QuoteMenu } from './QuoteMenu'
 import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
+import type { TeamCardActions } from './TeamCards'
 import { ToolRow, type ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const TeamCard = lazy(async () => {
+  const module = await import('./TeamUi')
+  return { default: module.TeamCard }
+})
 
 export interface TranscriptProps {
   readonly entries: readonly TranscriptEntry[]
@@ -140,6 +156,12 @@ export interface TranscriptProps {
   readonly onQuote?: ((intent: QuoteIntent) => void) | undefined
   readonly onCopyQuote?: (() => void) | undefined
   readonly onCloseQuoteMenu?: (() => void) | undefined
+  /**
+   * The team's waiting and merge cards' answers (M96 lane U2); absent
+   * where the host takes none (history, single-model mode): the cards read
+   * only then.
+   */
+  readonly teamActions?: TeamCardActions | undefined
   /**
    * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
    * `withdrawQueued`. Absent while nothing can take a message back.
@@ -837,7 +859,19 @@ function OtherRow({
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
-    StepEntry | { kind: 'user' | 'assistant' | 'userShell' | 'workflow' }
+    | StepEntry
+    | {
+        kind:
+          | 'user'
+          | 'assistant'
+          | 'userShell'
+          | 'workflow'
+          | 'teamPlan'
+          | 'teamSwitch'
+          | 'teamWaiting'
+          | 'teamMerge'
+          | 'teamReport'
+      }
   >
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
 }) {
@@ -1065,6 +1099,7 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    teamActions,
     onEditQueued,
     canEditSteered = false,
   } = props
@@ -1186,6 +1221,22 @@ function TranscriptList(props: TranscriptProps) {
       case 'workflow': {
         return <WorkflowRow key={entry.id} entry={entry} />
       }
+      case 'teamPlan':
+      case 'teamSwitch':
+      case 'teamWaiting':
+      case 'teamMerge':
+      case 'teamReport': {
+        return (
+          <Suspense key={entry.id} fallback={null}>
+            <TeamCard entry={entry} actions={teamActions} />
+          </Suspense>
+        )
+      }
+      case 'subagent':
+      case 'item':
+      case 'error': {
+        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+      }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
           return (
@@ -1208,9 +1259,6 @@ function TranscriptList(props: TranscriptProps) {
             onRedo={onRedo}
           />
         )
-      }
-      default: {
-        return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
       }
     }
   }

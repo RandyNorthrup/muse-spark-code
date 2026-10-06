@@ -1,0 +1,29 @@
+base=/home/randy/gates/base-c78aedc3ea0dab3c lock=c78aedc3ea0dab3cf7e685e18926e181d01a96535223c740d26598931bce86ce
+base reused
+rig=kubuntu slot=finm96k2 snapshot=bbd607bb base=/home/randy/gates/base-c78aedc3ea0dab3c
+npm notice run muse-spark-code@0.12.1 npx
+npm notice run 'vitest' run test/unit/teamProcessLifetime.test.ts test/unit/teamHintsAndLoad.test.ts test/unit/teamNativeLifetime.test.ts test/unit/teamSettlement.test.ts --maxWorkers=1
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.2 /home/randy/gates/rt-finm96k2
+
+ ✓ test/unit/teamNativeLifetime.test.ts (7 tests) 3251ms
+   ✓ M96 K real native lifetime (7)
+     ✓ preserves the real command exit code through its native container 891ms
+     ✓ reconciles foreign journals before startup returns and preserves all foreign bytes 393ms
+     ✓ scans real marked descendants and stops only after click and second identity check 394ms
+     ✓ retains no-scope detached descendants as uncertain after direct child exit 884ms
+ ✓ test/unit/teamProcessLifetime.test.ts (15 tests) 321ms
+ ✓ test/unit/teamSettlement.test.ts (6 tests) 14ms
+ ✓ test/unit/teamHintsAndLoad.test.ts (9 tests) 67ms
+
+ Test Files  4 passed (4)
+      Tests  37 passed (37)
+   Start at  09:20:55
+   Duration  5.91s (tests 68%, import 12%, setup 10%, transform 10%)
+
+    Isolate  4 workers spawned · ~126ms startup each (spawn + environment, per file)
+             at least ~379ms faster with isolate: false — reuses workers across files instead of one per file
+
