@@ -5,6 +5,7 @@ export { buildPalette } from '../palette'
 export { slashCommandsOf } from '../slashCommands'
 export { cliCommands } from '../cliCommands'
 export { EN } from '../l10n/en'
+export { permissionModeDetail } from '../permissionModes'
 export { fill } from '../l10n/text'
 export {
   ACP_AGENT_NAME,
@@ -57,6 +58,7 @@ export { parseHandoffPrompt } from '../handoff'
 // The tooling gate also checks tool/action coverage and host admission witnesses.
 const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['custom-agents', ['vscode:modelApi']],
+  ['mcp-elicitation', ['vscode:modelApi']],
   ...[
     'best-of-n',
     'verify',
@@ -189,7 +191,7 @@ export const REFERENCE_ACTION_FEATURES = {
   hostAction: 'chat',
   decideApproval: 'chat',
   cancelQuestion: 'questions',
-  elicitationAnswer: 'questions',
+  elicitationAnswer: 'mcp-elicitation',
   answerQuestion: 'questions',
   clarifyQuestion: 'questions',
   moveToBackground: 'chat',

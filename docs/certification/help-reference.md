@@ -431,3 +431,30 @@ owning-file runs, nonzero exits, named failures and matching before/restored
 SHA-256 hashes. Baseline: three new regressions failed before their fixes;
 afterwards all **68 tests in three files passed**. Five-project typecheck passed.
 No test filter, skip, snapshot acceptance, relaxed guard or new dependency.
+
+### C01–C02 — Permission and answer privacy
+
+Auto's setting enum and permissions entry now contain both backend menu
+resolutions with each reviewer on and off. Both settings default true. Commands
+already settled by rules follow those rules; the Model API reviewer additionally
+needs paid-use consent and budget admission. Either eligible reviewer can allow
+once without a user approval card; unsuccessful reviews leave the decision to
+the user. Ordinary ACP has neither reviewer.
+
+The ordinary Submit feature now says that Muse receives submitted answers and
+clarifications. MCP elicitation has a separate Model API feature and action
+identity. Its form values go to the requesting server, outside the model
+conversation/transcript; the server may later include them in tool output.
+
+| Finding              | Regression against code                                                                                                                                                        | Red drill                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| C01 — Auto reviewers | Generator C01 compares both reviewer states with `permissionModeDetail`; traces ModelApiHost approval/paid admission and controller/ReviewedApprovals allow-once before a card | Remove the reviewed Muse Code limit; C01 fails             |
+| C02 — Answer privacy | Generator C02 checks distinct entries and ModelApiHost question serialization/replay versus elicitation's server result                                                        | Restore the false ordinary-answer privacy claim; C02 fails |
+
+Both P1 tests failed against the prior implementation and passed with the fixes.
+The reference generator, entry and page pass **79 tests**. Existing fake transport
+suites (`modelApiHost`, `modelApiElicitation`, `museCodeReviewer`) pass **676 tests**,
+including reviewer ALLOW running `npm test` with no card, question answers and
+clarifications reaching the next model request, and MCP answers absent from
+emitted events and logs. These are fake requests, with no paid/live calls.
+All 14 UI and manifest translations contain the corrected descriptions.

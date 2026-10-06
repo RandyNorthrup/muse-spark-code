@@ -2375,8 +2375,8 @@
   "referenceNativeAgents": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceAttachments": "选择或拖放文件以附加，并将图像粘贴到输入框。PNG、JPEG、GIF和WebP需要支持视觉的模型。PDF需要Model API。可附加可信工作区中已索引的文本文件；受保护或机密文件会被拒绝。以下限制在发送前生效。",
   "referenceConversationActions": "重命名、分叉或回退对话。回退可恢复记录的编辑和历史；之后已更改的文件会保留，命令行更改不在范围内。轮次运行时的新消息用于引导。Model API消息可在下次请求前撤回；Muse Code引导会立即送达，因此只能撤回排队的消息。侧聊复制已完成的轮次、清除目标并保持Plan；Muse Code文件工具在Plan中仍可编辑。选择文本可回复、询问、评论或复制。",
-  "referenceQuestions": "提交 用自己的话回答而不是选择；Muse 会阅读并重新决定 取消 你的回答会发送给 MCP，而不是 Muse。切勿输入密码或密钥。",
-  "referencePermissionLimits": "museCode:manual: Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问\nmuseCode:acceptEdits: 在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问\nmuseCode:plan: Muse 会先做规划；Muse Code 会拒绝命令，但它的文件工具仍可不经询问地编辑文件\nmuseCode:auto: Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问\nmuseCode:bypassPermissions: Muse 会直接编辑文件和运行命令而不询问\nmodelApi:manual: Muse 会在每次编辑和每条命令前请求批准\nmodelApi:acceptEdits: Muse 会直接编辑文件而不询问，并在运行命令前询问\nmodelApi:plan: Muse 会先探索代码并提出计划，然后再编辑\nmodelApi:auto: Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问",
+  "referenceQuestions": "选择答案并提交、用自己的话解释，或取消。提交的答案和解释会在对话中传给 Muse。",
+  "referencePermissionLimits": "museCode:manual: Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问\nmuseCode:acceptEdits: 在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问\nmuseCode:plan: Muse 会先做规划；Muse Code 会拒绝命令，但它的文件工具仍可不经询问地编辑文件\nmuseCode:bypassPermissions: Muse 会直接编辑文件和运行命令而不询问\nmodelApi:manual: Muse 会在每次编辑和每条命令前请求批准\nmodelApi:acceptEdits: Muse 会直接编辑文件而不询问，并在运行命令前询问\nmodelApi:plan: Muse 会先探索代码并提出计划，然后再编辑\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 会直接运行它判断为简单的命令而不询问；审查器可能会允许其他部分命令运行一次，其余命令会询问您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 会直接编辑文件而不询问（受保护的文件除外）；付费审查器可能会允许部分命令运行一次，其余命令会询问您\n这些 Auto 说明针对尚未由规则决定的请求。Model API 审核器还需要付费使用同意和预算准入。审核被拒绝或失败时，由你决定。普通 ACP 不提供这两种审核器。",
   "referenceSecretPrompt": "如果在提示中检测到秘密信息，对话记录会将其遮盖，并询问是仍然发送还是返回编辑。",
   "referenceCodeIntelExtra": "使用编辑器语言服务查找定义、引用、符号和调用，并安全重命名。 悬停 仓库地图 (mcp__ide__repoMap / repo_map).",
   "referenceContext": "单击以立即压缩 总结较早的上下文以腾出窗口空间 无法回退到最近一次压缩之前。",
@@ -2461,5 +2461,7 @@
   "referencePaletteKeys": "浏览条目，选择或补全选择，或关闭列表。 选择 Muse 在每条回答上投入的工作量。",
   "referenceBestOfNRequirements": "候选方案需要Model API、启用付费功能、可信Git工作区、Git 2.36或更新版本，且不能配置Git过滤器或钩子程序。在候选预算可共享前，有限会话预算会阻止此流程。设置尝试和请求上限、比较或取消，然后应用所选更改并暂存，不创建提交。",
   "referenceWindowsSessions": "Muse Code 无法在 Windows 上重命名或分叉会话（meta-models/muse-code-sdk#30、#31）。",
-  "referenceAgentControls": "代理控制; 中断; 停止; 恢复; 关闭代理; 重新打开代理; 将结果标记为已读; 发送消息; 后续任务"
+  "referenceAgentControls": "代理控制; 中断; 停止; 恢复; 关闭代理; 重新打开代理; 将结果标记为已读; 发送消息; 后续任务",
+  "referenceElicitationTitle": "MCP 表单",
+  "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。"
 }

@@ -124,6 +124,69 @@ const commandText = (key) =>
   source.EN[build().commands.find((entry) => entry.id === `museSpark.${key}`).text.ui]
 
 describe('RVHELPREF truth regressions', () => {
+  it('C01 describes every Auto reviewer and its no-card approval path', () => {
+    const auto = setting('initialPermissionMode').enumDescriptions[3]
+    const limits = source.EN.referencePermissionLimits
+    for (const backend of ['museCode', 'modelApi']) {
+      expect(
+        manifest.contributes.configuration.properties[`museSpark.${backend}AutoReviewer`].default,
+      ).toBe(true)
+      for (const isOn of [false, true]) {
+        const detail = source.permissionModeDetail('auto', backend, { [backend]: isOn })
+        expect(auto).toContain(detail)
+        expect(limits).toContain(detail)
+      }
+      expect(auto).toContain(`museSpark.${backend}AutoReviewer`)
+    }
+    expect(auto).toContain('paid consent')
+    // ModelApiHost approval(), autoReview(): admission/consent precede ALLOW;
+    // ALLOW returns before constructing the user's approvalRequested card.
+    const host = readFileSync(path.join(root, 'src/core/backends/modelapi/ModelApiHost.ts'), 'utf8')
+    const allow = host.indexOf("if (review?.decision === 'allow' && judgement.isReviewable)")
+    const card = host.indexOf(
+      "const request: Extract<AgentEvent, { type: 'approvalRequested' }>",
+      allow,
+    )
+    expect(allow).toBeGreaterThan(0)
+    expect(card).toBeGreaterThan(allow)
+    expect(host.slice(allow, card)).toContain('return { isApproved: true, feedback: undefined }')
+    expect(host).toContain("this.deps.isPaidFeatureOn('autoReviewer')")
+    expect(host).toContain("{ feature: 'autoReviewer', modelId, tool: call.name, action }")
+    // Muse Code: controller isReviewerApproval() gates the reviewer;
+    // ReviewedApprovals.judge()/allow() answers the captured allow-once choice.
+    expect(
+      source.evidence['src/host/conversation/conversationController.ts'] ??
+        readFileSync(path.join(root, 'src/host/conversation/conversationController.ts'), 'utf8'),
+    ).toContain('port.isOn()')
+    const reviewed = readFileSync(path.join(root, 'src/host/review/reviewedApprovals.ts'), 'utf8')
+    expect(reviewed).toContain('await this.allow(hold.session, held.event, outcome.reason)')
+    expect(reviewed).toContain('await session.decideApproval(')
+    expect(reviewed).toContain('const choice = allowOnceChoice(event)')
+  })
+  it('C02 separates model questions from server-only MCP form answers', () => {
+    const questions = feature('questions')
+    const elicitation = feature('mcp-elicitation')
+    expect(source.EN[questions.summary.ui]).toContain('Muse receives')
+    expect(source.EN[questions.summary.ui]).not.toContain('not to Muse')
+    expect(source.EN[elicitation.summary.ui]).toContain('requesting MCP server')
+    expect(source.EN[elicitation.summary.ui]).toContain('later tool output')
+    expect(questions.facts).not.toHaveProperty('elicitation')
+    expect(elicitation.surfaces).toEqual(['vscode:modelApi'])
+    // ModelApiHost.questionResultText()/runAskUser()/completeTool(): ordinary
+    // answers and clarifications are returned as replayed function_call_output.
+    const host = readFileSync(path.join(root, 'src/core/backends/modelapi/ModelApiHost.ts'), 'utf8')
+    expect(host).toContain('JSON.stringify(reply.answers)')
+    expect(host).toContain('const text = questionResultText(reply)')
+    expect(host).toContain('return { output: text, visibleOutput: text }')
+    expect(host).toContain("type: 'function_call_output'")
+    expect(host).toContain('output: outcome.outputParts ?? outcome.output')
+    // runElicitation(): the server result owns the form values. Settled events
+    // and hooks carry field names/action only, as the transport suite verifies.
+    expect(host).toContain(
+      "Values are validated against the\n   * server's schema and reach only the server's own result",
+    )
+    expect(host).toContain('fieldNames: [...fieldNames]')
+  })
   it('R01 preserves backend-specific Plan and Auto safety limits', () => {
     const modes = setting('initialPermissionMode')
     expect(modes.enumDescriptions[2]).toContain(source.EN.permissionModeDetails.plan)
@@ -346,7 +409,7 @@ describe('RVHELPREF truth regressions', () => {
     expect(source.EN.referenceQuestions).toContain(source.EN.questionCancel)
     for (const detail of feature('questions').details)
       expect(source.EN[detail.ui]).not.toContain('{server}')
-    expect(feature('questions').facts.elicitation).toBe('modelApi')
+    expect(feature('mcp-elicitation').facts.answers).toBe('requestingServer')
     expect(feature('plans').details).toContainEqual({ ui: 'referencePlanModes' })
     expect(feature('exports').facts.sessionLog).toBe('museCode')
     expect(feature('imports').details).toContainEqual({ ui: 'referenceResumeAgents' })

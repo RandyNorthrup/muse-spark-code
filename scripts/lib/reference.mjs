@@ -220,7 +220,8 @@ export function referenceFacts(source) {
       pressureThresholds: [source.CONTEXT_PRESSURE_MEDIUM, source.CONTEXT_PRESSURE_HIGH],
       compaction: 'summaryReplacesOlderContext',
     },
-    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi' },
+    questions: { actions: ['submit', 'explain', 'cancel'] },
+    'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
     effort: {
       default: source.DEFAULT_EFFORT,
       tiers: source.MODEL_EFFORT_LEVELS,
@@ -663,7 +664,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       pressureThresholds: [source.CONTEXT_PRESSURE_MEDIUM, source.CONTEXT_PRESSURE_HIGH],
       compaction: 'summaryReplacesOlderContext',
     },
-    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi' },
+    questions: { actions: ['submit', 'explain', 'cancel'] },
+    'mcp-elicitation': { actions: ['accept', 'decline', 'cancel'], answers: 'requestingServer' },
     effort: { enum: source.EFFORT_LEVELS },
     'max-requests': {
       default: source.EXEC_DEFAULT_MAX_REQUESTS,

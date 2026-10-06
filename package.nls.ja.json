@@ -49,7 +49,7 @@
   "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse はコマンドを実行する前に確認します。Muse Code はワークスペースのファイルを確認なしで編集します\nmodelApi: Muse は編集とコマンドのたびに承認を求めます",
   "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: Muse Code では手動と同じです。Muse Code はワークスペースのファイルを確認なしで編集し、コマンドを実行する前に確認します\nmodelApi: Muse は確認なしでファイルを編集し、コマンドを実行する前に確認します",
   "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse はまずプランを立てます。Muse Code はコマンドを拒否しますが、ファイル ツールは確認なしでファイルを編集できます\nmodelApi: Muse はコードを調査し、編集の前にプランを提示します",
-  "config.initialPermissionMode.enumDescriptions.auto": "museCode: Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します\nmodelApi: Muse は保護されたファイルを除いて確認なしでファイルを編集し、コマンドの前に確認します",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code は単純と判断したコマンドを確認なしで実行します。ほかの一部はレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse は保護されたファイルを除いて確認なしでファイルを編集し、コマンドの前に確認します\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse は保護されたファイルを除いて確認なしでファイルを編集します。一部のコマンドは有料のレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nこれらの Auto の説明は、ルールで判断が確定していないリクエストに適用されます。Model API のレビュアーには、有料利用への同意と予算枠の承認も必要です。レビューが却下または失敗した場合は、あなたが判断します。通常の ACP にはどちらのレビュアーもありません。",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "権限バイパス: 編集とコマンドは確認なしで実行しますが、有料の使用は引き続き確認し、禁止ルールは引き続き拒否します (サンドボックス内でのみ使用してください)。",
   "config.archiveInactiveSessions.description": "この日数以上アイドル状態のセッションを履歴ダイアログで非表示にします (ディスク上には残り、「アーカイブ済みを表示」で一覧表示されます)。",
   "config.archiveInactiveSessions.enumDescriptions.1": "1 日アイドル状態のセッションを非表示にします。",

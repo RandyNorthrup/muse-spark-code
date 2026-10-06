@@ -2375,8 +2375,8 @@
   "referenceNativeAgents": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceAttachments": "ファイルを選択またはドロップして添付し、入力欄に画像を貼り付けます。PNG、JPEG、GIF、WebPには画像対応モデルが必要です。PDFにはModel APIが必要です。信頼されたワークスペースの索引付きテキストファイルを添付できますが、保護対象や機密ファイルは拒否されます。送信前に以下の上限が適用されます。",
   "referenceConversationActions": "会話の名前変更、分岐、巻き戻しができます。巻き戻しは記録された編集と履歴を復元できますが、その後変更されたファイルは保持し、シェルによる変更は対象外です。ターン実行中のメッセージは進行を誘導します。Model APIでは次のリクエスト前に取り消せます。Muse Codeでは誘導が即時送信されるため、待機中のメッセージだけ取り消せます。サイドチャットは完了ターンをコピーし、目標を消してPlanを維持します。Muse CodeのファイルツールはPlanでも編集できます。テキストを選択して返信、質問、コメント、コピーができます。",
-  "referenceQuestions": "送信 選ぶ代わりに自分の言葉で答えます。Muse はそれを読んで判断し直します キャンセル 回答は Muse ではなく MCP に送信されます。パスワードやキーは絶対に入力しないでください。",
-  "referencePermissionLimits": "museCode:manual: Muse はコマンドを実行する前に確認します。Muse Code はワークスペースのファイルを確認なしで編集します\nmuseCode:acceptEdits: Muse Code では手動と同じです。Muse Code はワークスペースのファイルを確認なしで編集し、コマンドを実行する前に確認します\nmuseCode:plan: Muse はまずプランを立てます。Muse Code はコマンドを拒否しますが、ファイル ツールは確認なしでファイルを編集できます\nmuseCode:auto: Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します\nmuseCode:bypassPermissions: Muse は確認なしでファイルを編集し、コマンドを実行します\nmodelApi:manual: Muse は編集とコマンドのたびに承認を求めます\nmodelApi:acceptEdits: Muse は確認なしでファイルを編集し、コマンドを実行する前に確認します\nmodelApi:plan: Muse はコードを調査し、編集の前にプランを提示します\nmodelApi:auto: Muse は保護されたファイルを除いて確認なしでファイルを編集し、コマンドの前に確認します",
+  "referenceQuestions": "回答を選んで送信する、自分の言葉で説明する、またはキャンセルすることができます。送信した回答と説明は会話内で Muse に渡されます。",
+  "referencePermissionLimits": "museCode:manual: Muse はコマンドを実行する前に確認します。Muse Code はワークスペースのファイルを確認なしで編集します\nmuseCode:acceptEdits: Muse Code では手動と同じです。Muse Code はワークスペースのファイルを確認なしで編集し、コマンドを実行する前に確認します\nmuseCode:plan: Muse はまずプランを立てます。Muse Code はコマンドを拒否しますが、ファイル ツールは確認なしでファイルを編集できます\nmuseCode:bypassPermissions: Muse は確認なしでファイルを編集し、コマンドを実行します\nmodelApi:manual: Muse は編集とコマンドのたびに承認を求めます\nmodelApi:acceptEdits: Muse は確認なしでファイルを編集し、コマンドを実行する前に確認します\nmodelApi:plan: Muse はコードを調査し、編集の前にプランを提示します\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code は単純と判断したコマンドを確認なしで実行し、それ以外は実行前に確認します\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code は単純と判断したコマンドを確認なしで実行します。ほかの一部はレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse は保護されたファイルを除いて確認なしでファイルを編集し、コマンドの前に確認します\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse は保護されたファイルを除いて確認なしでファイルを編集します。一部のコマンドは有料のレビュー担当が一度だけ許可することがあり、残りはあなたに確認します\nこれらの Auto の説明は、ルールで判断が確定していないリクエストに適用されます。Model API のレビュアーには、有料利用への同意と予算枠の承認も必要です。レビューが却下または失敗した場合は、あなたが判断します。通常の ACP にはどちらのレビュアーもありません。",
   "referenceSecretPrompt": "プロンプトに秘密情報が検出された場合、会話記録では伏せ字になり、そのまま送信するか編集に戻るかを選べます。",
   "referenceCodeIntelExtra": "エディターの言語サービスで定義、参照、シンボル、呼び出し、安全な名前変更を利用します。 ホバー リポジトリマップ (mcp__ide__repoMap / repo_map).",
   "referenceContext": "クリックして今すぐ圧縮 古いコンテキストを要約してコンテキスト ウィンドウを空けます 最後の圧縮より前には巻き戻せません。",
@@ -2461,5 +2461,7 @@
   "referencePaletteKeys": "項目を移動し、選択または補完するか、リストを閉じます。 各回答に Muse がかける手間を選びます。",
   "referenceBestOfNRequirements": "候補にはModel API、有料機能の有効化、信頼されたGitワークスペース、Git 2.36以降、およびGitフィルターやフックプログラムが未設定であることが必要です。候補間で予算を共有できるまで、有限のセッション予算では利用できません。試行数とリクエスト上限を設定し、比較またはキャンセルし、選んだ変更を適用してステージします。コミットは作成しません。",
   "referenceWindowsSessions": "Muse Code では、Windows でセッションの名前変更やフォークはできません (meta-models/muse-code-sdk#30, #31)。",
-  "referenceAgentControls": "エージェントの操作; 中断; 停止; 再開; エージェントを閉じる; エージェントを再度開く; 結果を既読にする; メッセージを送信; フォローアップ タスク"
+  "referenceAgentControls": "エージェントの操作; 中断; 停止; 再開; エージェントを閉じる; エージェントを再度開く; 結果を既読にする; メッセージを送信; フォローアップ タスク",
+  "referenceElicitationTitle": "MCP フォーム",
+  "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。"
 }

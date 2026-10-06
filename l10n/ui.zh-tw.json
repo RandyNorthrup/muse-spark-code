@@ -2375,8 +2375,8 @@
   "referenceNativeAgents": "當 run.subagent_delegation_mode=\"auto\" 時，Muse Code可以委派給代理。設為 \"off\" 時，委派工具無法使用。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceAttachments": "選取或拖放檔案以附加，並將圖像貼到輸入框。PNG、JPEG、GIF和WebP需要支援視覺的模型。PDF需要Model API。可附加可信工作區中已索引的文字檔案；受保護或機密檔案會遭拒絕。以下限制在傳送前生效。",
   "referenceConversationActions": "重新命名、分叉或回退對話。回退可復原記錄的編輯和歷程；之後已變更的檔案會保留，命令列變更不在範圍內。輪次執行時的新訊息用於引導。Model API訊息可在下次請求前撤回；Muse Code引導會立即送達，因此只能撤回排隊的訊息。側聊複製已完成的輪次、清除目標並保持Plan；Muse Code檔案工具在Plan中仍可編輯。選取文字可回覆、詢問、評論或複製。",
-  "referenceQuestions": "送出 用自己的話回答而不是選擇；Muse 會閱讀並重新決定 取消 您的回答會傳送給 MCP，而不是 Muse。切勿輸入密碼或金鑰。",
-  "referencePermissionLimits": "museCode:manual: Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問\nmuseCode:acceptEdits: 在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問\nmuseCode:plan: Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案\nmuseCode:auto: Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問\nmuseCode:bypassPermissions: Muse 會直接編輯檔案及執行命令，不會詢問\nmodelApi:manual: Muse 會在每次編輯和每個命令前要求核准\nmodelApi:acceptEdits: Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問\nmodelApi:plan: Muse 會先探索程式碼並提出計畫，再進行編輯\nmodelApi:auto: Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問",
+  "referenceQuestions": "選擇答案並提交、用自己的話說明，或取消。提交的答案及說明會在對話中傳給 Muse。",
+  "referencePermissionLimits": "museCode:manual: Muse 會在執行命令前詢問；Muse Code 會直接編輯工作區檔案，不會詢問\nmuseCode:acceptEdits: 在 Muse Code 上與手動相同：Muse Code 會直接編輯工作區檔案，不會詢問，並在執行命令前詢問\nmuseCode:plan: Muse 會先進行規劃；Muse Code 會拒絕命令，但它的檔案工具仍可不經詢問地編輯檔案\nmuseCode:bypassPermissions: Muse 會直接編輯檔案及執行命令，不會詢問\nmodelApi:manual: Muse 會在每次編輯和每個命令前要求核准\nmodelApi:acceptEdits: Muse 會直接編輯檔案，不會詢問，並在執行命令前詢問\nmodelApi:plan: Muse 會先探索程式碼並提出計畫，再進行編輯\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code 會直接執行它判斷為簡單的命令，不會詢問，其餘命令執行前會詢問\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 會直接執行它判斷為簡單的命令，不會詢問；審查器可能會允許其他部分命令執行一次，其餘命令會詢問您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問，並在執行命令前詢問\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 會直接編輯檔案（受保護的檔案除外），不會詢問；付費審查器可能會允許部分命令執行一次，其餘命令會詢問您\n這些 Auto 說明適用於尚未由規則決定的請求。Model API 審核器還需要付費使用同意及預算准入。審核被拒絕或失敗時，由你決定。一般 ACP 不提供這兩種審核器。",
   "referenceSecretPrompt": "如果在提示中偵測到秘密資訊，對話記錄會將其遮蔽，並詢問是仍然傳送還是返回編輯。",
   "referenceCodeIntelExtra": "使用編輯器語言服務查找定義、參照、符號和呼叫，並安全重新命名。 暫留 儲存庫地圖 (mcp__ide__repoMap / repo_map).",
   "referenceContext": "按一下以立即壓縮 摘要較早的上下文以騰出視窗空間 無法回退至最近一次壓縮之前。",
@@ -2461,5 +2461,7 @@
   "referencePaletteKeys": "瀏覽項目，選取或補全選擇，或關閉清單。 選擇 Muse 在每則回答上投入的心力。",
   "referenceBestOfNRequirements": "候選方案需要Model API、啟用付費功能、可信Git工作區、Git 2.36或更新版本，且不能設定Git過濾器或鉤子程式。在候選預算可共用前，有限工作階段預算會阻止此流程。設定嘗試和請求上限、比較或取消，然後套用所選變更並暫存，不建立提交。",
   "referenceWindowsSessions": "Muse Code 無法在 Windows 上重新命名或分叉工作階段（meta-models/muse-code-sdk#30、#31）。",
-  "referenceAgentControls": "代理程式控制項; 中斷; 停止; 恢復; 關閉代理程式; 重新開啟代理程式; 將結果標示為已讀; 傳送訊息; 後續工作"
+  "referenceAgentControls": "代理程式控制項; 中斷; 停止; 恢復; 關閉代理程式; 重新開啟代理程式; 將結果標示為已讀; 傳送訊息; 後續工作",
+  "referenceElicitationTitle": "MCP 表單",
+  "referenceElicitation": "MCP 表單為提出請求的 MCP 伺服器收集資訊。提交的表單值傳給該伺服器，不進入模型對話或記錄。伺服器可能將這些值包含在後續工具輸出中。請勿輸入密碼或金鑰。"
 }

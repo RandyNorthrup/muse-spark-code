@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Auto help names both command reviewers, their rule precedence and paid
+  admission, and separates ordinary model questions from private MCP form replies.
+
 - Help search matches the JSON text displayed for schemas, facts and CLI
   contracts. Markdown preserves argument placeholders in every prose field,
   and the modal keyboard row includes both Tab and Shift+Tab from its handler table.

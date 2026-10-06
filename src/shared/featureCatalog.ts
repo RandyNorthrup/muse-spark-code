@@ -184,6 +184,15 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature(
+      'mcp-elicitation',
+      { ui: 'referenceElicitationTitle' },
+      { ui: 'referenceElicitation' },
+      [],
+      [],
+      'the-panel',
+      ['modelApi'],
+    ),
+    feature(
       'acp',
       { ui: 'helpReferenceTitle' },
       { ui: 'referenceAcp' },

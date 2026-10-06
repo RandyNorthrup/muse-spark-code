@@ -2375,8 +2375,8 @@
   "referenceNativeAgents": "run.subagent_delegation_mode=\"auto\"이면 Muse Code가 에이전트에 위임할 수 있습니다. \"off\"이면 위임 도구를 사용할 수 없습니다. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceAttachments": "파일을 선택하거나 끌어 첨부하고 입력창에 이미지를 붙여넣습니다. PNG, JPEG, GIF, WebP에는 이미지 지원 모델이 필요합니다. PDF에는 Model API가 필요합니다. 신뢰하는 작업 공간의 색인된 텍스트 파일을 첨부할 수 있으며 보호되거나 기밀인 파일은 거부됩니다. 전송 전에 아래 한도가 적용됩니다.",
   "referenceConversationActions": "대화 이름 변경, 분기 또는 되감기를 사용할 수 있습니다. 되감기는 기록된 편집과 이력을 복원하지만 이후 변경된 파일과 셸 변경은 처리하지 않습니다. 턴 중 새 메시지는 방향을 수정합니다. Model API는 다음 요청 전까지 철회할 수 있으며 Muse Code는 즉시 전달하므로 대기 메시지만 철회할 수 있습니다. 보조 채팅은 완료된 턴을 복사하고 목표를 지우며 Plan에 머뭅니다. Muse Code 파일 도구는 Plan에서도 편집할 수 있습니다. 텍스트를 선택해 답변, 질문, 댓글 또는 복사를 할 수 있습니다.",
-  "referenceQuestions": "제출 선택하는 대신 직접 답합니다. Muse가 읽고 다시 결정합니다 취소 답변은 Muse가 아닌 MCP(으)로 전송됩니다. 암호나 키는 절대 입력하지 마세요.",
-  "referencePermissionLimits": "museCode:manual: Muse가 명령을 실행하기 전에 묻습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집합니다\nmuseCode:acceptEdits: Muse Code에서는 수동과 같습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집하고, 명령을 실행하기 전에 묻습니다\nmuseCode:plan: Muse가 먼저 계획합니다. Muse Code는 명령을 거부하지만 파일 도구는 여전히 묻지 않고 파일을 편집할 수 있습니다\nmuseCode:auto: Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다\nmuseCode:bypassPermissions: Muse가 묻지 않고 파일을 편집하고 명령을 실행합니다\nmodelApi:manual: Muse가 편집과 명령마다 승인을 요청합니다\nmodelApi:acceptEdits: Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다\nmodelApi:plan: Muse가 코드를 탐색하고 편집하기 전에 계획을 제시합니다\nmodelApi:auto: Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다",
+  "referenceQuestions": "답변을 선택해 제출하거나, 자신의 말로 설명하거나, 취소할 수 있습니다. 제출한 답변과 설명은 대화에서 Muse에 전달됩니다.",
+  "referencePermissionLimits": "museCode:manual: Muse가 명령을 실행하기 전에 묻습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집합니다\nmuseCode:acceptEdits: Muse Code에서는 수동과 같습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집하고, 명령을 실행하기 전에 묻습니다\nmuseCode:plan: Muse가 먼저 계획합니다. Muse Code는 명령을 거부하지만 파일 도구는 여전히 묻지 않고 파일을 편집할 수 있습니다\nmuseCode:bypassPermissions: Muse가 묻지 않고 파일을 편집하고 명령을 실행합니다\nmodelApi:manual: Muse가 편집과 명령마다 승인을 요청합니다\nmodelApi:acceptEdits: Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다\nmodelApi:plan: Muse가 코드를 탐색하고 편집하기 전에 계획을 제시합니다\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행합니다. 검토자가 일부 다른 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집합니다. 유료 검토자가 일부 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다\n이 Auto 설명은 규칙으로 결정되지 않은 요청에 적용됩니다. Model API 검토기는 유료 사용 동의와 예산 승인도 필요합니다. 검토가 거절되거나 실패하면 사용자가 결정합니다. 일반 ACP에는 두 검토기 모두 없습니다.",
   "referenceSecretPrompt": "프롬프트에서 비밀 정보가 감지되면 대화 기록에서 가려지며, 그대로 보낼지 편집으로 돌아갈지 묻습니다.",
   "referenceCodeIntelExtra": "편집기 언어 서비스로 정의, 참조, 기호, 호출 및 안전한 이름 변경을 사용합니다. 호버 저장소 맵 (mcp__ide__repoMap / repo_map).",
   "referenceContext": "지금 압축하려면 클릭 이전 컨텍스트를 요약하여 컨텍스트 창 확보 마지막 압축 이전으로는 되돌릴 수 없습니다.",
@@ -2461,5 +2461,7 @@
   "referencePaletteKeys": "항목을 탐색하고 선택하거나 완성하거나 목록을 닫습니다. 각 답변에 Muse가 들이는 노력을 선택합니다.",
   "referenceBestOfNRequirements": "후보 실행에는 Model API, 유료 기능 활성화, 신뢰하는 Git 작업 공간, Git 2.36 이상 및 Git 필터나 훅 프로그램이 설정되지 않은 상태가 필요합니다. 후보 예산을 공유할 수 있을 때까지 유한한 세션 예산에서는 사용할 수 없습니다. 시도와 요청 한도를 설정하고 비교하거나 취소한 다음 선택한 변경을 적용하고 스테이징합니다. 커밋은 만들지 않습니다.",
   "referenceWindowsSessions": "Muse Code는 Windows에서 세션 이름을 바꾸거나 포크할 수 없습니다(meta-models/muse-code-sdk#30, #31).",
-  "referenceAgentControls": "에이전트 제어; 중단; 중지; 재개; 에이전트 닫기; 에이전트 다시 열기; 결과를 읽음으로 표시; 메시지 보내기; 후속 작업"
+  "referenceAgentControls": "에이전트 제어; 중단; 중지; 재개; 에이전트 닫기; 에이전트 다시 열기; 결과를 읽음으로 표시; 메시지 보내기; 후속 작업",
+  "referenceElicitationTitle": "MCP 양식",
+  "referenceElicitation": "MCP 양식은 요청한 MCP 서버에 필요한 정보를 묻습니다. 제출한 양식 값은 해당 서버로 전달되며 모델 대화와 대화 기록에는 들어가지 않습니다. 서버는 이후 도구 출력에 이 값을 포함할 수 있습니다. 비밀번호나 키를 입력하지 마세요."
 }

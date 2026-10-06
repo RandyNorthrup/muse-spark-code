@@ -222,16 +222,30 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Submit
 
-Submit Answer in your own words instead of choosing; Muse reads it and decides again Cancel Your answer goes to MCP, not to Muse. Never enter a password or a key.
+Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.
 
 ```json
 {
-  "actions": ["submit", "explain", "cancel"],
-  "elicitation": "modelApi"
+  "actions": ["submit", "explain", "cancel"]
 }
 ```
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
+
+### MCP elicitation
+
+MCP forms ask for information for the requesting MCP server. Submitted form values go to that server, outside the model conversation and transcript. A server can include them in later tool output. Never enter a password or key.
+
+```json
+{
+  "actions": ["accept", "decline", "cancel"],
+  "answers": "requestingServer"
+}
+```
+
+Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
 
@@ -399,12 +413,15 @@ Choose how Muse asks before it acts.
 museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking
 museCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands
 museCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking
-museCode:auto: Muse Code runs the commands it judges simple without asking and asks before the rest
 museCode:bypassPermissions: Muse will edit files and run commands without asking
 modelApi:manual: Muse will ask for approval before each edit and each command
 modelApi:acceptEdits: Muse will edit files without asking and ask before running commands
 modelApi:plan: Muse will explore the code and present a plan before editing
-modelApi:auto: Muse will edit files without asking, except protected files, and ask before commands
+museCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest
+museCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest
+modelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands
+modelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest
+These Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1453,8 +1470,11 @@ Type: `"string"`. Default: `"manual"`. Scope: `machine`.
   modelApi: Muse will edit files without asking and ask before running commands
 - `"plan"`: museCode: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking
   modelApi: Muse will explore the code and present a plan before editing
-- `"auto"`: museCode: Muse Code runs the commands it judges simple without asking and asks before the rest
-  modelApi: Muse will edit files without asking, except protected files, and ask before commands
+- `"auto"`: museCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest
+  museCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest
+  modelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands
+  modelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest
+  These Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.
 - `"bypassPermissions"`: Bypass permissions: edits and commands run without asking, but paid uses still ask and forbid rules still refuse (use only in sandboxes).
 
 ### museSpark.archiveInactiveSessions

@@ -49,7 +49,7 @@
   "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse가 명령을 실행하기 전에 묻습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집합니다\nmodelApi: Muse가 편집과 명령마다 승인을 요청합니다",
   "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: Muse Code에서는 수동과 같습니다. Muse Code는 묻지 않고 작업 영역 파일을 편집하고, 명령을 실행하기 전에 묻습니다\nmodelApi: Muse가 묻지 않고 파일을 편집하고, 명령을 실행하기 전에 묻습니다",
   "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse가 먼저 계획합니다. Muse Code는 명령을 거부하지만 파일 도구는 여전히 묻지 않고 파일을 편집할 수 있습니다\nmodelApi: Muse가 코드를 탐색하고 편집하기 전에 계획을 제시합니다",
-  "config.initialPermissionMode.enumDescriptions.auto": "museCode: Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다\nmodelApi: Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행하고, 나머지는 실행하기 전에 묻습니다\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code가 간단하다고 판단한 명령은 묻지 않고 실행합니다. 검토자가 일부 다른 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집하며, 명령 전에는 묻습니다\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse가 보호된 파일을 제외하고 묻지 않고 파일을 편집합니다. 유료 검토자가 일부 명령을 한 번 허용할 수 있으며, 나머지는 사용자에게 묻습니다\n이 Auto 설명은 규칙으로 결정되지 않은 요청에 적용됩니다. Model API 검토기는 유료 사용 동의와 예산 승인도 필요합니다. 검토가 거절되거나 실패하면 사용자가 결정합니다. 일반 ACP에는 두 검토기 모두 없습니다.",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "권한 우회: 편집과 명령은 묻지 않고 실행하지만, 유료 사용은 계속 묻고 금지 규칙은 계속 거부합니다(샌드박스에서만 사용).",
   "config.archiveInactiveSessions.description": "이 일수 동안 유휴 상태인 세션을 기록 대화 상자에서 숨깁니다(디스크에는 유지되며 \"보관된 항목 표시\"로 나열됨).",
   "config.archiveInactiveSessions.enumDescriptions.1": "하루 동안 유휴 상태인 세션을 숨깁니다.",

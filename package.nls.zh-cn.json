@@ -49,7 +49,7 @@
   "config.initialPermissionMode.enumDescriptions.manual": "museCode: Muse 会在运行命令前询问；Muse Code 会直接编辑工作区文件而不询问\nmodelApi: Muse 会在每次编辑和每条命令前请求批准",
   "config.initialPermissionMode.enumDescriptions.acceptEdits": "museCode: 在 Muse Code 上与手动相同：Muse Code 会直接编辑工作区文件而不询问，并在运行命令前询问\nmodelApi: Muse 会直接编辑文件而不询问，并在运行命令前询问",
   "config.initialPermissionMode.enumDescriptions.plan": "museCode: Muse 会先做规划；Muse Code 会拒绝命令，但它的文件工具仍可不经询问地编辑文件\nmodelApi: Muse 会先探索代码并提出计划，然后再编辑",
-  "config.initialPermissionMode.enumDescriptions.auto": "museCode: Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问\nmodelApi: Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问",
+  "config.initialPermissionMode.enumDescriptions.auto": "museCode (museSpark.museCodeAutoReviewer=false): Muse Code 会直接运行它判断为简单的命令而不询问，其余命令运行前会询问\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code 会直接运行它判断为简单的命令而不询问；审查器可能会允许其他部分命令运行一次，其余命令会询问您\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse 会直接编辑文件而不询问（受保护的文件除外），并在运行命令前询问\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse 会直接编辑文件而不询问（受保护的文件除外）；付费审查器可能会允许部分命令运行一次，其余命令会询问您\n这些 Auto 说明针对尚未由规则决定的请求。Model API 审核器还需要付费使用同意和预算准入。审核被拒绝或失败时，由你决定。普通 ACP 不提供这两种审核器。",
   "config.initialPermissionMode.enumDescriptions.bypassPermissions": "绕过权限：编辑和命令不询问直接运行，但付费使用仍会询问，禁止规则仍会拒绝（仅在沙盒中使用）。",
   "config.archiveInactiveSessions.description": "在“历史记录”对话框中隐藏闲置达此天数的会话（它们仍保留在磁盘上；“显示已归档”会列出它们）。",
   "config.archiveInactiveSessions.enumDescriptions.1": "隐藏闲置一天的会话。",
