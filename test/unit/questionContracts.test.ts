@@ -22,10 +22,14 @@ import {
   openQuestionsSnapshotSchema,
   QUESTION_STATES,
   questionReplySchema,
+  type AttentionDockState,
+  type OpenQuestionAnswer,
+  type OpenQuestionsSnapshot,
+  type QuestionReply,
 } from '../../src/shared/questions'
 import { questionFixture } from './helpers/questions/fixtures'
 
-const snapshot = { sessionId: 'session-1', questions: [questionFixture()] }
+const snapshot: OpenQuestionsSnapshot = { sessionId: 'session-1', questions: [questionFixture()] }
 
 // These tests certify contracts only. Q, U and A exercise their behaviour
 // against the fakes; no backend, paid request or editor process is started.
@@ -57,6 +61,7 @@ describe('M112 question boundary contracts', () => {
       { askedAt: -1 },
       { askedAt: 0.5 },
       { deferredAt: 0 },
+      { deadlineAt: 0 },
       { reminders: -1 },
       { reminders: 0.5 },
       { reminders: QUESTION_REMINDERS_MAX + 1 },
@@ -131,7 +136,8 @@ describe('M112 question boundary contracts', () => {
       const event = { type: 'questionSettled', userInputId: 'q-1', outcome, answers: [] }
       expect(agentEventSchema.parse(event)).toEqual(event)
     }
-    expect(questionReplySchema.parse({ kind: 'deferred', userInputId: 'q-1' })).toEqual({
+    const deferred: QuestionReply = { kind: 'deferred', userInputId: 'q-1' }
+    expect(questionReplySchema.parse(deferred)).toEqual({
       kind: 'deferred',
       userInputId: 'q-1',
     })
@@ -156,17 +162,21 @@ describe('M112 question boundary contracts', () => {
         snapshot: { ...snapshot, questions: [questionFixture({ sessionId: 'other' })] },
       }).ok,
     ).toBe(false)
+    expect(
+      parseHostToWebviewMessage({ type: 'openQuestions', snapshot, approvalId: 'a-1' }).ok,
+    ).toBe(false)
   })
 
   it('accepts late answers, explanations, dismissals and navigation', () => {
     const identity = { sessionId: 'session-1', userInputId: 'q-1' }
+    const explanation: OpenQuestionAnswer = { explanation: 'I prefer green.' }
     for (const message of [
       {
         type: 'answerOpenQuestion',
         ...identity,
         reply: { answers: [{ questionId: 'colour', selectedLabel: 'Blue' }] },
       },
-      { type: 'answerOpenQuestion', ...identity, reply: { explanation: 'I prefer green.' } },
+      { type: 'answerOpenQuestion', ...identity, reply: explanation },
       { type: 'dismissOpenQuestion', ...identity },
       { type: 'jumpToOpenQuestion', sessionId: identity.sessionId, direction: 'next' },
       { type: 'jumpToOpenQuestion', sessionId: identity.sessionId, direction: 'previous' },
@@ -187,14 +197,21 @@ describe('M112 question boundary contracts', () => {
       { ...answer, reply: { explanation: 'green' }, approvalId: 'a-1' },
       { ...answer, sessionId: '', reply: { explanation: 'green' } },
       { type: 'dismissOpenQuestion', sessionId: 'session-1' },
+      {
+        type: 'dismissOpenQuestion',
+        sessionId: 'session-1',
+        userInputId: 'q-1',
+        choiceId: 'allow',
+      },
       { type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'sideways' },
+      { type: 'jumpToOpenQuestion', sessionId: 'session-1', direction: 'next', mode: 'bypass' },
     ]) {
       expect(parseWebviewToHostMessage(invalid).ok).toBe(false)
     }
   })
 
   it('keeps the dock identities distinct and expands only a card it contains', () => {
-    const dock = {
+    const dock: AttentionDockState = {
       approvalIds: ['approval-1'],
       waitingQuestionIds: ['q-1'],
       elicitationIds: ['form-1'],
@@ -211,6 +228,19 @@ describe('M112 question boundary contracts', () => {
         fullCard: { kind: 'question', userInputId: 'missing' },
       }).success,
     ).toBe(false)
+    for (const invalid of [
+      { approvalIds: ['approval-1', 'approval-1'] },
+      { elicitationIds: ['form-1', 'form-1'] },
+      {
+        openQuestionIds: Array.from(
+          { length: OPEN_QUESTIONS_MAX + 1 },
+          (_, index) => `q-${String(index + 2)}`,
+        ),
+      },
+      { fullCard: { kind: 'elicitation', elicitationId: 'missing' } },
+    ]) {
+      expect(attentionDockStateSchema.safeParse({ ...dock, ...invalid }).success).toBe(false)
+    }
     expect(
       attentionDockStateSchema.safeParse({
         ...dock,

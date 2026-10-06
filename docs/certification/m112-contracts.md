@@ -18,10 +18,13 @@ The matching zod schemas validate storage, snapshots and commands. These
 are internal harness contracts, not new Muse Code or service wire fields.
 
 - A record carries `userInputId`, `sessionId`, `itemId`, `turnId`,
-  `questions`, `key`, `state`, `askedAt`, optional `deferredAt`, `reminders`
+  `questions`, `key`, `state`, `askedAt`, optional `deadlineAt` and `deferredAt`, `reminders`
   and `backend`. Times are integer milliseconds from the injected clock.
   The two existing backend names are unchanged. Open/later-settled states
-  require `deferredAt`; it cannot precede `askedAt`; reminders are 0–2.
+  require `deferredAt`; neither time can precede `askedAt`; reminders are 0–2.
+  `deadlineAt` freezes the arrival-time setting for U's countdown. It is
+  absent when questions never defer, and does not change if the setting
+  changes while the user is answering.
 - Identity handles have a maximum of 100 characters, without truncation.
   Both id slots in the fixed deferral note then fit M46's 500-character
   limit (465 characters at this maximum; 337 for a UUID). A longer handle
@@ -79,11 +82,14 @@ reply union, preserving request goldens before deferral.
 
 ## Q — registry, actual backends and delivery
 
-`AgentSession.deferQuestions` is an **optional capability during this
-contracts-only commit**. It references the required shared port. Q must
-implement it on both actual sessions and then make it required on
-`AgentSession`; update full session fakes in that same binding change.
-No production no-op or cancellation fallback has been installed here.
+`AgentSession.deferQuestions(userInputId): Promise<void>` is **required**,
+as D92 specifies. Q implements it on both actual sessions and updates old
+full-session fakes as part of that binding change. The new scripted fake
+implements it already.
+No production no-op, optional-method fallback or cancellation fallback has
+been installed here. The first contracts commit exposed it as optional to
+keep the host compiling alone; the final contract makes it required, so Q
+and the lead do not need to revise this frozen shared-file signature later.
 The registry cannot be constructed with a session lacking its required
 injected deferral dependency.
 
@@ -168,3 +174,67 @@ JetBrains/JCEF, Visual Studio/WebView2 and Eclipse/SWT bridges, companion
 page, M110a0 lane T's TUI and M111b's desktop bind this same contract when
 those lanes land. They do not block Q/U/A on main. Native key mappings need
 host-focus guards and the keymap review below; they are not installed here.
+
+## Keymap review — 2026-10-05
+
+These are a review of the published default maps and upstream declarations,
+not a claim about a user's installed keymap, extensions, keyboard layout or
+OS shortcuts. Lane 0 installs no shortcut. U must prove the VS Code focus
+condition on the real panel; M104b–d must check their bridges' effective
+maps at integration and keep host commands available outside the chat.
+
+| Default map             | Proposed Next                      | Proposed Previous                              | Finding                                                                                                                                                                                       |
+| ----------------------- | ---------------------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| VS Code Windows         | Ctrl+Alt+J                         | Ctrl+Alt+Shift+J                               | Neither listed in the published default reference/card.                                                                                                                                       |
+| VS Code Linux           | Ctrl+Alt+J                         | Ctrl+Alt+Shift+J                               | Neither listed in the published default reference/card.                                                                                                                                       |
+| VS Code macOS           | Cmd+Option+J                       | Cmd+Option+Shift+J                             | Neither listed in the published default reference/card.                                                                                                                                       |
+| JetBrains Windows/Linux | Ctrl+Alt+J                         | Ctrl+Alt+Shift+J                               | Conflicts: Surround With Live Template; Select All Occurrences.                                                                                                                               |
+| JetBrains macOS         | Cmd+Option+J                       | Cmd+Option+Shift+J                             | Next conflicts with Surround With Live Template. Previous is not explicitly assigned in the reviewed macOS map; Select All Occurrences uses Ctrl+Cmd+G.                                       |
+| Visual Studio General   | Ctrl+Alt+J                         | Ctrl+Alt+Shift+J                               | Next conflicts with View.ObjectBrowser, a global shortcut. Previous is not listed in that profile.                                                                                            |
+| Eclipse default/JDT     | Ctrl+Alt+J (Cmd+Option+J on macOS) | Ctrl+Alt+Shift+J (Cmd+Option+Shift+J on macOS) | No proposed chord in the reviewed JDT bindings; nearby Ctrl+J/Ctrl+Shift+J are incremental find and Alt+Shift+J adds Javadoc. Full installed platform map remains an M104d integration check. |
+
+Sources checked: Microsoft's
+[default reference](https://code.visualstudio.com/docs/reference/default-keybindings)
+and [Windows](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-windows.pdf),
+[Linux](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-linux.pdf),
+[macOS](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-macos.pdf)
+reference cards; JetBrains'
+[default keymap XML](https://github.com/JetBrains/intellij-community/blob/master/platform/platform-resources/src/keymaps/%24default.xml),
+[macOS keymap XML](https://github.com/JetBrains/intellij-community/blob/master/platform/platform-resources/src/keymaps/Mac%20OS%20X%2010.5%2B.xml),
+[Windows reference](https://www.jetbrains.com/help/idea/reference-keymap-win-default.html)
+and [Surround Live Templates](https://blog.jetbrains.com/idea/2020/05/write-code-faster-using-live-templates/);
+Microsoft's [Visual Studio General profile](https://learn.microsoft.com/en-us/visualstudio/ide/default-keyboard-shortcuts-in-visual-studio);
+Eclipse's [JDT declarations](https://github.com/eclipse-jdt/eclipse.jdt.ui/blob/master/org.eclipse.jdt.ui/plugin.xml)
+and [Edit actions](https://help.eclipse.org/latest/topic/org.eclipse.jdt.doc.user/reference/ref-menu-edit.htm).
+
+Consequently the proposed pair is **not** a collision-free common native
+keymap. Keep the VS Code proposal scoped to actual chat focus, retain the
+dock buttons and palette actions, and make the native-host mappings
+configurable or choose host-specific bindings in M104. Do not register
+these chords globally in JetBrains or Visual Studio. Installed-map testing
+on three operating systems is U/M104's certification, not claimed here.
+
+## Strings and manifest artifact
+
+The 33 new UI entries (including two count-form groups) are in `en.ts` and
+all 14 shipped tables with real translations. Existing M16/M46 labels,
+arrival announcements and MCP expiry text remain available. Use
+`plural(UI_TEXT.openQuestionsCount, count)` for the chip, badge and History
+marker, and `plural(UI_TEXT.openQuestionsTabCount, count)` for the title's
+count. Countdown and late-answer prose are single `fill` templates. Read
+`UI_TEXT` inside functions; format countdown/count/index numbers through
+the existing Intl helpers. `questionAnswerUncertain` prevents a false
+"try again" message when delivery is already marked uncertain.
+
+The fully translated manifest keys are also available in
+`test/unit/helpers/questions/manifestStrings.json`; they are checked against
+English with the same strict table checker. The ready-to-apply
+[m112-manifest.patch](m112-manifest.patch) adds all 15 `package.nls*.json`
+entries and **only** the setting and two command declarations in
+`package.json`. It intentionally adds no bindings, handler or activation
+read. `git apply --check` passes on this base. The complete patch was
+applied and localization-checked in `temp/m112-manifest-stage` with copies
+of those manifests; no U-owned file in the worktree was changed. U must
+apply these declarations with its real handlers and focus-scoped bindings.
+This keeps the lane's actual localization gate at zero unused keys while
+respecting file ownership.

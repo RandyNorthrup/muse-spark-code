@@ -19,6 +19,7 @@ export function questionFixture(overrides: Partial<OpenQuestion> = {}): OpenQues
     key: 'which colour?|blue|green',
     state: 'open',
     askedAt: 1000,
+    deadlineAt: 61_000,
     deferredAt: 61_000,
     reminders: 0,
     backend: 'modelApi',

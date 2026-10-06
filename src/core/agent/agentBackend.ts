@@ -15,7 +15,6 @@ import type {
 } from '../../shared/agentEvents'
 import type { GoalCommandVerb, SubagentAction } from '../../shared/constants'
 import type { SubscriptionUsage } from '../../shared/usage'
-import type { QuestionDeferralPort } from '../../shared/questions'
 export type { QuestionDeferralPort } from '../../shared/questions'
 import type {
   ScheduleCadence,
@@ -496,10 +495,10 @@ export interface AgentSession {
   cancelQuestions(userInputId: string): Promise<void>
   /**
    * M112: continue without guessing, preserving the question for a late answer.
-   * Optional during lane 0's handoff: Q binds both backends before enabling
-   * the registry, which requires QuestionDeferralPort as an injected dependency.
+   * Resolve only once the tool call is settled. Q binds both backend hosts;
+   * the registry takes this method through its required injected port.
    */
-  readonly deferQuestions?: QuestionDeferralPort['deferQuestions']
+  deferQuestions(userInputId: string): Promise<void>
   /**
    * Settle an MCP elicitation form (M91 lane M): accept with validated
    * values, or decline or cancel. Absent where the backend never asks

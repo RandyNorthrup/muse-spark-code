@@ -10,6 +10,7 @@ import { FakeQuestionStore } from './helpers/questions/store'
 const key: QuestionKey = (questions) => questions.map((question) => question.question).join('|')
 
 const form = {
+  mode: 'form',
   sessionId: 'session-1',
   message: 'Which colour?',
   requestedSchema: {
@@ -178,7 +179,7 @@ describe('M112 dependency fakes', () => {
       now: () => clock.now(),
       setTimer: (delay, callback) => clock.setTimer(delay, callback),
       deferQuestions: session.deferQuestions,
-      deliver: vi.fn(() => Promise.resolve('notTaken')),
+      deliver: vi.fn<QuestionRegistryPort['deliver']>(() => Promise.resolve('notTaken')),
     }
     expect(
       await port.deliver({

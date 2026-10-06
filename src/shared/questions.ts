@@ -46,6 +46,8 @@ export const openQuestionSchema = z
     state: z.enum(QUESTION_STATES),
     /** Milliseconds from the injected clock; no surface owns the deadline. */
     askedAt: timestampSchema,
+    /** Actual arrival-time deadline, even if settings change later; absent for never-defer. */
+    deadlineAt: z.optional(timestampSchema),
     deferredAt: z.optional(timestampSchema),
     reminders: z.int().check(z.gte(0), z.lte(QUESTION_REMINDERS_MAX)),
     backend: z.enum(['museCode', 'modelApi']),
@@ -53,6 +55,7 @@ export const openQuestionSchema = z
   .check(
     z.refine((entry) => !deferredStates.has(entry.state) || entry.deferredAt !== undefined),
     z.refine((entry) => entry.deferredAt === undefined || entry.deferredAt >= entry.askedAt),
+    z.refine((entry) => entry.deadlineAt === undefined || entry.deadlineAt >= entry.askedAt),
     z.refine(
       (entry) =>
         new Set(entry.questions.map((question) => question.id)).size === entry.questions.length,
