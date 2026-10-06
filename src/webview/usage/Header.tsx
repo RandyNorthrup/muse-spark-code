@@ -1,8 +1,8 @@
 import { useId, useState } from 'react'
 import { USAGE_DETAIL_DAYS } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
-import { plural } from '../../shared/l10n/text'
-import { usageQuerySchema, type UsageQuery } from '../../shared/usagePage'
+import { fill, formatUnit, plural } from '../../shared/l10n/text'
+import { usageQuerySchema, type UsageQuery, type UsagePageState } from '../../shared/usagePage'
 import { groupLabel, metricLabel, type PostUsage } from './display'
 
 export function Header({
@@ -10,11 +10,13 @@ export function Header({
   busy,
   post,
   onQuery,
+  capabilities,
 }: {
   readonly query: UsageQuery
   readonly busy: boolean
   readonly post: PostUsage
   readonly onQuery: (query: UsageQuery) => void
+  readonly capabilities?: UsagePageState['capabilities']
 }) {
   const id = useId()
   const [custom, setCustom] = useState(query.range === 'custom')
@@ -54,6 +56,11 @@ export function Header({
     <header className="usage-page-header">
       <h1>{USAGE_TEXT.title}</h1>
       <p>{USAGE_TEXT.subtitle}</p>
+      {capabilities?.exportMaxBytes === undefined ? null : (
+        <p>
+          {fill(USAGE_TEXT.exportBound, { limit: formatUnit(capabilities.exportMaxBytes, 'byte') })}
+        </p>
+      )}
       <fieldset className="usage-range">
         <legend>{USAGE_TEXT.range}</legend>
         {(['today', '7d', '30d', '90d', 'custom'] as const).map((range) => (
@@ -153,6 +160,7 @@ export function Header({
         <div className="usage-export">
           <button
             type="button"
+            disabled={capabilities?.export === false}
             aria-expanded={exportOpen}
             aria-controls={`${id}-exports`}
             onClick={() => {
@@ -192,6 +200,7 @@ export function Header({
         </div>
         <button
           type="button"
+          disabled={capabilities?.deleteHistory === false}
           onClick={() => {
             post({ type: 'usage/deleteHistory', requestId: crypto.randomUUID() })
           }}
@@ -200,6 +209,7 @@ export function Header({
         </button>
         <button
           type="button"
+          disabled={capabilities?.settings === false}
           onClick={() => {
             post({ type: 'usage/openSettings' })
           }}
@@ -208,6 +218,7 @@ export function Header({
         </button>
         <button
           type="button"
+          disabled={capabilities?.folder === false}
           onClick={() => {
             post({ type: 'usage/revealFolder' })
           }}

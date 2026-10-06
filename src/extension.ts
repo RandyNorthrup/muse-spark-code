@@ -3413,6 +3413,21 @@ async function activateWindow(
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
+          onKeyUsage: (snapshot) => {
+            usageRecording.limit({
+              backend: 'modelApi',
+              provider: 'openrouter',
+              source: 'openRouter',
+              observedAt: Date.now(),
+              windows: [],
+              account: {
+                usedUsd: snapshot.usedThisMonth,
+                period: 'month',
+                ...(snapshot.limit !== undefined && { limitUsd: snapshot.limit }),
+                ...(snapshot.remaining !== undefined && { remainingUsd: snapshot.remaining }),
+              },
+            })
+          },
           onWizardSaved: async (outcome) => {
             await auth.refresh()
             const surface = registry.active
@@ -3440,8 +3455,12 @@ async function activateWindow(
         l10n,
         log,
         beforeRead: () => usageRecording.flush(),
+        budgetStorageFolder: context.globalStorageUri.fsPath,
         live: {
-          readBudgets: dailyPaid.readToday,
+          readBudgets: async () => [
+            ...(await dailyPaid.readToday()),
+            ...(await modelApi.readUsageBudgets()),
+          ],
           readLiveLimits: () => Promise.resolve(usageRecording.limits?.() ?? []),
           providerConsoles: () => [],
         },

@@ -18,6 +18,7 @@ export function EmptyStates({
           <p>{USAGE_TEXT.historyOffDetail}</p>
           <button
             type="button"
+            disabled={state.capabilities?.setHistory === false}
             onClick={() => {
               post({ type: 'usage/setHistory', enabled: true })
             }}

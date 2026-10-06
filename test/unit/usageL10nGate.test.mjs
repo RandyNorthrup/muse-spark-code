@@ -1,7 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
+import { brotliCompressSync } from 'node:zlib'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { isPluralForms } from '../../src/shared/l10n/forms'
@@ -44,7 +44,8 @@ function runGate(args = []) {
 }
 
 beforeEach(async () => {
-  fixture.root = mkdtempSync(path.join(os.tmpdir(), 'm102-l10n-'))
+  mkdirSync(path.join(root, 'temp'), { recursive: true })
+  fixture.root = mkdtempSync(path.join(root, 'temp', 'm102-l10n-'))
   cpSync(path.join(root, 'src/shared/l10n'), path.join(fixture.root, 'src/shared/l10n'), {
     recursive: true,
   })
@@ -57,6 +58,9 @@ beforeEach(async () => {
     path.join(fixture.root, 'src/shared/browserCheckConstants.ts'),
   )
   cpSync(path.join(root, 'l10n'), path.join(fixture.root, 'l10n'), { recursive: true })
+  cpSync(path.join(root, 'src/core/whatsNew'), path.join(fixture.root, 'src/core/whatsNew'), {
+    recursive: true,
+  })
   const { TABLE_LOCALES } = await loadL10n(root)
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   // Lane W owns these actual references. The fixture completes its future
@@ -138,7 +142,7 @@ describe('both localization families', () => {
     expect(result.output).toContain('T read at module load')
   })
 
-  it('checks all packaged usage tables byte-for-byte and strictly against their schema', () => {
+  it('checks all packaged usage tables byte-for-byte and strictly against their schema', async () => {
     const stage = path.join(fixture.root, 'stage')
     mkdirSync(stage)
     cpSync(path.join(fixture.root, 'l10n'), path.join(stage, 'l10n'), { recursive: true })
@@ -163,11 +167,36 @@ describe('both localization families', () => {
       ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
     ])
       cpSync(path.join(fixture.root, name), path.join(stage, name))
-    expect(runGate(['--packaged', stage]).code).toBe(0)
-    const file = path.join(stage, 'l10n/usage.de.json')
-    const german = JSON.parse(readFileSync(file, 'utf8'))
-    delete german.title
-    writeFileSync(file, JSON.stringify(german))
+    const { TABLE_LOCALES } = await loadL10n(root)
+    const ui = TABLE_LOCALES.map((locale) =>
+      JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
+    )
+    const keys = Object.keys(ui[0])
+    writeFileSync(
+      path.join(stage, 'l10n/ui.tables.json.br'),
+      brotliCompressSync(
+        JSON.stringify({
+          version: 1,
+          keys,
+          locales: TABLE_LOCALES,
+          values: ui.map((table) => keys.map((key) => table[key])),
+        }),
+      ),
+    )
+    const usage = Object.fromEntries(
+      TABLE_LOCALES.map((locale) => [
+        locale,
+        JSON.parse(readFileSync(path.join(stage, 'l10n', `usage.${locale}.json`), 'utf8')),
+      ]),
+    )
+    const file = path.join(stage, 'l10n/usage.tables.json.br')
+    writeFileSync(file, brotliCompressSync(JSON.stringify(usage)))
+    expect(runGate(['--packaged', stage])).toEqual({
+      code: 0,
+      output: expect.stringContaining('0 problems'),
+    })
+    delete usage.de.title
+    writeFileSync(file, brotliCompressSync(JSON.stringify(usage)))
     const result = runGate(['--packaged', stage])
     expect(result.code).toBe(1)
     expect(result.output).toContain('packaged l10n/usage.de.json: differs from source')

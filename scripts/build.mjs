@@ -548,7 +548,7 @@ const webviewOptions = {
   ...common,
   plugins: isProduction ? [compactBrowserEnglish] : [],
   charset: 'utf8',
-  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY },
+  entryPoints: { main: WEBVIEW_ENTRY, models: MODELS_WEBVIEW_ENTRY, usage: USAGE_WEBVIEW_ENTRY },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -557,14 +557,6 @@ const webviewOptions = {
   chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
-}
-
-// D82's fallback: a third shared entry re-cut chunks and added 3.1 KiB to
-// chat startup. Build usage independently to keep that startup byte-stable.
-const usageWebviewOptions = {
-  ...webviewOptions,
-  entryPoints: { usage: USAGE_WEBVIEW_ENTRY },
-  splitting: false,
 }
 
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
@@ -650,13 +642,11 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
-    esbuild.context(usageWebviewOptions),
     esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
 } else {
-  const webview = Promise.all([esbuild.build(webviewOptions), esbuild.build(usageWebviewOptions)])
   const shipped = {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
@@ -700,7 +690,7 @@ if (isWatch) {
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
-    webview,
+    webview: esbuild.build(webviewOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)
@@ -714,17 +704,8 @@ if (isWatch) {
     for (const [name, build] of Object.entries(shipped)) {
       const result = await build
       if (name === 'webview')
-        writeFileSync(
-          path.join(METAFILE_DIR, 'usageWebview.json'),
-          JSON.stringify(result[1].metafile),
-        )
-      const metafile =
-        name === 'webview'
-          ? {
-              inputs: { ...result[0].metafile.inputs, ...result[1].metafile.inputs },
-              outputs: { ...result[0].metafile.outputs, ...result[1].metafile.outputs },
-            }
-          : result.metafile
+        writeFileSync(path.join(METAFILE_DIR, 'usageWebview.json'), JSON.stringify(result.metafile))
+      const metafile = result.metafile
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })

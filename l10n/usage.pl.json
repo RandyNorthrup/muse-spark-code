@@ -232,5 +232,9 @@
   "sortAscending": "Sortuj rosnąco",
   "sortDescending": "Sortuj malejąco",
   "retentionNote": "Szczegóły wywołań są przechowywane {detailDays} dni, podsumowania dzienne {historyDays} dni.",
-  "privacyNote": "Historia pozostaje na tym komputerze. Nie zawiera promptów, odpowiedzi, argumentów narzędzi, ścieżek ani kluczy."
+  "privacyNote": "Historia pozostaje na tym komputerze. Nie zawiera promptów, odpowiedzi, argumentów narzędzi, ścieżek ani kluczy.",
+  "exportTooLarge": "Ten eksport jest zbyt duży dla przeglądarki. Wybierz krótszy okres lub wyeksportuj za pomocą CLI.",
+  "exportBound": "Eksporty w przeglądarce są ograniczone do {limit}, łącznie z kodowaniem JSON.",
+  "editorActionsUnavailable": "Ta strona nie może otworzyć ustawień edytora, pokazać folderu historii ani edytować cen modeli. Użyj ustawień edytora oraz elementów sterujących Modelami i agentami. Odczyt, filtry, wykresy i eksporty pozostają tu dostępne.",
+  "readOnlyActions": "Ten interfejs tekstowy jest tylko do odczytu. Otwórz stronę towarzyszącą, aby korzystać z wykresów, zarządzać historią i pobierać pliki."
 }

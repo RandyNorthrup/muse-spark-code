@@ -20431,6 +20431,9 @@ opener simulation on Windows; install pinned PowerShell lint locally. Run all
 scoped gates, package sizes and strict accessibility, then one complete quality
 wrapper with three workers. Kubuntu browser timing is measured by the lead on
 Kubuntu; this rig must not invent that receipt.
+The shared-module browser graph also requires harness scenarios to start after
+the ESM graph loads, and the Models page to expose its ready navigation before
+steps run. Keep the existing readiness and scan deadlines unchanged.
 
 **M102INT composition (2026-10-05, win11).** W joins E, S, L, U and R on
 J's repaired journal, then M104 C's shared loopback server. Usage uses C's
@@ -21545,6 +21548,22 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M102INT2 round 2 (2026-10-05, Win11).** The new rig brief authorizes one
+complete quality wrapper after the individual gates and authorizes pinned
+PSScriptAnalyzer installation. This supersedes the original local exclusions
+below. R/U and both diet merges are present with hooks. Shared browser React,
+solid usage contrast, explicit surface capabilities, bounded encoded exports,
+validated OpenRouter observations, read-only Tab/conversation budgets and the
+platform-independent opener simulation are implemented. Packaged localization
+reads the UI archive by locale and checks the separate solid usage archive;
+both VSIX and ACP retain all 14 source objects. Exact lazy code members have a
+deterministic compression order, and a bounded ZIP repack verifies all VSCE
+decoded members before replacement. The function/surface matrix, HELPREF inventory (no catalogue
+on this base), failing guard drills and exact measurements are recorded in
+`docs/certification/m102.md`. Kubuntu rendering timing is measured by the lead
+on Kubuntu, not fabricated here. Native IDE installation and hosted CI remain
+their owners' release sign-off, distinct from the nine browser route receipts.
 
 **M102INT local gate scope and deferral (2026-10-05, Win11).** The rig brief
 requires composed lane tests (at most three files per run), types, scoped lint

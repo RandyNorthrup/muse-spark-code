@@ -33,6 +33,12 @@ async function exercise(api, name, table) {
           locale: 'en',
           userRequest: 'Inspect',
           recentCalls: [],
+          resolved: {
+            policy: {
+              identity: { provider: 'meta', nativeModel: 'muse-spark-1.3' },
+              output: {},
+            },
+          },
           keyed: (body) => body,
           guard: () => ignore,
           isRefused: () => false,
@@ -43,6 +49,7 @@ async function exercise(api, name, table) {
           emit: ignore,
           deps: {
             newId: () => 'fake-review',
+            now: () => 1,
             workspaceRoot: '/fake',
             platform: 'linux',
             log: { warn: ignore },

@@ -48,7 +48,11 @@ function charge(totals: UsageTotals): number | undefined {
   )
   return usageSumUsd(costs.map((cost) => cost.usd))
 }
-export function usageText(state: UsagePageState, format: UsageTextFormat = 'plain'): string {
+export function usageText(
+  state: UsagePageState,
+  format: UsageTextFormat = 'plain',
+  section: 'summary' | 'daily' | 'models' | 'limits' = 'summary',
+): string {
   const isMarkdown = format === 'markdown'
   const escape = (value: string): string =>
     isMarkdown
@@ -61,7 +65,10 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
   const row = (label: string, value: string): void => {
     lines.push(`${isMarkdown ? '- ' : ''}${escape(label)}: ${escape(value)}`)
   }
-  lines.push(isMarkdown ? `# ${escape(USAGE_TEXT.title)}` : USAGE_TEXT.title)
+  lines.push(
+    isMarkdown ? `# ${escape(USAGE_TEXT.title)}` : USAGE_TEXT.title,
+    escape(USAGE_TEXT.readOnlyActions),
+  )
   const range = usageRange(state.query, state.generatedAt)
   row(USAGE_TEXT.fromDate, formatDate(new Date(`${range.from}T12:00:00`).getTime()))
   row(USAGE_TEXT.toDate, formatDate(new Date(`${range.to}T12:00:00`).getTime()))
@@ -79,6 +86,7 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
     lines.push(escape(plural(USAGE_TEXT.newerRecords, state.history.newerVersionRecords)))
   if (state.history.tornLines > 0)
     lines.push(escape(plural(USAGE_TEXT.tornLines, state.history.tornLines)))
+  const introEnd = lines.length
   row(USAGE_TEXT.requests, plural(USAGE_TEXT.requestCount, state.totals.records))
   row(USAGE_TEXT.inputTokens, count(state.totals.tokens.input))
   row(USAGE_TEXT.outputTokens, count(state.totals.tokens.output))
@@ -129,6 +137,7 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
     const note = certaintyNote(cost.certainty)
     if (note !== undefined) lines.push(escape(note))
   }
+  const breakdownStart = lines.length
   heading(USAGE_TEXT.breakdown)
   for (const group of state.breakdown) {
     row(
@@ -136,6 +145,7 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
       `${amount(charge(group.totals))} · ${count(group.totals.tokens.input)} / ${count(group.totals.tokens.output)} · ${plural(USAGE_TEXT.requestCount, group.totals.records)}`,
     )
   }
+  const limitsStart = lines.length
   heading(USAGE_TEXT.limits)
   // Select each window independently: partial header/window reports need not
   // replace another window. Account/raw data belong to the latest source
@@ -191,8 +201,10 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
       for (const [name, value] of Object.entries(limit.raw))
         row(`${USAGE_TEXT.asReported} (${name})`, value)
   }
-  for (const provider of state.unreportedLimits)
+  for (const provider of state.unreportedLimits) {
     lines.push(escape(fill(USAGE_TEXT.noLimitReported, { provider: provider.provider })))
+    if (provider.consoleUrl !== undefined) row(USAGE_TEXT.providerConsole, provider.consoleUrl)
+  }
   const budgetKeys = {
     paidDaily: 'paidDailyBudget',
     tabDaily: 'tabDailyBudget',
@@ -214,5 +226,28 @@ export function usageText(state: UsagePageState, format: UsageTextFormat = 'plai
   }
   if (state.budgets.some((budget) => budget.kind === 'paidDaily'))
     lines.push(escape(USAGE_TEXT.paidBudgetNote))
+  switch (section) {
+    case 'daily': {
+      lines.splice(introEnd)
+      for (const bucket of state.buckets)
+        row(
+          formatDate(new Date(`${bucket.day}T12:00:00`).getTime()),
+          `${amount(charge(bucket.totals))} · ${count(bucket.totals.tokens.input)} / ${count(bucket.totals.tokens.output)} · ${plural(USAGE_TEXT.requestCount, bucket.totals.records)}`,
+        )
+      break
+    }
+    case 'models': {
+      lines.splice(limitsStart)
+      lines.splice(introEnd, breakdownStart - introEnd)
+      break
+    }
+    case 'limits': {
+      lines.splice(introEnd, limitsStart - introEnd)
+      break
+    }
+    case 'summary': {
+      break
+    }
+  }
   return `${lines.join('\n')}\n`
 }

@@ -202,5 +202,9 @@
   "sortAscending": "升序排列",
   "sortDescending": "降序排列",
   "retentionNote": "单次调用详情保留{detailDays}天；每日汇总保留{historyDays}天。",
-  "privacyNote": "历史记录保留在此机器上，不包含提示、回复、工具参数、路径或密钥。"
+  "privacyNote": "历史记录保留在此机器上，不包含提示、回复、工具参数、路径或密钥。",
+  "exportTooLarge": "此导出文件过大，浏览器无法处理。请选择较短的时间范围或使用CLI导出。",
+  "exportBound": "浏览器导出大小上限为{limit}，包含JSON编码。",
+  "editorActionsUnavailable": "此页面无法打开编辑器设置、显示历史文件夹或编辑模型价格。请使用编辑器设置及“模型与智能体”控件。此处仍可阅读、筛选、查看图表和导出。",
+  "readOnlyActions": "此文本界面为只读。请打开配套页面以查看图表、管理历史和下载。"
 }

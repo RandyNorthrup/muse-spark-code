@@ -3183,6 +3183,27 @@ is available inside the raw 30-day window; summary CSV and JSON also cover
 rollups. Export uses the editor's save dialog, a browser download, or the explicit
 CLI output path. CSV escapes spreadsheet formulas.
 
+Browser exports allow at most 8 MiB of encoded file data, including JSON
+escaping. An oversized export reports the limit and keeps the page usable;
+select a smaller date range or use the CLI output path. The bound is displayed
+on the page. The terminal's `daily`, `models` and `limits` subcommands select
+their respective sections.
+
+History-off pages retain validated live Muse Code windows, captured provider
+headers and OpenRouter account observations. Budget views read the existing
+shared paid ledger, VS Code's Tab ledger and active parent conversation ledgers,
+including retained reservations; viewing them creates no admission or model call.
+Unreported provider limits stay unknown. A projection requires an observed start
+time and enough elapsed usage; unavailable observations remain unavailable.
+
+The companion page supports filters, charts and accessible tables, model detail,
+downloads, counted deletion and the history switch in every editor. It states
+that editor settings, folder reveal and the editor's Models panel need a native
+adapter, and disables those buttons. Provider console links still open directly.
+ACP and terminal summaries state that their text surface is read-only and direct
+interactive actions to the companion page. A native stdio adapter advertises
+only the actions it actually supplies.
+
 The browser companion listens only on `127.0.0.1`. Its one-use fragment launch
 code is exchanged for a separate in-memory bearer in each window. The code is
 removed from the address bar; authenticated fetch streams carry replies. There
@@ -3190,6 +3211,10 @@ are no cookies or remote assets. Usage reads and charts make no model request
 and send nothing off this machine. Native JCEF, WebView2 and SWT bridges expose
 the same page protocol; their editor installations are tracked separately in
 [the certification record](docs/certification/m102.md).
+
+The fake-data browser check `node test/harness/usage-companion.mjs` exercises the
+shipped authenticated companion for all nine editor routes, including shared
+module loading, filtering, the capability notice and downloads.
 
 ## Languages
 

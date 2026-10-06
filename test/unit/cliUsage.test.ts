@@ -194,7 +194,7 @@ describe('usage command line', () => {
     expect(ports.print).toHaveBeenCalledExactlyOnceWith(
       `${JSON.stringify({ type: 'usage/error', code: 'invalidMessage' })}\n`,
     )
-    expect(() => ports.connections[0]?.confirmDelete(2)).toThrow()
+    expect(ports.connections[0]?.confirmDelete).toBeUndefined()
     ports.print.mockRejectedValueOnce(new Error('pipe closed'))
     let hasReadNext = false
     async function* failingInput() {

@@ -13,6 +13,40 @@ async function* nativeUsageRequests() {
 }
 
 describe('shared usage service', () => {
+  it('refuses an oversized encoded browser export before saving and keeps refresh available', async () => {
+    const deps = usageFixtureDeps()
+    const service = createUsageService({
+      ...deps,
+      capabilities: {
+        settings: false,
+        folder: false,
+        models: false,
+        external: false,
+        export: true,
+        deleteHistory: true,
+        setHistory: true,
+        exportMaxBytes: 100,
+      },
+      exportFile: () =>
+        Promise.resolve({
+          name: 'usage.json',
+          mimeType: 'application/json',
+          content: '\n'.repeat(100),
+        }),
+    })
+    expect(
+      await service.handle({
+        type: 'usage/export',
+        requestId: 'bounded',
+        format: 'json',
+        query: { range: 'today', groupBy: 'provider', metric: 'cost' },
+      }),
+    ).toEqual([{ type: 'usage/error', requestId: 'bounded', code: 'exportTooLarge' }])
+    expect(deps.saveFile).not.toHaveBeenCalled()
+    expect(await service.handle({ type: 'usage/refresh' })).toEqual([
+      expect.objectContaining({ type: 'usage/state' }),
+    ])
+  })
   it('validates both directions and ready delivers a table and equivalent page totals', async () => {
     const deps = usageFixtureDeps()
     const service = createUsageService(deps)

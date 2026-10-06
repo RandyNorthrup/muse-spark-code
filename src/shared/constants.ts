@@ -3382,6 +3382,7 @@ export const USAGE_BURN_MIN_MS = 30 * 60 * 1000
 export const USAGE_STALE_MS = 15 * 60 * 1000
 export const USAGE_COMPANION_IDLE_MS = 30 * 60 * 1000
 export const USAGE_COMPANION_EVENT_BYTES = 16 * 1024 * 1024
+export const USAGE_BROWSER_EXPORT_MAX_BYTES = USAGE_COMPANION_EVENT_BYTES / 2
 export const USAGE_COMPANION_REQUEST_MS = 2 * 60 * 1000
 export const USAGE_COMPANION_MAX_WINDOWS = 32
 export const USAGE_ROLLUP_LOCK_STALE_MS = 5 * 60 * 1000
@@ -5390,6 +5391,20 @@ export const L10N_COMPACT_FRAGMENT_WORDS = 6
 export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
 export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
+export const USAGE_TABLE_ARCHIVE_FILE = 'usage.tables.json.br'
+// The provider presets' public account pages; custom/local origins are unknown.
+export const USAGE_PROVIDER_CONSOLES: Readonly<Record<string, string>> = {
+  openai: 'https://platform.openai.com/api-keys',
+  xai: 'https://console.x.ai',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  gemini: 'https://aistudio.google.com/apikey',
+  openrouter: 'https://openrouter.ai/keys',
+  groq: 'https://console.groq.com/keys',
+  deepseek: 'https://platform.deepseek.com/api_keys',
+  mistral: 'https://console.mistral.ai/api-keys',
+  together: 'https://api.together.ai/settings/api-keys',
+  huggingface: 'https://huggingface.co/settings/tokens',
+}
 export const L10N_COMPRESSION_QUALITY = 11
 export const L10N_TABLE_MAX_BYTES = 1024 * 1024
 export const L10N_PLURAL_SAMPLE_MAX = 200

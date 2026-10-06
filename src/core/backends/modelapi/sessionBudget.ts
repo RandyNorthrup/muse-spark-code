@@ -74,6 +74,11 @@ export interface SessionBudgetClaim {
 
 /** The session store's scoped spend journal; all callers share the same account-owned history. */
 export interface SessionBudgetJournal {
+  /** Display-only read: never seeds or reserves an unopened scope. */
+  readonly readExisting?: (
+    sessionId: string,
+    accountId: string,
+  ) => Promise<(SessionBudgetTotal & { readonly uncertainUsd?: number }) | undefined>
   read(sessionId: string, accountId: string): Promise<SessionBudgetTotal>
   reserve(
     sessionId: string,

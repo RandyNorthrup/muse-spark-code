@@ -215,6 +215,10 @@ describe('M102 integrated surfaces', () => {
       log,
     })
     const state = await access.read(query)
+    expect(state.unreportedLimits).toContainEqual({
+      provider: 'openai',
+      consoleUrl: 'https://platform.openai.com/api-keys',
+    })
     expect(state.totals.records).toBe(3)
     expect(state.totals.tokens).toMatchObject({ input: 250, output: 25, cached: 40 })
     expect(state.limits[0]?.windows).toHaveLength(2)

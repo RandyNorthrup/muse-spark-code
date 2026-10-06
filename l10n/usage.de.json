@@ -212,5 +212,9 @@
   "sortAscending": "Aufsteigend sortieren",
   "sortDescending": "Absteigend sortieren",
   "retentionNote": "Aufrufdetails werden {detailDays} Tage aufbewahrt, Tageszusammenfassungen {historyDays} Tage.",
-  "privacyNote": "Der Verlauf bleibt auf diesem Rechner. Er enthält keine Prompts, Antworten, Tool-Argumente, Pfade oder Schlüssel."
+  "privacyNote": "Der Verlauf bleibt auf diesem Rechner. Er enthält keine Prompts, Antworten, Tool-Argumente, Pfade oder Schlüssel.",
+  "exportTooLarge": "Dieser Export ist für den Browser zu groß. Wählen Sie einen kürzeren Zeitraum oder exportieren Sie über die CLI.",
+  "exportBound": "Browserexporte sind einschließlich JSON-Kodierung auf {limit} begrenzt.",
+  "editorActionsUnavailable": "Diese Seite kann keine Editoreinstellungen oder den Verlaufsordner öffnen und keine Modellpreise bearbeiten. Verwenden Sie die Editoreinstellungen und die Bedienelemente für Modelle und Agenten. Lesen, Filter, Diagramme und Exporte bleiben hier verfügbar.",
+  "readOnlyActions": "Diese Textansicht ist schreibgeschützt. Öffnen Sie die Begleitseite für Diagramme, Verlaufsverwaltung und Downloads."
 }

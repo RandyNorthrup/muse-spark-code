@@ -4,12 +4,14 @@ import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { packRuntimeArchive } from './lib/packageArchive.mjs'
+import { compactVsix } from './lib/compactVsix.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
 
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
-const COMPACT_JSON = /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
+const COMPACT_JSON =
+  /^(?:l10n\/(?:ui|usage)\.[^/]+\.json|dist\/providerCatalog\.json|package(?:\.nls(?:\.[^/]+)?)?\.json)$/
 
 export function packagedChangelog(text) {
   const headings = text.matchAll(/^## \[\d+\.\d+\.\d+\].*$/gm).toArray()
@@ -82,7 +84,8 @@ async function main() {
   })
   const manifest = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
   const archive = path.join(root, `${manifest.name}-${manifest.version}.vsix`)
-  await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  const result = await pack({ cwd: stage, dependencies: false, packagePath: archive })
+  await compactVsix(archive, result.files)
   execFileSync(process.execPath, ['scripts/check-vsix-size.mjs', archive], {
     cwd: root,
     stdio: 'inherit',

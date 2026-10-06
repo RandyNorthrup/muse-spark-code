@@ -14,6 +14,18 @@ afterEach(() => {
   setUsageText(USAGE_EN)
 })
 describe('usage text in every editor', () => {
+  it('renders daily, model and limit commands as their requested sections', async () => {
+    const state = await createUsageService(usageFixtureDeps()).snapshot()
+    const daily = usageText(state, 'plain', 'daily')
+    expect(daily).toContain('1 request')
+    expect(daily).not.toContain('Shared daily paid budget')
+    const models = usageText(state, 'plain', 'models')
+    expect(models).toContain('Breakdown')
+    expect(models).not.toContain('Shared daily paid budget')
+    const limits = usageText(state, 'plain', 'limits')
+    expect(limits).toContain('Shared daily paid budget')
+    expect(limits).not.toContain('Breakdown')
+  })
   it('prints the page totals, model/provider breakdown, windows, caps and certainty in plain and Markdown', async () => {
     const service = createUsageFeatures({ ...usageFixtureDeps(), uiText: EN, uiLocale: 'en' })
     const state = await service.snapshot()

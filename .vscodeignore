@@ -64,6 +64,7 @@
 !package.nls.*.json
 !l10n/ui.*.json
 !l10n/usage.*.json
+!l10n/usage.tables.json.br
 !README.md
 !CHANGELOG.md
 !LICENSE

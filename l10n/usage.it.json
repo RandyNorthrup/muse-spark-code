@@ -222,5 +222,9 @@
   "sortAscending": "Ordinamento crescente",
   "sortDescending": "Ordinamento decrescente",
   "retentionNote": "Il dettaglio per chiamata è conservato {detailDays} giorni; i riepiloghi giornalieri, {historyDays} giorni.",
-  "privacyNote": "La cronologia resta su questa macchina. Non contiene prompt, risposte, argomenti degli strumenti, percorsi né chiavi."
+  "privacyNote": "La cronologia resta su questa macchina. Non contiene prompt, risposte, argomenti degli strumenti, percorsi né chiavi.",
+  "exportTooLarge": "Questa esportazione è troppo grande per il browser. Scegli un intervallo più breve o esporta tramite la CLI.",
+  "exportBound": "Le esportazioni del browser sono limitate a {limit}, inclusa la codifica JSON.",
+  "editorActionsUnavailable": "Questa pagina non può aprire le impostazioni dell’editor, mostrare la cartella della cronologia o modificare i prezzi dei modelli. Usa le impostazioni dell’editor e i controlli Modelli e agenti. Lettura, filtri, grafici ed esportazioni restano disponibili qui.",
+  "readOnlyActions": "Questa interfaccia testuale è di sola lettura. Apri la pagina complementare per grafici, gestione della cronologia e download."
 }

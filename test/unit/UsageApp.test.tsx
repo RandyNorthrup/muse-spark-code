@@ -31,6 +31,29 @@ function setup(state: UsagePageState = usageStateFor('one-provider', NOW)) {
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn())
 })
+
+it('explains unavailable editor actions on the page and disables their controls', () => {
+  const state = usageStateFor('one-provider', NOW)
+  state.capabilities = {
+    settings: false,
+    folder: false,
+    models: false,
+    external: false,
+    export: true,
+    deleteHistory: true,
+    setHistory: true,
+    exportMaxBytes: 100,
+  }
+  setup(state)
+  expect(screen.getByText(USAGE_EN.editorActionsUnavailable)).toBeTruthy()
+  expect(screen.getByRole('button', { name: USAGE_EN.settings }).hasAttribute('disabled')).toBe(
+    true,
+  )
+  expect(screen.getByRole('button', { name: USAGE_EN.revealFolder }).hasAttribute('disabled')).toBe(
+    true,
+  )
+  expect(screen.getByText(/Browser exports are limited/)).toBeTruthy()
+})
 afterEach(() => {
   vi.unstubAllGlobals()
   setUsageText(USAGE_EN)

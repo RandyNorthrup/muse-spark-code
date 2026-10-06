@@ -13,12 +13,15 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { stageVsix, packagedChangelog } from '../../scripts/package-vsix.mjs'
+import { compactVsix } from '../../scripts/lib/compactVsix.mjs'
+import { readZip } from '@vscode/vsce/out/zip.js'
 import { packRuntimeArchive } from '../../scripts/lib/packageArchive.mjs'
 import { readArchivedUiTable } from '../../src/shared/l10n/tableArchive'
+import { readUsageTableFile } from '../../src/runtime/usage/usageTableFile'
 import { EN } from '../../src/shared/l10n/en'
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { loadUiTable, readUiTableFile } from '../../src/host/l10n'
-import { listFiles } from '@vscode/vsce/out/package.js'
+import { listFiles, pack } from '@vscode/vsce/out/package.js'
 
 const ROOT = process.cwd()
 const hash = (text) => createHash('sha256').update(text).digest('hex')
@@ -51,6 +54,7 @@ beforeAll(async () => {
     'LICENSE',
     'THIRD_PARTY_NOTICES.txt',
     'docs/PRIVACY.md',
+    'media/icon.png',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
     cpSync(path.join(ROOT, file), path.join(fixture.root, file))
@@ -128,11 +132,62 @@ beforeAll(async () => {
       outputs: { 'dist/webview/main.js': {}, 'dist/webview/chunks/UsageDialog-test.js': {} },
     }),
   )
+})
+
+beforeAll(async () => {
   fixture.files = await stageVsix(fixture.root, fixture.stage)
 })
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('VSIX packaging', () => {
+  it('recompresses real VSCE output with unchanged members and the standard CRC', async () => {
+    const archive = path.join(fixture.root, 'compact.vsix')
+    writeFileSync(path.join(fixture.stage, 'dist/webview/chunks/crc.js'), '123456789')
+    const result = await pack({ cwd: fixture.stage, dependencies: false, packagePath: archive })
+    const before = await readZip(archive, () => true)
+    await compactVsix(archive, result.files)
+    expect(await readZip(archive, () => true)).toEqual(before)
+    const bytes = readFileSync(archive)
+    let offset = 0
+    let crc
+    while (bytes.readUInt32LE(offset) === 0x04_03_4b_50) {
+      const nameBytes = bytes.readUInt16LE(offset + 26)
+      const extraBytes = bytes.readUInt16LE(offset + 28)
+      const name = bytes.subarray(offset + 30, offset + 30 + nameBytes).toString('utf8')
+      if (name.endsWith('/crc.js')) crc = bytes.readUInt32LE(offset + 14)
+      offset += 30 + nameBytes + extraBytes + bytes.readUInt32LE(offset + 18)
+    }
+    expect(crc).toBe(0xcb_f4_39_26)
+    const original = readFileSync(archive)
+    await expect(compactVsix(archive, [])).rejects.toThrow('Invalid VSIX member set')
+    expect(readFileSync(archive)).toEqual(original)
+  })
+  it.each(['invalid', 'missing', 'oversized'])(
+    'refuses a damaged usage archive member: %s',
+    async (kind) => {
+      const stage = path.join(fixture.root, `usage-${kind}`)
+      cpSync(fixture.stage, stage, { recursive: true })
+      const file = path.join(stage, 'l10n/usage.tables.json.br')
+      const archive = JSON.parse(brotliDecompressSync(readFileSync(file)))
+      if (kind === 'missing') delete archive.de
+      else if (kind === 'invalid') archive.de = {}
+      else archive.de.title = 'x'.repeat(2 * 1024 * 1024)
+      writeFileSync(file, brotliCompressSync(JSON.stringify(archive)))
+      await expect(readUsageTableFile(stage, ['l10n', 'usage.de.json'])).rejects.toThrow()
+    },
+  )
+  it.each(TABLE_LOCALES)(
+    'loads archived usage %s byte-exact without a plain table',
+    async (locale) => {
+      const file = `usage.${locale}.json`
+      expect(await readUsageTableFile(fixture.stage, ['l10n', file])).toBe(
+        JSON.stringify(JSON.parse(readFileSync(path.join(fixture.root, 'l10n', file), 'utf8'))),
+      )
+      expect(await listFiles({ cwd: fixture.stage, dependencies: false })).not.toContain(
+        `l10n/${file}`,
+      )
+    },
+  )
   it.each(excluded)('excludes %s from actual VSCE collection', (file) => {
     expect(fixture.files).not.toContain(file)
   })

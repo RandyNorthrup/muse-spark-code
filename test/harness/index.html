@@ -5302,10 +5302,15 @@
       if (scenario !== null && scenario in steps) {
         // The Models & Agents panel (`?bundle=models`, M95) draws neither a
         // composer nor a gate: its nav marks the surface instead.
-        later(100, () =>
-          whenFound('textarea, .gate, .todo-surface, [role="alert"], .models-panel', () =>
-            steps[scenario](),
-          ),
+        window.addEventListener(
+          'load',
+          () =>
+            later(100, () =>
+              whenFound('textarea, .gate, .todo-surface, [role="alert"], .models-nav', () =>
+                steps[scenario](),
+              ),
+            ),
+          { once: true },
         )
       }
 

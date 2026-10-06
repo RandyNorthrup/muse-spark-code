@@ -57,6 +57,7 @@ export interface UsageServiceDeps {
   readonly now: () => number
   readonly host: string
   readonly table: UsageTable
+  readonly capabilities?: UsagePageState['capabilities']
   readonly journal: UsageJournalPort
   readonly history: () => { readonly enabled: boolean; readonly historyDays?: number }
   readonly setHistory: (isEnabled: boolean) => Promise<void>
@@ -134,6 +135,15 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
       v: USAGE_JOURNAL_VERSION,
       query: selected,
       generatedAt: now,
+      capabilities: deps.capabilities ?? {
+        settings: deps.openSettings !== undefined,
+        folder: deps.revealFolder !== undefined,
+        models: deps.openModels !== undefined,
+        external: deps.openExternal !== undefined,
+        export: true,
+        deleteHistory: true,
+        setHistory: true,
+      },
       history: {
         enabled: settings.enabled,
         host: deps.host,
@@ -265,6 +275,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         )
           return [{ type: 'usage/error', requestId: message.requestId, code: 'exportRange' }]
         const file = await deps.exportFile(message.format, journal, state)
+        const maximum = deps.capabilities?.exportMaxBytes
+        if (
+          maximum !== undefined &&
+          new TextEncoder().encode(JSON.stringify(file)).byteLength > maximum
+        )
+          return [{ type: 'usage/error', requestId: message.requestId, code: 'exportTooLarge' }]
         const isSaved = await deps.saveFile(file)
         return [
           {

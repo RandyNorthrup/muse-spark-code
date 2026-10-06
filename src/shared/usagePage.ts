@@ -111,6 +111,18 @@ export const usagePageStateSchema = z.strictObject({
   v: z.literal(USAGE_JOURNAL_VERSION),
   query: usageQuerySchema,
   generatedAt: usageCountSchema,
+  capabilities: z.optional(
+    z.strictObject({
+      settings: z.boolean(),
+      folder: z.boolean(),
+      models: z.boolean(),
+      export: z.boolean(),
+      deleteHistory: z.boolean(),
+      setHistory: z.boolean(),
+      external: z.boolean(),
+      exportMaxBytes: z.optional(usageCountSchema),
+    }),
+  ),
   history: z.strictObject({
     enabled: z.boolean(),
     host: usageLabelSchema,
@@ -132,7 +144,15 @@ export const usagePageStateSchema = z.strictObject({
   unreportedLimits: z.array(
     z.strictObject({
       provider: usageLabelSchema,
-      consoleUrl: z.optional(z.url()),
+      consoleUrl: z.optional(
+        z.url().check(
+          z.refine((value) => {
+            if (!URL.canParse(value)) return false
+            const url = new URL(value)
+            return url.protocol === 'https:' && url.username === '' && url.password === ''
+          }),
+        ),
+      ),
     }),
   ),
   attempts: z.array(
@@ -191,7 +211,14 @@ export const usageServiceToPageMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('usage/error'),
     requestId: z.optional(usageIdSchema),
-    code: z.enum(['invalidMessage', 'readFailed', 'writeFailed', 'exportRange', 'unsupported']),
+    code: z.enum([
+      'invalidMessage',
+      'readFailed',
+      'writeFailed',
+      'exportRange',
+      'exportTooLarge',
+      'unsupported',
+    ]),
   }),
   z.strictObject({
     type: z.literal('usage/table'),

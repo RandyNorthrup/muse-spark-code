@@ -418,6 +418,14 @@ support still requires post-release LR, beyond unsigned candidate acceptance.
 
 ## Local usage history
 
+Text summaries disclose that they are read-only and link interactive work to
+the companion. The same companion page serves JetBrains, Eclipse, Visual Studio,
+Neovim, Emacs, Sublime, Qt Creator, Zed and Xcode. Its disabled editor settings,
+folder and Models-panel actions are explained on the page; native stdio adapters
+can supply those actions explicitly. Browser downloads have a visible 8-MiB
+encoded bound and return an explicit error above it, leaving refresh available.
+Use a smaller range or the terminal output path for larger exports.
+
 `/usage` prints the shared journal summary; `/usage page` supplies the authenticated
 loopback companion link. The terminal also accepts `usage`, `usage --json`,
 `usage --csv`, `usage open`, `usage serve --stdio` and root `--usage` JSON.

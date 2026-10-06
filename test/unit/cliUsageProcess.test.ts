@@ -74,6 +74,18 @@ beforeAll(async () => {
   const linuxOpener: Plugin = {
     name: 'test-linux-foreground-handler',
     setup(pluginBuild) {
+      pluginBuild.onLoad({ filter: /[\\/]runtime[\\/]main\.ts$/ }, (args) => {
+        const source = readFileSync(args.path, 'utf8')
+        const start = source.indexOf('async function openUsageBrowser(')
+        const end = source.indexOf('async function serve(', start)
+        return {
+          loader: 'ts',
+          contents:
+            source.slice(0, start) +
+            source.slice(start, end).replaceAll('process.platform', '"linux"') +
+            source.slice(end),
+        }
+      })
       pluginBuild.onResolve({ filter: /^node:child_process$/ }, (args) =>
         [path.resolve('src/runtime/main.ts'), path.resolve('src/host/processTree.ts')].includes(
           args.importer,
@@ -107,7 +119,6 @@ beforeAll(async () => {
     entryPoints: ['src/runtime/main.ts'],
     outfile: path.join(root, 'dist', 'acp-linux.js'),
     plugins: [sharedUiText, linuxOpener],
-    define: { 'process.platform': '"linux"' },
     external: ['@napi-rs/keyring'],
   })
   // All fake implementations stay in this test-only bundle. The CLI dispatcher

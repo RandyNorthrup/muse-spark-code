@@ -222,5 +222,9 @@
   "sortAscending": "Ordem crescente",
   "sortDescending": "Ordem decrescente",
   "retentionNote": "O detalhe por chamada é mantido por {detailDays} dias; os resumos diários, por {historyDays} dias.",
-  "privacyNote": "O histórico permanece nesta máquina. Não contém prompts, respostas, argumentos de ferramentas, caminhos nem chaves."
+  "privacyNote": "O histórico permanece nesta máquina. Não contém prompts, respostas, argumentos de ferramentas, caminhos nem chaves.",
+  "exportTooLarge": "Esta exportação é grande demais para o navegador. Escolha um período menor ou exporte pela CLI.",
+  "exportBound": "As exportações do navegador são limitadas a {limit}, incluindo a codificação JSON.",
+  "editorActionsUnavailable": "Esta página não pode abrir as configurações do editor, mostrar a pasta do histórico nem editar os preços dos modelos. Use as configurações do editor e os controles de Modelos e agentes. Leitura, filtros, gráficos e exportações continuam disponíveis aqui.",
+  "readOnlyActions": "Esta interface de texto é somente leitura. Abra a página complementar para gráficos, controles do histórico e downloads."
 }

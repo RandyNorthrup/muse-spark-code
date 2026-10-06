@@ -2,7 +2,7 @@
 // Source/build files stay intact; English keeps its independent inline fallback.
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -19,8 +19,13 @@ const digest = (text) => createHash('sha256').update(text).digest('hex')
 
 export async function packRuntimeArchive(root, stage, files, tables) {
   const orderedTables = tables.toSorted(([left], [right]) => left.localeCompare(right, 'en'))
-  const { L10N_TABLE_MAX_BYTES, L10N_COMPRESSION_QUALITY, L10N_TABLE_ARCHIVE_FILE, TABLE_LOCALES } =
-    await loadL10n(SOURCE_ROOT)
+  const {
+    L10N_TABLE_MAX_BYTES,
+    L10N_COMPRESSION_QUALITY,
+    L10N_TABLE_ARCHIVE_FILE,
+    USAGE_TABLE_ARCHIVE_FILE,
+    TABLE_LOCALES,
+  } = await loadL10n(SOURCE_ROOT)
   const keys = Object.keys(orderedTables[0]?.[1] ?? {})
   if (
     orderedTables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
@@ -84,6 +89,14 @@ export async function packRuntimeArchive(root, stage, files, tables) {
   }
   const maxOutputLength = L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length
   const text = JSON.stringify(archive)
+  // Group larger members first for the solid compressor; source bytes and
+  // digests remain identical, with a name tie-break for deterministic staging.
+  codeArchive.bundles = Object.fromEntries(
+    Object.entries(codeArchive.bundles).toSorted(
+      ([left, leftSource], [right, rightSource]) =>
+        rightSource.length - leftSource.length || left.localeCompare(right, 'en'),
+    ),
+  )
   const codeText = JSON.stringify(codeArchive)
   if (Buffer.byteLength(text) > maxOutputLength || Buffer.byteLength(codeText) > maxOutputLength)
     throw new Error('Runtime archive exceeds decoded bound')
@@ -135,4 +148,21 @@ module.readPackedRuntime=(()=>{
       params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
     }),
   )
+  const usage = Object.fromEntries(
+    TABLE_LOCALES.map((locale) => [
+      locale,
+      JSON.parse(readFileSync(path.join(root, 'l10n', `usage.${locale}.json`), 'utf8')),
+    ]),
+  )
+  const usageText = JSON.stringify(usage)
+  if (Buffer.byteLength(usageText) > maxOutputLength)
+    throw new Error('Usage archive exceeds decoded bound')
+  writeFileSync(
+    path.join(stage, 'l10n', USAGE_TABLE_ARCHIVE_FILE),
+    brotliCompressSync(usageText, {
+      params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+    }),
+  )
+  for (const locale of TABLE_LOCALES)
+    rmSync(path.join(stage, 'l10n', `usage.${locale}.json`), { force: true })
 }

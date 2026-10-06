@@ -317,7 +317,12 @@ export function LimitsSection({
       {state.unreportedLimits.map((row) => (
         <p key={row.provider}>
           {fill(USAGE_TEXT.noLimitReported, { provider: row.provider })}{' '}
-          {row.consoleUrl === undefined ? null : (
+          {row.consoleUrl !== undefined && state.capabilities?.external === false ? (
+            <a href={row.consoleUrl} target="_blank" rel="noopener noreferrer">
+              {USAGE_TEXT.providerConsole}
+            </a>
+          ) : null}
+          {row.consoleUrl !== undefined && state.capabilities?.external !== false ? (
             <button
               type="button"
               onClick={() => {
@@ -327,7 +332,7 @@ export function LimitsSection({
             >
               {USAGE_TEXT.providerConsole}
             </button>
-          )}
+          ) : null}
         </p>
       ))}
       {chartProviders.map((provider) => (

@@ -8,10 +8,9 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import {
   META_DASHBOARD_URL,
-  MILLISECONDS_PER_SECOND,
   MODEL_API_PRICES_VERIFIED_ON,
   type ModelPricing,
   PAID_PRICES_VERIFIED_ON,
@@ -26,7 +25,6 @@ import {
   paidCostUsd,
   paidFeatureName,
   type PaidState,
-  type PaidTally,
   listedPaidFeatures,
   paidTotalUsd,
   usablePaidFeatures,
@@ -48,7 +46,7 @@ import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights
 import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
 import type { UiState } from '../state/uiState'
 import type { SignInMethod } from '../../shared/protocol'
-import { formatDurationMs } from '../agentFormat'
+import { paidUseText } from '../agentFormat'
 import { Modal } from './Modal'
 
 export interface UsageDialogProps {
@@ -71,6 +69,21 @@ export interface UsageDialogProps {
   /** The chat's existing bridge supplies openUsagePage (editor wiring lane). */
   readonly onOpenUsagePage?: () => void
   readonly onClose: () => void
+}
+
+function Facts({ rows }: { readonly rows: readonly (readonly [string, string | undefined])[] }) {
+  return (
+    <dl className="usage-facts">
+      {rows.map(([label, value]) =>
+        value === undefined ? null : (
+          <Fragment key={label}>
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </Fragment>
+        ),
+      )}
+    </dl>
+  )
 }
 
 type InsightWindow = 'day' | 'week'
@@ -213,59 +226,51 @@ function TokensSection({
       : undefined
   return (
     <>
-      <dl className="usage-facts">
-        {usage !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageInput}</dt>
-            <dd>{formatTokenWindow(usage.inputTokens)}</dd>
-            <dt>{UI_TEXT.usageOutput}</dt>
-            <dd>{formatTokenWindow(usage.outputTokens)}</dd>
-            {usage.cachedTokens === undefined ? null : (
-              <>
-                <dt>{UI_TEXT.usageCached}</dt>
-                <dd>{formatTokenWindow(usage.cachedTokens)}</dd>
-                <dt>{UI_TEXT.usageCacheHits}</dt>
-                <dd>{formatPercent(percentOf(usage.cachedTokens, usage.inputTokens))}</dd>
-              </>
-            )}
-          </>
-        )}
-        {contextValue !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageContext}</dt>
-            <dd>{contextValue}</dd>
-          </>
-        )}
-        {usage?.packedTokensAvoided === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.usagePackedAvoided}</dt>
-            <dd>{formatTokenWindow(usage.packedTokensAvoided)}</dd>
-          </>
-        )}
-        {usage?.hookTokensAdded === undefined ? null : (
-          <>
-            <dt>{UI_TEXT.usageAddedByHooks}</dt>
-            <dd>{formatTokenWindow(usage.hookTokensAdded)}</dd>
-          </>
-        )}
-        {cost !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCost}</dt>
-            <dd>{formatUsd(cost)}</dd>
-          </>
-        )}
-        {savings !== undefined && (
-          <>
-            <dt>{UI_TEXT.usageCacheSavings}</dt>
-            <dd>
-              {fill(UI_TEXT.usageCacheSavingsValue, {
-                amount: formatUsd(savings.amount),
-                percent: formatPercent(savings.percent),
-              })}
-            </dd>
-          </>
-        )}
-      </dl>
+      <Facts
+        rows={[
+          [
+            UI_TEXT.usageInput,
+            usage === undefined ? undefined : formatTokenWindow(usage.inputTokens),
+          ],
+          [
+            UI_TEXT.usageOutput,
+            usage === undefined ? undefined : formatTokenWindow(usage.outputTokens),
+          ],
+          [
+            UI_TEXT.usageCached,
+            usage?.cachedTokens === undefined ? undefined : formatTokenWindow(usage.cachedTokens),
+          ],
+          [
+            UI_TEXT.usageCacheHits,
+            usage?.cachedTokens === undefined
+              ? undefined
+              : formatPercent(percentOf(usage.cachedTokens, usage.inputTokens)),
+          ],
+          [UI_TEXT.usageContext, contextValue],
+          [
+            UI_TEXT.usagePackedAvoided,
+            usage?.packedTokensAvoided === undefined
+              ? undefined
+              : formatTokenWindow(usage.packedTokensAvoided),
+          ],
+          [
+            UI_TEXT.usageAddedByHooks,
+            usage?.hookTokensAdded === undefined
+              ? undefined
+              : formatTokenWindow(usage.hookTokensAdded),
+          ],
+          [UI_TEXT.usageCost, cost === undefined ? undefined : formatUsd(cost)],
+          [
+            UI_TEXT.usageCacheSavings,
+            savings === undefined
+              ? undefined
+              : fill(UI_TEXT.usageCacheSavingsValue, {
+                  amount: formatUsd(savings.amount),
+                  percent: formatPercent(savings.percent),
+                }),
+          ],
+        ]}
+      />
       {costUsd === undefined ? null : (
         <p className="usage-row-meta">
           {fill(UI_TEXT.usageCostNote, { date: MODEL_API_PRICES_VERIFIED_ON })}
@@ -279,44 +284,6 @@ function TokensSection({
 }
 
 /** What this window used of one paid feature: "3 searches", "2 images", "1m 30s of audio". */
-function paidUseText(feature: PaidFeature, tally: PaidTally): string {
-  switch (feature) {
-    case 'webSearch': {
-      return plural(UI_TEXT.usagePaidSearches, tally.webSearches)
-    }
-    case 'imageGeneration': {
-      return plural(UI_TEXT.usagePaidImages, tally.images)
-    }
-    case 'voice': {
-      return fill(UI_TEXT.usagePaidAudio, {
-        duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
-      })
-    }
-    case 'scheduledPrompts': {
-      return plural(UI_TEXT.usagePaidScheduled, tally.scheduledRuns)
-    }
-    case 'subagents': {
-      return plural(UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0)
-    }
-    case 'autoReviewer': {
-      return plural(UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0)
-    }
-    case 'bestOfN': {
-      return plural(UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0)
-    }
-    // M94 lane 0: the row's request count, keeping this total while lane U
-    // writes the Tab row (tokens, cached tokens, costs, budget).
-    case 'tab': {
-      return plural(UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0)
-    }
-    case 'hookModels': {
-      return plural(UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0)
-    }
-    case 'judge': {
-      return plural(UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0)
-    }
-  }
-}
 
 /**
  * The paid features this backend uses (D30 rule 5; on Muse Code, the key's
@@ -545,36 +512,33 @@ function ProvidersSection({ providers }: { readonly providers: readonly Provider
       <dl className="usage-facts">
         {providers.map((row) => {
           const cost = providerCost(row)
+          const tokens = `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
           return (
             <div key={row.providerId}>
               <dt>{row.providerLabel}</dt>
-              <dd>
-                {cost === undefined
-                  ? `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
-                  : `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)} · ${cost}`}
-              </dd>
+              <dd>{cost === undefined ? tokens : `${tokens} · ${cost}`}</dd>
               {row.keyUsage === undefined ? null : (
                 <>
                   <dt>{UI_TEXT.usageKeyUsage}</dt>
                   <dd>
-                    <dl className="usage-facts">
-                      <dt>{UI_TEXT.usageToday}</dt>
-                      <dd>{formatUsd(row.keyUsage.todayUsd)}</dd>
-                      <dt>{UI_TEXT.usageThisMonth}</dt>
-                      <dd>{formatUsd(row.keyUsage.monthUsd)}</dd>
-                      {row.keyUsage.limitUsd === undefined ? null : (
-                        <>
-                          <dt>{UI_TEXT.usageLimit}</dt>
-                          <dd>{formatUsd(row.keyUsage.limitUsd)}</dd>
-                        </>
-                      )}
-                      {row.keyUsage.remainingUsd === undefined ? null : (
-                        <>
-                          <dt>{UI_TEXT.usageRemaining}</dt>
-                          <dd>{formatUsd(row.keyUsage.remainingUsd)}</dd>
-                        </>
-                      )}
-                    </dl>
+                    <Facts
+                      rows={[
+                        [UI_TEXT.usageToday, formatUsd(row.keyUsage.todayUsd)],
+                        [UI_TEXT.usageThisMonth, formatUsd(row.keyUsage.monthUsd)],
+                        [
+                          UI_TEXT.usageLimit,
+                          row.keyUsage.limitUsd === undefined
+                            ? undefined
+                            : formatUsd(row.keyUsage.limitUsd),
+                        ],
+                        [
+                          UI_TEXT.usageRemaining,
+                          row.keyUsage.remainingUsd === undefined
+                            ? undefined
+                            : formatUsd(row.keyUsage.remainingUsd),
+                        ],
+                      ]}
+                    />
                   </dd>
                 </>
               )}
@@ -597,26 +561,15 @@ function AccountSection({
   const signIn = signInLabel(account?.signInMethod)
   const plan = planFor(report)
   return (
-    <dl className="usage-facts">
-      <dt>{UI_TEXT.usageAuthMethod}</dt>
-      <dd>{signIn}</dd>
-      <dt>{UI_TEXT.usagePlan}</dt>
-      <dd>{plan}</dd>
-      <dt>{UI_TEXT.usageBackend}</dt>
-      <dd>{backendLabel(report.backend)}</dd>
-      {account?.cliVersion === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageCliVersion}</dt>
-          <dd>{account.cliVersion}</dd>
-        </>
-      )}
-      {modelId === undefined ? null : (
-        <>
-          <dt>{UI_TEXT.usageModel}</dt>
-          <dd>{modelId}</dd>
-        </>
-      )}
-    </dl>
+    <Facts
+      rows={[
+        [UI_TEXT.usageAuthMethod, signIn],
+        [UI_TEXT.usagePlan, plan],
+        [UI_TEXT.usageBackend, backendLabel(report.backend)],
+        [UI_TEXT.usageCliVersion, account?.cliVersion],
+        [UI_TEXT.usageModel, modelId],
+      ]}
+    />
   )
 }
 
@@ -672,18 +625,19 @@ function InsightsSection({
       ) : (
         <>
           <ul className="usage-insights">
-            <InsightLine
-              share={percentOf(chosen.reminderAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightReminders}
-            />
-            <InsightLine
-              share={percentOf(chosen.subagentAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightSubagents}
-            />
-            <InsightLine
-              share={percentOf(chosen.longSessionAttempts, chosen.attempts)}
-              template={UI_TEXT.usageInsightLong}
-            />
+            {(
+              [
+                [chosen.reminderAttempts, UI_TEXT.usageInsightReminders],
+                [chosen.subagentAttempts, UI_TEXT.usageInsightSubagents],
+                [chosen.longSessionAttempts, UI_TEXT.usageInsightLong],
+              ] as const
+            ).map(([attempts, template]) => (
+              <InsightLine
+                key={template}
+                share={percentOf(attempts, chosen.attempts)}
+                template={template}
+              />
+            ))}
           </ul>
           <p className="usage-row-meta">
             {fill(UI_TEXT.usageInsightTotals, {

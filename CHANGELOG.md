@@ -22,6 +22,18 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Usage and Models pages share React and browser common code with chat. The
+  usage companion loads those modules under its existing authenticated CSP;
+  packaged ACP installs retain every usage translation alongside the archived
+  UI family. All existing bundle and package caps remain unchanged.
+- Usage tables use explicit solid theme backgrounds so axe can decide their
+  contrast. Pages disclose unavailable native editor actions, and browser
+  exports enforce a visible encoded bound before dispatching a download.
+- Usage reads include existing Tab reservations and active parent conversation
+  budgets. Validated OpenRouter account observations remain visible with history
+  off. Terminal daily, model and limit commands render their selected section.
+- The Linux foreground-opener test simulates the actual imported platform
+  binding on Windows, while retaining the native Windows opener coverage.
 - Usage history switches now update the shared preference across native and
   browser pages, and native reads respect a companion's disabled preference.
 - Integration retains every merged milestone in the plan's proper section and

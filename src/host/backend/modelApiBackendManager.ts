@@ -1,4 +1,5 @@
 import type { UsageRecording } from '../../core/usage/recording'
+import type { UsageBudgetRead } from '../../core/usage/usageService'
 // Owns the Model API host for this extension host (M7): one in-process
 // `ModelApiHost` over the real `fetch`, the stored key and the workspace's
 // files, with the MCP servers of Muse Code's settings (M50), which it starts
@@ -488,6 +489,10 @@ export class ModelApiBackendManager {
   }
 
   /** Hash-only identity, without starting the host or requiring a workspace. */
+  public readUsageBudgets(): Promise<UsageBudgetRead[]> {
+    return this.host?.readUsageBudgets() ?? Promise.resolve([])
+  }
+
   public async accountId(): Promise<string | undefined> {
     const key = await this.deps.getApiKey()
     return key === undefined ? undefined : createHash('sha256').update(key).digest('hex')

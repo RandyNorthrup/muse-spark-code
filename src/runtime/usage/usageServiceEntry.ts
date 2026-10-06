@@ -15,9 +15,13 @@ import {
   type UsagePageState,
   type UsageServiceToPageMessage,
 } from '../../shared/usagePage'
-import { USAGE_RECORD_MAX_BYTES, USAGE_SETTINGS_FILE } from '../../shared/constants'
+import {
+  USAGE_PROVIDER_CONSOLES,
+  USAGE_RECORD_MAX_BYTES,
+  USAGE_SETTINGS_FILE,
+} from '../../shared/constants'
 import { randomUUID } from 'node:crypto'
-import { readFile, mkdir } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import path from 'node:path'
@@ -28,6 +32,7 @@ import {
 } from '../../core/usage/journalStore'
 import { NodeUsageFs } from './nodeUsageFs'
 import { loadUsageTable } from '../../shared/l10n/usageTable'
+import { readUsageTableFile } from './usageTableFile'
 import {
   USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_HISTORY_DAYS_MIN,
@@ -142,7 +147,7 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
   const table = (async () => {
     const loaded = await loadUsageTable({
       language: deps.locale,
-      readTableFile: (segments) => readFile(path.join(deps.packageRoot, ...segments), 'utf8'),
+      readTableFile: (segments) => readUsageTableFile(deps.packageRoot, segments),
       warn: (message) => {
         deps.log.warn(message)
       },
@@ -164,6 +169,16 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       now: Date.now,
       host: deps.host,
       table: await table,
+      capabilities: {
+        settings: ports?.openSettings !== undefined,
+        folder: ports?.revealFolder !== undefined,
+        models: ports?.openModels !== undefined,
+        external: ports?.openExternal !== undefined,
+        export: ports?.saveFile !== undefined,
+        deleteHistory: ports?.confirmDelete !== undefined,
+        setHistory: ports?.setHistory !== undefined,
+        ...(ports?.exportMaxBytes !== undefined && { exportMaxBytes: ports.exportMaxBytes }),
+      },
       history: () => ({ enabled: settings().enabled, historyDays: settings().days }),
       journal: {
         read: async () => {
@@ -183,18 +198,26 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
           ...consoles,
           ...[...providers]
             .filter((provider) => consoles.every((row) => row.provider !== provider))
-            .map((provider) => ({ provider })),
+            .map((provider) => {
+              const consoleUrl = USAGE_PROVIDER_CONSOLES[provider]
+              return { provider, ...(consoleUrl !== undefined && { consoleUrl }) }
+            }),
         ]
       },
       ...(deps.live?.readModelPrice !== undefined && { readModelPrice: deps.live.readModelPrice }),
       ...(deps.live?.priceUnpriced !== undefined && { priceUnpriced: deps.live.priceUnpriced }),
       saveFile:
-        ports === undefined
+        ports?.saveFile === undefined
           ? unsupported
           : (file) =>
-              ports.saveFile(file.content, file.mimeType === 'application/json' ? 'json' : 'csv'),
+              ports.saveFile?.(
+                file.content,
+                file.mimeType === 'application/json' ? 'json' : 'csv',
+              ) ?? Promise.resolve(false),
       confirmDelete:
-        ports === undefined ? unsupported : (prompt) => ports.confirmDelete(prompt.count),
+        ports?.confirmDelete === undefined
+          ? unsupported
+          : (prompt) => ports.confirmDelete?.(prompt.count) ?? Promise.resolve(false),
       setHistory: ports?.setHistory ?? setHistory,
       ...(ports !== undefined && {
         openSettings: ports.openSettings,
@@ -241,7 +264,7 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       const current = await service()
       return await current.snapshot(query)
     },
-    usageText: (state, format) => usageText(state, format),
+    usageText: (state, format, section) => usageText(state, format, section),
     export: async (query, format) => {
       let content: string | undefined
       const exporter = await service({

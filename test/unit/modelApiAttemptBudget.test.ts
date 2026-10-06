@@ -123,6 +123,36 @@ async function setup(initialCap = 0.1) {
 }
 
 describe('production best-of-N parent budget binding (M77/M82)', () => {
+  it('displays parent-owned pending liability without settling it or exposing account identity', async () => {
+    const t = await setup()
+    try {
+      const claim = await t.scope.journal.reserve(t.scope.sessionId, t.scope.accountId, 0.02)
+      const state = await t.manager.readUsageBudgets()
+      expect(state).toEqual([
+        {
+          budget: {
+            id: t.parentSession.sessionId,
+            kind: 'conversation',
+            capUsd: 0.1,
+            spentUsd: 0.02,
+            stopped: false,
+            uncertainUsd: 0.02,
+          },
+        },
+      ])
+      expect(JSON.stringify(state)).not.toContain(t.scope.accountId)
+      expect(await t.scope.journal.read(t.scope.sessionId, t.scope.accountId)).toHaveProperty(
+        'spentUsd',
+        0.02,
+      )
+      await claim.settle(0.005)
+      expect(await t.manager.readUsageBudgets()).toEqual([
+        expect.objectContaining({ budget: expect.objectContaining({ spentUsd: 0.005 }) }),
+      ])
+    } finally {
+      await t.close()
+    }
+  })
   it('shares pending liability across attempts, then admits a new attempt after measured settlement', async () => {
     const t = await setup()
     const held = Promise.withResolvers<undefined>()

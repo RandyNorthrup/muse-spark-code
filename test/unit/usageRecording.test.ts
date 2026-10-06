@@ -251,8 +251,25 @@ describe('recording taps', () => {
       observedAt: 100,
       windows: [],
     })
+    port.limit({
+      backend: 'modelApi',
+      provider: 'openrouter',
+      source: 'openRouter',
+      observedAt: 100,
+      windows: [],
+      account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+    })
     await port.flush()
     expect(load).not.toHaveBeenCalled()
+    expect(port.limits?.()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ provider: 'museCode' }),
+        expect.objectContaining({
+          provider: 'openrouter',
+          account: { usedUsd: 0.3, limitUsd: 1, remainingUsd: 0.7, period: 'month' },
+        }),
+      ]),
+    )
   })
   it('rechecks history after lazy loading and shares one diagnostic with the writer', async () => {
     let isEnabled = true

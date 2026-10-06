@@ -232,5 +232,9 @@
   "sortAscending": "Řadit vzestupně",
   "sortDescending": "Řadit sestupně",
   "retentionNote": "Podrobnosti o voláních se uchovávají {detailDays} dnů, denní souhrny {historyDays} dnů.",
-  "privacyNote": "Historie zůstává na tomto počítači. Neobsahuje výzvy, odpovědi, argumenty nástrojů, cesty ani klíče."
+  "privacyNote": "Historie zůstává na tomto počítači. Neobsahuje výzvy, odpovědi, argumenty nástrojů, cesty ani klíče.",
+  "exportTooLarge": "Tento export je pro prohlížeč příliš velký. Zvolte kratší období nebo exportujte pomocí CLI.",
+  "exportBound": "Exporty v prohlížeči jsou omezeny na {limit} včetně kódování JSON.",
+  "editorActionsUnavailable": "Tato stránka nemůže otevřít nastavení editoru, zobrazit složku historie ani upravit ceny modelů. Použijte nastavení editoru a ovládací prvky Modely a agenti. Čtení, filtry, grafy a exporty zde zůstávají dostupné.",
+  "readOnlyActions": "Toto textové rozhraní je pouze pro čtení. Pro grafy, správu historie a stahování otevřete doprovodnou stránku."
 }

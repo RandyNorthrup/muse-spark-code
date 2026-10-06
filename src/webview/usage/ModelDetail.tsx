@@ -39,6 +39,7 @@ export function ModelDetail({
       </button>
       <button
         type="button"
+        disabled={state.capabilities?.models === false}
         onClick={() => {
           post({ type: 'usage/openModels', provider: detail.provider, model: detail.model })
         }}

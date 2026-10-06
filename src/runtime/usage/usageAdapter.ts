@@ -14,15 +14,15 @@ import { lazyBundleLoader } from '../../host/lazyBundle'
 import type { runUsageCommand } from './usageCli'
 import type { UsageServiceDeps } from '../../core/usage/usageService'
 
-export interface UsagePagePorts {
+export interface UsagePagePorts extends Pick<
+  UsageServiceDeps,
+  'openSettings' | 'revealFolder' | 'openModels' | 'openExternal'
+> {
   readonly post: (message: UsageServiceToPageMessage) => void
-  readonly saveFile: (content: string, format: 'csv' | 'json') => Promise<boolean>
-  readonly confirmDelete: (records: number) => Promise<boolean>
-  readonly openSettings: () => Promise<void>
-  readonly revealFolder: () => Promise<void>
-  readonly openModels: (provider: string, model?: string) => Promise<void>
-  readonly openExternal: (url: string) => Promise<void>
-  readonly setHistory: (isEnabled: boolean) => Promise<void>
+  readonly saveFile?: (content: string, format: 'csv' | 'json') => Promise<boolean>
+  readonly confirmDelete?: (records: number) => Promise<boolean>
+  readonly setHistory?: (isEnabled: boolean) => Promise<void>
+  readonly exportMaxBytes?: number
 }
 
 export interface UsagePageConnection {

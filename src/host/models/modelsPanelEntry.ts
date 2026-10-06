@@ -76,6 +76,7 @@ export interface ModelsPanelHostDeps {
   /** Picks an import file and reads its text; undefined when dismissed. */
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
+  readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
 }
 
 export interface ModelsPanelFeatures {
@@ -275,6 +276,7 @@ export function createModelsPanelFeatures(
     fetcher: seam.fetcher,
     exchanger: seam.exchanger,
     usage: seam.usage,
+    ...(host.onKeyUsage !== undefined && { onKeyUsage: host.onKeyUsage }),
     pkce: seam.pkce,
     suggest: seam.suggest,
     scanStore: scanStoreOver(host.globalState),

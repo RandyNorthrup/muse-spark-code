@@ -1,5 +1,6 @@
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
+import type { UsageBudgetRead } from '../../usage/usageService'
 import { redactDiagnosticEvent } from '../../redact'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
@@ -12105,6 +12106,23 @@ export class ModelApiSession implements AgentSession {
     return this.active?.turnId
   }
 
+  public async usageBudget(): Promise<UsageBudgetRead | undefined> {
+    if (this.isSubagent || this.budgetAccountId === undefined) return
+    const total = await this.budgetJournal()?.readExisting?.(this.sessionId, this.budgetAccountId)
+    const capUsd = this.currentBudgetCap()
+    const spentUsd = total?.spentUsd ?? this.budgetSpentUsd
+    return {
+      budget: {
+        id: this.sessionId,
+        kind: 'conversation',
+        capUsd,
+        spentUsd,
+        stopped: capUsd > 0 && spentUsd >= capUsd,
+        ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
+      },
+    }
+  }
+
   public record(): SessionRecord {
     return {
       sessionId: this.sessionId,
@@ -13087,6 +13105,15 @@ export class ModelApiHost implements AgentHost {
   }
 
   /** Extension-owned callers bind only an already loaded, currently owned parent. */
+  public async readUsageBudgets(): Promise<UsageBudgetRead[]> {
+    const budgets: UsageBudgetRead[] = []
+    for (const session of this.sessions.values()) {
+      const budget = await session.usageBudget()
+      if (budget !== undefined) budgets.push(budget)
+    }
+    return budgets
+  }
+
   public async getOwnedBudgetScope(
     sessionId: string,
   ): Promise<OwnedSessionBudgetScope | undefined> {

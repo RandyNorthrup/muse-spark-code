@@ -38,6 +38,13 @@ export const USAGE_EN = {
     other: 'Per-call export is available only for the last {count} days.',
   }),
   exportComplete: 'Usage exported.',
+  exportTooLarge:
+    'This export is too large for the browser. Choose a shorter range or export with the CLI.',
+  exportBound: 'Browser exports are limited to {limit} including JSON encoding.',
+  editorActionsUnavailable:
+    'This page cannot open editor settings, reveal the history folder or edit model prices. Use the editor’s settings and Models & Agents controls. Reading, filters, charts and exports remain available here.',
+  readOnlyActions:
+    'This text surface is read-only. Open the companion page for charts, history controls and downloads.',
   deleteHistory: 'Delete usage history…',
   deleteTitle: 'Delete usage history?',
   deleteConfirm: forms({

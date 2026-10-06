@@ -136,8 +136,8 @@ export function formatBytes(bytes: number): string {
 
 export type DurationUnit = 'second' | 'minute' | 'hour' | 'day'
 
-/** A short amount of time in one unit: 3s / 3 Sek. / 3秒. */
-export function formatUnit(value: number, unit: DurationUnit): string {
+/** A localized duration or byte count in narrow units. */
+export function formatUnit(value: number, unit: DurationUnit | 'byte'): string {
   return numberFormat(`unit:${unit}`, {
     style: 'unit',
     unit,

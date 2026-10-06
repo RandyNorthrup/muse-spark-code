@@ -28,6 +28,7 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   SETTING_DEFAULTS,
+  USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
@@ -318,7 +319,12 @@ async function setupHooks(
   return 0
 }
 
-function usageFor(log: Logger, recording?: UsageRecording): UsageAdapter {
+function usageFor(
+  log: Logger,
+  recording?: UsageRecording,
+  runtime?: Pick<ReturnType<typeof runtimeFor>, 'readUsageBudgets'>,
+  isHistoryEnabled = true,
+): UsageAdapter {
   return lazyUsageAdapter({
     dataFolder: agentDataFolder({
       platform: process.platform,
@@ -330,10 +336,11 @@ function usageFor(log: Logger, recording?: UsageRecording): UsageAdapter {
     locale: uiLocale(),
     uiText: UI_TEXT,
     log,
+    historySettings: () => ({ enabled: isHistoryEnabled, days: USAGE_HISTORY_DAYS_DEFAULT }),
     ...(recording !== undefined && {
       beforeRead: () => recording.flush(),
       live: {
-        readBudgets: () => Promise.resolve([]),
+        readBudgets: runtime?.readUsageBudgets ?? (() => Promise.resolve([])),
         readLiveLimits: () => Promise.resolve(recording.limits?.() ?? []),
         providerConsoles: () => [],
       },
@@ -403,7 +410,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   MuseCodeHost.usageRecording = recording
   try {
     const runtime = runtimeFor(options, log)
-    const usage = usageFor(log, recording)
+    const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
     const journal = await reportJournal(log)
     await journal.startup()
     // A proxy the Model API backend's requests will not use is said at once (Q66).

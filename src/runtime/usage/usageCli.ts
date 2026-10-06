@@ -6,7 +6,6 @@ import {
   parseUsagePageToServiceMessage,
   parseUsageServiceToPageMessage,
 } from '../../shared/usagePage'
-import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsagePagePorts } from './usageAdapter'
 
 export interface UsageCliPorts {
@@ -32,9 +31,6 @@ export async function runUsageCommand(
     return 0
   }
   if (command.action === 'stdio') {
-    const unsupported = (): never => {
-      throw new Error(USAGE_TEXT.unsupported)
-    }
     let outbox = Promise.resolve()
     let outputError: { readonly error: unknown } | undefined
     const post: UsagePagePorts['post'] = (message) => {
@@ -59,13 +55,6 @@ export async function runUsageCommand(
       })()
     }
     const connection = ports.usage.connect({
-      saveFile: unsupported,
-      confirmDelete: unsupported,
-      openSettings: unsupported,
-      revealFolder: unsupported,
-      openModels: unsupported,
-      openExternal: unsupported,
-      setHistory: unsupported,
       ...ports.pagePorts,
       post,
     })

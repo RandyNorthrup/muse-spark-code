@@ -39,7 +39,42 @@ function openPanel() {
   if (!(tab instanceof FakeWebviewPanel)) throw new TypeError('expected usage tab')
   const ports = fake.connections[0]
   if (ports === undefined) throw new TypeError('expected usage ports')
-  return { ...fake, context, panel, tab, ports, openModels }
+  const {
+    saveFile,
+    confirmDelete,
+    openSettings,
+    revealFolder,
+    openModels: openModelsPort,
+    openExternal,
+    setHistory,
+  } = ports
+  if (
+    saveFile === undefined ||
+    confirmDelete === undefined ||
+    openSettings === undefined ||
+    revealFolder === undefined ||
+    openModelsPort === undefined ||
+    openExternal === undefined ||
+    setHistory === undefined
+  )
+    throw new Error('native usage actions must be available')
+  return {
+    ...fake,
+    context,
+    panel,
+    tab,
+    ports: {
+      ...ports,
+      saveFile,
+      confirmDelete,
+      openSettings,
+      revealFolder,
+      openModels: openModelsPort,
+      openExternal,
+      setHistory,
+    },
+    openModels,
+  }
 }
 
 describe('UsagePanel', () => {

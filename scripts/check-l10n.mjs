@@ -506,7 +506,7 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems, isAcp = f
   for (const file of files) {
     if (isAcp && !file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) continue
     let shipped
-    if (file.startsWith(`${l10n.TABLE_DIRECTORY}/`)) {
+    if (TABLE_FILE.exec(path.basename(file))?.[1] === 'ui') {
       try {
         const text = brotliDecompressSync(
           readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.L10N_TABLE_ARCHIVE_FILE)),
@@ -515,11 +515,17 @@ function checkPackaged(root, l10n, untranslatedFor, strings, problems, isAcp = f
           },
         ).toString('utf8')
         shipped = JSON.parse(
-          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[1]),
+          l10n.readArchivedUiTable(text, TABLE_FILE.exec(path.basename(file))?.[2]),
         )
       } catch (error) {
         problems.push(`${file}: ${error.message}`)
       }
+    } else if (TABLE_FILE.exec(path.basename(file))?.[1] === 'usage') {
+      const text = brotliDecompressSync(
+        readFileSync(path.join(root, l10n.TABLE_DIRECTORY, l10n.USAGE_TABLE_ARCHIVE_FILE)),
+        { maxOutputLength: l10n.L10N_TABLE_MAX_BYTES * l10n.TABLE_LOCALES.length },
+      ).toString('utf8')
+      shipped = JSON.parse(text)[TABLE_FILE.exec(path.basename(file))?.[2]]
     } else shipped = readJson(file, problems, root)
     const source = readJson(file, problems)
     if (JSON.stringify(shipped) !== JSON.stringify(source))

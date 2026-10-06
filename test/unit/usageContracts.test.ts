@@ -252,6 +252,27 @@ describe('usage journal v1', () => {
 })
 
 describe('usage page boundary', () => {
+  it('allows only credential-free HTTPS provider console links', () => {
+    for (const consoleUrl of [
+      'not a URL',
+      'javascript:alert(1)',
+      'file:///private',
+      'https://example.com'.replace('https:', 'http:'),
+      'https://user:password@example.com',
+    ])
+      expect(
+        usagePageStateSchema.safeParse({
+          ...state,
+          unreportedLimits: [{ provider: 'provider', consoleUrl }],
+        }).success,
+      ).toBe(false)
+    expect(
+      usagePageStateSchema.safeParse({
+        ...state,
+        unreportedLimits: [{ provider: 'provider', consoleUrl: 'https://example.com' }],
+      }).success,
+    ).toBe(true)
+  })
   it('accepts all service requests without permitting paths or supplied delete grants', () => {
     const messages = [
       { type: 'usage/ready' },

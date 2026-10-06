@@ -1,6 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { brotliDecompressSync } from 'node:zlib'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const folders = []
@@ -34,14 +36,22 @@ function fixture() {
     'modelApi',
     'providers',
     'reviewer',
+    'foreignHooks',
+    'hookRuntime',
+    'recorder',
     'uiText',
+    'uiTextRuntime',
+    'uiTextHooks',
+    'uiTextSurfaces',
+    'extensionHooks',
     'validation',
+    'wire',
     'searchWorker',
     'pageWorker',
     'usageService',
     'usageCompanion',
   ])
-    put(`dist/${bundle}.js`, 'module.exports = {}')
+    put(`dist/${bundle}.js`, 'exports.EN = {}')
   for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
     put(`native/windows/${file}.cs`, '// test source')
   put('LICENSE', 'MIT')
@@ -52,7 +62,16 @@ function fixture() {
     'scripts/third-party-notices.mjs',
     `import { writeFileSync } from 'node:fs'; writeFileSync(process.argv[3], 'test notices')`,
   )
-  put('scripts/package-acp.mjs', readFileSync('scripts/package-acp.mjs'))
+  put(
+    'scripts/package-acp.mjs',
+    readFileSync('scripts/package-acp.mjs', 'utf8').replace("'./lib/packageArchive.mjs'", () =>
+      JSON.stringify(pathToFileURL(path.resolve('scripts/lib/packageArchive.mjs')).href),
+    ),
+  )
+  // This fixture tests package membership; strict table/export gates run over
+  // the real stage separately and need complete production data.
+  put('scripts/check-l10n.mjs', '')
+  put('test/packaging/moduleExports.test.mjs', '')
   for (const file of readdirSync('l10n'))
     if (/^ui\..+\.json$/u.test(file)) {
       put(`l10n/${file}`, '{}')
@@ -107,10 +126,14 @@ describe('usage assets in the ACP package', () => {
       expect(files).toContain(`package/${file}`)
     const stage = path.join(f.root, 'dist', 'acp-package')
     const tables = readdirSync(path.join(f.root, 'l10n'))
+    const archived = JSON.parse(
+      brotliDecompressSync(readFileSync(path.join(stage, 'l10n', 'usage.tables.json.br'))),
+    )
+    expect(files).toContain('package/l10n/usage.tables.json.br')
     for (const file of tables)
       if (file.startsWith('usage.'))
-        expect(readFileSync(path.join(stage, 'l10n', file), 'utf8')).toBe(
-          readFileSync(path.join(f.root, 'l10n', file), 'utf8'),
+        expect(archived[file.slice('usage.'.length, -'.json'.length)]).toEqual(
+          JSON.parse(readFileSync(path.join(f.root, 'l10n', file), 'utf8')),
         )
     expect(files).not.toContain('package/dist/webview/main.js')
     expect(files).not.toContain('package/dist/webview/usage.js.map')

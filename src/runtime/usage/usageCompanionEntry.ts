@@ -8,6 +8,7 @@ import type { UsageCompanionEvent } from '../../shared/usageCompanion'
 import type { UsageAccess, UsagePageConnection } from './usageAdapter'
 import type { UsageServiceToPageMessage } from '../../shared/usagePage'
 import { USAGE_TEXT, loadUsageTable, setUsageText } from '../../shared/l10n/usageTable'
+import { readUsageTableFile } from './usageTableFile'
 import { plural, setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import type { CoreLogger } from '../../core/logging'
@@ -15,6 +16,7 @@ import {
   USAGE_COMPANION_IDLE_MS,
   USAGE_RECORD_MAX_BYTES,
   USAGE_COMPANION_EVENT_BYTES,
+  USAGE_BROWSER_EXPORT_MAX_BYTES,
   USAGE_COMPANION_REQUEST_MS,
   USAGE_COMPANION_MAX_WINDOWS,
   USAGE_STALE_MS,
@@ -49,7 +51,7 @@ export async function openUsageCompanion(deps: {
   const table = await loadUsageTable({
     language: deps.locale,
     readTableFile: (segments) =>
-      readFile(path.join(deps.assetsFolder, '..', '..', ...segments), 'utf8'),
+      readUsageTableFile(path.join(deps.assetsFolder, '..', '..'), segments),
     warn: (message) => {
       deps.log.warn(message)
     },
@@ -61,11 +63,36 @@ export async function openUsageCompanion(deps: {
   )
   const assets = new Map<string, CompanionAsset>()
   const root = await realpath(deps.assetsFolder)
+  const imports: Record<string, string> = {}
+  const modules = new Map<string, string>()
+  const loadModule = async (name: string): Promise<string> => {
+    const specifier = `muse-usage/${name}`
+    if (modules.has(name)) return specifier
+    const source = path.join(root, name)
+    if (!source.startsWith(`${root}${path.sep}`) || (await realpath(source)) !== source)
+      throw new Error('EPANEL_ASSET')
+    modules.set(name, '')
+    let content = await readFile(source, 'utf8')
+    for (const match of content.matchAll(/\b(from|import)\s*["'](\.[^"']+\.js)["']/gu)) {
+      const relative = match[2]
+      const keyword = match[1]
+      if (relative === undefined || keyword === undefined) throw new Error('EPANEL_ASSET')
+      const dependency = path.posix.normalize(path.posix.join(path.posix.dirname(name), relative))
+      if (!/^(?:chunks\/)?[\w-]+\.js$/u.test(dependency)) throw new Error('EPANEL_ASSET')
+      const target = await loadModule(dependency)
+      content = content.replace(match[0], () => `${keyword} ${JSON.stringify(target)}`)
+    }
+    modules.set(name, content)
+    imports[specifier] = `data:text/javascript;charset=utf-8,${encodeURIComponent(content)}`
+    return specifier
+  }
+  await loadModule('usage.js')
+  const importMap = JSON.stringify({ imports }).replaceAll('<', String.raw`\u003c`)
   for (const name of ['usage.js', 'usage.css']) {
     const source = path.join(root, name)
     if ((await realpath(source)) !== source) throw new Error('EPANEL_ASSET')
     assets.set(`/${name}`, {
-      content: await readFile(source),
+      content: modules.get(name) ?? (await readFile(source)),
       contentType: name.endsWith('.css') ? 'text/css' : 'text/javascript',
     })
   }
@@ -86,7 +113,7 @@ export async function openUsageCompanion(deps: {
     },
     assets,
     renderPage: (nonce) =>
-      `<!doctype html><html lang="${table.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/usage.css"><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedTable}</script></head><body data-host-bridge="http"><div id="root"></div><script nonce="${nonce}" src="/usage.js"></script></body></html>`,
+      `<!doctype html><html lang="${table.locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/usage.css"><script nonce="${nonce}" type="importmap">${importMap}</script><script nonce="${nonce}" id="muse-usage-l10n" type="application/json">${embeddedTable}</script></head><body data-host-bridge="http"><div id="root"></div><script type="module" nonce="${nonce}" src="/usage.js"></script></body></html>`,
     handler: {
       inputSchema: usageCompanionRequestSchema,
       outputSchema: usageCompanionEventSchema,
@@ -109,6 +136,7 @@ export async function openUsageCompanion(deps: {
               }
               return Promise.resolve(true)
             },
+            exportMaxBytes: USAGE_BROWSER_EXPORT_MAX_BYTES,
             confirmDelete: (count) =>
               new Promise<boolean>((resolve) => {
                 const id = randomUUID()
@@ -120,10 +148,6 @@ export async function openUsageCompanion(deps: {
                   detail: plural(USAGE_TEXT.deleteConfirm, count),
                 })
               }),
-            openSettings: unsupported,
-            revealFolder: unsupported,
-            openModels: unsupported,
-            openExternal: unsupported,
             setHistory: deps.usage.setHistory ?? unsupported,
           }),
         }

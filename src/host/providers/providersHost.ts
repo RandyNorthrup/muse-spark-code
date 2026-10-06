@@ -71,6 +71,7 @@ export interface ProvidersHostDeps {
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger
   readonly usage: KeyUsageReader
+  readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -300,7 +301,11 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       })
       return connection === undefined ? undefined : { key: connection.key }
     },
-    openRouterUsage: (credential) => readOpenRouterKeyUsage(deps.usage, credential),
+    openRouterUsage: async (credential) => {
+      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
+      deps.onKeyUsage?.(snapshot)
+      return snapshot
+    },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

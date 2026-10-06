@@ -43,6 +43,13 @@ body {
   padding: 16px;
   line-height: 1.5;
   overflow-wrap: anywhere;
+  color: var(--ms-foreground);
+  background: var(--ms-background);
+}
+
+.usage-page a {
+  color: var(--ms-foreground);
+  text-decoration: underline;
 }
 
 .usage-page h1 {
@@ -413,6 +420,8 @@ body {
 
 .usage-page th,
 .usage-page td {
+  color: var(--ms-foreground);
+  background: var(--ms-background);
   text-align: start;
   padding: 8px;
   border-bottom: 1px solid var(--ms-border);

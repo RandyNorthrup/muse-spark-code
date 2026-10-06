@@ -1,5 +1,5 @@
-// The VSIX stores translated values once in a language-major matrix. Source
-// and ACP tables keep JSON. Every installed table retains its original shape.
+// Installed packages store translated values once in a language-major matrix.
+// Source tables stay JSON. Every installed table retains its original shape.
 import * as z from 'zod/mini'
 import { L10N_TABLE_MAX_BYTES, UI_TEXT } from '../constants'
 import { EN } from './en'

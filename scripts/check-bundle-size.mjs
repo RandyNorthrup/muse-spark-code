@@ -177,7 +177,11 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const bytes = ['dist/webview/main.js', 'dist/webview/models.js'].includes(path)
+  const bytes = [
+    'dist/webview/main.js',
+    'dist/webview/models.js',
+    'dist/webview/usage.js',
+  ].includes(path)
     ? webviewStartupOutputs(webviewMeta, path)
         .filter((file) => file.endsWith('.js'))
         .reduce((total, file) => total + statSync(file).size, 0)

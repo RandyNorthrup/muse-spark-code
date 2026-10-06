@@ -25,6 +25,7 @@ import { WorkspaceEdits } from '../core/verify/workspaceEdits'
 import { redactSecrets } from '../core/redact'
 import { recordPaidUse } from '../core/paid/paidFeatures'
 import type { UsageRecording } from '../core/usage/recording'
+import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -97,6 +98,7 @@ export interface RuntimeBackendDeps {
 }
 
 export interface RuntimeBackend {
+  readonly readUsageBudgets: () => Promise<readonly UsageBudgetRead[]>
   readonly backend: AcpBackend
   /** Muse Code's launch and environment, for `login`. */
   readonly museCode: MuseCodeBackendManager
@@ -472,6 +474,12 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
   }
 
   return {
+    readUsageBudgets: async () => {
+      const budgets = await Promise.all(
+        Array.from(modelApiHosts.values(), ({ manager }) => manager.readUsageBudgets()),
+      )
+      return budgets.flat()
+    },
     backend: {
       kind: deps.options.backend,
       readiness: (isRecheck) =>

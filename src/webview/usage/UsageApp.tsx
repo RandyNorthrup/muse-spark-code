@@ -138,6 +138,7 @@ export function UsageApp({
   return (
     <main className="usage-page" aria-busy={busy}>
       <Header
+        capabilities={state?.capabilities}
         query={query}
         busy={busy}
         post={post}
@@ -167,6 +168,12 @@ export function UsageApp({
       {state === undefined ? null : (
         <>
           <p>{fill(USAGE_TEXT.journalHost, { host: state.history.host })}</p>
+          {state.capabilities !== undefined &&
+          (!state.capabilities.settings ||
+            !state.capabilities.folder ||
+            !state.capabilities.models) ? (
+            <p>{USAGE_TEXT.editorActionsUnavailable}</p>
+          ) : null}
           {state.history.since === undefined ? null : (
             <p>{fill(USAGE_TEXT.historySince, { date: dayLabel(state.history.since) })}</p>
           )}

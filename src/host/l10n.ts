@@ -90,7 +90,7 @@ export async function loadUiTable(deps: UiTableDeps): Promise<UiTable> {
   return { locale, table: parsed }
 }
 
-/** Source and ACP tables are JSON; staged VSIX tables are bounded Brotli. */
+/** Source tables are JSON; installed package tables are bounded Brotli. */
 export async function readUiTableFile(root: string, segments: readonly string[]): Promise<string> {
   const archive = path.join(root, TABLE_DIRECTORY, L10N_TABLE_ARCHIVE_FILE)
   const locale =
