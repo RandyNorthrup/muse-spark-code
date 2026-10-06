@@ -89,7 +89,7 @@ class LinuxTreeSource implements PosixTreeSource {
     const userSlice = `/sys/fs/cgroup/user.slice/user-${String(process.getuid?.())}.slice/`
     return !root.startsWith(userSlice) ||
       !scope.startsWith(`${root}/`) ||
-      scope !== path.resolve(ticket.scope.path)
+      scope !== path.posix.resolve(ticket.scope.path)
       ? null
       : scope
   }
@@ -98,7 +98,7 @@ class LinuxTreeSource implements PosixTreeSource {
     try {
       const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read(`/proc/${String(pid)}/cgroup`))?.[1]
       if (member === undefined) return false
-      const current = path.resolve('/sys/fs/cgroup', `.${member}`)
+      const current = path.posix.resolve('/sys/fs/cgroup', `.${member}`)
       return current === scope || current.startsWith(`${scope}/`)
     } catch (error: unknown) {
       // /proc rows may disappear after stat; other failures leave the whole sample unknown.

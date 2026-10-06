@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resource sampler probes prevent libuv from filling missing Windows
+  environment variables from the parent; Linux resource-tree paths retain
+  POSIX semantics when their complete fixtures run on Windows.
 - Resource-tree readers revalidate an existing POSIX authority anchor before
   retaining new witnesses, preventing a mixed-time scan from admitting a
   process in a reused group. Ticket retirement also invalidates pending reads

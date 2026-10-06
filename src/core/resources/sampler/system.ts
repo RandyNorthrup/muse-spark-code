@@ -3,7 +3,11 @@ import { access, open, readdir } from 'node:fs/promises'
 import * as os from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../../shared/constants'
+import {
+  BOUNDED_FILE_READ_CHUNK_BYTES,
+  RESOURCE_SAMPLE_MS,
+  RESOURCE_PROBE_EMPTY_ENV_KEYS,
+} from '../../../shared/constants'
 import type { ResourceSampler, ResourceSettings } from '../../../shared/resources'
 import { MachineResourceSampler } from './machineSampler'
 import type { ResourceProbePort } from './optionalProbes'
@@ -84,6 +88,7 @@ export function createSamplerIo(limits: ResourceProbeLimits): ResourceProbePort 
   function run(file: string, args: readonly string[]): Promise<string | null> {
     if (!paths.isAbsolute(file)) return Promise.resolve(null)
     const env: NodeJS.ProcessEnv = {}
+    for (const name of RESOURCE_PROBE_EMPTY_ENV_KEYS) env[name] = ''
     if (platform === 'win32' && systemRoot !== undefined && paths.isAbsolute(systemRoot)) {
       env['SystemRoot'] = systemRoot
       env['windir'] = systemRoot

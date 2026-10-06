@@ -19617,6 +19617,20 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107INT integration and C1 (2026-10-05, Win11).** Merge `m107/s` and
+`m107/g` into lane T's repaired tree, preserving additive records. Wire C1's
+Model API/window launches to one lazy admission host and the tree registry:
+shells (including moved background work), checks, MCP, hooks, browser,
+best-of-N, subagents, schedules and Muse Code. Admission precedes the final
+workspace/permission recheck; cancellation and kills bypass admission.
+Keep reservations until proved retirement, and failed identity/accounting
+unknown. Windows-native integration also repairs Linux reader path semantics
+and the sampler's libuv Windows environment inheritance exposed by the
+complete owning suites. Add only the lazy entry/build graph needed for C1;
+W retains final manifest, budgets, packaging and delivery. C2/A/R/U/H/J stay
+outside this lane. Run scoped suites and static/build checks, no full quality
+or paid/live calls. Certification: `docs/certification/m107-c1.md`.
+
 **Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
 RVM107T within the tree readers and their owning suites: freshly revalidate
 the root or an existing orphan witness before committing POSIX witnesses;

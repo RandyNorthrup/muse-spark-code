@@ -69,7 +69,7 @@ describe('resource sampler OS adapter', () => {
     expect(await io.run('node', ['-e', 'process.stdout.write("unexpected")'])).toBeNull()
     expect(vi.mocked(execFile).mock.calls).toHaveLength(calls)
     const code =
-      'process.stdout.write(JSON.stringify({ args: process.argv.slice(1), env: Object.keys(process.env) }))'
+      'process.stdout.write(JSON.stringify({ args: process.argv.slice(1), env: Object.keys(process.env).filter(key => process.env[key] !== "") }))'
     const literal = '$(never-run); `never-run` " spaces'
     const text = await io.run(process.execPath, ['-e', code, literal])
     expect(text).not.toBeNull()

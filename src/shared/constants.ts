@@ -36,6 +36,19 @@ export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
+// libuv fills missing Windows mandatory variables from the parent; blank them explicitly.
+export const RESOURCE_PROBE_EMPTY_ENV_KEYS = [
+  'HOMEDRIVE',
+  'HOMEPATH',
+  'LOGONSERVER',
+  'PATH',
+  'SYSTEMDRIVE',
+  'TEMP',
+  'USERDOMAIN',
+  'USERNAME',
+  'USERPROFILE',
+  'NODE_V8_COVERAGE',
+] as const
 // Resource-bearing exec events need a new envelope; M80's v1 stays frozen.
 export const RESOURCE_EXEC_EVENT_VERSION = 2
 
