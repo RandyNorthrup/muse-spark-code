@@ -5,10 +5,12 @@ import { access, constants, mkdir, readFile, realpath } from 'node:fs/promises'
 import { setTimeout } from 'node:timers/promises'
 import {
   RESOURCE_TREE_STOP_POLL_MS,
+  RESOURCE_TREE_EXIT_POLL_MS,
   RESOURCE_TREE_STOP_TIMEOUT_MS,
 } from '../../../shared/constants'
-import type { ResourceTicket } from '../../../shared/resources'
+import { resourceTicketSchema, type ResourceTicket } from '../../../shared/resources'
 import { LinuxResourceTreeReader, type LinuxTreeDeps } from './linux'
+import type { ResourceTreeKillResult } from './actions'
 import { ResourceTreeRegistry } from './registry'
 import { parseLinuxStat } from './posixTable'
 import { runTreeProgram } from './run'
@@ -70,6 +72,11 @@ export async function launchLinuxResourceTree(
       /* Undelegated harness: group fallback. */
     }
   }
+  const reader = new LinuxResourceTreeReader({
+    ...options.deps,
+    ...(parent !== undefined && { ownedCgroupRoot: parent }),
+  })
+  if (parent !== undefined) await reader.pinHome()
   const child = isManaged
     ? spawn(
         '/usr/bin/systemd-run',
@@ -104,10 +111,6 @@ export async function launchLinuxResourceTree(
   let startupError: Error | undefined
   child.on('error', (error) => {
     startupError = error
-  })
-  const reader = new LinuxResourceTreeReader({
-    ...options.deps,
-    ...(parent !== undefined && { ownedCgroupRoot: parent }),
   })
   const registry = new ResourceTreeRegistry(reader)
   const { stdin, stdout, stderr } = child
@@ -154,9 +157,9 @@ export async function launchLinuxResourceTree(
       const directory = `${parent}/${id}`
       await mkdir(directory)
       scope = { type: 'cgroup', path: directory }
-      ticket = { id, root: boundRoot, scope, ...metadata }
-      await reader.pin(ticket)
-      stdin.write(`${directory}\n`)
+      ticket = resourceTicketSchema.parse({ id, root: boundRoot, scope, ...metadata })
+      const joinedScope = await reader.pin(ticket)
+      stdin.write(`${joinedScope}\n`)
       const joinedDeadline = Date.now() + RESOURCE_TREE_STOP_TIMEOUT_MS
       let membership = await readFile(`/proc/${String(pid)}/cgroup`, 'utf8')
       while (membership.trim() !== `0::${directory.slice('/sys/fs/cgroup'.length)}`) {
@@ -169,12 +172,12 @@ export async function launchLinuxResourceTree(
       throw startupError ?? new Error('Resource process did not start')
     const identity = boundRoot ?? (await reader.identity(pid))
     if (identity === null) throw new Error('Resource launch identity unavailable')
-    ticket = {
+    ticket = resourceTicketSchema.parse({
       id,
       root: identity,
       scope: scope ?? { type: 'group', pgid: pid },
       ...metadata,
-    }
+    })
     if (scope === undefined) stdin.write('-\n')
     ticket = await registry.register(ticket)
     stdin.write('GO\n')
@@ -183,6 +186,10 @@ export async function launchLinuxResourceTree(
     let isStopping = false
     let checking: Promise<boolean> | undefined
     const completion = setInterval(() => {
+      if (registry.tickets().every((entry) => entry.id !== launch.id)) {
+        clearInterval(completion)
+        return
+      }
       if (isStopping || checking !== undefined || launch.scope.type !== 'cgroup') return
       checking = reader.completed(launch, () =>
         registry.tickets().some((entry) => entry.id === launch.id),
@@ -196,10 +203,10 @@ export async function launchLinuxResourceTree(
         }
         checking = undefined
       })
-    }, RESOURCE_TREE_STOP_POLL_MS)
+    }, RESOURCE_TREE_EXIT_POLL_MS)
     completion.unref()
     child.once('exit', () => {
-      clearInterval(completion)
+      if (launch.scope.type !== 'cgroup') clearInterval(completion)
     })
     return {
       child,
@@ -208,9 +215,12 @@ export async function launchLinuxResourceTree(
       stderr,
       ticket: launch,
       registry,
-      async stop() {
+      async stop(): Promise<ResourceTreeKillResult> {
         isStopping = true
-        await checking
+        if (await checking) {
+          isStopping = false
+          return { status: 'gone', members: [] }
+        }
         const result = await registry.kill(launch)
         isStopping = false
         if (result.status === 'done' || result.status === 'gone') {
@@ -225,7 +235,11 @@ export async function launchLinuxResourceTree(
   } catch (error: unknown) {
     stdin.end()
     if (ticket?.scope.type === 'cgroup') await reader.killCgroup(ticket, 'SIGKILL', () => true)
-    if (ticket !== undefined) registry.unregister(ticket)
+    if (ticket !== undefined) {
+      registry.unregister(ticket)
+      reader.forget(ticket)
+    }
+    reader.releaseHome()
     release()
     throw error
   }

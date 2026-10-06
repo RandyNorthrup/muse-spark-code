@@ -1,5 +1,6 @@
 import { constants, open, readFile, readdir, realpath, rmdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { UI_TEXT } from '../../../shared/l10n/text'
 import { handleIdentity, lstatIdentity, sameFile } from '../../fs/fileIdentity'
 import process from 'node:process'
 import { setTimeout } from 'node:timers/promises'
@@ -7,6 +8,7 @@ import {
   LINUX_PID_IDENTITY_MIN_PID_MAX,
   WORKSPACE_IDENTITY_ZERO,
   RESOURCE_TREE_STOP_POLL_MS,
+  RESOURCE_HARNESS_PLACEMENT_ATTEMPTS,
   RESOURCE_TREE_STOP_TIMEOUT_MS,
 } from '../../../shared/constants'
 import {
@@ -59,6 +61,7 @@ export async function pinLinuxCgroupDirectory(directory: string): Promise<LinuxC
 export interface LinuxTreeDeps {
   /** Trusted delegated harness scope, supplied by M96 K; never a workspace setting. */
   readonly ownedCgroupRoot?: string
+  readonly homeCgroup?: string
   readonly pinDirectory?: (directory: string) => Promise<LinuxCgroupHandle>
   readonly read?: (file: string) => Promise<string>
   readonly list?: (directory: string) => Promise<readonly string[]>
@@ -82,12 +85,21 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
   identity(pid: number): Promise<ResourceProcessIdentity | null> {
     return this.linux.identity(pid)
   }
-  pin(ticket: ResourceTicket): Promise<void> {
-    return this.linux.pin(ticket)
+  pinHome(): Promise<void> {
+    return this.linux.pinHome()
+  }
+  async pin(ticket: ResourceTicket): Promise<string> {
+    const scope = await this.linux.pin(ticket)
+    if (scope === null) throw new Error('Unowned cgroup')
+    // The gated child opens the same held directory through the harness's proc entry.
+    return scope.replace('/proc/self/', () => `/proc/${String(process.pid)}/`)
   }
   override forget(ticket: ResourceTicket): void {
     super.forget(ticket)
     this.linux.forget(ticket)
+  }
+  releaseHome(): void {
+    this.linux.releaseHome()
   }
   completed(ticket: ResourceTicket, isRegistered: () => boolean): Promise<boolean> {
     return this.linux.completed(ticket, isRegistered)
@@ -102,10 +114,12 @@ export class LinuxResourceTreeReader extends PosixResourceTreeReader {
 }
 
 class LinuxTreeSource implements PosixTreeSource {
+  private readonly retired = new Set<string>()
   private readonly handles = new Map<
     string,
     { signature: string; directory: string; handle: Promise<LinuxCgroupHandle> }
   >()
+  private home: Promise<{ directory: string; handle: LinuxCgroupHandle }> | undefined
   private units: Promise<{ hz: number; page: number }> | undefined
   private readonly table: () => Promise<readonly ProcessSample[]>
   private readonly read: (file: string) => Promise<string>
@@ -184,7 +198,7 @@ class LinuxTreeSource implements PosixTreeSource {
       const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read(`/proc/${String(pid)}/cgroup`))?.[1]
       if (member === undefined) return false
       scope = await this.directory(scope)
-      const current = path.resolve('/sys/fs/cgroup', `.${member}`)
+      const current = path.posix.resolve('/sys/fs/cgroup', `.${member}`)
       return current === scope || current.startsWith(`${scope}/`)
     } catch (error: unknown) {
       // /proc rows may disappear after stat; other failures leave the whole sample unknown.
@@ -242,21 +256,60 @@ class LinuxTreeSource implements PosixTreeSource {
     throw new Error('Cgroup completion unavailable')
   }
 
-  private async cgroupPids(scope: string): Promise<readonly number[]> {
+  private async cgroupPids(scope: string, isIncludeHarness = false): Promise<readonly number[]> {
     const raw = await this.read(`${scope}/cgroup.procs`)
     const text = raw.trim()
     if (text !== '' && !/^\d+(?:\s+\d+)*$/.test(text)) throw new Error('Invalid cgroup members')
     const pids = text === '' ? [] : text.split(/\s+/).map(Number)
-    if (pids.some((pid) => !Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid))
+    if (
+      pids.some(
+        (pid) =>
+          !Number.isSafeInteger(pid) || pid <= 0 || (!isIncludeHarness && pid === process.pid),
+      )
+    )
       throw new Error('Unsafe cgroup member')
     const children = await this.directories(scope)
-    for (const child of children) pids.push(...(await this.cgroupPids(path.join(scope, child))))
+    for (const child of children)
+      pids.push(...(await this.cgroupPids(path.posix.join(scope, child), isIncludeHarness)))
     return pids
+  }
+
+  private async reassertHome(): Promise<void> {
+    await this.pinHome()
+    const home = await this.home
+    if (home === undefined || !(await this.matches(home.handle)))
+      throw new Error('Harness home unavailable')
+    try {
+      await (this.deps.write ?? writeFile)(`${home.handle.path}/cgroup.procs`, String(process.pid))
+    } catch (error: unknown) {
+      // A root-owned login scope denies even a no-op write; accept only its confirmed placement.
+      if (
+        typeof error !== 'object' ||
+        error === null ||
+        !('code' in error) ||
+        !['EACCES', 'EPERM'].includes(String(error.code))
+      )
+        throw error
+      const member = /^0::(\/[^\r\n]*)$/m.exec(await this.read('/proc/self/cgroup'))?.[1]
+      if (member === undefined || `/sys/fs/cgroup${member}` !== home.directory)
+        throw new Error('Harness in cgroup', { cause: error })
+    }
+  }
+
+  private async excludeHarness(scope: string, isRegistered: () => boolean): Promise<void> {
+    for (let attempt = 0; attempt < RESOURCE_HARNESS_PLACEMENT_ATTEMPTS; attempt++) {
+      if (!isRegistered()) throw new Error('Cgroup action retired')
+      await this.reassertHome()
+      const pids = await this.cgroupPids(scope, true)
+      if (!pids.includes(process.pid)) return
+    }
+    throw new Error('Harness in cgroup')
   }
 
   private async removeCgroup(scope: string, isRegistered: () => boolean): Promise<void> {
     const children = await this.directories(scope)
-    for (const child of children) await this.removeCgroup(path.join(scope, child), isRegistered)
+    for (const child of children)
+      await this.removeCgroup(path.posix.join(scope, child), isRegistered)
     if (!isRegistered()) throw new Error('Cgroup removal retired')
     await (this.deps.remove ?? rmdir)(await this.directory(scope))
   }
@@ -269,17 +322,43 @@ class LinuxTreeSource implements PosixTreeSource {
     }
   }
 
-  private async close(pending: Promise<LinuxCgroupHandle>): Promise<void> {
+  private async close(
+    pending: Promise<LinuxCgroupHandle | { handle: LinuxCgroupHandle }>,
+  ): Promise<void> {
     try {
-      const handle = await pending
+      const pinned = await pending
+      const handle = 'handle' in pinned ? pinned.handle : pinned
       await handle.close()
     } catch {
       return
     }
   }
 
-  async pin(ticket: ResourceTicket): Promise<void> {
-    if (ticket.scope.type !== 'cgroup' || this.handles.has(ticket.id)) return
+  async pinHome(): Promise<void> {
+    this.home ??= (async () => {
+      const member =
+        this.deps.homeCgroup === undefined
+          ? /^0::(\/[^\r\n]*)$/m.exec(await this.read('/proc/self/cgroup'))?.[1]
+          : undefined
+      const directory =
+        this.deps.homeCgroup ?? (member === undefined ? undefined : `/sys/fs/cgroup${member}`)
+      if (directory === undefined) throw new Error('Harness home unavailable')
+      const handle = await (this.deps.pinDirectory ?? pinLinuxCgroupDirectory)(directory)
+      return { directory, handle }
+    })()
+    await this.home
+  }
+
+  async pin(ticket: ResourceTicket): Promise<string | null> {
+    if (this.retired.has(JSON.stringify(ticket))) throw new Error('Cgroup ticket retired')
+    if (ticket.scope.type !== 'cgroup') return null
+    const existing = this.handles.get(ticket.id)
+    if (existing !== undefined) {
+      if (existing.signature !== JSON.stringify(ticket)) return null
+      const handle = await existing.handle
+      return handle.path
+    }
+    await this.pinHome()
     const directory = ticket.scope.path
     const root = this.deps.ownedCgroupRoot
     if (root === undefined) throw new Error('Unowned cgroup')
@@ -287,12 +366,13 @@ class LinuxTreeSource implements PosixTreeSource {
     const canonicalScope = await this.canonical(directory)
     const userSlice = `/sys/fs/cgroup/user.slice/user-${String(process.getuid?.())}.slice/`
     if (
-      canonicalRoot !== path.resolve(root) ||
+      canonicalRoot !== path.posix.resolve(root) ||
       !canonicalRoot.startsWith(userSlice) ||
       !canonicalScope.startsWith(`${canonicalRoot}/`) ||
-      canonicalScope !== path.resolve(directory)
+      canonicalScope !== path.posix.resolve(directory)
     )
       throw new Error('Unowned cgroup')
+    if (this.retired.has(JSON.stringify(ticket))) throw new Error('Cgroup ticket retired')
     if (!this.handles.has(ticket.id)) {
       this.handles.set(ticket.id, {
         signature: JSON.stringify(ticket),
@@ -300,22 +380,38 @@ class LinuxTreeSource implements PosixTreeSource {
         handle: (this.deps.pinDirectory ?? pinLinuxCgroupDirectory)(directory),
       })
     }
-    await this.handles.get(ticket.id)?.handle
+    const pinned = this.handles.get(ticket.id)
+    if (pinned?.signature !== JSON.stringify(ticket)) return null
+    const handle = await pinned.handle
+    return handle.path
   }
 
   forget(ticket: ResourceTicket): void {
+    this.retired.add(JSON.stringify(ticket))
     const pinned = this.handles.get(ticket.id)
     if (pinned?.signature !== JSON.stringify(ticket)) return
     this.handles.delete(ticket.id)
     void this.close(pinned.handle)
+    this.releaseHome()
+  }
+
+  releaseHome(): void {
+    if (this.handles.size > 0 || this.home === undefined) return
+    void this.close(this.home)
+    this.home = undefined
   }
 
   async completed(ticket: ResourceTicket, isRegistered: () => boolean): Promise<boolean> {
     try {
+      if (!isRegistered()) return false
+      const root = await this.stat(ticket.root.pid)
+      if (
+        !isRegistered() ||
+        (root !== null && !root.exited && root.startTime === ticket.root.startTime)
+      )
+        return false
       const scope = await this.cgroup(ticket)
       if (scope === null) return false
-      const root = await this.stat(ticket.root.pid)
-      if (root !== null && !root.exited && root.startTime === ticket.root.startTime) return false
       const events = await this.read(`${scope}/cgroup.events`)
       if (!/^populated 0$/m.test(events) || !/^frozen [01]$/m.test(events)) return false
       await this.removeCgroup(scope, isRegistered)
@@ -406,12 +502,14 @@ class LinuxTreeSource implements PosixTreeSource {
     try {
       const scope = await this.cgroup(ticket)
       if (scope === null || !isRegistered()) return { status: 'refused', members: [] }
-      await this.cgroupPids(scope)
+      await this.excludeHarness(scope, isRegistered)
       if (!isRegistered()) return { status: 'refused', members: [] }
       const write = this.deps.write ?? writeFile
       let isUseFreeze = signal !== 'SIGKILL'
       if (!isUseFreeze) {
         try {
+          await this.reassertHome()
+          if (!isRegistered()) throw new Error('Cgroup action retired')
           await write(`${scope}/cgroup.kill`, '1')
         } catch (error: unknown) {
           if (
@@ -426,6 +524,9 @@ class LinuxTreeSource implements PosixTreeSource {
       }
       if (isUseFreeze) {
         if (!isRegistered()) return { status: 'refused', members: [] }
+        await this.excludeHarness(scope, isRegistered)
+        await this.reassertHome()
+        if (!isRegistered()) throw new Error('Cgroup action retired')
         await write(`${scope}/cgroup.freeze`, '1')
         try {
           await this.waitEvent(scope, 'frozen', 1, isRegistered)
@@ -453,11 +554,12 @@ class LinuxTreeSource implements PosixTreeSource {
       await this.removeCgroup(scope, isRegistered)
       return { status: 'done', members: [] }
     } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Harness in cgroup')
+        return { status: 'harness_in_tree', members: [], message: UI_TEXT.resourceHarnessInTree }
+      if (error instanceof Error && error.message === 'Cgroup directory changed')
+        return { status: 'cgroup_changed', members: [], message: UI_TEXT.resourceCgroupChanged }
       return {
-        status:
-          error instanceof Error && error.message === 'Cgroup directory changed'
-            ? 'cgroup_changed'
-            : 'refused',
+        status: 'refused',
         members: [],
       }
     }

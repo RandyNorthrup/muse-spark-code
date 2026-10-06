@@ -284,6 +284,7 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
     Promise.resolve(args[0] === 'CLK_TCK' ? '100\n' : '4096\n'),
   )
   const reader = new LinuxResourceTreeReader({
+    homeCgroup: delegated,
     pinDirectory: (directory) =>
       Promise.resolve({
         path: directory,

@@ -2365,5 +2365,7 @@
   "resourceRelocateDescription": "컴퓨터 사용량이 높을 때 대기 중인 팀 작업과 검사를 이동할 위치입니다. 기존 장치 동의와 제공 조건은 계속 적용됩니다.",
   "resourceRelocatePairedDescription": "리소스 사용량이 정상인, 이미 승인된 페어링 장치를 사용합니다.",
   "resourceRelocateAskDescription": "대기 중인 작업을 이동하기 전에 묻습니다.",
-  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다."
+  "resourceRelocateOffDescription": "이 컴퓨터에서 작업을 유지합니다.",
+  "resourceHarnessInTree": "중지가 보류되었습니다. 제어 프로세스가 아직 이 트리 안에 있습니다. 관리 권한은 유지됩니다. 중지를 다시 시도하세요.",
+  "resourceCgroupChanged": "중지가 거부되었습니다. 이 트리의 cgroup이 삭제되거나 교체되었습니다. 관리 권한은 유지됩니다."
 }

@@ -2459,5 +2459,7 @@
   "resourceRelocateDescription": "Ziel für eingereihte Teamaufgaben und Prüfungen, wenn dieser Rechner ausgelastet ist. Bestehende Gerätezustimmungen und Angebote gelten weiterhin.",
   "resourceRelocatePairedDescription": "Verwendet ein bereits genehmigtes gekoppeltes Gerät mit normaler Ressourcenauslastung.",
   "resourceRelocateAskDescription": "Fragt vor dem Verschieben eingereihter Arbeit.",
-  "resourceRelocateOffDescription": "Behält die Arbeit auf diesem Rechner."
+  "resourceRelocateOffDescription": "Behält die Arbeit auf diesem Rechner.",
+  "resourceHarnessInTree": "Stopp pausiert: Der Steuerprozess befindet sich noch in diesem Prozessbaum. Die Zuständigkeit bleibt erhalten; versuchen Sie Stopp erneut.",
+  "resourceCgroupChanged": "Stopp verweigert: Die cgroup dieses Prozessbaums wurde entfernt oder ersetzt. Die Zuständigkeit bleibt erhalten."
 }

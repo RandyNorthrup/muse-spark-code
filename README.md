@@ -4133,6 +4133,14 @@ without rebuilding.
 
 ### How this extension is built
 
+The portable Linux resource-tree launcher pins its private cgroup before
+starting the workload. Stop reports a removed or replaced cgroup explicitly.
+If the harness has been moved into the workload's tree, Stop moves it home
+and retries up to three times; exhaustion keeps ownership and returns a
+localized status row asking the caller to retry Stop. Empty trees retire
+automatically after their root exits. The governor's all-spawn/editor wiring
+remains an M107 integration task; these are the launch port's guarantees.
+
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.

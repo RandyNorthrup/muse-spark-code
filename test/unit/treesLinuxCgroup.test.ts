@@ -5,6 +5,7 @@ import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
 import {
   LINUX_PID_IDENTITY_MIN_PID_MAX,
   RESOURCE_TREE_STOP_TIMEOUT_MS,
+  RESOURCE_HARNESS_PLACEMENT_ATTEMPTS,
   RESOURCE_TREE_STOP_POLL_MS,
 } from '../../src/shared/constants'
 import type { ResourceSignal } from '../../src/core/resources/trees/actions'
@@ -55,8 +56,13 @@ function world() {
   const sendSignal = vi.fn<(pid: number, signal: ResourceSignal) => void>((pid) => {
     inside.delete(pid)
   })
+  const killed = new Set<number>()
   const write = vi.fn((file: string, value: string) => {
-    if (file.endsWith('/cgroup.kill')) inside.clear()
+    if (file === `${root}/cgroup.procs`) inside.delete(Number(value))
+    if (file.endsWith('/cgroup.kill')) {
+      for (const pid of inside) killed.add(pid)
+      inside.clear()
+    }
     if (file.endsWith('/cgroup.freeze')) events.frozen = value === '1'
     return Promise.resolve()
   })
@@ -65,6 +71,7 @@ function world() {
     Promise.resolve([]),
   )
   const reader = new LinuxResourceTreeReader({
+    homeCgroup: root,
     pinDirectory: (directory) =>
       Promise.resolve({
         path: directory,
@@ -92,6 +99,7 @@ function world() {
     remove,
     directories,
     sendSignal,
+    killed,
   }
 }
 
@@ -129,7 +137,79 @@ function unsupportedKill(w: ReturnType<typeof world>, code: string) {
   )
 }
 
+async function expectHarnessSafeStop(w: ReturnType<typeof world>, signal: ResourceSignal) {
+  w.events.populated = false
+  expect(await w.registry.kill(ticket, signal)).toMatchObject({ status: 'done' })
+  expect(w.killed.has(process.pid)).toBe(false)
+  expect(w.sendSignal.mock.calls.some(([pid]) => pid === process.pid)).toBe(false)
+  expect(w.inside.has(process.pid)).toBe(false)
+}
+
 describe('Linux cgroup authority', () => {
+  it.each(['SIGKILL', 'SIGTERM'] as const)(
+    'moves the harness out when inserted before the scan, then safely stops with %s',
+    async (signal) => {
+      const w = await readyWorld()
+      const original = w.read.getMockImplementation()!
+      let isInserted = false
+      w.read.mockImplementation((file) => {
+        if (!isInserted && file === `${scope}/cgroup.procs`) {
+          isInserted = true
+          w.inside.add(process.pid)
+        }
+        return original(file)
+      })
+      await expectHarnessSafeStop(w, signal)
+      expect(
+        w.write.mock.calls.filter(([file]) => file === `${root}/cgroup.procs`).length,
+      ).toBeGreaterThan(1)
+    },
+  )
+  it.each(['SIGKILL', 'SIGTERM'] as const)(
+    'reasserts the harness home after the scan and before %s dispatch',
+    async (signal) => {
+      const w = await readyWorld()
+      const original = w.read.getMockImplementation()!
+      w.read.mockImplementation((file) => {
+        const result = original(file)
+        const hasDispatched = w.write.mock.calls.some(
+          ([target]) => target.endsWith('/cgroup.kill') || target.endsWith('/cgroup.freeze'),
+        )
+        if (!hasDispatched && file === `${scope}/cgroup.procs`) w.inside.add(process.pid)
+        return result
+      })
+      await expectHarnessSafeStop(w, signal)
+      const dispatch = w.write.mock.calls.findIndex(
+        ([file, value]) =>
+          (file.endsWith('/cgroup.kill') || file.endsWith('/cgroup.freeze')) && value === '1',
+      )
+      expect(w.write.mock.calls[dispatch - 1]).toEqual([
+        `${root}/cgroup.procs`,
+        String(process.pid),
+      ])
+    },
+  )
+  it('returns harness_in_tree after bounded reinsertion, retains ownership and lets a later Stop retry', async () => {
+    const w = await readyWorld()
+    const original = w.read.getMockImplementation()!
+    w.read.mockImplementation((file) => {
+      if (file === `${scope}/cgroup.procs`) w.inside.add(process.pid)
+      return original(file)
+    })
+    expect(await w.registry.kill(ticket)).toMatchObject({
+      status: 'harness_in_tree',
+      message: expect.stringContaining('retry Stop'),
+    })
+    expect(w.write).toHaveBeenCalledTimes(RESOURCE_HARNESS_PLACEMENT_ATTEMPTS)
+    expect(w.write.mock.calls.every(([file]) => file === `${root}/cgroup.procs`)).toBe(true)
+    expect(w.registry.tickets()).toEqual([ticket])
+    expect(w.killed.has(process.pid)).toBe(false)
+    w.read.mockImplementation(original)
+    w.events.populated = false
+    expect(await w.registry.kill(ticket)).toMatchObject({ status: 'done' })
+    expect(w.killed.has(process.pid)).toBe(false)
+  })
+
   it('does not enroll a same-tick replacement that moves outside during the sample', async () => {
     const w = await readyWorld()
     moveOutsideOnStat(w, 2)
@@ -213,10 +293,13 @@ describe('Linux cgroup authority', () => {
         }
         return original(file)
       })
-      expect(await w.registry.kill(ticket)).toMatchObject({ status: 'refused' })
+      expect(await w.registry.kill(ticket)).toMatchObject({
+        status: failure === 'harness-pid' ? 'harness_in_tree' : 'refused',
+      })
       expect(w.remove).not.toHaveBeenCalled()
       expect(w.sendSignal).not.toHaveBeenCalled()
-      if (failure !== 'malformed-event') expect(w.write).not.toHaveBeenCalled()
+      if (failure !== 'malformed-event')
+        expect(w.write.mock.calls.every(([file]) => file === `${root}/cgroup.procs`)).toBe(true)
     },
   )
   it('retains a populated scope when the completion deadline expires', async () => {
@@ -234,9 +317,9 @@ describe('Linux cgroup authority', () => {
   it('does not downgrade permission denial to the freeze fallback', async () => {
     const w = await readyWorld()
     w.events.populated = false
-    w.write.mockRejectedValueOnce(Object.assign(new Error('denied'), { code: 'EACCES' }))
+    unsupportedKill(w, 'EACCES')
     expect(await w.registry.kill(ticket)).toMatchObject({ status: 'refused' })
-    expect(w.write).toHaveBeenCalledTimes(1)
+    expect(w.write.mock.calls.filter(([file]) => file.endsWith('/cgroup.kill'))).toHaveLength(1)
     expect(w.sendSignal).not.toHaveBeenCalled()
   })
   it('thaws after a failed frozen signal and retains ownership', async () => {
@@ -334,7 +417,11 @@ describe('Linux cgroup authority', () => {
       [710, 'SIGKILL'],
       [711, 'SIGKILL'],
     ])
-    expect(w.write.mock.calls.map((call) => [call[0].slice(scope.length), call[1]])).toEqual([
+    expect(
+      w.write.mock.calls
+        .filter(([file]) => file.startsWith(`${scope}/`))
+        .map((call) => [call[0].slice(scope.length), call[1]]),
+    ).toEqual([
       ['/cgroup.kill', '1'],
       ['/cgroup.freeze', '1'],
       ['/cgroup.freeze', '0'],

@@ -36,6 +36,11 @@ async function fixture() {
     for (const [file, text] of entries) await writeFile(path.join(directory, file), text)
   }
   await contents('710')
+  const homeDirectory = path.join(folder, 'home')
+  await mkdir(homeDirectory)
+  await writeFile(path.join(homeDirectory, 'cgroup.procs'), '')
+  const homeHandle = await pinLinuxCgroupDirectory(homeDirectory)
+  const homeClose = vi.spyOn(homeHandle, 'close')
   const handle = await pinLinuxCgroupDirectory(directory)
   const close = vi.spyOn(handle, 'close')
   const write = vi.fn((file: string, text: string) => writeFile(file, text))
@@ -54,10 +59,14 @@ async function fixture() {
     }
     return readFile(file, 'utf8')
   })
+  const pin = vi.fn((directory: string) =>
+    Promise.resolve(directory === root ? homeHandle : handle),
+  )
   const reader = new LinuxResourceTreeReader({
     ownedCgroupRoot: root,
     canonical: (file) => Promise.resolve(file),
-    pinDirectory: () => Promise.resolve(handle),
+    homeCgroup: root,
+    pinDirectory: pin,
     read,
     write,
     remove,
@@ -66,9 +75,42 @@ async function fixture() {
     run: (_file, args) => Promise.resolve(args[0] === 'CLK_TCK' ? '100' : '4096'),
   })
   const registry = new ResourceTreeRegistry(reader)
-  await reader.pin(ticket)
+  const join = await reader.pin(ticket)
   await registry.register(ticket)
-  return { folder, directory, contents, handle, close, write, remove, reader, registry, read }
+  return {
+    pin,
+    join,
+    folder,
+    directory,
+    homeDirectory,
+    homeHandle,
+    homeClose,
+    contents,
+    handle,
+    close,
+    write,
+    remove,
+    reader,
+    registry,
+    read,
+  }
+}
+
+function expectJoin(w: Awaited<ReturnType<typeof fixture>>) {
+  expect(w.join).toBe(w.handle.path.replace('/proc/self/', () => `/proc/${String(process.pid)}/`))
+}
+async function retire(w: Awaited<ReturnType<typeof fixture>>) {
+  w.registry.unregister(ticket)
+  try {
+    await vi.waitFor(() => {
+      expect(w.close).toHaveBeenCalledTimes(1)
+      expect(w.homeClose).toHaveBeenCalledTimes(1)
+    })
+    expect(await w.reader.usage(ticket)).toBeNull()
+    expect(w.pin).toHaveBeenCalledTimes(2)
+  } finally {
+    await removeFolder(w.folder)
+  }
 }
 
 describe.runIf(process.platform === 'linux')('pinned cgroup directory identity', () => {
@@ -77,6 +119,7 @@ describe.runIf(process.platform === 'linux')('pinned cgroup directory identity',
     async (signal) => {
       const w = await fixture()
       try {
+        expectJoin(w)
         await rm(w.directory, { recursive: true })
         await mkdir(w.directory)
         await w.contents('999')
@@ -89,11 +132,7 @@ describe.runIf(process.platform === 'linux')('pinned cgroup directory identity',
         expect(await w.registry.usage(ticket)).toBeNull()
         expect(w.close).not.toHaveBeenCalled()
       } finally {
-        w.registry.unregister(ticket)
-        await vi.waitFor(() => {
-          expect(w.close).toHaveBeenCalledTimes(1)
-        })
-        await removeFolder(w.folder)
+        await retire(w)
       }
     },
   )
@@ -102,12 +141,16 @@ describe.runIf(process.platform === 'linux')('pinned cgroup directory identity',
     async (signal) => {
       const w = await fixture()
       try {
+        expectJoin(w)
+        expect(w.homeHandle.path).toMatch(/^\/proc\/self\/fd\/\d+$/)
         expect(w.handle.path).toMatch(/^\/proc\/self\/fd\/\d+$/)
         expect(await w.registry.usage(ticket)).toEqual({ cpuSeconds: 1, residentBytes: 4096 })
         expect(await w.registry.kill(ticket, signal)).toMatchObject({ status: 'done' })
-        expect(w.write.mock.calls.every(([file]) => file.startsWith(`${w.handle.path}/`))).toBe(
-          true,
+        expect(await readFile(path.join(w.homeDirectory, 'cgroup.procs'), 'utf8')).toBe(
+          String(process.pid),
         )
+        expect(w.write.mock.calls.every(([file]) => file.startsWith('/proc/self/fd/'))).toBe(true)
+        expect(w.homeClose).not.toHaveBeenCalled()
         expect(
           w.read.mock.calls
             .filter(([file]) => !file.startsWith('/proc/710/'))
@@ -115,11 +158,7 @@ describe.runIf(process.platform === 'linux')('pinned cgroup directory identity',
         ).toBe(true)
         expect(w.close).not.toHaveBeenCalled()
       } finally {
-        w.registry.unregister(ticket)
-        await vi.waitFor(() => {
-          expect(w.close).toHaveBeenCalledTimes(1)
-        })
-        await removeFolder(w.folder)
+        await retire(w)
       }
     },
   )

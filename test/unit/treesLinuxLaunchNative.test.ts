@@ -1,4 +1,6 @@
 import { once } from 'node:events'
+import process from 'node:process'
+import { build } from 'esbuild'
 import { access, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -23,7 +25,11 @@ function noUserManager() {
 
 describe.runIf(process.platform === 'linux')('native cgroup launch and completion', () => {
   it('retires and removes an empty cgroup after normal root exit without Stop', async () => {
-    const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'], metadata)
+    const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'], {
+      sessionId: metadata.sessionId,
+      class: metadata.class,
+      kind: metadata.kind,
+    })
     const exited = once(launch.child, 'exit')
     try {
       expect(launch.ticket.scope.type).toBe('cgroup')
@@ -35,6 +41,102 @@ describe.runIf(process.platform === 'linux')('native cgroup launch and completio
       if (launch.ticket.scope.type !== 'cgroup') throw new Error('Missing scope')
       await expect(access(launch.ticket.scope.path)).rejects.toMatchObject({ code: 'ENOENT' })
     } finally {
+      await launch.stop()
+    }
+  })
+
+  it('retires a direct child in a writable subtree after root exit and reasserts its pinned home', async () => {
+    const folder = await mkdtemp(path.join(tmpdir(), 'm107-subtree-'))
+    try {
+      const entry = path.join(folder, 'harness.mjs')
+      const launchModule = path
+        .resolve('src/core/resources/trees/linuxLaunch.ts')
+        .replaceAll('\\', '/')
+      const result = await build({
+        stdin: {
+          contents: `
+          import { launchLinuxResourceTree } from ${JSON.stringify(launchModule)};
+          import { access, readFile, writeFile } from 'node:fs/promises';
+          import { setTimeout } from 'node:timers/promises';
+          const member = (await readFile('/proc/self/cgroup', 'utf8')).trim().slice('0::'.length);
+          const parent = '/sys/fs/cgroup' + member;
+          let homeWrites = 0;
+          const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'],
+            { kind: 'check', class: 'foreground', sessionId: null },
+            { ownedCgroupRoot: parent, deps: { write: async (file, value) => {
+              if (file.endsWith('/cgroup.procs')) homeWrites++;
+              await writeFile(file, value);
+            } } });
+          const result = await launch.stop();
+          const stopped = result.status;
+          const natural = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'],
+            { kind: 'check', class: 'foreground', sessionId: null }, { ownedCgroupRoot: parent });
+          natural.stdin.end();
+          const deadline = Date.now() + 1000;
+          while (natural.registry.tickets().length !== 0 && Date.now() < deadline) await setTimeout(10);
+          let removed = false;
+          try { await access(natural.ticket.scope.path) } catch { removed = true }
+          const tickets = natural.registry.tickets();
+          await natural.stop();
+          process.stdout.write(JSON.stringify({ stopped, homeWrites, removed, tickets }));
+        `,
+          resolveDir: process.cwd(),
+        },
+        bundle: true,
+        platform: 'node',
+        format: 'esm',
+        write: false,
+      })
+      const built = result.outputFiles[0]
+      if (built === undefined) throw new Error('Missing fixture bundle')
+      await writeFile(entry, built.contents)
+      const stdout = await treeRun.runTreeProgram(
+        '/usr/bin/systemd-run',
+        [
+          '--user',
+          '--scope',
+          '--quiet',
+          '--expand-environment=no',
+          '--property=Delegate=yes',
+          '--',
+          process.execPath,
+          entry,
+        ],
+        { XDG_RUNTIME_DIR: `/run/user/${String(process.getuid?.())}` },
+      )
+      const receipt: unknown = JSON.parse(stdout)
+      expect(receipt).toMatchObject({ stopped: 'done', removed: true, tickets: [] })
+      expect(receipt).toMatchObject({ homeWrites: 2 })
+    } finally {
+      await removeFolder(folder)
+    }
+  })
+
+  it('retains the managed keeper and exposes a status row after harness retries are exhausted', async () => {
+    let isInject = false
+    const launch = await launchLinuxResourceTree('/bin/sh', ['-c', 'read input'], metadata, {
+      deps: {
+        read: (file) =>
+          isInject && file.endsWith('/cgroup.procs')
+            ? Promise.resolve(String(process.pid))
+            : readFile(file, 'utf8'),
+      },
+    })
+    try {
+      isInject = true
+      expect(await launch.stop()).toMatchObject({
+        status: 'harness_in_tree',
+        message: expect.stringContaining('retry Stop'),
+      })
+      expect(launch.registry.tickets()).toEqual([launch.ticket])
+      expect(launch.child.exitCode).toBeNull()
+      isInject = false
+      const exited = once(launch.child, 'exit')
+      expect(await launch.stop()).toMatchObject({ status: 'done' })
+      await exited
+      expect(launch.registry.tickets()).toEqual([])
+    } finally {
+      isInject = false
       await launch.stop()
     }
   })

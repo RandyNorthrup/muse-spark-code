@@ -2459,5 +2459,7 @@
   "resourceRelocateDescription": "Makine meşgulken kuyruktaki ekip görevlerinin ve kontrollerin taşınabileceği yer. Mevcut cihaz izinleri ve teklifleri geçerliliğini korur.",
   "resourceRelocatePairedDescription": "Kaynak yükü normal olan, önceden onaylanmış eşleştirilmiş bir cihazı kullanır.",
   "resourceRelocateAskDescription": "Kuyruktaki işi taşımadan önce sorar.",
-  "resourceRelocateOffDescription": "İşi bu makinede tutar."
+  "resourceRelocateOffDescription": "İşi bu makinede tutar.",
+  "resourceHarnessInTree": "Durdurma bekletildi: denetim süreci hâlâ bu ağaçta. Denetim korunuyor; durdurmayı yeniden deneyin.",
+  "resourceCgroupChanged": "Durdurma reddedildi: bu ağacın cgroup grubu kaldırılmış veya değiştirilmiş. Denetim korunuyor."
 }

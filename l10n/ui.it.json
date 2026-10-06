@@ -2553,5 +2553,7 @@
   "resourceRelocateDescription": "Destinazione delle attività di squadra e dei controlli in coda quando questa macchina è occupata. Restano validi i consensi e le offerte dei dispositivi.",
   "resourceRelocatePairedDescription": "Usa un dispositivo associato già autorizzato con un carico di risorse normale.",
   "resourceRelocateAskDescription": "Chiede prima di spostare il lavoro in coda.",
-  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina."
+  "resourceRelocateOffDescription": "Mantiene il lavoro su questa macchina.",
+  "resourceHarnessInTree": "Arresto in pausa: il processo di controllo è ancora in questo albero. Il controllo viene mantenuto; riprova l’arresto.",
+  "resourceCgroupChanged": "Arresto rifiutato: il cgroup di questo albero è stato rimosso o sostituito. Il controllo viene mantenuto."
 }

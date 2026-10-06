@@ -2553,5 +2553,7 @@
   "resourceRelocateDescription": "Destination des tâches d’équipe et vérifications en attente lorsque cette machine est occupée. Les autorisations et offres des appareils restent applicables.",
   "resourceRelocatePairedDescription": "Utilise un appareil associé déjà autorisé dont la charge est normale.",
   "resourceRelocateAskDescription": "Demande avant de déplacer le travail en attente.",
-  "resourceRelocateOffDescription": "Garde le travail sur cette machine."
+  "resourceRelocateOffDescription": "Garde le travail sur cette machine.",
+  "resourceHarnessInTree": "Arrêt en pause : le processus de contrôle est encore dans cet arbre. Le contrôle est conservé ; réessayez l’arrêt.",
+  "resourceCgroupChanged": "Arrêt refusé : le cgroup de cet arbre a été supprimé ou remplacé. Le contrôle est conservé."
 }

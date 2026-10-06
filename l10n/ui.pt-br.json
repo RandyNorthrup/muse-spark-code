@@ -2553,5 +2553,7 @@
   "resourceRelocateDescription": "Destino das tarefas da equipe e verificações na fila quando esta máquina está ocupada. Os consentimentos e as ofertas dos dispositivos continuam válidos.",
   "resourceRelocatePairedDescription": "Usa um dispositivo pareado já autorizado com carga de recursos normal.",
   "resourceRelocateAskDescription": "Pergunta antes de mover o trabalho na fila.",
-  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina."
+  "resourceRelocateOffDescription": "Mantém o trabalho nesta máquina.",
+  "resourceHarnessInTree": "Parada pausada: o processo de controle ainda está nesta árvore. O controle é mantido; tente parar novamente.",
+  "resourceCgroupChanged": "Parada recusada: o cgroup desta árvore foi removido ou substituído. O controle é mantido."
 }

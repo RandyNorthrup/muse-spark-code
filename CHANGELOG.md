@@ -11,7 +11,9 @@ happened, not what was planned; superseded entries are kept.
 
 - Linux resource trees pin their cgroup directory before the workload runs.
   Stop and accounting refuse a removed or replaced directory, and an empty
-  tree retires automatically after its root exits.
+  tree retires automatically after its root exits. Stop also reasserts the
+  harness's pinned home placement before kill or freeze; bounded retry failure
+  keeps ownership with an explicit localized status for a later Stop retry.
 
 - Linux resource trees launch behind a gate in their own delegated cgroup.
   Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing

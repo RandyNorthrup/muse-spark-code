@@ -2553,5 +2553,7 @@
   "resourceRelocateDescription": "Destino del trabajo del equipo y las comprobaciones en cola cuando este equipo está ocupado. Se mantienen los permisos y las ofertas de los dispositivos.",
   "resourceRelocatePairedDescription": "Usa un dispositivo vinculado ya autorizado con una carga de recursos normal.",
   "resourceRelocateAskDescription": "Pregunta antes de mover el trabajo en cola.",
-  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo."
+  "resourceRelocateOffDescription": "Mantiene el trabajo en este equipo.",
+  "resourceHarnessInTree": "Detención en pausa: el proceso de control sigue en este árbol. Se conserva su control; vuelve a intentar detenerlo.",
+  "resourceCgroupChanged": "Detención rechazada: la cgroup de este árbol se eliminó o reemplazó. Se conserva su control."
 }

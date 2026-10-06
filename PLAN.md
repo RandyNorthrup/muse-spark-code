@@ -20125,6 +20125,18 @@ typecheck, scoped lint/format and the required static/build checks. The lead
 retains full integrated quality, coverage, native platform and editor receipts.
 No threshold, timeout, rule, skip policy or guard is weakened.
 
+**FIXM107T3 review certification (2026-10-06).** Both RVM107T3G P2s
+are fixed; no reviewed finding is deferred. Direct complete owning batches
+pass 173 tests with eight existing platform skips using repository-default
+5 s timeouts, and 13 deliberate guard mutations fail and restore source
+byte-exact. All five TypeScript projects, scoped lint/format, deadcode,
+cycles, duplication (zero clones), localization (14 tables, zero problems)
+and production build/caps pass. After final ticket normalization, host/unit
+types, the 38 owning Linux tests, lint, duplication and build pass again.
+The host-API record still exits 1 only for the same six W-owned import counts
+listed below; its generated file is untouched. No aggregate quality, model
+call, dependency, threshold or hook change. See docs/certification/m107-t3.md.
+
 **M107 T3 scoped certification (2026-10-06).** The rig/shared brief forbids
 aggregate quality and branch merges. T3 certifies complete owning files,
 native cgroup launch/Stop on Kubuntu, deliberate guard mutations and serial
@@ -21333,6 +21345,24 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-T3 harness placement dispatch window (FIXM107T3, 2026-10-06).**
+  Both RVM107T3G P2s are fixed, with no reviewed finding deferred. Directory
+  identity is an open read-only handle with exact BigInt (dev, ino), retained
+  through unregister; all cgroup file reads/writes use /proc/self/fd. Stop
+  reasserts a separately pinned harness home before scanning and immediately
+  before kill/freeze. Repeated insertion exhausts three attempts into the
+  distinct localized harness_in_tree outcome, retaining ticket and keeper for
+  a later Stop. The final reassert and control-file write remain adjacent
+  user-space operations: the remaining normally sub-millisecond window is
+  not atomic, and scheduler preemption can extend it. Same-user code can
+  already signal the harness directly with kill(2); this is not a new
+  privilege boundary. On the rig's root-owned login home, a no-op placement
+  write is denied: accept only EACCES/EPERM followed by confirmation that
+  /proc/self/cgroup still names the pinned home, and still perform the member
+  scan. A moved harness or any other home-write/read failure refuses dispatch.
+  Native and injected receipts are in docs/certification/m107-t3.md. The
+  existing C1/C2/W all-editor/spawn and full-gate handoffs remain unchanged.
 
 - **M107-T3 Linux fallback identity bound (2026-10-06).** Private cgroup
   launches use current kernel containment for enrollment and cgroup.kill for

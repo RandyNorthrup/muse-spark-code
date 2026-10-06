@@ -2365,5 +2365,7 @@
   "resourceRelocateDescription": "このマシンが高負荷のときに、待機中のチームタスクやチェックを移動できる場所です。既存のデバイスの同意と提供条件は引き続き適用されます。",
   "resourceRelocatePairedDescription": "負荷が通常で、すでに承認済みのペアリングされたデバイスを使用します。",
   "resourceRelocateAskDescription": "待機中の処理を移動する前に確認します。",
-  "resourceRelocateOffDescription": "処理をこのマシンで続けます。"
+  "resourceRelocateOffDescription": "処理をこのマシンで続けます。",
+  "resourceHarnessInTree": "停止を保留しました。制御プロセスがまだこのツリー内にあります。管理は保持されます。停止を再試行してください。",
+  "resourceCgroupChanged": "停止を拒否しました。このツリーの cgroup が削除または置換されました。管理は保持されます。"
 }

@@ -172,7 +172,11 @@ export class ResourceTreeRegistry implements ResourceTreeReader {
         )
         return z
           .strictObject({
-            status: z.union([resourceActionResultSchema, z.literal('cgroup_changed')]),
+            message: z.optional(z.string()),
+            status: z.union([
+              resourceActionResultSchema,
+              z.enum(['cgroup_changed', 'harness_in_tree']),
+            ]),
             members: z.array(
               z.strictObject({
                 identity: resourceProcessIdentitySchema,

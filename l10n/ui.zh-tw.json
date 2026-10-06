@@ -2365,5 +2365,7 @@
   "resourceRelocateDescription": "此電腦忙碌時，排隊中的團隊任務與檢查可移轉到的位置。現有的裝置授權與提供條件仍然適用。",
   "resourceRelocatePairedDescription": "使用已核准配對且資源負載正常的裝置。",
   "resourceRelocateAskDescription": "移轉排隊中的工作前先詢問。",
-  "resourceRelocateOffDescription": "將工作保留在此電腦上。"
+  "resourceRelocateOffDescription": "將工作保留在此電腦上。",
+  "resourceHarnessInTree": "停止已暫停：控制程序仍在此程序樹中。管理權將保留，請重試停止。",
+  "resourceCgroupChanged": "停止遭拒：此程序樹的 cgroup 已被刪除或替換。管理權將保留。"
 }

@@ -2647,5 +2647,7 @@
   "resourceRelocateDescription": "Miejsce przenoszenia zadań zespołu i sprawdzeń z kolejki, gdy komputer jest zajęty. Nadal obowiązują dotychczasowe zgody i oferty urządzeń.",
   "resourceRelocatePairedDescription": "Używa już zatwierdzonego sparowanego urządzenia z normalnym obciążeniem zasobów.",
   "resourceRelocateAskDescription": "Pyta przed przeniesieniem pracy z kolejki.",
-  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze."
+  "resourceRelocateOffDescription": "Pozostawia pracę na tym komputerze.",
+  "resourceHarnessInTree": "Zatrzymanie wstrzymane: proces sterujący nadal znajduje się w tym drzewie. Nadzór zostaje zachowany; ponów zatrzymanie.",
+  "resourceCgroupChanged": "Zatrzymanie odrzucone: cgroup tego drzewa została usunięta lub zastąpiona. Nadzór zostaje zachowany."
 }
