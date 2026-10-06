@@ -35,6 +35,7 @@ const BUNDLES = [
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
   'uiTextHooks.js',

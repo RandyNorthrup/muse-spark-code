@@ -16,6 +16,46 @@
 import { forms } from './forms'
 
 export const EN = {
+  referenceWebFetchTitle: 'Web fetch',
+  referenceWebFetchDetail:
+    'Fetch public web pages as readable text, with permission and network checks.',
+  referenceCodeIntelTitle: 'Code intelligence',
+  referenceCodeIntelDetail:
+    'Use editor language services for definitions, references, symbols, calls and safe renames.',
+  referenceShellDetail:
+    'Run your own !commands, or let the agent run commands under your permission mode.',
+  referenceBoardDetail:
+    'Browse sessions and compare separate candidate solutions before choosing one.',
+
+  helpReferenceTitle: 'Help & Reference',
+  referenceIntro: 'Commands, settings and features, with descriptions and documentation.',
+  referenceSearch: 'Search the reference',
+  referenceFeatures: 'Features',
+  referenceCommands: 'Commands',
+  referenceSettings: 'Settings',
+  referenceShortcuts: 'Keyboard shortcuts',
+  referenceCurrent: 'Current value',
+  referenceDefault: 'Default',
+  referenceOpenSetting: 'Open setting',
+  referenceRun: 'Run',
+  referenceDocs: 'Documentation',
+  referenceNoMatches: 'No matching entries.',
+  referenceUnavailable: 'Current values are unavailable in this host.',
+  referenceHidden: 'Hidden to protect sensitive values',
+  referenceApplies: 'Editors: {editors}. Backends: {backends}.',
+  referencePaid: 'Paid — consent and a budget are required.',
+  referenceVersion: 'Print the installed agent version.',
+  referenceSidebar: 'Open the Muse Spark chat in the sidebar.',
+  referenceNewTab: 'Open a new Muse Spark conversation in an editor tab.',
+  referenceFocus: 'Move keyboard focus between the chat input and editor.',
+  referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
+  referenceDiagnostics: 'Show local backend and extension diagnostics.',
+  referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
+  referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
+  referenceRules: 'Create or open AGENTS.md in the workspace root.',
+  referenceWalkthrough: 'Open the Getting Started walkthrough.',
+  referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
+
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:

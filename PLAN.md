@@ -18204,7 +18204,42 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### HELPREF — Generated Help & Reference (2026-10-05, release 0.14.1)
+
+Owner requests `/help` opening an always-current, searchable reference of every
+feature, slash command, palette command, setting and keyboard shortcut. Build
+on the shared palette, manifest translations, host bridge and modal UI.
+
+- [x] Generate the lazy reference model and `docs/reference.md` from the
+      manifest, palette, typed feature catalogue and ACP/CLI command table.
+      Validate coverage, descriptions, links and freshness in `check:reference`;
+      add that check to local quality and CI without changing any cap.
+- [x] Add shared React reference page, translated controls, current/default
+      values, settings links and an explicit safe command allowlist. Host bridge
+      messages are schema-validated. VS Code filters settings by `@id:`; native
+      bridges use their settings page anchors with the same requested key.
+- [x] Wire panel `/help`, Open Help & Reference palette command, ACP's compact
+      `/help`, CLI `help --all` and headless help. The generated GitHub reference
+      is the companion link for ACP editors; the React page is portable through
+      the shared bridge. No backend or model invocation is required for help.
+- [~] Prove generator/page tests and red drills; check accessibility in all
+  four themes, capture wide/narrow light/dark, measure unchanged startup caps,
+  update README, CONTRIBUTING, AGENTS and CHANGELOG, commit with hooks.
+
+HELPREF lane runs on macmini. The explicit rig rules prohibit full `quality`,
+push, merge and rebase; the lead retains integrated quality/release approval.
+Scoped tests and all available static/build checks run directly here. No paid
+or live model calls, dependency changes, credential access or cap changes.
+Certification: `docs/certification/help-reference.md`.
+
 ## 7. Gates
+
+**HELPREF bounded rig certification.** The explicit rig/shared rules prohibit
+aggregate `npm run quality`, merge, rebase and push in this lane. Hook-on local
+commits use scoped owning tests, deliberate red drills and available static/build
+checks. The lead retains the integrated quality/coverage/release gate. No gate
+or budget is weakened; the exact evidence is recorded in
+`docs/certification/help-reference.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

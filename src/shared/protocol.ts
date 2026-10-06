@@ -363,6 +363,9 @@ export const reportDraftItemSchema = z.object({
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('readReference') }),
+  z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
+  z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
   // Sent once when the React app has mounted and is listening for messages.
   z.object({ type: z.literal('ready'), attachmentEpoch: z.optional(z.number()) }),
   // The composer gained or lost keyboard focus; drives the
@@ -765,6 +768,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema>
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('openHelp') }),
+  z.object({
+    type: z.literal('referenceValues'),
+    model: z.string(),
+    values: z.record(z.string(), z.string()),
+    nls: z.record(z.string(), z.string()),
+  }),
   // Reply to `ready`: everything the shell needs to render its first frame.
   z.object({
     type: z.literal('init'),

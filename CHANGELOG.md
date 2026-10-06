@@ -40,6 +40,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
+  a lazy, searchable shared-webview page with every feature, command, setting,
+  slash command and shortcut. Current/default values, direct setting links,
+  safe command actions and documentation use all 14 translated tables. ACP
+  `/help` answers locally; CLI `help --all` prints the generated reference.
+  `check:reference` guards catalogue coverage and generated-file freshness.
+
+
 - A quiet GitHub star link in the GitHub and Marketplace/Open VSX READMEs,
   What's New footer and Getting Started welcome step, with the footer and
   step description translated in all 14 languages.

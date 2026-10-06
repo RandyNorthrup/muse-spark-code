@@ -33,6 +33,9 @@ import { fill } from '../shared/l10n/text'
 import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
+import { referenceLoader } from '../host/referenceLoader'
+import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
+import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -591,7 +594,16 @@ async function main(): Promise<number> {
       return 0
     }
     case 'help': {
-      writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+      if (command.all === true) {
+        const reference = referenceLoader({
+          bundlePath: path.join(distDir, REFERENCE_BUNDLE_FILE),
+          log,
+        })().createReference(referenceTable, uiLocale())
+        writeLine(process.stdout, reference.all())
+      } else {
+        writeLine(process.stdout, fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }))
+        writeLine(process.stdout, `${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`)
+      }
       return 0
     }
     case 'invalid': {

@@ -916,13 +916,37 @@ for (const file of builtChunks) {
   if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
 }
 
+// HELPREF: the page/data stay lazy and share the caller's React and language.
+const referencePage = JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8'))
+if (!referencePage.inputs['src/webview/components/ReferencePage.tsx'])
+  problems.push('Reference page is missing from its own entry')
+for (const source of Object.keys(referencePage.inputs)) {
+  if (source === 'src/shared/l10n/en.ts' || source.includes('node_modules/react/'))
+    problems.push(`Reference page duplicates runtime: ${source}`)
+}
+for (const file of webviewStartupOutputs(webviewMeta)) {
+  if (
+    Object.keys(webviewMeta.outputs[file].inputs).some(
+      (source) =>
+        source === 'src/webview/components/ReferencePage.tsx' ||
+        source === 'src/shared/reference/reference.generated.ts',
+    )
+  )
+    problems.push('Reference page or data entered chat startup')
+}
+
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
 const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
 const validationExports = new Set(
   Object.keys(createRequire(import.meta.url)(path.resolve('dist/validation.js'))),
 )
 const nodeMetafiles = readdirSync('dist/meta')
-  .filter((name) => !['validation.json', 'webview.json', 'whatsNewPage.json'].includes(name))
+  .filter(
+    (name) =>
+      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
+        name,
+      ),
+  )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push('dist/meta-acp/acp.json')
 const validationReaders = new Set()

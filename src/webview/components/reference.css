@@ -1,0 +1,79 @@
+.reference-page {
+  --ms-reference-border: var(--vscode-widget-border, var(--vscode-panel-border));
+  --ms-reference-muted: var(--vscode-descriptionForeground);
+  --ms-reference-link: var(--vscode-textLink-foreground);
+
+  display: grid;
+  gap: var(--ms-gap);
+}
+
+.reference-page input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--ms-button-height);
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--ms-reference-border));
+}
+
+.reference-page nav,
+.reference-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ms-gap);
+}
+
+.reference-page section {
+  scroll-margin-top: var(--ms-gap);
+}
+
+.reference-page article {
+  padding: var(--ms-gap) 0;
+  border-bottom: 1px solid var(--ms-reference-border);
+  overflow-wrap: anywhere;
+}
+
+.reference-page h4 {
+  margin: var(--ms-gap) 0;
+}
+
+.reference-page p {
+  white-space: pre-wrap;
+}
+
+.reference-page dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  gap: var(--ms-gap);
+}
+
+.reference-page dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.reference-page button {
+  min-height: var(--ms-button-height);
+  white-space: normal;
+  text-align: start;
+  color: var(--ms-reference-link);
+  background: transparent;
+  border: 1px solid var(--ms-reference-border);
+  border-radius: var(--ms-radius);
+}
+
+.reference-page a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ms-button-height);
+  color: var(--ms-reference-link);
+}
+
+.reference-page :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.reference-meta {
+  color: var(--ms-reference-muted);
+}

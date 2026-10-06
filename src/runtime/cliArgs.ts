@@ -53,7 +53,8 @@ export type RuntimeCommand =
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
-  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'help' | 'version' }
+  | { readonly command: 'help'; readonly all?: boolean }
+  | { readonly command: 'authSet' | 'authStatus' | 'authClear' | 'version' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** `auth set|status|clear`: the key's three commands (D61). */
@@ -88,6 +89,11 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  if (argv[0] === 'help') {
+    return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
+      ? { command: 'help', all: argv[1] === '--all' }
+      : invalid(argv.join(' '))
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>

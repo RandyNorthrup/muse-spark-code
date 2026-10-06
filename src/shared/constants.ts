@@ -91,6 +91,7 @@ export const COMMAND_IDS = {
   removeBundledSkills: 'museSpark.removeBundledSkills',
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
+  openHelp: 'museSpark.openHelp',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -3982,6 +3983,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // `/name` (M38): Claude Code's names for the same commands. They are
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
+  help: 'help',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
@@ -3998,6 +4000,9 @@ export const SLASH_COMMAND_NAMES = {
   securityReview: 'security-review',
   changes: 'changes',
 } as const
+export const REFERENCE_DOCS_URL =
+  'https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/reference.md'
+export const REFERENCE_BUNDLE_FILE = 'reference.js'
 /** Muse Code's bundled skills that continue another agent's session (M30). */
 export const RESUME_SKILL_SELECTORS: Readonly<Record<SkillImportSource, string>> = {
   claude: 'resume-claude',

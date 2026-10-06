@@ -2,6 +2,8 @@ import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
   lazy,
+  createElement,
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -25,6 +27,7 @@ import {
   SETTING_DEFAULTS,
   type SubagentAction,
   UI_TEXT,
+  SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import {
   parseReviewPrompt,
@@ -37,7 +40,7 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, templateParts } from '../shared/l10n/text'
+import { fill, formatNumber, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -102,6 +105,7 @@ import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { SessionBoardDialog } from './components/SessionBoardDialog'
 import { ShareView } from './components/ShareView'
+import { Modal } from './components/Modal'
 import { DeferredSurface } from './components/DeferredSurface'
 
 const HistoryDialog = lazy(async () => {
@@ -123,6 +127,22 @@ const BestOfNDialog = lazy(async () => {
 const ReviewPane = lazy(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
+})
+const ReferencePage = lazy(async () => {
+  const stylesheet = document.createElement('link')
+  stylesheet.rel = 'stylesheet'
+  stylesheet.href = new URL('referencePage.css', import.meta.url).href
+  document.head.append(stylesheet)
+  const module = await import('./components/ReferencePage')
+  return {
+    default: module.createReferencePage({
+      react: { createElement, Fragment, useEffect, useMemo, useState },
+      text: UI_TEXT,
+      fill,
+      formatNumber,
+      Modal,
+    }),
+  }
 })
 
 export interface AppProps {
@@ -195,7 +215,16 @@ const GitPanel = lazy(async () => {
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
-  PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
+  | PaletteView
+  | 'modes'
+  | 'attach'
+  | 'history'
+  | 'board'
+  | 'bestOfN'
+  | 'usage'
+  | 'agents'
+  | 'review'
+  | 'help'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -636,6 +665,11 @@ export function App({
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (current.draft.trim() === `/${SLASH_COMMAND_NAMES.help}`) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setOverlay('help')
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -1564,6 +1598,10 @@ export function App({
           openOverlay('usage')
           break
         }
+        case 'openHelp': {
+          openOverlay('help')
+          break
+        }
         case 'openAgents': {
           setSelectedAgentId(undefined)
           openOverlay('agents')
@@ -1764,6 +1802,13 @@ export function App({
     seenUsageRequests.current = usageRequests
     openOverlay('usage')
   }, [usageRequests, openOverlay])
+  const helpRequests = state.helpRequests
+  const seenHelpRequests = useRef(helpRequests)
+  useEffect(() => {
+    if (helpRequests === seenHelpRequests.current) return
+    seenHelpRequests.current = helpRequests
+    openOverlay('help')
+  }, [helpRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -2087,6 +2132,7 @@ export function App({
       break
     }
     case 'history':
+    case 'help':
     case 'usage':
     case 'agents':
     case 'review':
@@ -2204,6 +2250,7 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
+    overlay === 'help' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
     overlay === 'bestOfN' ||
@@ -2286,6 +2333,14 @@ export function App({
         </DeferredSurface>
       </div>
       <DeferredSurface onClose={closeOverlay}>
+        {overlay === 'help' ? (
+          <ReferencePage
+            postMessage={postMessage}
+            values={state.referenceValues}
+            settings={state.settings}
+            onClose={closeOverlay}
+          />
+        ) : null}
         {usageDialog}
         {agentMap}
         {reviewPane}

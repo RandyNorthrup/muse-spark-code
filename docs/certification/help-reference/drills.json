@@ -1,0 +1,175 @@
+[
+  {
+    "name": "new command has no catalogue entry",
+    "file": "package.json",
+    "exit": 1,
+    "fired": true,
+    "sha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+    "restoredSha256": "af49691fff07e2ab8cf2b528128f2483d842fa68a5d216ccc56baac5f5432b9b",
+    "evidence": ["Error: Command lacks catalogue entry: museSpark.undocumented"]
+  },
+  {
+    "name": "generated file is stale",
+    "file": "src/shared/reference/reference.generated.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "5ab3126f10aacf92a66fab2f657c2433220e1b10c3a7efaf0a2087ddfbb543d0",
+    "restoredSha256": "5ab3126f10aacf92a66fab2f657c2433220e1b10c3a7efaf0a2087ddfbb543d0",
+    "evidence": [
+      "        throw new Error(`Stale reference: ${file}; run npm run reference:generate`)",
+      "Error: Stale reference: src/shared/reference/reference.generated.ts; run npm run reference:generate"
+    ]
+  },
+  {
+    "name": "unknown setting denied",
+    "file": "src/shared/reference/referenceEntry.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "restoredSha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "evidence": [
+      "     × opens an exact known setting key, including native-host dotted anchors 24ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 4 passed (5)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > opens an exact known setting key, including native-host dotted anchors"
+    ]
+  },
+  {
+    "name": "unsafe command denied",
+    "file": "src/shared/reference/referenceEntry.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "restoredSha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "evidence": [
+      "     × allows only reviewed context-free commands and rejects destructive or foreign commands 16ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 4 passed (5)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > allows only reviewed context-free commands and rejects destructive or foreign commands"
+    ]
+  },
+  {
+    "name": "environment variables never read",
+    "file": "src/shared/reference/referenceEntry.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "restoredSha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "evidence": [
+      "     × reads every current value, keeps sensitive variables off the bridge and sends a valid model 119ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 4 passed (5)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > reads every current value, keeps sensitive variables off the bridge and sends a valid model"
+    ]
+  },
+  {
+    "name": "translation boundary validates",
+    "file": "src/shared/reference/referenceEntry.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "restoredSha256": "41563d753191a0c1776960342ef5e40f9539d9f4ed99fa344c6229abd3c718a1",
+    "evidence": [
+      "     × validates messages, translated dictionaries and the nested reference model 20ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 4 passed (5)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > validates messages, translated dictionaries and the nested reference model"
+    ]
+  },
+  {
+    "name": "nested generated model validates",
+    "file": "src/shared/reference/reference.generated.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "5ab3126f10aacf92a66fab2f657c2433220e1b10c3a7efaf0a2087ddfbb543d0",
+    "restoredSha256": "5ab3126f10aacf92a66fab2f657c2433220e1b10c3a7efaf0a2087ddfbb543d0",
+    "evidence": [
+      "     × validates messages, translated dictionaries and the nested reference model 17ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 4 passed (5)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > validates messages, translated dictionaries and the nested reference model"
+    ]
+  },
+  {
+    "name": "unsafe Run button hidden",
+    "file": "src/webview/components/ReferencePage.tsx",
+    "exit": 1,
+    "fired": true,
+    "sha256": "d6647924c322d19e7b73bc0b097ff744d16f1d3cacff94c8f271509507bcca7f",
+    "restoredSha256": "d6647924c322d19e7b73bc0b097ff744d16f1d3cacff94c8f271509507bcca7f",
+    "evidence": [
+      "     × offers Run only for safe commands and routes documentation through the host 425ms",
+      " Test Files  1 failed (1)",
+      "      Tests  1 failed | 5 passed (6)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/ReferencePage.test.tsx > shared Help & Reference page > offers Run only for safe commands and routes documentation through the host",
+      "     73|   it('offers Run only for safe commands and routes documentation throu…"
+    ]
+  },
+  {
+    "name": "broken documentation anchor",
+    "file": "README.md",
+    "exit": 1,
+    "fired": true,
+    "sha256": "d134f5e26cd60758348868c780c1866e73c6b864b570a3f5061f250530476ac9",
+    "restoredSha256": "d134f5e26cd60758348868c780c1866e73c6b864b570a3f5061f250530476ac9",
+    "evidence": ["Error: Invalid docs link: web-fetch"]
+  },
+  {
+    "name": "reference Node bundle size cap",
+    "file": "dist/reference.js",
+    "exit": 1,
+    "fired": true,
+    "sha256": "fe67212de3bff6150e88594288bc907cf9a66af4d5f6703806c9b0bdc5aa7db7",
+    "restoredSha256": "fe67212de3bff6150e88594288bc907cf9a66af4d5f6703806c9b0bdc5aa7db7",
+    "evidence": ["OVER dist/reference.js: 187.4 KiB (budget 100 KiB)"]
+  },
+  {
+    "name": "reference page size cap",
+    "file": "dist/webview/referencePage.js",
+    "exit": 1,
+    "fired": true,
+    "sha256": "eff902340ae2a14253c9ecb887e84beb98f811f51c2e77cb10a2d06726f885f7",
+    "restoredSha256": "eff902340ae2a14253c9ecb887e84beb98f811f51c2e77cb10a2d06726f885f7",
+    "evidence": ["OVER dist/webview/referencePage.js: 87.2 KiB (budget 50 KiB)"]
+  },
+  {
+    "name": "reference model cannot enter startup",
+    "file": "src/webview/App.tsx",
+    "exit": 0,
+    "secondaryExit": 1,
+    "fired": true,
+    "sha256": "b72fd3771a9d14d23920c75f70c149d396907cf585a9eae09884d1670f87c963",
+    "restoredSha256": "b72fd3771a9d14d23920c75f70c149d396907cf585a9eae09884d1670f87c963",
+    "evidence": ["  Reference page or data entered chat startup"]
+  },
+  {
+    "name": "reference page cannot duplicate React or English",
+    "file": "src/webview/components/ReferencePage.tsx",
+    "exit": 0,
+    "secondaryExit": 1,
+    "fired": true,
+    "sha256": "56f59bf5c7097683dd2b05162b75f848ec61df90739f21acbc0076165429931f",
+    "restoredSha256": "56f59bf5c7097683dd2b05162b75f848ec61df90739f21acbc0076165429931f",
+    "evidence": ["  Reference page duplicates runtime: src/shared/l10n/en.ts"]
+  },
+  {
+    "name": "installed skill cannot override help",
+    "file": "src/shared/palette.ts",
+    "exit": 1,
+    "fired": true,
+    "sha256": "1acb6b501eeae607b6d9b1c3159beb19439c7a4e676ec12139a001d30a78e486",
+    "restoredSha256": "1acb6b501eeae607b6d9b1c3159beb19439c7a4e676ec12139a001d30a78e486",
+    "evidence": [
+      "     × keeps /help local when an installed skill has the same selector 12ms",
+      "      Tests  1 failed | 35 passed (36)",
+      "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+      " FAIL  test/unit/paletteRegistry.test.ts > slashCommandsOf > keeps /help local when an installed skill has the same selector"
+    ]
+  }
+]

@@ -3190,6 +3190,25 @@ What stays in English:
 | Model API: file tools            | Text and images up to 10 MiB, PDFs up to 32 MB; the search tool skips files over 1 MiB                                                                                                                                                                          |
 | Opened tool outputs              | 16 MiB each; the latest 20, and 33,554,432 characters together                                                                                                                                                                                                  |
 
+## Help and reference
+
+Type `/help` in the panel, or run **Muse Spark: Open Help & Reference**, for a
+searchable reference of features, slash commands, commands, settings and keyboard
+shortcuts. It shows current and default values, links directly to settings and
+lets you run reviewed, context-free commands. Environment-variable values stay
+hidden. The page follows the editor’s theme and display language.
+
+ACP editors can send `/help` for a compact local list and the
+[generated companion reference](docs/reference.md). In a terminal,
+`muse-spark-code-acp help --all` prints the complete reference without a model
+call. `muse-spark-code-acp --help` and `exec --help` point to it.
+
+The reference is generated from the manifest, slash palette, CLI command table
+and typed feature catalogue. Maintainers run `npm run reference:generate` after
+changes; `npm run check:reference` checks coverage and rejects stale files in CI.
+Native shared-webview hosts use the same page and bridge messages; their settings
+bridge opens the requested key’s anchor in their own settings page.
+
 ## Commands and keybindings
 
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                               |
