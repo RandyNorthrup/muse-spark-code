@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
+import * as museHost from '../../src/core/backends/musecode/MuseCodeHost'
 import {
   MSP_KNOWN_SCHEMA_FINGERPRINTS,
   MSP_UNRESPONSIVE_MISSES,
@@ -20,6 +21,10 @@ import { isSamePath } from '../../src/core/paths'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
 import { fakeAccountHome } from './helpers/accountHome'
+
+vi.mock('../../src/core/backends/musecode/MuseCodeHost', async (importOriginal) => ({
+  ...(await importOriginal<typeof museHost>()),
+}))
 
 // Real SDK exports; each test controls the spawn boundary.
 vi.mock('@muse-code/sdk', async (importOriginal) => ({
@@ -248,11 +253,11 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
   })
 
   it('serves two accounts in separate fake CLI processes with their own environment and usage', async () => {
-    const spawn = sdk.spawnMspConnection
+    const spawn = museHost.spawnAccountMspConnection
     const launches: Parameters<typeof sdk.spawnMspConnection>[0][] = []
-    vi.spyOn(sdk, 'spawnMspConnection').mockImplementation((options) => {
+    vi.spyOn(museHost, 'spawnAccountMspConnection').mockImplementation((options, home) => {
       launches.push(options)
-      return spawn({ ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] })
+      return spawn({ ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] }, home)
     })
     const work = fakeAccountHome('work')
     const personal = fakeAccountHome('personal')
@@ -316,11 +321,14 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
   })
 
   it('closes a fake CLI whose account is revoked during initialization', async () => {
-    const spawn = sdk.spawnMspConnection
+    const spawn = museHost.spawnAccountMspConnection
     const accountHome = fakeAccountHome()
     const close = vi.fn(() => Promise.resolve())
-    vi.spyOn(sdk, 'spawnMspConnection').mockImplementation((options) => {
-      const pending = spawn({ ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] })
+    vi.spyOn(museHost, 'spawnAccountMspConnection').mockImplementation((options, home) => {
+      const pending = spawn(
+        { ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] },
+        home,
+      )
       const initialize = pending.initialize.bind(pending)
       vi.spyOn(pending, 'initialize').mockImplementation(async (params) => {
         const host = await initialize(params)

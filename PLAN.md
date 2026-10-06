@@ -19833,6 +19833,22 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108M2 (2026-10-06):** repair both RVM108M2 P2 findings structurally.
+One synchronous reducer owns command-lease state, generation-tagged queued
+requests, dispatch admission and resume reconciliation. The account connection
+wraps the SDK transport so the dispatch fence runs inside its actual write,
+after any preceding backpressure; revocation removes queued authority before
+another write. Reuse the pinned SDK's process transport and teardown in the existing MSP
+host module for the
+account-only handshake; the ordinary single-account spawn remains unchanged.
+Resume preserves ordinary recovery fallbacks but reconciles with the same
+owner before returning and discards an invalidated handle. Enumerate all
+revoke/queue/dispatch/resume interleavings, and reproduce transport backpressure
+and both interrupted recovery requests with captured fixtures. No wire-field,
+dependency, guard, timeout, paid-policy or installed-feature changes. Record
+red regressions and byte-exact guard drills in M's certification; Q-M108 and
+W's adapters and full integration gates remain required.
+
 **FIXM108M (2026-10-06):** repair both RVM108M P2 findings inside M's
 owned account-home, shared MSP command and test regions. Carry the immutable
 lease generation through every local request, check it before dispatch and
@@ -20092,13 +20108,17 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ## 7. Gates
 
-**FIXM108M bounded-lane certification (2026-10-06).** The overriding rig
+**FIXM108M/M2 bounded-lane certification (2026-10-06).** The overriding rig
 brief and shared rules prohibit aggregate quality/full unit runs, merges and
 network calls. Use complete owning test files, repository default timeouts,
 at most three files/workers per run, scoped static/build checks and normal
 hook-on local commits. The lead owns integrated quality/coverage and live
 editor/capture gates. W owns the pre-existing host-API record count drift and
-CHANGELOG integration; no gate is weakened.
+CHANGELOG integration; no gate is weakened. **M2-W-HOST-API:** the current
+record check is red for crypto 46→47 and path 84→85 (existing), plus the
+account adapter's child_process 13→14 importer. There is no host boundary
+violation. W must regenerate/review its owned host-API record and rerun the
+gate in integration; this lane does not change that out-of-scope record.
 
 **FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
@@ -21293,9 +21313,28 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M2-W-HOST-API (W).** The host-API record gate reports existing
+  crypto/path count drift and this repair's one additional child_process
+  importer (13→14). Safe for this bounded lane: the check reports no
+  forbidden host import, the record is W-owned, and installed multi-account
+  support remains disabled. Follow-up: W regenerates/reviews the record and
+  reruns the gate before integrated quality or enabling those surfaces.
+  This is a gate/integration handoff, not an accepted RVM108M2 finding.
+
+- **FIXM108M2-SDK-TRANSPORT-PIN (W).** The account-only launch adapter
+  reuses the exact pinned SDK 1.3.0's exported internal process transport to
+  wrap actual queued submission; its public spawner has no submission hook.
+  Safe for now: the dependency pin is unchanged, bounded teardown remains
+  SDK-owned, and real fake-CLI manager tests qualify handshake and lifecycle.
+  Follow-up: requalify this constructor/close contract before an SDK upgrade,
+  and adopt a public transport-injection seam when available. No RVM108M2
+  finding remains unresolved; the existing already-dispatched-work and
+  capture/editor-binding residuals still apply.
+
 - **FIXM108M-DISPATCHED-WORK (M-U-H-LIFETIME / W).** Revoking a Muse Code
   lease refuses local pending commands and prevents subsequent dispatches
-  and retries. A request already written to the old CLI may have started
+  and retries. FIXM108M2 fences the actual SDK transport write and drops
+  queued unwritten authority; resume reconciles from the same reducer. A request already written to the old CLI may have started
   work; local cancellation cannot prove otherwise. Safe for now: installed
   multi-account support stays off without Q-M108's capture and the named
   adapters. Follow-up: W/U/H synchronously invalidate the old lease and await

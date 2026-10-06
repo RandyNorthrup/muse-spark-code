@@ -7,8 +7,19 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import { spawn } from 'node:child_process'
+// Exact SDK pin: reuse bounded process teardown while wrapping actual submission.
+import { ChildStdioTransport } from '@muse-code/sdk/dist/src/connection/spawn.js'
 import type { MuseCodeAccountHome } from './accountHomes'
-import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
+import {
+  Connection,
+  type DuplexTransport,
+  MspError,
+  ProtocolError,
+  checkServedFingerprint,
+  type MspHandshake,
+  type SpawnMspConnectionOptions,
+} from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
@@ -115,6 +126,8 @@ import {
 /** What the SDK's `SpawnedMspConnection` provides, narrowed to what we use. */
 export interface MspHost {
   readonly connection: Connection
+  /** Required for an account lease: owns the SDK transport submission boundary. */
+  readonly commandOwner?: MuseCodeCommandOwner
   readonly initializeResult: unknown
   readonly exited: Promise<{ readonly code: number | null; readonly signal: string | null }>
   close(): Promise<unknown>
@@ -411,6 +424,141 @@ class HostLiveness {
       `Muse Code is not answering: ${String(this.misses)} commands in a row missed their deadline (the last ${method}) and nothing came from it for ${String(Math.round(silentMs / MILLISECONDS_PER_SECOND))} s; new commands fail at once until it answers or restarts`,
     )
     this.onUnresponsive()
+  }
+}
+
+/** Local authority only: request ids and lease generations never add wire fields. */
+export interface MuseCodeLeaseState {
+  readonly generation: number
+  readonly status: 'active' | 'revoked' | 'closed'
+  readonly queued: ReadonlyMap<number, number>
+}
+export type MuseCodeLeaseEvent =
+  | { readonly type: 'queue'; readonly id: number; readonly generation: number }
+  | { readonly type: 'dispatch'; readonly id: number }
+  | { readonly type: 'resume'; readonly generation: number }
+  | { readonly type: 'revoke' }
+  | { readonly type: 'close' }
+
+/** One synchronous transition; only its admitted effect permits submission or adoption. */
+export function stepMuseCodeLease(
+  state: MuseCodeLeaseState,
+  event: MuseCodeLeaseEvent,
+): {
+  readonly state: MuseCodeLeaseState
+  readonly effects: { readonly admitted: boolean }
+} {
+  if (event.type === 'revoke' || event.type === 'close') {
+    return {
+      state: {
+        ...state,
+        status: event.type === 'close' || state.status === 'closed' ? 'closed' : 'revoked',
+        queued: new Map(),
+      },
+      effects: { admitted: false },
+    }
+  }
+  const generation = event.type === 'dispatch' ? state.queued.get(event.id) : event.generation
+  const canAdmit = state.status === 'active' && generation === state.generation
+  if (event.type === 'resume') return { state, effects: { admitted: canAdmit } }
+  const queued = new Map(state.queued)
+  if (canAdmit && event.type === 'queue') queued.set(event.id, event.generation)
+  if (event.type === 'dispatch') queued.delete(event.id)
+  return { state: { ...state, queued }, effects: { admitted: canAdmit } }
+}
+
+// SDK-owned outgoing JSON-RPC envelope, not a new Muse Code response shape.
+const submissionSchema = z.object({
+  id: z.optional(z.union([z.number(), z.string()])),
+  method: z.optional(z.string()),
+})
+
+/** Serialized owner shared by the transport, host, retained sessions and resume. */
+export class MuseCodeCommandOwner {
+  private state: MuseCodeLeaseState
+  private nextRequestId = 0
+  private readonly lifetime = new AbortController()
+  private connection: Connection | undefined
+  public readonly generation: number
+  public readonly signal: AbortSignal
+
+  public constructor(public readonly accountHome?: MuseCodeAccountHome) {
+    this.generation = accountHome?.generation ?? 0
+    this.state = { generation: this.generation, status: 'active', queued: new Map() }
+    this.signal =
+      accountHome === undefined
+        ? this.lifetime.signal
+        : AbortSignal.any([this.lifetime.signal, accountHome.signal])
+    this.signal.addEventListener(
+      'abort',
+      () => {
+        this.step({ type: this.lifetime.signal.aborted ? 'close' : 'revoke' })
+      },
+      { once: true },
+    )
+    if (this.signal.aborted) this.step({ type: 'revoke' })
+  }
+
+  private step(event: MuseCodeLeaseEvent): boolean {
+    const next = stepMuseCodeLease(this.state, event)
+    this.state = next.state
+    return next.effects.admitted
+  }
+
+  public assertCurrent(generation: number): void {
+    if (this.state.status === 'closed') throw new Error(UI_TEXT.questionCancelled)
+    try {
+      this.accountHome?.assertCurrent()
+      if (this.accountHome !== undefined && this.accountHome.generation !== this.generation)
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+    } catch (error: unknown) {
+      this.step({ type: 'revoke' })
+      throw error
+    }
+    if (!this.step({ type: 'resume', generation })) throw new Error(UI_TEXT.accounts.invalidAccount)
+  }
+
+  /** The SDK calls write after its private write tail clears; no await separates guard and write. */
+  public connect(transport: DuplexTransport): Connection {
+    if (this.connection !== undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
+    const closeTransport = transport.close?.bind(transport)
+    this.connection = new Connection(
+      {
+        incoming: transport.incoming,
+        write: (chunk) => {
+          this.assertCurrent(this.generation)
+          const frame = submissionSchema.parse(JSON.parse(chunk))
+          if (
+            frame.method !== undefined &&
+            frame.id !== undefined &&
+            (typeof frame.id !== 'number' || !this.step({ type: 'dispatch', id: frame.id }))
+          )
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          return transport.write(chunk)
+        },
+        ...(closeTransport !== undefined && { close: closeTransport }),
+      },
+      {
+        mintRequestId: () => {
+          this.assertCurrent(this.generation)
+          this.nextRequestId += 1
+          const id = this.nextRequestId
+          if (!this.step({ type: 'queue', id, generation: this.generation }))
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          return id
+        },
+      },
+    )
+    return this.connection
+  }
+
+  public ownsConnection(connection: Connection): boolean {
+    return this.connection === connection
+  }
+
+  public close(): void {
+    this.step({ type: 'close' })
+    this.lifetime.abort()
   }
 }
 
@@ -1299,7 +1447,7 @@ export class MuseCodeHost implements AgentHost {
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
-  private readonly commandLifetime = new AbortController()
+  private readonly commandOwner: MuseCodeCommandOwner
   /**
    * Session starts, resumes and forks in flight (D26). The SDK hands every
    * frame of one read to the handlers before the awaiting command resumes,
@@ -1323,20 +1471,21 @@ export class MuseCodeHost implements AgentHost {
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
     private readonly accountHome?: MuseCodeAccountHome,
   ) {
+    if (
+      accountHome !== undefined &&
+      (host.commandOwner?.accountHome !== accountHome ||
+        !host.commandOwner.ownsConnection(host.connection))
+    )
+      throw new Error(UI_TEXT.accounts.museCodeUnavailable)
+    this.commandOwner = host.commandOwner ?? new MuseCodeCommandOwner()
     this.channel = {
       connection: host.connection,
       timeouts,
       log,
-      generation: accountHome?.generation ?? 0,
-      signal:
-        accountHome === undefined
-          ? this.commandLifetime.signal
-          : AbortSignal.any([this.commandLifetime.signal, accountHome.signal]),
+      generation: this.commandOwner.generation,
+      signal: this.commandOwner.signal,
       assertCurrent: (generation) => {
-        if (this.isClosing) throw new Error(UI_TEXT.questionCancelled)
-        if (generation !== (accountHome?.generation ?? 0))
-          throw new Error(UI_TEXT.accounts.invalidAccount)
-        accountHome?.assertCurrent()
+        this.commandOwner.assertCurrent(generation)
       },
       liveness: new HostLiveness(
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
@@ -1392,6 +1541,7 @@ export class MuseCodeHost implements AgentHost {
     // A connection that ends while the process lives (a framing violation)
     // is as good as dead: the process is closed so the exit is reported.
     void host.connection.closed.then(() => {
+      this.commandOwner.close()
       if (this.isClosing) {
         return
       }
@@ -1399,6 +1549,7 @@ export class MuseCodeHost implements AgentHost {
       void this.host.close()
     })
     void host.exited.then((exit) => {
+      this.commandOwner.close()
       const described = describeExit(exit, this.isClosing)
       if (described.isExpected) {
         this.log.info(`muse serve exited as asked (${described.description})`)
@@ -1609,6 +1760,7 @@ export class MuseCodeHost implements AgentHost {
         this.deliver({ method: 'userInput/requested', params })
       }
     } catch (error: unknown) {
+      this.channel.assertCurrent(this.channel.generation)
       this.log.warn(
         `approval/listPending after resuming ${sessionId} failed: ${failureForLog(error)}`,
       )
@@ -1772,21 +1924,24 @@ export class MuseCodeHost implements AgentHost {
         hasPending: (envelope.pendingRequests ?? []).length > 0,
       }
     })
-    if (hasPending) {
-      await this.presentPending(sessionId)
-    }
-    if (loaded.history.goal === undefined) {
-      try {
-        return {
-          ...loaded,
-          history: { ...loaded.history, goal: await this.goalFromView(sessionId) },
+    try {
+      if (hasPending) await this.presentPending(sessionId)
+      let history = loaded.history
+      if (history.goal === undefined) {
+        try {
+          history = { ...history, goal: await this.goalFromView(sessionId) }
+        } catch {
+          this.channel.assertCurrent(this.channel.generation)
+          // Ordinary page failures must not strand an attached session.
+          this.log.warn('Muse Code could not recover the goal from view history after resume')
         }
-      } catch {
-        // A page failure must not strand an attached session after resume.
-        this.log.warn('Muse Code could not recover the goal from view history after resume')
       }
+      this.channel.assertCurrent(this.channel.generation)
+      return { ...loaded, history }
+    } catch (error: unknown) {
+      this.sessions.get(sessionId)?.disposeAll()
+      throw error
     }
-    return loaded
   }
 
   /** A point-in-time read with items, without loading the session. */
@@ -1865,12 +2020,63 @@ export class MuseCodeHost implements AgentHost {
   public async close(): Promise<void> {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
-    this.commandLifetime.abort()
+    this.commandOwner.close()
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
     await this.host.close()
     for (const session of this.sessions.values()) {
       session.disposeAll()
     }
+  }
+}
+
+/** Account-only handshake: the SDK's public spawner hides the submission transport. */
+export function spawnAccountMspConnection(
+  options: Pick<SpawnMspConnectionOptions, 'command' | 'args' | 'cwd' | 'env' | 'onStderr'>,
+  accountHome: MuseCodeAccountHome,
+) {
+  accountHome.assertCurrent()
+  const hasProcessGroup = process.platform !== 'win32'
+  const child = spawn(options.command, [...(options.args ?? [])], {
+    ...(options.cwd !== undefined && { cwd: options.cwd }),
+    ...(options.env !== undefined && { env: options.env }),
+    detached: hasProcessGroup,
+  })
+  const transport = new ChildStdioTransport(child, options.onStderr, undefined, hasProcessGroup)
+  const commandOwner = new MuseCodeCommandOwner(accountHome)
+  const connection = commandOwner.connect(transport)
+  const close = async () => {
+    commandOwner.close()
+    try {
+      await connection.close()
+    } finally {
+      // Even a framing/write failure must finish the SDK-owned process teardown.
+      await transport.close()
+    }
+    return await transport.exited
+  }
+  let isInitialized = false
+  return {
+    exited: transport.exited,
+    close,
+    initialize: async (params: Parameters<MspHandshake['initialize']>[0]) => {
+      if (isInitialized) throw new Error('initialize may be sent only once per connection')
+      isInitialized = true
+      const initializeResult = initializeResultSchema.parse(
+        await connection.request('initialize', { ...params }),
+      )
+      const fingerprint = initializeResult.schema?.fingerprint
+      if (fingerprint === undefined) throw new Error('initialize result has no schema fingerprint')
+      connection.notify('initialized')
+      await connection.flush()
+      return {
+        connection,
+        commandOwner,
+        initializeResult,
+        fingerprintWarning: checkServedFingerprint(fingerprint),
+        exited: transport.exited,
+        close,
+      }
+    },
   }
 }

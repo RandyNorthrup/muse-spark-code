@@ -1,5 +1,159 @@
 # M108 M — Muse Code accounts
 
+## FIXM108M2 — structural re-review repairs (2026-10-06)
+
+Worktree `/Users/randy/lanes/M108M`, branch `m108/m`, review base
+`5b0cfa2e0b512c660fe942ed0d2040e3ec9e0ea9`, direct macmini. Read the full
+rig brief, `codex/common.md`, RVM108M2 report, AGENTS and applicable PLAN
+D88/M108/Q-M108 and gate/residual records before editing. Both P2 findings
+are fixed; there are no P1/P3 or accepted unresolved RVM108M2 findings.
+This record supersedes the first repair's claim about unwritten SDK requests.
+
+| Finding                                                                      | Disposition                                                                                                                                                                                                                                                             | Regression                                                                                                                                                            | Red drill                                                                                                                                                       |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: a revoked account's SDK-queued turn still reaches the transport          | **Fixed.** One synchronous `stepMuseCodeLease(state, event)` owns authority, queued request generations, dispatch and resume admission. Revocation clears queued authority; the actual transport write rechecks it after SDK backpressure and before writing any bytes. | `drops an SDK-queued turn under backpressure on revoke` and `… on close`; matching-owner and stale-generation tests; the independent 24-order model                   | `M2-TRANSPORT-SUBMISSION`: **2 failures / 113 passes**, both backpressure tests dispatch one turn when the write fence is removed.                              |
+| P2: resume recovery swallows invalidation and returns a stale loaded session | **Fixed.** Recovery fallbacks reconcile with that same owner. Invalidated/closing/exited hosts reject resume and discard its stale handle; ordinary recovery errors still fall back as before. A final synchronous reconciliation precedes success.                     | `discards resume invalidated during approval/listPending recovery on revoke` and `… view/page …`, plus close/exit variants; existing ordinary recovery-fallback tests | `M2-RESUME-RECONCILIATION`: **6 failures / 109 passes**, all recovery/invalidation variants return stale success when recovery/final reconciliation is removed. |
+
+### Structure and boundaries
+
+The pinned SDK's public spawner hides its transport and offers no submission
+hook. `spawnAccountMspConnection` in the lane-owned `MuseCodeHost.ts` therefore
+reuses **the exact pinned SDK 1.3.0 `ChildStdioTransport`**, including bounded
+shutdown, pipe draining and POSIX process-group teardown. It creates a raw
+SDK `Connection` through the one command owner. The SDK requests each numeric
+id through the owner's minter, which registers its local generation before
+the request enters the SDK write tail;
+no generation or cancellation metadata is sent over MSP. The write wrapper
+validates the SDK-owned outgoing envelope and calls the underlying write
+synchronously after the reducer admits it. A refused write terminates the
+old SDK connection; the existing host-close path disposes its process.
+
+An account-backed host requires the same home and the owner's actual
+connection, so a naked connection cannot silently bypass the submission
+fence. Every retained session uses that owner's channel. Host close, process
+exit and transport EOF invalidate the owner. Resume disposes stale tracked
+sessions rather than returning an empty or stale success. The existing
+captured initialize schema is reused before a custom handshake result is
+consumed; no new vendor response schema or field is guessed.
+
+The ordinary single-account manager keeps the public SDK spawner. No new
+command, setting, user text, paid policy, dependency or installed account
+surface is added. The manager's two-account real fake-CLI test now uses the
+account spawner and still proves separate environments and usage, retained
+session refusal, and independent account lifetimes. Its initialization-race
+fixture still proves that a revoked spawn is closed. Core logic and the
+manager remain shared by editor bridges and runtime; Q-M108's capture,
+private-home/config-copy ports and W/U/H editor bindings still gate support.
+W owns the CHANGELOG/help/reference integration; its repair note should say
+that unwritten queued account commands are dropped on revocation and resume
+refuses an invalidated account while keeping ordinary recovery fallbacks.
+
+### Executed regression and guard-fire receipts
+
+The unchanged production base with the first four new host cases failed
+**3 assertions / 105 passes**: queued submission after revocation and both
+stale resume returns. The close case was then strengthened by holding fake
+transport close open too; the write-fence drill proves both variants fail.
+After the structural fix and expanded lifecycle/model cases, the complete
+host/manager/account-home files passed **190 tests** before the drills.
+
+Every drill ran `npx vitest run test/unit/MuseCodeHost.test.ts --maxWorkers=3`
+with the repository's unchanged default timeout and no test-name filter.
+All nine exited **1**, with named assertion failures. The runner held the
+original source bytes in memory, restored in `finally`, and checked byte
+identity and SHA-256 after every run.
+
+| Additional drill       | Deliberate break                                                      | Named failing regression                                                                       | Result                    |
+| ---------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------- |
+| `M2-OWNER-BINDING`     | Accept account hosts without the matching connected submission owner. | `requires the matching submission owner before accepting an account host`                      | **1 failed / 114 passed** |
+| `M2-REDUCER-AUTHORITY` | Admit reducer events regardless of terminal lease state.              | `models all revoke/queue/dispatch/resume interleavings against an independent authority model` | **1 failed / 114 passed** |
+| `M2-QUEUED-GENERATION` | Treat queued generations as the current generation.                   | `rejects stale queued generations and duplicate dispatch even while the lease is active`       | **1 failed / 114 passed** |
+| `M2-QUEUE-REVOCATION`  | Retain the queued authority map on revocation.                        | `models all revoke/queue/dispatch/resume interleavings against an independent authority model` | **1 failed / 114 passed** |
+
+The owner and dispatch-retirement guards were also isolated after the final
+module placement; these drills ran the same complete 115-test host file:
+
+| Drill                    | Deliberate break                                                 | Named failing regression                                                    | Result                    |
+| ------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------- |
+| `M2-CONNECTION-BINDING`  | Accept an owner whose connection is not the supplied connection. | `requires the matching submission owner before accepting an account host`   | **1 failed / 114 passed** |
+| `M2-ONE-CONNECTION`      | Let one owner connect another transport.                         | `requires the matching submission owner before accepting an account host`   | **1 failed / 114 passed** |
+| `M2-DISPATCH-RETIREMENT` | Keep an already-dispatched id in the queued authority map.       | Both interleaving-model and stale-generation/duplicate-dispatch regressions | **2 failed / 113 passed** |
+
+Restored `MuseCodeHost.ts` SHA-256:
+`96165d06de844023bc9121677b655abc94bef865293f5fe94ae82e042fbce0e0`.
+The model enumerates all **24** revoke/queue/dispatch/resume orders and checks
+admission and queue removal against independent booleans. Its companion
+case covers stale queued generations and repeated dispatch. No sleep,
+raised timeout or test skip is introduced.
+
+### Final FIXM108M2 verification
+
+All final production-source bytes match the nine drill restorations. Final
+verification uses repository default timeouts, no test-name filters, and at
+most three files/workers per run:
+
+- `npx vitest run test/unit/accountHomes.test.ts test/unit/MuseCodeHost.test.ts test/unit/museCodeBackendManager.test.ts --maxWorkers=3`: exit **0**, **190 passed** (51 homes, 115 host, 24 manager).
+- `npx vitest run test/unit/launch.test.ts --maxWorkers=3`: exit **0**, **26 passed**. **216 total** after all nine drills.
+
+| Gate                                    | Result                                                                                                                                                                                                                                                                                      |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                     | Exit **0**, all five projects; the unit project also exits **0** after the final owner-reuse assertion.                                                                                                                                                                                     |
+| Changed-file ESLint, `--max-warnings=0` | Exit **0**, all five changed TS files.                                                                                                                                                                                                                                                      |
+| `npm run deadcode`                      | Exit **0**, existing vendor/axe-core configuration hints only.                                                                                                                                                                                                                              |
+| `npx jscpd`                             | Exit **0**, **1,191 files, zero clones**, unchanged threshold.                                                                                                                                                                                                                              |
+| `node scripts/check-l10n.mjs`           | Exit **0**, **14 tables, 164 manifest strings, 607 source files, zero problems**.                                                                                                                                                                                                           |
+| `npm run cycles`                        | Exit **0**, **562 files, no cycles**.                                                                                                                                                                                                                                                       |
+| `npm run check:host-api`                | Exit **1**, **M2-W-HOST-API** record drift: child_process 13→14 (new adapter), crypto 46→47 and path 84→85 (existing). **332 VS Code APIs, 31 vscode importers, 25 Node built-ins, 61 theme variables**; no boundary violation. W owns record regeneration; PLAN §7/§9 record the deferral. |
+| `npm run build`                         | Exit **0**, all size caps, split guards, host-global checks and the **83-package** notices check.                                                                                                                                                                                           |
+
+After the final owner-reuse assertion, the complete three-file plus launch
+runs remain **216 green**, unit-project TypeScript exits **0**, changed-test
+ESLint exits **0**, and duplication still reports zero clones. Production
+source bytes are unchanged from the final build and nine restored drills.
+
+Final production sizes: activation **445.2/600 KiB**, Model API
+**450.1/475 KiB**, ACP **823.5/850 KiB**, checkpoint **76.9/225 KiB**,
+webview startup including static imports **897.3/900 KiB**, deferred webview
+JS **49.7/50 KiB**. All **37** production metafiles were inspected;
+`accountHomes.ts` is absent from every shipped graph. No cap changes.
+
+The first build placed the account spawner beside pure `launch.ts` helpers
+and pulled host schema initialization into unrelated lazy bundles, exceeding
+pluginHooks (54.3/50 KiB) and agentImport (136.5/125 KiB). The spawner now lives
+in the already-loaded `MuseCodeHost.ts`; no new helper module or gate
+exception is needed. The final build restores those bundles to
+**34.1/50 KiB** and **116.1/125 KiB**, and passes the full build chain.
+
+Aggregate quality/full coverage, installed editor/live capture qualification
+and native Windows/Linux remain lead/W-owned under the overriding lane
+brief. No install, network call, credential read, paid/live call, push, merge,
+rebase, manual stash, dependency, escape hatch or gate weakening occurred.
+The normal worktree pre-commit hook was present before committing.
+
+### Named integration residuals
+
+- **M2-W-HOST-API (W):** the unchanged record check reports importer-count
+  drift, including this repair's additional child_process importer. Safe for
+  this bounded lane: there is no host boundary violation and installed
+  account support stays off. Follow-up: W regenerates/reviews its owned
+  record and reruns the gate before integrated quality or enabling accounts.
+- **FIXM108M-DISPATCHED-WORK (W/U/H):** unchanged liability for a request
+  already written to the CLI. Cancellation cannot erase its work or spend;
+  account adoption still awaits old-process disposal. Queued unwritten
+  requests are now fenced at actual submission. Safe for now: installed
+  multi-account support remains capture-gated. Follow-up: certify real
+  account-switch/disposal and usage attribution in every enabled surface.
+- **FIXM108M2-SDK-TRANSPORT-PIN (W):** the account adapter imports the exact
+  pinned SDK's exported internal process transport because the public
+  spawner has no submission hook. Safe for now: no SDK version changes,
+  process teardown is reused, and real fake-CLI manager tests cover its
+  handshake and lifecycle. Follow-up: requalify that constructor/close
+  contract before changing the SDK pin, preferably adopting a public
+  transport-injection seam when available. This is an integration
+  assumption, not an unresolved review finding.
+
+The original implementation/first repair records follow for provenance.
+
 ## FIXM108M review repairs (2026-10-06)
 
 Read the complete overriding rig brief, shared rules and RVM108M report at

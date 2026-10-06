@@ -6,6 +6,10 @@ import {
   type CommandTimeouts,
   describeExit,
   MuseCodeHost,
+  MuseCodeCommandOwner,
+  stepMuseCodeLease,
+  type MuseCodeLeaseState,
+  type MuseCodeLeaseEvent,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -75,10 +79,13 @@ function setup(
     grantedCapabilities?: readonly string[]
   } = {},
 ) {
-  const handle = fakeMspHost({
-    ...fakeInitializeResult,
-    grantedCapabilities: [...(options.grantedCapabilities ?? [])],
-  })
+  const handle = fakeMspHost(
+    {
+      ...fakeInitializeResult,
+      grantedCapabilities: [...(options.grantedCapabilities ?? [])],
+    },
+    options.accountHome,
+  )
   const log = new FakeLogOutputChannel()
   handle.server.handle('session/start', (params) => ({
     session: {
@@ -153,7 +160,7 @@ function setup(
     ],
   }))
   const host = new MuseCodeHost(handle.host, log, options.timeouts, options.accountHome)
-  return { ...handle, log, host }
+  return { ...handle, log, host, connection: handle.host.connection }
 }
 
 const startOptions = {
@@ -909,6 +916,190 @@ describe('MuseCodeHost: stored sessions (M6)', () => {
 })
 
 describe('MuseCodeHost: account command lease (FIXM108M)', () => {
+  it('requires the matching submission owner before accepting an account host', async () => {
+    const accountHome = fakeAccountHome()
+    const handle = fakeMspHost(fakeInitializeResult, accountHome)
+    const unfenced = {
+      connection: handle.host.connection,
+      initializeResult: handle.host.initializeResult,
+      exited: handle.host.exited,
+      close: handle.host.close,
+    }
+    try {
+      expect(
+        () => new MuseCodeHost(unfenced, new FakeLogOutputChannel(), undefined, accountHome),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(fakeAccountHome('personal')) },
+            new FakeLogOutputChannel(),
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(
+        () =>
+          new MuseCodeHost(
+            { ...unfenced, commandOwner: new MuseCodeCommandOwner(accountHome) },
+            new FakeLogOutputChannel(),
+            undefined,
+            accountHome,
+          ),
+      ).toThrow(UI_TEXT.accounts.museCodeUnavailable)
+      expect(() => handle.host.commandOwner?.connect(handle.server)).toThrow(
+        UI_TEXT.accounts.invalidAccount,
+      )
+    } finally {
+      await handle.host.close()
+    }
+  })
+
+  it('models all revoke/queue/dispatch/resume interleavings against an independent authority model', () => {
+    const events: readonly MuseCodeLeaseEvent[] = [
+      { type: 'queue', id: 1, generation: 0 },
+      { type: 'dispatch', id: 1 },
+      { type: 'revoke' },
+      { type: 'resume', generation: 0 },
+    ]
+    const enumerate = (remaining: readonly MuseCodeLeaseEvent[]): MuseCodeLeaseEvent[][] =>
+      remaining.length === 0
+        ? [[]]
+        : remaining.flatMap((event, index) =>
+            enumerate(remaining.filter((_other, otherIndex) => otherIndex !== index)).map(
+              (tail) => [event, ...tail],
+            ),
+          )
+    const orders = enumerate(events)
+    expect(orders).toHaveLength(24)
+    for (const order of orders) {
+      let state: MuseCodeLeaseState = { generation: 0, status: 'active', queued: new Map() }
+      let isRevoked = false
+      let isQueued = false
+      for (const event of order) {
+        const canAdmit =
+          event.type !== 'revoke' && !isRevoked && (event.type !== 'dispatch' || isQueued)
+        const next = stepMuseCodeLease(state, event)
+        expect(next.effects.admitted, order.map((entry) => entry.type).join('/')).toBe(canAdmit)
+        if (event.type === 'revoke') {
+          isRevoked = true
+          isQueued = false
+        }
+        if (!isRevoked && event.type === 'queue') isQueued = true
+        if (event.type === 'dispatch') isQueued = false
+        state = next.state
+        expect(state.queued.has(1)).toBe(isQueued)
+      }
+      expect(stepMuseCodeLease(state, { type: 'resume', generation: 0 }).effects.admitted).toBe(
+        false,
+      )
+    }
+  })
+
+  it('rejects stale queued generations and duplicate dispatch even while the lease is active', () => {
+    const state: MuseCodeLeaseState = { generation: 1, status: 'active', queued: new Map() }
+    const stale = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 0 })
+    expect(stale.effects.admitted).toBe(false)
+    expect(stepMuseCodeLease(stale.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(false)
+    const queued = stepMuseCodeLease(state, { type: 'queue', id: 1, generation: 1 })
+    const dispatched = stepMuseCodeLease(queued.state, { type: 'dispatch', id: 1 })
+    expect(dispatched.effects.admitted).toBe(true)
+    expect(stepMuseCodeLease(dispatched.state, { type: 'dispatch', id: 1 }).effects.admitted).toBe(
+      false,
+    )
+  })
+
+  it.each(['revoke', 'close'])(
+    'drops an SDK-queued turn under backpressure on %s',
+    async (action) => {
+      const accountHome = fakeAccountHome()
+      const { host, server, connection } = setup({ accountHome })
+      const session = await host.startSession(startOptions)
+      const entered = Promise.withResolvers<undefined>()
+      const released = Promise.withResolvers<undefined>()
+      const write = server.write.bind(server)
+      const blocked = vi.spyOn(server, 'write').mockImplementationOnce(async (chunk) => {
+        await write(chunk)
+        entered.resolve(undefined)
+        await released.promise
+      })
+      // A real SDK write tail, not a delayed promise around request().
+      const deferredClose = vi.spyOn(server, 'close').mockImplementation(() => undefined)
+      connection.notify('initialized')
+      await entered.promise
+      const accepted = vi.fn()
+      const refused = vi.fn()
+      const outcome = recordOutcome(
+        session.sendTurn([{ type: 'text', text: 'queued' }]),
+        accepted,
+        refused,
+      )
+      try {
+        if (action === 'revoke') accountHome.invalidate()
+        else await host.close()
+        released.resolve(undefined)
+        await outcome
+        await settle()
+        expect(refused).toHaveBeenCalledOnce()
+        expect(accepted).not.toHaveBeenCalled()
+        expect(server.requestsFor('turn/start')).toHaveLength(0)
+      } finally {
+        released.resolve(undefined)
+        blocked.mockRestore()
+        deferredClose.mockRestore()
+        await host.close()
+        await outcome
+      }
+    },
+  )
+
+  it.each([
+    ['approval/listPending', 'revoke'],
+    ['view/page', 'revoke'],
+    ['approval/listPending', 'close'],
+    ['view/page', 'close'],
+    ['approval/listPending', 'exit'],
+    ['view/page', 'exit'],
+  ])('discards resume invalidated during %s recovery on %s', async (method, action) => {
+    const accountHome = fakeAccountHome()
+    const { host, server, exit } = setup({ accountHome })
+    server.handle('session/resume', (params) =>
+      envelope(String(params['sessionId']), {
+        pendingRequests:
+          method === 'approval/listPending'
+            ? [{ kind: 'approval', approvalId: 'a1', viewCursor: 'v1' }]
+            : [],
+      }),
+    )
+    server.silence(method)
+    const accepted = vi.fn()
+    const refused = vi.fn()
+    const outcome = recordOutcome(
+      host.resumeSession('s-old', startOptions.modelId),
+      accepted,
+      refused,
+    )
+    try {
+      await settle()
+      expect(server.requestsFor(method)).toHaveLength(1)
+      if (action === 'revoke') accountHome.invalidate()
+      else if (action === 'close') await host.close()
+      else exit(0)
+      await outcome
+      expect(accepted).not.toHaveBeenCalled()
+      expect(refused).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          message:
+            action === 'revoke' ? UI_TEXT.accounts.invalidAccount : UI_TEXT.questionCancelled,
+        }),
+      )
+      expect(host.sessionCount).toBe(0)
+    } finally {
+      await host.close()
+      await outcome
+    }
+  })
+
   it('refuses host and retained-session commands before dispatch after lease revocation', async () => {
     const accountHome = fakeAccountHome()
     const { host, server } = setup({ accountHome })
