@@ -2805,6 +2805,7 @@ export const EN = {
   paidAllowAlways: 'Allow always in this workspace',
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
+  paidSearchQuote: 'Provider: {provider} · Model: {model}.',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',

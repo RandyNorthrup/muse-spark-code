@@ -1,3 +1,4 @@
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 import * as acp from '@agentclientprotocol/sdk'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
@@ -25,7 +26,6 @@ import {
   EXEC_STOP_GRACE_MS,
   EXEC_STREAM_IDLE_MS,
   EXEC_USD_DECIMALS,
-  EXEC_USD_UNITS,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
   MILLISECONDS_PER_SECOND,
@@ -186,8 +186,8 @@ function stopMessage(cause: StopCause, maxRequests: number): string {
 }
 const ZERO_MICRO_USD = 0n
 
-function microUsd(value: number): bigint {
-  return BigInt(value.toFixed(EXEC_USD_DECIMALS).replace('.', ''))
+function microUsd(value: UsdAmount): bigint {
+  return Usd.from(value).units(EXEC_USD_DECIMALS)
 }
 
 function relativePaths(cwd: string, paths: readonly string[]): string[] {
@@ -239,10 +239,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   }
   const ledger =
     options.backend === 'modelApi' &&
-    options.budgetMicroUsd !== undefined &&
+    options.budgetUsd !== undefined &&
     options.maxRequests !== undefined
       ? createRunLedger({
-          capUsd: options.budgetMicroUsd / EXEC_USD_UNITS,
+          capUsd: options.budgetUsd,
           maxRequests: options.maxRequests,
         })
       : undefined
@@ -509,8 +509,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               options.mode === 'acceptEdits' &&
               !requiresAsking &&
               !lifecycle.signal.aborted &&
-              microUsd(ledger?.totals().remainingUsd ?? 0) >=
-                microUsd(PAID_PRICES_USD.imageGeneration)
+              microUsd(ledger?.totals().remainingUsd ?? Usd.from(0).toAmount()) >=
+                microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
             if (!isAllowed && !isFinishing && request.feature === 'imageGeneration')
               sink.emit({
                 type: 'paid_use',
@@ -518,7 +518,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 n: null,
                 phase: 'refused',
                 units: 1,
-                usd: 0,
+                usd: Usd.from(0).toAmount(),
                 reason: requiresAsking ? 'requires_asking' : 'policy',
               })
             return Promise.resolve(isAllowed)
@@ -673,7 +673,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               // Ask the ledger's exact arithmetic for the start reservation, in a
               // separate un-dispatched ledger. No request belongs to this run yet.
               const preview = createRunLedger({
-                capUsd: EXEC_MAX_BUDGET_USD,
+                capUsd: Usd.from(EXEC_MAX_BUDGET_USD).toAmount(),
                 maxRequests: 1,
               }).admitResponse({
                 model: model ?? '',
@@ -684,11 +684,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               const minimum =
                 microUsd(preview.reserveUsd) +
                 (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(PAID_PRICES_USD.imageGeneration)
+                  ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
                   : ZERO_MICRO_USD)
-              if (BigInt(options.budgetMicroUsd ?? 0) < minimum) {
+              if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
                 error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Number(minimum) / EXEC_USD_UNITS, EXEC_USD_DECIMALS),
+                  minimum: formatUsd(Usd.fromUnits(minimum, EXEC_USD_DECIMALS), EXEC_USD_DECIMALS),
                 })
                 latch({ kind: 'budget' })
                 return
@@ -842,21 +842,17 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 settled: totals.settledUsd,
                 uncertain: totals.uncertainUsd,
                 reserved: totals.reservedUsd,
-                total:
-                  Number(
-                    microUsd(totals.settledUsd) +
-                      microUsd(totals.uncertainUsd) +
-                      microUsd(totals.reservedUsd),
-                  ) / EXEC_USD_UNITS,
-                isUpperBound: totals.uncertainUsd > 0 || totals.reservedUsd > 0 || cause !== null,
+                total: sumUsd(totals.settledUsd, totals.uncertainUsd, totals.reservedUsd),
+                isUpperBound:
+                  totals.uncertainUsd !== '0' || totals.reservedUsd !== '0' || cause !== null,
               },
         paid: totals?.paid ?? {
           imageAttempts: 0,
           imagesReturned: 0,
           imagesRefunded: 0,
           imagesUncertain: 0,
-          settledUsd: 0,
-          uncertainUsd: 0,
+          settledUsd: Usd.from(0).toAmount(),
+          uncertainUsd: Usd.from(0).toAmount(),
         },
       },
       ledger:

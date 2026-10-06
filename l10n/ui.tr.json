@@ -1616,6 +1616,7 @@
   "paidAllowAlways": "Bu çalışma alanında her zaman izin ver",
   "paidDeny": "İzin verme",
   "paidUseWebSearchTitle": "Muse bu istem için web'de arama yapabilsin mi?",
+  "paidSearchQuote": "Sağlayıcı: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse, yanıt verirken web'de arama yapabilir. Her arama, sonuçlarının eklediği belirteçlere ek olarak Model API anahtarınıza {price} üzerinden faturalandırılır. “İzin verme” istemi web araması olmadan gönderir.",
   "paidUseVoiceTitle": "Muse Voice ile kaydedilsin mi?",
   "paidUseVoiceDetail": "Muse Voice bu kaydı yazıya döker; bu, Model API anahtarınıza {price} üzerinden faturalandırılır. “İzin verme” mikrofonu kapalı bırakır.",

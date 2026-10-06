@@ -133,7 +133,7 @@ async function setup(
     }),
     ...(options.paidSubagents === true && {
       isPaidFeatureOn: () => true,
-      allowsPaidUse: () => Promise.resolve(true),
+      allowsPaidUse: (request) => Promise.resolve(request.feature !== 'webSearch' || request.quote),
     }),
   }
   const host = new ModelApiHost(deps)

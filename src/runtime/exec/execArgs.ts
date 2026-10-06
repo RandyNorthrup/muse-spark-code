@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Pure M80 argument validation. Files, catalogue and TTY checks belong to B.
 import {
   ACP_BACKENDS,
@@ -47,9 +48,8 @@ export interface ExecOptions {
   readonly output: ExecOutput
   readonly outputSchema?: string
   readonly outputSchemaOutside?: boolean
-  /** Display conversion only; admission retains budgetMicroUsd (F1). */
-  readonly budgetUsd: number | undefined
-  readonly budgetMicroUsd: number | undefined
+  /** Exact canonical budget; admission uses integer micro-units internally (F1). */
+  readonly budgetUsd: UsdAmount | undefined
   readonly maxRequests: number | undefined
   readonly timeoutMs: number
   readonly paidFeatures: readonly ExecPaidFeature[]
@@ -104,15 +104,15 @@ function integer(value: unknown, fallback: number, min: number, max: number): nu
   return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : undefined
 }
 
-/** Parse decimal digits directly; Number is used only after the integer range check. */
-function budgetUnits(value: unknown): number | undefined {
+/** Parse decimal digits directly and retain the exact canonical budget. */
+function budgetUnits(value: unknown): UsdAmount | undefined {
   if (typeof value !== 'string' || !DECIMAL_BUDGET.test(value)) return undefined
   const [whole = '', fraction = ''] = value.split('.', 2)
   const units =
     BigInt(whole) * BigInt(EXEC_USD_UNITS) + BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))
   const ZERO_UNITS = 0n
   return units > ZERO_UNITS && units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS)
-    ? Number(units)
+    ? Usd.fromUnits(units, EXEC_USD_DECIMALS).toAmount()
     : undefined
 }
 
@@ -170,15 +170,14 @@ export function parseExec(
     1,
     EXEC_MAX_REQUESTS,
   )
-  const budgetMicroUsd = budgetUnits(values['max-budget-usd'])
+  const budgetUsd = budgetUnits(values['max-budget-usd'])
   if (
     timeout === undefined ||
     maxRequests === undefined ||
-    (budgetMicroUsd === undefined && values['max-budget-usd'] !== undefined)
+    (budgetUsd === undefined && values['max-budget-usd'] !== undefined)
   )
     return invalid(UI_TEXT.execNumberInvalid)
-  if (backend === 'modelApi' && budgetMicroUsd === undefined)
-    return invalid(UI_TEXT.execBudgetRequired)
+  if (backend === 'modelApi' && budgetUsd === undefined) return invalid(UI_TEXT.execBudgetRequired)
   if (
     values['output-schema'] === '' ||
     (values['output-schema-outside'] === true && values['output-schema'] === undefined)
@@ -240,8 +239,7 @@ export function parseExec(
       output,
       ...(outputSchema !== undefined && { outputSchema }),
       ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
-      budgetMicroUsd,
-      budgetUsd: budgetMicroUsd === undefined ? undefined : budgetMicroUsd / EXEC_USD_UNITS,
+      budgetUsd,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,
       timeoutMs: timeout * MILLISECONDS_PER_SECOND,
       paidFeatures: values['image-generation'] === true ? ['imageGeneration'] : [],

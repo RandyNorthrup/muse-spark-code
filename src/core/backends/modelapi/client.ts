@@ -1,3 +1,4 @@
+import { PaidAuthority } from '../../paid/paidAuthority'
 // A thin, schema-validated client for the four Model API endpoints the
 // backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
 // the streamed `POST /responses` and `POST /images/generations` (M34).
@@ -9,7 +10,7 @@
 
 import { createHash } from 'node:crypto'
 import type { PaidFeature } from '../../../shared/constants'
-import type { SessionBudgetClaim } from './sessionBudget'
+import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
 
 import {
   MODEL_API_MAX_RETRIES,
@@ -47,16 +48,34 @@ import {
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
-import { estimateCostUsd } from '../../usage/insights'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { webSearchPriceUsd } from '../../paid/paidFeatures'
+import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
+import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+
+/** The client needs admission and settlement, not the ledger's internal totals. */
+interface PaidRequestClaim {
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount): Promise<unknown>
+}
 
 export interface ModelApiClientDeps {
+  readonly paidAuthority?: PaidAuthority
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
     estimatedInputTokens?: number,
     signal?: AbortSignal,
-  ) => Promise<SessionBudgetClaim | undefined>
+    /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
+    reservationUsd?: UsdAmount,
+  ) => Promise<PaidRequestClaim | undefined>
+  /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
+  readonly providerId?: ((modelId: string) => string) | undefined
+  readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
+  /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => UsdAmount | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -219,6 +238,9 @@ export interface ResponseAttemptGuard {
   (keyDigest: string | undefined): void
   /** After every final fence and request build, adjacent to the actual fetch call. */
   readonly onRequestStarted?: () => void
+  /** Terminal hosted-call count, also on failed responses whose item events were omitted. */
+  readonly searchQuote?: PaidQuote
+  readonly onSearchesReturned?: (settlement: SearchSettlement) => void
 }
 
 function isAborted(signal: AbortSignal | undefined): boolean {
@@ -245,6 +267,7 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
 }
 
 export class ModelApiClient {
+  private searchClaimSequence = 0
   /** Stream event types already logged as ignored (M39). */
   private readonly ignoredEventTypes = new Set<string>()
 
@@ -305,7 +328,7 @@ export class ModelApiClient {
        */
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
-        readonly claim: SessionBudgetClaim
+        readonly claim: PaidRequestClaim
         isSent: boolean
       }
     },
@@ -359,7 +382,14 @@ export class ModelApiClient {
       // becomes another billable attempt.
       if (init.paid !== undefined) {
         if (init.paid.isSent) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
-        init.paid.claim.check(0)
+        init.paid.claim.check(Usd.from(0).toAmount())
+      }
+      if (
+        admitAttempt?.searchQuote !== undefined &&
+        this.deps.paidAuthority !== undefined &&
+        !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
+      ) {
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       }
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
@@ -479,16 +509,74 @@ export class ModelApiClient {
       )
       const result = imagesResponseSchema.parse(await response.json())
       // The request asks for exactly one image; retain its flat fee on any ambiguous result.
-      if (claim !== undefined) await claim.settle(result.data.length === 0 ? 0 : claim.reservedUsd)
+      if (claim !== undefined)
+        await claim.settle(Usd.from(result.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
       return result
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
     }
+  }
+
+  private searchTokenCostUsd(
+    usage: BillableUsage,
+    modelId: string,
+    unknownChargeUsd?: UsdAmount,
+  ): UsdAmount {
+    const knownCost =
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
+    const cost =
+      this.deps.searchTokenCostUsd === undefined
+        ? knownCost
+        : this.deps.searchTokenCostUsd(usage, modelId)
+    if (
+      cost === undefined ||
+      !usdAmountSchema.safeParse(cost).success ||
+      Usd.from(cost).compare(Usd.from(0)) < 0
+    ) {
+      throw new Error(
+        unknownChargeUsd === undefined
+          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+      )
+    }
+    return Usd.from(cost).toAmount()
+  }
+
+  /** Children inherit their parent's token through the same authority. */
+  public inheritSearchQuote(parent: PaidQuote, quote: PaidQuote): boolean {
+    return this.deps.paidAuthority?.inherit(parent, quote) ?? true
+  }
+
+  public releaseSearchQuotes(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined
+  }
+
+  public providerId(modelId: string): string {
+    return this.deps.providerId?.(modelId) ?? new URL(this.deps.baseUrl).origin
+  }
+
+  public searchPriceUsd(modelId: string): UsdAmount | undefined {
+    try {
+      const price =
+        this.deps.webSearchPriceUsd === undefined
+          ? webSearchPriceUsd(modelId)
+          : this.deps.webSearchPriceUsd(modelId)
+      return price !== undefined &&
+        usdAmountSchema.safeParse(price).success &&
+        !price.startsWith('-')
+        ? price
+        : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -596,6 +684,24 @@ export class ModelApiClient {
     if (feature === undefined && confirmed !== undefined) feature = 'scheduledPrompts'
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search'))
       feature = 'webSearch'
+    const hasSearch = body.tools.some((tool) => tool.type === 'web_search')
+    const searchQuote = admitAttempt?.searchQuote
+    const searchPrice =
+      searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
+    let reservationUsd: UsdAmount | undefined
+    if (hasSearch && this.hasPaidDailyBudget) {
+      if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      const inputTokens =
+        admitAttempt?.paidEstimatedInputTokens ??
+        estimateInput(requestParts(body), undefined).inputTokens
+      reservationUsd = sumUsd(
+        this.searchTokenCostUsd(
+          { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+          body.model,
+        ),
+        searchAllowanceUsd(body.max_tool_calls, searchPrice),
+      )
+    }
     const claim =
       feature === undefined
         ? undefined
@@ -604,9 +710,69 @@ export class ModelApiClient {
             feature,
             admitAttempt?.paidEstimatedInputTokens,
             signal,
+            reservationUsd,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const claimId =
+      searchQuote === undefined
+        ? undefined
+        : `${searchQuote.id}:${String(this.searchClaimSequence++)}`
+    const searchItems = new Set<string>()
+    let returnedSearches = 0
+    let searchCharge: SearchSettlement | undefined
+    const returnedFees = () =>
+      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
+    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
+      sumUsd(
+        reservedUsd,
+        shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
+          ? Usd.from(0).toAmount()
+          : Usd.from(returnedFees())
+              .subtract(
+                Usd.from(
+                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
+                ),
+              )
+              .toAmount(),
+      )
+    const noteReturned = (isTerminal: boolean) => {
+      if (searchQuote === undefined || claimId === undefined) return
+      const effects = authority.dispatch({
+        type: 'settle',
+        claimId,
+        returnedCalls: returnedSearches,
+        isTerminal,
+      })
+      for (const effect of effects) {
+        if (effect.type === 'settled') searchCharge = effect.settlement
+      }
+      if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
+    }
+    let hasTerminal = false
+    let hasTerminalSearchCount = false
+    const noteSearchAnomaly = () => {
+      if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
+        this.deps.log.warn(
+          `Hosted search returned ${String(returnedSearches)} calls above its bound of ${String(body.max_tool_calls)}; all calls are charged`,
+        )
+      }
+    }
     try {
+      if (searchQuote !== undefined && claimId !== undefined) {
+        if (this.deps.paidAuthority === undefined) {
+          const grant = { quote: searchQuote, generation: 'caller' }
+          authority.dispatch({ type: 'quote', ...grant, ask: true })
+          authority.dispatch({ type: 'answer', grant, answer: 'once' })
+        } else if (!authority.canSpend(searchQuote))
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        authority.dispatch({
+          type: 'reserve',
+          claimId,
+          quote: searchQuote,
+          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        })
+      }
       const response = await within(
         this.request(
           '/responses',
@@ -655,15 +821,35 @@ export class ModelApiClient {
           const known = streamEventSchema.safeParse(json)
           if (known.success) {
             if (
-              claim !== undefined &&
+              known.data.type === 'response.output_item.done' &&
+              known.data.item.type === 'web_search_call'
+            ) {
+              searchItems.add(
+                known.data.item.id ??
+                  (known.data.output_index === undefined
+                    ? `unidentified:${String(searchItems.size)}`
+                    : `index:${String(known.data.output_index)}`),
+              )
+              returnedSearches = searchItems.size
+              noteReturned(false)
+            }
+            if (
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
               'response' in known.data
             ) {
+              returnedSearches = Math.max(
+                returnedSearches,
+                known.data.response.output.filter((item) => item.type === 'web_search_call').length,
+              )
+              hasTerminalSearchCount = true
+              noteReturned(true)
+              noteSearchAnomaly()
               const usage = known.data.response.usage
               const cached = usage?.input_tokens_details?.cached_tokens ?? 0
               if (
+                claim !== undefined &&
                 usage !== null &&
                 usage !== undefined &&
                 Number.isSafeInteger(usage.input_tokens) &&
@@ -674,17 +860,27 @@ export class ModelApiClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
+                const billable = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
                 await claim.settle(
-                  estimateCostUsd(
-                    {
-                      inputTokens: usage.input_tokens,
-                      outputTokens: usage.output_tokens,
-                      cachedTokens: cached,
-                    },
-                    body.model,
+                  sumUsd(
+                    hasSearch
+                      ? this.searchTokenCostUsd(
+                          billable,
+                          body.model,
+                          returnedLiability(claim.reservedUsd, false),
+                        )
+                      : estimateCostUsd(billable, body.model),
+                    returnedFees(),
                   ),
                 )
+              } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
+                await claim.settle(returnedLiability(claim.reservedUsd, false))
               }
+              hasTerminal = true
             }
             yield known.data
             continue
@@ -712,7 +908,11 @@ export class ModelApiClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) await paid.claim.settle(0)
+      if (!hasTerminal) noteSearchAnomaly()
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
+      else if (paid !== undefined && hasSearch && !hasTerminal) {
+        await paid.claim.settle(returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount))
+      }
     }
   }
 }

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
@@ -120,23 +121,43 @@ describe('summarizeInsights', () => {
 describe('cost estimate', () => {
   it('prices fresh and cached input and output by the model’s tier', () => {
     const usage = { inputTokens: 1_000_000, outputTokens: 100_000, cachedTokens: 200_000 }
-    expect(estimateCostUsd(usage, 'muse-spark-1.3')).toBeCloseTo(
+    expect(Number(estimateCostUsd(usage, 'muse-spark-1.3'))).toBeCloseTo(
       0.8 * 1.25 + 0.2 * 0.15 + 0.1 * 4.25,
     )
-    expect(estimateCostUsd(usage, 'muse-spark-1.3-contributor')).toBeCloseTo(
+    expect(Number(estimateCostUsd(usage, 'muse-spark-1.3-contributor'))).toBeCloseTo(
       0.8 * 0.1 + 0.2 * 0.002 + 0.1 * 0.2,
     )
     // Cached tokens never exceed the input they sit inside.
     expect(
-      estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'x'),
+      Number(estimateCostUsd({ inputTokens: 10, outputTokens: 0, cachedTokens: 50 }, 'x')),
     ).toBeCloseTo((10 * 0.15) / 1_000_000)
   })
 
   it('formats dollars with four decimals under a dollar, two above, and whole percents', () => {
-    expect(formatUsd(0.01234)).toBe('$0.0123')
+    expect(formatUsd(0.01234)).toBe('$0.0124')
     expect(formatUsd(1.456)).toBe('$1.46')
     expect(percentOf(30, 31)).toBe(97)
     expect(percentOf(0, 0)).toBe(0)
+  })
+
+  it('keeps positive retained token liabilities smaller than four decimal places visible', () => {
+    expect(formatUsd(0.00003375)).toBe('$0.000034')
+    expect(formatUsd(0.000000002)).toBe('$0.0000000020')
+    expect(
+      estimateCostUsd(
+        { inputTokens: 1, cachedTokens: 1, outputTokens: 0 },
+        'muse-spark-1.3-contributor',
+      ),
+    ).toBe(Usd.from(0.000000002).toAmount())
+  })
+
+  it.each([
+    ['0.00003375', '$0.000034'],
+    ['0.00011', '$0.00011'],
+    ['0.002501', '$0.0026'],
+    ['1.004', '$1.01'],
+  ])('never under-reports the retained exact liability %s', (value, shown) => {
+    expect(formatUsd(value)).toBe(shown)
   })
 
   it('writes dollars as the display language writes money (M40)', () => {

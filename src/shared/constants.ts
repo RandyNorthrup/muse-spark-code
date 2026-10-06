@@ -1,3 +1,4 @@
+import { usdAmountSchema } from './usd'
 // Every tunable and user-visible literal lives here. The no-magic-numbers lint
 // rule is disabled for this file only; everywhere else a bare literal is an
 // error. Keep entries grouped and named for what they mean, not what they are.
@@ -130,6 +131,8 @@ export const LOCAL_PROBE_SNIPPET_CHARS = 500
 export const PROVIDERS_BUNDLE_FILE = 'providers.js'
 /** An import file above this is refused rather than parsed (D74). */
 export const PROVIDER_IMPORT_MAX_BYTES = 1024 * 1024
+// Profile-wide, exclusive approval-order records shared by all processes.
+export const PAID_APPROVAL_ORDER_DIRECTORY = 'paid-approval-order'
 
 // Extension-private `globalState` keys (never machine-wide configuration).
 export const GLOBAL_STATE_KEYS = {
@@ -152,6 +155,7 @@ export const GLOBAL_STATE_KEYS = {
    * before the change is void in every workspace.
    */
   paidGrantGenerations: 'museSpark.paidGrantGenerations',
+  paidApprovalOrder: 'museSpark.paidApprovalOrder',
   /**
    * The worktrees the extension made for a conversation (M71), read by every
    * window: what each is, and whether someone else's pull request is held.
@@ -850,9 +854,9 @@ export const PAID_FEATURE_SETTINGS = {
 // 2026-09-24), on top of the tokens a turn uses: a web search, an image, and
 // an hour of Muse Voice Transcribe audio.
 export const PAID_PRICES_USD = {
-  webSearchPerThousand: 2.5,
-  imageGeneration: 0.01,
-  voicePerHour: 0.18,
+  webSearchPerThousand: usdAmountSchema.parse('2.5'),
+  imageGeneration: usdAmountSchema.parse('0.01'),
+  voicePerHour: usdAmountSchema.parse('0.18'),
 } as const
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
 // Lossless reference token indices use a compact, browser-safe alphabet.
@@ -933,6 +937,7 @@ export const WORKSPACE_STATE_KEYS = {
   damagedSessions: 'museSpark.damagedSessions',
   lastSession: 'museSpark.lastSession',
   /** The paid features allowed always in this workspace, with their grant generation (M58). */
+  paidQuoteGrants: 'museSpark.paidQuoteGrants',
   paidWorkspaceGrants: 'museSpark.paidWorkspaceGrants',
   /** The pull request each conversation opened, by session id (M71). */
   pullRequestLinks: 'museSpark.pullRequestLinks',
@@ -1650,11 +1655,21 @@ export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
 // exact MODEL_API_PRICED_MODELS whitelist below. A suffix display fallback
 // for a future model is not a verified tariff or capped spending.
 export const MODEL_API_PRICES_PER_MILLION = {
-  standard: { input: 1.25, cachedInput: 0.15, output: 4.25 },
-  contributor: { input: 0.1, cachedInput: 0.002, output: 0.2 },
+  standard: {
+    input: usdAmountSchema.parse('1.25'),
+    cachedInput: usdAmountSchema.parse('0.15'),
+    output: usdAmountSchema.parse('4.25'),
+  },
+  contributor: {
+    input: usdAmountSchema.parse('0.1'),
+    cachedInput: usdAmountSchema.parse('0.002'),
+    output: usdAmountSchema.parse('0.2'),
+  },
 } as const
 export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
 export const MODEL_API_PRICE_DECIMALS = 3
+/** Decimal currency coefficients stay integers; no binary USD arithmetic in admission. */
+export const USD_USAGE_DISPLAY_DECIMALS = 4
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
@@ -3185,7 +3200,7 @@ export const ACP_DEFAULT_BACKEND: AcpBackendKind = 'museCode'
 export const HTTP_STATUS_MAX = 599
 export const EXEC_COMMAND = 'exec'
 export const EXEC_SCAN_COMMAND = 'scan-secrets'
-export const EXEC_PROTOCOL_VERSION = 1
+export const EXEC_PROTOCOL_VERSION = 2
 export const EXEC_MODES = ['plan', 'acceptEdits'] as const
 export const EXEC_DEFAULT_MODE = 'plan'
 export const EXEC_OUTPUTS = ['text', 'json', 'jsonl'] as const

@@ -1,3 +1,5 @@
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The Account & Usage modal (M8, rebuilt in D17 after Claude Code's): the
 // account (sign-in method, plan, backend, CLI version, model), the
 // subscription windows Muse Code last observed (the current block and the
@@ -187,15 +189,19 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
  */
 function cacheSavings(
   usage: UsageSummary,
-  costUsd: number,
+  costUsd: UsdAmount,
   modelId: string,
-): { readonly amount: number; readonly percent: number } {
+): { readonly amount: UsdAmount; readonly percent: number } {
   const uncached = estimateCostUsd(
     { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens: 0 },
     modelId,
   )
-  const amount = uncached - costUsd
-  return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
+  const amount = Usd.from(uncached).subtract(Usd.from(costUsd)).toAmount()
+  const ratio =
+    Usd.from(uncached).compare(Usd.from(0)) > 0
+      ? Usd.from(amount).times(100).floorDivide(Usd.from(uncached))
+      : USD_DECIMAL_ZERO
+  return { amount, percent: Number(ratio) }
 }
 
 function TokensSection({
@@ -207,7 +213,7 @@ function TokensSection({
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
   readonly modelId: string | undefined
   /** The current model lost its price card (M95): tokens only, said so. */
   readonly pricing: ModelPricing | undefined

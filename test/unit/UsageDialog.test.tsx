@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -589,7 +590,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
           scheduledRuns: 0,
           autoReviews: 3,
           autoReviewTokens: 3000,
-          autoReviewCostUsd: 0.0042,
+          autoReviewCostUsd: Usd.from(0.0042).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['autoReviewer'],
@@ -700,12 +701,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 45_000,
           tabCachedTokens: 3000,
-          tabCostUsd: 0.12,
+          tabCostUsd: Usd.from(0.12).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // Another window spent too: the ledger's day is not this window's cost.
-        tab: { budgetUsd: 1, todayUsd: 0.62 },
+        tab: { budgetUsd: Usd.from(1).toAmount(), todayUsd: Usd.from(0.62).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -734,12 +735,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.01,
+          tabCostUsd: Usd.from(0.01).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // The ledger has not been read in this window yet.
-        tab: { budgetUsd: 5 },
+        tab: { budgetUsd: Usd.from(5).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -763,7 +764,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 1,
           tabTokens: 1200,
           tabCachedTokens: 400,
-          tabCostUsd: 0.004,
+          tabCostUsd: Usd.from(0.004).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -788,7 +789,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 2,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.001,
+          tabCostUsd: Usd.from(0.001).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -826,7 +827,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 3,
           tabTokens: 9000,
           tabCachedTokens: 1000,
-          tabCostUsd: 0.02,
+          tabCostUsd: Usd.from(0.02).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -852,7 +853,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 2,
           tabTokens: 2000,
           tabCachedTokens: 500,
-          tabCostUsd: 0.005,
+          tabCostUsd: Usd.from(0.005).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['tab'],
@@ -877,7 +878,7 @@ describe('M98 Judge usage row', () => {
           judgeCalls: 2,
           judgeUnknownRequests: 1,
           judgeTokens: 1100,
-          judgeCostUsd: 0.001125,
+          judgeCostUsd: Usd.from(0.001125).toAmount(),
         },
       },
     })

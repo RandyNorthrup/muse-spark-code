@@ -1,3 +1,4 @@
+import { type UsdAmount } from '../../../shared/usd'
 import type { CreateResponseBody } from '../../backends/modelapi/schemas'
 import type { CachedPrefix } from '../../backends/modelapi/promptCache'
 import type { ResponseAttemptGuard } from '../../backends/modelapi/client'
@@ -16,8 +17,8 @@ export interface ModelApiSideResponse {
   readonly outputTokens?: number | undefined
   /** Only a complete provider receipt is suitable for U's usage rows. */
   readonly usage?: TokenUsage | undefined
-  readonly reservedCostUsd?: number | undefined
-  readonly settledCostUsd?: number | undefined
+  readonly reservedCostUsd?: UsdAmount | undefined
+  readonly settledCostUsd?: UsdAmount | undefined
 }
 
 export interface ModelApiJudgeTransport {

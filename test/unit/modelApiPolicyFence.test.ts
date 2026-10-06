@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The dispatcher's live policy fence (M78, the lead's choke-point decisions
 // after RV78f and RV78g): every tool the dispatcher knows by name, and the
 // external ones (an MCP server's, the IDE's), run through the host with the
@@ -717,7 +718,7 @@ function fixture(c: FenceCase) {
     isWorkspaceTrusted: () => state.isTrusted,
     permissionSettings: () => state.settings,
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     promptCacheRetention: () => 'in_memory',
     describeEnvironment: () => Promise.resolve({ git: undefined }),

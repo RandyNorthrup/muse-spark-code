@@ -27550,6 +27550,115 @@ Existing schema-free records remain byte-identical. Each finding gets a
 regression and a byte-exact restored red drill in `docs/certification/m106-o2.md`.
 Production CLI/provider/canonical result wiring and public help remain W's
 named handoffs; scoped gates run on this rig, aggregate quality stays with lead.
+**H round-5 lifecycle fix (FIXM106H5, 2026-10-06).** Resolve RVM106H5's
+sole P2 by retiring request quotes and validators through the existing session
+work-completion and disposal owners. Settled leaf requests release their tokens;
+parent tokens still needed by child tasks and follow-ups keep their existing
+authority until that conversation closes. Disposal releases all of its tokens,
+including pending questions and inherited child tokens, without clearing remembered
+grants or dispatched settlement claims. Add a repeated open/close bounded-size
+invariant, retained-surface and settlement regressions, and byte-exact red drills.
+No guard, dependency, timeout, wire shape or product/editor handoff changes.
+
+**H round-5 rig result (2026-10-06).** All 1,084 tests in the 15 owned
+whole files pass at default timeouts. Five named red drills fail and restore
+byte-exact. Authority coverage passes unchanged thresholds: 98.01% statements,
+93.8% branches, 100% functions and 99.45% lines. Scoped lint/format, five-project
+typecheck, knip, cycles, zero-clone jscpd, localization, host API and production
+build pass. Model API is 467.3/475 KiB, ACP 834.9/850 KiB and extension
+456.9/600 KiB. `docs/certification/m106-h.md` records the lifecycle evidence;
+there is no accepted finding residual.
+
+**H round-4 fixes (FIXM106H4, 2026-10-06).** Resolve all four P2s and
+P3 in RVM106H4 without changing the reducer architecture. One profile-wide
+approval counter is persisted beside the grant store; exclusive publication
+orders approvals across owners, independently of quote history. Grants remain
+keyed by feature/provider/model and newer cheaper Always replaces the ceiling.
+Active quotes are scoped by conversation/request, tariff changes and revocation
+invalidate only matching authority, and revoked save completions are discarded.
+Children, follow-ups and retries inherit the parent's search token and bound,
+with the existing parent/session/daily budget fences. ACP docs name decimal-string
+v2 schemas as canonical and the v1 reader as legacy. Extend the interleaving
+model and production adapter probes, red drill each finding, and run the bounded
+rig gates at default timeouts. No dependency, merge or live/paid call is authorized.
+
+**H round-4 rig result (2026-10-06).** All RVM106H4 findings are fixed.
+The final default-timeout run passes 1,077 tests in 15 whole files. Twelve red
+drills fail by name and restore byte-exact; both 720-schedule models pass.
+Owner coverage is 97.98% statements, 93.67% branches, 100% functions and 99.44%
+lines. Scoped lint/format, five-project typecheck, knip, cycles, zero-clone
+jscpd, localization, host API, schemas and production build pass. Model API
+is 466.6/475 KiB, ACP 834.7/850 KiB and extension 456.6/600 KiB. The durable
+record is `docs/certification/m106-h.md`; §9 has no accepted finding residual.
+
+**H round-3 redesign (REDM106H, 2026-10-06).** Replace snapshot-based
+search authority with one synchronous `step(state, event)` owner. Prompts and
+persistence are tagged effects; provider/model grant writes carry their original
+revocation generation and quote id. Ask again invalidates pending answers and
+saves before awaiting storage; independent keys never replace a shared array.
+The same reducer owns quote admission, reservation and quote-only settlement,
+with one exact settlement receipt projected to daily/session/tally consumers.
+Memento and ACP persistence store independent generation-owned quote records.
+Remove replaced quote caches, whole-array saves and numeric money adapters:
+current budget, pricing, reservation, settlement, journal and consent ports use
+branded canonical USD strings; historical numbers migrate only on parse.
+All reviewer probes remain named regressions. Exhaustive completion-order
+coverage and generation/key/number-parse red drills use default timeouts, with
+byte-exact restoration in `docs/certification/m106-h.md`. No paid/live calls,
+merge or full quality run in this rig lane; lead runs the full gate matrix.
+The exact-money port invariant also covers the private M80 headless contract and
+Action consumer: canonical strings replace numeric USD without changing opt-in,
+image flags or hard-budget admission. Its versioned schema advances to v2; v1
+artifacts remain historical. Existing W/M95 product handoffs remain.
+
+**H round-3 rig result (2026-10-06).** The serialized quoted authority and
+exact current-money contracts are implemented. 3,058 tests in 69 owned/touched
+whole files pass at default timeouts; owner coverage is 100% statements,
+functions and lines, 94.02% branches. All three generation/key/number-parse
+drills fire and restore byte-exact. Five-project typecheck, scoped lint/format,
+knip, cycles, zero-clone duplication, 14-table localization, host API, schemas
+and production build pass. Model API is 464.8/475 KiB; ACP is 832.0/850 KiB.
+Receipts and the named probe map are in `docs/certification/m106-h.md`.
+The lead retains integrated quality, multi-OS/editor checks and M80 live receipts.
+
+**H round-2 fixes (FIXM106H2, 2026-10-06).** All four P2s and the P3
+in RVM106H2 are in scope, with no accepted residual. Hosted-search consent
+returns an immutable quote binding feature, provider, model, model revision,
+exact decimal tariff, unit and capture time. Always grants bind provider/model
+and a tariff ceiling; stale open questions are refused and asked again.
+Dispatch and settlement carry that quote without re-reading its price.
+Returned calls become liabilities before fallible observers. Exact decimal
+amounts cross search reservation, journal, session and tally ports, with
+canonical-string persistence and one-time legacy-number migration. Arbitrary
+decimals remain exact (no fixed-unit truncation); display uses a shared ceiling
+formatter with at least two significant digits below a cent. Regression probes,
+random exact-sum agreement and byte-exact red drills certify every finding.
+Existing non-search legacy adapters and W/M95 product handoffs are preserved.
+The exact formatter requires an acyclic decimal-identity leaf
+(`shared/usdConstants.ts`): the root constants module already imports locale
+text. Required money/quote schemas therefore also update the session-store,
+agent-event and transcript boundaries and their adapters; ACP's generation-owned
+quote ceiling is persisted beside its existing grant. No capability, paid gate,
+protected-path, headless or wire guard is widened.
+
+**H review fixes (FIXM106H, 2026-10-06).** Resolve all RVM106H findings:
+preserve sub-cent retained charges with the existing usage formatter; release
+unused hosted allowance only on an authoritative terminal count; settle
+search and token costs on the original durable request claim; carry the
+verified per-call tariff through consent and paid tally contracts; use
+integer fixed-point currency for allowances, settlements, journal sums and
+cap comparisons, including legacy journal migration. The shared consent,
+tally and journal files are required contract/accounting changes for H;
+no unrelated lane regions, dependencies, wire shapes or guards change.
+Each finding gets a default-timeout regression and byte-exact red drill in
+`docs/certification/m106-h.md`. Product wiring remains the existing W/M95
+handoffs, including equivalent interactive-editor ports and headless refusal.
+Exact arithmetic uses a small shared decimal value backed by integer
+coefficients, rather than rounding existing sub-micro token charges away.
+Journal version 2 stores exact decimal strings; version 1 float amounts are
+converted once when parsed, preserving their represented precision. Only
+the owner publishes a migrated claim on its next write; readers never
+rewrite another owner's row and cannot race a settlement.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
@@ -31345,6 +31454,13 @@ commits use scoped owning tests, deliberate red drills and available static/buil
 checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
+**REDM106H bounded rig certification (2026-10-06).** The explicit rig brief
+prohibits aggregate quality, full-suite runs and branch integration here. Run
+touched/owned whole files with default timeouts, scoped lint/format, all five
+typechecks, deadcode, duplication, localization, host API, cycles and production
+build. The lead retains integrated quality and the multi-OS matrix. No gate is
+weakened. The v2 headless money contract remains private/unsupported pending
+M80’s hosted/live receipts; this lane uses fake transports only.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -32895,10 +33011,14 @@ aggregate certification record.
 
 ## 8. Escape hatches register
 
-| Location                                       | Escape hatch                            | Reason                                                                                                                                                                                                                                                                       |
-| ---------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/runtime/exec/outputSchema.ts` (FIXM106O2) | `unicorn/prefer-number-is-safe-integer` | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented. |
-| `src/shared/l10n/text.ts` (ACTDIET)            | `as UiText` on the descriptor clone     | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                           |
+| Location                                         | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/exec/outputSchema.ts` (FIXM106O2)   | `unicorn/prefer-number-is-safe-integer`                          | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented. |
+| `src/shared/l10n/text.ts` (ACTDIET)              | `as UiText` on the descriptor clone                              | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                           |
+| Location                                         | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------ | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                           |
+| `src/host/settings.ts`, `readSetting` (REDM106H) | Existing `as ExtensionSettings[K]` on fallback and parsed result | Every matching keyed schema validates the configured value and its default, including numeric-to-canonical money migration. TypeScript cannot correlate the generic indexed key with the schema output. Defaults and invalid money are tested.                               |
+| `src/shared/l10n/text.ts` (ACTDIET)              | `as UiText` on the descriptor clone                              | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                           |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -33127,6 +33247,57 @@ before a repaired one loads (2026-09-30).
   fake CLI smoke, then the lead's full gate and counted live receipts before
   any supported-feature claim. Local fallback is shared runtime behavior,
   independent of editor/vendor, and costs one ordinarily budgeted request.
+  **FIXM106H5 review disposition (2026-10-06).** RVM106H5's single lifecycle
+  P2 is fixed; there is no accepted finding residual. The existing session disposal
+  callback releases conversation-owned quotes and validators, including child
+  sessions outside the host map. Work completion retires settled request tokens;
+  the latest live parent token and tokens held by active/queued child grants remain
+  available for the existing continuation/follow-up policy, then release on disposal.
+  Stale questions invalidate their tagged quote, so late completion cannot restore
+  a disposed request. Remembered grants, dispatched claims and exact settlement
+  remain independent of request callback lifetime. A 12-conversation open/close
+  invariant reaches zero retained validators and quotes; retained surfaces and a
+  child held at daily admission preserve live authority. Five byte-exact red drills
+  are recorded in `docs/certification/m106-h.md`. Existing W/M95 handoffs, integrated
+  quality, multi-OS/editor checks and M80 hosted/live receipts remain lead-owned.
+
+**FIXM106H4 review disposition (2026-10-06).** All four P2s and the
+ACP documentation P3 in RVM106H4 are fixed; no named finding residual remains.
+Approval order comes from one exclusive persisted profile counter, with legacy
+owner-local records asking again. Revoked save completions cannot clear a fresh
+generation. Conversation/request identities, including UUIDs for same-clock
+legacy requests, isolate independently consented uses and cancellation. Child
+and follow-up tokens inherit the parent tariff and hosted-call bound through the
+shared authority; existing daily/session/task budgets and retry fences stay in
+force. Workspace Always status is read from that workspace's persisted records.
+The guide names v2 decimal-string schemas and labels the v1 reader legacy.
+Default-timeout regressions, two 720-schedule models and twelve byte-exact red
+drills are recorded in `docs/certification/m106-h.md`. Existing W/M95 handoffs,
+full integrated quality, multi-OS/editor checks and M80 hosted/live receipts
+remain with the lead; no live or separate-process certification is claimed.
+
+**FIXM106H2 review disposition (2026-10-06).** All four P2 findings and
+the arithmetic P3 in RVM106H2 are fixed, with no accepted finding residual.
+Immutable consent/dispatch quotes and generation-owned tariff ceilings cover
+model switches, price increases and restarts; returned liability is recorded
+before observers and settlement uses the dispatch quote. Canonical decimal
+ports, legacy parse migration and a shared upward display formatter cover the
+arbitrary-tariff and tiny-price probes. The seeded random-charge test compares
+the actual daily ledger, session journal and paid tally against an independent
+bigint oracle. Default-timeout tests and byte-exact drills are recorded in
+`docs/certification/m106-h.md`. Existing W/M95 handoffs below remain pending;
+no live pricing, multi-process, Windows or editor smoke is claimed by this rig.
+
+**FIXM106H review disposition (2026-10-06).** RVM106H's four P2 findings
+and arithmetic P3 are corrected, with no accepted finding residual. The
+existing H-CAPABILITY, H-SETTING, H-PRICES, H-ONCE, H-DAILY-RAISE, H-EDITOR
+and H-DOCS handoffs remain with W/M95, as documented in
+`docs/certification/m106-h.md`; this fix does not certify product wiring or
+another provider's uncaptured capabilities. Unverified routes still refuse.
+The journal retains crash liability on the original request row, preserves
+legacy decimal precision at parse, and never migrates another owner's row
+by writing it. Default-timeout regressions and byte-exact drills cover the
+review findings and terminal settlement-pricing failure.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

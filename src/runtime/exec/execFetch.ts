@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import * as z from 'zod/mini'
 import { imagesResponseSchema, streamEventSchema } from '../../core/backends/modelapi/schemas'
 import { parseSse } from '../../core/backends/modelapi/sse'
@@ -73,7 +74,7 @@ export function execFetch(input: {
         n: null,
         phase: 'refused',
         units: 1,
-        usd: 0,
+        usd: Usd.from(0).toAmount(),
         reason,
       })
     if (reason !== 'closed') input.onLatch({ kind: reason })

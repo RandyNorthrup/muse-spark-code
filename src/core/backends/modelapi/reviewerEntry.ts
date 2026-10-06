@@ -1,3 +1,4 @@
+import { Usd, isPositiveUsd } from '../../../shared/usd'
 // Paid Auto review execution: loaded only after the paid-use popup allows it.
 // Session-owned fences and journal observers are passed through unchanged.
 import type { ModelApiHostDeps, DirectResponseBudget } from './ModelApiHost'
@@ -231,14 +232,14 @@ async function requestReviewer(
   let usage: Usage | null | undefined
   let claim: SessionBudgetClaim | undefined
   let directBudget: DirectResponseBudget | undefined
-  let reservedUsd = 0
+  let reservedUsd = Usd.from(0).toAmount()
   let wasRefused = false
   try {
     if (budgetScope !== undefined) {
       const total = await budgetScope.journal.read(budgetScope.sessionId, budgetScope.accountId)
       const capUsd = budgetScope.capUsd()
       const input = estimateInput(requestParts(body), undefined).inputTokens
-      if (capUsd > 0) {
+      if (isPositiveUsd(capUsd)) {
         const reservation = reserveRequest({
           capUsd,
           spentUsd: total.spentUsd,
@@ -258,7 +259,7 @@ async function requestReviewer(
         budgetScope.sessionId,
         budgetScope.accountId,
         reservedUsd,
-        { isUnbounded: capUsd === 0 },
+        { isUnbounded: !isPositiveUsd(capUsd) },
       )
     }
     directBudget = { scope: budgetScope, claim, isSent: false }

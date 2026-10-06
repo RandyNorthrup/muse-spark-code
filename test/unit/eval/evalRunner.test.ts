@@ -435,7 +435,7 @@ describe('runPairedEval', { timeout: RUNS_TIMEOUT_MS }, () => {
     api.script({ text: 'Expensive.', usage: { input: BUDGET_BREAKING_INPUT_TOKENS, output: 0 } })
     const report = await runPairedEval([first, second], [BASELINE], deps)
     const [spent, refused] = report.arms[0]?.results ?? []
-    expect(spent?.costUsd).toBeGreaterThanOrEqual(EVAL_BUDGET_USD)
+    expect(Number(spent?.costUsd)).toBeGreaterThanOrEqual(EVAL_BUDGET_USD)
     expect(refused).toMatchObject({ passed: false, terminal: 'failed', attempts: 0 })
     expect(refused?.failures).toContain(
       `refused: the evaluation's budget of $${EVAL_BUDGET_USD.toFixed(2)} is spent`,

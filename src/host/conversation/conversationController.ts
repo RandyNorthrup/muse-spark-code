@@ -1,3 +1,6 @@
+import { Usd } from '../../shared/usd'
+import type { PaidUseDecision, SearchSettlement } from '../../shared/paid'
+import type { UsdAmount } from '../../shared/usd'
 import { startApprovalJudge } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
@@ -438,7 +441,7 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
-  readonly modelApiSessionBudgetUsd: () => number
+  readonly modelApiSessionBudgetUsd: () => UsdAmount
   /** Digest only; available before a conversation or workspace exists. */
   readonly voiceAccountId: () => Promise<string | undefined>
   readonly ownedVoiceBudgetScope: (
@@ -483,7 +486,7 @@ export interface ConversationDeps {
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
-  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
+  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<PaidUseDecision>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
   readonly checkpoints: CheckpointPort
   /** Files open with unsaved changes, absolute (M72: a restore leaves them). */
@@ -521,7 +524,11 @@ export interface ConversationDeps {
   /** Whether a paid feature's setting is on and its price accepted (M77). */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts a paid use in the window's tally (M77). */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ) => void
   /** A Model API host rooted in a best-of-N worktree (M77). */
   readonly buildAttemptHost: (
     worktreeRoot: string,
@@ -3920,7 +3927,7 @@ export class ConversationController {
         contextId: () =>
           `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
         isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
-        allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+        allowsPaidUse: async (request) => (await this.deps.allowsPaidUse(request)) === true,
         notePaidUse: (attempts) => {
           this.deps.notePaidUse('bestOfN', attempts)
         },
@@ -8153,7 +8160,7 @@ export class ConversationController {
     if (
       museVoice !== undefined &&
       this.voiceIsModelApi() &&
-      this.deps.modelApiSessionBudgetUsd() > 0
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     ) {
       return {
         engine: 'museVoice',
@@ -8177,7 +8184,7 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
     const workspaceRoot = this.deps.workspaceRoot
@@ -8326,7 +8333,7 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
         const current = this.dictationChoice()
@@ -8340,7 +8347,7 @@ export class ConversationController {
       }
       consentFence(accountId, true)
       // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
-      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
+      const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
       if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
         this.postDictationState()
         return

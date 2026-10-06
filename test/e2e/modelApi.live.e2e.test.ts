@@ -82,6 +82,7 @@ import { planBody } from '../../src/core/plans/planDocument'
 import { listItems } from '../../src/core/plans/planMarkdown'
 import { listWorkspaceFiles } from '../../src/core/eval/workspace'
 import { estimateCostUsd } from '../../src/core/usage/insights'
+import { Usd } from '../../src/shared/usd'
 import type { DictationHandle, DictationListener } from '../../src/core/voice/dictation'
 import { MuseVoiceDictation } from '../../src/core/voice/museVoice'
 import { reviewTurnText } from '../../src/core/review/reviewPrompt'
@@ -354,13 +355,15 @@ function tokenUsd(calls: readonly WireCall[]): number {
   let total = 0
   for (const call of calls) {
     if (isBilledResponse(call)) {
-      total += estimateCostUsd(
-        {
-          inputTokens: call.inputTokens,
-          outputTokens: call.outputTokens,
-          cachedTokens: call.cachedTokens,
-        },
-        call.model ?? MODEL_ID,
+      total += Number(
+        estimateCostUsd(
+          {
+            inputTokens: call.inputTokens,
+            outputTokens: call.outputTokens,
+            cachedTokens: call.cachedTokens,
+          },
+          call.model ?? MODEL_ID,
+        ),
       )
     }
   }
@@ -373,7 +376,7 @@ function imagesBought(calls: readonly WireCall[]): number {
 
 /** The running estimate the budget stop reads: tokens and images so far. */
 function spentUsd(): number {
-  return tokenUsd(wire) + imagesBought(wire) * PAID_PRICES_USD.imageGeneration
+  return tokenUsd(wire) + imagesBought(wire) * Number(PAID_PRICES_USD.imageGeneration)
 }
 
 /** The global `fetch` while the sweep runs: Meta's requests counted, anything else passed on. */
@@ -449,9 +452,9 @@ function isClientError(call: WireCall): boolean {
 function caseUsd(calls: readonly WireCall[], tally: PaidTally): number {
   return (
     tokenUsd(calls) +
-    (tally.webSearches / SEARCHES_PER_PRICE_UNIT) * PAID_PRICES_USD.webSearchPerThousand +
-    tally.images * PAID_PRICES_USD.imageGeneration +
-    (tally.voiceSeconds / SECONDS_PER_HOUR) * PAID_PRICES_USD.voicePerHour
+    (tally.webSearches / SEARCHES_PER_PRICE_UNIT) * Number(PAID_PRICES_USD.webSearchPerThousand) +
+    tally.images * Number(PAID_PRICES_USD.imageGeneration) +
+    (tally.voiceSeconds / SECONDS_PER_HOUR) * Number(PAID_PRICES_USD.voicePerHour)
   )
 }
 
@@ -805,14 +808,19 @@ async function openRig(options: RigOptions): Promise<Rig> {
         }),
       promptCacheRetention: () =>
         options.promptCacheRetention ?? SETTING_DEFAULTS.modelApiPromptCacheRetention,
-      sessionBudgetUsd: options.sessionBudgetUsd ?? (() => 0),
+      sessionBudgetUsd: () => Usd.from(options.sessionBudgetUsd?.() ?? 0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: (feature) => gate.isOn(feature),
-      notePaidUse: (feature, units) => {
-        usage.add(feature, units)
+      notePaidUse: (feature, units, settlement) => {
+        usage.add(feature, units, settlement)
       },
       // The paid-use popup (M58), answered "Allow once" like every card.
-      allowsPaidUse: (request) => Promise.resolve(gate.isOn(request.feature)),
+      allowsPaidUse: (request) =>
+        Promise.resolve(
+          request.feature === 'webSearch'
+            ? gate.isOn(request.feature) && (request.quote ?? false)
+            : gate.isOn(request.feature),
+        ),
       isPaidUseRemembered: () => false,
       noteSubagentUsage: (modelId, childUsage) => {
         usage.addSubagentUsage(modelId, childUsage)
@@ -1104,7 +1112,7 @@ function livePanel(rig: Rig): LivePanel {
     isRestorable: false,
     dictation: { isAvailable: false, reason: 'no microphone in the live sweep' },
     museVoice: () => undefined,
-    modelApiSessionBudgetUsd: () => SETTING_DEFAULTS.modelApiSessionBudgetUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(SETTING_DEFAULTS.modelApiSessionBudgetUsd).toAmount(),
     voiceAccountId: () => rig.manager.accountId(),
     ownedVoiceBudgetScope: async (sessionId) => {
       const host = await rig.manager.ensureHost()

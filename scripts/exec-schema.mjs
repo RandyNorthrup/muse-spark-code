@@ -82,7 +82,7 @@ resultJson.allOf = resultConditions
 resultJson['x-runtime-invariants'] = [
   'Muse Code has null requests/cost/ledger/budget/request limit and zero paid totals; completed Model API results have accounting. Available cap matches limits and bounds total in micro-USD.',
   'Completed Model API results require latest completed, valid, priced settlement with no transport failure.',
-  'USD fields are safe integer micro-USD conversions; total = settled + uncertain + reserved in micro-USD.',
+  'USD fields are canonical decimal strings exactly representable in micro-USD; total = settled + uncertain + reserved in micro-USD.',
   'Cached tokens <= input tokens; reasoning tokens <= output tokens; counters are safe nonnegative integers.',
   'Paid returned + refunded + uncertain units <= admitted image attempts.',
   'Workspace-relative forward-slash paths are deduplicated; input names are basenames.',
@@ -125,7 +125,7 @@ for (const [name, schema] of [
   ['result', resultJson],
   ['event', eventJson],
 ]) {
-  const file = path.join(root, `docs/schemas/exec-${name}-v1.schema.json`)
+  const file = path.join(root, `docs/schemas/exec-${name}-v2.schema.json`)
   const bytes = await format(JSON.stringify(schema), {
     ...(await resolveConfig(file)),
     filepath: file,

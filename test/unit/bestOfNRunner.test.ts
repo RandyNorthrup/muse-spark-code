@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The best-of-N run (M77, PLAN.md D49): one popup, N worktrees, diffs per
 // attempt, and a take that merges only the taken branch.
 
@@ -339,7 +340,7 @@ describe('BestOfNRunner guards', () => {
           Promise.resolve({
             sessionId: 'parent-1',
             accountId: 'account-1',
-            capUsd: () => 1,
+            capUsd: () => Usd.from(1).toAmount(),
             isStillAllowed: () => isCurrent,
             journal: {
               read: () => Promise.reject(new Error('scope journal is not called by runner')),

@@ -41,6 +41,38 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Hosted-search request validators retire after settlement and conversation
+  disposal, so opening and closing chats does not retain their transcripts.
+  Live parent/child authorization, remembered grants and dispatched charges
+  keep their existing lifetime and accounting guards.
+- Hosted-search Always approvals follow one persisted profile order, so an older
+  owner cannot restore a higher ceiling. Revoked save completions preserve fresh
+  approvals, parallel conversations keep independent consent, and child tasks
+  inherit the parent's bounded search authorization. Legacy owner-local orders
+  ask again when moving to the profile chronology.
+- The ACP guide links the canonical v2 decimal-string schemas and identifies
+  the v1 numeric reader as legacy compatibility.
+
+- Hosted-search grants are owned by one synchronous state machine and saved as immutable provider/model/quote records. Ask again invalidates pending answers and writers, including delayed writes over a newer tariff ceiling.
+- Paid budgets, pricing, claims and settlements use exact decimal money across interactive and ACP ports. Daily raises preserve the entered digits. The private headless result/event contract advances to v2 with canonical USD strings and matching Action validation; flags and hard budgets are unchanged.
+
+- Paid prices and retained-charge warnings round upward and keep small positive charges visible, including sub-cent hosted-search tariffs.
+
+- Hosted-search consent binds an immutable provider/model/tariff quote; higher prices ask again, and returned searches settle at the dispatch price even when pricing changes or disappears.
+- Hosted-search budgets, saved replies and paid tallies retain exact decimal amounts through arithmetic and storage, including legacy migration.
+
+- Bounded hosted search preserves sub-cent retained liabilities in its
+  settlement-pricing warning instead of displaying a positive charge as zero.
+- Terminal search counts release unused session allowance even when token
+  usage is missing. Search fees settle the original durable request claim,
+  so a crash cannot count an in-bound fee beside its existing reservation.
+- Hosted-search consent and paid tallying use the provider's verified
+  tariff, including when a window changes providers.
+- Hosted-search allowances, settlements and shared budget comparisons use
+  exact decimal arithmetic; existing journal amounts migrate without
+  dropping sub-micro-dollar charges. The last affordable search is admitted
+  at the cap, and positive retained token liabilities remain visible.
+
 - Reopening or closing a Git form now cancels its structured draft repair and
   fallback requests, and stale form epochs are rejected before settlement.
   Cancellation before dispatch adds no use; requests already sent remain counted.

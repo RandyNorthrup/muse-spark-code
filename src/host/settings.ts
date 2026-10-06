@@ -1,3 +1,4 @@
+import { Usd, legacyUsdSchema, type UsdAmount } from '../shared/usd'
 // Reads `museSpark.*` settings with runtime validation. VS Code already
 // validates against the manifest schema, but settings.json can hold anything,
 // so every value is parsed; an invalid value is logged and replaced by the
@@ -41,7 +42,7 @@ import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol
 import type { Logger } from './logger'
 
 export interface ExtensionSettings extends SettingsSnapshot {
-  readonly paidDailyBudgetUsd: number
+  readonly paidDailyBudgetUsd: UsdAmount
   readonly dictationEngine: 'system' | 'museVoice'
   /** Absolute path to the `muse` executable; empty means "discover". */
   readonly museBinaryPath: string
@@ -92,7 +93,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** The model Tab completion requests use (Q-M94b). */
   readonly tabModel: TabModel
   /** The hard daily budget in US dollars for Tab requests (Q-M94c). */
-  readonly tabDailyBudgetUsd: number
+  readonly tabDailyBudgetUsd: UsdAmount
   /** The languages Tab suggests in, like `github.copilot.enable`. */
   readonly tabLanguages: Readonly<Record<string, boolean>>
   /** When Tab adds surrounding context for multi-line completions. */
@@ -128,7 +129,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** Tokens and the dollar estimate under each Model API reply (M82). */
   readonly modelApiReplyUsage: boolean
   /** Session budget cap in USD for Model API requests; 0 is no cap (M82). */
-  readonly modelApiSessionBudgetUsd: number
+  readonly modelApiSessionBudgetUsd: UsdAmount
 }
 
 /**
@@ -173,9 +174,13 @@ const settingSchemas = {
   modelApiAutoReviewer: z.boolean(),
   modelApiTab: z.boolean(),
   tabModel: z.enum(TAB_MODELS),
-  tabDailyBudgetUsd: z
-    .number()
-    .check(z.gte(TAB_DAILY_BUDGET_MIN_USD), z.lte(TAB_DAILY_BUDGET_MAX_USD)),
+  tabDailyBudgetUsd: legacyUsdSchema.check(
+    z.refine(
+      (value) =>
+        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) >= 0 &&
+        Usd.from(value).compare(Usd.from(TAB_DAILY_BUDGET_MAX_USD)) <= 0,
+    ),
+  ),
   tabLanguages: z.record(z.string(), z.boolean()),
   tabMultiline: z.enum(TAB_MULTILINE_MODES),
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
@@ -200,11 +205,15 @@ const settingSchemas = {
   showWhatsNewOnUpdate: z.boolean(),
   notifyOnBackgroundTurn: z.boolean(),
   modelApiReplyUsage: z.boolean(),
-  paidDailyBudgetUsd: z
-    .number()
-    .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
+  paidDailyBudgetUsd: legacyUsdSchema.check(
+    z.refine(
+      (value) =>
+        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
+        Usd.from(value).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
+    ),
+  ),
   dictationEngine: z.enum(['system', 'museVoice']),
-  modelApiSessionBudgetUsd: z.number().check(z.nonnegative()),
+  modelApiSessionBudgetUsd: legacyUsdSchema,
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -229,12 +238,14 @@ function readSetting<K extends SettingKey>(
   log: Logger,
 ): ExtensionSettings[K] {
   const raw = config.get(key)
-  const fallback = SETTING_DEFAULTS[key] as ExtensionSettings[K]
+  // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
+  const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {
     return fallback
   }
   const result = settingSchemas[key].safeParse(raw)
   if (result.success) {
+    // The schema belongs to this exact key; indexed schema results lose that correlation (PLAN §8).
     return result.data as ExtensionSettings[K]
   }
   warnOnce(

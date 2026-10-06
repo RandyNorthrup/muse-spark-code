@@ -1718,6 +1718,7 @@
   "paidAllowAlways": "Zawsze zezwalaj w tym obszarze roboczym",
   "paidDeny": "Odmów",
   "paidUseWebSearchTitle": "Zezwolić Muse na przeszukiwanie sieci dla tego monitu?",
+  "paidSearchQuote": "Dostawca: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse może przeszukiwać sieć podczas odpowiadania. Każde wyszukiwanie jest rozliczane z Twojego klucza Model API według stawki {price}, oprócz tokenów dodanych przez jego wyniki. „Odmów” wysyła monit bez wyszukiwania w sieci.",
   "paidUseVoiceTitle": "Nagrywać za pomocą Muse Voice?",
   "paidUseVoiceDetail": "Muse Voice transkrybuje to nagranie, rozliczane z Twojego klucza Model API według stawki {price}. „Odmów” pozostawia mikrofon wyłączony.",

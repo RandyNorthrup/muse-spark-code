@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
@@ -664,7 +665,7 @@ function setup(
     createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
-    modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
+    modelApiSessionBudgetUsd: () => Usd.from(options.modelApiSessionBudgetUsd ?? 0).toAmount(),
     voiceAccountId: options.voiceAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
     ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
@@ -6638,7 +6639,7 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     ...(options.extensionHooks !== undefined && {
       loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
@@ -8577,7 +8578,7 @@ function noFolderVoice(
   t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
   const controller = new ConversationController({
     ...t.deps,
-    modelApiSessionBudgetUsd: () => state.capUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(state.capUsd).toAmount(),
   })
   const capture = () => {
     const current = captures[0]
@@ -9779,7 +9780,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,

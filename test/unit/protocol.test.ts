@@ -197,7 +197,7 @@ describe('parseHostToWebviewMessage', () => {
         subagentRequests: 2,
         subagentUnknownRequests: 1,
         subagentTokens: 1_100_000,
-        subagentCostUsd: 1.455,
+        subagentCostUsd: '1.455',
       },
       isKeyStored: true,
       alwaysAllowed: [],

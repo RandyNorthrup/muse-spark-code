@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   assembleAnswer,
@@ -123,15 +124,15 @@ describe('assembleAnswer', () => {
       question: noul,
       material: material({ partial: true, technique: 'logprob' }),
       model: 'm',
-      reservedCostUsd: 0.004,
-      settledCostUsd: 0.001,
+      reservedCostUsd: Usd.from(0.004).toAmount(),
+      settledCostUsd: Usd.from(0.001).toAmount(),
     })
     if (answer.kind !== 'noul') {
       throw new Error('expected a noul answer')
     }
     expect(answer.muse.partial).toBe(true)
-    expect(answer.muse.reservedCostUsd).toBe(0.004)
-    expect(answer.muse.settledCostUsd).toBe(0.001)
+    expect(answer.muse.reservedCostUsd).toBe(Usd.from(0.004).toAmount())
+    expect(answer.muse.settledCostUsd).toBe(Usd.from(0.001).toAmount())
   })
 
   it('refuses a material that does not fit the question', () => {

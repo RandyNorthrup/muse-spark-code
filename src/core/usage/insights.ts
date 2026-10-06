@@ -17,9 +17,11 @@ import {
   CONTRIBUTOR_MODEL_SUFFIX,
   REMINDER_RUN_TOOL_COUNT_MAX,
   TOKENS_PER_MILLION,
+  USD_USAGE_DISPLAY_DECIMALS,
 } from '../../shared/constants'
 import { formatUsd as formatMoney } from '../../shared/l10n/text'
 import type { UsageInsights } from '../../shared/usage'
+import { Usd, type UsdAmount } from '../../shared/usd'
 
 export interface TraceAttempt {
   readonly atMs: number
@@ -188,22 +190,22 @@ export interface BillableUsage {
  * Dollars for one conversation's tokens at Meta's published per-token
  * prices (the tier is the model's: contributor models carry the suffix).
  */
-export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
+export function estimateCostUsd(usage: BillableUsage, modelId: string): UsdAmount {
   const prices = modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
     ? MODEL_API_PRICES_PER_MILLION.contributor
     : MODEL_API_PRICES_PER_MILLION.standard
   const cached = Math.min(usage.cachedTokens, usage.inputTokens)
   const fresh = usage.inputTokens - cached
-  return (
-    (fresh * prices.input + cached * prices.cachedInput + usage.outputTokens * prices.output) /
-    TOKENS_PER_MILLION
-  )
+  return Usd.from(prices.input)
+    .times(fresh)
+    .add(Usd.from(prices.cachedInput).times(cached))
+    .add(Usd.from(prices.output).times(usage.outputTokens))
+    .divide(TOKENS_PER_MILLION)
+    .toAmount()
 }
 
-const CENTS_DECIMALS = 2
-const SMALL_DECIMALS = 4
-
-/** "$0.0123" under a dollar, "$1.23" from there, as the display language writes money. */
-export function formatUsd(amount: number): string {
-  return formatMoney(amount, amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS)
+/** Conservative shared USD display, retaining four places for ordinary sub-dollar usage. */
+export function formatUsd(amount: number | string | Usd): string {
+  const exact = amount instanceof Usd ? amount : Usd.from(amount)
+  return formatMoney(exact, exact.compare(Usd.from(1)) < 0 ? USD_USAGE_DISPLAY_DECIMALS : 2)
 }

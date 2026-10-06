@@ -1,0 +1,840 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "anyOf": [
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "start" },
+        "agent": {
+          "type": "object",
+          "properties": { "name": { "type": "string" }, "version": { "type": "string" } },
+          "required": ["name", "version"],
+          "additionalProperties": false
+        },
+        "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+        "mode": { "type": "string", "enum": ["plan", "acceptEdits"] },
+        "model": { "type": ["string", "null"] },
+        "effort": { "type": ["string", "null"] },
+        "sessionId": { "type": "string" },
+        "ephemeral": { "type": "boolean" },
+        "paidFeatures": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["imageGeneration"] }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "budgetUsd": {
+              "anyOf": [
+                { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                { "type": "null" }
+              ]
+            },
+            "maxRequests": {
+              "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
+            },
+            "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 21600 }
+          },
+          "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
+          "additionalProperties": false
+        },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": [
+        "type",
+        "agent",
+        "backend",
+        "mode",
+        "model",
+        "effort",
+        "sessionId",
+        "ephemeral",
+        "paidFeatures",
+        "limits",
+        "v",
+        "seq",
+        "time"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "update" },
+        "update": {
+          "type": "object",
+          "properties": {
+            "sessionUpdate": {
+              "type": "string",
+              "not": { "pattern": "^(?:agent_(?:message|thought)_chunk|tool)" }
+            }
+          },
+          "required": ["sessionUpdate"],
+          "additionalProperties": {},
+          "$ref": "#/$defs/execSafeUpdateValue"
+        },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "update", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "tool" },
+        "name": { "type": "string" },
+        "status": { "type": "string" },
+        "durationMs": { "type": "number", "minimum": 0 },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "name", "status", "durationMs", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "message" },
+        "itemId": { "type": "string" },
+        "kind": { "type": "string", "enum": ["agentMessage", "reasoning"] },
+        "text": { "type": "string" },
+        "complete": { "type": "boolean" },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "itemId", "kind", "text", "complete", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "permission_denied" },
+        "toolCallId": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": { "type": "string" },
+        "paths": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "toolCallId", "title", "kind", "paths", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "question_declined" },
+        "count": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "count", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "attempt" },
+        "n": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "endpoint": {
+          "type": "string",
+          "enum": ["responses", "images.generations", "images.edits"]
+        },
+        "phase": { "type": "string", "enum": ["admitted", "settled"] },
+        "maxOutputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "reservedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+        "outcome": { "type": "string", "enum": ["priced", "full-reservation"] },
+        "chargedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+        "terminal": { "type": ["string", "null"] },
+        "totals": {
+          "type": "object",
+          "properties": {
+            "capUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "settledUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "uncertainUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "reservedUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "remainingUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+            "requests": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "tokens": {
+              "type": "object",
+              "properties": {
+                "inputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "outputTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "cachedTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "reasoningTokens": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+              },
+              "required": ["inputTokens", "outputTokens", "cachedTokens", "reasoningTokens"],
+              "additionalProperties": false
+            },
+            "paid": {
+              "type": "object",
+              "properties": {
+                "imageAttempts": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "imagesReturned": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "imagesRefunded": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "imagesUncertain": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                "settledUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                "uncertainUsd": {
+                  "type": "string",
+                  "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                }
+              },
+              "required": [
+                "imageAttempts",
+                "imagesReturned",
+                "imagesRefunded",
+                "imagesUncertain",
+                "settledUsd",
+                "uncertainUsd"
+              ],
+              "additionalProperties": false
+            },
+            "breach": { "type": "boolean" },
+            "refusal": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "enum": ["budget", "requests", "closed", "unpriced", "request_shape"]
+                },
+                { "type": "null" }
+              ]
+            },
+            "lastResponse": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "n": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                    "terminal": { "type": ["string", "null"] },
+                    "incompleteReason": { "type": ["string", "null"] },
+                    "endedWithoutTerminal": { "type": "boolean" },
+                    "httpStatus": {
+                      "anyOf": [
+                        { "type": "integer", "minimum": 100, "maximum": 599 },
+                        { "type": "null" }
+                      ]
+                    },
+                    "transportError": { "type": ["string", "null"] },
+                    "usage": { "type": "string", "enum": ["valid", "missing", "invalid"] },
+                    "settlement": { "type": "string", "enum": ["priced", "full-reservation"] }
+                  },
+                  "required": [
+                    "n",
+                    "terminal",
+                    "incompleteReason",
+                    "endedWithoutTerminal",
+                    "httpStatus",
+                    "transportError",
+                    "usage",
+                    "settlement"
+                  ],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            }
+          },
+          "required": [
+            "capUsd",
+            "settledUsd",
+            "uncertainUsd",
+            "reservedUsd",
+            "remainingUsd",
+            "requests",
+            "tokens",
+            "paid",
+            "breach",
+            "refusal",
+            "lastResponse"
+          ],
+          "additionalProperties": false
+        },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "n", "endpoint", "phase", "reservedUsd", "totals", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "paid_use" },
+        "feature": { "type": "string", "const": "imageGeneration" },
+        "n": {
+          "anyOf": [
+            { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+            { "type": "null" }
+          ]
+        },
+        "phase": {
+          "type": "string",
+          "enum": ["admitted", "returned", "refunded", "uncertain", "refused"]
+        },
+        "units": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+        "usd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+        "reason": { "type": "string" },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "feature", "n", "phase", "units", "usd", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "limit" },
+        "limit": {
+          "type": "string",
+          "enum": [
+            "budget",
+            "requests",
+            "timeout",
+            "breach",
+            "request_shape",
+            "unpriced",
+            "accounting"
+          ]
+        },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "limit", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "signal" },
+        "signal": { "type": "string", "enum": ["SIGINT", "SIGTERM"] },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "signal", "v", "seq", "time"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "const": "result" },
+        "result": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "v": { "type": "number", "const": 2 },
+            "status": {
+              "type": "string",
+              "enum": [
+                "completed",
+                "incomplete",
+                "failed",
+                "cancelled",
+                "timeout",
+                "budget_exceeded",
+                "request_cap",
+                "denied",
+                "auth_required",
+                "backend_unavailable",
+                "internal",
+                "accounting_unverified"
+              ]
+            },
+            "exitCode": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "signal": {
+              "anyOf": [{ "type": "string", "enum": ["SIGINT", "SIGTERM"] }, { "type": "null" }]
+            },
+            "stopReason": { "type": ["string", "null"] },
+            "terminal": { "type": ["string", "null"] },
+            "incompleteReason": { "type": ["string", "null"] },
+            "backend": { "type": "string", "enum": ["museCode", "modelApi"] },
+            "mode": { "type": "string", "enum": ["plan", "acceptEdits"] },
+            "model": { "type": ["string", "null"] },
+            "sessionId": { "type": ["string", "null"] },
+            "ephemeral": { "type": "boolean" },
+            "finalMessage": { "type": "string" },
+            "filesChanged": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+            "denials": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "toolCallId": { "type": "string" },
+                  "title": { "type": "string" },
+                  "kind": { "type": "string" },
+                  "paths": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+                },
+                "required": ["toolCallId", "title", "kind", "paths"],
+                "additionalProperties": false
+              }
+            },
+            "questionsDeclined": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "inputs": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1 },
+                  "bytes": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "chunks": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "complete": { "type": "boolean" }
+                },
+                "required": ["name", "bytes", "chunks", "complete"],
+                "additionalProperties": false
+              }
+            },
+            "usage": {
+              "type": "object",
+              "properties": {
+                "requests": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "inputTokens": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "outputTokens": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "cachedTokens": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "reasoningTokens": {
+                  "anyOf": [
+                    { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                    { "type": "null" }
+                  ]
+                },
+                "costUsd": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "settled": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "uncertain": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "reserved": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "total": {
+                          "type": "string",
+                          "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                        },
+                        "isUpperBound": { "type": "boolean" }
+                      },
+                      "required": ["settled", "uncertain", "reserved", "total", "isUpperBound"],
+                      "additionalProperties": false
+                    },
+                    { "type": "null" }
+                  ]
+                },
+                "paid": {
+                  "type": "object",
+                  "properties": {
+                    "imageAttempts": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "imagesReturned": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "imagesRefunded": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "imagesUncertain": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "settledUsd": {
+                      "type": "string",
+                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                    },
+                    "uncertainUsd": {
+                      "type": "string",
+                      "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$"
+                    }
+                  },
+                  "required": [
+                    "imageAttempts",
+                    "imagesReturned",
+                    "imagesRefunded",
+                    "imagesUncertain",
+                    "settledUsd",
+                    "uncertainUsd"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "requests",
+                "inputTokens",
+                "outputTokens",
+                "cachedTokens",
+                "reasoningTokens",
+                "costUsd",
+                "paid"
+              ],
+              "additionalProperties": false
+            },
+            "ledger": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "capUsd": { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                    "breach": { "type": "boolean" },
+                    "refusal": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": ["budget", "requests", "closed", "unpriced", "request_shape"]
+                        },
+                        { "type": "null" }
+                      ]
+                    },
+                    "lastResponse": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "n": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                            "terminal": { "type": ["string", "null"] },
+                            "incompleteReason": { "type": ["string", "null"] },
+                            "endedWithoutTerminal": { "type": "boolean" },
+                            "httpStatus": {
+                              "anyOf": [
+                                { "type": "integer", "minimum": 100, "maximum": 599 },
+                                { "type": "null" }
+                              ]
+                            },
+                            "transportError": { "type": ["string", "null"] },
+                            "usage": { "type": "string", "enum": ["valid", "missing", "invalid"] },
+                            "settlement": {
+                              "type": "string",
+                              "enum": ["priced", "full-reservation"]
+                            }
+                          },
+                          "required": [
+                            "n",
+                            "terminal",
+                            "incompleteReason",
+                            "endedWithoutTerminal",
+                            "httpStatus",
+                            "transportError",
+                            "usage",
+                            "settlement"
+                          ],
+                          "additionalProperties": false
+                        },
+                        { "type": "null" }
+                      ]
+                    }
+                  },
+                  "required": ["capUsd", "breach", "refusal", "lastResponse"],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            },
+            "limits": {
+              "type": "object",
+              "properties": {
+                "budgetUsd": {
+                  "anyOf": [
+                    { "type": "string", "pattern": "^(?:0|[1-9]\\d*)(?:\\.\\d*[1-9])?$" },
+                    { "type": "null" }
+                  ]
+                },
+                "maxRequests": {
+                  "anyOf": [{ "type": "integer", "minimum": 1, "maximum": 500 }, { "type": "null" }]
+                },
+                "timeoutSeconds": { "type": "integer", "minimum": 10, "maximum": 21600 }
+              },
+              "required": ["budgetUsd", "maxRequests", "timeoutSeconds"],
+              "additionalProperties": false
+            },
+            "durationMs": { "type": "number", "minimum": 0 },
+            "error": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": { "kind": { "type": "string" }, "message": { "type": "string" } },
+                  "required": ["kind", "message"],
+                  "additionalProperties": false
+                },
+                { "type": "null" }
+              ]
+            }
+          },
+          "required": [
+            "v",
+            "status",
+            "exitCode",
+            "signal",
+            "stopReason",
+            "terminal",
+            "incompleteReason",
+            "backend",
+            "mode",
+            "model",
+            "sessionId",
+            "ephemeral",
+            "finalMessage",
+            "filesChanged",
+            "denials",
+            "questionsDeclined",
+            "inputs",
+            "usage",
+            "ledger",
+            "limits",
+            "durationMs",
+            "error"
+          ],
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "if": { "properties": { "status": { "const": "completed" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 0 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "null" },
+                  "terminal": { "const": "completed" },
+                  "stopReason": { "const": "end_turn" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "incomplete" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 8 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "failed" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 4 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "timeout" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 6 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "budget_exceeded" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 5 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "request_cap" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 5 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "denied" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 7 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "auth_required" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 3 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "backend_unavailable" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 3 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "internal" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 1 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "accounting_unverified" } } },
+              "then": {
+                "properties": {
+                  "exitCode": { "const": 9 },
+                  "signal": { "type": "null" },
+                  "error": { "type": "object" }
+                }
+              }
+            },
+            {
+              "if": { "properties": { "status": { "const": "cancelled" } } },
+              "then": {
+                "properties": { "error": { "type": "object" } },
+                "oneOf": [
+                  {
+                    "properties": { "signal": { "const": "SIGINT" }, "exitCode": { "const": 130 } }
+                  },
+                  {
+                    "properties": { "signal": { "const": "SIGTERM" }, "exitCode": { "const": 143 } }
+                  }
+                ]
+              }
+            }
+          ],
+          "x-runtime-invariants": [
+            "Muse Code has null requests/cost/ledger/budget/request limit and zero paid totals; completed Model API results have accounting. Available cap matches limits and bounds total in micro-USD.",
+            "Completed Model API results require latest completed, valid, priced settlement with no transport failure.",
+            "USD fields are canonical decimal strings exactly representable in micro-USD; total = settled + uncertain + reserved in micro-USD.",
+            "Cached tokens <= input tokens; reasoning tokens <= output tokens; counters are safe nonnegative integers.",
+            "Paid returned + refunded + uncertain units <= admitted image attempts.",
+            "Workspace-relative forward-slash paths are deduplicated; input names are basenames."
+          ]
+        },
+        "v": { "type": "number", "const": 2 },
+        "seq": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+        "time": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+        }
+      },
+      "required": ["type", "result", "v", "seq", "time"],
+      "additionalProperties": false
+    }
+  ],
+  "$defs": {
+    "execSafeUpdateValue": {
+      "anyOf": [
+        { "type": ["string", "number", "boolean", "null"] },
+        { "type": "array", "items": { "$ref": "#/$defs/execSafeUpdateValue" } },
+        {
+          "type": "object",
+          "propertyNames": { "not": { "enum": ["rawInput", "rawOutput", "toolCallId"] } },
+          "properties": {
+            "sessionUpdate": {
+              "type": "string",
+              "not": { "pattern": "^(?:agent_(?:message|thought)_chunk|tool)" }
+            }
+          },
+          "additionalProperties": { "$ref": "#/$defs/execSafeUpdateValue" }
+        }
+      ]
+    }
+  },
+  "x-runtime-invariants": [
+    "Sequence starts at 1 and grows once per event; only one result is emitted per sink.",
+    "ACP chunk/tool variants and nested rawInput/rawOutput/toolCallId are prohibited in update ($defs.execSafeUpdateValue enforces it).",
+    "Tool events contain name, status and durationMs only; incomplete message text is withheld whole.",
+    "Ledger cap = settledUsd + uncertainUsd + reservedUsd + remainingUsd in safe integer micro-USD."
+  ]
+}

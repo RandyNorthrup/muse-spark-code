@@ -1718,6 +1718,7 @@
   "paidAllowAlways": "Vždy povolit v tomto pracovním prostoru",
   "paidDeny": "Zamítnout",
   "paidUseWebSearchTitle": "Povolit Muse hledat na webu pro tento prompt?",
+  "paidSearchQuote": "Poskytovatel: {provider} · Model: {model}.",
   "paidUseWebSearchDetail": "Muse může během odpovídání hledat na webu. Každé hledání se účtuje na váš klíč Model API ve výši {price}, navíc k tokenům, které přidají jeho výsledky. „Zamítnout“ odešle prompt bez hledání na webu.",
   "paidUseVoiceTitle": "Nahrávat pomocí Muse Voice?",
   "paidUseVoiceDetail": "Muse Voice přepíše tuto nahrávku; účtuje se na váš klíč Model API ve výši {price}. „Zamítnout“ ponechá mikrofon vypnutý.",

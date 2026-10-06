@@ -1,3 +1,6 @@
+import { PAID_APPROVAL_ORDER_DIRECTORY } from './shared/constants'
+import { PaidAuthority } from './core/paid/paidAuthority'
+import { Usd } from './shared/usd'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
@@ -915,7 +918,9 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const paidAuthority = new PaidAuthority()
   const dailyPaid = createPaidDailyBudget({
+    authority: paidAuthority,
     directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
     now: Date.now,
     capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -926,6 +931,8 @@ async function activateWindow(
       }),
   })
   const paid = createPaidFeatures({
+    authority: paidAuthority,
+    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
@@ -1889,7 +1896,7 @@ async function activateWindow(
             ? undefined
             : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
-        confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
+        confirm: async (plan) => (await paid.consent.allows(imageUseRequest(plan))) === true,
         onBilled: () => {
           paid.usage.add('imageGeneration', 1)
         },
@@ -2304,14 +2311,34 @@ async function activateWindow(
         now: Date.now,
       }),
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-    notePaidUse: (feature, units) => {
-      paid.usage.add(feature, units)
+    notePaidUse: (feature, units, searchPriceUsd) => {
+      paid.usage.add(feature, units, searchPriceUsd)
     },
     promptCacheRetention: () => currentSettings().modelApiPromptCacheRetention,
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-    reservePaidRequest: dailyPaid.reserve,
+    paidAuthority: paid.consent.authority,
+    reservePaidRequest: async (body, feature, estimatedInputTokens, signal, reservationUsd) => {
+      if (reservationUsd === undefined) {
+        return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
+      }
+      signal?.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(reservationUsd)
+      try {
+        signal?.throwIfAborted()
+        return {
+          ...claim,
+          check: () => {
+            signal?.throwIfAborted()
+            claim.check()
+          },
+        }
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -3123,8 +3150,8 @@ async function activateWindow(
           runGit,
           runBestOfNGit,
           isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units) => {
-            paid.usage.add(feature, units)
+          notePaidUse: (feature, units, searchPriceUsd) => {
+            paid.usage.add(feature, units, searchPriceUsd)
           },
           buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
             modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),

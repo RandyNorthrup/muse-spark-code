@@ -220,6 +220,18 @@ cannot change today's policy. Switching backends preserves accepted prices
 and workspace **Allow always** grants; explicitly turning a feature off
 withdraws them. Packing adds recall only when a request carries packed output,
 so enabling unused packing keeps the ordinary request and cache key unchanged.
+Hosted-search approvals bind the provider, model and quoted price. A model
+change while the question is open asks again. A higher price also asks again;
+an equal or lower price can use the workspace's approval for that same model
+and provider. **Ask again** invalidates pending answers and saves; saving one
+model cannot restore another model’s approval. The newest Always approval sets
+the tariff ceiling across conversations and windows, including a cheaper price.
+Parallel conversations keep their own approved requests; child tasks inherit the
+parent’s search authorization within its bound and existing budgets. A dispatched
+request settles at its original quote. Accounting
+keeps exact decimal amounts, and paid displays round upward so a positive
+charge is never shown as free. Hosted-search product wiring remains subject
+to the verified billing-bound availability described above.
 Tab's $1/day cap is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.
@@ -3988,8 +4000,8 @@ unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
 bundles and the signer identity.
 
 `npm run schema:exec` regenerates the
-[result](docs/schemas/exec-result-v1.schema.json) and
-[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+[result](docs/schemas/exec-result-v2.schema.json) and
+[event](docs/schemas/exec-event-v2.schema.json) schemas, and `-- --check`
 compares the committed bytes; both ship in the package's `schemas/`.
 After the production build, `node scripts/package-acp.mjs` packs the ACP
 tarball and `node scripts/package-acp-test.mjs` packs the private fake-only

@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   headerOf,
@@ -101,8 +102,11 @@ describe('parseStoredSession', () => {
   })
 
   it('keeps a session budget spend, and refuses one below zero (M82)', () => {
-    const spent: StoredSession = { ...full, budgetSpentUsd: 0.25 }
-    expect(parseStoredSession(structuredClone(spent))).toEqual({ ok: true, session: spent })
+    const spent: StoredSession = { ...full, budgetSpentUsd: Usd.from(0.25).toAmount() }
+    expect(parseStoredSession(structuredClone(spent))).toEqual({
+      ok: true,
+      session: { ...spent, budgetSpentUsd: '0.25' },
+    })
     expect(parseStoredSession({ ...full, budgetSpentUsd: -1 })).toMatchObject({ ok: false })
     expect(parseStoredSession({ ...full, budgetSpentUsd: Infinity })).toMatchObject({ ok: false })
     expect(parseStoredSession({ ...full, budgetSpentUsd: NaN })).toMatchObject({ ok: false })
@@ -313,4 +317,16 @@ describe('parseStoredSession: message times (M87, PLAN.md D66)', () => {
       }),
     ).toMatchObject({ ok: false })
   })
+})
+
+it('R3 P3: migrates historical numeric transcript fees only at the disk boundary', () => {
+  const item = full.transcript[0]
+  if (item === undefined) throw new Error('missing transcript fixture')
+  const parsed = parseStoredSession({
+    ...full,
+    transcript: [{ ...item, item: { ...item.item, costUsd: 0.000000002 } }],
+  })
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error('historical transcript was refused')
+  expect(parsed.session.transcript[0]?.item.costUsd).toBe('0.000000002')
 })

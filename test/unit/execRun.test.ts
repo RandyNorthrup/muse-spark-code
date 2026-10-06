@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import {
   constants as fileFlags,
   mkdtempSync,
@@ -94,7 +95,6 @@ function useMuseOptions(deps: ExecDeps): void {
     backend: 'museCode',
     model: undefined,
     budgetUsd: undefined,
-    budgetMicroUsd: undefined,
     maxRequests: undefined,
   }
 }
@@ -1061,7 +1061,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         requests: 1,
         inputTokens: 10,
         outputTokens: 5,
-        costUsd: { settled: 0.000002, total: 0.000002 },
+        costUsd: { settled: Usd.from(0.000002).toAmount(), total: Usd.from(0.000002).toAmount() },
       },
     })
     expect(h.api.responseBodies()).toHaveLength(1)
@@ -1167,7 +1167,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     h.life.latch({ kind: 'timeout' })
     const r = await running
     expect(r.code).toBe(6)
-    expect(result(r).usage.costUsd).toMatchObject({ uncertain: 0.108135, isUpperBound: true })
+    expect(result(r).usage.costUsd).toMatchObject({
+      uncertain: Usd.from(0.108135).toAmount(),
+      isUpperBound: true,
+    })
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
   })
   it.each([false, true])(
@@ -1190,7 +1193,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const h = await harness([], [{ httpError: { status } }])
     const r = await h.run()
     expect(r.code).toBe(3)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
   })
   it('D13 catalogue authentication failure is auth/3 before any billable request', async () => {
     const h = await harness()
@@ -1225,7 +1228,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     const r = await h.run()
     expect(r.code).toBe(4)
     expect(result(r).usage.requests).toBe(5)
-    expect(result(r).usage.costUsd?.uncertain).toBe(0.540675)
+    expect(result(r).usage.costUsd?.uncertain).toBe(Usd.from(0.540675).toAmount())
   })
   it('D15 reply/key-shaped stderr are redacted; missing terminal prefix withheld whole', async () => {
     const h = await harness([], [{ text: `reply ${FAKE_MODEL_API_KEY}` }])
@@ -1361,7 +1364,10 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(r.code).toBe(4)
     expect(result(r).terminal).toBeNull()
     expect(result(r).finalMessage).toBe(UI_TEXT.execMessageWithheld)
-    expect(result(r).usage.costUsd).toMatchObject({ settled: 0.000002, uncertain: 0.540675 })
+    expect(result(r).usage.costUsd).toMatchObject({
+      settled: Usd.from(0.000002).toAmount(),
+      uncertain: Usd.from(0.540675).toAmount(),
+    })
   })
   it.each([
     [false, false, 0],
@@ -1385,7 +1391,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       expect(r.code).toBe(code)
       expect(result(r).finalMessage).toBe('final')
       expect(result(r).usage.costUsd?.uncertain).toBe(
-        (Number(earlyMissing) + Number(lateMissing)) * 0.108135,
+        Usd.from((Number(earlyMissing) + Number(lateMissing)) * 0.108135).toAmount(),
       )
     },
   )
@@ -1411,7 +1417,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     expect(result(r).usage.paid).toMatchObject({
       imageAttempts: 1,
       imagesReturned: 1,
-      settledUsd: 0.01,
+      settledUsd: Usd.from(0.01).toAmount(),
     })
     expect(existsSync(path.join(h.cwd, 'image.png'))).toBe(true)
     expect(r.events.filter((e) => e.type === 'paid_use').map((e) => e.phase)).toEqual([
@@ -1445,7 +1451,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
     )
     const bad = await invalid.run()
     expect(bad.code).toBe(9)
-    expect(result(bad).usage.costUsd?.uncertain).toBe(0.108135)
+    expect(result(bad).usage.costUsd?.uncertain).toBe(Usd.from(0.108135).toAmount())
     expect(result(bad).finalMessage).toBe(UI_TEXT.execMessageWithheld)
     const imageRun = await imageHarness('image.png', 'must not run')
     imageRun.api.images.push({ count: 2 })
@@ -1466,7 +1472,7 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
         imageAttempts: status === 429 ? 2 : 1,
         imagesReturned: status === 429 ? 1 : 0,
         imagesUncertain: 1,
-        uncertainUsd: 0.01,
+        uncertainUsd: Usd.from(0.01).toAmount(),
       })
     },
   )

@@ -23,7 +23,9 @@ import {
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import type { PaidUseRequest } from '../shared/paid'
+import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
+import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
+import type { PaidQuote } from '../shared/paid'
 
 /** Where "Allow always in this workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -32,6 +34,11 @@ export interface PaidGrantStore {
   readonly add: (workspaceRoot: string, features: readonly PaidFeature[]) => Promise<void>
   /** Takes these features out of every folder's grants. */
   readonly forget: (features: readonly PaidFeature[]) => Promise<void>
+  readonly nextQuoteOrder?: () => number
+  readonly prepareQuoteGeneration?: () => Promise<string>
+  readonly quoteGeneration?: () => string
+  readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
+  readonly writeQuote?: (workspaceRoot: string, grant: PaidGrant) => Promise<void>
 }
 
 /** The question in one of the client's sessions; the agent attaches it (agent.ts). */
@@ -94,6 +101,8 @@ export function paidUseAnswer(
 }
 
 export class AcpPaidUse {
+  private readonly consents = new Map<string, PaidUseConsent>()
+  private readonly authority = new PaidAuthority()
   private asker: PaidUseAsker | undefined
   private readonly used = new Map<PaidFeature, number>()
 
@@ -133,6 +142,10 @@ export class AcpPaidUse {
   }
 
   /** Whether the backend may use the feature at all: its flag given. */
+  public authorityFor(): PaidAuthority {
+    return this.authority
+  }
+
   public isOn(feature: PaidFeature): boolean {
     const flagged: readonly PaidFeature[] = this.deps.flagged
     return flagged.includes(feature)
@@ -149,19 +162,42 @@ export class AcpPaidUse {
     sessionId: string,
     request: PaidUseRequest,
     requiresAsking: boolean,
-  ): Promise<boolean> {
+  ): Promise<PaidUseDecision> {
     if (this.deps.headless !== undefined) {
       return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
     }
-    const consent = new PaidUseConsent({
-      isOn: (feature) => this.isOn(feature),
-      canRemember: this.deps.canRemember,
-      readGrants: () => this.deps.grants.read(workspaceRoot),
-      writeGrants: (grants) => this.keep(workspaceRoot, grants),
-      ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
-      log: this.deps.log,
-    })
-    return await consent.allows(request, requiresAsking)
+    let consent = this.consents.get(workspaceRoot)
+    if (consent === undefined) {
+      consent = new PaidUseConsent({
+        authority: this.authorityFor(),
+        ...(this.deps.grants.nextQuoteOrder !== undefined && {
+          nextQuoteOrder: this.deps.grants.nextQuoteOrder,
+        }),
+        isOn: (feature) => this.isOn(feature),
+        canRemember: this.deps.canRemember,
+        ...(this.deps.grants.prepareQuoteGeneration !== undefined && {
+          prepareQuoteGeneration: this.deps.grants.prepareQuoteGeneration,
+        }),
+        ...(this.deps.grants.quoteGeneration !== undefined && {
+          quoteGeneration: this.deps.grants.quoteGeneration,
+        }),
+        ...(this.deps.grants.readQuote !== undefined && {
+          readQuoteGrant: (quote) => this.deps.grants.readQuote?.(workspaceRoot, quote),
+        }),
+        ...(this.deps.grants.writeQuote !== undefined && {
+          writeQuoteGrant: (grant) =>
+            this.deps.grants.writeQuote?.(workspaceRoot, grant) ?? Promise.resolve(),
+        }),
+        readGrants: () => this.deps.grants.read(workspaceRoot),
+        writeGrants: (grants) => this.keep(workspaceRoot, grants),
+        ask: (asked, canRemember) => this.ask(sessionId, asked, canRemember),
+        log: this.deps.log,
+      })
+      this.consents.set(workspaceRoot, consent)
+    }
+    return await consent.allows(request, requiresAsking, (asked, canRemember) =>
+      this.ask(sessionId, asked, canRemember),
+    )
   }
 
   /** Whether the feature is on and allowed always in the folder, so it asks nothing. */
@@ -170,7 +206,9 @@ export class AcpPaidUse {
       this.deps.headless === undefined &&
       this.isOn(feature) &&
       this.deps.canRemember() &&
-      this.deps.grants.read(workspaceRoot).has(feature)
+      (feature === 'webSearch'
+        ? (this.consents.get(workspaceRoot)?.isRemembered(feature) ?? false)
+        : this.deps.grants.read(workspaceRoot).has(feature))
     )
   }
 

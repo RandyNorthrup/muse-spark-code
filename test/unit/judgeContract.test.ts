@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane M98-0: the judge contract (PLAN.md M98 acceptance item 2). Jev
 // shapes for noul, choice and score; the bounds refuse 65 questions, 27
 // options, 11 levels and an oversized body; `answers` stays byte-compatible;
@@ -85,8 +86,8 @@ function vendorResponse(): JudgeResult {
         label: 'uncalibrated',
         confidence: 0.94,
         partial: false,
-        reservedCostUsd: 0.001,
-        settledCostUsd: 0.0004,
+        reservedCostUsd: Usd.from(0.001).toAmount(),
+        settledCostUsd: Usd.from(0.0004).toAmount(),
       },
       status: {
         source: 'same',

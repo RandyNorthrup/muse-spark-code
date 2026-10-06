@@ -65,7 +65,7 @@ const PACKAGE_NAME = 'muse-spark-code-acp'
 // detailed guide and is linked from the landing page instead.
 const README = path.join('docs', 'npm-readme.md')
 const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']
+const SCHEMAS = ['exec-result-v2.schema.json', 'exec-event-v2.schema.json']
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {

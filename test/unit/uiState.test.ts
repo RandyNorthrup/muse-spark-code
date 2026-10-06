@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import { scrubSecretApproval } from '../../src/core/agent/approvalSecrets'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
@@ -3118,7 +3119,13 @@ function replyUpdated(
 ): AgentEvent {
   return {
     type: 'itemUpdated',
-    item: { itemId: 'm', kind: 'agentMessage', status: 'completed', text: 'A', ...extra },
+    item: {
+      itemId: 'm',
+      kind: 'agentMessage',
+      status: 'completed',
+      text: 'A',
+      ...('costUsd' in extra ? { ...extra, costUsd: Usd.from(extra.costUsd).toAmount() } : extra),
+    },
   }
 }
 
@@ -3166,7 +3173,7 @@ describe('uiReducer: paid features (M33, PLAN.md D30)', () => {
       agent(replyCompleted()),
       agent(replyUpdated({ usage, costUsd: 0.01 })),
     ])
-    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: 0.01 })
+    expect(entryOf(state, 'm')).toMatchObject({ usage, costUsd: '0.01' })
   })
 
   it('says which engine the microphone uses', () => {
