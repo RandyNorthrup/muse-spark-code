@@ -6,6 +6,39 @@
 
 import type { BrowserRuntimeMode } from './browserCheckConstants'
 
+// M107 / D87: portable resource contracts. Nothing is sampled at module load.
+export const RESOURCE_SAMPLE_MS = 5000
+export const RESOURCE_TREE_SAMPLE_MS = 15_000
+export const RESOURCE_CPU_WINDOW_MS = 30_000
+export const RESOURCE_MEMORY_ENTER_SAMPLES = 2
+export const RESOURCE_ESCALATE_MS = 60_000
+export const RESOURCE_CRITICAL_CPU_PERCENT = 97
+export const RESOURCE_CRITICAL_CPU_WINDOW_MS = 60_000
+export const RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION = 0.5
+export const RESOURCE_HYSTERESIS_POINTS = 10
+export const RESOURCE_MEMORY_HYSTERESIS_GIB = 0.5
+export const RESOURCE_EXIT_MS = 60_000
+export const RESOURCE_MIN_DWELL_MS = 60_000
+export const RESOURCE_FOREGROUND_WAIT_MS = 20_000
+export const RESOURCE_OVERRIDE_MS = 15 * 60_000
+export const RESOURCE_MEMORY_FLOOR_MAX_FRACTION = 0.15
+export const RESOURCE_JOB_CPU_RATE_PERCENT = 50
+export const RESOURCE_SAMPLER_MAX_CORE_PERCENT = 0.5
+export const RESOURCE_GIB_BYTES = 1_073_741_824
+export const RESOURCE_HISTORY_MINUTE_MS = 60_000
+export const RESOURCE_CPU_DEFAULT_PERCENT = 85
+export const RESOURCE_CPU_MIN_PERCENT = 30
+export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
+export const RESOURCE_MEMORY_MIN_PERCENT = 40
+export const RESOURCE_MEMORY_MAX_PERCENT = 98
+export const RESOURCE_MEMORY_DEFAULT_FREE_GIB = 2
+export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
+export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
+export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
+export const RESOURCE_ID_MAX_LENGTH = 256
+// Resource-bearing exec events need a new envelope; M80's v1 stays frozen.
+export const RESOURCE_EXEC_EVENT_VERSION = 2
+
 export const PRODUCT_NAME = 'Muse Spark'
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts

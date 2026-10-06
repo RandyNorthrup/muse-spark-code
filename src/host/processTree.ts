@@ -17,6 +17,9 @@
 // creation time just before it is killed, so a process that took a dead
 // one's id is never hit.
 
+import { parseProcessTable, type ProcessRow } from '../core/resources/trees/processTable'
+export { parseProcessTable } from '../core/resources/trees/processTable'
+
 import { execFile } from 'node:child_process'
 import path from 'node:path'
 import {
@@ -138,19 +141,6 @@ function deathOf(root: TreeRoot, ms: number): Promise<number | undefined> {
   })
 }
 
-/** A row of the process table: ids, the creation time as printed and in epoch milliseconds. */
-export interface ProcessRow {
-  readonly pid: number
-  readonly parent: number
-  /** FILETIME ticks, exactly as the table printed them. */
-  readonly ticks: string
-  readonly createdAt: number
-  readonly name: string
-}
-
-// A FILETIME counts 100 ns ticks from 1601-01-01 UTC: past 2^53, so a BigInt.
-const FILETIME_TICKS_PER_MS = 10_000n
-const FILETIME_UNIX_EPOCH_MS = 11_644_473_600_000n
 // The process table prints creation times to the microsecond; a process
 // handle gives them to the tick.
 const TICKS_PER_MICROSECOND = 10
@@ -172,25 +162,6 @@ function identityKillScript(rows: readonly ProcessRow[]): string {
   // into the next PID. Hashtable records keep each identity pair together.
   const targets = rows.map((row) => `@{ Id = ${String(row.pid)}; Ticks = ${row.ticks} }`).join(', ')
   return `foreach ($target in @(${targets})) { $process = Get-Process -Id $target.Id -ErrorAction SilentlyContinue; if ($null -ne $process -and [math]::Abs($process.StartTime.ToFileTimeUtc() - $target.Ticks) -lt ${String(TICKS_PER_MICROSECOND)}) { Stop-Process -InputObject $process -Force; [Console]::Out.WriteLine($target.Id) } }`
-}
-
-/** The script's rows; a line that is not one (an error, a blank) is skipped. */
-export function parseProcessTable(stdout: string): readonly ProcessRow[] {
-  const rows: ProcessRow[] = []
-  for (const line of stdout.split(/\r?\n/)) {
-    const [pid = '', parent = '', ticks = '', ...name] = line.trim().split(' ')
-    if ([pid, parent, ticks].some((field) => !DECIMAL.test(field))) {
-      continue
-    }
-    rows.push({
-      pid: Number(pid),
-      parent: Number(parent),
-      ticks,
-      createdAt: Number(BigInt(ticks) / FILETIME_TICKS_PER_MS - FILETIME_UNIX_EPOCH_MS),
-      name: name.join(' '),
-    })
-  }
-  return rows
 }
 
 /**
