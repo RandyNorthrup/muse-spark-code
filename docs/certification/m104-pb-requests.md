@@ -463,3 +463,23 @@ retain unknown captured goal statuses and show the existing goal data. Selected
 model support still needs a captured catalog entry. Muse Code owns its own goal
 engine; its native/controller scenarios and all provider scenarios remain open.
 F owns the PLAN/Unreleased/help record for the refusal and component receipts.
+
+### A/C/D/E/F — F23/F24 existing engines and v2 attempt hosts
+
+User shell now rejects retained session commands after owner release before
+creating a task. Native owners must keep the existing final subprocess
+admission/cancellation and sanitized environment. Captured userShell/background
+rows continue through existing events, without any new schema.
+
+V2 modelApi.buildAttemptHost now has an actual packaged-runtime shared-ledger
+receipt: enabled requests settle their immutable verified $0.25 tariff; OFF
+admission sends no request and spends zero. The new engine suite uses only
+synthetic transport/key. Existing BestOfNManager/Runner 48 tests pass. A should
+provide features.runBestOfNGit from its real native process admission (trust,
+immutable repository owner, markNativeBackend checkpoint gate, final entry
+guard, signal and awaited process-tree drain), rather than a raw Git callback.
+The v2 manager/paid ports resolve their previous missing-port request; fan-out
+and take UI/native flows remain to qualify. The runner's current Meta-specific
+tariff lookup needs verified catalog injection before M95 providers are on.
+Unknown tariffs/tool support refuse; do not substitute Meta rates. F owns
+PLAN/Unreleased/help for these component receipts and remaining requirements.

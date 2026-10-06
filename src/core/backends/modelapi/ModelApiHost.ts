@@ -11460,6 +11460,9 @@ export class ModelApiSession implements AgentSession {
    * the shell tool's runner.
    */
   public runUserShell(command: string): Promise<void> {
+    if (this.isDisposed || this.isHostClosing()) {
+      return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
+    }
     if (!this.deps.isWorkspaceTrusted()) {
       return Promise.reject(new Error(UI_TEXT.userShellRestricted))
     }

@@ -735,5 +735,19 @@
     "exitCode": 1,
     "sha256Before": "348bf229bbbd8404babe3eac9a3dd608ea196f5f0efe3e27af34df2c04b007bd",
     "sha256Restored": "348bf229bbbd8404babe3eac9a3dd608ea196f5f0efe3e27af34df2c04b007bd"
+  },
+  {
+    "drill": "user-shell-retired-owner",
+    "file": "src/core/backends/modelapi/ModelApiHost.ts",
+    "exitCode": 1,
+    "sha256Before": "4d16e4ea2c1d1f90624fb6e8976bf70c69d46552cf839674dd8819a71195d585",
+    "sha256Restored": "4d16e4ea2c1d1f90624fb6e8976bf70c69d46552cf839674dd8819a71195d585"
+  },
+  {
+    "drill": "best-of-n-paid-client",
+    "file": "src/host/backend/modelApiBackendManager.ts",
+    "exitCode": 1,
+    "sha256Before": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e",
+    "sha256Restored": "91551637b6c5b1df031c18639c8b2dfa52d6eb641401afc18a5bc5956a79c83e"
   }
 ]

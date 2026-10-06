@@ -1,8 +1,10 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createRuntimeBackend } from '../../../src/runtime/backends'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { createRuntimeBackend, type RuntimeBackendDeps } from '../../../src/runtime/backends'
+import { createRuntimePaidBudget } from '../../../src/runtime/features/paidBudget'
+import { runtimePaidRequestAdmission } from '../../../src/runtime/features/paidRequest'
 import { isGoalRefusedError } from '../../../src/core/agent/agentBackend'
 import { SECRET_KEYS, UI_TEXT } from '../../../src/shared/constants'
 import { FakeLogOutputChannel, memorySecrets } from '../../unit/helpers/fakes'
@@ -10,6 +12,7 @@ import { fakeModelApi, FAKE_MODEL_API_KEY } from '../../unit/helpers/fakeModelAp
 import { buildModelApiBundle } from '../../unit/helpers/modelApiBundle'
 import { watchSessionTurns } from '../../unit/helpers/sessionTurns'
 import { engineFixtures } from './fixtures'
+import { paidHarness } from './paidHarness'
 
 const fixtures = engineFixtures()
 const dist = { folder: '' }
@@ -21,7 +24,7 @@ afterAll(async () => {
   await rm(dist.folder, { recursive: true, force: true })
 })
 
-async function setup() {
+async function setup(extra: Partial<RuntimeBackendDeps> = {}) {
   const root = await fixtures.folder('m104-pb-session-')
   const secrets = memorySecrets()
   secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)
@@ -41,7 +44,7 @@ async function setup() {
     version: 'fixture',
     distDir: dist.folder,
     platform: process.platform,
-    env: {},
+    env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
     homeDir: root,
     secrets,
     museCodeCredentials: [],
@@ -50,6 +53,7 @@ async function setup() {
     runGit: () => Promise.reject(new Error('fixture forbids Git')),
     log: new FakeLogOutputChannel(),
     isWorkspaceTrusted: () => state.isTrusted,
+    ...extra,
   })
   fixtures.own({ dispose: runtime.close })
   const host = await runtime.backend.hostFor(root)
@@ -111,4 +115,103 @@ describe('F20 portable session goal commands', () => {
     )
     expect(rig.api.responseBodies()).toHaveLength(0)
   })
+})
+
+describe('F23 portable user shell lifetime', () => {
+  it('runs the user command locally without a model request and reports its captured row', async () => {
+    const rig = await setup()
+    const done = Promise.withResolvers<undefined>()
+    const stop = rig.session.onEvent((event) => {
+      if (event.type === 'itemCompleted') done.resolve(undefined)
+    })
+    try {
+      const prefix = process.platform === 'win32' ? '& ' : ''
+      await rig.session.runUserShell(
+        `${prefix}"${process.execPath}" -e "process.stdout.write('portable-shell')"`,
+      )
+      await done.promise
+      expect(rig.watched.events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({
+            status: 'completed',
+            visibleOutput: expect.stringContaining('portable-shell'),
+          }),
+        }),
+      )
+      expect(rig.api.responseBodies()).toHaveLength(0)
+    } finally {
+      stop()
+    }
+  })
+
+  it('refuses restricted user commands and unknown background task controls', async () => {
+    const rig = await setup()
+    rig.state.isTrusted = false
+    await expect(rig.session.runUserShell('fixture-never-runs')).rejects.toThrow(
+      UI_TEXT.userShellRestricted,
+    )
+    await expect(rig.session.stopTask('missing')).rejects.toThrow(UI_TEXT.taskNotRunning)
+    expect(rig.watched.events).toHaveLength(0)
+  })
+
+  it('refuses a user command after owner release before adding a task or row', async () => {
+    const rig = await setup()
+    await rig.runtime.close()
+    await expect(rig.session.runUserShell('fixture-never-runs')).rejects.toThrow(
+      UI_TEXT.turnStoppedByRestart,
+    )
+    expect(rig.watched.events).toHaveLength(0)
+  })
+})
+
+describe('F24 v2 portable Best-of-N attempt host', () => {
+  it.each([true, false])(
+    'uses the shared ledger only when attempt admission is on (%s)',
+    async (isOn) => {
+      const directory = await fixtures.folder('m104-pb-best-budget-')
+      const budget = createRuntimePaidBudget(
+        {
+          directory,
+          now: Date.now,
+          capUsd: () => 1,
+          sleep: () => Promise.resolve(),
+          assertCurrent: () => undefined,
+          isLocalStorage: () => true,
+        },
+        UI_TEXT,
+        'en',
+      )
+      fixtures.own({ dispose: budget.dispose })
+      const tariff = vi.fn(() => 0.25)
+      const { paid } = paidHarness(['bestOfN'])
+      const admission = runtimePaidRequestAdmission({
+        budget,
+        isOn: () => isOn,
+        price: () => ({ costUsd: 0.4, isCurrent: () => true, receiptCost: tariff }),
+      })
+      const rig = await setup({
+        interactivePaid: paid,
+        reservePaidRequest: admission,
+        paidResponseCost: admission.responseCost,
+      })
+      const manager = await rig.runtime.modelApiFor?.(rig.root)
+      if (manager === undefined) throw new Error('fixture manager missing')
+      const host = await manager.buildAttemptHost(rig.root, () => undefined)
+      fixtures.own({ dispose: () => host.close() })
+      const session = await host.startSession({
+        workspaceRoot: rig.root,
+        modelId: rig.session.modelId,
+        approvalMode: 'promptUnmatched',
+      })
+      const watched = watchSessionTurns(session)
+      rig.api.script({ text: 'attempt done' })
+      const done = watched.turnDone()
+      await session.sendTurn([{ type: 'text', text: 'attempt fixture' }])
+      await done
+      expect(rig.api.responseBodies()).toHaveLength(isOn ? 1 : 0)
+      expect(tariff).toHaveBeenCalledTimes(isOn ? 1 : 0)
+      await expect(budget.latestDay()).resolves.toMatchObject({ spentUsd: isOn ? 0.25 : 0 })
+    },
+  )
 })
