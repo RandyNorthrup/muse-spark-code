@@ -44,6 +44,7 @@ const BUNDLES = [
   'wire.js',
   'searchWorker.js',
   'pageWorker.js',
+  'imageResizeWorker.js',
 ]
 // The C# of the shell tool's Windows job (M27), compiled on first use, as
 // the extension ships it (PLAN.md D6): its own file and the half it shares.

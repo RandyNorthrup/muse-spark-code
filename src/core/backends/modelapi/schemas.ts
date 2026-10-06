@@ -381,6 +381,37 @@ export function withStrictTools(
     : tools
 }
 
+/** Strict optional properties are nullable on the wire; restore omission for tool parsers. */
+export function restoreOptionalToolArguments(json: string, tool: FunctionToolDefinition): string {
+  let value: unknown
+  try {
+    value = JSON.parse(json)
+  } catch {
+    return json
+  }
+  const restore = (input: unknown, schema: Record<string, unknown>): unknown => {
+    const items = schemaRecord.safeParse(schema['items'])
+    if (Array.isArray(input) && items.success)
+      return input.map((item: unknown) => restore(item, items.data))
+    const record = schemaRecord.safeParse(input)
+    const properties = schemaRecord.safeParse(schema['properties'])
+    const required = z.array(z.string()).safeParse(schema['required'] ?? [])
+    if (!record.success || !properties.success || !required.success) return input
+    return Object.fromEntries(
+      Object.entries(record.data).flatMap(([key, item]) => {
+        const child = schemaRecord.safeParse(properties.data[key])
+        if (!child.success) return [[key, item]]
+        const type = child.data['type']
+        const canAcceptNull = type === 'null' || (Array.isArray(type) && type.includes('null'))
+        return item === null && !canAcceptNull && !required.data.includes(key)
+          ? []
+          : [[key, restore(item, child.data)]]
+      }),
+    )
+  }
+  return JSON.stringify(restore(value, tool.parameters))
+}
+
 // Conservative common strict subset. Unknown/unsupported constraints refuse
 // the request rather than disappearing or changing their meaning silently.
 const STRICT_SCHEMA_KEYS = new Set([
@@ -393,6 +424,8 @@ const STRICT_SCHEMA_KEYS = new Set([
   'items',
   'minLength',
   'maxLength',
+  'minItems',
+  'maxItems',
 ])
 const schemaRecord = z.record(z.string(), z.unknown())
 
@@ -412,24 +445,27 @@ function strictToolSchema(node: unknown, isOptional = false, depth = 0): Record<
   const types = typeof type === 'string' ? [type] : type
   // isGrammarType verified the union; parse again to narrow without a cast.
   const parsedTypes = z.array(z.string()).parse(types)
-  for (const bound of ['minLength', 'maxLength']) {
-    const value = schema[bound]
-    if (
-      value !== undefined &&
-      (typeof value !== 'number' ||
-        value < 0 ||
-        !Number.isSafeInteger(value) ||
-        !parsedTypes.includes('string'))
-    ) {
+  for (const [kind, lowerKey, upperKey] of [
+    ['string', 'minLength', 'maxLength'],
+    ['array', 'minItems', 'maxItems'],
+  ] as const) {
+    for (const bound of [lowerKey, upperKey]) {
+      const value = schema[bound]
+      if (
+        value !== undefined &&
+        (typeof value !== 'number' ||
+          value < 0 ||
+          !Number.isSafeInteger(value) ||
+          !parsedTypes.includes(kind))
+      ) {
+        throw new Error('strict_tool_schema_unsupported')
+      }
+    }
+    const lower = schema[lowerKey]
+    const upper = schema[upperKey]
+    if (typeof lower === 'number' && typeof upper === 'number' && lower > upper) {
       throw new Error('strict_tool_schema_unsupported')
     }
-  }
-  if (
-    typeof schema['minLength'] === 'number' &&
-    typeof schema['maxLength'] === 'number' &&
-    schema['minLength'] > schema['maxLength']
-  ) {
-    throw new Error('strict_tool_schema_unsupported')
   }
   const result = { ...schema }
   if (isOptional && !parsedTypes.includes('null')) {

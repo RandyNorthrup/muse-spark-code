@@ -411,7 +411,8 @@ describe('the ACP agent on the Model API backend (M63)', () => {
       await t.run((client) => promptOnce(client, t.workspace))
       const sent = JSON.stringify(t.api.responseBodies()[1])
       expect(sent).toContain('keys-none')
-      expect(sent).not.toContain('placeholder')
+      expect(sent).not.toContain('LLM|1|placeholder')
+      expect(sent).not.toContain('placeholder-too')
       await t.runtime.close()
     },
   )

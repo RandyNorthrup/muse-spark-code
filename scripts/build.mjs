@@ -58,6 +58,7 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { copyCatalogToDist } from './sync-provider-catalog.mjs'
@@ -143,6 +144,8 @@ const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
 const JUDGE_OUTFILE = 'dist/judge.js'
+const IMAGE_RESIZE_WORKER_ENTRY = 'src/core/imageResizeWorker.ts'
+const IMAGE_RESIZE_WORKER_OUTFILE = 'dist/imageResizeWorker.js'
 const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
@@ -206,7 +209,13 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    compressedModelText(isProduction),
+  ],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -417,6 +426,14 @@ const searchWorkerOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const imageResizeWorkerOptions = {
+  ...searchWorkerOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [IMAGE_RESIZE_WORKER_ENTRY],
+  outfile: IMAGE_RESIZE_WORKER_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const conversationGitOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire],
@@ -624,6 +641,7 @@ if (isWatch) {
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
+    esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(whatsNewPageOptions),
     esbuild.context(modelsPanelOptions),
@@ -671,6 +689,7 @@ if (isWatch) {
     browserRuntime: esbuild.build(browserRuntimeOptions),
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
+    imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
@@ -726,6 +745,7 @@ if (isWatch) {
   reportSize(MODELS_PANEL_OUTFILE)
   reportSize(SEARCH_WORKER_OUTFILE)
   reportSize(PAGE_WORKER_OUTFILE)
+  reportSize(IMAGE_RESIZE_WORKER_OUTFILE)
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'models.js'))

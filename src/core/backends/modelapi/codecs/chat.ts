@@ -20,6 +20,7 @@
 // `ChatStreamDecoder` in its `WireCodec` (research §4); lane I stores the
 // decoder's opaque reasoning payloads in the session's replay entries.
 
+import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
 import {
   CODEC_EMPTY_TOOL_OUTPUT,
@@ -110,7 +111,7 @@ export type ChatBreakpoints = 'none' | 'anthropic' | 'last'
 /** Per-request options: the native model id and the breakpoint placement. */
 export interface ChatEncodeOptions {
   /** The caller's model capability record; unknown vision is refused. */
-  readonly capabilities?: { readonly vision: boolean } | undefined
+  readonly capabilities?: Pick<ModelCapabilities, 'vision' | 'supportsStrictTools'> | undefined
   /**
    * `anthropic` marks the system block and the last text block (OpenRouter
    * to an Anthropic upstream, as the `anthropic` codec's rule); `last`
@@ -507,7 +508,8 @@ export function encodeChatRequest(
   messages.push(...pendingImages)
 
   const nativeTools: ChatFunctionTool[] = []
-  const tools = withStrictTools(body.tools, quirks.supportsStrictTools === true)
+  const shouldUseStrictTools = (options?.capabilities ?? quirks).supportsStrictTools === true
+  const tools = withStrictTools(body.tools, shouldUseStrictTools)
   for (const tool of tools) {
     if (tool.type !== 'function') {
       throw new Error('chat codec: hosted search never reaches a BYO model')
@@ -518,7 +520,7 @@ export function encodeChatRequest(
         name: tool.name,
         description: tool.description,
         parameters: tool.parameters,
-        ...(quirks.supportsStrictTools === true && { strict: true as const }),
+        ...(shouldUseStrictTools && { strict: true as const }),
       },
     })
   }

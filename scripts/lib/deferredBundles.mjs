@@ -292,6 +292,39 @@ export function checkDeferredBundles(inputsOf) {
       }
     }
   }
+  const imageWorker = {
+    output: 'dist/imageResizeWorker.js',
+    metafile: 'dist/meta/imageResizeWorker.json',
+  }
+  const rasterOnly = [
+    'src/core/imageResizeWorker.ts',
+    'node_modules/jpeg-js/',
+    'node_modules/pngjs/',
+  ]
+  for (const prefix of rasterOnly) {
+    if (
+      inputsOf(imageWorker)
+        .keys()
+        .every((file) => !file.startsWith(prefix))
+    )
+      problems.push(`${imageWorker.output} no longer carries ${prefix}`)
+    for (const bundle of [
+      ...Object.values(BUNDLES),
+      ...DEFERRED,
+      ...ON_FIRST_USE,
+      { output: 'dist/modelsPanel.js', metafile: 'dist/meta/modelsPanel.json' },
+      { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' },
+    ]) {
+      if (
+        inputsOf(bundle)
+          .keys()
+          .some((file) => file.startsWith(prefix))
+      )
+        problems.push(
+          `${bundle.output} carries ${prefix}, which runs only on the image resize worker`,
+        )
+    }
+  }
   return problems
 }
 

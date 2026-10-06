@@ -123,6 +123,7 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(listed).toEqual(
       [
         ...Object.keys(built.outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
       ]
         .filter((file) => file.endsWith('.js'))

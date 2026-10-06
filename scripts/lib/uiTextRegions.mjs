@@ -143,6 +143,7 @@ export const compactBrowserEnglish = {
       return {
         contents: compactEnglishSource(EN),
         loader: 'js',
+        resolveDir: path.dirname(args.path),
         watchFiles: [args.path, 'src/shared/l10n/compactEnglish.ts', 'src/shared/constants.ts'],
       }
     })

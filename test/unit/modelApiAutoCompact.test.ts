@@ -653,7 +653,13 @@ describe('automatic compaction in the shared Model API loop', () => {
     )
     const done = t.turnDone()
     const running = await t.session.sendTurn([{ type: 'text', text: 'continue goal' }])
-    await entered.promise
+    await Promise.race([
+      entered.promise,
+      (async () => {
+        await done
+        throw new Error('The turn ended before the summary was admitted')
+      })(),
+    ])
     await t.session.steer(running.turnId, [{ type: 'text', text: 'Separate question' }])
     held.resolve(undefined)
     await done

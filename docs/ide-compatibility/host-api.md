@@ -433,7 +433,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 40    |
+| `node:buffer`          | 41    |
 | `node:child_process`   | 13    |
 | `node:crypto`          | 49    |
 | `node:dgram`           | 1     |
@@ -446,7 +446,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:module`          | 1     |
 | `node:net`             | 8     |
 | `node:os`              | 9     |
-| `node:path`            | 85    |
+| `node:path`            | 86    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
@@ -456,8 +456,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:url`             | 4     |
 | `node:util`            | 5     |
 | `node:vm`              | 1     |
-| `node:worker_threads`  | 4     |
-| `node:zlib`            | 4     |
+| `node:worker_threads`  | 6     |
+| `node:zlib`            | 5     |
 
 ## The webview's host
 

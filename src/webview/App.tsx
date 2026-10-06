@@ -1671,6 +1671,7 @@ export function App({
         case 'removeWorktree':
         case 'addModelProvider':
         case 'manageModels': {
+          postMessage({ type: 'hostAction', action: action.type })
           closeOverlay()
           break
         }

@@ -7141,6 +7141,10 @@ export class ConversationController {
    * before the wizard's first save or after a saved route changes.
    */
   private async allowsModel(modelId: string): Promise<boolean> {
+    if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
+      this.notice('warning', UI_TEXT.contributorBlocked)
+      return false
+    }
     if (this.deps.isConfidentialWorkspace() && modelId.includes('/')) {
       const generation = this.modelGeneration
       const actionGeneration = this.sendInvalidationEpoch

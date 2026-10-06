@@ -51,6 +51,7 @@ const HOST_BUNDLES = [
   'dist/judge.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
+  'dist/imageResizeWorker.js',
 ]
 const NAVIGATOR = /\bnavigator\b/g
 

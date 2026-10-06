@@ -1005,6 +1005,17 @@ export const IMAGE_EXTENSIONS: Readonly<Record<string, ImageMediaType>> = {
   '.webp': 'image/webp',
 }
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024
+// M101: operational raster bounds, independent of a model's documented limits.
+export const IMAGE_RESIZE_TIMEOUT_MS = 5000
+export const IMAGE_RESIZE_MAX_MEMORY_MIB = 256
+export const IMAGE_RESIZE_MAX_PIXELS = 16_000_000
+export const IMAGE_RESIZE_RGBA_CHANNELS = 4
+export const IMAGE_RESIZE_JPEG_QUALITY = 85
+export const IMAGE_RESIZE_PNG_MAX_BYTES_PER_PIXEL = 8
+export const PNG_CHUNK_HEADER_BYTES = 8
+export const PNG_CHUNK_CRC_BYTES = 4
+export const PNG_SIGNATURE_BYTES = 8
+export const PIXELS_PER_MEGAPIXEL = 1_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
@@ -4470,6 +4481,8 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
   'dist/uiText.js',
   'dist/modelApi.js',
+  'dist/providers.js',
+  'dist/modelsPanel.js',
   'dist/sessionBoard.js',
   'dist/reviewer.js',
   'dist/planMarkdown.js',
@@ -4482,8 +4495,10 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
   'dist/searchWorker.js',
+  'dist/imageResizeWorker.js',
   'dist/pageWorker.js',
   'dist/webview/main.js',
+  'dist/webview/models.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/browserCheck.js',
@@ -5447,7 +5462,6 @@ export const ENDPOINT_IPV4_SHIFTS = [24n, 16n, 8n, 0n] as const
 // What the user reads, in the display language (PLAN.md D33).
 export { UI_TEXT } from './l10n/text'
 // Inclusive integer range used to check whether a locale's `one` needs a count.
-export const L10N_COMPACT_FRAGMENT_WORDS = 6
 export const L10N_COMPACT_TOKEN_FIRST = 0xe0_00
 export const L10N_COMPACT_TOKEN_LAST = 0xf8_ff
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'

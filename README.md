@@ -4189,7 +4189,24 @@ without rebuilding.
 - **Webview is blank after a change** — run `npm run build:dev` (F5 does this
   via the pre-launch task) and reload the window.
 
-### How this extension is built
+#### M101 integration validation
+
+`node scripts/m101-e.mjs --plan` prints lane E's live capture plan and call
+estimate. `node scripts/m101-e.mjs --fake` runs request goldens, the fake
+M75 pair and automatic-compaction/overflow checks in bounded batches. Lane E
+owns the live receipt; production automatic compaction stays inactive until
+its evaluated latch and paid admission are certified. The launcher's live
+M75 mode uses the existing OS-stored key and bills that key.
+
+PNG/JPEG images are resized before entering Model API replay when the selected
+model record supplies vision support and documented pixel limits. The portable
+worker preserves aspect ratio, never upscales, and bounds bytes, pixels, memory,
+queue depth and runtime. Records without documented limits retain existing
+image handling. Strict tool schemas follow the selected model record; named
+Meta models use the owner's confirmed strict capability. Unknown or explicitly
+false records keep strict mode off.
+
+## How this extension is built
 
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling

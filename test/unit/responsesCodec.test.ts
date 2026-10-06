@@ -1,6 +1,7 @@
 // M95 lane R: live captures are the positive wire fixtures; mutations below
 // exercise malformed/provider-additive frames without making a model call.
 import { readFileSync } from 'node:fs'
+import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { customQuirksFor, PRESETS, quirksOf } from '../../src/core/providers/presets'
@@ -681,4 +682,23 @@ describe('responsesCodec decodeStream', () => {
     const events = await collect(stream(...openaiText.map((event) => frame(event))))
     expect(events.at(-1)).toMatchObject({ response: { output: [{ content: [{ logprobs: [] }] }] } })
   })
+})
+
+it('binds strict schemas per selected model and lets explicit false override a strict preset', () => {
+  const records = new Map([
+    ['known', { ...CONSERVATIVE_CAPABILITIES, supportsStrictTools: true }],
+    ['off', { ...CONSERVATIVE_CAPABILITIES, supportsStrictTools: false }],
+  ])
+  const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true }, (modelId) =>
+    records.get(modelId),
+  )
+  const parse = z.object({ tools: z.array(z.object({ strict: z.boolean() })) })
+  for (const model of ['known', 'off', 'unknown']) {
+    const body = firstTurnBody(model)
+    expect(
+      parse
+        .parse(codec.encodeRequest({ ...body, tools: toolDefinitions('linux') }))
+        .tools.every((tool) => tool.strict === (model === 'known')),
+    ).toBe(true)
+  }
 })

@@ -39,6 +39,15 @@ const metafileSchema = z.looseObject({
   ),
 })
 
+function expectUnchangedMeta(
+  meta: z.infer<typeof metafileSchema>,
+  hash: string,
+  check: () => readonly string[],
+): void {
+  expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+  expect(check()).toEqual([])
+}
+
 const fixtures = new Map<string, { bytes: Buffer; meta: z.infer<typeof metafileSchema> }>()
 const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
 const bundleTexts = new Map<string, string>()
@@ -91,6 +100,7 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        imageResizeWorker: 'src/core/imageResizeWorker.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
@@ -440,8 +450,7 @@ describe('deferred cohort bundles', () => {
     } finally {
       output.inputs = originalInputs
     }
-    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-    expect(check()).toEqual([])
+    expectUnchangedMeta(meta, hash, check)
   })
 
   it.each([
@@ -505,8 +514,17 @@ describe('deferred cohort bundles', () => {
       } finally {
         output.inputs = originalInputs
       }
-      expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
-      expect(check()).toEqual([])
+      expectUnchangedMeta(meta, hash, check)
     },
+  )
+})
+
+it('refuses a raster codec leaked into the lazy Model API parent', () => {
+  const maps = new Map(inputMaps)
+  const inputs = new Map(maps.get('dist/modelApi.js'))
+  inputs.set('node_modules/jpeg-js/lib/decoder.js', 1)
+  maps.set('dist/modelApi.js', inputs)
+  expect(checkDeferredBundles((bundle) => maps.get(bundle.output) ?? new Map())).toContain(
+    'dist/modelApi.js carries node_modules/jpeg-js/, which runs only on the image resize worker',
   )
 })

@@ -327,6 +327,9 @@ import {
 } from './extensionHooks'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { cacheMissTokens, promptCacheKey } from './promptCache'
+import { CODEC_IMAGE_WITHOUT_VISION } from '../../../shared/constants'
+import { readImageInfo } from '../../imageDimensions'
+import { resizeImage } from '../../imageResize'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { FormatQuirks } from '../../providers/presets'
 import {
@@ -390,6 +393,8 @@ import {
   type Citation,
   citationsOf,
   type CreateResponseBody,
+  withStrictTools,
+  restoreOptionalToolArguments,
   type FunctionCallItem,
   type FunctionOutputPart,
   type FunctionToolDefinition,
@@ -557,7 +562,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly modelFacts?: (modelId: string) =>
     | {
         readonly capabilities: ModelCapabilities
-        readonly quirks: FormatQuirks
+        readonly quirks: Pick<FormatQuirks, 'cachedUsageFields'>
       }
     | undefined
   readonly workspaceRoot: string
@@ -3240,7 +3245,10 @@ export class ModelApiSession implements AgentSession {
           environment,
           rules: context.rules,
         }),
-        tools,
+        tools: withStrictTools(
+          tools,
+          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+        ),
       }
     }
     const shell = shellToolFor(this.deps.platform)
@@ -3279,7 +3287,10 @@ export class ModelApiSession implements AgentSession {
         // A custom agent's own prompt runs as the child's role (M76).
         ...(role !== undefined && { agent: role }),
       }),
-      tools: this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
+      tools: withStrictTools(
+        this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
+        this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+      ),
     }
   }
 
@@ -3668,9 +3679,13 @@ export class ModelApiSession implements AgentSession {
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onRequestStarted: () => {
         if (!isCompaction && directBudget === undefined) {
+          const turnIds = this.replay.map((entry) => entry.turnId)
+          // Request-only goal progress belongs to the retained owning turn.
+          if (body.input.length === turnIds.length + 1 && this.active !== undefined)
+            turnIds.push(this.active.turnId)
           this.compactionPrefix = {
             body: structuredClone(body),
-            turnIds: this.replay.map((entry) => entry.turnId),
+            turnIds,
           }
           this.autoCompact.noteRequest()
         }
@@ -3733,17 +3748,17 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  private appendUserMessage(
+  private async appendUserMessage(
     turnId: string,
     parts: readonly TurnPart[],
     displayText: string | undefined,
     reservedUserMessageId?: string,
-  ): void {
+  ): Promise<void> {
     const itemId = reservedUserMessageId ?? this.deps.newId()
     this.replay.push({
       turnId,
       userMessageId: itemId,
-      item: { type: 'message', role: 'user', content: this.contentParts(parts) },
+      item: { type: 'message', role: 'user', content: await this.contentParts(parts) },
     })
     const text = displayText ?? typedText(parts)
     this.firstPrompt ??= text
@@ -3852,7 +3867,11 @@ export class ModelApiSession implements AgentSession {
   private appendGoalWake(turnId: string, parts: readonly TurnPart[]): void {
     this.replay.push({
       turnId,
-      item: { type: 'message', role: 'user', content: this.contentParts(parts) },
+      item: {
+        type: 'message',
+        role: 'user',
+        content: contentPartsFor(parts, (selector) => this.context.skill(selector)),
+      },
     })
     this.firstPrompt ??= this.goal?.objective
   }
@@ -5462,8 +5481,36 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
-  private contentParts(parts: readonly TurnPart[]): InputContentPart[] {
-    const content = contentPartsFor(parts, (selector) => this.context.skill(selector))
+  private async contentParts(parts: readonly TurnPart[]): Promise<InputContentPart[]> {
+    const capabilities = this.deps.modelFacts?.(this.modelId)?.capabilities
+    const prepared: TurnPart[] = []
+    for (const part of parts) {
+      if (
+        part.type === 'image' &&
+        this.deps.modelFacts !== undefined &&
+        capabilities?.vision !== true
+      ) {
+        prepared.push({ type: 'text', text: CODEC_IMAGE_WITHOUT_VISION })
+        continue
+      }
+      if (
+        part.type !== 'image' ||
+        capabilities?.vision !== true ||
+        capabilities.imageLimits === undefined
+      ) {
+        prepared.push(part)
+        continue
+      }
+      const bytes = await resizeImage(
+        Buffer.from(part.base64Data, 'base64'),
+        capabilities.imageLimits,
+        this.active?.abort.signal ?? new AbortController().signal,
+      )
+      const info = readImageInfo(bytes)
+      if (info === undefined) throw new Error('image_resize_invalid_output')
+      prepared.push({ ...part, ...info, base64Data: Buffer.from(bytes).toString('base64') })
+    }
+    const content = contentPartsFor(prepared, (selector) => this.context.skill(selector))
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
@@ -5480,19 +5527,21 @@ export class ModelApiSession implements AgentSession {
    * user messages (image-understanding), and a message there between two
    * of a response's outputs would split them.
    */
-  private appendReadFiles(turnId: string, isRoundComplete: boolean): void {
+  private async appendReadFiles(turnId: string, isRoundComplete: boolean): Promise<void> {
     const files = this.readFiles.splice(0)
     if (files.length === 0) {
       return
     }
     const pending: PendingReadFile[] = []
-    const content = files.flatMap((file): InputContentPart[] => {
+    const content: InputContentPart[] = []
+    for (const file of files) {
       if (!isRoundComplete) {
-        return [{ type: 'input_text', text: file.notDelivered }]
+        content.push({ type: 'input_text', text: file.notDelivered })
+        continue
       }
-      const [sent] = this.contentParts([file.part])
+      const [sent] = await this.contentParts([file.part])
       if (sent === undefined) {
-        return []
+        continue
       }
       const lead: InputContentPart = { type: 'input_text', text: file.lead }
       pending.push({
@@ -5502,8 +5551,8 @@ export class ModelApiSession implements AgentSession {
         encodedChars: turnMediaEncodedChars(file.part),
         slots: turnMediaSlots(file.part),
       })
-      return [lead, sent]
-    })
+      content.push(lead, sent)
+    }
     const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
     this.replay.push(replay)
     if (pending.length > 0) {
@@ -9540,11 +9589,20 @@ export class ModelApiSession implements AgentSession {
   /** Permission check, execution and the transcript row for one tool call. */
   private async runCall(
     turnId: string,
-    call: FunctionCallItem,
+    givenCall: FunctionCallItem,
     signal: AbortSignal,
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
+    const flags = this.toolFlags()
+    const definition = this.tools(flags.hasShell, flags.hasSkills, flags.hasMemory).find(
+      (tool) => tool.type === 'function' && tool.name === givenCall.name,
+    )
+    const call =
+      this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true &&
+      definition?.type === 'function'
+        ? { ...givenCall, arguments: restoreOptionalToolArguments(givenCall.arguments, definition) }
+        : givenCall
     const itemId = this.deps.newId()
     const startedAt = this.deps.now()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
@@ -9977,7 +10035,7 @@ export class ModelApiSession implements AgentSession {
           role: 'user',
           content: [
             { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
-            ...this.contentParts(parts),
+            ...(await this.contentParts(parts)),
           ],
         },
       })
@@ -10457,7 +10515,7 @@ export class ModelApiSession implements AgentSession {
         this.appendHookContexts(turn.turnId, postContexts)
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
-        this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
+        await this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
       }
       const afterBatch = await this.runHooks(
         'PostToolBatch',
@@ -10658,7 +10716,12 @@ export class ModelApiSession implements AgentSession {
         this.appendHookContexts(turn.turnId, [typedText(queued.parts)])
       } else {
         const replayStart = this.replay.length
-        this.appendUserMessage(turn.turnId, queued.parts, queued.displayText, queued.userMessageId)
+        await this.appendUserMessage(
+          turn.turnId,
+          queued.parts,
+          queued.displayText,
+          queued.userMessageId,
+        )
         await this.expandSkillsForHooks(
           turn.turnId,
           queued.parts,

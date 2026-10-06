@@ -205,6 +205,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           window: { ...subscription.window, resetsAtMs: NOW - 1 },
@@ -225,6 +226,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           weekly: { ...subscription.weekly, resetsAtMs: NOW - 1 },
@@ -243,6 +245,7 @@ describe('UsageDialog', () => {
         backend: 'museCode',
         account: undefined,
         insights: undefined,
+        providers: undefined,
         subscription: {
           ...subscription,
           tier: '27681393394859588',

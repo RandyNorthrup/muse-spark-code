@@ -115,9 +115,9 @@ export interface FormatQuirks {
   readonly retry: RetryTables
   /**
    * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
-   * and Azure's constrained decoding. Off everywhere else until a wire
-   * capture proves it, including llama.cpp (its grammar limit bounds what
-   * converts) and Meta (the canonical body keeps `strict: false`).
+   * and Azure's constrained decoding. The selected model record overrides
+   * this preset default, including explicit false. Meta's host binds its
+   * owner-confirmed strict capability; unknown/custom/local records stay off.
    */
   readonly supportsStrictTools: boolean
 }

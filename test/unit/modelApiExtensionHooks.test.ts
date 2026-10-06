@@ -78,6 +78,7 @@ function setup(
     readonly hooks?: readonly HookDefinition[]
     readonly paidSubagents?: boolean
     readonly paidWebSearch?: boolean
+    readonly compactionModel?: ModelApiHostDeps['compactionModel']
   } = {},
 ) {
   const api = fakeModelApi()
@@ -108,6 +109,7 @@ function setup(
     isHooksEnabled: options.isHooksEnabled ?? (() => true),
     isWorkspaceTrusted: options.isWorkspaceTrusted ?? (() => true),
     loadHooks: () => Promise.resolve(options.hooks ?? []),
+    ...(options.compactionModel !== undefined && { compactionModel: options.compactionModel }),
     ...((options.paidSubagents === true || options.paidWebSearch === true) && {
       isPaidFeatureOn: (feature) =>
         (feature === 'subagents' && options.paidSubagents === true) ||
@@ -548,6 +550,11 @@ describe('ModelApiSession extension hooks', () => {
 
   it('leaves compaction alone: the tool-less summary fires no extension hook', async () => {
     const t = setup({
+      compactionModel: () => ({
+        contextTokens: undefined,
+        capabilities: { toolCalling: true },
+        quirks: { keepToolsWithHistory: false, reasoningReplay: 'same-model' },
+      }),
       extensionHooks: sparkHooks({
         BeforeToolSelection: [{ hooks: [{ type: 'command', command: 'narrow' }] }],
         AfterAgentThought: [{ hooks: [{ type: 'command', command: 'think' }] }],

@@ -7,7 +7,24 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M101 integration: combine release 0.14.0 and reviewed cache, compaction,
+  overflow, tools and provider lanes. Bind strict schemas to selected model
+  capabilities (including owner-confirmed Meta support), restore optional
+  null tool arguments, and resize real PNG/JPEG images in a bounded portable
+  worker before replay when documented model limits are supplied. Keep
+  automatic compaction inactive pending lane E. Align transient goal progress
+  with automatic-compaction snapshots, preserving goal-budget/Stop guards. Compress the complete browser
+  English fallback and immutable Model API instructions losslessly and share repeated usage markup to retain every
+  existing startup/deferred cap. Lane E's launcher supplies fake checks,
+  live M75 opt-in and counted capture estimates. Restore merged contributor
+  privacy checks and picker host actions, retain browser array bounds in strict
+  schemas, and align shipped browser/worker package records.
+
+
 ### Fixed
+
+- Pin the fixed development-only source-map-js 1.2.2 patch for
+  GHSA-68fv-2mgg-jv7q; preserve the existing dependency audit policy.
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.

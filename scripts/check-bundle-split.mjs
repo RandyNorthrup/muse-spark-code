@@ -125,6 +125,7 @@ const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
   'ModelApiHost.ts',
+  'modelCapabilities.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -704,14 +705,19 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
-// ESM splitting moves shared constants to one common browser chunk. Identify
-// that chunk by its source, so hashes may change without loosening the text gate.
-const webviewConstants = SHIPPED.filter(
-  (bundle) =>
-    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+// The chat ESM graph carries the review template in a shared chunk. Models
+// is a separate graph and may also use constants, but never this template.
+// textOf(main) checks every chunk in its graph; require its actual reader.
+const webviewReview = SHIPPED.filter(
+  ({ output, metafile }) =>
+    output.startsWith('dist/webview/') &&
+    Object.hasOwn(
+      JSON.parse(readFileSync(metafile, 'utf8')).inputs,
+      'src/webview/components/ReviewPane.tsx',
+    ),
 )
-if (webviewConstants.length !== 1) {
-  problems.push('the webview must carry shared constants in exactly one JavaScript output')
+if (webviewReview.length !== 1) {
+  problems.push('exactly one webview graph must carry ReviewPane')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -773,7 +779,7 @@ const TEXT_BLOCKS = [
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
-    readers: webviewConstants.map(({ output }) => output),
+    readers: webviewReview.map(({ output }) => output),
   },
   // Web fetch's own words (M69): the window's fetch, the Model API
   // backend's URL checks and the ACP agent's fetch.

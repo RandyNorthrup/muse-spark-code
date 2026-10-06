@@ -1,3 +1,4 @@
+import type { ImageLimits } from '../imageResize'
 // What a model can do (M95, PLAN.md D74). Capabilities come from the
 // provider's models list where it gives them, the vendored catalogue
 // otherwise, and the user for a custom server. A custom server and the
@@ -10,6 +11,10 @@ export interface ModelCapabilities {
   readonly toolCalling: boolean
   /** The model takes image input. */
   readonly vision: boolean
+  /** Unknown is off; resolved for this model, never inferred from its format. */
+  readonly supportsStrictTools?: boolean | undefined
+  /** Documented pixel limits only; absence preserves today's image bytes. */
+  readonly imageLimits?: ImageLimits | undefined
   /** The model reasons (its reasoning replays only to the same provider). */
   readonly reasoning: boolean
   /** The request may send several tool calls at once. */

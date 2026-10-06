@@ -3,6 +3,7 @@
 // belong to lane T. The shared WireCodec has not landed on this branch, so
 // ResponsesWireCodec is the explicit seam for its transport adapter.
 
+import type { ModelCapabilities } from '../../../providers/capabilities'
 import * as z from 'zod/mini'
 import { CODEC_EMPTY_TOOL_OUTPUT, CODEC_IMAGE_WITHOUT_VISION } from '../../../../shared/constants'
 import {
@@ -297,7 +298,10 @@ function settledCostOf(usage: unknown): number | undefined {
   return parsed.success ? parsed.data.cost_in_usd_ticks * USD_PER_COST_TICK : undefined
 }
 
-export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWireCodec {
+export function createResponsesCodec(
+  quirks: ResponsesCodecQuirks,
+  capabilitiesForModel?: (modelId: string) => ModelCapabilities | undefined,
+): ResponsesWireCodec {
   return {
     format: 'responses',
     encodeRequest(
@@ -308,7 +312,16 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
       // An input left with nothing after the mapping is refused outright
       // instead of sent as a guaranteed 400.
       const model = options?.model ?? body.model
-      const mapped = replayInput(body.input, quirks, model, options?.replayOrigins)
+      const capabilities = capabilitiesForModel?.(body.model)
+      const effective =
+        capabilitiesForModel === undefined
+          ? quirks
+          : {
+              ...quirks,
+              vision: capabilities?.vision === true,
+              supportsStrictTools: capabilities?.supportsStrictTools === true,
+            }
+      const mapped = replayInput(body.input, effective, model, options?.replayOrigins)
       if (mapped.length === 0) {
         throw new Error('responses codec: the request keeps no replayable input')
       }
@@ -316,7 +329,7 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
         model: body.model,
         input: mapped,
         instructions: cleanWireText(body.instructions),
-        tools: withStrictTools(body.tools, quirks.supportsStrictTools === true),
+        tools: withStrictTools(body.tools, effective.supportsStrictTools === true),
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,

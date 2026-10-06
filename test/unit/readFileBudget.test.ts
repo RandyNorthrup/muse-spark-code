@@ -7,6 +7,8 @@ import {
 import { TOOL_OUTPUT_CLIP_MARKER, TOOL_OUTPUT_MAX_CHARS } from '../../src/shared/constants'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
+const numbered = (text: string | undefined) => text?.match(/^\d+\|a+$/gm)
+
 describe('read_file model budget (M101 item 13)', () => {
   it('scales down with loaded windows and retains the existing cap for Muse', () => {
     expect(readFileCharacterBudget(8192)).toBe(4096)
@@ -24,10 +26,23 @@ describe('read_file model budget (M101 item 13)', () => {
     const small = await executeTool('read_file', args, { ...base, contextTokens: 8192 })
     const muse = await executeTool('read_file', args, { ...base, contextTokens: 1_048_576 })
     const unknown = await executeTool('read_file', args, base)
-    expect(small.output.length).toBe(4096 + TOOL_OUTPUT_CLIP_MARKER.length)
-    expect(small.output).toBe(small.visibleOutput)
-    expect(small.output.endsWith(TOOL_OUTPUT_CLIP_MARKER)).toBe(true)
+    const expectedSmall = [1, 2, 3, 4].map((line) => `${String(line)}|${'a'.repeat(1000)}`)
+    expect(numbered(small.output)).toEqual(expectedSmall)
+    expect(numbered(small.visibleOutput)).toEqual(expectedSmall)
+    expect(small.output.length).toBeLessThanOrEqual(4096)
+    expect(small.output).toContain('[lines 1-4 of 100; offset=5]')
+    expect(small.visibleOutput).toContain('Lines 1–4 of 100; offset=5')
+    expect(small.output).not.toContain(TOOL_OUTPUT_CLIP_MARKER)
+    const next = await executeTool('read_file', JSON.stringify({ path: 'large.txt', offset: 5 }), {
+      ...base,
+      contextTokens: 8192,
+    })
+    expect(numbered(next.output)).toEqual(
+      [5, 6, 7, 8].map((line) => `${String(line)}|${'a'.repeat(1000)}`),
+    )
     expect(muse.output).toBe(unknown.output)
-    expect(muse.output.length).toBe(TOOL_OUTPUT_MAX_CHARS + TOOL_OUTPUT_CLIP_MARKER.length)
+    expect(numbered(muse.output)).toHaveLength(63)
+    expect(muse.output.length).toBeLessThanOrEqual(TOOL_OUTPUT_MAX_CHARS)
+    expect(muse.output).toContain('[lines 1-63 of 100; offset=64]')
   })
 })

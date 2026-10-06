@@ -1079,7 +1079,11 @@
         document.body.style.width = '100%'
       }
     </script>
-    <script type="module" src="../../dist/webview/main.js"></script>
+    <script>
+      document.write(
+        `<script type="module" src="../../dist/webview/${harnessBundle}.js"><\/script>`,
+      )
+    </script>
     <script>
       // Scripting errors and dropped host messages are written into the page
       // so a screenshot shows them instead of a silent empty state.

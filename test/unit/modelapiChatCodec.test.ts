@@ -2121,3 +2121,18 @@ describe('M101 lane P1 history hardening (BYO items 1, 3, 13)', () => {
     expect(text).not.toContain(String.raw`\udc00`)
   })
 })
+
+it('lets the selected chat model capability override a strict-capable preset', () => {
+  const body = { ...tinyBody(), tools: toolDefinitions('linux') }
+  for (const enabled of [true, false, undefined]) {
+    const encoded = encodeChatRequest(
+      body,
+      'selected-model',
+      { ...GROQ, supportsStrictTools: true },
+      { capabilities: { vision: false, supportsStrictTools: enabled } },
+    )
+    expect(encoded.body.tools?.every((tool) => tool.function.strict === true)).toBe(
+      enabled === true,
+    )
+  }
+})

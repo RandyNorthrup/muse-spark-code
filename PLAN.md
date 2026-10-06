@@ -7080,12 +7080,19 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
    be blocked, and an M75 eval that stays comparable.
 6. **Observation packing defaults on in released main under D78.** The owner
    intends the packing items (2, 4, 7, 18, 22) to reach every Model API user.
-   **Candidate packing default: off.** This older C2 tree's manifest and
-   `SETTING_DEFAULTS` still disable `museSpark.modelApiObservationPacking` by
-   default, as its README records. That released-main change must be integrated
-   before claiming packing reaches fresh sessions in this candidate.
+   **Candidate packing default: on.** M101INT integrated released main's
+   manifest and `SETTING_DEFAULTS`; the README reflects the same default.
+   Shared ACP/headless packing is enabled too, and explicit-off sessions retain
+   their feature-off request goldens.
 
 ## 3. Open questions (need the owner)
+
+- **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
+  authorized documentation supplies each vision model's maximum width/height?
+  This base has no M95 N records for them, and the lane rules permit no network
+  lookup beyond npm ci. The portable PNG/JPEG mechanism is proved with explicit
+  injected limits; production records must use documented limits, never a guess.
+  FIXM101T-IMAGE21 remains open until those records and their ingress proof land.
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
   `native/darwin/muse-dictate`. The lane's shared rules forbid network except
@@ -13833,9 +13840,9 @@ evaluation is authorized by these repairs.
 - **Size.** S.
 - **D78 released-main default (2026-10-04): on.** The owner's target makes
   `museSpark.modelApiObservationPacking` available by default.
-  **Candidate packing default: off.** This older C2 candidate's manifest and
-  runtime still default it off; the README agrees. Integrate released main's
-  default change before claiming M101's packing fixes reach every fresh session.
+  **Candidate packing default: on.** M101INT integrated the released manifest
+  and runtime default with the README; ACP/headless uses the same shared packing
+  engine. Explicit-off requests retain their golden bytes.
 - **Status 2026-10-02: shipped off by default after its M75 run passed.**
   Built 2026-10-01 on
   `feature/m73-packing`, from M75's merged head. What is in it:
@@ -19813,12 +19820,60 @@ zero vulnerabilities and installed manifests declare no peers. Preserve the
 original shared node_modules contents and use a fresh private install.
 Recover browser budget with lossless lz-string 1.5.0 fallback compression
 (also pure JS, no peers/dependencies), and retain all translated/English bytes.
+Release plus lanes exceed Model API and deferred-webview caps too: production
+Model API text uses Node Brotli, preserving literal keys for unchanged text
+readership checks and exact model bytes, and UsageDialog shares repeated
+markup. No existing cap changes. The new lazy raster worker alone gets 75 KiB
+(measured 58.7 KiB + 15%, rounded up by 25); parent bundles cannot carry its
+codecs. Shipping/notices/host API gates cover it in both editor/runtime packages.
 Bind strict tools from the selected model capability; Meta support is owner
 confirmed 2026-10-05, strict argument deltas and missing additionalProperties 400. Preserve and validate recall minLength/maxLength in the strict subset.
-Leave live acceptance and production automatic-compaction activation to E.
+The combined A/C2 goal tests expose a request-metadata mismatch: goal progress
+is a request-only trailing item while C2 records replay-only turn ids. Attribute
+that transient item to the owning current turn in the dispatched snapshot;
+retain exact sent bytes and never count the retained progress as removable.
+The existing five failing goal-summary budget/steer tests must pass, with a
+byte-exact reversal drill. The M91 hooks-off harness explicitly has packing on;
+its seven request fixtures must adopt A's stable recall declaration, T's
+multi-edit schema and C1's structured cached summary, with a reviewed JSON path
+and byte-delta record. Its injected clock starts at local 1970-01-01 midnight
+so A's local-date fix does not make captures depend on the rig's timezone;
+Meta feature-off codec fixtures remain byte-identical. Leave live acceptance and production automatic-
+compaction activation to E.
 
-**Status 2026-10-05: planned; lanes start from `m101/base` (the M95
-integration branch plus this plan).** The item numbers below are the
+The one authorized full quality run exposes merge-only regressions: restore
+the release's contributor check before confirmation shortcuts alongside M95
+privacy checks, restore picker/palette host actions, add all shipped graphs to
+the report/browser package records, and include the raster worker in fake ACP
+packaging fixtures. Strict conversion must preserve and validate the browser
+tool's existing array bounds. The tool-less hook fixture explicitly selects
+tool-less compaction; daily-budget comparisons hold packing fixed, since A's
+stable recall declaration intentionally changes packing-on requests. The ACP
+environment test checks its complete fake credential values, since "placeholder"
+is also ordinary text in recall's description. Rerun every affected file without
+filters, then the remaining gates; do not rerun the authorized-once aggregate.
+
+Final audit finds new high GHSA-68fv-2mgg-jv7q in development-only source-map-js
+1.2.1; npm's report marks versions below 1.2.2 affected and a fix available.
+Fetch and verify the exact 1.2.2 patch in an isolated npm-ci fixture, then pin
+the transitive override and tarball integrity. All four parent ranges are
+`^1.2.1`; no new runtime dependency, peer or security exception is intended.
+Preserve existing installs intact and use another fresh private root install.
+Recheck audit and build/package outputs after this required gate repair.
+The full accessibility gate exposes one more conflict: the harness stylesheet
+selects Models, but the merged script tag always loads chat. Restore the M95
+dynamic bundle loader while retaining M87's Tasks surface setup, then remeasure
+all 181 scenarios across four themes; do not suppress or filter failed pages.
+
+**Status 2026-10-06: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated with
+release 0.14.0 on Kubuntu.** The five requested merges are complete. Strict
+capability is bound for named Meta models and authoritative codec/host seams;
+portable real PNG/JPEG resize is implemented and tested with injected limits.
+Production image dimensions remain undocumented on this base (M95 N absent),
+so FIXM101T-IMAGE21 stays open for those model records. Live E, automatic paid
+admission/evaluated activation, installed-editor matrix and absent BYO
+transport/catalogue binding remain required. Full gate receipts and the complete
+item/provider tables live in `docs/certification/m101.md`. The item numbers below are the
 research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
 its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
@@ -20105,12 +20160,12 @@ receipts remain the lead's checks under the rig brief.
   `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
 - **Size.** L.
 - **Certification checklist.**
-  - [ ] Lane A, with drills and the golden diffs
-  - [ ] Lane C1, with drills
+  - [x] Lane A, with drills and the golden diffs (integrated fake evidence)
+  - [x] Lane C1, with drills (integrated fake evidence)
   - [ ] Lane C2, with drills and its M75 pair
   - [ ] Lane O, with drills and captured overflow texts
   - [ ] Lane T, with drills
-  - [ ] Lanes P1 and P2, with drills and codec goldens
+  - [x] Lanes P1 and P2 mechanisms, with drills and codec goldens; BYO binding tracked below
   - [ ] Lane E's live counts and cached-token results
   - [ ] Provider × item table complete; full gate green
 
@@ -20488,6 +20543,31 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
   deliberate bypass rather than a habit.
 
 ## 7. Gates
+
+**M101INT aggregate receipt (2026-10-06).** The brief authorizes exactly one
+`VITEST_MAX_WORKERS=3 npm run quality`. It exits 1 at unit tests: 541 passing
+files, 9 failing, 7 pre-existing opt-in skipped; 12,014 passing tests, 32 failing,
+72 skipped. Formatting, lint, all five compiler projects, l10n, host API,
+deadcode, cycles and duplication pass before that failure. Repairs are verified
+by whole owning files and remaining gates separately. This records a justified
+local review-commit deferral under rule 2, not an aggregate pass or release
+certification; the lead must rerun full quality/coverage on the final integrated
+tree. No rule, threshold, test filter or timeout is relaxed.
+
+**M101INT package blocker (2026-10-06).** All unchanged raw startup/lazy caps,
+split/global/notices gates pass, but the final composed VSIX is 2,534,138 bytes
+against its unchanged 2,252,800-byte cap (+281,338). The earlier 2,533,864-byte
+archive still yielded 2,523,608 after ZIP level-9 recompression, so packaging
+overhead cannot close it. M95's independent
+Models browser graph, providers/catalogue and joined translations remain shipped
+as their lanes require. Removing them would drop intent; sharing browser runtimes
+or changing the localization archive is broader work with readership/CSP/runtime
+and installed-editor consequences, beyond the bounded image/strict integration
+finding. This is a release blocker, not an exception or raised threshold.
+Follow-up owner: M95 W / lead performs a reviewed package-size integration diet
+and rechecks the unchanged cap on universal artifacts. Local ACP package passes;
+its success does not waive VSIX acceptance. The overriding common rules require
+stopping/reporting when fitting needs a larger design or an owner cap decision.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -22146,27 +22226,22 @@ before a repaired one loads (2026-09-30).
   combined tree and collect counted live receipts before acceptance. No live
   or paid call, dependency, suppression or gate change in this repair.
 
-- **FIXM101T-IMAGE21 (RVM101T finding 13, research item 21):** downscaling
-  remains unimplemented. This base has no pixel decoder/resizer, no preset
-  image limits and no host capability lookup. A portable implementation for
-  VS Code, ACP and headless needs a P2/provider seam plus an approved resize
-  implementation; platform-specific subprocesses or a PNG-only rewrite
-  would not provide equivalent functionality. No new dependency is allowed
-  in this lane. Existing image header/byte/attachment-count checks stay in
-  force, and backend errors are explicit; the existing size/cost behavior
-  is retained, not certified as meeting item 21. Follow-up: integrate BYO-15
-  and a shared one-time ingress resizer gated by vision and actual preset
-  limits; test PNG/JPEG/GIF/WebP, every host and each vision preset within
-  the bundle caps. M101 lane T acceptance remains open for this item.
-- **FIXM101T-PACK-DEFAULT (inherited integration gap):** this lane does not
-  own package/settings/README packing defaults. The actual manifest still
-  defaults packing off, despite D81.6. The integration lane must switch the
-  manifest and host/runtime defaults together, update README, and test the
-  default and explicit-off paths. Until then this record claims packing
-  fixes only for sessions whose packing setting is on. The current ACP and
-  headless backend factory does not supply the packing dependency; integration
-  must expose the same shared core via its runtime option and default policy,
-  with resume/fork/recall checks there too. It adds no paid call.
+- **FIXM101T-IMAGE21 (integration update 2026-10-06):** the portable
+  PNG/JPEG decoder/resizer and shared one-time attachment/read_file ingress
+  now work with authoritative vision + documented pixel limits. Real fixtures
+  prove aspect/no-upscale and bounded bytes, pixels, inflation, heap, queue,
+  deadline and cancellation; oversized unsupported formats refuse explicitly.
+  No documented model dimensions exist in this assigned base or capture records;
+  BYO 15 was assigned to M95 N, absent from the five named merges. The owner
+  was asked for its source/limits; no invented limit is installed. Follow-up:
+  supply documented per-model image limits, capture production acceptance and
+  add GIF/WebP codecs if their oversized ingress must be supported. Item 21 is
+  mechanism-complete for PNG/JPEG, but model-record acceptance stays open.
+- **FIXM101T-PACK-DEFAULT (resolved integration 2026-10-06):** the released
+  manifest and shared constants default packing on; ACP/headless supplies the
+  shared dependency and defaults it on too. Explicit-off and first-request
+  recall paths pass. Older lane receipts describe their historical off default,
+  not the merged behavior. This optimization introduces no extra paid call.
 - **FIXM101T-EVAL20:** lane E must run M75 multi-edit comparability and live
   stop/overflow receipts. This repair changes shared tool-schema bytes,
   not pricing or extra-call consent. No live/paid calls are allowed here.
@@ -22201,18 +22276,16 @@ before a repaired one loads (2026-09-30).
   No new native-image live receipt is claimed; the existing capture
   provenance and fake-only contract tests are in `m101-p1.md`.
 
-- **M101P2-STRICT-BINDING (RVM101P2 F4, 2026-10-05).** The base's
-  `ModelCapabilities` has no strict-tools field and no provider transport
-  composition reaches these codecs. The subset rewrite and Responses/Chat
-  request gates are implemented and tested using the existing effective
-  `FormatQuirks.supportsStrictTools` reader, as the lead authorized. Absent or
-  false stays off, including Meta and local models; no preset/model name
-  enables it inside a codec. Safe while dispatch remains unwired. Follow-up:
-  M101 integration binds the selected model's capability (including a false
-  override on a strict-capable preset), and translates optional strict null
-  sentinels into omitted arguments before the unchanged tool validators. Run
-  full tool loops and capture counted provider acceptance before enabling
-  strict dispatch; the subset/schema tests alone certify no live acceptance.
+- **M101P2-STRICT-BINDING (resolved mechanism, 2026-10-06):** selected-model
+  capabilities now own supportsStrictTools; absent/false overrides presets and
+  keeps strict off. Named Meta records are on by the owner's counted 2026-10-05
+  receipt (argument deltas; invalid closed schema rejected with 400). The shared
+  host factory supplies those facts for panel and ACP/headless. Tools are
+  rewritten before cache-key generation, with recall string bounds retained;
+  synthesized optional nulls are restored to omission before unchanged tool
+  validators. Full fake tool loops and true/false/unknown codec tests pass.
+  Non-Meta transport is still absent on this base; M95 I must bind its selected
+  records before BYO dispatch, and E/lead retains live/installed acceptance.
 - **M101P2-LLAMA-LIMIT (RVM101P2 F5, 2026-10-05).** The malformed grammar
   type bug is fixed. The actual llama.cpp grammar limit has no capture; byte
   and depth tripwires do not establish it. Safe for now because the existing
