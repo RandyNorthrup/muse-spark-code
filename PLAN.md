@@ -20055,6 +20055,17 @@ cross-platform and native surface certification. No gate is weakened;
 exact results and inherited integration failures are recorded in
 `docs/certification/m107-h.md`.
 
+**FIXM107H inherited wiring deferrals.** The fresh production build passes
+all existing caps (ACP 827.2/850 KiB) but exits 1 at the unchanged seven
+`src/shared/resources.ts` reads of `zod/mini._default`, absent from
+`dist/validation.js`. W owns exporting that mini-parser member and the
+resource bundle's split/package wiring. The host API check also exits 1:
+generated Node-importer counts require child_process 13 → 14, fs/promises
+47 → 49, os 9 → 10 and path 84 → 89. Neither repair adds a Node import;
+W owns refreshing/reviewing the integrated host record. The gates remain
+red, with no ignore, cap change or release approval. Named integration
+residuals and follow-up are in §9 and `docs/certification/m107-h.md`.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -21227,6 +21238,19 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M107-H-W-integration (FIXM107H).** Both RVM107H findings are fixed;
+  no P2/P3 finding is deferred. Existing W-owned validation-bundle and
+  host-API-record failures remain: seven missing `zod/mini._default` reads,
+  and the generated Node-importer counts recorded in §7. Safe only as an
+  unmerged, unshipped lane: unchanged split/record gates still reject the
+  joined feature. Follow-up: W exports the existing mini-parser member,
+  wires/packages the resource bundle, refreshes/reviews the host record,
+  incorporates H's supplied Unreleased fix entry, and runs joined full
+  quality with the C1/T, J, R and M104 bindings named in H's certification.
+  The ACP bundle fits its unchanged 850 KiB hard cap but remains above
+  M107's ≤2 KiB addition target already handed to W; W reviews shared/lazy
+  factoring without weakening resource boundary validation or a budget.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
