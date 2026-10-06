@@ -20,15 +20,6 @@ const checkRunSchema = z.strictObject({
   at: z.iso.datetime({ offset: true }),
 })
 
-function order(left: CheckRunRecord, right: CheckRunRecord): number {
-  const time = Date.parse(left.at) - Date.parse(right.at)
-  if (time !== 0) return time
-  const a = JSON.stringify(left)
-  const b = JSON.stringify(right)
-  if (a < b) return -1
-  return a > b ? 1 : 0
-}
-
 function parsedRuns(text: string, scrub: (text: string) => string) {
   const entries: CheckRunRecord[] = []
   let skipped = 0
@@ -49,7 +40,7 @@ function parsedRuns(text: string, scrub: (text: string) => string) {
     }
   }
   if (end > 0) skipped += 1
-  return { entries: entries.toSorted(order).slice(-REPORT_CHECK_RUNS_MAX), skipped }
+  return { entries: entries.toReversed(), skipped }
 }
 
 /** Scrub the name before persisting; never accept a command line, output or hook detail. */
@@ -74,7 +65,7 @@ export class CheckRunJournal {
       const name = `${workspaceKey}.jsonl`
       const text = await files.read(name)
       const prior = parsedRuns(text ?? '', this.deps.scrub).entries
-      const entries = [...prior, entry].toSorted(order).slice(-REPORT_CHECK_RUNS_MAX)
+      const entries = [...prior, entry].slice(-REPORT_CHECK_RUNS_MAX)
       await files.write(name, entries.map((row) => JSON.stringify(row)).join('\n') + '\n')
     })
   }

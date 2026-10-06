@@ -2060,6 +2060,30 @@ describe('acts on the file the edit wrote, as it left it', () => {
     expect(t.io.shellCalls.map((call) => call.command)).toEqual(["npm run lint -- 'real/a.ts'"])
   })
 
+  it('refuses a folder swapped to an outside link during journal HEAD capture', async () => {
+    const links: Record<string, string> = {}
+    const io = memoryToolIo({ 'src/a.ts': 'const a = 1\n' }, ROOT, undefined, links)
+    const append = vi.fn(() => Promise.resolve())
+    const t = setup({
+      io,
+      checks: [LINT],
+      checkRuns: {
+        commit: () => {
+          links['src'] = '/elsewhere/src'
+          return Promise.resolve('a'.repeat(40))
+        },
+        append,
+      },
+    })
+    const { events } = await editOnce(t)
+    expect(t.io.shellCalls).toEqual([])
+    expect(append).not.toHaveBeenCalled()
+    expect(completedRows(events, 'verify_edits')[0]?.verifySummary?.checks).toEqual([
+      { name: 'lint', outcome: 'notRun', skip: 'changed' },
+    ])
+    await t.host.close()
+  })
+
   it('skips a check when a checked file no longer is where confinement found it', async () => {
     const links: Record<string, string> = {}
     const io = memoryToolIo({ 'src/a.ts': 'const a = 1\n' }, ROOT, undefined, links)

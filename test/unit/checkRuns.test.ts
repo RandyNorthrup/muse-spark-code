@@ -91,6 +91,28 @@ describe('check-run journal', () => {
     expect(names.every((name) => name.endsWith('.jsonl'))).toBe(true)
   })
 
+  it('retains the incoming check and append sequence after a backwards clock correction', async () => {
+    const t = await fixture()
+    const prior = Array.from({ length: 500 }, (_, index) => record(index))
+    await t.storage.transaction(['checks'], true, (files) =>
+      files.write('workspace.jsonl', prior.map((row) => JSON.stringify(row)).join('\n') + '\n'),
+    )
+    const incoming = { ...record(), check: 'after-clock-correction', at: '2026-10-05T00:00:00Z' }
+    await t.journal.append('workspace', incoming)
+    const expected = [...prior.slice(1), incoming]
+    const text = await readFile(t.file, 'utf8')
+    expect(
+      text
+        .trimEnd()
+        .split('\n')
+        .map((line): unknown => JSON.parse(line)),
+    ).toEqual(expected)
+    const source = await t.journal.source().read(t.context)
+    expect(source.record.status).toBe('ok')
+    expect(source.data).toEqual(expected)
+    expect(source.record.observedAt).toBe(incoming.at)
+  })
+
   it('drops the oldest on the 501st check and keeps other workspaces independent', async () => {
     const t = await fixture()
     await t.storage.transaction(['checks'], true, async (files) => {
@@ -163,7 +185,7 @@ describe('check-run journal', () => {
     })
   })
 
-  it('records all contract outcomes, sorts equal-time runs deterministically and honors cancellation', async () => {
+  it('records all contract outcomes in append order and honors cancellation', async () => {
     const t = await fixture()
     for (const outcome of ['skipped', 'cancelled', 'failed', 'passed'] as const)
       await t.journal.append('workspace', { ...record(), outcome })
@@ -171,10 +193,10 @@ describe('check-run journal', () => {
     expect(source.kind).toBe('checkRuns')
     const result = await source.read(t.context)
     expect(result.data?.map((run) => run.outcome)).toEqual([
+      'skipped',
       'cancelled',
       'failed',
       'passed',
-      'skipped',
     ])
     const controller = new AbortController()
     controller.abort()
@@ -195,6 +217,7 @@ describe('check-run journal', () => {
       second.append('workspace', record(2)),
     ])
     const result = await t.journal.source().read(t.context)
-    expect(result.data).toEqual([record(1), record(2)])
+    expect(result.data).toHaveLength(2)
+    expect(result.data).toEqual(expect.arrayContaining([record(1), record(2)]))
   })
 })

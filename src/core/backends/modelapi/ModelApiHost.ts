@@ -7478,26 +7478,31 @@ export class ModelApiSession implements AgentSession {
       isForced: request.isForced || pre.forceApproval,
     }
     const policy = beforePolicy
+    const journal = this.deps.verify?.checkRuns
+    let commit: string | undefined
     const refusal = await authorizeThenGuard({
       isRuleLapsed: () => this.changesWhatRunsNow(ruleCommand),
       authorize: () => this.authorizeCommand(itemId, authorized, signal, policy),
-      guard: async () =>
-        isCurrent() && (request.guard === undefined || (await request.guard())) && isCurrent(),
+      guard: async () => {
+        if (!isCurrent()) return false
+        // HEAD capture can wait: confinement must be checked after it settles.
+        if (journal !== undefined && request.checkName !== undefined) {
+          try {
+            commit = await journal.commit()
+          } catch {
+            this.deps.log.warn('Check-run journal commit unavailable')
+          }
+        }
+        return (
+          isCurrent() && (request.guard === undefined || (await request.guard())) && isCurrent()
+        )
+      },
     })
     signal.throwIfAborted()
     if (refusal !== undefined) {
       return { kind: 'skipped', ...refusal }
     }
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
-    const journal = this.deps.verify?.checkRuns
-    let commit: string | undefined
-    if (journal !== undefined && request.checkName !== undefined) {
-      try {
-        commit = await journal.commit()
-      } catch {
-        this.deps.log.warn('Check-run journal commit unavailable')
-      }
-    }
     const startedAt = this.deps.now()
     const result = await this.runCommand(line, request.timeoutMs, signal, () => {
       if (!isCurrent()) throw new AbortedError()

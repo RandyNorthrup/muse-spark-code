@@ -87,6 +87,7 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
     section: ReportDiff['sections'][number],
     key: string,
     field: string,
+    namespace: 'cell' | 'metadata',
     outcome: 'added' | 'removed' | 'changed' | 'unchanged',
     before: ReportValue,
     after: ReportValue,
@@ -95,7 +96,7 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
     if (rows.length >= maximum) return
     rows.push({
       key: createHash('sha256')
-        .update(JSON.stringify([section.id, key, field]))
+        .update(JSON.stringify([namespace, section.id, key, field]))
         .digest('hex'),
       cells: {
         section: { type: 'label', value: section.label },
@@ -119,6 +120,7 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
             section,
             row.key,
             field,
+            'cell',
             outcome,
             outcome === 'removed' ? value : absent,
             outcome === 'added' ? value : absent,
@@ -129,6 +131,7 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
           section,
           row.key,
           'sourceIds',
+          'metadata',
           outcome,
           outcome === 'removed' ? sources : absent,
           outcome === 'added' ? sources : absent,
@@ -145,16 +148,17 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
         const hasAfter = Object.hasOwn(row.after.cells, field)
         const before = hasBefore ? (row.before.cells[field] ?? absent) : absent
         const after = hasAfter ? (row.after.cells[field] ?? absent) : absent
-        if (!hasBefore) add(section, row.key, field, 'added', before, after)
-        else if (!hasAfter) add(section, row.key, field, 'removed', before, after)
+        if (!hasBefore) add(section, row.key, field, 'cell', 'added', before, after)
+        else if (!hasAfter) add(section, row.key, field, 'cell', 'removed', before, after)
         else if (canonical(before) !== canonical(after))
-          add(section, row.key, field, 'changed', before, after)
+          add(section, row.key, field, 'cell', 'changed', before, after)
       }
       if (canonical(row.before.sourceIds) !== canonical(row.after.sourceIds))
         add(
           section,
           row.key,
           'sourceIds',
+          'metadata',
           'changed',
           { type: 'textList', value: row.before.sourceIds },
           { type: 'textList', value: row.after.sourceIds },
@@ -164,6 +168,7 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
       section,
       section.id,
       'unchangedRows',
+      'metadata',
       'unchanged',
       { type: 'count', value: section.unchangedRows },
       { type: 'count', value: section.unchangedRows },

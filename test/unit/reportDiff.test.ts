@@ -12,6 +12,39 @@ import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { reportDocument, unavailableSource } from './helpers/reporting/snapshot'
 
 describe('report diff', () => {
+  it('namespaces metadata identities apart from sourceIds and unchangedRows cells', () => {
+    const before = reportDocument('project', [unavailableSource('git').record])
+    before.sections[0]!.rows[0]!.sourceIds = []
+    const after = structuredClone(before)
+    const section = after.sections[0]!
+    section.columns.push(
+      { key: 'sourceIds', label: 'name' },
+      { key: 'unchangedRows', label: 'name' },
+    )
+    section.rows[0]!.cells['sourceIds'] = { type: 'text', value: 'ordinary cell' }
+    section.rows[0]!.cells['unchangedRows'] = { type: 'count', value: 0 }
+    section.rows[0]!.sourceIds = ['git']
+    section.rows.push({
+      key: section.id,
+      cells: {
+        state: { type: 'label', value: 'planned' },
+        sourceIds: { type: 'text', value: 'cell' },
+        unchangedRows: { type: 'count', value: 1 },
+      },
+      sourceIds: [],
+    })
+    for (const diff of [compareReports(before, after), compareReports(after, before)]) {
+      const rendered = reportDiffSection(diff, true)
+      expect(new Set(rendered.rows.map((row) => row.key)).size).toBe(rendered.rows.length)
+      expect(rendered.rows.filter((row) => row.cells['field']?.value === 'sourceIds')).toHaveLength(
+        3,
+      )
+      expect(
+        rendered.rows.filter((row) => row.cells['field']?.value === 'unchangedRows'),
+      ).toHaveLength(4)
+    }
+  })
+
   it('retains presence changes when a field value is Not applicable', () => {
     const before = reportDocument()
     before.sections[0]!.columns.push({ key: 'retired', label: 'name' })

@@ -27627,6 +27627,14 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **Lane H review RVM113H corrections (2026-10-06).** Fix all six P2
+  findings within H's existing files: capture HEAD before the final confinement
+  guard, recover writer locks using PID and OS process start time, wait for
+  contention with a named bounded backoff, enforce retained history on reads
+  and retry failed pruning before subsequent writes, namespace diff row
+  identities, and retain checks by append sequence. Add failing regressions
+  and byte-exact red drills for each; no dependency or guard weakening.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **Review RVM113L02 correction (2026-10-06).** Derive comparison capacity
     from the document's section schemas, with an exhaustive type-checked map

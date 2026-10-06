@@ -247,3 +247,33 @@ The `constructor` regression fixture also exposed TypeScript's special
 built-in member typing. It now creates that valid dynamic column with
 `Reflect.set` and a typed `ReportValue`, preserving the own-property test
 without a cast or rule exemption.
+
+## RVM113H corrections — first piece (2026-10-06)
+
+The fix brief supersedes the earlier wall-clock journal ordering and lock
+limitations above. All six P2s are in scope; no redesign or dependency is
+needed. Shared-core changes serve the same host/runtime ports and all
+providers. No new command, setting, surface or catalogue row is introduced.
+The existing W-owned integration handoffs remain.
+
+Findings 1, 5 and 6 are fixed: journal HEAD is captured inside the authorized
+pre-guard step, so confinement and session state are checked afterward;
+diff identities hash an explicit cell/metadata namespace; check retention
+and source output preserve the physical append sequence, including equal
+stamps and backwards clock corrections. Exactly five persisted fields remain.
+
+Complete owning suites passed on Kubuntu with default timeouts:
+`reportDiff.test.ts`, `checkRuns.test.ts`, `verifyLoop.test.ts`: 94 tests.
+Pre-fix runs reproduced the confinement dispatch, journal loss and schema-valid
+diff key collision. The first diff fixture omitted required cells and was
+corrected before its semantic pre-fix receipt (`m113h-diff-before-valid.log`);
+no production guard was changed to accommodate invalid fixture data.
+
+Each deliberate break ran the complete named suite, exited 1 at its regression,
+and restored the source bytes with SHA-256 equality:
+
+| Finding | Drill                      | Named failing test                                                                | Restored SHA-256                                                   |
+| ------- | -------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 1       | `head-before-final-guard`  | refuses a folder swapped to an outside link during journal HEAD capture           | `098f4afcf6f95c95f8b3b61fd527eece1e5bcf4a371b08934df9611cb724ee78` |
+| 5       | `diff-identity-namespace`  | namespaces metadata identities apart from sourceIds and unchangedRows cells       | `2f8e583dc140c49079fd1b485e2b1d51e99b3d9778534c80d2ec568c103f82b1` |
+| 6       | `journal-append-retention` | retains the incoming check and append sequence after a backwards clock correction | `7b25f1fc387302234b4b85f862f783a46e305ec9009de759a5ee2b4fd6c78683` |

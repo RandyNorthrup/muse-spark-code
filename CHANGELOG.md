@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Report checks validate file confinement after capturing HEAD. Report diffs
+  keep metadata identities separate from ordinary cells, and check journals
+  retain completed runs in append order through clock corrections.
+
 - The release-artifact check validates complete ACP help, including its reference
   hint, in English and every installed language using the CLI's shared formatter.
 
