@@ -96,7 +96,7 @@ def serve(directory, board, command):
             except subprocess.TimeoutExpired:
                 os.killpg(child.pid, signal.SIGKILL)
                 child.wait(timeout=STOP_SECONDS)
-        for file in ('run.json', 'run.json.tmp', 'uart', 'renode-uart', port.name):
+        for file in ('run.json', 'run.json.tmp', 'uart', 'renode-uart', 'qemu-uart', port.name):
             (directory / file).unlink(missing_ok=True)
 
 

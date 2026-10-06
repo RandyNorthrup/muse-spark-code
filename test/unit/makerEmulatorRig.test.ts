@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -81,9 +81,49 @@ describe.skipIf(process.platform !== 'linux')('emulator process ownership', () =
     await expect(stat(path.join(directory, 'ttyEMU-test-0'))).rejects.toThrow()
     await expect(control('status', '/tmp')).rejects.toThrow()
   })
+  it('does not control a process whose birth stamp differs from the recorded owner', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'mx-stamp-'))
+    directories.push(directory)
+    const { stdout } = await control('start', directory, ['/bin/sleep', '30'])
+    const run = z
+      .object({ pid: z.number(), children: z.array(z.number()) })
+      .parse(JSON.parse(stdout))
+    processes.push(run.pid, ...run.children)
+    const file = path.join(directory, 'run.json')
+    const original = await readFile(file)
+    try {
+      const record = z
+        .looseObject({ stamp: z.string() })
+        .parse(JSON.parse(original.toString('utf8')))
+      await writeFile(file, JSON.stringify({ ...record, stamp: 'wrong-process-birth' }))
+      const status = await control('status', directory)
+      expect(status.stdout).toContain('stopped')
+      await control('stop', directory)
+      expect(await isTestProcessAlive(run.pid)).toBe(true)
+    } finally {
+      await writeFile(file, original)
+      await control('stop', directory)
+    }
+  })
   it('refuses start without an emulator command', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'mx-command-'))
     directories.push(directory)
     await expect(control('start', directory)).rejects.toThrow()
+  })
+  it('refuses any flash target outside private emulator PTYs before reading approved bytes', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'mx-port-'))
+    directories.push(directory)
+    await symlink('/dev/null', path.join(directory, 'ttyEMU-esp32-0'))
+    await expect(
+      exec(
+        '/usr/bin/python3',
+        [path.resolve('test/fixtures/maker-emulators/flash.py'), 'esp32', directory, '1'],
+        {
+          env: { PATH: process.env['PATH'] },
+          timeout: 2000,
+        },
+      ),
+    ).rejects.toMatchObject({ code: 2 })
+    await expect(stat(path.join(directory, 'approved-image'))).rejects.toThrow()
   })
 })

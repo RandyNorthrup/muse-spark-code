@@ -15216,7 +15216,6 @@ import, and it goes on M60's portable list. The only VS Code code is lane V.
 | T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
 | E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
-**Lane G's table (initial; each row and each near-miss is a fixture).**
 **Lane X emulator qualification (owner, 2026-10-05).** Add local, bounded,
 idempotent launch/stop scripts under `scripts/emulators/` for QEMU Pi 3B,
 Pi 4B and aarch64 virt with Raspberry Pi OS Lite; Espressif QEMU ESP32,
@@ -15234,6 +15233,8 @@ hardware checks go in `docs/certification/m103-x.md`. Installation is
 authorized on the Kubuntu rig; no emulator dependency ships in the product.
 The lane brief reserves full quality for the lead and forbids merges/pushes;
 X runs focused suites and the individual static/build gates with hooks on.
+
+**Lane G's table (initial; each row and each near-miss is a fixture).**
 
 esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
 (`write_flash`) with a warning; both spellings are rows.
@@ -15610,6 +15611,16 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M103 X emulator lane (2026-10-05, Kubuntu).** The rig brief prohibits full
+quality and assigns it to the lead. X adds only development rig scripts and
+tests. This P-only base lacks G/D/M/W integration; injected test classification
+is not G's physical-safety guard. Pi 3B/4B console qualification and the S3
+ROM UART flash path have failed; these remain failures in the opt-in matrix,
+not skips or weakened assertions. Physical boards, GPIO electrical behavior,
+RF, power, timing, installed-editor paths and full quality remain required.
+The unchanged W-owned host API inventory is stale from P. Individual gates,
+versions, attempted fixes and receipts are in `docs/certification/m103-x.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
