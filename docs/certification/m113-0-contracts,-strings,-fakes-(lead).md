@@ -187,3 +187,35 @@ Logs and receipts: ignored temp/m113-review-drills on this rig.
 No full quality run (common.md reserves it to the lead), paid/live calls,
 credential reads, external network requests, merges, rebases or pushes.
 No install was needed. Hooks exist at this worktree's .husky/_/pre-commit.
+
+### Final scoped verification, win11
+
+Implementation commit: `1b6a05eb`. Its normal lint-staged ESLint/Prettier and
+staged gitleaks hooks passed; no leaks found. The worktree was clean after
+the implementation commit and production build.
+
+- Final `npx.cmd --no-install vitest run test/unit/reportContracts.test.ts
+test/unit/reportFixtures.test.ts test/unit/reportSchema.test.ts --maxWorkers=3`:
+  40 passed. Final separate `reportStrings.test.ts` run: 17 passed. Both used
+  the repository default timeouts, with no test filtering or timeout override.
+- `npm.cmd run typecheck`: all five projects passed; `typecheck:unit` passed
+  again after the last test/fixture edits.
+- ESLint on the 12 changed TypeScript files: zero warnings/errors, including
+  the implementation commit's normal hook check.
+- `npm.cmd run deadcode`: plain knip passed. `npx.cmd --no-install jscpd`:
+  1,192 files, zero clones at the unchanged zero threshold.
+- Explicit Prettier check of all 31 changed files: passed. `git diff --check`:
+  passed.
+- `node scripts/check-host-api.mjs`: zero problems. `node scripts/gen-reference.mjs
+--check`: current (53 features, 44 commands, 59 settings, 26 slash commands,
+  116 CLI rows). No user-facing command or setting was registered by this lane.
+- Final `node scripts/check-l10n.mjs`: exit 1, exactly the same seven unused
+  W-owned manifest keys; 14 UI tables, zero UI translation problems. This
+  pre-existing handoff is item 1 above, not an RVM113L0 residual. No gate,
+  ignore, rule level, budget or hook was changed.
+- `npm.cmd run build`: exit 0, including size/split/host-global/notice gates.
+  Extension 439.5/600 KiB; Model API 446.9/475; ACP 821.5/850;
+  webview startup 797.7/900; deferred JavaScript 50.0/50; core English
+  53.3/125; lazy surfaces English 4.8/25. No report engine/panel entry was
+  added; its renderer and native binding remain the named implementation
+  handoffs. All six reviewed findings remain fixed with no residuals.
