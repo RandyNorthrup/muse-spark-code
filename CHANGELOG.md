@@ -21,6 +21,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M109's Windows vault helper now rejects null DACLs, maps generic file rights
+  and respects deny/allow ACE order through native handle-based ACL checks.
+  File and ancestor handles prevent path replacement across process creation;
+  cancelling the launcher also terminates its supervised native child.
+
 - M109's Windows vault seam authenticates cached helper contents and ACLs on
   every launch, holds the verified file against replacement during execution,
   and rebuilds refused caches into fresh private storage without deleting

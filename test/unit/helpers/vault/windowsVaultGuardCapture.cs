@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 
 internal static class VaultGuardCapture
 {
@@ -20,6 +22,30 @@ internal static class VaultGuardCapture
     { typeof(VaultCng).GetMethod("Validate", BindingFlags.NonPublic | BindingFlags.Static).Invoke(null, new object[] { key, presence }); }
     private static int Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == "childWait")
+        {
+            Console.WriteLine(System.Diagnostics.Process.GetCurrentProcess().Id);
+            Console.Out.Flush();
+            System.Threading.Thread.Sleep(System.Threading.Timeout.Infinite);
+            return 0;
+        }
+        if (args.Length == 2 && args[0] == "aclCapture")
+        {
+            var owner = WindowsIdentity.GetCurrent().User;
+            var users = new SecurityIdentifier("S-1-5-32-545");
+            var acl = new RawAcl(GenericAcl.AclRevision, 2);
+            uint mask = args[1] == "usersGenericAll" ? 0x10000000u : args[1] == "usersGenericExecute" ? 0x20000000u : 0x40000000u;
+            // ACE masks are unsigned native bit patterns, preserved in CommonAce's signed storage.
+            var allow = new CommonAce(AceFlags.None, AceQualifier.AccessAllowed, unchecked((int)mask), users, false, null);
+            var deny = new CommonAce(AceFlags.None, AceQualifier.AccessDenied, unchecked((int)mask), users, false, null);
+            if (args[1] == "denyThenAllow") acl.InsertAce(acl.Count, deny);
+            if (args[1] == "denyOtherGroup") acl.InsertAce(acl.Count, new CommonAce(AceFlags.None, AceQualifier.AccessDenied, unchecked((int)mask), new SecurityIdentifier("S-1-5-32-546"), false, null));
+            if (args[1] != "safeDacl") acl.InsertAce(acl.Count, allow);
+            if (args[1] == "allowThenDeny") acl.InsertAce(acl.Count, deny);
+            var descriptor = new RawSecurityDescriptor(ControlFlags.DiscretionaryAclPresent, owner, owner, null, args[1] == "nullDacl" ? null : acl);
+            Console.WriteLine((!Refuses(() => VaultPathGuard.AssertDescriptor(descriptor, "fixture", true))).ToString().ToLowerInvariant());
+            return 0;
+        }
         if (args.Length == 1 && (args[0] == "protocol" || args[0] == "dllCapture"))
         {
             // This declared entry point returns int; reflection is used only by the test fixture.

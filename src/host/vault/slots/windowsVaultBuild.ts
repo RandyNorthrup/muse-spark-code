@@ -25,9 +25,14 @@ const build: JobBuild = {
   // A fresh private directory is never shared with another builder.
   isPresent: () => Promise.resolve(false),
 }
-const runCompiler: RunProgram = (file, args, _env) =>
+const runCompiler = (
+  file: string,
+  args: readonly string[],
+  _env: NodeJS.ProcessEnv,
+  publicSource?: string,
+): Promise<string> =>
   new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       file,
       [...args],
       { cwd: path.dirname(file), env: {}, windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS },
@@ -35,6 +40,14 @@ const runCompiler: RunProgram = (file, args, _env) =>
         if (error === null) resolve('')
         else reject(new Error(UI_TEXT.vault.noAccess))
       },
+    )
+    child.stdin?.on('error', () => {
+      reject(new Error(UI_TEXT.vault.noAccess))
+    })
+    child.stdin?.end(
+      publicSource === undefined
+        ? undefined
+        : Buffer.from(publicSource, 'utf8').toString('base64') + '\n',
     )
   })
 const cache = new Map<string, WindowsVaultExecutable>()
@@ -51,6 +64,11 @@ export async function windowsVaultExecutable(deps: {
     if (!path.isAbsolute(deps.storageDir) || !path.isAbsolute(deps.systemRoot))
       throw new Error(UI_TEXT.vault.noAccess)
     const source = await deps.readSource()
+    const guardSource = source
+      .split('// BEGIN VAULT PATH GUARD', 2)[1]
+      ?.split('// END VAULT PATH GUARD', 1)[0]
+    if (guardSource === undefined || guardSource.trim() === '')
+      throw new Error(UI_TEXT.vault.noAccess)
     const name = jobFileName(build, source)
     const cacheKey = `${deps.storageDir}\0${deps.systemRoot}\0${name}`
     const cached = cache.get(cacheKey)
@@ -72,6 +90,7 @@ export async function windowsVaultExecutable(deps: {
             Buffer.from(windowsVaultGuardScript(directory), 'utf16le').toString('base64'),
           ],
           {},
+          guardSource,
         )
         return directory
       }
@@ -96,6 +115,7 @@ export async function windowsVaultExecutable(deps: {
     const helper = {
       ...identity,
       powershell,
+      guardSource,
       report: () => {
         deps.report?.()
       },

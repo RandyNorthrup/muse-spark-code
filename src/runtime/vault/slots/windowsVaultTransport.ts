@@ -15,6 +15,7 @@ export interface WindowsVaultExecutable {
   readonly file: string
   readonly sha256: string
   readonly powershell: string
+  readonly guardSource: string
   readonly rebuild: () => Promise<void>
   readonly report: () => void
 }
@@ -25,65 +26,25 @@ export function windowsVaultGuardScript(file: string, digest?: string): string {
   return `
 $ErrorActionPreference = 'Stop'
 $target = ${quoted}
-$allowed = @([Security.Principal.WindowsIdentity]::GetCurrent().User.Value, 'S-1-5-18', 'S-1-5-32-544')
-function Assert-Path([string]$name, [bool]$strict) {
-  if (([IO.File]::GetAttributes($name) -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'refused' }
-  $acl = Get-Acl -LiteralPath $name
-  $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value
-  # Only the OS volume root permits Windows' servicing owner; private files/directories never do.
-  $isOsRoot = -not $strict -and $name -eq [IO.Path]::GetPathRoot([Environment]::GetFolderPath('Windows')) -and $owner -eq 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
-  if (-not $isOsRoot -and $allowed -notcontains $owner) { throw 'refused' }
-  $rights = [Security.AccessControl.FileSystemRights]::Write -bor [Security.AccessControl.FileSystemRights]::Delete -bor [Security.AccessControl.FileSystemRights]::DeleteSubdirectoriesAndFiles -bor [Security.AccessControl.FileSystemRights]::ChangePermissions -bor [Security.AccessControl.FileSystemRights]::TakeOwnership
-  if (-not $strict) { $rights = $rights -band (-bnot [int][Security.AccessControl.FileSystemRights]::CreateDirectories) }
-  foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
-    if (($rule.PropagationFlags -band [Security.AccessControl.PropagationFlags]::InheritOnly) -ne 0) { continue }
-    if ($rule.AccessControlType -eq [Security.AccessControl.AccessControlType]::Allow -and $allowed -notcontains $rule.IdentityReference.Value -and ($rule.FileSystemRights -band $rights) -ne 0) { throw 'refused' }
-  }
-}
-function Assert-Parents([string]$name) {
-  $parent = [IO.Path]::GetDirectoryName($name)
-  while ($parent) {
-    Assert-Path $parent $false
-    $next = [IO.Directory]::GetParent($parent)
-    if ($null -eq $next) { break }
-    $parent = $next.FullName
-  }
-}
-$held = $null
 try {
-  Assert-Parents $target
+  # Only packaged public source precedes readiness; private input follows verification.
+  $reader = [IO.StreamReader]::new([Console]::OpenStandardInput(), [Text.Encoding]::UTF8, $false, 1, $true)
+  try { $source = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($reader.ReadLine())) } finally { $reader.Dispose() }
+  $provider = New-Object Microsoft.CSharp.CSharpCodeProvider
+  $parameters = New-Object CodeDom.Compiler.CompilerParameters
+  $parameters.GenerateInMemory = $true
+  [void]$parameters.ReferencedAssemblies.Add('System.dll')
+  [void]$parameters.ReferencedAssemblies.Add('System.Core.dll')
+  try { $compiled = $provider.CompileAssemblyFromSource($parameters, [string[]]@($source)) } finally { $provider.Dispose() }
+  if ($compiled.Errors.HasErrors) { throw 'refused' }
+  $guard = $compiled.CompiledAssembly.GetType('MuseSparkVaultNative.VaultPathGuard', $true)
   ${
     digest === undefined
-      ? `
-  if ([IO.Directory]::Exists($target) -or [IO.File]::Exists($target)) { throw 'refused' }
-  $acl = New-Object Security.AccessControl.DirectorySecurity
-  $acl.SetAccessRuleProtection($true, $false)
-  foreach ($sid in $allowed) {
-    $identity = New-Object Security.Principal.SecurityIdentifier($sid)
-    $rule = New-Object Security.AccessControl.FileSystemAccessRule($identity, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
-    $acl.AddAccessRule($rule)
+      ? `$guard.GetMethod('Prepare').Invoke($null, [object[]]@($target))`
+      : `$result = $guard.GetMethod('Launch').Invoke($null, [object[]]@($target, '${digest}'))
+  exit ([int]$result)`
   }
-  [void][IO.Directory]::CreateDirectory($target, $acl)
-  Assert-Path $target $true
-  `
-      : `
-  Assert-Path ([IO.Path]::GetDirectoryName($target)) $true
-  Assert-Path $target $true
-  $held = New-Object IO.FileStream($target, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
-  $hash = [Security.Cryptography.SHA256]::Create()
-  try { $actual = [BitConverter]::ToString($hash.ComputeHash($held)).Replace('-', '').ToLowerInvariant() } finally { $hash.Dispose() }
-  if ($actual -ne '${digest}') { throw 'refused' }
-  Assert-Parents $target
-  Assert-Path ([IO.Path]::GetDirectoryName($target)) $true
-  Assert-Path $target $true
-  $entry = [Reflection.Assembly]::LoadFile($target).EntryPoint
-  $output = [Console]::OpenStandardOutput()
-  $output.WriteByte(1); $output.Flush()
-  $result = $entry.Invoke($null, [object[]]@(,[string[]]@()))
-  exit ([int]$result)
-  `
-  }
-} catch { exit ${String(INTEGRITY_REFUSED_EXIT)} } finally { if ($null -ne $held) { $held.Dispose() } }
+} catch { exit ${String(INTEGRITY_REFUSED_EXIT)} }
 `
 }
 
@@ -238,6 +199,11 @@ export function windowsVaultTransport(
               })
           } else finish(code === 0 && isReady)
         })
+        try {
+          child.stdin.write(Buffer.from(helper.guardSource, 'utf8').toString('base64') + '\n')
+        } catch {
+          finish(false)
+        }
         if (signal?.aborted) abort()
       }),
   }

@@ -22,7 +22,7 @@ beforeEach(() => {
           : /\$target = '([^']+)'/u.exec(Buffer.from(encoded, 'base64').toString('utf16le'))?.[1]
       if (directory === undefined) {
         callback(new Error('unexpected compiler'))
-        return
+        return { stdin: new PassThrough() }
       }
       void mkdir(directory)
         .then(() => {
@@ -31,6 +31,7 @@ beforeEach(() => {
         .catch(() => {
           callback(new Error('prepare failed'))
         })
+      return { stdin: new PassThrough() }
     },
   )
 })
@@ -54,9 +55,13 @@ const helper = {
   file: path.resolve('temp/MuseSparkVault.exe'),
   sha256: 'a'.repeat(64),
   powershell: path.resolve('Windows/System32/WindowsPowerShell/v1.0/powershell.exe'),
+  guardSource: 'test-only public bootstrap source',
   rebuild: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   report: vi.fn(),
 }
+const prelude = Buffer.from(Buffer.from(helper.guardSource).toString('base64') + '\n')
+const source =
+  '// BEGIN VAULT PATH GUARD\npublic static class VaultPathGuard {}\n// END VAULT PATH GUARD\n'
 const header = Buffer.from(JSON.stringify({ v: 1, operation: 'probe' }))
 
 describe('Windows helper private transport', () => {
@@ -84,7 +89,8 @@ describe('Windows helper private transport', () => {
       shell: false,
       windowsHide: true,
     })
-    expect(input).toHaveLength(0)
+    expect(Buffer.concat(input)).toEqual(prelude)
+    input.length = 0
     instance.stdout.emit('data', Buffer.from([1]))
     const raw = Buffer.concat(input)
     expect(raw.readUInt32BE()).toBe(wrapHeader.length)
@@ -128,7 +134,7 @@ describe('Windows helper private transport', () => {
     )
     instance.emit('close', 23)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(instance.stdin.readableLength).toBe(0)
+    expect(instance.stdin.read()).toEqual(prelude)
     expect(report).toHaveBeenCalledOnce()
     expect(rebuild).toHaveBeenCalledOnce()
   })
@@ -138,14 +144,14 @@ describe('Windows helper private transport', () => {
     instance.stdout.emit('data', Buffer.from([2]))
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
-    expect(instance.stdin.readableLength).toBe(0)
+    expect(instance.stdin.read()).toEqual(prelude)
   })
   it('sanitizes synchronous stdin failure after verified readiness', async () => {
     const instance = child()
+    const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
     vi.spyOn(instance.stdin, 'write').mockImplementation(() => {
       throw new Error('private write failure')
     })
-    const pending = windowsVaultTransport(helper).exchange(header, new Uint8Array())
     instance.stdout.emit('data', Buffer.from([1]))
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.kill).toHaveBeenCalledWith('SIGKILL')
@@ -243,7 +249,7 @@ describe('Windows helper private transport', () => {
     instance.emit('close', 0)
     await expect(pending).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(instance.kill).toHaveBeenCalledWith('SIGKILL')
-    expect(instance.stdin.readableLength).toBe(0)
+    expect(instance.stdin.read()).toEqual(prelude)
   })
   it('bounds stdout and erases the oversized chunk', async () => {
     const instance = child()
@@ -294,6 +300,24 @@ async function storage() {
   return folder
 }
 describe('Windows vault helper compiler', () => {
+  it('refuses a failed public-source stdin without leaking its diagnostic', async () => {
+    const storageDir = await storage()
+    processStub.execFile.mockImplementation(() => {
+      const stdin = new PassThrough()
+      queueMicrotask(() => {
+        stdin.emit('error', new Error('private source-pipe diagnostic'))
+      })
+      return { stdin }
+    })
+    await expect(
+      windowsVaultExecutable({
+        storageDir,
+        systemRoot: path.resolve('Windows'),
+        readSource: () => Promise.resolve(source),
+      }),
+    ).rejects.toThrow(UI_TEXT.vault.noAccess)
+    expect(processStub.execFile).toHaveBeenCalledTimes(2)
+  })
   it('compiles once per source digest with no credential environment and cleans scratch', async () => {
     const storageDir = await storage()
     const calls: { file: string; args: readonly string[]; env: NodeJS.ProcessEnv }[] = []
@@ -307,7 +331,7 @@ describe('Windows vault helper compiler', () => {
     const deps = {
       storageDir,
       systemRoot: path.resolve('Windows'),
-      readSource: () => Promise.resolve('test source one'),
+      readSource: () => Promise.resolve(source + 'test source one'),
       run,
     }
     const first = await windowsVaultExecutable(deps)
@@ -324,7 +348,7 @@ describe('Windows vault helper compiler', () => {
     expect(await readdir(path.dirname(first.file))).toEqual([path.basename(first.file)])
     const second = await windowsVaultExecutable({
       ...deps,
-      readSource: () => Promise.resolve('test source two'),
+      readSource: () => Promise.resolve(source + 'test source two'),
     })
     expect(second).not.toBe(first)
     expect(calls).toHaveLength(2)
@@ -334,7 +358,7 @@ describe('Windows vault helper compiler', () => {
     const deps = {
       storageDir,
       systemRoot: path.resolve('Windows'),
-      readSource: () => Promise.resolve('invalid test source'),
+      readSource: () => Promise.resolve(source + 'invalid test source'),
       run: () => Promise.reject(new Error('private compiler diagnostic')),
     }
     await expect(windowsVaultExecutable(deps)).rejects.toThrow(UI_TEXT.vault.noAccess)
@@ -359,13 +383,14 @@ describe('Windows vault helper compiler', () => {
       (_file, _args, options, callback: (error: Error | null) => void) => {
         expect(options).toMatchObject({ env: {}, windowsHide: true })
         callback(new Error('compiler canary'))
+        return { stdin: new PassThrough() }
       },
     )
     await expect(
       windowsVaultExecutable({
         storageDir,
         systemRoot: path.resolve('Windows'),
-        readSource: () => Promise.resolve('test source'),
+        readSource: () => Promise.resolve(source + 'test source'),
       }),
     ).rejects.toThrow(UI_TEXT.vault.noAccess)
     expect(processStub.execFile).toHaveBeenCalledTimes(2)

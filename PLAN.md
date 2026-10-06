@@ -20630,6 +20630,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109PW3 / RVM109PW2G (2026-10-06).** Replace the PowerShell ACL
+scan with the trusted native guard's handle-based `GetSecurityInfo` check:
+refuse null DACLs, map file generic rights before ordered deny/allow
+evaluation, and test Everyone, Users, Authenticated Users and other untrusted
+principals. Hold the verified file and lexical ancestor handles against
+replacement across `CreateProcess`; supervise the child with a kill-on-close
+job before releasing private stdin. Regressions cover null/generic ACLs,
+deny/allow order, safe controls and the launch handles, with byte-exact red
+drills. No dependency, gate or other lane changes.
+
 **FIXM109PW / RVM109PW Windows repair (2026-10-06).** Authenticate each
 cached EXE by its build SHA-256 through a handle denying write/delete sharing,
 check file/directory ownership and ACLs and ancestor ACLs/reparse points,
@@ -21579,6 +21589,14 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
+full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
+file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
+build and the 96 owned tests at repository default deadlines. The host-API
+mismatch remains exactly W's five import-count changes recorded below; no
+new VS Code API or generated snapshot change belongs to this repair. Sixteen
+byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+
 **M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
 The Windows rig brief and shared lane rules prohibit full quality and the
 full test suite here. Hook-on commits use the three owned test files,
@@ -22078,10 +22096,13 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                                                          | Escape hatch                                 | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET)                               | `as UiText` on the descriptor clone          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
-| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW) | `(int)` on the reflected native entry result | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                        |
+| Location                                                           | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job)    | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3)                    | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW3) | `unchecked((int)mask)`                                                | Test-only CommonAce fixtures preserve the native generic-rights bit patterns in their signed storage, with an inline reason.                                                                                                                                                  |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW)  | `(int)` on the reflected native entry result                          | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                                                   |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -22202,14 +22223,26 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **FIXM109PW3 / RVM109PW2G (2026-10-06).** The one P2 is repaired with
+  no review residual. The trusted native guard reads owner/DACL information
+  from held handles, refuses null DACLs, maps generic file rights and respects
+  deny/allow order for outsider principals. Verified file and ancestor handles
+  deny replacement across CreateProcess; a kill-on-close job supervises the
+  suspended child before private input is admitted. Guard source comes only
+  from the packaged reader, never the mutable cache. The native child's only
+  environment entry is the CLR-required SystemRoot; no credential is inherited.
+  Same-user/privileged principals and the original hardware/live captures
+  retain D89's existing scope. See `docs/certification/m109-pw.md` and the
+  byte-exact `m109-pw3-drills.json` receipts.
+
 - **FIXM109PW / RVM109PW (2026-10-06).** Both P1s (cached helper identity,
   DLL search order) and P3 (DPAPI title/use validation) are repaired with no
   finding residual. A build supplies its EXE digest in memory; no mutable
   sidecar or file name authenticates a prior process's cache. Each launch
   verifies content through a deny-write/delete read handle, file/directory
   ownership and ACLs, and ancestor ACLs/reparse points. The absolute system
-  PowerShell hosts the verified managed entry point while retaining that
-  handle; private input follows readiness. A refusal reports a fixed error
+  PowerShell now loads the trusted native guard, which starts the verified
+  helper while retaining file/ancestor handles; private input follows readiness. A refusal reports a fixed error
   and rebuilds fresh private storage without removing the suspect path.
   An unsafe storage parent selects the user's protected temporary tree.
   Current user, SYSTEM and Administrators remain trusted, as the owner

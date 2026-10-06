@@ -38,6 +38,7 @@ const owned = new Set<WindowsVaultSlot>()
 const capture: {
   transport?: WindowsVaultTransport
   executable?: WindowsVaultExecutable
+  guardsExecutable?: WindowsVaultExecutable
   reports: number
   isHardwareAvailable: boolean
   isHelloAvailable: boolean
@@ -72,6 +73,7 @@ async function nativeFrame(
   privateBytes = 0,
   args: string[] = [],
   cwd?: string,
+  guardSource?: string,
 ) {
   const header = Buffer.from(JSON.stringify(metadata))
   return await new Promise<Buffer>((resolve, reject) => {
@@ -81,17 +83,48 @@ async function nativeFrame(
     child.stdin.on('error', () => {
       /* Invalid native frames may close stdin early. */
     })
+    let isReady = guardSource === undefined
+    const send = () => {
+      const length = Buffer.alloc(4)
+      length.writeUInt32BE(header.length)
+      child.stdin.write(length)
+      child.stdin.end(Buffer.concat([header, Buffer.alloc(privateBytes)]))
+    }
     child.stdout.on('data', (bytes: Buffer) => {
+      if (!isReady) {
+        if (bytes[0] !== 1) return
+        isReady = true
+        send()
+        bytes = bytes.subarray(1)
+      }
       chunks.push(bytes)
     })
     child.on('close', () => {
       resolve(Buffer.concat(chunks))
     })
-    const length = Buffer.alloc(4)
-    length.writeUInt32BE(header.length)
-    child.stdin.write(length)
-    child.stdin.end(Buffer.concat([header, Buffer.alloc(privateBytes)]))
+    if (guardSource === undefined) send()
+    else child.stdin.write(Buffer.from(guardSource).toString('base64') + '\n')
   })
+}
+
+function guardedProcess(helper: WindowsVaultExecutable) {
+  const script = windowsVaultGuardScript(helper.file, helper.sha256)
+  const child = spawn(
+    helper.powershell,
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-EncodedCommand',
+      Buffer.from(script, 'utf16le').toString('base64'),
+    ],
+    { cwd: path.dirname(helper.powershell), env: {}, windowsHide: true, stdio: 'pipe' },
+  )
+  const closed = new Promise<void>((resolve) => {
+    child.once('close', () => {
+      resolve()
+    })
+  })
+  return { child, closed }
 }
 
 it('restricts every native import and startup DLL search to System32', async () => {
@@ -225,6 +258,7 @@ describe.runIf(process.platform === 'win32')(
           run(file, [...args, '/main:MuseSparkVaultNative.VaultGuardCapture'], env),
       })
       paths.guards = guards.file
+      capture.guardsExecutable = guards
       paths.trap = path.join(paths.root, 'dll-trap.dll')
       await compileJob(
         {
@@ -289,18 +323,25 @@ describe.runIf(process.platform === 'win32')(
         if (kind !== 'file') targetPath = path.dirname(targetPath)
         if (kind === 'parent') targetPath = path.dirname(targetPath)
         const target = targetPath.replaceAll("'", "''")
-        // Only this test copy changes the ACL object's owner in memory; all on-disk permissions stay real.
-        const script = windowsVaultGuardScript(helper.file, helper.sha256).replace(
-          '$acl = Get-Acl -LiteralPath $name',
-          () =>
-            `$acl = Get-Acl -LiteralPath $name; if ($name -eq '${target}') { $acl.SetOwner((New-Object Security.Principal.SecurityIdentifier('S-1-1-0'))) }`,
+        // Only the trusted test source changes its in-memory descriptor owner.
+        const guardSource = helper.guardSource.replace(
+          'bool osRoot =',
+          () => `if (name == @"${target}") owner = "S-1-1-0"; bool osRoot =`,
         )
-        const output = await nativeFrame(helper.powershell, { v: 1, operation: 'probe' }, 0, [
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          Buffer.from(script, 'utf16le').toString('base64'),
-        ])
+        const script = windowsVaultGuardScript(helper.file, helper.sha256)
+        const output = await nativeFrame(
+          helper.powershell,
+          { v: 1, operation: 'probe' },
+          0,
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-EncodedCommand',
+            Buffer.from(script, 'utf16le').toString('base64'),
+          ],
+          undefined,
+          guardSource,
+        )
         expect(output).toHaveLength(0)
       },
     )
@@ -363,14 +404,21 @@ describe.runIf(process.platform === 'win32')(
       try {
         await setRule(false)
         if (kind === 'parent') {
-          const output = await nativeFrame(helper.powershell, { v: 1, operation: 'probe' }, 0, [
-            '-NoProfile',
-            '-NonInteractive',
-            '-EncodedCommand',
-            Buffer.from(windowsVaultGuardScript(previous, helper.sha256), 'utf16le').toString(
-              'base64',
-            ),
-          ])
+          const output = await nativeFrame(
+            helper.powershell,
+            { v: 1, operation: 'probe' },
+            0,
+            [
+              '-NoProfile',
+              '-NonInteractive',
+              '-EncodedCommand',
+              Buffer.from(windowsVaultGuardScript(previous, helper.sha256), 'utf16le').toString(
+                'base64',
+              ),
+            ],
+            undefined,
+            helper.guardSource,
+          )
           expect(output).toHaveLength(0)
         } else {
           await expect(invokeWindowsVault(transport, { v: 1, operation: 'probe' })).rejects.toThrow(
@@ -407,29 +455,14 @@ describe.runIf(process.platform === 'win32')(
     it('holds the verified executable against writes and deletion across the launch action', async () => {
       const helper = capture.executable
       if (helper === undefined) throw new Error('capture missing')
-      // Pause the launch action before CLR loading, so its own assembly locks cannot mask a broken verifier handle.
-      const script = windowsVaultGuardScript(helper.file, helper.sha256)
-        .replace('$entry = [Reflection.Assembly]::LoadFile($target).EntryPoint', '$entry = $null')
-        .replace(
-          '$result = $entry.Invoke($null, [object[]]@(,[string[]]@()))',
-          '$result = [Console]::OpenStandardInput().ReadByte()',
-        )
-      const child = spawn(
-        helper.powershell,
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-EncodedCommand',
-          Buffer.from(script, 'utf16le').toString('base64'),
-        ],
-        { env: {}, windowsHide: true, stdio: 'pipe' },
+      // Pause immediately before CreateProcess, so the image loader cannot mask guard locks.
+      const guardSource = helper.guardSource.replace(
+        'if (!CreateProcess(target,',
+        'var ready = Console.OpenStandardOutput(); ready.WriteByte(1); ready.Flush(); Console.OpenStandardInput().ReadByte(); if (!CreateProcess(target,',
       )
-      const closed = new Promise<void>((resolve) => {
-        child.once('close', () => {
-          resolve()
-        })
-      })
+      const { child, closed } = guardedProcess(helper)
       try {
+        child.stdin.write(Buffer.from(guardSource).toString('base64') + '\n')
         await new Promise<void>((resolve, reject) => {
           child.once('error', reject)
           child.stdout.once('data', (bytes: Buffer) => {
@@ -458,8 +491,107 @@ describe.runIf(process.platform === 'win32')(
           /* Sharing refusal is the expected result. */
         }
         expect(canRename).toBe(false)
+        for (const directory of [path.dirname(helper.file), paths.root]) {
+          let canMoveDirectory = false
+          try {
+            await rename(directory, `${directory}.moved`)
+            await rename(`${directory}.moved`, directory)
+            canMoveDirectory = true
+          } catch {
+            /* Ancestor sharing refusal is the expected result. */
+          }
+          expect(canMoveDirectory).toBe(false)
+        }
       } finally {
         child.kill('SIGKILL')
+        await closed
+      }
+    })
+    it('pins lexical ancestors before opening the executable', async () => {
+      const helper = capture.executable
+      if (helper === undefined) throw new Error('capture missing')
+      const guardSource = helper.guardSource.replace(
+        'held.Add(Hold(Path.GetDirectoryName(target), true, true));',
+        'var ready = Console.OpenStandardOutput(); ready.WriteByte(1); ready.Flush(); Console.OpenStandardInput().ReadByte(); held.Add(Hold(Path.GetDirectoryName(target), true, true));',
+      )
+      const { child, closed } = guardedProcess(helper)
+      try {
+        const ready = new Promise<void>((resolve, reject) => {
+          child.once('error', reject)
+          child.stdout.once('data', (bytes: Buffer) => {
+            if (bytes[0] === 1) resolve()
+            else reject(new Error('ancestor verification failed'))
+          })
+          child.once('close', () => {
+            reject(new Error('ancestor verification closed'))
+          })
+        })
+        child.stdin.write(Buffer.from(guardSource).toString('base64') + '\n')
+        await ready
+        // The file has no guard or CLR handle yet, so only directory handles prevent renaming.
+        for (const directory of [path.dirname(helper.file), paths.root]) {
+          let canRename = false
+          try {
+            await rename(directory, `${directory}.moved`)
+            await rename(`${directory}.moved`, directory)
+            canRename = true
+          } catch {
+            /* Ancestor sharing refusal is the expected result. */
+          }
+          expect(canRename).toBe(false)
+        }
+      } finally {
+        child.kill('SIGKILL')
+        await closed
+      }
+    })
+    it('terminates the native child when its supervising launcher is cancelled', async () => {
+      const helper = capture.guardsExecutable
+      if (helper === undefined) throw new Error('guard capture missing')
+      const guardSource = helper.guardSource.replace(
+        String.raw`new StringBuilder("\"" + target + "\"")`,
+        String.raw`new StringBuilder("\"" + target + "\" childWait")`,
+      )
+      const { child, closed } = guardedProcess(helper)
+      let nativePid: number | undefined
+      let deadline: ReturnType<typeof setTimeout> | undefined
+      try {
+        const pid = new Promise<number>((resolve, reject) => {
+          let bytes = Buffer.alloc(0)
+          child.once('error', reject)
+          child.once('close', () => {
+            reject(new Error('native wait closed early'))
+          })
+          child.stdout.on('data', (chunk: Buffer) => {
+            bytes = Buffer.concat([bytes, chunk])
+            if (bytes[0] !== 1 || !bytes.subarray(1).includes(10)) return
+            const raw: unknown = JSON.parse(bytes.subarray(1).toString('utf8'))
+            resolve(z.number().check(z.int(), z.minimum(1)).parse(raw))
+          })
+        })
+        child.stdin.write(Buffer.from(guardSource).toString('base64') + '\n')
+        const runningPid = await pid
+        nativePid = runningPid
+        child.kill('SIGKILL')
+        await Promise.race([
+          closed,
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => {
+              reject(new Error('native child outlived cancellation'))
+            }, 2000)
+          }),
+        ])
+        expect(() => process.kill(runningPid, 0)).toThrow()
+      } finally {
+        clearTimeout(deadline)
+        child.kill('SIGKILL')
+        if (nativePid !== undefined) {
+          try {
+            process.kill(nativePid, 'SIGKILL')
+          } catch {
+            /* Already terminated by the job. */
+          }
+        }
         await closed
       }
     })
@@ -523,6 +655,32 @@ describe.runIf(process.platform === 'win32')(
       }
       baseline.fill(0)
     })
+    it.each([
+      'nullDacl',
+      'usersGenericAll',
+      'usersGenericWrite',
+      'usersGenericExecute',
+      'denyThenAllow',
+      'allowThenDeny',
+      'denyOtherGroup',
+      'safeDacl',
+    ])('evaluates native file ACL descriptor %s', async (fixture) => {
+      const output = await new Promise<string>((resolve, reject) => {
+        execFile(
+          paths.guards,
+          ['aclCapture', fixture],
+          { env: {}, windowsHide: true },
+          (error, stdout) => {
+            if (error === null) resolve(stdout)
+            else reject(new Error('native ACL capture failed'))
+          },
+        )
+      })
+      const raw: unknown = JSON.parse(output)
+      const isSafe = z.boolean().parse(raw)
+      expect(isSafe).toBe(['usersGenericExecute', 'denyThenAllow', 'safeDacl'].includes(fixture))
+    })
+
     it('proves native guards with ephemeral software test keys, never claiming TPM presence', async () => {
       const stdout = await new Promise<string>((resolve, reject) => {
         execFile(paths.guards, [], { env: {}, windowsHide: true }, (error, text) => {
