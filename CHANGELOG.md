@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Correct M118 chat sharing's path scrub to redact colon-prefixed absolute
+  paths while preserving division, slash commands, closing tags, URLs and
+  regex literals; unknown paths stop at whitespace.
+
 ### Added
 
 - Stage M118's shared prompt/share contracts, lossless portable prompt files,

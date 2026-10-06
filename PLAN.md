@@ -6844,6 +6844,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM118C — RVM118C corrections (2026-10-06)
+
+The lane brief authorizes all four P2 fixes in C's existing regions: one
+boundary-aware path tokenizer for both modes/all formats (P2-1/P2-3), full
+displayed outcome and citation material from the existing transcript item
+projection (P2-2), and session/unmount generation invalidation for pending
+dialog confirmation (P2-4). Conversation's allow-list and D98's explicitly
+selected scrubbed attachment policy stay unchanged. No dependency or guard
+expansion. Each finding gets a failing regression, a byte-exact restored red
+drill and receipts in `docs/certification/m118-c.md`. The authoritative rig
+brief prohibits merge/push/rebase and aggregate quality; bounded owning tests
+and static/build checks run directly on Kubuntu, with hooks-on local commits.
+
 ### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
 
 The authoritative rig brief stages D98/M118 for P (prompt library), C (chat

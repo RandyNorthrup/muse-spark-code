@@ -12,9 +12,34 @@ export interface ChatSharePrivacyContext {
 const REGEXP_SPECIAL = /[.*+?^${}()|[\]\\]/g
 const SEPARATORS = /[\\/]+/g
 const FILE_URI = /\bfile:\/\/[^\s"'<>]+/gi
-// Preserve URLs and relative paths. Unknown absolute paths are conservatively
-// removed through the end of their quoted/line fragment, including spaces.
-const OTHER_ABSOLUTE = /(?<![\w.:/\]-])(?:[A-Za-z]:[\\/]|\\\\|\/)[^\r\n"'<>()[\],;]*/g
+// Tokenize without crossing whitespace; recognition below distinguishes paths
+// from division, slash commands, closing tags, URLs and escaped regex literals.
+const PATH_TOKENS = /(?:(?<![\p{L}\p{N}_])[A-Za-z]:[\\/]|\\\\|\/)[^\s"'<>()[\]{},;]*/gu
+const PATH_BOUNDARY = /[\s"'()[\]{}=]/
+const PATH_PREFIX = /(?:^|[\s"'()[\]{}=])[\p{L}\p{N}_-]+:$/u
+const PATH_END = /[\s"'<>()[\]{},;]/
+const POSIX_SEGMENT = /^[\p{L}\p{N}._~!$&+%@=-]+$/u
+
+function isPathBoundary(token: string, offset: number, text: string): boolean {
+  if (text.slice(0, offset).endsWith('[home]')) return false
+  // A label's colon is a boundary; a URL's scheme separator is not.
+  if (
+    offset > 0 &&
+    !PATH_BOUNDARY.test(text[offset - 1] ?? '') &&
+    (token.startsWith('//') || !PATH_PREFIX.test(text.slice(0, offset)))
+  )
+    return false
+  return true
+}
+
+function isAbsolutePath(token: string, offset: number, text: string): boolean {
+  if (!isPathBoundary(token, offset, text)) return false
+  if (/^[A-Za-z]:[\\/]/.test(token)) return true
+  const segments = token
+    .split(token.startsWith(String.raw`\\`) ? SEPARATORS : '/')
+    .filter((segment) => segment !== '')
+  return segments.length >= 2 && segments.every((segment) => POSIX_SEGMENT.test(segment))
+}
 
 function escaped(text: string): string {
   return text.replaceAll(REGEXP_SPECIAL, String.raw`\$&`)
@@ -55,7 +80,12 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
     redactRegisteredSecrets: (text) =>
       scrubTransferIdentifiers(context.redactRegisteredSecrets(text)),
     normalisePaths: (text) => {
-      let clean = text.replaceAll(FILE_URI, (uri) => localFilePath(uri))
+      const filePaths = new Set<string>()
+      let clean = text.replaceAll(FILE_URI, (uri) => {
+        const path = localFilePath(uri)
+        filePaths.add(path)
+        return path
+      })
       for (const root of roots) {
         // Match whole roots, not a similarly named neighbour. Root folding
         // follows M84: separators and Windows case, with names containing spaces.
@@ -76,7 +106,20 @@ export function createChatSharePrivacy(context: ChatSharePrivacyContext): ShareP
           tail === undefined ? '[home]' : `[home]/${canonicalPath(tail)}`,
         )
       }
-      clean = clean.replaceAll(OTHER_ABSOLUTE, () => '[path]')
+      // File URIs explicitly identify local paths, including single-segment
+      // names and decoded spaces. Known roots/home have already been folded.
+      for (const path of filePaths) {
+        clean = clean.replaceAll(path, (token: string, offset: number, text: string) =>
+          isPathBoundary(token, offset, text) &&
+          (offset + token.length === text.length ||
+            PATH_END.test(text[offset + token.length] ?? ''))
+            ? '[path]'
+            : token,
+        )
+      }
+      clean = clean.replaceAll(PATH_TOKENS, (token: string, offset: number, text: string) =>
+        isAbsolutePath(token, offset, text) ? '[path]' : token,
+      )
       if (context.userName !== '') {
         const pattern = new RegExp(
           String.raw`(?<![\p{L}\p{N}_])${escaped(context.userName)}(?![\p{L}\p{N}_])`,
