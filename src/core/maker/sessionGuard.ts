@@ -12,9 +12,15 @@ import { hardwareTargets, isHardwareStop } from './guard/hardwareCommands'
 import type { HardwareContext } from './guard/httpCommands'
 import { isHardwareWorkspace } from './guard/shellPolicy'
 import { parseShell } from './guard/shellParse'
-import { HardwareApproval } from './ports'
+import { HardwareApproval, type ApprovalRequest, type TargetIdentity } from './ports'
 
 type Card = Extract<AgentEvent, { type: 'approvalRequested' | 'approvalUpdated' }>
+
+/** In-process only. Never accepted from tool arguments or sent as an invented wire field. */
+export interface HardwareBinding {
+  readonly request: ApprovalRequest
+  readonly assertCanStart: () => void
+}
 
 /** Read project markers once, before any session command can be admitted. */
 function hasMakerProject(root: string | undefined): boolean {
@@ -142,6 +148,38 @@ export class SessionHardwareGuard {
       if (!isReleased) this.activeCommands -= 1
       isReleased = true
     }
+  }
+
+  /** An accepted answer mints one immutable dispatch binding, consumed at native entry. */
+  public authorize(
+    approval: HardwareApproval,
+    answer: unknown,
+    liveTargets: () => readonly TargetIdentity[],
+    now: () => number,
+  ): HardwareBinding | undefined {
+    if (this.current().isUnattended === true) return undefined
+    if (!approval.accept(answer, liveTargets(), now())) return undefined
+    let isConsumed = false
+    return Object.freeze({
+      request: approval.request,
+      assertCanStart: () => {
+        if (isConsumed) throw new Error(UI_TEXT.hardwareExpired)
+        isConsumed = true
+        if (this.current().isUnattended === true) throw new Error(UI_TEXT.hardwareUnattended)
+        const targets = liveTargets()
+        if (
+          now() >= approval.request.expiresAt ||
+          targets.length !== approval.request.targets.length ||
+          targets.some(
+            (target, index) =>
+              target.address !== approval.request.targets[index]?.address ||
+              target.vidPid !== approval.request.targets[index].vidPid ||
+              target.usbSerial !== approval.request.targets[index].usbSerial,
+          )
+        )
+          throw new Error(UI_TEXT.hardwareExpired)
+      },
+    })
   }
 
   public scrub(event: Card, toolName: string | undefined): Card {

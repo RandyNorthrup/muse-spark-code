@@ -170,6 +170,26 @@ describe('Muse Code hardware approvals', () => {
 })
 
 describe('Muse Code guard over the real MSP transport', () => {
+  it('R3F4: an unattended transition while a hardware card waits sends no allow frame', async () => {
+    let isUnattended = false
+    const h = acpMspHost(() => ({ isHardwareWorkspace: true, isUnattended }))
+    try {
+      const { session, events } = await observeHardware(h, 'pio run -t upload')
+      const request = await pendingHardwareCard(events)
+      isUnattended = true
+      await expect(
+        session.decideApproval({
+          approvalId: request.approvalId,
+          requirementId: request.requirementId,
+          choiceId: 'allow_once',
+        }),
+      ).rejects.toThrow(UI_TEXT.hardwareUnattended)
+      expect(h.server.requestsFor('approval/decide')).toHaveLength(0)
+    } finally {
+      await h.host.close()
+    }
+  })
+
   it.each(['staged shell', 'typed tool'] as const)(
     'R2F7: %s binds every host target, including its second identity',
     async (kind) => {

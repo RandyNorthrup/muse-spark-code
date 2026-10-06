@@ -241,6 +241,8 @@ export interface ToolIo {
     timeoutMs: number,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
+    /** The owner's final native-entry fence, after hook adapter preparation. */
+    assertCanStart?: () => void,
   ): Promise<ShellResult>
   /**
    * The canonical form of an absolute path: links, junctions and short

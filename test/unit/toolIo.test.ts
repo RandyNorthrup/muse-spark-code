@@ -799,6 +799,52 @@ describe('createToolIo (real file system and shell)', () => {
     expect(result.isEntryRefused).toBeUndefined()
   })
 
+  it.each(['shell', 'hook'] as const)(
+    'R3F2/F3: %s entry rechecks after environment preparation',
+    async (kind) => {
+      let isAllowed = true
+      const adapter = createToolIo({
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        listFiles: () => Promise.resolve([]),
+        env: () => {
+          isAllowed = false
+          return process.env
+        },
+        searchWorkerPath: 'unused-here',
+        log: () => undefined,
+        unsavedFiles: () => [],
+      })
+      isAllowed = true
+      const assertCanStart = () => {
+        if (!isAllowed) throw new Error('Target changed during environment preparation')
+      }
+      const result =
+        kind === 'hook'
+          ? await adapter.runHook?.(
+              'echo REVIEW_FAKE_ACTUATION',
+              '{}',
+              root,
+              SHELL_BUDGET_MS,
+              undefined,
+              undefined,
+              assertCanStart,
+            )
+          : await adapter.runShell(
+              'echo REVIEW_FAKE_ACTUATION',
+              root,
+              SHELL_BUDGET_MS,
+              undefined,
+              undefined,
+              assertCanStart,
+            )
+      if (result === undefined) throw new Error('Missing hook adapter')
+      expect(result.isEntryRefused).toBe(true)
+      expect(result.isWorkspaceShutdownProven).toBe(true)
+      expect(result.stdout).toBe('')
+    },
+  )
+
   it('proves the hook shell that is not there never launched either', async () => {
     expect(await bareIo().runHook?.('echo hi', '{}', root, SHELL_BUDGET_MS)).toMatchObject({
       exitCode: null,

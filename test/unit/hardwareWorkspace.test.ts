@@ -8,8 +8,9 @@ import type { GuardDialect } from '../../src/core/maker/guard/shellParse'
 import { hardwareAction } from '../../src/core/maker/guard/hardwareCommands'
 import { developerHardwareCorpus } from './helpers/hardwareCorpus'
 import { SessionHardwareGuard } from '../../src/core/maker/sessionGuard'
+import { HardwareApproval } from '../../src/core/maker/ports'
 import type { HardwareContext } from '../../src/core/maker/guard/httpCommands'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MACHINE_APPROVAL_TTL_MS, UI_TEXT } from '../../src/shared/constants'
 
 const dialects: readonly GuardDialect[] = ['bash', 'powershell', 'cmd']
 const hardware = { isHardwareWorkspace: true }
@@ -105,6 +106,44 @@ describe('fourth design: hardware latch and immutable dispatch binding', () => {
       expect(isHardwareWorkspace(guard.current())).toBe(false)
       guard.observe({ targets: [{ address: 'COM5' }] })
       expect(isHardwareWorkspace(guard.current())).toBe(true)
+      guard.dispose()
+    },
+  )
+
+  it.each(['address', 'vidPid', 'usbSerial', 'expiry', 'unattended', 'unchanged'])(
+    'R3F3/F4: binding survives the answer and rejects a pre-spawn change to %s',
+    (change) => {
+      const target = { address: 'COM5', vidPid: '303a:1001', usbSerial: 'board-one' }
+      let live = target
+      let isUnattended = false
+      let now = 1
+      const guard = latch(() => ({ targets: [live], isUnattended }))
+      const approval = new HardwareApproval('request', 'flash', target, 'program', 0)
+      const binding = guard.authorize(
+        approval,
+        { id: approval.request.id, digest: approval.request.digest, decision: 'sendOnce' },
+        () => [live],
+        () => now,
+      )
+      expect(binding).toBeDefined()
+      if (binding === undefined) throw new Error('Missing binding')
+      expect(Object.isFrozen(binding)).toBe(true)
+      expect(Object.isFrozen(binding.request.targets[0])).toBe(true)
+      if (['address', 'vidPid', 'usbSerial'].includes(change))
+        live = { ...target, [change]: 'replacement' }
+      else if (change === 'expiry') now = MACHINE_APPROVAL_TTL_MS
+      else if (change === 'unattended') isUnattended = true
+      if (change === 'unchanged')
+        expect(() => {
+          binding.assertCanStart()
+        }).not.toThrow()
+      else
+        expect(() => {
+          binding.assertCanStart()
+        }).toThrow()
+      expect(() => {
+        binding.assertCanStart()
+      }).toThrow(UI_TEXT.hardwareExpired)
       guard.dispose()
     },
   )
