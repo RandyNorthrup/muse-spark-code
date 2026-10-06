@@ -70,7 +70,7 @@ together before admitting the next review, enforcing the priority rules below.
 
 ## Durable module identity and review evidence (RVM116L0 amendment)
 
-`PlaybookModule.id` is assigned once by the trusted harness and persisted in
+`PlaybookModule.id` is assigned once by P's trusted registry and persisted in
 `kind: module` journal records with the key/file-set snapshot and timestamp.
 The key is a display/lookup name, never the counter identity. A changed key
 or file set for existing code requires one typed lineage record:
