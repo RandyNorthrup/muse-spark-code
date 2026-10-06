@@ -43,7 +43,7 @@
 !dist/webview/main.css
 !dist/webview/models.js
 !dist/webview/models.css
-!dist/providerCatalog.json
+!dist/providerCatalog.js
 !dist/webview/whatsNew.js
 !dist/webview/whatsNew.css
 !media/icon.svg

@@ -50,7 +50,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   UI_TEXT_REGIONS,
@@ -58,6 +58,7 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
@@ -165,8 +166,10 @@ const ACP_OUTFILE = 'dist/acp.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
-// M95 (PLAN.md D74): the vendored provider catalogue ships as data, not code.
+// M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
+// The data module uses the same verified solid archive loader as lazy bundles.
 const PROVIDER_CATALOG_OUTFILE = 'dist/providerCatalog.json'
+const PROVIDER_CATALOG_MODULE = 'dist/providerCatalog.js'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
 // Node 20.18 (PLAN.md M62). The ACP agent runs on the user's own Node 22.
 const HOST_NODE_TARGET = 'node20.18'
@@ -542,12 +545,40 @@ const pageWorkerOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// The canonical comment template must stay with ReviewPane when other pages
+// share constants. Build a reader-only module from its exact source declaration.
+const browserReviewComment = {
+  name: 'browser-review-comment',
+  setup(build) {
+    const name = 'browser-review-comment'
+    build.onResolve({ filter: /^browser-review-comment$/ }, () => ({ path: name, namespace: name }))
+    build.onLoad({ filter: /.*/, namespace: name }, () => {
+      const source = readFileSync('src/shared/constants.ts', 'utf8')
+      const declaration = /export const REVIEW_COMMENT_MODEL_TEXT = \{[\s\S]*?\} as const/.exec(
+        source,
+      )?.[0]
+      if (!declaration) throw new Error('Missing canonical review comment text')
+      return { contents: declaration, loader: 'ts', watchFiles: ['src/shared/constants.ts'] }
+    })
+    build.onLoad({ filter: /[/\\]components[/\\]ReviewPane\.tsx$/ }, (args) => ({
+      contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readFileSync(args.path, 'utf8').replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
+      loader: 'tsx',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
+    }))
+  },
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const webviewOptions = {
   ...common,
-  plugins: isProduction ? [compactBrowserEnglish] : [],
+  plugins: isProduction ? [compactBrowserEnglish, browserReviewComment] : [browserReviewComment],
   charset: 'utf8',
-  entryPoints: [WEBVIEW_ENTRY],
+  entryPoints: {
+    main: WEBVIEW_ENTRY,
+    models: MODELS_WEBVIEW_ENTRY,
+    [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
+  },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -556,24 +587,6 @@ const webviewOptions = {
   chunkNames: 'chunks/[hash]',
   target: BROWSER_TARGET,
   jsx: 'automatic',
-}
-
-const modelsWebviewOptions = {
-  ...webviewOptions,
-  entryPoints: { models: MODELS_WEBVIEW_ENTRY },
-  format: 'iife',
-  splitting: false,
-  outdir: WEBVIEW_OUTDIR,
-}
-
-// What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
-// and whatsNew.css, beside the panel's, loaded by that page alone.
-/** @type {import('esbuild').BuildOptions} */
-const whatsNewPageOptions = {
-  ...webviewOptions,
-  format: 'iife',
-  splitting: false,
-  entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
 }
 
 function listIntegrationTests() {
@@ -600,6 +613,10 @@ function reportSize(path) {
 }
 
 copyCatalogToDist()
+writeFileSync(
+  PROVIDER_CATALOG_MODULE,
+  `module.exports=JSON.parse(${JSON.stringify(readFileSync(PROVIDER_CATALOG_OUTFILE, 'utf8'))});\n`,
+)
 // Content-hashed chunks from an earlier build must never enter a package.
 rmSync(path.join(WEBVIEW_OUTDIR, 'chunks'), { recursive: true, force: true })
 const whatsNewContent = writeWhatsNewContent()
@@ -644,9 +661,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
-    esbuild.context(whatsNewPageOptions),
     esbuild.context(modelsPanelOptions),
-    esbuild.context(modelsWebviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -692,9 +707,7 @@ if (isWatch) {
     pageWorker: esbuild.build(pageWorkerOptions),
     imageResizeWorker: esbuild.build(imageResizeWorkerOptions),
     webview: esbuild.build(webviewOptions),
-    whatsNewPage: esbuild.build(whatsNewPageOptions),
     modelsPanel: esbuild.build(modelsPanelOptions),
-    modelsWebview: esbuild.build(modelsWebviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const builds = [...Object.values(shipped), acp]
@@ -706,7 +719,19 @@ if (isWatch) {
     mkdirSync(METAFILE_DIR, { recursive: true })
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
-      writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+      if (name === 'webview') {
+        const pages = {
+          webview: 'dist/webview/main.js',
+          modelsWebview: 'dist/webview/models.js',
+          whatsNewPage: 'dist/webview/whatsNew.js',
+        }
+        for (const [page, entry] of Object.entries(pages)) {
+          writeFileSync(
+            path.join(METAFILE_DIR, `${page}.json`),
+            JSON.stringify(webviewEntryMetafile(metafile, entry)),
+          )
+        }
+      } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp

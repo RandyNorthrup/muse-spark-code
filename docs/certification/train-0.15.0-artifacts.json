@@ -2553,5 +2553,2589 @@
     "dietMerge": "583e67a87",
     "m101FirstParent": "583e67a879fc373afb2136f0d644d8632c4a6d3e",
     "m101SecondParent": "a2ac739f2f491d25fe3a8e672b34be1b007bfe54"
+  },
+  "continuationTrain15B": {
+    "inputHead": "1e1a7defe",
+    "capBytes": 2252800,
+    "universal": {
+      "bytes": 2213704,
+      "sha256": "b70daf770e14b27ca75fc63b179f9a7864d7f7517a3535dab0e24d7e3eaa466f",
+      "entries": 178,
+      "compressedPayloadBytes": 2181826
+    },
+    "helperless": {
+      "bytes": 2132213,
+      "sha256": "c763a679bc357a5831887791c1c4d9c839d69f8ff8ffb50d14ac36f59a078ea5",
+      "entries": 177,
+      "compressedPayloadBytes": 2100499
+    },
+    "archiveReduction": 155043,
+    "universalHeadroom": 39096,
+    "helperlessHeadroom": 120587,
+    "sizes": {
+      "chat": {
+        "entryBytes": 147866,
+        "startupBytes": 797449,
+        "staticOutputs": [
+          "dist/webview/main.js",
+          "dist/webview/chunks/MEUTSQJH.js",
+          "dist/webview/chunks/5522GRFJ.js",
+          "dist/webview/chunks/C5BWDDXT.js",
+          "dist/webview/chunks/UOJ6TTI4.js",
+          "dist/webview/chunks/IKSR47QI.js",
+          "dist/webview/chunks/OMGFRT2N.js",
+          "dist/webview/chunks/B72Q3NUF.js",
+          "dist/webview/chunks/X5ICNJKI.js",
+          "dist/webview/chunks/PX6TGETA.js",
+          "dist/webview/chunks/KTB4Z6DI.js",
+          "dist/webview/chunks/PNRX265U.js",
+          "dist/webview/chunks/546DMFNU.js",
+          "dist/webview/chunks/HLP3ZYR4.js",
+          "dist/webview/chunks/DSOMWMSA.js",
+          "dist/webview/chunks/2TEO5AI5.js",
+          "dist/webview/chunks/QHGL6YRI.js",
+          "dist/webview/chunks/4RMM3L7L.js",
+          "dist/webview/chunks/2QARHX3I.js",
+          "dist/webview/chunks/7MMSJGEK.js",
+          "dist/webview/chunks/CRJQKXK6.js",
+          "dist/webview/chunks/4HJZ7PMG.js",
+          "dist/webview/chunks/CNG7AHWS.js",
+          "dist/webview/chunks/D73WGMFU.js",
+          "dist/webview/chunks/JIKEIVKC.js",
+          "dist/webview/chunks/PW7DPI6U.js",
+          "dist/webview/chunks/MQEIEY3K.js",
+          "dist/webview/chunks/ACFFP2FB.js"
+        ]
+      },
+      "models": {
+        "entryBytes": 43239,
+        "startupBytes": 418077,
+        "staticOutputs": [
+          "dist/webview/models.js",
+          "dist/webview/chunks/2QARHX3I.js",
+          "dist/webview/chunks/UOJ6TTI4.js",
+          "dist/webview/chunks/IKSR47QI.js",
+          "dist/webview/chunks/OMGFRT2N.js",
+          "dist/webview/chunks/546DMFNU.js",
+          "dist/webview/chunks/CRJQKXK6.js",
+          "dist/webview/chunks/X5ICNJKI.js",
+          "dist/webview/chunks/MQEIEY3K.js",
+          "dist/webview/chunks/4RMM3L7L.js",
+          "dist/webview/chunks/HLP3ZYR4.js"
+        ]
+      },
+      "whatsNew": {
+        "entryBytes": 713,
+        "startupBytes": 1351,
+        "staticOutputs": ["dist/webview/whatsNew.js", "dist/webview/chunks/OMGFRT2N.js"]
+      },
+      "extension": 456846,
+      "modelApi": 486338,
+      "acp": 843696
+    },
+    "chunkAnalysis": {
+      "dist/webview/chunks/DBBHZL53.js": {
+        "bytes": 106761,
+        "entryPoint": null,
+        "largestInputs": [
+          {
+            "file": "src/shared/l10n/en.ts",
+            "bytes": 86918
+          },
+          {
+            "file": "src/shared/constants.ts",
+            "bytes": 10093
+          },
+          {
+            "file": "node_modules/lz-string/libs/lz-string.js",
+            "bytes": 4807
+          },
+          {
+            "file": "src/shared/l10n/text.ts",
+            "bytes": 2377
+          },
+          {
+            "file": "src/shared/browserCheckConstants.ts",
+            "bytes": 778
+          }
+        ],
+        "testOrDevelopmentInputs": [],
+        "duplicateVersionInputs": []
+      },
+      "dist/webview/chunks/JSHTFNK4.js": {
+        "bytes": 163336,
+        "entryPoint": null,
+        "largestInputs": [
+          {
+            "file": "node_modules/mdast-util-from-markdown/lib/index.js",
+            "bytes": 10239
+          },
+          {
+            "file": "node_modules/property-information/lib/svg.js",
+            "bytes": 10113
+          },
+          {
+            "file": "node_modules/hast-util-to-jsx-runtime/lib/index.js",
+            "bytes": 5854
+          },
+          {
+            "file": "node_modules/micromark-extension-gfm-table/lib/syntax.js",
+            "bytes": 4635
+          },
+          {
+            "file": "node_modules/property-information/lib/html.js",
+            "bytes": 4323
+          },
+          {
+            "file": "node_modules/micromark-extension-gfm-footnote/lib/syntax.js",
+            "bytes": 4032
+          },
+          {
+            "file": "node_modules/unified/lib/index.js",
+            "bytes": 4028
+          },
+          {
+            "file": "node_modules/micromark-extension-gfm-autolink-literal/lib/syntax.js",
+            "bytes": 3733
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/html-flow.js",
+            "bytes": 3613
+          },
+          {
+            "file": "node_modules/micromark/lib/create-tokenizer.js",
+            "bytes": 3158
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/label-end.js",
+            "bytes": 3117
+          },
+          {
+            "file": "node_modules/react-markdown/lib/index.js",
+            "bytes": 2803
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/list.js",
+            "bytes": 2613
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/html-text.js",
+            "bytes": 2479
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/code-fenced.js",
+            "bytes": 2311
+          },
+          {
+            "file": "node_modules/micromark/lib/initialize/document.js",
+            "bytes": 2276
+          },
+          {
+            "file": "node_modules/vfile/lib/index.js",
+            "bytes": 2165
+          },
+          {
+            "file": "node_modules/mdast-util-gfm-autolink-literal/lib/index.js",
+            "bytes": 2119
+          },
+          {
+            "file": "node_modules/vfile/lib/minpath.browser.js",
+            "bytes": 2040
+          },
+          {
+            "file": "node_modules/micromark-core-commonmark/lib/attention.js",
+            "bytes": 2012
+          }
+        ],
+        "testOrDevelopmentInputs": [],
+        "duplicateVersionInputs": [
+          "node_modules/unified/node_modules/is-plain-obj/index.js",
+          "node_modules/mdast-util-find-and-replace/node_modules/escape-string-regexp/index.js"
+        ]
+      },
+      "dist/webview/chunks/V5SDXEBW.js": {
+        "bytes": 78420,
+        "entryPoint": null,
+        "largestInputs": [
+          {
+            "file": "src/webview/state/uiState.ts",
+            "bytes": 44150
+          },
+          {
+            "file": "src/shared/protocol.ts",
+            "bytes": 11594
+          },
+          {
+            "file": "src/shared/redact.ts",
+            "bytes": 6120
+          },
+          {
+            "file": "src/webview/state/transcriptEntries.ts",
+            "bytes": 3002
+          },
+          {
+            "file": "src/webview/toolPresentation.ts",
+            "bytes": 2647
+          },
+          {
+            "file": "src/webview/toolDetails.ts",
+            "bytes": 2102
+          },
+          {
+            "file": "src/webview/state/gitState.ts",
+            "bytes": 1668
+          },
+          {
+            "file": "src/webview/components/ToolBlocks.tsx",
+            "bytes": 1400
+          },
+          {
+            "file": "src/shared/reviewCommand.ts",
+            "bytes": 1284
+          },
+          {
+            "file": "src/shared/git.ts",
+            "bytes": 1041
+          },
+          {
+            "file": "node_modules/zod/v4/mini/iso.js",
+            "bytes": 547
+          },
+          {
+            "file": "src/shared/webPage.ts",
+            "bytes": 309
+          },
+          {
+            "file": "src/shared/patchDocument.ts",
+            "bytes": 281
+          },
+          {
+            "file": "src/shared/judge.ts",
+            "bytes": 233
+          },
+          {
+            "file": "src/shared/sessionBoard.ts",
+            "bytes": 193
+          },
+          {
+            "file": "src/shared/providerSetup.ts",
+            "bytes": 59
+          },
+          {
+            "file": "src/shared/webResults.ts",
+            "bytes": 54
+          },
+          {
+            "file": "node_modules/zod/v4/mini/external.js",
+            "bytes": 0
+          }
+        ],
+        "testOrDevelopmentInputs": [],
+        "duplicateVersionInputs": []
+      }
+    },
+    "allLiteralPathDeltas": [
+      {
+        "file": "[Content_Types].xml",
+        "beforeRaw": 1323,
+        "afterRaw": 1323,
+        "beforeCompressed": 292,
+        "afterCompressed": 292,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension.vsixmanifest",
+        "beforeRaw": 3447,
+        "afterRaw": 3447,
+        "beforeCompressed": 1060,
+        "afterCompressed": 1060,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/LICENSE.txt",
+        "beforeRaw": 1071,
+        "afterRaw": 1071,
+        "beforeCompressed": 638,
+        "afterCompressed": 638,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/THIRD_PARTY_NOTICES.txt",
+        "beforeRaw": 50699,
+        "afterRaw": 50699,
+        "beforeCompressed": 4660,
+        "afterCompressed": 4660,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/changelog.md",
+        "beforeRaw": 42250,
+        "afterRaw": 42531,
+        "beforeCompressed": 16991,
+        "afterCompressed": 17080,
+        "compressedDelta": 89
+      },
+      {
+        "file": "extension/dist/agentImport.js",
+        "beforeRaw": 268,
+        "afterRaw": 268,
+        "beforeCompressed": 203,
+        "afterCompressed": 203,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/browserCheck.js",
+        "beforeRaw": 253,
+        "afterRaw": 253,
+        "beforeCompressed": 195,
+        "afterCompressed": 195,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/browserRuntime.js",
+        "beforeRaw": 254,
+        "afterRaw": 254,
+        "beforeCompressed": 191,
+        "afterCompressed": 191,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/bundledSkills.js",
+        "beforeRaw": 299,
+        "afterRaw": 299,
+        "beforeCompressed": 209,
+        "afterCompressed": 209,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/checkpointStore.js",
+        "beforeRaw": 304,
+        "afterRaw": 304,
+        "beforeCompressed": 221,
+        "afterCompressed": 221,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/codeIntel.js",
+        "beforeRaw": 248,
+        "afterRaw": 248,
+        "beforeCompressed": 191,
+        "afterCompressed": 191,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/conversation.js",
+        "beforeRaw": 256,
+        "afterRaw": 256,
+        "beforeCompressed": 194,
+        "afterCompressed": 194,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/conversationGit.js",
+        "beforeRaw": 280,
+        "afterRaw": 280,
+        "beforeCompressed": 209,
+        "afterCompressed": 209,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/extension.js",
+        "beforeRaw": 456846,
+        "afterRaw": 456846,
+        "beforeCompressed": 145920,
+        "afterCompressed": 145920,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/extensionHooks.js",
+        "beforeRaw": 265,
+        "afterRaw": 265,
+        "beforeCompressed": 200,
+        "afterCompressed": 200,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/foreignHooks.js",
+        "beforeRaw": 289,
+        "afterRaw": 289,
+        "beforeCompressed": 216,
+        "afterCompressed": 216,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/hookRuntime.js",
+        "beforeRaw": 399,
+        "afterRaw": 399,
+        "beforeCompressed": 274,
+        "afterCompressed": 274,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/imageResizeWorker.js",
+        "beforeRaw": 220,
+        "afterRaw": 220,
+        "beforeCompressed": 174,
+        "afterCompressed": 174,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/judge.js",
+        "beforeRaw": 248,
+        "afterRaw": 248,
+        "beforeCompressed": 196,
+        "afterCompressed": 196,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/modelApi.js",
+        "beforeRaw": 273,
+        "afterRaw": 273,
+        "beforeCompressed": 205,
+        "afterCompressed": 205,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/modelsPanel.js",
+        "beforeRaw": 309,
+        "afterRaw": 309,
+        "beforeCompressed": 231,
+        "afterCompressed": 231,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/museCodeReviewer.js",
+        "beforeRaw": 289,
+        "afterRaw": 289,
+        "beforeCompressed": 210,
+        "afterCompressed": 210,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/pageWorker.js",
+        "beforeRaw": 213,
+        "afterRaw": 213,
+        "beforeCompressed": 167,
+        "afterCompressed": 167,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/planMarkdown.js",
+        "beforeRaw": 250,
+        "afterRaw": 250,
+        "beforeCompressed": 192,
+        "afterCompressed": 192,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/pluginHooks.js",
+        "beforeRaw": 291,
+        "afterRaw": 291,
+        "beforeCompressed": 220,
+        "afterCompressed": 220,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/providerCatalog.js",
+        "beforeRaw": 0,
+        "afterRaw": 218,
+        "beforeCompressed": 0,
+        "afterCompressed": 173,
+        "compressedDelta": 173
+      },
+      {
+        "file": "extension/dist/providerCatalog.json",
+        "beforeRaw": 463091,
+        "afterRaw": 0,
+        "beforeCompressed": 25930,
+        "afterCompressed": 0,
+        "compressedDelta": -25930
+      },
+      {
+        "file": "extension/dist/providers.js",
+        "beforeRaw": 415,
+        "afterRaw": 415,
+        "beforeCompressed": 300,
+        "afterCompressed": 300,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/recorder.js",
+        "beforeRaw": 26857,
+        "afterRaw": 26857,
+        "beforeCompressed": 9988,
+        "afterCompressed": 9988,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/report.js",
+        "beforeRaw": 258,
+        "afterRaw": 258,
+        "beforeCompressed": 198,
+        "afterCompressed": 198,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/review.js",
+        "beforeRaw": 252,
+        "afterRaw": 252,
+        "beforeCompressed": 194,
+        "afterCompressed": 194,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/reviewer.js",
+        "beforeRaw": 265,
+        "afterRaw": 265,
+        "beforeCompressed": 208,
+        "afterCompressed": 208,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/runtime.bundles.json.br",
+        "beforeRaw": 493298,
+        "afterRaw": 510295,
+        "beforeCompressed": 493453,
+        "afterCompressed": 510450,
+        "compressedDelta": 16997
+      },
+      {
+        "file": "extension/dist/searchWorker.js",
+        "beforeRaw": 215,
+        "afterRaw": 215,
+        "beforeCompressed": 168,
+        "afterCompressed": 168,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/sessionBoard.js",
+        "beforeRaw": 275,
+        "afterRaw": 275,
+        "beforeCompressed": 210,
+        "afterCompressed": 210,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/tab.js",
+        "beforeRaw": 313,
+        "afterRaw": 313,
+        "beforeCompressed": 232,
+        "afterCompressed": 232,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/uiText.js",
+        "beforeRaw": 51144,
+        "afterRaw": 51144,
+        "beforeCompressed": 38024,
+        "afterCompressed": 38024,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/uiTextHooks.js",
+        "beforeRaw": 4959,
+        "afterRaw": 4959,
+        "beforeCompressed": 3769,
+        "afterCompressed": 3769,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/uiTextRuntime.js",
+        "beforeRaw": 3853,
+        "afterRaw": 3853,
+        "beforeCompressed": 2931,
+        "afterCompressed": 2931,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/uiTextSurfaces.js",
+        "beforeRaw": 2726,
+        "afterRaw": 2726,
+        "beforeCompressed": 2089,
+        "afterCompressed": 2089,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/validation.js",
+        "beforeRaw": 40823,
+        "afterRaw": 40823,
+        "beforeCompressed": 11993,
+        "afterCompressed": 11993,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/voice.js",
+        "beforeRaw": 262,
+        "afterRaw": 262,
+        "beforeCompressed": 204,
+        "afterCompressed": 204,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webFetch.js",
+        "beforeRaw": 282,
+        "afterRaw": 282,
+        "beforeCompressed": 219,
+        "afterCompressed": 219,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/2B4YJBJW.js",
+        "beforeRaw": 772,
+        "afterRaw": 0,
+        "beforeCompressed": 379,
+        "afterCompressed": 0,
+        "compressedDelta": -379
+      },
+      {
+        "file": "extension/dist/webview/chunks/2HVEACRS.js",
+        "beforeRaw": 203,
+        "afterRaw": 0,
+        "beforeCompressed": 167,
+        "afterCompressed": 0,
+        "compressedDelta": -167
+      },
+      {
+        "file": "extension/dist/webview/chunks/2QARHX3I.js",
+        "beforeRaw": 0,
+        "afterRaw": 218103,
+        "beforeCompressed": 0,
+        "afterCompressed": 68201,
+        "compressedDelta": 68201
+      },
+      {
+        "file": "extension/dist/webview/chunks/2TEO5AI5.js",
+        "beforeRaw": 549,
+        "afterRaw": 549,
+        "beforeCompressed": 283,
+        "afterCompressed": 283,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/2YIVAOBR.js",
+        "beforeRaw": 0,
+        "afterRaw": 8134,
+        "beforeCompressed": 0,
+        "afterCompressed": 2577,
+        "compressedDelta": 2577
+      },
+      {
+        "file": "extension/dist/webview/chunks/3DPUWYIL.js",
+        "beforeRaw": 1271,
+        "afterRaw": 0,
+        "beforeCompressed": 697,
+        "afterCompressed": 0,
+        "compressedDelta": -697
+      },
+      {
+        "file": "extension/dist/webview/chunks/3ISGFOFS.js",
+        "beforeRaw": 8085,
+        "afterRaw": 0,
+        "beforeCompressed": 2560,
+        "afterCompressed": 0,
+        "compressedDelta": -2560
+      },
+      {
+        "file": "extension/dist/webview/chunks/47PUMWLG.js",
+        "beforeRaw": 3415,
+        "afterRaw": 0,
+        "beforeCompressed": 1572,
+        "afterCompressed": 0,
+        "compressedDelta": -1572
+      },
+      {
+        "file": "extension/dist/webview/chunks/4HJZ7PMG.js",
+        "beforeRaw": 0,
+        "afterRaw": 230,
+        "beforeCompressed": 0,
+        "afterCompressed": 187,
+        "compressedDelta": 187
+      },
+      {
+        "file": "extension/dist/webview/chunks/4P575ONR.js",
+        "beforeRaw": 4934,
+        "afterRaw": 0,
+        "beforeCompressed": 2121,
+        "afterCompressed": 0,
+        "compressedDelta": -2121
+      },
+      {
+        "file": "extension/dist/webview/chunks/4RMM3L7L.js",
+        "beforeRaw": 0,
+        "afterRaw": 7071,
+        "beforeCompressed": 0,
+        "afterCompressed": 2210,
+        "compressedDelta": 2210
+      },
+      {
+        "file": "extension/dist/webview/chunks/4TWOVGLQ.js",
+        "beforeRaw": 0,
+        "afterRaw": 12950,
+        "beforeCompressed": 0,
+        "afterCompressed": 3900,
+        "compressedDelta": 3900
+      },
+      {
+        "file": "extension/dist/webview/chunks/546DMFNU.js",
+        "beforeRaw": 0,
+        "afterRaw": 8242,
+        "beforeCompressed": 0,
+        "afterCompressed": 3184,
+        "compressedDelta": 3184
+      },
+      {
+        "file": "extension/dist/webview/chunks/5522GRFJ.js",
+        "beforeRaw": 0,
+        "afterRaw": 77829,
+        "beforeCompressed": 0,
+        "afterCompressed": 22835,
+        "compressedDelta": 22835
+      },
+      {
+        "file": "extension/dist/webview/chunks/6H6HIFU7.js",
+        "beforeRaw": 8242,
+        "afterRaw": 0,
+        "beforeCompressed": 3187,
+        "afterCompressed": 0,
+        "compressedDelta": -3187
+      },
+      {
+        "file": "extension/dist/webview/chunks/6U72XITC.js",
+        "beforeRaw": 1542,
+        "afterRaw": 0,
+        "beforeCompressed": 822,
+        "afterCompressed": 0,
+        "compressedDelta": -822
+      },
+      {
+        "file": "extension/dist/webview/chunks/6XMKKTB4.js",
+        "beforeRaw": 0,
+        "afterRaw": 1401,
+        "beforeCompressed": 0,
+        "afterCompressed": 649,
+        "compressedDelta": 649
+      },
+      {
+        "file": "extension/dist/webview/chunks/7MMSJGEK.js",
+        "beforeRaw": 0,
+        "afterRaw": 1945,
+        "beforeCompressed": 0,
+        "afterCompressed": 903,
+        "compressedDelta": 903
+      },
+      {
+        "file": "extension/dist/webview/chunks/7TWZ7Q6J.js",
+        "beforeRaw": 7062,
+        "afterRaw": 0,
+        "beforeCompressed": 2085,
+        "afterCompressed": 0,
+        "compressedDelta": -2085
+      },
+      {
+        "file": "extension/dist/webview/chunks/ACFFP2FB.js",
+        "beforeRaw": 0,
+        "afterRaw": 1437,
+        "beforeCompressed": 0,
+        "afterCompressed": 715,
+        "compressedDelta": 715
+      },
+      {
+        "file": "extension/dist/webview/chunks/AKPHRRA7.js",
+        "beforeRaw": 2280,
+        "afterRaw": 0,
+        "beforeCompressed": 1087,
+        "afterCompressed": 0,
+        "compressedDelta": -1087
+      },
+      {
+        "file": "extension/dist/webview/chunks/B72Q3NUF.js",
+        "beforeRaw": 0,
+        "afterRaw": 5279,
+        "beforeCompressed": 0,
+        "afterCompressed": 1982,
+        "compressedDelta": 1982
+      },
+      {
+        "file": "extension/dist/webview/chunks/BCT67YTC.js",
+        "beforeRaw": 270,
+        "afterRaw": 0,
+        "beforeCompressed": 215,
+        "afterCompressed": 0,
+        "compressedDelta": -215
+      },
+      {
+        "file": "extension/dist/webview/chunks/BFLAA6JG.js",
+        "beforeRaw": 95366,
+        "afterRaw": 0,
+        "beforeCompressed": 30649,
+        "afterCompressed": 0,
+        "compressedDelta": -30649
+      },
+      {
+        "file": "extension/dist/webview/chunks/C5BWDDXT.js",
+        "beforeRaw": 0,
+        "afterRaw": 1131,
+        "beforeCompressed": 0,
+        "afterCompressed": 550,
+        "compressedDelta": 550
+      },
+      {
+        "file": "extension/dist/webview/chunks/CNG7AHWS.js",
+        "beforeRaw": 0,
+        "afterRaw": 4088,
+        "beforeCompressed": 0,
+        "afterCompressed": 1603,
+        "compressedDelta": 1603
+      },
+      {
+        "file": "extension/dist/webview/chunks/CRJQKXK6.js",
+        "beforeRaw": 0,
+        "afterRaw": 165,
+        "beforeCompressed": 0,
+        "afterCompressed": 140,
+        "compressedDelta": 140
+      },
+      {
+        "file": "extension/dist/webview/chunks/CXPMWAOI.js",
+        "beforeRaw": 1522,
+        "afterRaw": 0,
+        "beforeCompressed": 710,
+        "afterCompressed": 0,
+        "compressedDelta": -710
+      },
+      {
+        "file": "extension/dist/webview/chunks/D73WGMFU.js",
+        "beforeRaw": 0,
+        "afterRaw": 270,
+        "beforeCompressed": 0,
+        "afterCompressed": 213,
+        "compressedDelta": 213
+      },
+      {
+        "file": "extension/dist/webview/chunks/DBBHZL53.js",
+        "beforeRaw": 106761,
+        "afterRaw": 0,
+        "beforeCompressed": 74235,
+        "afterCompressed": 0,
+        "compressedDelta": -74235
+      },
+      {
+        "file": "extension/dist/webview/chunks/DRXTYJGI.js",
+        "beforeRaw": 945,
+        "afterRaw": 0,
+        "beforeCompressed": 526,
+        "afterCompressed": 0,
+        "compressedDelta": -526
+      },
+      {
+        "file": "extension/dist/webview/chunks/DSOMWMSA.js",
+        "beforeRaw": 0,
+        "afterRaw": 163363,
+        "beforeCompressed": 0,
+        "afterCompressed": 50335,
+        "compressedDelta": 50335
+      },
+      {
+        "file": "extension/dist/webview/chunks/FBJ3U7DD.js",
+        "beforeRaw": 0,
+        "afterRaw": 4812,
+        "beforeCompressed": 0,
+        "afterCompressed": 1666,
+        "compressedDelta": 1666
+      },
+      {
+        "file": "extension/dist/webview/chunks/FYVC63ST.js",
+        "beforeRaw": 4061,
+        "afterRaw": 0,
+        "beforeCompressed": 1595,
+        "afterCompressed": 0,
+        "compressedDelta": -1595
+      },
+      {
+        "file": "extension/dist/webview/chunks/HLP3ZYR4.js",
+        "beforeRaw": 0,
+        "afterRaw": 791,
+        "beforeCompressed": 0,
+        "afterCompressed": 475,
+        "compressedDelta": 475
+      },
+      {
+        "file": "extension/dist/webview/chunks/IKSR47QI.js",
+        "beforeRaw": 0,
+        "afterRaw": 106704,
+        "beforeCompressed": 0,
+        "afterCompressed": 74204,
+        "compressedDelta": 74204
+      },
+      {
+        "file": "extension/dist/webview/chunks/J64YNVDH.js",
+        "beforeRaw": 0,
+        "afterRaw": 5772,
+        "beforeCompressed": 0,
+        "afterCompressed": 2075,
+        "compressedDelta": 2075
+      },
+      {
+        "file": "extension/dist/webview/chunks/JIITPASX.js",
+        "beforeRaw": 4079,
+        "afterRaw": 0,
+        "beforeCompressed": 1322,
+        "afterCompressed": 0,
+        "compressedDelta": -1322
+      },
+      {
+        "file": "extension/dist/webview/chunks/JIKEIVKC.js",
+        "beforeRaw": 0,
+        "afterRaw": 8872,
+        "beforeCompressed": 0,
+        "afterCompressed": 2619,
+        "compressedDelta": 2619
+      },
+      {
+        "file": "extension/dist/webview/chunks/JS34FEKH.js",
+        "beforeRaw": 13149,
+        "afterRaw": 0,
+        "beforeCompressed": 3886,
+        "afterCompressed": 0,
+        "compressedDelta": -3886
+      },
+      {
+        "file": "extension/dist/webview/chunks/JSHTFNK4.js",
+        "beforeRaw": 163336,
+        "afterRaw": 0,
+        "beforeCompressed": 50324,
+        "afterCompressed": 0,
+        "compressedDelta": -50324
+      },
+      {
+        "file": "extension/dist/webview/chunks/K3WEVZGF.js",
+        "beforeRaw": 2040,
+        "afterRaw": 0,
+        "beforeCompressed": 969,
+        "afterCompressed": 0,
+        "compressedDelta": -969
+      },
+      {
+        "file": "extension/dist/webview/chunks/KTB4Z6DI.js",
+        "beforeRaw": 0,
+        "afterRaw": 4079,
+        "beforeCompressed": 0,
+        "afterCompressed": 1321,
+        "compressedDelta": 1321
+      },
+      {
+        "file": "extension/dist/webview/chunks/L7QOG3AD.js",
+        "beforeRaw": 1410,
+        "afterRaw": 0,
+        "beforeCompressed": 706,
+        "afterCompressed": 0,
+        "compressedDelta": -706
+      },
+      {
+        "file": "extension/dist/webview/chunks/M25NLKMS.js",
+        "beforeRaw": 0,
+        "afterRaw": 95393,
+        "beforeCompressed": 0,
+        "afterCompressed": 30658,
+        "compressedDelta": 30658
+      },
+      {
+        "file": "extension/dist/webview/chunks/MEJSF4S5.js",
+        "beforeRaw": 8872,
+        "afterRaw": 0,
+        "beforeCompressed": 2619,
+        "afterCompressed": 0,
+        "compressedDelta": -2619
+      },
+      {
+        "file": "extension/dist/webview/chunks/MEUTSQJH.js",
+        "beforeRaw": 0,
+        "afterRaw": 945,
+        "beforeCompressed": 0,
+        "afterCompressed": 527,
+        "compressedDelta": 527
+      },
+      {
+        "file": "extension/dist/webview/chunks/MIEBORI7.js",
+        "beforeRaw": 5645,
+        "afterRaw": 0,
+        "beforeCompressed": 2014,
+        "afterCompressed": 0,
+        "compressedDelta": -2014
+      },
+      {
+        "file": "extension/dist/webview/chunks/MQEIEY3K.js",
+        "beforeRaw": 0,
+        "afterRaw": 0,
+        "beforeCompressed": 2,
+        "afterCompressed": 2,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/NSJF4TMN.js",
+        "beforeRaw": 5279,
+        "afterRaw": 0,
+        "beforeCompressed": 1982,
+        "afterCompressed": 0,
+        "compressedDelta": -1982
+      },
+      {
+        "file": "extension/dist/webview/chunks/NSZSAG6G.js",
+        "beforeRaw": 0,
+        "afterRaw": 3469,
+        "beforeCompressed": 0,
+        "afterCompressed": 1589,
+        "compressedDelta": 1589
+      },
+      {
+        "file": "extension/dist/webview/chunks/OMGFRT2N.js",
+        "beforeRaw": 0,
+        "afterRaw": 638,
+        "beforeCompressed": 0,
+        "afterCompressed": 370,
+        "compressedDelta": 370
+      },
+      {
+        "file": "extension/dist/webview/chunks/OSW7V3EW.js",
+        "beforeRaw": 0,
+        "afterRaw": 4961,
+        "beforeCompressed": 0,
+        "afterCompressed": 2131,
+        "compressedDelta": 2131
+      },
+      {
+        "file": "extension/dist/webview/chunks/PNRX265U.js",
+        "beforeRaw": 0,
+        "afterRaw": 1542,
+        "beforeCompressed": 0,
+        "afterCompressed": 821,
+        "compressedDelta": 821
+      },
+      {
+        "file": "extension/dist/webview/chunks/PW7DPI6U.js",
+        "beforeRaw": 0,
+        "afterRaw": 366,
+        "beforeCompressed": 0,
+        "afterCompressed": 244,
+        "compressedDelta": 244
+      },
+      {
+        "file": "extension/dist/webview/chunks/PWQKL6UC.js",
+        "beforeRaw": 0,
+        "afterRaw": 7089,
+        "beforeCompressed": 0,
+        "afterCompressed": 2096,
+        "compressedDelta": 2096
+      },
+      {
+        "file": "extension/dist/webview/chunks/PX6TGETA.js",
+        "beforeRaw": 0,
+        "afterRaw": 1271,
+        "beforeCompressed": 0,
+        "afterCompressed": 695,
+        "compressedDelta": 695
+      },
+      {
+        "file": "extension/dist/webview/chunks/QHGL6YRI.js",
+        "beforeRaw": 0,
+        "afterRaw": 1549,
+        "beforeCompressed": 0,
+        "afterCompressed": 720,
+        "compressedDelta": 720
+      },
+      {
+        "file": "extension/dist/webview/chunks/QRTJGPJ2.js",
+        "beforeRaw": 0,
+        "afterRaw": 794,
+        "beforeCompressed": 0,
+        "afterCompressed": 390,
+        "compressedDelta": 390
+      },
+      {
+        "file": "extension/dist/webview/chunks/R4SLIWUW.js",
+        "beforeRaw": 7044,
+        "afterRaw": 0,
+        "beforeCompressed": 2195,
+        "afterCompressed": 0,
+        "compressedDelta": -2195
+      },
+      {
+        "file": "extension/dist/webview/chunks/UOJ6TTI4.js",
+        "beforeRaw": 32461,
+        "afterRaw": 32461,
+        "beforeCompressed": 9831,
+        "afterCompressed": 9831,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/UQHHBBOK.js",
+        "beforeRaw": 1374,
+        "afterRaw": 0,
+        "beforeCompressed": 638,
+        "afterCompressed": 0,
+        "compressedDelta": -638
+      },
+      {
+        "file": "extension/dist/webview/chunks/UXP3ONSW.js",
+        "beforeRaw": 1131,
+        "afterRaw": 0,
+        "beforeCompressed": 551,
+        "afterCompressed": 0,
+        "compressedDelta": -551
+      },
+      {
+        "file": "extension/dist/webview/chunks/V5SDXEBW.js",
+        "beforeRaw": 78420,
+        "afterRaw": 0,
+        "beforeCompressed": 23017,
+        "afterCompressed": 0,
+        "compressedDelta": -23017
+      },
+      {
+        "file": "extension/dist/webview/chunks/WGY2CJVX.js",
+        "beforeRaw": 366,
+        "afterRaw": 0,
+        "beforeCompressed": 246,
+        "afterCompressed": 0,
+        "compressedDelta": -246
+      },
+      {
+        "file": "extension/dist/webview/chunks/X5ICNJKI.js",
+        "beforeRaw": 0,
+        "afterRaw": 663,
+        "beforeCompressed": 0,
+        "afterCompressed": 275,
+        "compressedDelta": 275
+      },
+      {
+        "file": "extension/dist/webview/chunks/XHITGSTT.js",
+        "beforeRaw": 4785,
+        "afterRaw": 0,
+        "beforeCompressed": 1658,
+        "afterCompressed": 0,
+        "compressedDelta": -1658
+      },
+      {
+        "file": "extension/dist/webview/chunks/XS3EYQUA.js",
+        "beforeRaw": 0,
+        "afterRaw": 2334,
+        "beforeCompressed": 0,
+        "afterCompressed": 1105,
+        "compressedDelta": 1105
+      },
+      {
+        "file": "extension/dist/webview/chunks/YAU5JFBT.js",
+        "beforeRaw": 1375,
+        "afterRaw": 0,
+        "beforeCompressed": 677,
+        "afterCompressed": 0,
+        "compressedDelta": -677
+      },
+      {
+        "file": "extension/dist/webview/chunks/YJHHO45K.js",
+        "beforeRaw": 8973,
+        "afterRaw": 0,
+        "beforeCompressed": 2300,
+        "afterCompressed": 0,
+        "compressedDelta": -2300
+      },
+      {
+        "file": "extension/dist/webview/chunks/YZKIXO5T.js",
+        "beforeRaw": 0,
+        "afterRaw": 1402,
+        "beforeCompressed": 0,
+        "afterCompressed": 685,
+        "compressedDelta": 685
+      },
+      {
+        "file": "extension/dist/webview/chunks/YZYFFBEE.js",
+        "beforeRaw": 0,
+        "afterRaw": 9000,
+        "beforeCompressed": 0,
+        "afterCompressed": 2312,
+        "compressedDelta": 2312
+      },
+      {
+        "file": "extension/dist/webview/chunks/ZXQBZBPZ.js",
+        "beforeRaw": 1386,
+        "afterRaw": 0,
+        "beforeCompressed": 757,
+        "afterCompressed": 0,
+        "compressedDelta": -757
+      },
+      {
+        "file": "extension/dist/webview/main.css",
+        "beforeRaw": 54913,
+        "afterRaw": 54913,
+        "beforeCompressed": 9576,
+        "afterCompressed": 9576,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/main.js",
+        "beforeRaw": 366363,
+        "afterRaw": 147866,
+        "beforeCompressed": 112534,
+        "afterCompressed": 44476,
+        "compressedDelta": -68058
+      },
+      {
+        "file": "extension/dist/webview/models.css",
+        "beforeRaw": 8007,
+        "afterRaw": 8007,
+        "beforeCompressed": 1749,
+        "afterCompressed": 1749,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/models.js",
+        "beforeRaw": 391260,
+        "afterRaw": 43239,
+        "beforeCompressed": 158279,
+        "afterCompressed": 10568,
+        "compressedDelta": -147711
+      },
+      {
+        "file": "extension/dist/webview/whatsNew.css",
+        "beforeRaw": 2534,
+        "afterRaw": 2534,
+        "beforeCompressed": 757,
+        "afterCompressed": 757,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/whatsNew.js",
+        "beforeRaw": 708,
+        "afterRaw": 713,
+        "beforeCompressed": 431,
+        "afterCompressed": 441,
+        "compressedDelta": 10
+      },
+      {
+        "file": "extension/dist/whatsNew.js",
+        "beforeRaw": 253,
+        "afterRaw": 253,
+        "beforeCompressed": 196,
+        "afterCompressed": 197,
+        "compressedDelta": 1
+      },
+      {
+        "file": "extension/dist/whatsNew.json",
+        "beforeRaw": 28899,
+        "afterRaw": 28899,
+        "beforeCompressed": 10092,
+        "afterCompressed": 10092,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/wire.js",
+        "beforeRaw": 42401,
+        "afterRaw": 42401,
+        "beforeCompressed": 11333,
+        "afterCompressed": 11333,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/docs/PRIVACY.md",
+        "beforeRaw": 57704,
+        "afterRaw": 57704,
+        "beforeCompressed": 21242,
+        "afterCompressed": 21242,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/docs/judge.md",
+        "beforeRaw": 6136,
+        "afterRaw": 6136,
+        "beforeCompressed": 2931,
+        "afterCompressed": 2931,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/first-party-skills/muse_gadgets/SKILL.md",
+        "beforeRaw": 2879,
+        "afterRaw": 2879,
+        "beforeCompressed": 1485,
+        "afterCompressed": 1485,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/l10n/ui.tables.json.br",
+        "beforeRaw": 480143,
+        "afterRaw": 480143,
+        "beforeCompressed": 480293,
+        "afterCompressed": 480293,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/media/icon.png",
+        "beforeRaw": 4136,
+        "afterRaw": 4136,
+        "beforeCompressed": 4141,
+        "afterCompressed": 4141,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/media/icon.svg",
+        "beforeRaw": 1847,
+        "afterRaw": 1847,
+        "beforeCompressed": 923,
+        "afterCompressed": 923,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/darwin/muse-dictate",
+        "beforeRaw": 289568,
+        "afterRaw": 289568,
+        "beforeCompressed": 81327,
+        "afterCompressed": 81327,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/windows/MuseSparkJob.cs",
+        "beforeRaw": 2388,
+        "afterRaw": 2388,
+        "beforeCompressed": 938,
+        "afterCompressed": 938,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/windows/MuseSparkMcpJob.cs",
+        "beforeRaw": 13182,
+        "afterRaw": 13182,
+        "beforeCompressed": 3652,
+        "afterCompressed": 3652,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/windows/MuseSparkMcpLauncher.cs",
+        "beforeRaw": 3502,
+        "afterRaw": 3502,
+        "beforeCompressed": 1234,
+        "afterCompressed": 1234,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/windows/capture.ps1",
+        "beforeRaw": 10902,
+        "afterRaw": 10902,
+        "beforeCompressed": 3709,
+        "afterCompressed": 3709,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/windows/dictate.ps1",
+        "beforeRaw": 6909,
+        "afterRaw": 6909,
+        "beforeCompressed": 2420,
+        "afterCompressed": 2420,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.json",
+        "beforeRaw": 29787,
+        "afterRaw": 29787,
+        "beforeCompressed": 5725,
+        "afterCompressed": 5725,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.cs.json",
+        "beforeRaw": 34192,
+        "afterRaw": 34192,
+        "beforeCompressed": 11312,
+        "afterCompressed": 11312,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.de.json",
+        "beforeRaw": 35386,
+        "afterRaw": 35386,
+        "beforeCompressed": 11355,
+        "afterCompressed": 11355,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.es.json",
+        "beforeRaw": 35485,
+        "afterRaw": 35485,
+        "beforeCompressed": 10760,
+        "afterCompressed": 10760,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.fr.json",
+        "beforeRaw": 37059,
+        "afterRaw": 37059,
+        "beforeCompressed": 11267,
+        "afterCompressed": 11267,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.hu.json",
+        "beforeRaw": 37121,
+        "afterRaw": 37121,
+        "beforeCompressed": 11650,
+        "afterCompressed": 11650,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.it.json",
+        "beforeRaw": 35199,
+        "afterRaw": 35199,
+        "beforeCompressed": 10779,
+        "afterCompressed": 10779,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.ja.json",
+        "beforeRaw": 40639,
+        "afterRaw": 40639,
+        "beforeCompressed": 11786,
+        "afterCompressed": 11786,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.json",
+        "beforeRaw": 29490,
+        "afterRaw": 29490,
+        "beforeCompressed": 9562,
+        "afterCompressed": 9562,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.ko.json",
+        "beforeRaw": 36321,
+        "afterRaw": 36321,
+        "beforeCompressed": 11186,
+        "afterCompressed": 11186,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.pl.json",
+        "beforeRaw": 34139,
+        "afterRaw": 34139,
+        "beforeCompressed": 11374,
+        "afterCompressed": 11374,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.pt-br.json",
+        "beforeRaw": 34531,
+        "afterRaw": 34531,
+        "beforeCompressed": 10731,
+        "afterCompressed": 10731,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.ru.json",
+        "beforeRaw": 52528,
+        "afterRaw": 52528,
+        "beforeCompressed": 13172,
+        "afterCompressed": 13172,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.tr.json",
+        "beforeRaw": 35295,
+        "afterRaw": 35295,
+        "beforeCompressed": 10963,
+        "afterCompressed": 10963,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.zh-cn.json",
+        "beforeRaw": 30046,
+        "afterRaw": 30046,
+        "beforeCompressed": 11218,
+        "afterCompressed": 11218,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/package.nls.zh-tw.json",
+        "beforeRaw": 30435,
+        "afterRaw": 30435,
+        "beforeCompressed": 11319,
+        "afterCompressed": 11319,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/readme.md",
+        "beforeRaw": 12078,
+        "afterRaw": 12078,
+        "beforeCompressed": 4458,
+        "afterCompressed": 4458,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/chat.md",
+        "beforeRaw": 767,
+        "afterRaw": 767,
+        "beforeCompressed": 442,
+        "afterCompressed": 442,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/chat.png",
+        "beforeRaw": 39823,
+        "afterRaw": 39823,
+        "beforeCompressed": 36961,
+        "afterCompressed": 36961,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/open.md",
+        "beforeRaw": 587,
+        "afterRaw": 587,
+        "beforeCompressed": 324,
+        "afterCompressed": 324,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/open.png",
+        "beforeRaw": 44833,
+        "afterRaw": 44833,
+        "beforeCompressed": 41302,
+        "afterCompressed": 41302,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/own-model.md",
+        "beforeRaw": 527,
+        "afterRaw": 527,
+        "beforeCompressed": 318,
+        "afterCompressed": 318,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/sign-in.md",
+        "beforeRaw": 723,
+        "afterRaw": 723,
+        "beforeCompressed": 397,
+        "afterCompressed": 397,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/sign-in.png",
+        "beforeRaw": 22112,
+        "afterRaw": 22112,
+        "beforeCompressed": 19418,
+        "afterCompressed": 19418,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/welcome.md",
+        "beforeRaw": 694,
+        "afterRaw": 694,
+        "beforeCompressed": 403,
+        "afterCompressed": 403,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/welcome.png",
+        "beforeRaw": 20306,
+        "afterRaw": 20306,
+        "beforeCompressed": 17744,
+        "afterCompressed": 17744,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/AGENTS.md",
+        "beforeRaw": 7279,
+        "afterRaw": 7279,
+        "beforeCompressed": 3268,
+        "afterCompressed": 3268,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/LICENSE",
+        "beforeRaw": 1071,
+        "afterRaw": 1071,
+        "beforeCompressed": 638,
+        "afterCompressed": 638,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/README.md",
+        "beforeRaw": 10928,
+        "afterRaw": 10928,
+        "beforeCompressed": 4627,
+        "afterCompressed": 4627,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/VENDOR.json",
+        "beforeRaw": 6650,
+        "afterRaw": 6650,
+        "beforeCompressed": 2591,
+        "afterCompressed": 2591,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/CODE-QUALITY.md",
+        "beforeRaw": 20500,
+        "afterRaw": 20500,
+        "beforeCompressed": 8646,
+        "afterCompressed": 8646,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/DELIVERY.md",
+        "beforeRaw": 15068,
+        "afterRaw": 15068,
+        "beforeCompressed": 6002,
+        "afterCompressed": 6002,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/INSTALLATION.md",
+        "beforeRaw": 6244,
+        "afterRaw": 6244,
+        "beforeCompressed": 2360,
+        "afterCompressed": 2360,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/PHILOSOPHY.md",
+        "beforeRaw": 7203,
+        "afterRaw": 7203,
+        "beforeCompressed": 3519,
+        "afterCompressed": 3519,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/QUALITY-REVIEW.md",
+        "beforeRaw": 22561,
+        "afterRaw": 22561,
+        "beforeCompressed": 9474,
+        "afterCompressed": 9474,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/RED-DRILLS.md",
+        "beforeRaw": 6293,
+        "afterRaw": 6293,
+        "beforeCompressed": 2790,
+        "afterCompressed": 2790,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/docs/REPO-META.md",
+        "beforeRaw": 3252,
+        "afterRaw": 3252,
+        "beforeCompressed": 1423,
+        "afterCompressed": 1423,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/__init__.py",
+        "beforeRaw": 80,
+        "afterRaw": 80,
+        "beforeCompressed": 72,
+        "afterCompressed": 72,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/checks.py",
+        "beforeRaw": 19075,
+        "afterRaw": 19075,
+        "beforeCompressed": 4610,
+        "afterCompressed": 4610,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/cli.py",
+        "beforeRaw": 7358,
+        "afterRaw": 7358,
+        "beforeCompressed": 2638,
+        "afterCompressed": 2638,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/graph.py",
+        "beforeRaw": 12051,
+        "afterRaw": 12051,
+        "beforeCompressed": 3018,
+        "afterCompressed": 3018,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/model.py",
+        "beforeRaw": 4665,
+        "afterRaw": 4665,
+        "beforeCompressed": 1557,
+        "afterCompressed": 1557,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/reader.py",
+        "beforeRaw": 15941,
+        "afterRaw": 15941,
+        "beforeCompressed": 4398,
+        "afterCompressed": 4398,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/snapshot.py",
+        "beforeRaw": 7163,
+        "afterRaw": 7163,
+        "beforeCompressed": 2386,
+        "afterCompressed": 2386,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/delivery/writer.py",
+        "beforeRaw": 6158,
+        "afterRaw": 6158,
+        "beforeCompressed": 2250,
+        "afterCompressed": 2250,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/detect-stack.ps1",
+        "beforeRaw": 17895,
+        "afterRaw": 17895,
+        "beforeCompressed": 3888,
+        "afterCompressed": 3888,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/detect-stack.sh",
+        "beforeRaw": 13257,
+        "afterRaw": 13257,
+        "beforeCompressed": 4578,
+        "afterCompressed": 4578,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/skill-root.ps1",
+        "beforeRaw": 2122,
+        "afterRaw": 2122,
+        "beforeCompressed": 839,
+        "afterCompressed": 839,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/skill-root.sh",
+        "beforeRaw": 1505,
+        "afterRaw": 1505,
+        "beforeCompressed": 753,
+        "afterCompressed": 753,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/update-delivery.py",
+        "beforeRaw": 364,
+        "afterRaw": 364,
+        "beforeCompressed": 238,
+        "afterCompressed": 238,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/verify-delivery.py",
+        "beforeRaw": 580,
+        "afterRaw": 580,
+        "beforeCompressed": 357,
+        "afterCompressed": 357,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/scripts/verify-format-safe.py",
+        "beforeRaw": 2866,
+        "afterRaw": 2866,
+        "beforeCompressed": 1421,
+        "afterCompressed": 1421,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/feature_delivery/SKILL.md",
+        "beforeRaw": 7546,
+        "afterRaw": 7546,
+        "beforeCompressed": 3288,
+        "afterCompressed": 3288,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md",
+        "beforeRaw": 28728,
+        "afterRaw": 28728,
+        "beforeCompressed": 11971,
+        "afterCompressed": 11971,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/assets/PROJECT_BRIEF.md",
+        "beforeRaw": 7113,
+        "afterRaw": 7113,
+        "beforeCompressed": 2957,
+        "afterCompressed": 2957,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/references/grill-me.md",
+        "beforeRaw": 15961,
+        "afterRaw": 15961,
+        "beforeCompressed": 6347,
+        "afterCompressed": 6347,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/quality_retrofit/SKILL.md",
+        "beforeRaw": 23448,
+        "afterRaw": 23448,
+        "beforeCompressed": 10236,
+        "afterCompressed": 10236,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/.pre-commit-config.yaml",
+        "beforeRaw": 8268,
+        "afterRaw": 8268,
+        "beforeCompressed": 2817,
+        "afterCompressed": 2817,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/README.md",
+        "beforeRaw": 13334,
+        "afterRaw": 13334,
+        "beforeCompressed": 5999,
+        "afterCompressed": 5999,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/cpp/.clang-tidy",
+        "beforeRaw": 2653,
+        "afterRaw": 2653,
+        "beforeCompressed": 1138,
+        "afterCompressed": 1138,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/cpp/sanitizers.md",
+        "beforeRaw": 4456,
+        "afterRaw": 4456,
+        "beforeCompressed": 2117,
+        "afterCompressed": 2117,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/csharp/.editorconfig",
+        "beforeRaw": 1153,
+        "afterRaw": 1153,
+        "beforeCompressed": 570,
+        "afterCompressed": 570,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/csharp/Directory.Build.props",
+        "beforeRaw": 3284,
+        "afterRaw": 3284,
+        "beforeCompressed": 1468,
+        "afterCompressed": 1468,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/powershell/PSScriptAnalyzerSettings.psd1",
+        "beforeRaw": 3129,
+        "afterRaw": 3129,
+        "beforeCompressed": 1247,
+        "afterCompressed": 1247,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/python/mypy.ini",
+        "beforeRaw": 2318,
+        "afterRaw": 2318,
+        "beforeCompressed": 1137,
+        "afterCompressed": 1137,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/python/ruff.toml",
+        "beforeRaw": 2003,
+        "afterRaw": 2003,
+        "beforeCompressed": 1092,
+        "afterCompressed": 1092,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/rust/clippy-strict.toml",
+        "beforeRaw": 3628,
+        "afterRaw": 3628,
+        "beforeCompressed": 1241,
+        "afterCompressed": 1241,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/rust/deny.toml",
+        "beforeRaw": 2046,
+        "afterRaw": 2046,
+        "beforeCompressed": 1053,
+        "afterCompressed": 1053,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/typescript/eslint.config.mjs",
+        "beforeRaw": 6400,
+        "afterRaw": 6400,
+        "beforeCompressed": 2584,
+        "afterCompressed": 2584,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/typescript/tsconfig.strict.json",
+        "beforeRaw": 2104,
+        "afterRaw": 2104,
+        "beforeCompressed": 1027,
+        "afterCompressed": 1027,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/web/.stylelintrc.json",
+        "beforeRaw": 1147,
+        "afterRaw": 1147,
+        "beforeCompressed": 502,
+        "afterCompressed": 502,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/web/knip.jsonc",
+        "beforeRaw": 2398,
+        "afterRaw": 2398,
+        "beforeCompressed": 1177,
+        "afterCompressed": 1177,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/templates/workflow/PLAN.md",
+        "beforeRaw": 2018,
+        "afterRaw": 2018,
+        "beforeCompressed": 888,
+        "afterCompressed": 888,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/models-dev/LICENSE",
+        "beforeRaw": 1067,
+        "afterRaw": 1067,
+        "beforeCompressed": 635,
+        "afterCompressed": 635,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/models-dev/VENDOR.json",
+        "beforeRaw": 704,
+        "afterRaw": 704,
+        "beforeCompressed": 408,
+        "afterCompressed": 408,
+        "compressedDelta": 0
+      }
+    ],
+    "largest20Entries": [
+      {
+        "file": "extension/dist/runtime.bundles.json.br",
+        "beforeRaw": 493298,
+        "afterRaw": 510295,
+        "beforeCompressed": 493453,
+        "afterCompressed": 510450,
+        "compressedDelta": 16997
+      },
+      {
+        "file": "extension/l10n/ui.tables.json.br",
+        "beforeRaw": 480143,
+        "afterRaw": 480143,
+        "beforeCompressed": 480293,
+        "afterCompressed": 480293,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/extension.js",
+        "beforeRaw": 456846,
+        "afterRaw": 456846,
+        "beforeCompressed": 145920,
+        "afterCompressed": 145920,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/native/darwin/muse-dictate",
+        "beforeRaw": 289568,
+        "afterRaw": 289568,
+        "beforeCompressed": 81327,
+        "afterCompressed": 81327,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/IKSR47QI.js",
+        "beforeRaw": 0,
+        "afterRaw": 106704,
+        "beforeCompressed": 0,
+        "afterCompressed": 74204,
+        "compressedDelta": 74204
+      },
+      {
+        "file": "extension/dist/webview/chunks/2QARHX3I.js",
+        "beforeRaw": 0,
+        "afterRaw": 218103,
+        "beforeCompressed": 0,
+        "afterCompressed": 68201,
+        "compressedDelta": 68201
+      },
+      {
+        "file": "extension/dist/webview/chunks/DSOMWMSA.js",
+        "beforeRaw": 0,
+        "afterRaw": 163363,
+        "beforeCompressed": 0,
+        "afterCompressed": 50335,
+        "compressedDelta": 50335
+      },
+      {
+        "file": "extension/dist/webview/main.js",
+        "beforeRaw": 366363,
+        "afterRaw": 147866,
+        "beforeCompressed": 112534,
+        "afterCompressed": 44476,
+        "compressedDelta": -68058
+      },
+      {
+        "file": "extension/resources/walkthrough/open.png",
+        "beforeRaw": 44833,
+        "afterRaw": 44833,
+        "beforeCompressed": 41302,
+        "afterCompressed": 41302,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/uiText.js",
+        "beforeRaw": 51144,
+        "afterRaw": 51144,
+        "beforeCompressed": 38024,
+        "afterCompressed": 38024,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/chat.png",
+        "beforeRaw": 39823,
+        "afterRaw": 39823,
+        "beforeCompressed": 36961,
+        "afterCompressed": 36961,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/webview/chunks/M25NLKMS.js",
+        "beforeRaw": 0,
+        "afterRaw": 95393,
+        "beforeCompressed": 0,
+        "afterCompressed": 30658,
+        "compressedDelta": 30658
+      },
+      {
+        "file": "extension/dist/webview/chunks/5522GRFJ.js",
+        "beforeRaw": 0,
+        "afterRaw": 77829,
+        "beforeCompressed": 0,
+        "afterCompressed": 22835,
+        "compressedDelta": 22835
+      },
+      {
+        "file": "extension/docs/PRIVACY.md",
+        "beforeRaw": 57704,
+        "afterRaw": 57704,
+        "beforeCompressed": 21242,
+        "afterCompressed": 21242,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/sign-in.png",
+        "beforeRaw": 22112,
+        "afterRaw": 22112,
+        "beforeCompressed": 19418,
+        "afterCompressed": 19418,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/resources/walkthrough/welcome.png",
+        "beforeRaw": 20306,
+        "afterRaw": 20306,
+        "beforeCompressed": 17744,
+        "afterCompressed": 17744,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/changelog.md",
+        "beforeRaw": 42250,
+        "afterRaw": 42531,
+        "beforeCompressed": 16991,
+        "afterCompressed": 17080,
+        "compressedDelta": 89
+      },
+      {
+        "file": "extension/package.nls.ru.json",
+        "beforeRaw": 52528,
+        "afterRaw": 52528,
+        "beforeCompressed": 13172,
+        "afterCompressed": 13172,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/dist/validation.js",
+        "beforeRaw": 40823,
+        "afterRaw": 40823,
+        "beforeCompressed": 11993,
+        "afterCompressed": 11993,
+        "compressedDelta": 0
+      },
+      {
+        "file": "extension/vendor/high-quality-projects-skill/skills/project_setup/SKILL.md",
+        "beforeRaw": 28728,
+        "afterRaw": 28728,
+        "beforeCompressed": 11971,
+        "afterCompressed": 11971,
+        "compressedDelta": 0
+      }
+    ],
+    "largest20Reductions": [
+      {
+        "file": "extension/dist/webview/models.js",
+        "beforeRaw": 391260,
+        "afterRaw": 43239,
+        "beforeCompressed": 158279,
+        "afterCompressed": 10568,
+        "compressedDelta": -147711
+      },
+      {
+        "file": "extension/dist/webview/chunks/DBBHZL53.js",
+        "beforeRaw": 106761,
+        "afterRaw": 0,
+        "beforeCompressed": 74235,
+        "afterCompressed": 0,
+        "compressedDelta": -74235
+      },
+      {
+        "file": "extension/dist/webview/main.js",
+        "beforeRaw": 366363,
+        "afterRaw": 147866,
+        "beforeCompressed": 112534,
+        "afterCompressed": 44476,
+        "compressedDelta": -68058
+      },
+      {
+        "file": "extension/dist/webview/chunks/JSHTFNK4.js",
+        "beforeRaw": 163336,
+        "afterRaw": 0,
+        "beforeCompressed": 50324,
+        "afterCompressed": 0,
+        "compressedDelta": -50324
+      },
+      {
+        "file": "extension/dist/webview/chunks/BFLAA6JG.js",
+        "beforeRaw": 95366,
+        "afterRaw": 0,
+        "beforeCompressed": 30649,
+        "afterCompressed": 0,
+        "compressedDelta": -30649
+      },
+      {
+        "file": "extension/dist/providerCatalog.json",
+        "beforeRaw": 463091,
+        "afterRaw": 0,
+        "beforeCompressed": 25930,
+        "afterCompressed": 0,
+        "compressedDelta": -25930
+      },
+      {
+        "file": "extension/dist/webview/chunks/V5SDXEBW.js",
+        "beforeRaw": 78420,
+        "afterRaw": 0,
+        "beforeCompressed": 23017,
+        "afterCompressed": 0,
+        "compressedDelta": -23017
+      },
+      {
+        "file": "extension/dist/webview/chunks/JS34FEKH.js",
+        "beforeRaw": 13149,
+        "afterRaw": 0,
+        "beforeCompressed": 3886,
+        "afterCompressed": 0,
+        "compressedDelta": -3886
+      },
+      {
+        "file": "extension/dist/webview/chunks/6H6HIFU7.js",
+        "beforeRaw": 8242,
+        "afterRaw": 0,
+        "beforeCompressed": 3187,
+        "afterCompressed": 0,
+        "compressedDelta": -3187
+      },
+      {
+        "file": "extension/dist/webview/chunks/MEJSF4S5.js",
+        "beforeRaw": 8872,
+        "afterRaw": 0,
+        "beforeCompressed": 2619,
+        "afterCompressed": 0,
+        "compressedDelta": -2619
+      },
+      {
+        "file": "extension/dist/webview/chunks/3ISGFOFS.js",
+        "beforeRaw": 8085,
+        "afterRaw": 0,
+        "beforeCompressed": 2560,
+        "afterCompressed": 0,
+        "compressedDelta": -2560
+      },
+      {
+        "file": "extension/dist/webview/chunks/YJHHO45K.js",
+        "beforeRaw": 8973,
+        "afterRaw": 0,
+        "beforeCompressed": 2300,
+        "afterCompressed": 0,
+        "compressedDelta": -2300
+      },
+      {
+        "file": "extension/dist/webview/chunks/R4SLIWUW.js",
+        "beforeRaw": 7044,
+        "afterRaw": 0,
+        "beforeCompressed": 2195,
+        "afterCompressed": 0,
+        "compressedDelta": -2195
+      },
+      {
+        "file": "extension/dist/webview/chunks/4P575ONR.js",
+        "beforeRaw": 4934,
+        "afterRaw": 0,
+        "beforeCompressed": 2121,
+        "afterCompressed": 0,
+        "compressedDelta": -2121
+      },
+      {
+        "file": "extension/dist/webview/chunks/7TWZ7Q6J.js",
+        "beforeRaw": 7062,
+        "afterRaw": 0,
+        "beforeCompressed": 2085,
+        "afterCompressed": 0,
+        "compressedDelta": -2085
+      },
+      {
+        "file": "extension/dist/webview/chunks/MIEBORI7.js",
+        "beforeRaw": 5645,
+        "afterRaw": 0,
+        "beforeCompressed": 2014,
+        "afterCompressed": 0,
+        "compressedDelta": -2014
+      },
+      {
+        "file": "extension/dist/webview/chunks/NSJF4TMN.js",
+        "beforeRaw": 5279,
+        "afterRaw": 0,
+        "beforeCompressed": 1982,
+        "afterCompressed": 0,
+        "compressedDelta": -1982
+      },
+      {
+        "file": "extension/dist/webview/chunks/XHITGSTT.js",
+        "beforeRaw": 4785,
+        "afterRaw": 0,
+        "beforeCompressed": 1658,
+        "afterCompressed": 0,
+        "compressedDelta": -1658
+      },
+      {
+        "file": "extension/dist/webview/chunks/FYVC63ST.js",
+        "beforeRaw": 4061,
+        "afterRaw": 0,
+        "beforeCompressed": 1595,
+        "afterCompressed": 0,
+        "compressedDelta": -1595
+      },
+      {
+        "file": "extension/dist/webview/chunks/47PUMWLG.js",
+        "beforeRaw": 3415,
+        "afterRaw": 0,
+        "beforeCompressed": 1572,
+        "afterCompressed": 0,
+        "compressedDelta": -1572
+      }
+    ],
+    "rawBundles": {
+      "acp.js": 843696,
+      "agentImport.js": 119416,
+      "browserCheck.js": 43694,
+      "browserRuntime.js": 19762,
+      "bundledSkills.js": 17096,
+      "checkpointStore.js": 79793,
+      "codeIntel.js": 41034,
+      "conversation.js": 201166,
+      "conversationGit.js": 76869,
+      "extension.js": 456846,
+      "extensionHooks.js": 37692,
+      "foreignHooks.js": 71923,
+      "hookRuntime.js": 45055,
+      "imageResizeWorker.js": 60060,
+      "judge.js": 50161,
+      "modelApi.js": 486338,
+      "modelsPanel.js": 55017,
+      "museCodeReviewer.js": 23777,
+      "pageWorker.js": 193171,
+      "planMarkdown.js": 147608,
+      "pluginHooks.js": 35691,
+      "providerCatalog.js": 514771,
+      "providers.js": 111871,
+      "recorder.js": 26857,
+      "report.js": 24212,
+      "review.js": 29875,
+      "reviewer.js": 23437,
+      "searchWorker.js": 5184,
+      "sessionBoard.js": 48985,
+      "tab.js": 52781,
+      "uiText.js": 54121,
+      "uiTextHooks.js": 4746,
+      "uiTextRuntime.js": 3638,
+      "uiTextSurfaces.js": 2510,
+      "validation.js": 40823,
+      "voice.js": 20428,
+      "webFetch.js": 40271,
+      "whatsNew.js": 19421,
+      "wire.js": 42401
+    },
+    "mergeDisposition": "Held: unchanged original deferred surface cap remains 26 bytes over after two bounded usage reductions.",
+    "deferredBudgets": [
+      {
+        "name": "deferred JS",
+        "bytes": 51226,
+        "cap": 51200
+      },
+      {
+        "name": "code highlighting",
+        "bytes": 95393,
+        "cap": 128000
+      },
+      {
+        "name": "action dialogs",
+        "bytes": 9490,
+        "cap": 25600
+      },
+      {
+        "name": "tasks tab",
+        "bytes": 1402,
+        "cap": 25600
+      }
+    ],
+    "pendingInputs": {
+      "m96/int3d": "0f0ce2ceafefa7175719cc0bbfcbea130bbdc7cb",
+      "m96/ifix-win4": "c2e4220f1e2248f6cedfb7bf5c0cd80d864ff04a",
+      "m97/sr": "24c211b2c26943822f7f2a60aacffdf8692d2929"
+    },
+    "validation": {
+      "rig": "kubuntu",
+      "typecheckProjects": 5,
+      "finalWebviewTypecheck": 0,
+      "eslint": 0,
+      "deadcode": 0,
+      "jscpd": 0,
+      "l10n": {
+        "exitCode": 0,
+        "tables": 14,
+        "manifestStrings": 172,
+        "sourceFiles": 656,
+        "problems": 0
+      },
+      "hostApi": 0,
+      "execSchemas": 0,
+      "hostGlobals": 0,
+      "notices": 0,
+      "bundleSplit": 0,
+      "packageCommand": {
+        "exitCode": 1,
+        "failure": "original deferred JS aggregate is 51226 bytes, 26 over its unchanged 51200 cap"
+      },
+      "standaloneVsixPackager": 0,
+      "nativeModuleChecks": 38,
+      "skippedNativeChecks": 0,
+      "networkSkipReason": "TRAIN15B shared rig rules prohibit public network",
+      "fullQualityRun": false,
+      "referenceCheck": "not present on this tree",
+      "paidOrLiveModelAttempts": 0
+    },
+    "unitBatches": [
+      {
+        "files": [
+          "test/unit/webviewBundles.test.mjs",
+          "test/unit/webviewBundle.test.mjs",
+          "test/unit/vsixPackaging.test.mjs"
+        ],
+        "passed": 68
+      },
+      {
+        "files": [
+          "test/unit/bundleSize.test.mjs",
+          "test/unit/UsageDialog.test.tsx",
+          "test/unit/whatsNewHtml.test.ts"
+        ],
+        "passed": 65
+      },
+      {
+        "files": [
+          "test/unit/modelsApp.test.tsx",
+          "test/unit/whatsNewPage.test.ts",
+          "test/unit/reviewUi.test.tsx"
+        ],
+        "passed": 19
+      },
+      {
+        "files": [
+          "test/unit/providerCatalog.test.ts",
+          "test/unit/uiTextRegions.test.mjs",
+          "test/unit/html.test.ts"
+        ],
+        "passed": 94
+      }
+    ],
+    "unitTestsPassed": 246,
+    "unitTestSkips": 0,
+    "lastChangedFixtureRecheck": {
+      "file": "test/unit/bundleSize.test.mjs",
+      "passed": 10
+    },
+    "drills": [
+      {
+        "name": "dynamic-page-projection",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "test/unit/webviewBundles.test.mjs",
+          "--maxWorkers=3",
+          "--testTimeout=120000"
+        ],
+        "exitCode": 1,
+        "expectedFailure": "projects each page",
+        "restoredFiles": [
+          {
+            "file": "scripts/lib/webviewBundles.mjs",
+            "beforeSha256": "18e27dadec26f4db2238cf4400231ba3b3e07ce5ff917d0937a984d232c582ac",
+            "afterSha256": "18e27dadec26f4db2238cf4400231ba3b3e07ce5ff917d0937a984d232c582ac"
+          }
+        ]
+      },
+      {
+        "name": "whatsNew-eager-cap",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "test/unit/bundleSize.test.mjs",
+          "--maxWorkers=3",
+          "--testTimeout=120000"
+        ],
+        "exitCode": 1,
+        "expectedFailure": "counts shared static chunks against the unchanged What\u2019s New page cap",
+        "restoredFiles": [
+          {
+            "file": "scripts/check-bundle-size.mjs",
+            "beforeSha256": "71ba6fa4584a4e6a968eb64029268cc77933bebd9b1717eb5d41b22d1e0fb8ab",
+            "afterSha256": "71ba6fa4584a4e6a968eb64029268cc77933bebd9b1717eb5d41b22d1e0fb8ab"
+          }
+        ]
+      },
+      {
+        "name": "whatsNew-module-script",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "test/unit/whatsNewHtml.test.ts",
+          "--maxWorkers=3",
+          "--testTimeout=120000"
+        ],
+        "exitCode": 1,
+        "expectedFailure": "expected null to be",
+        "restoredFiles": [
+          {
+            "file": "src/host/whatsNew/whatsNewHtml.ts",
+            "beforeSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+            "afterSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9"
+          }
+        ]
+      },
+      {
+        "name": "catalogue-build-values",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "test/unit/webviewBundle.test.mjs",
+          "--maxWorkers=3",
+          "--testTimeout=120000"
+        ],
+        "exitCode": 1,
+        "expectedFailure": "builds the catalogue data module with every exact JSON value",
+        "restoredFiles": [
+          {
+            "file": "scripts/build.mjs",
+            "beforeSha256": "427441fad8a7f8301fc924b3bd04e7951bb302deb8c97561d82569b20fcc9af2",
+            "afterSha256": "427441fad8a7f8301fc924b3bd04e7951bb302deb8c97561d82569b20fcc9af2"
+          }
+        ]
+      },
+      {
+        "name": "all-page-package-members",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "test/unit/vsixPackaging.test.mjs",
+          "--maxWorkers=3",
+          "--testTimeout=120000"
+        ],
+        "exitCode": 1,
+        "expectedFailure": "refuses an excluded models page script",
+        "restoredFiles": [
+          {
+            "file": "scripts/package-vsix.mjs",
+            "beforeSha256": "345d8e67264b51b7950c50b427f85654d83eb17ce9baf6c44cd8e1d40454e457",
+            "afterSha256": "345d8e67264b51b7950c50b427f85654d83eb17ce9baf6c44cd8e1d40454e457"
+          }
+        ]
+      },
+      {
+        "name": "models-shared-review-text",
+        "command": ["node", "scripts/check-bundle-split.mjs"],
+        "exitCode": 1,
+        "expectedFailure": "dist/webview/models.js carries REVIEW_COMMENT_MODEL_TEXT",
+        "restoredFiles": [
+          {
+            "file": "dist/webview/chunks/IKSR47QI.js",
+            "beforeSha256": "64f0adb642d5e5573db3e70731f867bb1a5eeeae0f31f2005404dff3de429029",
+            "afterSha256": "64f0adb642d5e5573db3e70731f867bb1a5eeeae0f31f2005404dff3de429029"
+          }
+        ]
+      },
+      {
+        "name": "notes-missing-shared-output",
+        "command": ["node", "scripts/check-bundle-split.mjs"],
+        "exitCode": 1,
+        "expectedFailure": "Missing whatsNewPage chunk",
+        "restoredFiles": [
+          {
+            "file": "dist/meta/whatsNewPage.json",
+            "beforeSha256": "a66ed9af9a4ec70922c3139bb6d25b679b50af5703debb36b47e757c244a1f64",
+            "afterSha256": "a66ed9af9a4ec70922c3139bb6d25b679b50af5703debb36b47e757c244a1f64"
+          }
+        ]
+      },
+      {
+        "name": "models-unreachable-output",
+        "command": ["node", "scripts/check-bundle-split.mjs"],
+        "exitCode": 1,
+        "expectedFailure": "Unreachable modelsWebview chunk",
+        "restoredFiles": [
+          {
+            "file": "dist/meta/modelsWebview.json",
+            "beforeSha256": "c43c69035dbcd882aa41fb118ea74e4ab2d5361f09098814bb1a7f774798f002",
+            "afterSha256": "c43c69035dbcd882aa41fb118ea74e4ab2d5361f09098814bb1a7f774798f002"
+          }
+        ]
+      }
+    ]
   }
 }

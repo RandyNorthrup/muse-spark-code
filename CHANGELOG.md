@@ -54,6 +54,11 @@ with Your Own Model` wizard (in-memory draft; Save writes
 
 ### Changed
 
+- Chat, Models and What's New share one browser splitting build; common React,
+  validation, bridge and localization code ship once. The exact provider
+  catalogue uses the verified lazy runtime archive, reducing the VSIX while
+  retaining every existing startup and package cap.
+
 - Smaller universal VSIX and ACP packages: runtime translations, lazy English
   regions share a bounded Brotli archive; exact lazy Node sources use a separate
   solid archive so translation damage preserves backend availability.

@@ -172,29 +172,20 @@ for (const { path, budgetKiB } of [...BUDGETS, ...deferredBudgets]) {
     console.log(`MISS ${path}: not built (budget ${budgetKiB} KiB)`)
     continue
   }
-  const files =
-    path === 'dist/webview/main.js' || path === 'dist/webview/models.js'
-      ? webviewStartupOutputs(
-          JSON.parse(
-            readFileSync(
-              path === 'dist/webview/main.js'
-                ? 'dist/meta/webview.json'
-                : 'dist/meta/modelsWebview.json',
-              'utf8',
-            ),
-          ),
-          path,
-        )
-      : [path]
+  const pageMetafile = {
+    'dist/webview/main.js': 'dist/meta/webview.json',
+    'dist/webview/models.js': 'dist/meta/modelsWebview.json',
+    'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+  }[path]
+  const files = pageMetafile
+    ? webviewStartupOutputs(JSON.parse(readFileSync(pageMetafile, 'utf8')), path)
+    : [path]
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   const status = sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'
   if (sizeKiB > budgetKiB) {
     hasFailure = true
   }
-  const label =
-    path === 'dist/webview/main.js' || path === 'dist/webview/models.js'
-      ? `${path} + static imports`
-      : path
+  const label = pageMetafile ? `${path} + static imports` : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 

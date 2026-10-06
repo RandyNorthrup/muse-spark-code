@@ -6,11 +6,15 @@ vi.mock('node:fs', () => ({ existsSync: vi.fn(), readFileSync: vi.fn(), statSync
 const CONTENT_FILE = 'dist/whatsNew.json'
 const CONTENT_BUDGET_BYTES = 40 * 1024
 
-function mockWebviewMeta(meta, models) {
+function mockWebviewMeta(meta, models, whatsNew) {
   const modelsMeta = models ?? { outputs: { 'dist/webview/models.js': { imports: [] } } }
-  readFileSync.mockImplementation((file) =>
-    JSON.stringify(file === 'dist/meta/modelsWebview.json' ? modelsMeta : meta),
-  )
+  const pageMetafiles = {
+    'dist/meta/modelsWebview.json': modelsMeta,
+    'dist/meta/whatsNewPage.json': whatsNew ?? {
+      outputs: { 'dist/webview/whatsNew.js': { imports: [] } },
+    },
+  }
+  readFileSync.mockImplementation((file) => JSON.stringify(pageMetafiles[file] ?? meta))
 }
 
 beforeEach(() => {
@@ -65,6 +69,22 @@ describe('bundled What’s New content budget', () => {
     expect(console.log).toHaveBeenCalledWith(
       'OVER dist/webview/models.js + static imports: 475.0 KiB (budget 475 KiB)',
     )
+  })
+
+  it('counts shared static chunks against the unchanged What’s New page cap', async () => {
+    const chunk = 'dist/webview/chunks/notes-shared.js'
+    mockWebviewMeta({ outputs: { 'dist/webview/main.js': { imports: [] } } }, undefined, {
+      outputs: {
+        'dist/webview/whatsNew.js': { imports: [{ path: chunk, kind: 'import-statement' }] },
+        [chunk]: { imports: [] },
+      },
+    })
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 25 * 1024 : 0 }))
+    await import('../../scripts/check-bundle-size.mjs')
+    expect(process.exit).not.toHaveBeenCalled()
+    vi.resetModules()
+    statSync.mockImplementation((file) => ({ size: file === chunk ? 25 * 1024 + 1 : 0 }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })
 
   it.each([

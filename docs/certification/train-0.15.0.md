@@ -14,7 +14,12 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Disposition: budget stop after M101; this batch is not release-certified.**
+**Current disposition (TRAIN15B): VSIX recovered; the unchanged original
+deferred cap remains 26 bytes over. Remaining merges are held; the batch is
+not release-certified.**
+
+**First-run disposition:** budget stop after M101. The original receipt follows;
+the resumed measurements and bounded stop are appended below.
 Steps 3–5 and both unfinished inputs remain unmerged. The integration brief
 requires this stop; common.md stops the shared-browser recovery path after
 two failed bounded fixes. Full quality is explicitly reserved for continuation.
@@ -198,3 +203,124 @@ together with its old individual modules when attributing feature growth.
 | `extension/dist/validation.js`                |          11,978 |          11,993 |      +15 |
 
 Exact machine-readable receipt: [train-0.15.0-artifacts.json](train-0.15.0-artifacts.json).
+
+## TRAIN15B — Shared browser graph and archived catalogue
+
+Continue the clean `release/train-0.15.0` worktree at `1e1a7defe`, under the
+lead's explicit renewed size-recovery decision. Keep all caps and every shipped
+feature. No merge or conflict occurs in this continuation: `m96/int3d`
+(`0f0ce2ce`), `m96/ifix-win4` (`c2e4220f`) and `m97/sr` (`24c211b2`) remain
+pending because the original deferred cap is still red. M95's remaining
+transports and M102 are deliberately not awaited or merged.
+
+Chat, Models and What's New now use one esbuild ESM splitting build. React,
+React DOM, the mini parser, localization, error reporting and the host bridge
+ship in common chunks. Each page retains a projected metafile containing all
+its reachable static/dynamic scripts, inputs and CSS. Chat startup counts every
+static chunk once; Models and What's New do too at their existing caps. Models
+loads neither App nor ReviewPane, and chat does not load Models. What's New's
+nonce-protected script is now a module. The canonical Review comment block is
+copied into a generated reader-only module from constants.ts; Models cannot
+carry it. Readership now checks every page's shared chunks. The reachability
+check validates each graph separately, including missing/unreachable common
+outputs; package staging requires scripts from all three graphs.
+
+The catalogue has no runtime reader on this tree and is not needed before
+archive loading. The build retains its source JSON and emits its exact values
+with `JSON.parse` in `dist/providerCatalog.js`. This data-only CommonJS member
+uses the existing digest-verified runtime archive loader, preserving JSON key
+semantics. The VSIX ships the small loader shim and archived member, with no
+loose providerCatalog.json; vendor licence/provenance remain. No new loader,
+dependency, model call or editor-specific feature is introduced. The React
+webview and Node packaging paths remain shared by their existing hosts; the
+ACP package previously shipped no catalogue and still has no reader for it.
+
+The three requested old chunks contain production inputs only:
+
+| Old chunk | Raw bytes | ZIP compressed | Main contents                                                                                  |
+| --------- | --------: | -------------: | ---------------------------------------------------------------------------------------------- |
+| DBBHZL53  |   106,761 |         74,235 | English table/compact decoder, constants, lz-string, locale helpers                            |
+| JSHTFNK4  |   163,336 |         50,324 | react-markdown, GFM/micromark, unified, property-information and their production dependencies |
+| V5SDXEBW  |    78,420 |         23,017 | transcript state/protocol, redaction and tool presentation; mini-parser ISO helpers            |
+
+No test/development module or duplicate installed library version is found in
+these chunks. The repeated libraries were in the separate Models entry. Its
+entry falls **391,260 → 43,239 bytes**; its honest complete startup closure is
+418,077 bytes. Hash renames are recorded literally, so removed old chunks
+must be read together with the new common chunks rather than treated as deleted
+features. The JSON receipt records input byte contributions, all literal-path
+ZIP deltas, the largest twenty entries and reductions, and every raw Node bundle.
+
+The shared graph initially makes the original deferred cohort 51,452 bytes
+(252 over). Share absent-token formatting, both unknown-paid paragraphs and
+local tally access in UsageDialog; the first reduction remains over (50.1 KiB
+printed). Share the provider row's identical token text and Tab's tally access;
+the second leaves **51,226 / 51,200**, exactly **26 bytes over**. All conditions,
+localized plural/Intl results and DOM markup retain their owning tests.
+common.md requires stopping that path after two failed fixes. No further size
+fix is attempted, no gate is weakened and no remaining branch is merged.
+
+| Stage                  | extension.js | modelApi.js | Chat startup |     ACP | Universal VSIX | Helperless VSIX |
+| ---------------------- | -----------: | ----------: | -----------: | ------: | -------------: | --------------: |
+| M101 input / 1e1a7defe |      456,846 |     486,338 |      797,553 | 843,696 |      2,368,747 |               — |
+| TRAIN15B / steps 1–3   |      456,846 |     486,338 |      797,449 | 843,696 |      2,213,704 |       2,132,213 |
+| Unchanged caps         |      614,400 |     486,400 |      921,600 | 870,400 |      2,252,800 |       2,252,800 |
+
+Universal reduction: **155,043 bytes**; headroom: **39,096** universal and
+**120,587** helperless. The latter is packed by the real VSCE packer from the
+same verified stage with only the universal helper omitted; the helper is then
+restored. Its original size, executable mode and SHA-256 remain exact. The
+final catalogue JSON-safe encoding accounts for 499 bytes more than the first
+measurement (2,213,205), included in the final sizes above.
+
+| Other browser allowance |   Bytes | Unchanged cap | Result      |
+| ----------------------- | ------: | ------------: | ----------- |
+| Models startup          | 418,077 |       486,400 | pass        |
+| What's New startup      |   1,351 |        25,600 | pass        |
+| Original deferred JS    |  51,226 |        51,200 | **26 over** |
+| Highlighting            |  95,393 |       128,000 | pass        |
+| Action dialogs          |   9,490 |        25,600 | pass        |
+| Tasks                   |   1,402 |        25,600 | pass        |
+
+`npm run package` exits **1** at that original deferred cap after compiling the
+production outputs; every other existing raw allowance passes. The standalone
+actual `node scripts/package-vsix.mjs` exits **0** and validates exact staged
+localization, static badges with the approved named public-network skip and
+**38 native import/require module checks**, catalogue included. The helperless
+archive also passes the unchanged VSIX cap. Those archive measurements do not
+turn the failing build/package command into a release certification.
+
+All checks run directly on Kubuntu: all five typecheck projects (final webview
+recheck too), changed-file ESLint/Prettier, plain knip, jscpd (zero clones),
+localization (14 tables, 172 manifest strings, 656 source files, zero problems),
+regenerated/checked host API records, exec schemas, bundle split/readership,
+host-globals and notices. No generated host/notices/schema change is necessary.
+The reference/catalogue generator is absent on this tree. Twelve complete owning
+files pass **246 tests**, zero skips, in four sequential batches of at most
+three files and three workers with the brief's 120-second admission. The final
+changed size-fixture helper also passes its complete ten-test file. Each batch's
+exact files/counts are in the JSON receipt. Initial ESLint findings are fixed
+without rule changes; the first formatting invocation included unsupported
+.vscodeignore, then only supported formats were checked. The two pre-fix page
+membership tests and eager-cap test are observed red before implementation.
+Released changelog sections remain byte-identical to 6a0207c1, with one
+Unreleased section and the existing bounded Highlights.
+
+Eight deliberate regressions each exit 1 and restore their target byte-exact,
+with SHA-256 receipts in `continuationTrain15B.drills`:
+
+- Drop dynamic imports from page metafile projection.
+- Omit What's New's shared eager chunks from its unchanged cap.
+- Remove What's New's module script type.
+- Build an empty catalogue instead of the exact captured JSON values.
+- Check only chat scripts during package collection, omitting both other pages.
+- Put Review text into a shared chunk that Models loads.
+- Omit What's New's shared output metadata, despite that chunk being in Models.
+- Leave Models' emitted shared outputs unreachable from its entry.
+
+The shared-library regression is also observed failing against the original
+separate build. Restored tests and the split guard pass again. No paid/live
+model attempt, credential access, installation, cap/threshold change, hook
+change, push, rebase or full quality run occurs. Hooks remain installed and
+active. Further raw-size recovery and the held ordered merges need a new
+continuation; full aggregate/native-platform/hosted proof remains the lead's gate.

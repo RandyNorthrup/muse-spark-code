@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
+import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -36,7 +37,9 @@ beforeAll(() => {
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
   cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
-  cpSync('dist/meta/modelsWebview.json', path.join(built.fixture, 'dist/meta/modelsWebview.json'))
+  for (const page of ['modelsWebview', 'whatsNewPage']) {
+    cpSync(`dist/meta/${page}.json`, path.join(built.fixture, `dist/meta/${page}.json`))
+  }
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
 })
@@ -116,6 +119,40 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(initialOutputs().has(owners[0][0])).toBe(true)
   })
 
+  it('shares production libraries between chat and Models without importing either app', () => {
+    const models = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+    for (const source of [
+      'node_modules/react/cjs/react.production.js',
+      'node_modules/react-dom/cjs/react-dom-client.production.js',
+      'node_modules/zod/v4/core/schemas.js',
+      'src/shared/l10n/en.ts',
+      'src/shared/l10n/text.ts',
+      'src/webview/hostBridge.ts',
+      'src/webview/installTable.ts',
+      'src/webview/errorReport.ts',
+    ]) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners, source).toHaveLength(1)
+      expect(Object.hasOwn(models.outputs, owners[0][0]), source).toBe(true)
+    }
+    expect(Object.hasOwn(models.inputs, 'src/webview/App.tsx')).toBe(false)
+    expect(Object.hasOwn(models.inputs, 'src/webview/components/ReviewPane.tsx')).toBe(false)
+    expect(Object.keys(built.outputs)).not.toContain('dist/webview/models.js')
+    const scripts = Object.keys(models.outputs).filter((file) => file.endsWith('.js'))
+    expect(scripts.map((file) => readFileSync(file, 'utf8')).join('\n')).not.toMatch(
+      /[{,]reviewRemovedLine:/,
+    )
+  })
+
+  it('builds the catalogue data module with every exact JSON value', () => {
+    const file = path.resolve('dist/providerCatalog.js')
+    expect(createRequire(file)(file)).toEqual(
+      JSON.parse(readFileSync('dist/providerCatalog.json', 'utf8')),
+    )
+  })
+
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
     const listed = files
@@ -127,6 +164,7 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
       ]
+        .filter((file, index, files) => files.indexOf(file) === index)
         .filter((file) => file.endsWith('.js'))
         .toSorted((a, b) => a.localeCompare(b, 'en')),
     )

@@ -198,6 +198,11 @@ function cacheSavings(
   return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
 }
 
+/** Keep absent token facts absent while sharing their number formatting. */
+function tokenCount(value: number | undefined): string | undefined {
+  return value === undefined ? undefined : formatTokenWindow(value)
+}
+
 function TokensSection({
   usage,
   context,
@@ -227,18 +232,9 @@ function TokensSection({
       <dl className="usage-facts">
         <FactRows
           rows={[
-            [
-              UI_TEXT.usageInput,
-              usage === undefined ? undefined : formatTokenWindow(usage.inputTokens),
-            ],
-            [
-              UI_TEXT.usageOutput,
-              usage === undefined ? undefined : formatTokenWindow(usage.outputTokens),
-            ],
-            [
-              UI_TEXT.usageCached,
-              usage?.cachedTokens === undefined ? undefined : formatTokenWindow(usage.cachedTokens),
-            ],
+            [UI_TEXT.usageInput, tokenCount(usage?.inputTokens)],
+            [UI_TEXT.usageOutput, tokenCount(usage?.outputTokens)],
+            [UI_TEXT.usageCached, tokenCount(usage?.cachedTokens)],
             [
               UI_TEXT.usageCacheHits,
               usage?.cachedTokens === undefined
@@ -246,18 +242,8 @@ function TokensSection({
                 : formatPercent(percentOf(usage.cachedTokens, usage.inputTokens)),
             ],
             [UI_TEXT.usageContext, contextValue],
-            [
-              UI_TEXT.usagePackedAvoided,
-              usage?.packedTokensAvoided === undefined
-                ? undefined
-                : formatTokenWindow(usage.packedTokensAvoided),
-            ],
-            [
-              UI_TEXT.usageAddedByHooks,
-              usage?.hookTokensAdded === undefined
-                ? undefined
-                : formatTokenWindow(usage.hookTokensAdded),
-            ],
+            [UI_TEXT.usagePackedAvoided, tokenCount(usage?.packedTokensAvoided)],
+            [UI_TEXT.usageAddedByHooks, tokenCount(usage?.hookTokensAdded)],
             [UI_TEXT.usageCost, cost === undefined ? undefined : formatUsd(cost)],
             [
               UI_TEXT.usageCacheSavings,
@@ -360,31 +346,23 @@ function paidRowState(feature: PaidFeature, paid: PaidState): string {
   return paid.alwaysAllowed.includes(feature) ? UI_TEXT.usagePaidOnAlways : UI_TEXT.usagePaidOn
 }
 
-function paidTokenTally(feature: PaidFeature, paid: PaidState) {
-  if (feature === 'judge')
-    return [paid.tally.judgeCalls, paid.tally.judgeUnknownRequests, paid.tally.judgeTokens]
+function paidTokenTally(feature: PaidFeature, { tally }: PaidState) {
+  if (feature === 'judge') return [tally.judgeCalls, tally.judgeUnknownRequests, tally.judgeTokens]
   if (feature === 'autoReviewer') {
-    return [
-      paid.tally.autoReviews,
-      paid.tally.autoReviewUnknownRequests,
-      paid.tally.autoReviewTokens,
-    ]
+    return [tally.autoReviews, tally.autoReviewUnknownRequests, tally.autoReviewTokens]
   }
   if (feature === 'bestOfN') {
-    return [paid.tally.bestOfNRequests, paid.tally.bestOfNUnknownRequests, paid.tally.bestOfNTokens]
+    return [tally.bestOfNRequests, tally.bestOfNUnknownRequests, tally.bestOfNTokens]
   }
-  if (feature === 'hookModels') {
-    return [
-      paid.tally.hookModelRuns,
-      paid.tally.hookModelUnknownRequests,
-      paid.tally.hookModelTokens,
-    ]
-  }
-  return [
-    paid.tally.subagentRequests,
-    paid.tally.subagentUnknownRequests,
-    paid.tally.subagentTokens,
-  ]
+  return feature === 'hookModels'
+    ? [tally.hookModelRuns, tally.hookModelUnknownRequests, tally.hookModelTokens]
+    : [tally.subagentRequests, tally.subagentUnknownRequests, tally.subagentTokens]
+}
+
+function UnknownPaidRequests({ count }: { readonly count: number }) {
+  return count > 0 ? (
+    <p className={ROW_META_CLASS}>{plural(UI_TEXT.usagePaidSubagentUnknown, count)}</p>
+  ) : null
 }
 
 /**
@@ -397,10 +375,12 @@ function paidTokenTally(feature: PaidFeature, paid: PaidState) {
  * budget instead of zeros that read as use. The facts wrap, as the other
  * token rows do (RVM94HU 25).
  */
+
 function TabRow({ paid }: { readonly paid: PaidState }) {
+  const { tally } = paid
   const state = paidRowState('tab', paid)
-  const requests = paid.tally.tabRequests ?? 0
-  const unknown = paid.tally.tabUnknownRequests ?? 0
+  const requests = tally.tabRequests ?? 0
+  const unknown = tally.tabUnknownRequests ?? 0
   const hasRun = requests > 0 || paid.features.includes('tab')
   const cost = formatUsd(paidCostUsd('tab', paid.tally))
   const todayUsd = paid.tab?.todayUsd
@@ -412,13 +392,11 @@ function TabRow({ paid }: { readonly paid: PaidState }) {
       <dd className="usage-paid-child">
         {hasRun ? (
           <>
-            {`${paidUseText('tab', paid.tally)} · ${fill(UI_TEXT.usagePaidTabTokens, {
-              tokens: formatNumber(paid.tally.tabTokens ?? 0),
-              cached: formatNumber(paid.tally.tabCachedTokens ?? 0),
+            {`${paidUseText('tab', tally)} · ${fill(UI_TEXT.usagePaidTabTokens, {
+              tokens: formatNumber(tally.tabTokens ?? 0),
+              cached: formatNumber(tally.tabCachedTokens ?? 0),
             })} · ${fill(UI_TEXT.usagePaidTabReported, { cost })}`}
-            {unknown > 0 ? (
-              <p className={ROW_META_CLASS}>{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
-            ) : null}
+            <UnknownPaidRequests count={unknown} />
             <p className={ROW_META_CLASS}>
               {todayUsd === undefined
                 ? windowText
@@ -470,9 +448,7 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
             {isEntirelyUnknown
               ? null
               : ` · ${fill(UI_TEXT.agentTokens, { tokens: formatNumber(tokens) })}`}
-            {unknown > 0 ? (
-              <p className={ROW_META_CLASS}>{plural(UI_TEXT.usagePaidSubagentUnknown, unknown)}</p>
-            ) : null}
+            <UnknownPaidRequests count={unknown} />
           </>
         ) : null}
       </dd>
@@ -532,14 +508,11 @@ function ProvidersSection({ providers }: { readonly providers: readonly Provider
       <dl className="usage-facts">
         {providers.map((row) => {
           const cost = providerCost(row)
+          const tokens = `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
           return (
             <div key={row.providerId}>
               <dt>{row.providerLabel}</dt>
-              <dd>
-                {cost === undefined
-                  ? `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)}`
-                  : `${formatTokenWindow(row.inputTokens)} / ${formatTokenWindow(row.outputTokens)} · ${cost}`}
-              </dd>
+              <dd>{cost === undefined ? tokens : `${tokens} · ${cost}`}</dd>
               {row.keyUsage === undefined ? null : (
                 <>
                   <dt>{UI_TEXT.usageKeyUsage}</dt>

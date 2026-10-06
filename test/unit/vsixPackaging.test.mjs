@@ -70,6 +70,10 @@ beforeAll(async () => {
     'dist/validation.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
+    'dist/webview/models.js',
+    'dist/webview/models.css',
+    'dist/webview/whatsNew.js',
+    'dist/webview/whatsNew.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
     'l10n/ui.de.json.br',
@@ -122,6 +126,9 @@ beforeAll(async () => {
     'exports.file=__filename;exports.relative=require("./wire.js").value;exports.fail=()=>{throw new Error("original stack")};',
   )
   writeFileSync(path.join(fixture.root, 'dist/wire.js'), 'exports.value="sibling";')
+  const catalog = readFileSync(path.join(ROOT, 'vendor/models-dev/snapshot.json'), 'utf8')
+  writeFileSync(path.join(fixture.root, 'dist/providerCatalog.json'), catalog)
+  writeFileSync(path.join(fixture.root, 'dist/providerCatalog.js'), `module.exports=${catalog};\n`)
   cpSync(path.join(ROOT, 'package.nls.json'), path.join(fixture.root, 'package.nls.json'))
   writeFileSync(
     path.join(fixture.root, 'dist/meta/webview.json'),
@@ -129,6 +136,15 @@ beforeAll(async () => {
       outputs: { 'dist/webview/main.js': {}, 'dist/webview/chunks/UsageDialog-test.js': {} },
     }),
   )
+  for (const [page, file] of [
+    ['modelsWebview', 'dist/webview/models.js'],
+    ['whatsNewPage', 'dist/webview/whatsNew.js'],
+  ]) {
+    writeFileSync(
+      path.join(fixture.root, `dist/meta/${page}.json`),
+      JSON.stringify({ outputs: { [file]: {} } }),
+    )
+  }
   fixture.files = await stageVsix(fixture.root, fixture.stage)
 })
 afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
@@ -185,6 +201,45 @@ describe('VSIX packaging', () => {
       readFileSync(path.join(fixture.root, 'dist/extension.js')),
     )
   })
+  it.each(['models', 'whatsNew'])('refuses an excluded %s page script', async (page) => {
+    const root = mkdtempSync(path.join(ROOT, 'temp', 'excluded-page-'))
+    try {
+      cpSync(fixture.root, root, { recursive: true })
+      const ignore = path.join(root, '.vscodeignore')
+      writeFileSync(ignore, readFileSync(ignore, 'utf8').replace(`!dist/webview/${page}.js`, ''))
+      await expect(stageVsix(root, path.join(root, 'dist/vsix-package'))).rejects.toThrow(
+        `Webview output excluded from VSIX: dist/webview/${page}.js`,
+      )
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('loads the exact provider catalogue through the verified runtime archive', async () => {
+    const file = path.join(fixture.stage, 'dist/providerCatalog.js')
+    const require = createRequire(file)
+    expect(require(file)).toEqual(
+      JSON.parse(readFileSync(path.join(fixture.root, 'dist/providerCatalog.json'), 'utf8')),
+    )
+    const archive = JSON.parse(
+      brotliDecompressSync(readFileSync(path.join(fixture.stage, 'dist/runtime.bundles.json.br'))),
+    )
+    expect(archive.bundles['providerCatalog.js']).toBe(
+      readFileSync(path.join(fixture.root, 'dist/providerCatalog.js'), 'utf8'),
+    )
+    const packaged = await listFiles({ cwd: fixture.stage, dependencies: false })
+    expect(packaged).not.toContain('dist/providerCatalog.json')
+    const stage = path.join(fixture.root, 'catalog-tampered')
+    cpSync(fixture.stage, stage, { recursive: true })
+    archive.bundles['providerCatalog.js'] = 'module.exports={};'
+    writeFileSync(
+      path.join(stage, 'dist/runtime.bundles.json.br'),
+      brotliCompressSync(JSON.stringify(archive)),
+    )
+    const damaged = path.join(stage, 'dist/providerCatalog.js')
+    expect(() => createRequire(damaged)(damaged)).toThrow('Invalid runtime archive member')
+  })
+
   it('retains direct CommonJS named exports through native import and require', () => {
     execFileSync(
       process.execPath,

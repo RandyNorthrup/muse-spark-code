@@ -709,9 +709,8 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
-// The chat ESM graph carries the review template in a shared chunk. Models
-// is a separate graph and may also use constants, but never this template.
-// textOf(main) checks every chunk in its graph; require its actual reader.
+// Each page's reachable ESM graph includes its shared and lazy chunks.
+// Only the chat graph may carry the ReviewPane's comment template.
 const webviewReview = SHIPPED.filter(
   ({ output, metafile }) =>
     output.startsWith('dist/webview/') &&
@@ -844,12 +843,16 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    const files =
-      output === 'dist/webview/main.js'
-        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
-            (file) => file.endsWith('.js'),
-          )
-        : [output]
+    const metafile = {
+      'dist/webview/main.js': 'dist/meta/webview.json',
+      'dist/webview/models.js': 'dist/meta/modelsWebview.json',
+      'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+    }[output]
+    const files = metafile
+      ? Object.keys(JSON.parse(readFileSync(metafile, 'utf8')).outputs).filter((file) =>
+          file.endsWith('.js'),
+        )
+      : [output]
     outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
   }
   return outputText.get(output)
@@ -965,9 +968,34 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   }
 }
 const chunks = 'dist/webview/chunks'
+const otherPageChunks = new Set()
+for (const [page, entry] of [
+  ['modelsWebview', 'dist/webview/models.js'],
+  ['whatsNewPage', 'dist/webview/whatsNew.js'],
+]) {
+  const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
+  const reachable = new Set()
+  const visit = (file) => {
+    if (reachable.has(file)) return
+    const output = meta.outputs[file]
+    if (!output || !existsSync(file)) {
+      problems.push(`Missing ${page} chunk ${file}`)
+      return
+    }
+    reachable.add(file)
+    otherPageChunks.add(file)
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
+  }
+  visit(entry)
+  for (const file of Object.keys(meta.outputs)) {
+    if (file.endsWith('.js') && !reachable.has(file))
+      problems.push(`Unreachable ${page} chunk ${file}`)
+  }
+}
 const builtChunks = readdirSync(chunks).filter((name) => name.endsWith('.js'))
 for (const file of builtChunks) {
-  if (!reachableWebview.has(`${chunks}/${file}`)) problems.push(`Stale webview chunk ${file}`)
+  if (!reachableWebview.has(`${chunks}/${file}`) && !otherPageChunks.has(`${chunks}/${file}`))
+    problems.push(`Stale webview chunk ${file}`)
 }
 
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.

@@ -19,6 +19,28 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
+// Keep each page's full reachable graph, including lazy imports and its CSS.
+// Shared outputs occur in both records and are counted by each startup cap.
+export function webviewEntryMetafile(meta, entry) {
+  const outputs = {}
+  const visit = (file) => {
+    if (Object.hasOwn(outputs, file)) return
+    const output = meta.outputs[file]
+    if (output === undefined) throw new Error(`Missing webview output: ${file}`)
+    outputs[file] = output
+    for (const imported of output.imports) if (!imported.external) visit(imported.path)
+    if (output.cssBundle) visit(output.cssBundle)
+  }
+  visit(entry)
+  const inputs = new Set(
+    Object.values(outputs).flatMap((output) => Object.keys(output.inputs ?? {})),
+  )
+  return {
+    inputs: Object.fromEntries(Object.entries(meta.inputs).filter(([file]) => inputs.has(file))),
+    outputs,
+  }
+}
+
 // Additional lazy closures have measured caps. The original optional surfaces
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [

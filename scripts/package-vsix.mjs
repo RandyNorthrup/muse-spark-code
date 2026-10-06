@@ -24,10 +24,12 @@ export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
   const files = await listFiles({ cwd: root, dependencies: false })
-  const webview = JSON.parse(readFileSync(path.join(root, 'dist/meta/webview.json'), 'utf8'))
-  for (const file of Object.keys(webview.outputs)) {
-    if (!file.endsWith('.js')) continue
-    if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
+  for (const page of ['webview', 'modelsWebview', 'whatsNewPage']) {
+    const webview = JSON.parse(readFileSync(path.join(root, `dist/meta/${page}.json`), 'utf8'))
+    for (const file of Object.keys(webview.outputs)) {
+      if (!file.endsWith('.js')) continue
+      if (!files.includes(file)) throw new Error(`Webview output excluded from VSIX: ${file}`)
+    }
   }
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')

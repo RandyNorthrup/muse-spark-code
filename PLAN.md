@@ -7572,6 +7572,47 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
+
+The lead authorizes a fresh bounded size recovery on the TRAIN15A worktree:
+build chat, Models and What's New as entries in one ESM splitting build,
+with per-entry reachable metafiles and unchanged startup/deferred/readership
+checks. Isolate the canonical Review comment block at build time in its actual
+reader. Share repeated token formatting, unknown-paid paragraphs and provider
+usage token text within UsageDialog, preserving absent facts, plural conditions
+and markup while offsetting the shared graph's import overhead. The vendored provider catalogue has no runtime reader on this tree and
+is not needed before the loader: emit its exact JSON values as a CommonJS data
+module, packed and verified by the existing runtime archive loader. Keep its
+licence/provenance. Inspect the three named large chunks for accidental test,
+development or duplicate-version inputs; measure universal and helperless VSIX
+archives and every existing bundle cap. If either VSIX stays over 2,252,800
+bytes, stop with exact deltas and analysis, preserving features and caps.
+
+After recovery, merge only `m96/int3d`, `m96/ifix-win4`, then `m97/sr`, each
+with `git merge --no-ff`, preserving all behavior, translated keys and released
+changelog bytes. Run scoped owning checks and measure after each step; hooks
+stay enabled. Full quality, M95's remaining transports and M102 stay for the
+lead's continuation. Record this run in `docs/certification/train-0.15.0.md`
+and its receipts. No paid/live calls, credentials, push, rebase or other merge.
+
+**Outcome:** the universal VSIX is 2,213,704 bytes (39,096 headroom);
+helperless is 2,132,213 (120,587 headroom). Both are below 2,252,800,
+a 155,043-byte universal reduction. Chat startup is 797,449 / 921,600;
+Models is 418,077 / 486,400 with all eager chunks. The original deferred
+cohort is 51,226 / 51,200, still 26 bytes over after two bounded usage
+reductions. Stop that recovery path under common.md; hold all three remaining
+merges because the brief requires every unchanged cap to pass. Preserve this
+review candidate and its exact missing headroom, rather than imply a green
+package gate. No merge/conflict, feature removal, cap or gate exception.
+Twelve complete owning files pass 246 tests, zero skips; all five typecheck
+projects and scoped lint, localization, deadcode, duplication, host API, exec
+schemas, split/readership, host-globals and notices pass. Eight deliberate
+regressions fail and restore byte-exact. Actual standalone VSIX staging passes
+38 native module checks; `npm run package` remains red at the deferred cap.
+Exact artifacts, inputs, byte deltas and drills are in the train certification
+and its existing JSON receipt. Full quality and native/hosted/live proof stay
+external; no new tool or dependency was installed.
+
 ### TRAIN15A — Start the 0.15.0 release batch (2026-10-05)
 
 M101's merged Model API is 486,502 bytes, 102 bytes above its unchanged
@@ -19238,6 +19279,22 @@ joined with M57, M58 and PR #49's sign-in
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
+the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
+the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
+at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
+and the second leaves an exact 51,226 bytes (26 over). common.md requires
+stopping a path after two failed fixes, and the integration brief requires
+all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
+`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
+The source build completes and all other caps pass, but `npm run package`
+exits 1 before its packager. Running the actual packager separately measures
+exact archives and exercises strict staging, badges and native exports; that
+successful measurement does not certify the failing package command. All
+scoped checks and eight restored red drills are recorded in the train receipt.
+No full quality, cap increase, ignore, skip, feature removal or dependency change.
+This supersedes the first run's VSIX blocker below, preserving its history.
 
 **TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
 forbids full quality and requires stopping after M101 if its unchanged universal

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
+  webviewEntryMetafile,
 } from '../../scripts/lib/webviewBundles.mjs'
 
 const MAIN = 'dist/webview/main.js'
@@ -60,6 +61,28 @@ describe('webview import budgets', () => {
     expect(
       webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'code highlighting')?.outputs,
     ).toEqual([])
+  })
+
+  it('projects each page with its dynamic imports and CSS, excluding the other app', () => {
+    const meta = metafile()
+    const models = 'dist/webview/models.js'
+    const css = 'dist/webview/models.css'
+    meta.inputs = { 'src/webview/main.tsx': {}, 'src/webview/models/models.tsx': {} }
+    meta.outputs[MAIN].inputs = { 'src/webview/main.tsx': { bytesInOutput: 1 } }
+    meta.outputs[models] = {
+      ...output([edge(CORE)], 'src/webview/models/models.tsx'),
+      inputs: { 'src/webview/models/models.tsx': { bytesInOutput: 1 } },
+      cssBundle: css,
+    }
+    meta.outputs[css] = output()
+    // The actual common chunk does not import either app entry.
+    meta.outputs[CORE].imports = []
+    const page = webviewEntryMetafile(meta, models)
+    expect(Object.keys(page.outputs)).toEqual([models, CORE, css])
+    expect(Object.keys(page.inputs)).toEqual(['src/webview/models/models.tsx'])
+    const chat = webviewEntryMetafile(meta, MAIN)
+    expect(Object.hasOwn(chat.outputs, HISTORY)).toBe(true)
+    expect(Object.hasOwn(chat.outputs, models)).toBe(false)
   })
 
   it('refuses an incomplete static import graph', () => {
