@@ -11,6 +11,10 @@ happened, not what was planned; superseded entries are kept.
 
 - Standalone session controller registry now owns ACP adoption, reload stop
   barriers and host-exit cleanup; the existing ACP wire behavior is preserved.
+  Embedding runtimes can supply the registry and discover those ACP sessions.
+- Internal runtime settings/storage records share the existing setting schemas,
+  preserve workspace precedence and serialize atomic writes with bounded reads
+  and credential refusal. Panel command integration remains pending.
 
 - MHP 1.1.0 panel carrier contract: validated shared payloads, ordered
   session-bound surface envelopes and lifecycle, the `window.museHost`
@@ -19,6 +23,10 @@ happened, not what was planned; superseded entries are kept.
   unchanged. Runtime and browser implementations remain pending in M104.
 
 ### Fixed
+
+- Source-layout ACP process tests use a fake credential-store binding and
+  refuse to start children if its marker is absent, avoiding native credential
+  reads during fake-only regression runs.
 
 - **Companion transport authentication (M104 lane C, awaiting integration).**
   Per-window memory bearers replace host-wide cookies, preventing credential

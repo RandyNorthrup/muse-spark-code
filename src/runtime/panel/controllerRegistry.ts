@@ -70,18 +70,23 @@ export class ControllerRegistry<C extends SessionController> {
   ): Promise<C> {
     const { sessionId } = session
     let controller: C | undefined
+    let isControllerBound = false
     try {
+      if (claim.sessionId !== sessionId) throw RequestError.resourceNotFound(claim.sessionId)
       this.ensureClaim(claim, host)
       await this.releaseAll(sessionId)
       this.ensureClaim(claim, host)
       controller = create()
+      if (controller.sessionId !== sessionId || controller.host !== host)
+        throw RequestError.resourceNotFound(sessionId)
+      isControllerBound = true
       this.adopting.set(sessionId, controller)
       await prepare(controller)
       this.ensureClaim(claim, host)
       if (controller.isReleased) throw RequestError.resourceNotFound(sessionId)
     } catch (error: unknown) {
-      if (controller === undefined) session.dispose()
-      else await controller.release()
+      if (controller === undefined || !isControllerBound) session.dispose()
+      if (controller !== undefined) await controller.release()
       this.abandonClaim(claim)
       throw error
     } finally {

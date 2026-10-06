@@ -122,6 +122,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  /** An embedding runtime supplies its registry so other views can find the same sessions. */
+  readonly controllers?: ControllerRegistry<AcpController>
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -834,7 +836,7 @@ class AgentState {
   private clientCapabilities: ClientCapabilities = {}
 
   public constructor(private readonly deps: AcpAgentDeps) {
-    this.registry = new ControllerRegistry(deps.log)
+    this.registry = deps.controllers ?? new ControllerRegistry(deps.log)
   }
 
   /**
@@ -1089,6 +1091,9 @@ class AgentState {
     return await acp.askPaidUse(request, canRemember)
   }
 }
+
+/** The ACP view held by an embedding runtime's shared registry. */
+export type AcpController = AcpSession
 
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {

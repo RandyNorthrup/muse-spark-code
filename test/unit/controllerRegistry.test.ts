@@ -27,6 +27,52 @@ function setup() {
 }
 
 describe('controller registry', () => {
+  it('refuses a session or controller that does not match its claimed binding', async () => {
+    const t = setup()
+    const wrong = t.registry.claimSession('other-session')
+    await expect(
+      t.registry.adopt(
+        t.host,
+        t.session,
+        wrong,
+        () => t.controller,
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow()
+    const mismatch = setup()
+    const wrongController = {
+      ...mismatch.controller,
+      sessionId: 'other-session',
+      release: vi.fn(() => Promise.resolve()),
+    }
+    await expect(
+      mismatch.registry.adopt(
+        mismatch.host,
+        mismatch.session,
+        mismatch.claim,
+        () => wrongController,
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow()
+    expect(mismatch.session.dispose).toHaveBeenCalledOnce()
+    expect(wrongController.release).toHaveBeenCalledOnce()
+    expect(mismatch.registry.held(mismatch.session.sessionId)).toBeUndefined()
+    expect(t.registry.held('other-session')).toBeUndefined()
+    expect(t.registry.held(t.session.sessionId)).toBeUndefined()
+
+    const other = setup()
+    const wrongHostController = { ...other.controller, host: new FakeAgentHost() }
+    await expect(
+      other.registry.adopt(
+        other.host,
+        other.session,
+        other.claim,
+        () => wrongHostController,
+        () => Promise.resolve(),
+      ),
+    ).rejects.toThrow()
+    expect(other.registry.held(other.session.sessionId)).toBeUndefined()
+  })
   it('publishes only after preparation and cleans up a failed adoption', async () => {
     const t = setup()
     const ready = Promise.withResolvers<boolean>()

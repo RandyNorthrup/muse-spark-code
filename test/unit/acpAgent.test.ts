@@ -1,7 +1,13 @@
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
-import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import {
+  type AcpAgentDeps,
+  type AcpController,
+  type BackendReadiness,
+  createAcpAgent,
+} from '../../src/acp/agent'
+import { ControllerRegistry } from '../../src/runtime/panel/controllerRegistry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -40,6 +46,7 @@ type PermissionAnswer = (
 ) => acp.RequestPermissionResponse | Promise<acp.RequestPermissionResponse>
 
 interface Harness {
+  readonly controllers: ControllerRegistry<AcpController>
   readonly host: FakeAgentHost
   /** What each readiness question asked: a recheck (authenticate) or not. */
   readonly rechecks: boolean[]
@@ -78,6 +85,7 @@ function harness(options: HarnessOptions = {}): Harness {
   const permissions: acp.RequestPermissionRequest[] = []
   const elicitations: acp.CreateElicitationRequest[] = []
   const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+  const controllers = new ControllerRegistry<AcpController>(log)
   const grants = memoryPaidGrants()
   const rechecks: boolean[] = []
   const paid = new AcpPaidUse({
@@ -87,6 +95,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    controllers,
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -134,6 +143,7 @@ function harness(options: HarnessOptions = {}): Harness {
         : (options.elicitation ?? { action: 'cancel' })
     })
   return {
+    controllers,
     host,
     rechecks,
     paid,
@@ -416,6 +426,15 @@ async function turn(
 }
 
 describe('the ACP agent (M63)', () => {
+  it('publishes and closes its actual session through the caller’s shared registry', async () => {
+    const h = harness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(h.controllers.held(sessionId)?.session).toBe(h.host.sessions[0])
+      await client.request('session/close', { sessionId })
+      expect(h.controllers.held(sessionId)).toBeUndefined()
+    })
+  })
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [

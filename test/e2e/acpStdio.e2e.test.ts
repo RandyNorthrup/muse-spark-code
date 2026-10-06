@@ -38,9 +38,9 @@ import {
 
 const TEST_TIMEOUT_MS = 30_000
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
-// An installed package brings its own native keyring binding. One laid out
-// here as npm installs it takes the binding from this repository's
-// node_modules (NODE_PATH), as an installed package finds its dependency.
+// Installed-artifact checks use the package's binding on their isolated hosts.
+// The source-layout fake process suite bundles an empty test keyring instead:
+// its signed-out check must never inspect this rig's real credential store.
 const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? mkdtempSync(path.join(tmpdir(), 'acp-package-'))
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
@@ -86,9 +86,30 @@ beforeAll(async () => {
     platform: 'node',
     format: 'cjs',
     target: 'node22',
-    external: ['@napi-rs/keyring'],
+    plugins: [
+      {
+        name: 'fake-only-keyring',
+        setup(builder) {
+          builder.onResolve({ filter: /^@napi-rs\/keyring$/ }, () => ({
+            path: 'keyring',
+            namespace: 'fake-only-keyring',
+          }))
+          builder.onLoad({ filter: /.*/, namespace: 'fake-only-keyring' }, () => ({
+            loader: 'js',
+            contents: `export class AsyncEntry {
+            static FAKE_ONLY_KEYRING = true;
+            getPassword() { return Promise.resolve(null); }
+            setPassword() { return Promise.reject(new Error('Fake keyring refuses writes')); }
+            deletePassword() { return Promise.reject(new Error('Fake keyring refuses deletion')); }
+          }`,
+          }))
+        },
+      },
+    ],
     logLevel: 'silent',
   })
+  if (!readFileSync(AGENT, 'utf8').includes('FAKE_ONLY_KEYRING'))
+    throw new Error('The source-layout process fixture must use its fake keyring')
   await buildModelApiBundle(path.dirname(AGENT))
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })

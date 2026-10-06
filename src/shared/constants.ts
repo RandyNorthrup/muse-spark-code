@@ -4130,3 +4130,13 @@ export const MHP_PANEL = {
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
 } as const
+
+// Credential-free per-key runtime settings and storage (M104 B).
+export const RUNTIME_STATE = {
+  maximumRecordBytes: 1_048_576,
+  maximumKeyChars: 1024,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+  version: 1,
+  folder: 'panel-state',
+} as const

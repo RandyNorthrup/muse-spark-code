@@ -384,20 +384,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 
 | Module                 | Files |
 | ---------------------- | ----- |
-| `node:buffer`          | 30    |
+| `node:buffer`          | 33    |
 | `node:child_process`   | 11    |
-| `node:crypto`          | 36    |
+| `node:crypto`          | 41    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 2     |
-| `node:fs`              | 28    |
-| `node:fs/promises`     | 38    |
-| `node:http`            | 4     |
+| `node:fs`              | 30    |
+| `node:fs/promises`     | 40    |
+| `node:http`            | 7     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 6     |
 | `node:os`              | 7     |
-| `node:path`            | 70    |
+| `node:path`            | 72    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

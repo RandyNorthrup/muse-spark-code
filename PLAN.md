@@ -5247,6 +5247,16 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+- **M104 B composition boundary (2026-10-05):** the portable panel needs
+  the full conversation composition extracted by lane A, the browser bridges
+  from lane D, and lane C endpoints aligned with frozen MHP 1.1. On this base
+  the composition still lives in `src/extension.ts` and exceeds the common
+  lane rule's approximately 300 new lines for one finding. Should a follow-up
+  integrate those prerequisites and authorize the larger panel composition?
+  Default: stop that implementation path, retain the tested registry/stores,
+  and keep B and M110a0 incomplete; `docs/certification/m104-b.md` records the
+  missing work. No reduced panel is advertised.
+
 - **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
@@ -15414,9 +15424,19 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
-Lane B implementation (2026-10-05): the ACP lifecycle is being moved to the
-runtime controller registry, followed by panel transport and persistent stores.
-This does not yet claim panel parity; evidence is in `docs/certification/m104-b.md`.
+Lane B partial implementation (2026-10-05): the runtime registry now owns
+ACP session lifecycle and can be supplied by an embedding runtime. Bounded,
+atomic settings/storage records share the existing setting schemas. They are
+not wired into a panel command. ACP still uses its ACP view rather than the
+full shared conversation controller. `panel --stdio`, `--companion`, MHP 1.1
+delivery and editor parity are unfinished; B does not unblock M110a0.
+The larger composition path stopped under the common lane rule (§3).
+Evidence, remaining work and integration regions are in
+`docs/certification/m104-b.md`.
+The source-layout ACP process fixture must bundle an empty fake keyring and
+verify its marker before starting any process: its signed-out Model API test
+must not probe the rig owner's real credential store. Installed-artifact
+certification remains separate.
 
 **Lane 0 status: MHP 1.1.0 adds the panel carrier (lead decision; E01).**
 The frozen `mhp/1.0.0` editor-service table, errors and snapshot remain
@@ -15618,6 +15638,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**M104 B (2026-10-05, macmini; incomplete lane).** The rig/common brief
+reserves full quality and aggregate coverage/editor qualification for the
+lead. All five typechecks, scoped lint/formatting, deadcode, duplication,
+localization, cycles, host API and production build/caps pass for the delivered
+registry/store work. The stale generated host inventory was regenerated and
+checked; only six Node import counts changed. The owned regression/unit/process
+files pass, with byte-exact guard drills in `docs/certification/m104-b.md`.
+Panel process tests cannot certify commands that are not implemented; they,
+full controller composition, editor parity and M110a0 remain required.
+No threshold, cap, assertion, timeout or rule is weakened.
 
 **FIXM104C (2026-10-05).** The lane brief/common resource rule reserves full
 `npm run quality` and aggregate coverage/editor certification for the lead.
