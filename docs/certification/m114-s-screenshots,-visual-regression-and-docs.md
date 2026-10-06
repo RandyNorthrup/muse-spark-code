@@ -239,3 +239,33 @@ these are exactly the obscured/glyph limits named by the canonical gate,
 not assertions that axe measured their contrast. The durable after receipt
 retains every node. This default-view observation uses the identical product
 UI; the capture-driver fallback changes extra scenes' state discovery only.
+
+## Corrected baseline and actual CLI failures
+
+The final source is `c311144b9`, with a named integrated six-theme review.
+Its **4,824** PNGs total **246,338,755 / 536,870,912 bytes** in
+`/home/randy/archive/m114-s-c311144`, outside Git. The after index links all
+67 scenes in six themes at both actual widths, and the manifest records all
+65 renderer rows and six control states. Representative narrow composer,
+approval, Tasks, Session board, mode menu and What's New views across all
+six themes were inspected; What's New's actual Try it focus ring was also
+inspected after the extra-scene repair.
+
+Nine complete CLI red drills exit 1: missing named review, missing archive
+argument, inside-repository archive, existing update archive, dirty capture
+inputs, explicitly missing archive, missing capture, missing Git source and
+an actual planted browser pixel. The latter fails with exactly
+`panel/agents-details/default/light/320: Visual regression: 1 changed pixel(s)`.
+The [durable CLI receipt](m114-s-after/cli-drills.json) records every expected
+failure and the byte-exact restored helper/manifest SHA-256 values. Normal
+check and reconstruction receipts follow. No full-resolution PNG is added
+to Git; the only committed PNG changes are the 15 curated README images.
+
+Archive audit now checks every original byte's SHA-256 and size without
+redundantly decoding pixels that a reconstruction will not use. Each actual
+compared baseline/candidate is still decoded and dimension-checked, under
+the unchanged zero/AA-inclusive pixel policy. Direct bare-byte and decoded
+integrity assertions both pass. Disabling the shared size/hash predicate
+failed the complete named baseline-integrity test; source restored to
+`6755dc2bfb7d0475cbdffbf03751a53ece315f586bac66fc3efe273344da78d8`. The owning gate/source suites pass **8/8**, default
+timeouts. This removes repeated work, not an integrity check.

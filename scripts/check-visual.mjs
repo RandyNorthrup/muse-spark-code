@@ -12,7 +12,13 @@ import {
   rasterizationFingerprint,
   saveCapture,
 } from '../test/harness/goldens/capture.mjs'
-import { comparePixels, decodePng, PIXEL_POLICY, verifyCapture } from './lib/visualImages.mjs'
+import {
+  comparePixels,
+  decodePng,
+  PIXEL_POLICY,
+  verifyCapture,
+  verifyCaptureBytes,
+} from './lib/visualImages.mjs'
 import { captureKey, ENVIRONMENT, validateManifest } from './lib/visualManifest.mjs'
 
 export const MANIFEST = 'test/harness/goldens/manifest.json'
@@ -140,7 +146,7 @@ async function main() {
     // A stored archive is verified before any use, including on another OS.
     if (existsSync(archive))
       for (const capture of manifest.captures)
-        verifyCapture(
+        verifyCaptureBytes(
           await readFile(path.join(archive, capture.file.replaceAll('\\', '/'))),
           capture,
         )

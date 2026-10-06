@@ -9,6 +9,7 @@ import {
   digest,
   PIXEL_POLICY,
   verifyCapture,
+  verifyCaptureBytes,
 } from '../../scripts/lib/visualImages.mjs'
 import { ENVIRONMENT, validateManifest } from '../../scripts/lib/visualManifest.mjs'
 
@@ -128,6 +129,13 @@ describe('M114 strict pixelmatch visual gate', () => {
       bytes: bytes.length,
       sha256: digest(bytes),
     }
+    expect(() => verifyCaptureBytes(bytes, capture)).not.toThrow()
+    expect(() => verifyCaptureBytes(bytes, { ...capture, sha256: 'a'.repeat(64) })).toThrow(
+      'integrity',
+    )
+    expect(() => verifyCaptureBytes(bytes, { ...capture, bytes: bytes.length + 1 })).toThrow(
+      'integrity',
+    )
     expect(verifyCapture(bytes, capture)).toEqual(expectedRgba)
     expect(() => verifyCapture(bytes, { ...capture, sha256: 'a'.repeat(64) })).toThrow('integrity')
     expect(() => verifyCapture(bytes, { ...capture, bytes: bytes.length + 1 })).toThrow('integrity')

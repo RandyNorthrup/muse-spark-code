@@ -89,8 +89,12 @@ export function comparePixels(before, after, width, height) {
   return changed
 }
 
-export function verifyCapture(bytes, capture) {
+export function verifyCaptureBytes(bytes, capture) {
   if (bytes.length !== capture.bytes || digest(bytes) !== capture.sha256)
     throw new Error(`Baseline integrity mismatch: ${capture.file}`)
+}
+
+export function verifyCapture(bytes, capture) {
+  verifyCaptureBytes(bytes, capture)
   return decodePng(bytes, capture.width, capture.height)
 }
