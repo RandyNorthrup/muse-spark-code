@@ -1,0 +1,58 @@
+[
+  {
+    "name": "activation-setting",
+    "file": "src/host/paid/paidActivation.ts",
+    "mutation": {
+      "before": "return feature !== 'judge' && settings[PAID_FEATURE_SETTINGS[feature]]",
+      "after": "return false"
+    },
+    "command": "npx vitest run test/unit/judgeActivation.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "expectedFailure": "declining an unrelated Model API price leaves the judge selection alone",
+    "sha256Before": "c62484284bc88fc04723dcd6206b381b0bea6f8be3a98e3472eac9b1d7d3392e",
+    "sha256Restored": "c62484284bc88fc04723dcd6206b381b0bea6f8be3a98e3472eac9b1d7d3392e",
+    "outputSummary": "Test Files  1 failed (1)\n      Tests  1 failed | 5 passed (6)\n   Start at  07:36:40\n   Duration  954ms (transform 45%, import 20%, tests 18%, setup 16%, worker 1%)"
+  },
+  {
+    "name": "localized-help-hint",
+    "file": "src/runtime/main.ts",
+    "mutation": {
+      "before": "        writeLine(process.stdout, `${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`)\n",
+      "after": ""
+    },
+    "command": "npx vitest run test/e2e/acpStdio.e2e.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "expectedFailure": "prints the complete translated usage and reference hint from the installed table",
+    "sha256Before": "68a05a7e59c09c9a8451539980ea009d8528d4c53fe243a914311ba514acac49",
+    "sha256Restored": "68a05a7e59c09c9a8451539980ea009d8528d4c53fe243a914311ba514acac49",
+    "outputSummary": "Test Files  1 failed (1)\n      Tests  2 failed | 8 passed (10)\n   Start at  07:36:42\n   Duration  6.79s (tests 79%, transform 13%, import 5%, setup 2%)"
+  },
+  {
+    "name": "reference-markdown-exclusion",
+    "file": ".vscodeignore",
+    "mutation": {
+      "before": "!dist/reference.js\n",
+      "after": "!dist/reference.js\n!docs/reference.md\n"
+    },
+    "command": "npx vitest run test/unit/vsixPackaging.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "expectedFailure": "excludes docs/reference.md from actual VSCE collection",
+    "sha256Before": "c56cfc2a0093f2ed3ee14f77c07be9464c1e80eb85958feea0995cf5da9a98b4",
+    "sha256Restored": "c56cfc2a0093f2ed3ee14f77c07be9464c1e80eb85958feea0995cf5da9a98b4",
+    "outputSummary": "Test Files  1 failed (1)\n      Tests  1 failed | 19 passed (20)\n   Start at  07:36:49\n   Duration  11.28s (tests 87%, import 10%, transform 3%, setup 1%)"
+  },
+  {
+    "name": "vsix-one-byte-over",
+    "file": "scripts/check-vsix-size.mjs",
+    "mutation": {
+      "before": "if (size > MAX_VSIX_BYTES)",
+      "after": "if (size > MAX_VSIX_BYTES + 1)"
+    },
+    "command": "npx vitest run test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "expectedFailure": "refuses one byte over budget",
+    "sha256Before": "35c1cf6dbd67628a8fe266582107d3a4ab252e738c7ac3c73a144e4282455290",
+    "sha256Restored": "35c1cf6dbd67628a8fe266582107d3a4ab252e738c7ac3c73a144e4282455290",
+    "outputSummary": "Test Files  1 failed (1)\n      Tests  1 failed | 17 passed (18)\n   Start at  07:37:02\n   Duration  5.06s (tests 94%, setup 3%, import 2%, transform 1%)"
+  }
+]

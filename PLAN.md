@@ -268,7 +268,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
+| `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -13034,6 +13034,18 @@ Unreleased stays empty. Repeat the certified release checks and retain the
 100 KiB reference cap; hooks on, local merge commit only, no push/tag/publish.
 
 Evidence: `docs/certification/rel0142.md`.
+
+Round 3 repairs the hosted failures on PR head `919401ec3` after the
+authorized fast-forward from `release/0.14.2-pr`. Export the activation paid
+callback from a small module and test it by import, replacing source slicing
+and evaluation. Expect both localized usage and Help reference lines in the
+fake ACP stdio checks. Compare real VSIX members against a locally rebuilt
+0.14.1, remove redundant reference material, and retain bundle caps. If the
+universal VSIX still exceeds 2200 KiB after removing waste, the owner's
+explicit release rule sets its cap to measured bytes plus 5%, rounded up to
+25 KiB. Certify package, owning stdio/reference/release suites, typecheck,
+lint, formatting and localization directly on Kubuntu; local hook-on commits
+only, no push, tag, publication, paid/live calls or aggregate quality.
 
 ### Delivery order (2026-10-06)
 

@@ -1,0 +1,101 @@
+{
+  "rig": "Kubuntu",
+  "baseCommit": "919401ec3",
+  "testsPassed": 205,
+  "testFilesPassed": 12,
+  "fullQuality": "Reserved for the lead by the explicit rig/shared brief; not run in this lane.",
+  "checks": [
+    {
+      "name": "stdio",
+      "command": "npx vitest run test/unit/judgeActivation.test.ts test/e2e/acpStdio.e2e.test.ts test/e2e/execStdio.e2e.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "seconds": 63.81,
+      "outputSummary": "npm notice run 'vitest' run test/unit/judgeActivation.test.ts test/e2e/acpStdio.e2e.test.ts test/e2e/execStdio.e2e.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  52 passed (52)\n   Start at  07:37:17\n   Duration  62.96s (tests 96%, transform 3%, import 1%, setup 1%)"
+    },
+    {
+      "name": "release",
+      "command": "npx vitest run test/unit/vsixPackaging.test.mjs test/unit/readmeVersion.test.ts test/unit/whatsNewContent.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "seconds": 11.52,
+      "outputSummary": "npm notice run 'vitest' run test/unit/vsixPackaging.test.mjs test/unit/readmeVersion.test.ts test/unit/whatsNewContent.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  40 passed (40)\n   Start at  07:38:21\n   Duration  10.74s (tests 83%, import 11%, transform 3%, setup 3%)"
+    },
+    {
+      "name": "reference-core",
+      "command": "npx vitest run test/unit/referenceGenerator.test.mjs test/unit/referenceKeyboardTruth.test.tsx test/unit/referenceEntry.test.ts --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "seconds": 79.65,
+      "outputSummary": "npm notice run 'vitest' run test/unit/referenceGenerator.test.mjs test/unit/referenceKeyboardTruth.test.tsx test/unit/referenceEntry.test.ts --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  68 passed (68)\n   Start at  07:38:32\n   Duration  78.82s (tests 95%, import 2%, transform 1%, environment 1%, setup 1%)"
+    },
+    {
+      "name": "reference-ui",
+      "command": "npx vitest run test/unit/ReferencePage.test.tsx test/unit/chatReference.test.ts test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --testTimeout=120000",
+      "exitCode": 0,
+      "seconds": 10.91,
+      "outputSummary": "npm notice run 'vitest' run test/unit/ReferencePage.test.tsx test/unit/chatReference.test.ts test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --testTimeout=120000\n(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:\n  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `\"type\": \"module\"` in the closest package.json\nSet `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.\n\n RUN  v5.0.2 /home/randy/lanes/REL0142\n\n\n Test Files  3 passed (3)\n      Tests  45 passed (45)\n   Start at  07:39:52\n   Duration  10.07s (tests 69%, transform 14%, environment 8%, import 6%, setup 4%)"
+    },
+    {
+      "name": "typecheck",
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "seconds": 76.61,
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 typecheck\nnpm notice run run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration\nnpm notice run muse-spark-code@0.14.2 typecheck:host\nnpm notice run tsc -p tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:webview\nnpm notice run tsc -p src/webview/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:unit\nnpm notice run tsc -p test/unit/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:e2e\nnpm notice run tsc -p test/e2e/tsconfig.json --noEmit\nnpm notice run muse-spark-code@0.14.2 typecheck:integration\nnpm notice run tsc -p test/integration/tsconfig.json --noEmit"
+    },
+    {
+      "name": "l10n",
+      "command": "node scripts/check-l10n.mjs",
+      "exitCode": 0,
+      "seconds": 2.31,
+      "outputSummary": "l10n: 14 tables, 166 manifest strings, 606 source files; 0 problems"
+    },
+    {
+      "name": "reference",
+      "command": "npm run check:reference",
+      "exitCode": 0,
+      "seconds": 2.37,
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 check:reference\nnpm notice run node scripts/gen-reference.mjs --check\nReference: 53 features, 44 commands, 59 settings, 26 slash, 116 CLI; current"
+    },
+    {
+      "name": "eslint",
+      "command": "npx eslint --max-warnings=0 src/extension.ts src/host/paid/paidActivation.ts test/unit/judgeActivation.test.ts test/e2e/acpStdio.e2e.test.ts scripts/check-vsix-size.mjs test/unit/vsixPackaging.test.mjs test/unit/releaseIntegrity.test.mjs",
+      "exitCode": 0,
+      "seconds": 15.59,
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 npx\nnpm notice run 'eslint' --max-warnings=0 src/extension.ts src/host/paid/paidActivation.ts test/unit/judgeActivation.test.ts test/e2e/acpStdio.e2e.test.ts scripts/check-vsix-size.mjs test/unit/vsixPackaging.test.mjs test/unit/releaseIntegrity.test.mjs"
+    },
+    {
+      "name": "deadcode",
+      "command": "npm run deadcode",
+      "exitCode": 0,
+      "seconds": 3.17,
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 deadcode\nnpm notice run knip\nConfiguration hints (2)\nvendor/**    knip.jsonc  Remove from ignore            \naxe-core     knip.jsonc  Remove from ignoreDependencies"
+    },
+    {
+      "name": "duplication",
+      "command": "npx jscpd",
+      "exitCode": 0,
+      "seconds": 1.12,
+      "outputSummary": "│ Format     │ Files analyzed │ Total lines │ Total tokens │ Clones found │ Duplicated lines │ Duplicated tokens │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ css        │ 3              │ 4140        │ 36597        │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ tsx        │ 116            │ 31036       │ 197460       │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ typescript │ 1062           │ 362346      │ 2203826      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n├────────────┼────────────────┼─────────────┼──────────────┼──────────────┼──────────────────┼───────────────────┤\n│ Total:     │ 1181           │ 397522      │ 2437883      │ 0            │ 0 (0.00%)        │ 0 (0.00%)         │\n└────────────┴────────────────┴─────────────┴──────────────┴──────────────┴──────────────────┴───────────────────┘\nFound 0 clones.\ntime: 596.518ms"
+    },
+    {
+      "name": "host-api",
+      "command": "npm run check:host-api",
+      "exitCode": 0,
+      "seconds": 16.43,
+      "outputSummary": "npm notice run muse-spark-code@0.14.2 check:host-api\nnpm notice run node scripts/check-host-api.mjs\nhost-api: 332 VS Code APIs, 31 files importing vscode, 25 Node built-ins, 61 theme variables; 0 problem(s)"
+    }
+  ],
+  "package": {
+    "command": "npm run package",
+    "exitCode": 0,
+    "checks": "Production build, unchanged bundle size/split/global/notices gates, exact staged localization, actual HTTPS badge verification, real VSCE pack, final VSIX size gate",
+    "bytes": 2325575,
+    "budgetBytes": 2457600,
+    "activationBytes": 450049
+  },
+  "drills": "rel0142-round3-drills.json",
+  "vsixMembers": "rel0142-round3-vsix.json",
+  "formatting": {
+    "command": "npx prettier --check CHANGELOG.md PLAN.md docs/certification/rel0142.md docs/certification/rel0142-round3-drills.json docs/certification/rel0142-round3-vsix.json docs/certification/rel0142-round3-validation.json src/extension.ts src/host/paid/paidActivation.ts test/unit/judgeActivation.test.ts test/e2e/acpStdio.e2e.test.ts scripts/check-vsix-size.mjs test/unit/vsixPackaging.test.mjs test/unit/releaseIntegrity.test.mjs",
+    "exitCode": 0,
+    "result": "All matched files use Prettier code style; twelve eligible paths, with CHANGELOG excluded by the existing .prettierignore. No packaged source/code bytes changed by formatting."
+  }
+}

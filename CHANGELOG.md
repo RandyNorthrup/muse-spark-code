@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Activation paid-setting checks are directly importable in tests, and ACP
+  stdio checks include the localized Help reference hint.
+
+### Performance
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
+
 ## [0.14.2] - 2026-10-06
 
 ### Fixed

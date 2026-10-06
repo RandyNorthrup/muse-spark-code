@@ -35,7 +35,6 @@
 !dist/report.js
 !dist/recorder.js
 !dist/reference.js
-!docs/reference.md
 !dist/webview/main.js
 !dist/webview/referencePage.js
 !dist/webview/referencePage.css

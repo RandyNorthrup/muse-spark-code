@@ -111,7 +111,8 @@ import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTo
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures, isPaidSettingOn } from './shared/paid'
+import { usablePaidFeatures } from './shared/paid'
+import { isJudgeEngineOn } from './core/judge/engine'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -195,6 +196,7 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
+import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -912,8 +914,8 @@ async function activateWindow(
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) => feature !== 'judge' && isPaidSettingOn(feature, currentSettings()),
-    isJudgeOn: () => isPaidSettingOn('judge', currentSettings()),
+    isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
+    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,

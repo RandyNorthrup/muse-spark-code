@@ -23,7 +23,7 @@ import { z } from 'zod'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { createRuntimeBackend } from '../../src/runtime/backends'
 import { webReadable } from '../../src/runtime/webStreams'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_AGENT_NAME, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
@@ -207,18 +207,21 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     const help = spawnSync(process.execPath, [AGENT, '--help'], { encoding: 'utf8', env })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(fill(UI_TEXT.acpUsage, { command: 'muse-spark-code-acp' }))
+    const usage = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME })
+    expect(help.stdout.trim()).toBe(
+      `${usage}\n${UI_TEXT.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`,
+    )
     expect(help.stdout).toContain('muse-spark-code-acp auth set|status|clear')
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
     const wrong = spawnSync(process.execPath, [AGENT, '--colour'], { encoding: 'utf8', env })
     expect(wrong.status).toBe(1)
     expect(wrong.stderr).toContain('--colour')
-    expect(wrong.stderr).toContain(help.stdout)
+    expect(wrong.stderr).toContain(`${usage}\n`)
   })
 
-  it('prints the complete translated usage from one table entry', () => {
+  it('prints the complete translated usage and reference hint from the installed table', () => {
     const table = z
-      .object({ acpUsage: z.string() })
+      .object({ acpUsage: z.string(), helpReferenceTitle: z.string() })
       .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
@@ -226,7 +229,9 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     })
     expect(help.status).toBe(0)
     expect(help.stderr).toBe('')
-    expect(help.stdout.trim()).toBe(table.acpUsage.replaceAll('{command}', 'muse-spark-code-acp'))
+    expect(help.stdout.trim()).toBe(
+      `${fill(table.acpUsage, { command: ACP_AGENT_NAME })}\n${table.helpReferenceTitle}: ${ACP_AGENT_NAME} help --all`,
+    )
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
   })
 
