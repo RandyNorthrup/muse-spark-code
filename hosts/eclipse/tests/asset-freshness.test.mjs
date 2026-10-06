@@ -11,7 +11,7 @@ const target = path.join(directory, 'plugin/target')
 test('asset generation removes obsolete chunks and obsolete language files', () => {
   const obsolete = [
     path.join(target, 'assets/webview/chunk-obsolete.js'),
-    path.join(target, 'l10n/plugin_pt_br.properties'),
+    path.join(target, 'l10n/plugin_pt_br_obsolete.properties'),
   ]
   for (const filename of obsolete) {
     mkdirSync(path.dirname(filename), { recursive: true })
@@ -27,5 +27,6 @@ test('asset generation removes obsolete chunks and obsolete language files', () 
   )
   assert.equal(readdirSync(path.join(target, 'l10n')).length, (languages.length + 1) * 2)
   assert.ok(existsSync(path.join(target, 'assets/webview/main.js')))
-  assert.ok(existsSync(path.join(target, 'l10n/plugin_pt_BR.properties')))
+  assert.ok(readdirSync(path.join(target, 'l10n')).includes('plugin_pt_BR.properties'))
+  assert.ok(!readdirSync(path.join(target, 'l10n')).includes('plugin_pt_br.properties'))
 })

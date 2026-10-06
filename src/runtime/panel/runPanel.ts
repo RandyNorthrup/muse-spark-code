@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { randomUUID } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -34,6 +35,14 @@ import type { runtimeSettings } from './runtimeFeatures'
 import { panelPortsLoader } from './panelLoader'
 import { uiLocale } from '../../shared/l10n/text'
 import * as z from 'zod/mini'
+import { portablePage } from './portablePage'
+import { PanelUiRequests } from './uiRequests'
+import {
+  fallbackUiCallSchema,
+  fallbackUiMethodSchema,
+  fallbackUiReplySchema,
+} from '../../shared/hostApi/fallbackUi'
+import { parseMhpResult } from '../../shared/hostApi/protocol'
 
 export interface RunPanelDeps {
   readonly options: ServeOptions
@@ -62,7 +71,11 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
   const registry = new ControllerRegistry<RuntimeConversation>(log)
   const browsers = new Map<
     string,
-    { readonly delivery: PanelDelivery; readonly surfaces: PanelSurfaces }
+    {
+      readonly delivery: PanelDelivery
+      readonly surfaces: PanelSurfaces
+      readonly ui: PanelUiRequests
+    }
   >()
   let store: RuntimeSettingsStore | undefined
   let settings: Awaited<ReturnType<typeof runtimeSettings>> | undefined
@@ -74,6 +87,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
   const documents = new Map<string, MhpParams<'documents/didChange'>['document']>()
   const documentBytes = new Map<string, number>()
   let companion: Awaited<ReturnType<typeof startCompanionServer>> | undefined
+  let theme: MhpParams<'initialize'>['theme'] | undefined
   let exitCode = 0
   const ending = new AbortController()
   const closed = new Promise<void>((resolve) => {
@@ -91,6 +105,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     {
       capabilities: ['lifecycle'],
       initialize: async (params, signal) => {
+        theme = params.theme
         signal.throwIfAborted()
         if (deps.options.trustWorkspace && !params.trusted)
           throw new Error('MHP_WORKSPACE_UNTRUSTED')
@@ -150,7 +165,21 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
           (controller) =>
             controller.prepare(
               {
-                host: peer,
+                host: {
+                  async request(method, params, signal) {
+                    const ui = fallbackUiMethodSchema.safeParse(method)
+                    if (deps.transport === 'companion' && ui.success)
+                      return parseMhpResult(method, {
+                        jsonrpc: MHP.jsonRpcVersion,
+                        id: 1,
+                        result: await browserUi(ui.data, params, signal ?? ending.signal),
+                      }).result
+                    return await peer.request(method, params, signal)
+                  },
+                  notify: (method, params) => {
+                    peer.notify(method, params)
+                  },
+                },
                 runtime,
                 options: deps.options,
                 store: requireStore(),
@@ -221,14 +250,11 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
             return null
           }
           case 'ui/notify': {
-            const params = MHP_METHODS[method].params.parse(value)
-            for (const browser of browsers.values())
-              log.trace(`MHP_BROWSER_NOTIFY ${String(browser.delivery.totals.messages)}`)
-            log.warn(`MHP_UI_NOTIFY ${params.severity}`)
-            return unsupported()
+            return await browserUi(method, value, signal)
           }
           default: {
-            return unsupported()
+            const ui = fallbackUiMethodSchema.safeParse(method)
+            return ui.success ? await browserUi(ui.data, value, signal) : unsupported()
           }
         }
       },
@@ -311,10 +337,27 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         exitCode = 1
         peer.close()
       })
-      found = { delivery, surfaces }
+      found = { delivery, surfaces, ui: new PanelUiRequests(delivery) }
       browsers.set(id, found)
     }
     return found
+  }
+  async function browserUi(
+    method: z.infer<typeof fallbackUiMethodSchema>,
+    value: unknown,
+    signal: AbortSignal,
+  ) {
+    // Until multi-view action ownership is qualified, never ask an arbitrary
+    // peer window to approve another view's paid request.
+    let owner: ReturnType<typeof browser> | undefined
+    for (const active of browsers.values()) {
+      if (!active.ui.isConnected) continue
+      if (owner !== undefined) return unsupported()
+      owner = active
+    }
+    return owner === undefined
+      ? unsupported()
+      : await owner.ui.request(method, MHP_METHODS[method].params.parse(value), signal)
   }
 
   async function openInitialSurface(): Promise<void> {
@@ -327,9 +370,23 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
       })
       return
     }
-    // D owns the real shared renderer/bridge. Its absence is explicit in this
-    // base; the authenticated carrier remains available to paired clients.
+    if (theme === undefined) return unsupported()
+    const page = await portablePage(
+      path.join(path.dirname(deps.conversationBundle), 'webview', 'portable'),
+      theme,
+    )
+    const sessionId = conversation.sessionId
     companion = await startCompanionServer({
+      services: {
+        inputSchema: fallbackUiReplySchema,
+        outputSchema: fallbackUiCallSchema,
+        post: (frame, id, signal) => {
+          signal.throwIfAborted()
+          browser(id).ui.receive(frame)
+          return Promise.resolve()
+        },
+        subscribe: (id, emit) => browser(id).ui.connect(emit),
+      },
       handler: {
         inputSchema: panelEnvelopeSchema,
         outputSchema: z.union([
@@ -368,9 +425,9 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
         sessionTtlMs: RUNTIME_PANEL.sessionTtlMs,
         maxSessions: RUNTIME_PANEL.maximumWindows,
       },
-      assets: new Map(),
-      renderPage: () =>
-        `<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body data-session-id="${escapeHtml(conversation?.sessionId ?? '')}"><p role="alert">${escapeHtml(UI_TEXT.companionLaunchFailed)}</p></body></html>`,
+      assets: page.assets,
+      renderPage: (nonce) =>
+        page.render({ surface: randomUUID(), sessionId, surfaceKind: 'chat' }, nonce),
     })
     void companion.closed.then(() => {
       peer.close()
@@ -459,6 +516,7 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     process.off('SIGINT', onSignal).off('SIGTERM', onSignal)
     for (const owner of browsers.values()) {
       owner.surfaces.close()
+      owner.ui.close()
       owner.delivery.close()
     }
     await companion?.close()
@@ -471,12 +529,4 @@ export async function runPanel(deps: RunPanelDeps): Promise<number> {
     await runtime.close()
   }
   return exitCode
-}
-
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
 }

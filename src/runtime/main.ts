@@ -13,7 +13,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { Writable } from 'node:stream'
 import { ndJsonStream } from '@agentclientprotocol/sdk'
-import { createAcpAgent, type SignInMethod } from '../acp/agent'
+import { createAcpAgent, type AcpController, type SignInMethod } from '../acp/agent'
+import { ControllerRegistry } from './panel/controllerRegistry'
 import { processGitRunner } from '../host/git'
 import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
@@ -329,7 +330,29 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   // runs; there is no crash offer outside the editor, so startup's is unused.
   const journal = await reportJournal(log)
   await journal.startup()
+  const controllers = new ControllerRegistry<AcpController>(log)
   const agent = createAcpAgent({
+    controllers,
+    createConversation: panelLoader({
+      bundlePath: path.join(distDir, RUNTIME_PANEL_BUNDLE_FILE),
+      log,
+    })().createAcpConversations(
+      {
+        runtime,
+        options,
+        dataRoot: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        conversationBundle: path.join(distDir, CONVERSATION_BUNDLE_FILE),
+        runGit: processGitRunner(),
+        log,
+        controllers,
+      },
+      UI_TEXT,
+      uiLocale(),
+    ),
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -351,9 +374,19 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
   )
   log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
-  await connection.closed
-  await runtime.close()
-  await journal.shutdown()
+  try {
+    await connection.closed
+  } finally {
+    try {
+      await controllers.close()
+    } finally {
+      try {
+        await runtime.close()
+      } finally {
+        await journal.shutdown()
+      }
+    }
+  }
   return 0
 }
 

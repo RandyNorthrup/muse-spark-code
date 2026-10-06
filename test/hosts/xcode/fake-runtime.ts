@@ -28,6 +28,6 @@ export async function startXcodeFakeRuntime() {
     },
     assets: new Map(),
     renderPage: (nonce) =>
-      `<!doctype html><html><head><title>Muse Spark fake companion panel</title></head><body><h1>Muse Spark fake companion panel</h1><p id="authenticated"></p><script nonce="${nonce}">window.fetch('/post', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Muse-Panel': '1'}, body: JSON.stringify({type:'ready'}) }).then(response => { if (response.ok) document.getElementById('authenticated').textContent = 'Authenticated panel ready'; });</script></body></html>`,
+      `<!doctype html><html><head><title>Muse Spark fake companion panel</title></head><body><h1>Muse Spark fake companion panel</h1><p id="authenticated"></p><script nonce="${nonce}">window.musePanel = {postMessage(message) { return window.fetch('/panel/message', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-Muse-Panel': '1'}, body: JSON.stringify(message) }); }}; window.musePanel.postMessage({type:'ready'}).then(response => { if (response.ok) document.getElementById('authenticated').textContent = 'Authenticated panel ready'; });</script></body></html>`,
   })
 }

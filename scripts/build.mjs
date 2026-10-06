@@ -60,6 +60,7 @@ import {
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
+import { writePortableManifest } from './lib/portableModules.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -539,6 +540,7 @@ const webviewOptions = {
 // bridge or fallback can share a static chunk with VS Code's chat entry.
 const portableOptions = {
   ...webviewOptions,
+  metafile: true,
   entryPoints: {
     main: PORTABLE_ENTRY,
     whatsNew: 'src/webview/whatsNew/portable.ts',
@@ -546,6 +548,55 @@ const portableOptions = {
     bridge: BRIDGE_ENTRY,
   },
   outdir: PORTABLE_OUTDIR,
+}
+
+async function buildPortable() {
+  const [graph, loader] = await Promise.all([
+    esbuild.build(portableOptions),
+    esbuild.build({
+      ...common,
+      entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+      outfile: `${PORTABLE_OUTDIR}/loader.js`,
+      metafile: true,
+      plugins: isProduction ? [compactBrowserEnglish] : [],
+      charset: 'utf8',
+      platform: 'browser',
+      format: 'iife',
+      target: BROWSER_TARGET,
+    }),
+  ])
+  writePortableManifest(graph.metafile, PORTABLE_OUTDIR)
+  return {
+    metafile: {
+      inputs: { ...graph.metafile.inputs, ...loader.metafile.inputs },
+      outputs: { ...graph.metafile.outputs, ...loader.metafile.outputs },
+    },
+  }
+}
+
+const portableWatchOptions = {
+  ...portableOptions,
+  plugins: [
+    ...(portableOptions.plugins ?? []),
+    {
+      name: 'portable-manifest',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length === 0) writePortableManifest(result.metafile, PORTABLE_OUTDIR)
+        })
+      },
+    },
+  ],
+}
+const portableLoaderOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
+  charset: 'utf8',
+  entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+  outfile: `${PORTABLE_OUTDIR}/loader.js`,
+  platform: 'browser',
+  format: 'iife',
+  target: BROWSER_TARGET,
 }
 
 // What's New's page script and stylesheet (M99): dist/webview/whatsNew.js
@@ -636,7 +687,8 @@ if (isWatch) {
     esbuild.context(searchWorkerOptions),
     esbuild.context(pageWorkerOptions),
     esbuild.context(webviewOptions),
-    esbuild.context(portableOptions),
+    esbuild.context(portableWatchOptions),
+    esbuild.context(portableLoaderOptions),
     esbuild.context(whatsNewPageOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
@@ -683,7 +735,7 @@ if (isWatch) {
     searchWorker: esbuild.build(searchWorkerOptions),
     pageWorker: esbuild.build(pageWorkerOptions),
     webview: esbuild.build(webviewOptions),
-    portable: esbuild.build(portableOptions),
+    portable: await buildPortable(),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
   }
   const acp = esbuild.build(acpOptions)

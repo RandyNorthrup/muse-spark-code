@@ -2,7 +2,10 @@ import * as acp from '@agentclientprotocol/sdk'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
-import { createAcpAgent } from '../../acp/agent'
+import { createAcpAgent, type AcpController } from '../../acp/agent'
+import { ControllerRegistry } from '../panel/controllerRegistry'
+import { panelLoader } from '../panel/panelLoader'
+import { agentDataFolder } from '../dataFolder'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -27,9 +30,11 @@ import {
   SECRET_KEYS,
   UI_TEXT,
   type EnvironmentVariable,
+  RUNTIME_PANEL_BUNDLE_FILE,
+  CONVERSATION_BUNDLE_FILE,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
-import { fill, formatUsd, plural } from '../../shared/l10n/text'
+import { fill, formatUsd, plural, uiLocale } from '../../shared/l10n/text'
 import { modelApiPaidTier } from '../../shared/paid'
 import { createRuntimeBackend, type RuntimeBackend } from '../backends'
 import { type ExecOptions, serveOptionsFor } from './execArgs'
@@ -438,7 +443,29 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         return await finish()
       }
       tap = observeBackend(runtime.backend)
+      const controllers = new ControllerRegistry<AcpController>(log)
       const agent = createAcpAgent({
+        controllers,
+        createConversation: panelLoader({
+          bundlePath: path.join(deps.distDir, RUNTIME_PANEL_BUNDLE_FILE),
+          log,
+        })().createAcpConversations(
+          {
+            runtime: { ...runtime, backend: tap.backend },
+            options: serveOptionsFor(options),
+            dataRoot: agentDataFolder({
+              platform: deps.platform,
+              env: deps.env,
+              homeDir: deps.homeDir,
+            }),
+            conversationBundle: path.join(deps.distDir, CONVERSATION_BUNDLE_FILE),
+            runGit: deps.runGit,
+            log,
+            controllers,
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
         backend: tap.backend,
         version: deps.version,
         options: {
@@ -473,143 +500,150 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
       })
       await lifecycle.race(
-        client.connectWith(agent, async (connection) => {
+        (async () => {
           try {
-            await lifecycle.race(
-              connection.request('initialize', {
-                protocolVersion: acp.PROTOCOL_VERSION,
-                clientCapabilities: {},
-              }),
-            )
-            const created = await lifecycle.race(
-              connection.request('session/new', { cwd, mcpServers: [] }),
-            )
-            setup.sessionId = created.sessionId
-            closeSession = () =>
-              connection.request('session/close', { sessionId: created.sessionId })
-            cancelSession = () => {
-              void connection
-                .notify('session/cancel', { sessionId: created.sessionId })
-                .catch(() => {
-                  /* Session already stopped or closed; cancellation is best effort. */
-                })
-            }
-            const modelConfig = created.configOptions?.find(
-              (option) => option.id === ACP_CONFIG_IDS.model,
-            )
-            model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
-            if (options.model !== undefined) {
-              if (
-                modelConfig?.type !== 'select' ||
-                modelConfig.options.every(
-                  (entry) => !('value' in entry && entry.value === options.model),
-                )
-              ) {
-                setup.isUsageError = true
-                error = UI_TEXT.execUnknownModel
-                return
-              }
-              await lifecycle.race(
-                connection.request('session/set_config_option', {
-                  sessionId: created.sessionId,
-                  configId: ACP_CONFIG_IDS.model,
-                  value: options.model,
-                }),
-              )
-              model = options.model
-            }
-            if (options.effort === undefined) {
-              const config = created.configOptions?.find(
-                (option) => option.id === ACP_CONFIG_IDS.effort,
-              )
-              effort = typeof config?.currentValue === 'string' ? config.currentValue : null
-            } else {
-              if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
-                setup.isUsageError = true
-                error = UI_TEXT.execEffortUnavailable
-                return
-              }
-              await lifecycle.race(
-                connection.request('session/set_config_option', {
-                  sessionId: created.sessionId,
-                  configId: ACP_CONFIG_IDS.effort,
-                  value: options.effort,
-                }),
-              )
-              effort = options.effort
-            }
-            const tier = modelApiPaidTier(model ?? '')
-            if (ledger !== undefined) {
-              if (tier === undefined) {
-                setup.isUsageError = true
-                error = UI_TEXT.execModelUnpriced
-                return
-              }
-              // Ask the ledger's exact arithmetic for the start reservation, in a
-              // separate un-dispatched ledger. No request belongs to this run yet.
-              const preview = createRunLedger({
-                capUsd: EXEC_MAX_BUDGET_USD,
-                maxRequests: 1,
-              }).admitResponse({
-                model: model ?? '',
-                maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
-                price: MODEL_API_PRICES_PER_MILLION[tier],
-              })
-              if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
-              const minimum =
-                microUsd(preview.reserveUsd) +
-                (options.paidFeatures.includes('imageGeneration')
-                  ? microUsd(PAID_PRICES_USD.imageGeneration)
-                  : ZERO_MICRO_USD)
-              if (BigInt(options.budgetMicroUsd ?? 0) < minimum) {
-                error = fill(UI_TEXT.execBudgetMinimum, {
-                  minimum: formatUsd(Number(minimum) / EXEC_USD_UNITS, EXEC_USD_DECIMALS),
-                })
-                latch({ kind: 'budget' })
-                return
-              }
-            }
-            tap?.beginResponse(1)
-            unsubscribe = tap?.subscribe(created.sessionId, observe)
-            sink.emit({
-              type: 'start',
-              agent: { name: ACP_AGENT_NAME, version: deps.version },
-              backend: options.backend,
-              mode: options.mode,
-              model,
-              effort,
-              sessionId: created.sessionId,
-              ephemeral: options.ephemeral,
-              paidFeatures: options.paidFeatures,
-              limits,
-            })
-            try {
-              const answer = await lifecycle.race(
-                connection.request('session/prompt', {
-                  sessionId: created.sessionId,
-                  prompt: blocks,
-                }),
-              )
-              stopReason = answer.stopReason
-            } catch (error_: unknown) {
-              error = error_ instanceof Error ? error_.message : String(error_)
-            }
-            await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
-          } finally {
-            const close = closeSession
-            closeSession = undefined
-            if (close !== undefined) {
+            await client.connectWith(agent, async (connection) => {
               try {
-                await lifecycle.race(close())
-              } catch (error_: unknown) {
-                if (lifecycle.cause === null) {
-                  log.error(error_ instanceof Error ? error_.message : String(error_))
-                  lifecycle.latch({ kind: 'internal' })
+                await lifecycle.race(
+                  connection.request('initialize', {
+                    protocolVersion: acp.PROTOCOL_VERSION,
+                    clientCapabilities: {},
+                  }),
+                )
+                const created = await lifecycle.race(
+                  connection.request('session/new', { cwd, mcpServers: [] }),
+                )
+                setup.sessionId = created.sessionId
+                closeSession = () =>
+                  connection.request('session/close', { sessionId: created.sessionId })
+                cancelSession = () => {
+                  void connection
+                    .notify('session/cancel', { sessionId: created.sessionId })
+                    .catch(() => {
+                      /* Session already stopped or closed; cancellation is best effort. */
+                    })
+                }
+                const modelConfig = created.configOptions?.find(
+                  (option) => option.id === ACP_CONFIG_IDS.model,
+                )
+                model =
+                  typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
+                if (options.model !== undefined) {
+                  if (
+                    modelConfig?.type !== 'select' ||
+                    modelConfig.options.every(
+                      (entry) => !('value' in entry && entry.value === options.model),
+                    )
+                  ) {
+                    setup.isUsageError = true
+                    error = UI_TEXT.execUnknownModel
+                    return
+                  }
+                  await lifecycle.race(
+                    connection.request('session/set_config_option', {
+                      sessionId: created.sessionId,
+                      configId: ACP_CONFIG_IDS.model,
+                      value: options.model,
+                    }),
+                  )
+                  model = options.model
+                }
+                if (options.effort === undefined) {
+                  const config = created.configOptions?.find(
+                    (option) => option.id === ACP_CONFIG_IDS.effort,
+                  )
+                  effort = typeof config?.currentValue === 'string' ? config.currentValue : null
+                } else {
+                  if (!effortLevelsFor(model ?? undefined).includes(options.effort)) {
+                    setup.isUsageError = true
+                    error = UI_TEXT.execEffortUnavailable
+                    return
+                  }
+                  await lifecycle.race(
+                    connection.request('session/set_config_option', {
+                      sessionId: created.sessionId,
+                      configId: ACP_CONFIG_IDS.effort,
+                      value: options.effort,
+                    }),
+                  )
+                  effort = options.effort
+                }
+                const tier = modelApiPaidTier(model ?? '')
+                if (ledger !== undefined) {
+                  if (tier === undefined) {
+                    setup.isUsageError = true
+                    error = UI_TEXT.execModelUnpriced
+                    return
+                  }
+                  // Ask the ledger's exact arithmetic for the start reservation, in a
+                  // separate un-dispatched ledger. No request belongs to this run yet.
+                  const preview = createRunLedger({
+                    capUsd: EXEC_MAX_BUDGET_USD,
+                    maxRequests: 1,
+                  }).admitResponse({
+                    model: model ?? '',
+                    maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
+                    price: MODEL_API_PRICES_PER_MILLION[tier],
+                  })
+                  if ('refused' in preview) throw new Error(UI_TEXT.execModelUnpriced)
+                  const minimum =
+                    microUsd(preview.reserveUsd) +
+                    (options.paidFeatures.includes('imageGeneration')
+                      ? microUsd(PAID_PRICES_USD.imageGeneration)
+                      : ZERO_MICRO_USD)
+                  if (BigInt(options.budgetMicroUsd ?? 0) < minimum) {
+                    error = fill(UI_TEXT.execBudgetMinimum, {
+                      minimum: formatUsd(Number(minimum) / EXEC_USD_UNITS, EXEC_USD_DECIMALS),
+                    })
+                    latch({ kind: 'budget' })
+                    return
+                  }
+                }
+                tap?.beginResponse(1)
+                unsubscribe = tap?.subscribe(created.sessionId, observe)
+                sink.emit({
+                  type: 'start',
+                  agent: { name: ACP_AGENT_NAME, version: deps.version },
+                  backend: options.backend,
+                  mode: options.mode,
+                  model,
+                  effort,
+                  sessionId: created.sessionId,
+                  ephemeral: options.ephemeral,
+                  paidFeatures: options.paidFeatures,
+                  limits,
+                })
+                try {
+                  const answer = await lifecycle.race(
+                    connection.request('session/prompt', {
+                      sessionId: created.sessionId,
+                      prompt: blocks,
+                    }),
+                  )
+                  stopReason = answer.stopReason
+                } catch (error_: unknown) {
+                  error = error_ instanceof Error ? error_.message : String(error_)
+                }
+                await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
+              } finally {
+                const close = closeSession
+                closeSession = undefined
+                if (close !== undefined) {
+                  try {
+                    await lifecycle.race(close())
+                  } catch (error_: unknown) {
+                    if (lifecycle.cause === null) {
+                      log.error(error_ instanceof Error ? error_.message : String(error_))
+                      lifecycle.latch({ kind: 'internal' })
+                    }
+                  }
                 }
               }
-            }
+            })
+          } finally {
+            await controllers.close()
           }
-        }),
+        })(),
       )
     } catch (error_: unknown) {
       if (runtime === undefined && status === 'failed' && lifecycle.cause === null)

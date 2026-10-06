@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 // Report a problem, lane A (M93, PLAN.md D72): the ACP error-observer
 // region in src/acp/agent.ts. Errors are observed into the recorder as
 // fixed kind-plus-code facts — never messages, stacks, paths, prompts or
@@ -45,6 +46,7 @@ function observerHarness(reportError?: AcpAgentDeps['reportError'] | 'collect'):
     log,
   })
   const deps: AcpAgentDeps = {
+    createConversation: fakeAcpComposition,
     backend: {
       kind: 'museCode',
       readiness: () => Promise.resolve({ state: 'ready' }),

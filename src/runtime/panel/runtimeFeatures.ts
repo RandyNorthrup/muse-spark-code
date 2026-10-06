@@ -125,6 +125,8 @@ function unavailableGit(
 const idsSchema = z.array(z.string())
 const lastSessionSchema = z.strictObject({ sessionId: z.string(), at: z.number() })
 export interface RuntimeConversationPorts {
+  readonly ownsPaidConsent?: boolean
+  readonly confirmContributor?: ConversationFeaturePorts['confirmContributor']
   readonly host: HostServices
   readonly runtime: RuntimeBackend
   readonly workspaceRoot: string
@@ -208,22 +210,23 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
     },
   }
   await refresh()
-  runtime.paid.attach(async (_sessionId, request, canRemember) => {
-    const question = paidUseQuestion(request)
-    const answer = await host.request('ui/confirm', {
-      title: question.title,
-      message: question.detail,
-      choices: [
-        { id: ACP_PAID_OPTIONS.allowOnce, title: UI_TEXT.allowOnce },
-        ...(canRemember
-          ? [{ id: ACP_PAID_OPTIONS.allowAlways, title: UI_TEXT.paidAllowAlways }]
-          : []),
-        { id: ACP_PAID_OPTIONS.deny, title: UI_TEXT.paidDeny },
-      ],
+  if (ports.ownsPaidConsent !== false)
+    runtime.paid.attach(async (_sessionId, request, canRemember) => {
+      const question = paidUseQuestion(request)
+      const answer = await host.request('ui/confirm', {
+        title: question.title,
+        message: question.detail,
+        choices: [
+          { id: ACP_PAID_OPTIONS.allowOnce, title: UI_TEXT.allowOnce },
+          ...(canRemember
+            ? [{ id: ACP_PAID_OPTIONS.allowAlways, title: UI_TEXT.paidAllowAlways }]
+            : []),
+          { id: ACP_PAID_OPTIONS.deny, title: UI_TEXT.paidDeny },
+        ],
+      })
+      if (answer === ACP_PAID_OPTIONS.allowOnce) return 'once'
+      return canRemember && answer === ACP_PAID_OPTIONS.allowAlways ? 'always' : 'deny'
     })
-    if (answer === ACP_PAID_OPTIONS.allowOnce) return 'once'
-    return canRemember && answer === ACP_PAID_OPTIONS.allowAlways ? 'always' : 'deny'
-  })
   const mentions = new MentionIndex({
     listFiles: () => walkFiles(workspaceRoot, MENTION_INDEX_LIMIT, log),
     now: Date.now,
@@ -317,13 +320,15 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
       },
     },
     isRemoteWindow: false,
-    confirmContributor: async () =>
-      options.allowsContributorModels &&
-      (await host.request('ui/confirm', {
-        title: UI_TEXT.contributorTitle,
-        message: UI_TEXT.contributorDetail,
-        choices: [{ id: 1, title: UI_TEXT.contributorConfirm }],
-      })) === 1,
+    confirmContributor:
+      ports.confirmContributor ??
+      (async () =>
+        options.allowsContributorModels &&
+        (await host.request('ui/confirm', {
+          title: UI_TEXT.contributorTitle,
+          message: UI_TEXT.contributorDetail,
+          choices: [{ id: 1, title: UI_TEXT.contributorConfirm }],
+        })) === 1),
     runHostAction: () => Promise.reject(new Error(UI_TEXT.actionFailed)),
     insertCode: (text) => didApplyCode(text, true),
     applyCode: (text) => didApplyCode(text, false),
@@ -405,7 +410,16 @@ export async function runtimeConversationDeps(ports: RuntimeConversationPorts) {
         damaged.splice(0, damaged.length, ...ids)
       },
       setLastSession: async (next) => {
-        await store.setStorage('lastSession', next === undefined ? null : { ...next }, 'workspace')
+        try {
+          await store.setStorage(
+            'lastSession',
+            next === undefined ? null : { ...next },
+            'workspace',
+          )
+        } catch (error: unknown) {
+          logRejection(log, 'last session')(error)
+          return
+        }
         last = next
       },
     },

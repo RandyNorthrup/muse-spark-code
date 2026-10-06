@@ -2614,8 +2614,6 @@
   "judgeStatusSlow": "Domyślnie wyłączony: zbyt mało wyników gotowych w chwili decyzji recenzenta",
   "judgeStatusSubscription": "Subskrypcja",
   "judgeStatusPaid": "Płatne",
-  "agentImportDetail": "Kopiuj serwery MCP, hooki, agentów, polecenia i reguły z Claude Code, Codexa lub Cursora",
-  "agentImportSourceAll": "Wszystkie trzy",
   "fallbackContinue": "Kontynuuj",
   "fallbackNoMatches": "Brak pasujących elementów",
   "fallbackNotifications": "Powiadomienia",

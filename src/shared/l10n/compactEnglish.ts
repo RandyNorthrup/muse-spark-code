@@ -84,5 +84,5 @@ export function compactEnglishSource(english: EnglishTree): string {
   return `const words=${JSON.stringify(dictionary)};
 function decode(value){return value.replace(${tokenPattern.toString()},c=>words[c.charCodeAt(0)-${String(L10N_COMPACT_TOKEN_FIRST)}])}
 function unpack(table){return Object.fromEntries(Object.entries(table).map(([key,value])=>[decode(key),typeof value==='string'?decode(value):unpack(value)]))}
-export const EN=unpack(${JSON.stringify(encode(english))});`
+export const EN=/* @__PURE__ */ unpack(${JSON.stringify(encode(english))});`
 }

@@ -679,11 +679,29 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
+// The authenticated classic bootstrap is compiled independently of either
+// ESM graph. It validates the manifest before those graphs can execute.
+const PORTABLE_LOADER = {
+  output: 'dist/webview/portable/loader.js',
+  metafile: 'dist/meta/portable.json',
+}
+const loaderInputs = inputsOf(PORTABLE_LOADER)
+for (const source of [
+  'src/webview/bridges/moduleLoader.ts',
+  'src/shared/hostApi/portableAssets.ts',
+]) {
+  if (!loaderInputs.has(source))
+    problems.push(`${PORTABLE_LOADER.output} no longer carries ${source}`)
+}
+if (loaderInputs.has(ENGLISH_TABLE))
+  problems.push(`${PORTABLE_LOADER.output} carries an unused English fallback`)
 // ESM splitting moves shared constants to one common browser chunk. Identify
 // that chunk by its source, so hashes may change without loosening the text gate.
 const webviewConstants = SHIPPED.filter(
   (bundle) =>
-    bundle.output.startsWith('dist/webview/') && inputsOf(bundle).has('src/shared/constants.ts'),
+    bundle.output.startsWith('dist/webview/') &&
+    bundle.output !== PORTABLE_LOADER.output &&
+    inputsOf(bundle).has('src/shared/constants.ts'),
 )
 for (const isPortable of [false, true]) {
   const constants = webviewConstants.filter(
@@ -902,6 +920,8 @@ for (const key of modelTextKeys) {
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 const BRIDGE_ENTRIES = new Set([
+  'src/webview/bridges/moduleLoader.ts',
+  'src/webview/bridges/companionUi.ts',
   'src/webview/whatsNew/portable.ts',
   'src/webview/whatsNew/whatsNewPage.ts',
   'src/webview/bridges/native.ts',
@@ -958,7 +978,10 @@ for (const [meta, entry, chunks, portable] of [
     for (const imported of output.imports) if (!imported.external) visit(imported.path)
   }
   visit(portable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js')
-  if (portable) visit('dist/webview/portable/whatsNew.js')
+  if (portable) {
+    visit('dist/webview/portable/whatsNew.js')
+    visit('dist/webview/portable/loader.js')
+  }
   for (const source of [
     ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
     ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),

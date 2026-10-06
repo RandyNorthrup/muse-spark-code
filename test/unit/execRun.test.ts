@@ -34,7 +34,7 @@ import {
   streamFor,
   type ScriptedReply,
 } from './helpers/fakeModelApi'
-import { buildModelApiBundle } from './helpers/modelApiBundle'
+import { buildRuntimeConversationBundles } from './helpers/modelApiBundle'
 import { outputWriter } from './helpers/execContract'
 import { removeFolder } from './helpers/temporaryFolders'
 import { acpMspHost } from './helpers/acpMsp'
@@ -107,7 +107,7 @@ function folder() {
 const dist = folder()
 const builtMain = path.join(folder(), 'dist', 'acp.js')
 beforeAll(async () => {
-  await buildModelApiBundle(dist)
+  await buildRuntimeConversationBundles(dist)
   mkdirSync(path.dirname(builtMain), { recursive: true })
   buildSync({
     entryPoints: ['src/runtime/main.ts'],

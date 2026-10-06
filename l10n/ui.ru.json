@@ -2614,8 +2614,6 @@
   "judgeStatusSlow": "По умолчанию выключен: слишком мало результатов готово к решению проверяющего",
   "judgeStatusSubscription": "Подписка",
   "judgeStatusPaid": "Платно",
-  "agentImportDetail": "Копировать MCP-серверы, хуки, агентов, команды и правила из Claude Code, Codex или Cursor",
-  "agentImportSourceAll": "Все три",
   "fallbackContinue": "Продолжить",
   "fallbackNoMatches": "Нет совпадающих элементов",
   "fallbackNotifications": "Уведомления",

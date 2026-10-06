@@ -2332,8 +2332,6 @@
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
   "judgeStatusPaid": "有料",
-  "agentImportDetail": "Claude Code、Codex、Cursor から MCP サーバー、フック、エージェント、コマンド、ルールをコピー",
-  "agentImportSourceAll": "3 つすべて",
   "fallbackContinue": "続行",
   "fallbackNoMatches": "一致する項目がありません",
   "fallbackNotifications": "通知",

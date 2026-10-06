@@ -131,6 +131,10 @@ function packagingFixture() {
   )
   for (const bundle of [
     'acp',
+    'runtimePanel',
+    'runtimePanelPorts',
+    'conversation',
+    'sessionBoard',
     'modelApi',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
@@ -149,6 +153,19 @@ function packagingFixture() {
   ]) {
     writeFileSync(path.join(dir, 'dist', `${bundle}.js`), '// test-owned inert bundle\n')
   }
+  const portable = path.join(dir, 'dist', 'webview', 'portable')
+  mkdirSync(portable, { recursive: true })
+  for (const file of [
+    'loader.js',
+    'main.js',
+    'whatsNew.js',
+    'bridge.js',
+    'fallbacks.js',
+    'main.css',
+    'whatsNew.css',
+  ])
+    writeFileSync(path.join(portable, file), '// test-owned inert asset\n')
+  writeFileSync(path.join(portable, 'modules.json'), '{"modules":[]}\n')
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
@@ -622,7 +639,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       const run = start([...execArgs(), ...(mode === 'stdin' ? ['--key-stdin'] : [])], mode)
       if (mode === 'stdin') run.child.stdin.end(`${KEY}\n`)
       const output = await run.closed
-      expect(output.code, output.stderr).toBe(0)
+      expect(output.code, `${output.stderr}\n${JSON.stringify(result(output.stdout))}`).toBe(0)
       expect(result(output.stdout)).toMatchObject({
         status: 'completed',
         finalMessage: 'ok',

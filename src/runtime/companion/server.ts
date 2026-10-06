@@ -44,6 +44,8 @@ export interface CompanionAsset {
 
 export interface CompanionOptions<Input, Output> {
   readonly handler: CompanionHandler<Input, Output>
+  /** Optional MHP UI RPC uses the same guards and an independent window stream. */
+  readonly services?: CompanionHandler<unknown, unknown>
   readonly limits: CompanionLimits
   /** Exact URL paths to packaged assets. No filesystem path is derived from a request. */
   readonly assets: ReadonlyMap<string, CompanionAsset>
@@ -112,6 +114,7 @@ export async function startCompanionServer<Input, Output>(
     limits.maxSessions,
   )
   const events = new CompanionEvents(limits.maxEventBytes)
+  const serviceEvents = new CompanionEvents(limits.maxEventBytes)
   const calls = new Set<AbortController>()
   let origin = ''
   let idle: ReturnType<typeof setTimeout> | undefined
@@ -144,18 +147,23 @@ export async function startCompanionServer<Input, Output>(
     idle = setTimeout(onSignal, limits.idleTimeoutMs)
   }
 
-  function openEvents(session: CompanionSession, response: ServerResponse): void {
-    if (events.has(session.id)) {
+  function openEvents(
+    session: CompanionSession,
+    response: ServerResponse,
+    stream = events,
+    owner: Pick<CompanionHandler<unknown, unknown>, 'subscribe' | 'outputSchema'> = handler,
+  ): void {
+    if (stream.has(session.id)) {
       reply(response, HTTP_STATUS.forbidden, 'EPANEL_STREAM')
       return
     }
     activity()
-    events.open(
+    stream.open(
       session.id,
       response,
       session.expiresAt,
-      (emit) => handler.subscribe(session.id, emit),
-      (message) => JSON.stringify(handler.outputSchema.parse(message)),
+      (emit) => owner.subscribe(session.id, emit),
+      (message) => JSON.stringify(owner.outputSchema.parse(message)),
       activity,
     )
   }
@@ -210,7 +218,9 @@ export async function startCompanionServer<Input, Output>(
       request.url !== '/session' &&
       request.url !== '/panel/message' &&
       request.url !== '/panel/surface' &&
-      request.url !== '/panel/events'
+      request.url !== '/panel/events' &&
+      (options.services === undefined ||
+        !(request.url === '/host/events' || request.url === '/host/message'))
     ) {
       reply(response, HTTP_STATUS.notFound, 'EPANEL_PATH')
       return
@@ -260,6 +270,28 @@ export async function startCompanionServer<Input, Output>(
           reply(response, HTTP_STATUS.unauthorized, 'EPANEL_BEARER')
           return
         }
+        if (
+          options.services !== undefined &&
+          (request.url === '/host/events' || request.url === '/host/message')
+        ) {
+          if (request.url === '/host/events') {
+            if (!eventsSchema.safeParse(input).success) {
+              reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+              return
+            }
+            openEvents(session, response, serviceEvents, options.services)
+          } else {
+            const parsed = options.services.inputSchema.safeParse(input)
+            if (!parsed.success) {
+              reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
+              return
+            }
+            await options.services.post(parsed.data, session.id, controller.signal)
+            if (!controller.signal.aborted) reply(response, HTTP_STATUS.noContent)
+          }
+          activity()
+          return
+        }
         if (request.url === '/panel/events') {
           if (!eventsSchema.safeParse(input).success) {
             reply(response, HTTP_STATUS.badRequest, 'EPANEL_MESSAGE')
@@ -303,6 +335,7 @@ export async function startCompanionServer<Input, Output>(
       clearTimeout(idle)
       for (const controller of calls) controller.abort()
       events.close()
+      serviceEvents.close()
       sessions.clear()
       await new Promise<void>((resolve) => {
         server.close(() => {

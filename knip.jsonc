@@ -66,6 +66,7 @@
     "src/webview/portable.tsx",
     "src/webview/whatsNew/portable.ts",
     "src/webview/bridges/select.ts",
+    "src/webview/bridges/moduleLoader.ts",
     // M104D: a browser module imported by carriers on their first fallback.
     "src/webview/fallbacks/index.ts",
     "src/runtime/main.ts",

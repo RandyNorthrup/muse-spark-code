@@ -33,7 +33,7 @@ export function companionBridge(
     connected.resolve(true)
     onError(error)
   }
-  function enqueue(frame: unknown): void {
+  function enqueue(frame: unknown, endpoint = '/panel/message'): void {
     controller.signal.throwIfAborted()
     const body = JSON.stringify(frame)
     const bytes = new TextEncoder().encode(body).byteLength
@@ -52,7 +52,7 @@ export function companionBridge(
         await previous
         await connected.promise
         controller.signal.throwIfAborted()
-        const response = await send('/post', {
+        const response = await send(endpoint, {
           method: 'POST',
           credentials: 'omit',
           signal: controller.signal,
@@ -88,7 +88,7 @@ export function companionBridge(
     incoming++
   }
   async function stream(): Promise<void> {
-    const response = await send('/events', {
+    const response = await send('/panel/events', {
       method: 'POST',
       credentials: 'omit',
       signal: controller.signal,
@@ -144,7 +144,14 @@ export function companionBridge(
   }
   // Ready and application posts wait until the runtime has subscribed the stream.
   void stream().catch(fail)
-  enqueue({ mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'ready' })
+  enqueue(
+    { mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'opened' },
+    '/panel/surface',
+  )
+  enqueue(
+    { mhp: MHP_PANEL.wireVersion, kind: 'surface', ...binding, event: 'ready' },
+    '/panel/surface',
+  )
   return {
     post(message) {
       const payload = codec.outgoing.parse(message)

@@ -1,12 +1,18 @@
 import { build } from 'esbuild'
 import { beforeAll, expect, it } from 'vitest'
-import { webviewStartupOutputs } from '../../scripts/lib/webviewBundles.mjs'
+import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
+import {
+  webviewDeferredBudgetGroups,
+  webviewStartupOutputs,
+} from '../../scripts/lib/webviewBundles.mjs'
 
 const baselineBytes = 898_682
 const rig = {}
 const options = {
   bundle: true,
   minify: true,
+  charset: 'utf8',
+  plugins: [compactBrowserEnglish],
   write: false,
   metafile: true,
   format: 'esm',
@@ -22,7 +28,7 @@ beforeAll(async () => {
     ...options,
     entryPoints: { main: 'src/webview/main.tsx' },
     outdir: 'dist/webview',
-    chunkNames: 'chunks/[name]-[hash]',
+    chunkNames: 'chunks/[hash]',
   })
   rig.whatsNew = await build({
     ...options,
@@ -59,5 +65,15 @@ it('keeps Tasks lazy and every existing deferred byte under the unchanged cap', 
   expect(
     deferred.some(([, output]) => Object.hasOwn(output.inputs, 'src/webview/TasksApp.tsx')),
   ).toBe(true)
-  expect(deferred.reduce((sum, [, output]) => sum + output.bytes, 0)).toBeLessThanOrEqual(51_200)
+  const groups = webviewDeferredBudgetGroups(rig.chat.metafile)
+  expect(groups.map(({ name, budgetKiB }) => [name, budgetKiB])).toEqual([
+    ['deferred JS', 50],
+    ['code highlighting', 125],
+    ['action dialogs', 25],
+    ['tasks tab', 25],
+  ])
+  for (const { outputs, budgetKiB } of groups)
+    expect(
+      outputs.reduce((sum, file) => sum + rig.chat.metafile.outputs[file].bytes, 0),
+    ).toBeLessThanOrEqual(budgetKiB * 1024)
 })

@@ -53,9 +53,9 @@ switch (params.get('bridge')) {
     const stream = new ReadableStream<Uint8Array>()
     const send: typeof fetch = (input) =>
       Promise.resolve(
-        input === '/events'
+        input === '/panel/events'
           ? new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } })
-          : new Response(null, { status: 202 }),
+          : new Response(null, { status: 204 }),
       )
     document.body.dataset['bridge'] = 'companion'
     const binding = document.createElement('script')

@@ -2614,8 +2614,6 @@
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
   "judgeStatusPaid": "Placené",
-  "agentImportDetail": "Zkopírovat MCP servery, hooky, agenty, příkazy a pravidla z Claude Code, Codexu nebo Cursoru",
-  "agentImportSourceAll": "Všechny tři",
   "fallbackContinue": "Pokračovat",
   "fallbackNoMatches": "Žádné odpovídající položky",
   "fallbackNotifications": "Oznámení",

@@ -2426,8 +2426,6 @@
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Kostenpflichtig",
-  "agentImportDetail": "MCP-Server, Hooks, Agents, Befehle und Regeln aus Claude Code, Codex oder Cursor übernehmen",
-  "agentImportSourceAll": "Alle drei",
   "fallbackContinue": "Weiter",
   "fallbackNoMatches": "Keine passenden Einträge",
   "fallbackNotifications": "Benachrichtigungen",

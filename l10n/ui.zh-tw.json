@@ -2332,8 +2332,6 @@
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
   "judgeStatusPaid": "付費",
-  "agentImportDetail": "從 Claude Code、Codex 或 Cursor 複製 MCP 伺服器、掛鉤、代理、命令和規則",
-  "agentImportSourceAll": "全部三個",
   "fallbackContinue": "繼續",
   "fallbackNoMatches": "沒有相符項目",
   "fallbackNotifications": "通知",

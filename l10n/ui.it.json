@@ -2520,8 +2520,6 @@
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
   "judgeStatusPaid": "A pagamento",
-  "agentImportDetail": "Copia server MCP, hook, agenti, comandi e regole da Claude Code, Codex o Cursor",
-  "agentImportSourceAll": "Tutti e tre",
   "fallbackContinue": "Continua",
   "fallbackNoMatches": "Nessun elemento corrispondente",
   "fallbackNotifications": "Notifiche",

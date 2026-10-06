@@ -4,7 +4,7 @@ import type { ConversationController } from '../../host/conversation/conversatio
 import type { ChatSurface } from '../../host/views/chatSurface'
 import type { Logger } from '../../host/logger'
 import { redactSecrets } from '../../shared/redact'
-import { UI_TEXT } from '../../shared/constants'
+import { UI_TEXT, type PermissionMode } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import {
   hostToWebviewMessageSchema,
@@ -23,6 +23,8 @@ export class RuntimeConversation implements SessionController, PanelView {
   private isDisposed = false
   private isHostStopped = false
   private authMessage: HostToWebviewMessage | undefined
+  private settings: RuntimeConversationPorts['settings'] | undefined
+  private store: RuntimeConversationPorts['store'] | undefined
   public readonly sessionId: string
 
   public constructor(
@@ -39,7 +41,10 @@ export class RuntimeConversation implements SessionController, PanelView {
     loaded: LoadedSession,
     bundlePath: string,
     compose: typeof runtimeConversationDeps,
+    externalMode?: PermissionMode,
   ): Promise<void> {
+    this.settings = ports.settings
+    this.store = ports.store
     const surface: ChatSurface = {
       id: this.sessionId,
       post: (message) => {
@@ -92,11 +97,19 @@ export class RuntimeConversation implements SessionController, PanelView {
       close: () => host.close(),
     }
     this.conversation = conversationLoader({ bundlePath, log: this.log })().createConversation(
-      { ...deps, ensureHost: () => Promise.resolve(ownedHost) },
+      {
+        ...deps,
+        ensureHost: () => Promise.resolve(ownedHost),
+        ...(externalMode !== undefined && {
+          arePermissionsExternal: true,
+          initialPermissionMode: externalMode,
+        }),
+      },
       UI_TEXT,
       uiLocale(),
     )
     await this.conversation.restoreSession(this.sessionId)
+    if (externalMode !== undefined) this.conversation.useExternalPermissionMode(externalMode)
     if (this.conversation.boardSession()?.sessionId !== this.sessionId)
       throw new Error('MHP_PANEL_SESSION_ADOPTION_FAILED')
   }
@@ -114,6 +127,14 @@ export class RuntimeConversation implements SessionController, PanelView {
     const message = webviewToHostMessageSchema.parse(payload)
     switch (message.type) {
       case 'ready': {
+        if (this.settings === undefined) throw new Error('MHP_PANEL_NOT_PREPARED')
+        const init = hostToWebviewMessageSchema.parse({
+          type: 'init',
+          emptyStateHint: UI_TEXT.emptyStateHint,
+          composerPlaceholder: UI_TEXT.composerPlaceholder,
+          settings: this.settings.current(),
+        })
+        for (const listener of this.listeners) listener(init)
         const history = await this.host.readSession(this.sessionId)
         if (this.isReleased) return
         const replay = hostToWebviewMessageSchema.parse({
@@ -184,6 +205,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     } finally {
       this.conversation?.dispose()
       this.session.dispose()
+      await this.store?.settled()
     }
   }
 }

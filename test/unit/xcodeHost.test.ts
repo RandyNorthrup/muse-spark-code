@@ -85,7 +85,7 @@ describe('Xcode host shared boundary', () => {
       const authorization = response.headers.get('authorization')
       expect(/^Bearer [a-f\d]{64}$/u.test(authorization ?? '')).toBe(true)
       if (authorization === null) throw new Error('Missing test bearer')
-      const prompt = await fetch(`${server.url}post`, {
+      const prompt = await fetch(`${server.url}panel/message`, {
         method: 'POST',
         headers: { ...headers, Authorization: authorization },
         body: JSON.stringify({
@@ -95,8 +95,8 @@ describe('Xcode host shared boundary', () => {
           attachmentIds: [],
         }),
       })
-      expect(prompt.status).toBe(202)
-      const unauthenticated = await fetch(`${server.url}post`, {
+      expect(prompt.status).toBe(204)
+      const unauthenticated = await fetch(`${server.url}panel/message`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ type: 'ready' }),

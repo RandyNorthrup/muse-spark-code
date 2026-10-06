@@ -360,6 +360,8 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  /** ACP owns permission/questions; this controller still owns session state and submissions. */
+  readonly arePermissionsExternal?: boolean
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -2175,16 +2177,17 @@ export class ConversationController {
         }
         // The tool, never its input (M39).
         this.deps.log.info(`Approval ${event.approvalId} asked for ${event.toolName}`)
-        const choice = this.autoApprovalChoice(event)
+        const choice =
+          this.deps.arePermissionsExternal === true ? undefined : this.autoApprovalChoice(event)
         if (choice !== undefined) {
           void this.autoApprove(event, choice)
           return
         }
-        if (this.isReviewerApproval(event)) {
+        if (this.deps.arePermissionsExternal !== true && this.isReviewerApproval(event)) {
           this.holdForReview(event)
           return
         }
-        this.watchJudgeCard(event)
+        if (this.deps.arePermissionsExternal !== true) this.watchJudgeCard(event)
         break
       }
       case 'approvalUpdated': {
@@ -8830,6 +8833,29 @@ export class ConversationController {
   /** Whether checkpoints run changed (trust granted, the setting): the panel is told (M72). */
   public checkpointsChanged(): void {
     void this.checkpoints.refresh()
+  }
+
+  /** Rich ACP parts have already crossed its validated ContentBlock translator. */
+  public async submitParts(
+    parts: readonly TurnPart[],
+    displayText?: string,
+  ): Promise<TurnSubmission> {
+    const session = this.session
+    if (session === undefined || this.isDisposed) throw new Error(UI_TEXT.turnStoppedByRestart)
+    const generation = this.sendInvalidationEpoch
+    return await this.submit(
+      session,
+      parts,
+      displayText,
+      true,
+      () =>
+        !this.isDisposed && this.session === session && this.sendInvalidationEpoch === generation,
+    )
+  }
+
+  public useExternalPermissionMode(mode: PermissionMode): void {
+    this.permissionMode = mode
+    this.postComposerState()
   }
 
   public checkpointAvailabilityChanged(): void {

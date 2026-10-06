@@ -170,9 +170,9 @@ final class PanelModel: ObservableObject {
       let encoded = data.base64EncodedString()
       let script = """
         const bytes = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
-        const message = new TextDecoder().decode(bytes);
-        const response = await window.fetch('/post', {method:'POST', headers:{'Content-Type':'application/json','X-Muse-Panel':'1'}, body:message});
-        if (!response.ok) throw new Error('ENATIVE_UNAVAILABLE');
+        const message = JSON.parse(new TextDecoder('utf-8', {fatal:true}).decode(bytes));
+        if (!window.musePanel) throw new Error('ENATIVE_UNAVAILABLE');
+        window.musePanel.postMessage(message);
         return true;
         """
       webView.callAsyncJavaScript(script, arguments: ["payload": encoded], in: nil, in: .page) {

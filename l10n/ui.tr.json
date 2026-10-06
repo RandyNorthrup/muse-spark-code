@@ -2426,8 +2426,6 @@
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
   "judgeStatusPaid": "Ücretli",
-  "agentImportDetail": "Claude Code, Codex veya Cursor'dan MCP sunucularını, kancaları, aracıları, komutları ve kuralları kopyala",
-  "agentImportSourceAll": "Üçü de",
   "fallbackContinue": "Devam et",
   "fallbackNoMatches": "Eşleşen öğe yok",
   "fallbackNotifications": "Bildirimler",

@@ -2426,8 +2426,6 @@
   "judgeStatusSlow": "Alapértelmezetten kikapcsolva: túl kevés eredmény kész az ellenőr döntésekor",
   "judgeStatusSubscription": "Előfizetés",
   "judgeStatusPaid": "Fizetős",
-  "agentImportDetail": "MCP-kiszolgálók, hookok, ügynökök, parancsok és szabályok másolása a Claude Code, a Codex vagy a Cursor közül",
-  "agentImportSourceAll": "Mindhárom",
   "fallbackContinue": "Folytatás",
   "fallbackNoMatches": "Nincs egyező elem",
   "fallbackNotifications": "Értesítések",

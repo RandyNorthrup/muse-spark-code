@@ -1,4 +1,5 @@
 import { fill } from '../../src/shared/l10n/text'
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
@@ -96,6 +97,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    createConversation: fakeAcpComposition,
     controllers,
     backend: {
       kind,

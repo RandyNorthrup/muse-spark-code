@@ -6974,6 +6974,13 @@ trusted: boolean }`, with no additional properties at any object level
   `docs/certification/m104-b2.md` qualify, M104 and M110a0 stay incomplete.
   Default: keep ACP behavior, refuse unavailable ports and binding changes,
   expose neither secrets nor an unqualified equivalent-editor claim.
+- **M104INT boundaries (2026-10-06):** ACP rich parts now enter the
+  composed controller, and companion UI RPC has its own authenticated MHP
+  channel. The frozen native initialize direction/metadata mismatch still
+  prevents assembled bootstrap; 1.2 proposals remain gated. Auxiliary
+  Tasks/What's New views, feature ports and native editor qualification remain
+  prerequisites in `docs/certification/m104-int.md` for M110a0. No registry
+  status is promoted or approved exception inferred.
 - **M104D integration prerequisites (2026-10-05).** The frozen native
   `MuseEmbeddedHost` API carries only shared chat/Tasks/What's New payloads;
   the carrier must provide the route for MHP `ui/*` requests/results to the
@@ -19211,6 +19218,39 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104INT integration (2026-10-06, authorized rig brief).** Merge lanes D,
+E redesign, G repair, F, I, Xcode and H repair in that order with merge
+commits and unchanged cap measurements. Do not merge the LSP supervision
+redesign. Serve the independent portable chat/Tasks/What's New assets from
+the runtime carrier; chat has a bound controller, and auxiliary view ports
+remain explicit qualification work. Authenticated module loading fetches only the packaged
+manifest's assets through C's memory bearer, preserves static and lazy
+imports using nonce-authorized modules, and keeps C's request/CSP guards.
+Route the six React UI fallbacks as correlated, schema-validated MHP calls;
+native stdio uses HostServices, and companion views own their UI. Browser RPC has a separate authenticated
+transport from the frozen panel payload/lifecycle vocabulary, with window-bound
+requests, cancellation and bounded delivery. No new model wire shape or
+MHP 1.2 proposal is activated.
+ACP adopts the shared ConversationController through composeConversationDeps,
+with rich TurnPart admission preserving images/resources/skills. ACP keeps its
+translation, permissions and paid prompts, while the controller owns submissions
+and session state. ACP contributor-model adoption honors the
+existing explicit `--allow-contributor-models` flag; it cannot ask an unavailable
+panel UI during headless preparation. Interactive panels retain their native
+contributor confirmation, and the controller's confidential-workspace check
+still runs before dispatch. Preserve headless policy and fake-only isolation. Record
+all 56 runtime/companion/native statuses and platform/distribution blockers in
+docs/certification/m104-int.md; integration alone does not certify parity or
+unblock M110a0. The frozen initialize direction/metadata mismatch blocks
+native assembly; no 1.2 hostMetadata/surfaceHtml proposal is silently enabled.
+Controller teardown drains admitted atomic state writes. The portable loader's constants import initially
+retains an unused second English table. Mark only the fresh descriptor clone
+and canonical build-only unpack call as pure, so esbuild can discard that
+unused fallback; readers keep the complete table and installed language state.
+The loader uses the browser's lossless encoding and stays inside the original
+complete-portable-graph cap. The rig brief explicitly substitutes scoped sequential checks
+for aggregate quality and authorizes the composition beyond the common line cap.
+
 **Lane B2 continuation (2026-10-05).** The rig brief authorizes the larger
 runtime composition after A's factory landed. Implement the frozen 1.1
 carrier with correlated editor-service requests, immutable registered
@@ -19532,6 +19572,22 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**M104INT bounded integration (2026-10-06, macmini).** The explicit rig
+brief forbids aggregate quality and full test runs; commits use the owning
+three-file/three-worker suites, scoped lint/format, all compiler projects,
+localization, regenerated host inventory, cycles, plain knip, duplication
+and unchanged production budgets. The lead retains full integrated quality,
+coverage and installed-editor qualification. `check:mhp` exits 1 at the
+frozen 1.1 wire lock: the current shared chat payloads differ from the old
+snapshot. An isolated unchanged `35ce56f8` source archive produces the same
+failure and digest (`ffe801752a24baa897efbd819fc289fe1ea6b7a21e765e18924bb5d45d49fa93`).
+The four frozen snapshots/locks and C's guard remain byte-identical. Do not
+rewrite the lock or silently activate a 1.2 proposal; the protocol owner must
+resolve this inherited versioning blocker before integrated quality can pass.
+Native bootstrap ownership, signing and unavailable platform/editor matrices
+are recorded with the 56-feature inventory in `docs/certification/m104-int.md`.
+No parity, aggregate-green or supported M110a0 claim is made.
 
 **M104 A (2026-10-05, macmini).** The rig/common brief forbids aggregate
 `npm run quality`; the lead owns integrated quality, coverage and editor
@@ -20732,11 +20788,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                  |
-| ------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/runtime/main.ts`, panel command | `eslint-disable-next-line unicorn/no-process-exit` | The standalone carrier exits after owned backend cleanup and bounded stdout/stderr flushing; expired/dead SDK request timers must not keep a closed carrier alive.      |
-| `src/runtime/panel/panelLoader.ts`   | Factory signature predicates                       | Same-build packaged exports are trusted only after structural callable guards; factories install the caller's language table. Missing/wrong factories throw.            |
-| `src/runtime/panel/connection.ts`    | Method kind predicates                             | Validated own keys from the frozen method table and their checked request/notification kind determine the mapped union; no foreign method or prototype key is admitted. |
+| M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                                                         |
+| ------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/main.ts`, panel command | `eslint-disable-next-line unicorn/no-process-exit` | The standalone carrier exits after owned backend cleanup and bounded stdout/stderr flushing; expired/dead SDK request timers must not keep a closed carrier alive.                                             |
+| `src/runtime/panel/panelLoader.ts`   | Factory signature predicates                       | Same-build packaged exports are trusted only after structural callable guards; factories install the caller's language table. Missing/wrong factories throw, including the ACP conversation factory (M104INT). |
+| `src/runtime/panel/connection.ts`    | Method kind predicates                             | Validated own keys from the frozen method table and their checked request/notification kind determine the mapped union; no foreign method or prototype key is admitted.                                        |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

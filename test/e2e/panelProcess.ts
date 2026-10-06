@@ -12,6 +12,7 @@ import { redactSecrets } from '../../src/shared/redact'
 import { MHP_METHODS, type MhpParams } from '../../src/shared/hostApi/methods'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
 import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiBundle'
+import { buildPortableBundle } from '../unit/helpers/portableBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { installFakeCredential, installFakeMuse } from './fakeMuse'
 
@@ -97,6 +98,7 @@ export async function panelProcessFixture() {
     sessionBoard: path.join(root, 'src/host/sessionBoardEntry.ts'),
   })
   await buildModelApiBundle(dist)
+  await buildPortableBundle(dist)
   cpSync(path.join(root, 'l10n'), path.join(packageRoot, 'l10n'), { recursive: true })
   writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify({ version: '0.0.0-fake' }))
   const children: ChildProcessWithoutNullStreams[] = []

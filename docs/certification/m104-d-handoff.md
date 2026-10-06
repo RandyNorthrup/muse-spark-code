@@ -43,10 +43,10 @@ No `ui/*` request or response is added to that panel payload union here.
 Companion pages embed a validated `#muse-panel` JSON binding
 `{ surface, sessionId, surfaceKind }`. `selectBridge` uses the page's
 **already authenticated `window.fetch` closure**. `companionBridge` opens
-`POST /events` with `{}` and sends ordered `POST /post`, both with
+`POST /panel/events` with `{}` and sends ordered `POST /panel/message`, both with
 `Content-Type: application/json`, `X-Muse-Panel: 1`, `credentials: omit` and
-an abort signal. The initial post is the frozen `mhp: "1.1"` surface
-`event: "ready"`; application posts are frozen panel envelopes with
+an abort signal. The integration posts opened then ready to `/panel/surface`. Both use the frozen `mhp: "1.1"` surface lifecycle
+vocabulary; application posts are frozen panel envelopes with
 `direction: "toHost"`, surface, increasing `seq` and payload. SSE `data:`
 frames deliver `toPanel` envelopes or the existing lifecycle/error frames.
 Each direction's application sequence begins at 1. Existing envelope and
@@ -103,3 +103,9 @@ Host/Origin/Fetch-Metadata/bearer checks. Do not make assets public, put a
 bearer in a URL or storage, enable CORS, or loosen the CSP to make imports work.
 This lane supplies no new loader or runtime endpoint. Browser fixtures are
 local fakes; their normal module delivery is not an authenticated receipt.
+
+M104INT routes the companion UI RPC separately at `/host/events` and
+`/host/message`, ships the generated module manifest and nonce loader, and
+uses the original six method/result schemas. Native stdio uses its existing
+MHP HostServices. See [the integration record](m104-int.md) for receipts and
+native bootstrap/auxiliary-view blockers; the frozen panel union is unchanged.

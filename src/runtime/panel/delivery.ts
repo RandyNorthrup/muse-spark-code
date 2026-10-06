@@ -22,6 +22,8 @@ export class PanelDelivery {
   private isBlocked = false
   private isClosed = false
 
+  public constructor(private readonly shared?: PanelDelivery) {}
+
   public reserve(bytes: number, surface?: string, seq?: number): Completion {
     if (
       this.isClosed ||
@@ -36,6 +38,7 @@ export class PanelDelivery {
         code: 'MHP_PANEL_BACKPRESSURE',
       })
     }
+    const sharedRelease = this.shared?.reserve(bytes, surface, seq)
     this.bytes += bytes
     this.messages += 1
     this.changed?.()
@@ -45,6 +48,7 @@ export class PanelDelivery {
       isHeld = false
       this.bytes -= bytes
       this.messages -= 1
+      sharedRelease?.()
       this.changed?.()
     }
   }

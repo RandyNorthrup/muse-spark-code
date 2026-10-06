@@ -5313,6 +5313,7 @@ export const MHP_PANEL = {
 // Runtime panel carrier bounds; credential lifetime remains in the backend.
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
+export const PORTABLE_MODULE_HEX_RADIX = 16
 export const RUNTIME_PANEL = {
   requestTimeoutMs: 30_000,
   closeTimeoutMs: 5000,

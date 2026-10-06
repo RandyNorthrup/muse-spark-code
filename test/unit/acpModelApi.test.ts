@@ -1,3 +1,4 @@
+import { fakeAcpComposition } from './helpers/acpComposition'
 import * as acp from '@agentclientprotocol/sdk'
 import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -101,6 +102,7 @@ function setup(
     log,
   })
   const agent = createAcpAgent({
+    createConversation: fakeAcpComposition,
     backend: runtime.backend,
     version: '0.0.0-test',
     options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },

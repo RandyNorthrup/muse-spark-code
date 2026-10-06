@@ -2332,8 +2332,6 @@
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
-  "agentImportDetail": "Claude Code, Codex 또는 Cursor에서 MCP 서버, 후크, 에이전트, 명령 및 규칙 복사",
-  "agentImportSourceAll": "세 가지 모두",
   "fallbackContinue": "계속",
   "fallbackNoMatches": "일치하는 항목 없음",
   "fallbackNotifications": "알림",

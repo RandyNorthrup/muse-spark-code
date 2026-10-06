@@ -10,7 +10,9 @@ function isBundle(value: unknown): value is Bundle {
     typeof value === 'object' &&
     value !== null &&
     'runRuntimePanel' in value &&
-    typeof value.runRuntimePanel === 'function'
+    typeof value.runRuntimePanel === 'function' &&
+    'createAcpConversations' in value &&
+    typeof value.createAcpConversations === 'function'
   )
 }
 export function panelLoader(

@@ -3933,8 +3933,17 @@ its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
 chunks; common React host-service fallbacks and manager pages load through
 `PanelBridge.loadFallbacks()`. The portable budget counts every JavaScript
 entry and chunk, independently of the unchanged VS Code budgets. Native
-fallback request routing and authenticated companion module loading still
-need integration; these modules do not qualify a new editor as supported.
+UI requests on native stdio use the correlated MHP host-service channel.
+Companion windows receive the six React UI requests on authenticated
+`POST /host/events` and return method-validated replies to `POST /host/message`,
+separately from panel payloads. Their packaged `modules.json` lets a nonce
+loader fetch and verify both static and deferred modules through the window's
+private bearer closure. The ACP package includes that portable graph. ACP now
+submits rich parts through the same composed conversation controller; its
+translation and permission prompts remain in the ACP view.
+The [integration record](docs/certification/m104-int.md) lists all 56 features
+and the remaining native bootstrap, auxiliary-view and editor conformance
+work. These development artifacts do not qualify a new editor as supported.
 
 The additive MHP 1.1.0 panel contract for native and companion adapters is
 [documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON

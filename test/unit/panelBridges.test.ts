@@ -94,9 +94,9 @@ it('refuses a duplicate companion sequence and stops dispatch', async () => {
   })
   const send: typeof fetch = (input) =>
     Promise.resolve(
-      input === '/events'
+      input === '/panel/events'
         ? new Response(body, { headers: { 'Content-Type': 'text/event-stream' } })
-        : new Response(null, { status: 202 }),
+        : new Response(null, { status: 204 }),
     )
   const error = vi.fn()
   const bridge = companionBridge(
@@ -141,7 +141,7 @@ it.each(['', '\n\n'])(
 
 it('refuses companion queue message pressure and posts after disposal', () => {
   const { bridge, posts } = rig('companion')
-  for (let index = 1; index < MHP_PANEL.maximumQueuedMessages; index++)
+  for (let index = 1; index < MHP_PANEL.maximumQueuedMessages - 1; index++)
     bridge.post({ type: 'ready' })
   expect(() => {
     bridge.post({ type: 'ready' })

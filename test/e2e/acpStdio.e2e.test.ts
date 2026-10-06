@@ -28,7 +28,7 @@ import { fill } from '../../src/shared/l10n/text'
 import { DEVICE_LOGIN_FILE, LOGOUT_SHELL } from '../unit/helpers/credentialShapes'
 import { memorySecrets } from '../unit/helpers/fakes'
 import { fakeModelApi } from '../unit/helpers/fakeModelApi'
-import { buildModelApiBundle } from '../unit/helpers/modelApiBundle'
+import { buildHostBundles, buildModelApiBundle } from '../unit/helpers/modelApiBundle'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import {
   fakeCredentialFile,
@@ -112,6 +112,12 @@ beforeAll(async () => {
   if (!readFileSync(AGENT, 'utf8').includes('FAKE_ONLY_KEYRING'))
     throw new Error('The source-layout process fixture must use its fake keyring')
   await buildModelApiBundle(path.dirname(AGENT))
+  await buildHostBundles(path.dirname(AGENT), {
+    runtimePanel: path.join(ROOT, 'src/runtime/panel/panelEntry.ts'),
+    runtimePanelPorts: path.join(ROOT, 'src/runtime/panel/runtimeFeaturesEntry.ts'),
+    conversation: path.join(ROOT, 'src/host/conversation/conversationEntry.ts'),
+    sessionBoard: path.join(ROOT, 'src/host/sessionBoardEntry.ts'),
+  })
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })

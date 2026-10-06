@@ -97,10 +97,11 @@ beforeAll(async () => {
         if (${JSON.stringify(bridge)} === 'native') window.museHost = host;
         else if (${JSON.stringify(bridge)} === 'vscode') window.acquireVsCodeApi = () => host;
         else window.fetch = async (input, init) => {
-          if (input === '/events') return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'Content-Type': 'text/event-stream' } });
+          if (input === '/host/events') return new Response(new ReadableStream({ start() {} }), { headers: { 'Content-Type': 'text/event-stream' } });
+          if (input === '/panel/events') return new Response(new ReadableStream({ start(value) { stream = value; } }), { headers: { 'Content-Type': 'text/event-stream' } });
           const frame = JSON.parse(init.body);
           if (frame.kind === 'panel') posts.push(frame.payload);
-          return new Response(null, { status: 202 });
+          return new Response(null, { status: 204 });
         };
       `
       files.set(`/panel?bridge=${bridge}&surface=${surface}`, {

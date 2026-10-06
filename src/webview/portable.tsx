@@ -9,6 +9,13 @@ import { installEmbeddedTable } from './installTable'
 import './tokens.css'
 import './styles.css'
 
+declare global {
+  interface Window {
+    /** Owning native companion containers submit through the same sequenced bridge. */
+    musePanel?: { postMessage(message: unknown): void }
+  }
+}
+
 async function mount(): Promise<void> {
   const { selectBridge } = await import('./bridges/select')
   const surface = document.body.dataset['surface']
@@ -26,6 +33,18 @@ async function mount(): Promise<void> {
     reportBridgeFailure,
   )
   disposeOnPagehide(host)
+  if (!isTasks)
+    Object.assign(window, {
+      musePanel: {
+        postMessage: (message: unknown) => {
+          host.post(webviewToHostMessageSchema.parse(message))
+        },
+      },
+    })
+  if (document.body.dataset['bridge'] === 'companion') {
+    const { connectCompanionUi } = await import('./bridges/companionUi')
+    await connectCompanionUi(host, reportBridgeFailure)
+  }
   if (isTasks) {
     const tableError = installEmbeddedTable(document)
     if (tableError !== undefined) throw tableError

@@ -13,8 +13,9 @@ happened, not what was planned; superseded entries are kept.
   negotiate frozen MHP 1.1, correlate editor services, bind registered
   surfaces, bound delivery and replay current conversation history on reload.
   Both use the portable conversation factory and persistent runtime stores.
-  Browser rendering, ACP full composition and complete editor parity remain
-  open; the certification lists the affected features.
+  The authenticated companion now renders the shared React panel; ACP submits
+  rich parts through the composed shared controller while retaining its own
+  translation and permissions. Complete editor parity remains open.
 
 - The standalone companion now admits MHP 1.1 panel/lifecycle messages at
   `/panel/message` and `/panel/surface`, returns empty 204 admissions and
@@ -26,20 +27,21 @@ happened, not what was planned; superseded entries are kept.
 - Portable conversation composition now shares backend, paid-use, review,
   checkpoint and session-board wiring between VS Code and future runtime
   callers. Its frozen HostServices adapter validates in-process calls and
-  editor versions; standalone panel command integration remains pending.
+  editor versions; standalone panel and ACP carriers now use that composition.
 
 - Standalone session controller registry now owns ACP adoption, reload stop
   barriers and host-exit cleanup; the existing ACP wire behavior is preserved.
   Embedding runtimes can supply the registry and discover those ACP sessions.
 - Internal runtime settings/storage records share the existing setting schemas,
   preserve workspace precedence and serialize atomic writes with bounded reads
-  and credential refusal. Panel command integration remains pending.
+  and credential refusal. Panel command integration uses those records.
 - M104's shared browser UI foundation: VS Code, native `window.museHost`
   and companion fetch/SSE bridges for chat, Tasks and What's New; portable
   `--ms-*` theme tokens; a lazy React host-service adapter and settings,
   walkthrough, diff, terminal and five manager page components. This lane
-  is not qualified for integration: the fallback carrier route and companion
-  authenticated module loading remain open.
+  now routes companion UI RPC on a separate authenticated MHP channel and
+  verifies packaged static/deferred modules before nonce-authorized loading.
+  Native bootstrap and all-editor conformance remain open.
 
 - JetBrains development plugin: render the shared panel through JCEF's public
   HTML loader with packaged inline assets; add native inline Tab completion
@@ -67,6 +69,16 @@ happened, not what was planned; superseded entries are kept.
 
 - Runtime controller cleanup waits for every admitted atomic storage write, even
   when one publication fails, before reporting the error.
+
+- ACP controller adoption honors the explicit contributor-model flag, including
+  headless runs, while preserving interactive panel confirmation and
+  confidential-workspace checks.
+
+- Integrated companion pages receive the validated initial settings snapshot
+  before history replay, so the shared UI leaves its connecting state. Xcode
+  selection dispatch uses the shared sequenced bridge and the frozen 204 panel
+  admission route. Eclipse asset freshness checks inspect actual filename case
+  on macOS, and merged language tables drop two retired import labels.
 
 - Source-layout ACP process tests use a fake credential-store binding and
   refuse to start children if its marker is absent, avoiding native credential

@@ -41,6 +41,7 @@ import {
   type SessionMcpServer,
   type SkillSummary,
   type TurnPart,
+  type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
@@ -91,6 +92,15 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import type { ConversationController } from '../host/conversation/conversationController'
+
+export interface AcpConversation {
+  readonly controller: ConversationController | undefined
+  submit(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission>
+  permissionModeChanged(mode: PermissionMode): void
+  hostExited(description: string): void
+  release(): Promise<void>
+}
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -130,6 +140,12 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly createConversation: (
+    session: AgentSession,
+    host: AgentHost,
+    cwd: string,
+    mode: PermissionMode,
+  ) => Promise<AcpConversation>
   /** An embedding runtime supplies its registry so other views can find the same sessions. */
   readonly controllers?: ControllerRegistry<AcpController>
   readonly backend: AcpBackend
@@ -218,6 +234,7 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 
 /** One ACP session over one AgentSession. */
 class AcpSession {
+  private conversation: AcpConversation | undefined
   private readonly translator: UpdateTranslator
   private readonly unsubscribe: () => void
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -650,6 +667,19 @@ class AcpSession {
    * about to be billed and its price, and a permission prompt on it with the
    * popup's answers. Anything but Allow once or Allow always is Deny.
    */
+  public get controller(): ConversationController | undefined {
+    return this.conversation?.controller
+  }
+  public async prepareConversation(): Promise<void> {
+    this.conversation = await this.deps.createConversation(
+      this.session,
+      this.host,
+      this.cwd,
+      this.mode,
+    )
+    if (this.isDisposed) await this.conversation.release()
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -772,6 +802,7 @@ class AcpSession {
     this.ensureHeld()
     await this.session.setApprovalMode(approvalModeFor(mode, true))
     this.mode = mode
+    this.conversation?.permissionModeChanged(mode)
   }
 
   public async setConfigOption(configId: string, value: unknown): Promise<void> {
@@ -853,7 +884,9 @@ class AcpSession {
       }
     })
     try {
-      const starting = this.session.sendTurn(this.withSkill(parsed.parts), parsed.displayText)
+      if (this.conversation === undefined)
+        throw RequestError.internalError(undefined, 'ACP_CONTROLLER_UNAVAILABLE')
+      const starting = this.conversation.submit(this.withSkill(parsed.parts), parsed.displayText)
       this.starting = starting
       const submission = await starting
       this.noteTurnId(submission.turnId)
@@ -902,6 +935,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
+    this.conversation?.hostExited(description)
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
@@ -945,7 +979,8 @@ class AcpSession {
       }
       await this.cancelTurn()
     }
-    this.session.dispose()
+    if (this.conversation === undefined) this.session.dispose()
+    else await this.conversation.release()
   }
 }
 
@@ -1026,7 +1061,10 @@ class AgentState {
             : this.deps.options.initialMode,
           session.modelId,
         ),
-      prepare,
+      async (controller) => {
+        await controller.prepareConversation()
+        await prepare(controller)
+      },
     )
   }
 

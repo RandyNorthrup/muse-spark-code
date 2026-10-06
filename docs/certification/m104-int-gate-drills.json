@@ -1,0 +1,29 @@
+[
+  {
+    "name": "unused-english",
+    "kind": "generated-metafile fixture",
+    "artifact": "dist/meta/portable.json",
+    "guard": "scripts/check-bundle-split.mjs",
+    "exit": 1,
+    "observed": "unused English fallback",
+    "restoredSha256": "8d614d869b2015ad4831b3e9c20cd4bb6709eaa11aed4a89d712eb33cf152ecb"
+  },
+  {
+    "name": "loader-entry",
+    "kind": "generated-metafile fixture",
+    "artifact": "dist/meta/portable.json",
+    "guard": "scripts/check-bundle-split.mjs",
+    "exit": 1,
+    "observed": "no longer carries src/webview/bridges/moduleLoader.ts",
+    "restoredSha256": "8d614d869b2015ad4831b3e9c20cd4bb6709eaa11aed4a89d712eb33cf152ecb"
+  },
+  {
+    "name": "manifest-validator",
+    "kind": "generated-metafile fixture",
+    "artifact": "dist/meta/portable.json",
+    "guard": "scripts/check-bundle-split.mjs",
+    "exit": 1,
+    "observed": "no longer carries src/shared/hostApi/portableAssets.ts",
+    "restoredSha256": "8d614d869b2015ad4831b3e9c20cd4bb6709eaa11aed4a89d712eb33cf152ecb"
+  }
+]

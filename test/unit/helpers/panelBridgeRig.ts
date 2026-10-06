@@ -94,13 +94,13 @@ export function panelBridgeRig(
       },
     })
     const send: typeof fetch = (_input, init) => {
-      if (_input === '/events')
+      if (_input === '/panel/events')
         return Promise.resolve(
           new Response(body, { headers: { 'Content-Type': 'text/event-stream' } }),
         )
       const value: unknown = JSON.parse(typeof init?.body === 'string' ? init.body : 'null')
       posts.push(value)
-      return Promise.resolve(new Response(null, { status: 202 }))
+      return Promise.resolve(new Response(null, { status: 204 }))
     }
     const storage = new Map<string, string>()
     receiveRaw = (text) => {
