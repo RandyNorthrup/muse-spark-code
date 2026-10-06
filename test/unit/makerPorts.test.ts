@@ -1,7 +1,8 @@
+import { execFile } from 'node:child_process'
 import { describe, expect, it, vi } from 'vitest'
 import { checkFlashIdentity } from '../../src/core/maker/flashIdentity'
 import { identifyBoard, isSameSerialIdentity } from '../../src/core/maker/serial/identity'
-import { listSerialPorts, linuxSerialSnapshot } from '../../src/core/maker/serial/listPorts'
+import { listSerialPorts } from '../../src/core/maker/serial/listPorts'
 import {
   parseArduinoPorts,
   parseCimPorts,
@@ -11,6 +12,27 @@ import {
 } from '../../src/core/maker/serial/parsers'
 
 const LIMITS = { maxBytes: 16_384, maxPorts: 100, maxAncestors: 20 }
+
+function runMetadataCommand(file: string, args: readonly string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(file, [...args], { timeout: 20_000, windowsHide: true }, (error, stdout) => {
+      if (error === null) resolve(stdout)
+      else reject(new Error('test-metadata-command-failed', { cause: error }))
+    })
+  })
+}
+
+function runEmptyCim(_file: string, args: readonly string[]): Promise<string> {
+  const command = args
+    .at(-1)!
+    .replace('Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'"', '$null')
+  return runMetadataCommand('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    command,
+  ])
+}
 
 describe('serial metadata parsers', () => {
   it('parses USB CIM rows and excludes Bluetooth and manufactured location serials', () => {
@@ -134,10 +156,41 @@ describe('serial metadata parsers', () => {
     expect(linuxSnapshot).toHaveBeenCalledTimes(1)
   })
 
-  it('collects real rig sysfs metadata without device reads', async () => {
-    const snapshot = await linuxSerialSnapshot(LIMITS)
-    expect(snapshot.rows.every((row) => /^(?:ttyUSB|ttyACM)\d+$/.test(row.name))).toBe(true)
+  it('collects real rig platform metadata without device reads', async () => {
+    const ports = await listSerialPorts({
+      ...LIMITS,
+      platform: process.platform,
+      powershell: 'powershell.exe',
+      run: runMetadataCommand,
+    })
+    expect(
+      ports.every((port) => {
+        switch (process.platform) {
+          case 'win32': {
+            return /^COM\d+$/i.test(port.port)
+          }
+          case 'darwin': {
+            return port.port.startsWith('/dev/cu.')
+          }
+          default: {
+            return /^\/dev\/(?:ttyUSB|ttyACM)\d+$/.test(port.port)
+          }
+        }
+      }),
+    ).toBe(true)
   })
+
+  if (process.platform === 'win32')
+    it('emits a JSON array for an empty real PowerShell enumeration', async () => {
+      expect(
+        await listSerialPorts({
+          ...LIMITS,
+          platform: 'win32',
+          powershell: 'powershell.exe',
+          run: runEmptyCim,
+        }),
+      ).toEqual([])
+    })
 
   it('bounds the list and refuses unavailable discovery without opening a device', async () => {
     const run = vi.fn().mockResolvedValue('{"detected_ports":[]}')

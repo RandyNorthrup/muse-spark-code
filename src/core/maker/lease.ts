@@ -24,8 +24,11 @@ export interface LeaseDependencies {
   readonly platform: NodeJS.Platform
   readonly timeoutMs: number
   readonly maxRecordBytes: number
-  /** Kernel file lock, held until operation settles; supplied by our native helper. */
-  readonly exclusive: <T>(file: string, operation: () => Promise<T>) => Promise<T>
+  /** Kernel file lock; signal aborts immediately if its native holder exits. */
+  readonly exclusive: <T>(
+    file: string,
+    operation: (signal: AbortSignal) => Promise<T>,
+  ) => Promise<T>
   /** Windows must supply a current-user DACL, not Node's inherited pipe ACL. */
   readonly listenOwnerPipe?: (
     endpoint: string,
@@ -41,7 +44,10 @@ export async function serialLeaseResource(
   identity: SerialIdentity,
   platform: NodeJS.Platform,
 ): Promise<string> {
-  const port = platform === 'win32' ? identity.port.toUpperCase() : await realpath(identity.port)
+  const port =
+    platform === 'win32'
+      ? identity.port.replace(/^\\\\[.?]\\(?=COM\d+$)/i, '').toUpperCase()
+      : await realpath(identity.port)
   return `port:${port}`
 }
 
@@ -126,6 +132,7 @@ async function listenOwnerSocket(
   deps: LeaseDependencies,
 ): Promise<() => Promise<void>> {
   const sockets = new Set<net.Socket>()
+  const replies = new Map<net.Socket, Promise<void>>()
   const server = net.createServer((socket) => {
     sockets.add(socket)
     socket.on('error', () => socket.destroy())
@@ -156,9 +163,27 @@ async function listenOwnerSocket(
         socket.destroy()
         return
       }
-      void stop()
-        .then(() => socket.end('{"stopped":true}\n'))
-        .catch(() => socket.end('{"stopped":false}\n'))
+      const replying = (async () => {
+        // Track the reply before invoking a host callback that may throw synchronously.
+        await Promise.resolve()
+        try {
+          let hasStopped: boolean
+          try {
+            await stop()
+            hasStopped = true
+          } catch {
+            hasStopped = false
+          }
+          await new Promise<void>((resolve) => {
+            socket.end(`${JSON.stringify({ stopped: hasStopped })}\n`, () => {
+              resolve()
+            })
+          })
+        } finally {
+          replies.delete(socket)
+        }
+      })()
+      replies.set(socket, replying)
     })
   })
   await new Promise<void>((resolve, reject) => {
@@ -172,6 +197,17 @@ async function listenOwnerSocket(
     throw error
   }
   return async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        Promise.all(replies.values()),
+        new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, deps.timeoutMs)
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
     for (const socket of sockets) socket.destroy()
     await new Promise<void>((resolve, reject) =>
       server.close((error) => {
@@ -197,19 +233,24 @@ export async function claimHardwareLease(
 > {
   await privateDirectory(deps)
   const file = lockPath(deps, resource)
-  return await deps.exclusive(`${file}.mutex`, async () => {
+  return await deps.exclusive(`${file}.mutex`, async (signal) => {
+    signal.throwIfAborted()
     const previous = await readRecord(file, deps.maxRecordBytes)
+    signal.throwIfAborted()
     if (previous !== undefined) {
       validateEndpoint(previous, deps)
       if (previous.resource !== resource) throw new Error('lease-resource-mismatch')
       const isHolderProcessAlive = (deps.isProcessAlive ?? isProcessAlive)(previous.pid)
       const isSocketAlive = await (deps.isEndpointAlive?.(previous.endpoint) ??
         isEndpointReachable(previous.endpoint, deps.timeoutMs))
+      signal.throwIfAborted()
       if (isHolderProcessAlive || isSocketAlive) return { status: 'busy', holder: previous }
       // Both are proven absent, while the OS mutex excludes other claimants.
       await rm(file)
+      signal.throwIfAborted()
       if (deps.platform !== 'win32') await rm(previous.endpoint, { force: true })
     }
+    signal.throwIfAborted()
     const id = randomUUID()
     const endpoint = leaseEndpoint(deps, id)
     const record = recordSchema.parse({
@@ -228,9 +269,11 @@ export async function claimHardwareLease(
       close = await listenOwnerSocket(endpoint, id, stop, deps)
     }
     try {
+      signal.throwIfAborted()
       const text = JSON.stringify(record)
       if (Buffer.byteLength(text) > deps.maxRecordBytes) throw new Error('lease-record-oversize')
       await writeFile(file, text, { flag: 'wx', mode: OWNER_FILE_MODE })
+      signal.throwIfAborted()
     } catch (error: unknown) {
       await close()
       throw error
@@ -240,11 +283,14 @@ export async function claimHardwareLease(
       status: 'acquired',
       record,
       release: async () => {
-        await deps.exclusive(`${file}.mutex`, async () => {
+        await deps.exclusive(`${file}.mutex`, async (signal) => {
+          signal.throwIfAborted()
           if (isReleased) return
           const current = await readRecord(file, deps.maxRecordBytes)
+          signal.throwIfAborted()
           if (current?.id !== id) throw new Error('lease-holder-changed')
           await close()
+          signal.throwIfAborted()
           await rm(file)
           isReleased = true
         })

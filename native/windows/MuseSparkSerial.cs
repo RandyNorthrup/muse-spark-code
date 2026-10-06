@@ -55,11 +55,13 @@ public static class MuseSparkSerial
         security.AddAccessRule(new PipeAccessRule(sid, PipeAccessRights.FullControl, AccessControlType.Allow));
         var json = new JavaScriptSerializer();
         var answers = new BlockingCollection<string>();
+        var activeReply = new object();
         var input = new Thread(delegate()
         {
             string answer;
             while ((answer = Console.ReadLine()) != null) answers.Add(answer);
-            Environment.Exit(0); // Parent died: never leave its pipe behind.
+            // Let an acknowledged Stop reach its client before normal owner teardown.
+            lock (activeReply) { Environment.Exit(0); }
         });
         input.IsBackground = true;
         input.Start();
@@ -94,27 +96,30 @@ public static class MuseSparkSerial
                         }
                         var request = json.Deserialize<Dictionary<string, string>>(line);
                         if (request == null || request.Count != 2 || request["command"] != "stop" || request["id"] != id) continue;
-                        var callId = Guid.NewGuid().ToString();
-                        Console.Out.WriteLine("stop:" + callId);
-                        Console.Out.Flush();
-                        string answer = "failed:" + callId;
-                        var waiting = Stopwatch.StartNew();
-                        while (waiting.ElapsedMilliseconds < timeout)
+                        lock (activeReply)
                         {
-                            string received;
-                            int remaining = timeout - (int)waiting.ElapsedMilliseconds;
-                            if (remaining <= 0 || !answers.TryTake(out received, remaining)) break;
-                            // A late reply to an earlier Stop never settles this one.
-                            if (received == "stopped:" + callId || received == "failed:" + callId)
+                            var callId = Guid.NewGuid().ToString();
+                            Console.Out.WriteLine("stop:" + callId);
+                            Console.Out.Flush();
+                            string answer = "failed:" + callId;
+                            var waiting = Stopwatch.StartNew();
+                            while (waiting.ElapsedMilliseconds < timeout)
                             {
-                                answer = received;
-                                break;
+                                string received;
+                                int remaining = timeout - (int)waiting.ElapsedMilliseconds;
+                                if (remaining <= 0 || !answers.TryTake(out received, remaining)) break;
+                                // A late reply to an earlier Stop never settles this one.
+                                if (received == "stopped:" + callId || received == "failed:" + callId)
+                                {
+                                    answer = received;
+                                    break;
+                                }
                             }
-                        }
-                        using (var writer = new StreamWriter(pipe))
-                        {
-                            writer.WriteLine(answer == "stopped:" + callId ? "{\"stopped\":true}" : "{\"stopped\":false}");
-                            writer.Flush();
+                            using (var writer = new StreamWriter(pipe))
+                            {
+                                writer.WriteLine(answer == "stopped:" + callId ? "{\"stopped\":true}" : "{\"stopped\":false}");
+                                writer.Flush();
+                            }
                         }
                     }
                     catch (IOException) { }

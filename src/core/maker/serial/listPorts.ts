@@ -48,7 +48,7 @@ export async function listSerialPorts(deps: PortListDependencies): Promise<Seria
             '-NoProfile',
             '-NonInteractive',
             '-Command',
-            '@(Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'" | Select-Object Name,PNPDeviceID) | ConvertTo-Json -Compress',
+            'ConvertTo-Json -Compress -InputObject @(Get-CimInstance Win32_PnPEntity -Filter "PNPClass=\'Ports\'" | Select-Object Name,PNPDeviceID)',
           ]),
           deps.maxBytes,
         )

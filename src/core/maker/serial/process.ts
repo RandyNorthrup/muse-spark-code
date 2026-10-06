@@ -46,7 +46,9 @@ const statusSchema = z.enum([
 export async function startSerialProcess(
   command: SerialCommand,
   deps: SerialProcessDependencies,
+  signal?: AbortSignal,
 ): Promise<SerialProcess> {
+  if (signal?.aborted === true) throw new Error('serial-open-stopped')
   if (
     [
       deps.durationMs,
@@ -94,6 +96,7 @@ export async function startSerialProcess(
   let length = 0
   let written = 0
   let status = ''
+  let onAbort: (() => void) | undefined
   const timer = setTimeout(() => {
     void close('duration')
   }, deps.durationMs)
@@ -110,14 +113,21 @@ export async function startSerialProcess(
       reject(new Error('serial-helper-ready-timeout'))
       void close('failed')
     }, deps.readyTimeoutMs)
-    const fail = (code: string) => {
+    const fail = (code: string, nextReason: SerialCapture['reason'] = 'failed') => {
       clearTimeout(readyTimer)
       reject(new Error(code))
-      void close('failed')
+      void close(nextReason).catch(() => {
+        reason = 'failed'
+      })
     }
     child.once('error', () => {
       fail('serial-helper-start-failed')
     })
+    onAbort = () => {
+      fail('serial-open-stopped', 'stopped')
+    }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted === true) onAbort()
     child.once('close', () => {
       clearTimeout(readyTimer)
       reject(new Error('serial-helper-ended-before-ready'))
@@ -166,6 +176,7 @@ export async function startSerialProcess(
   const result = new Promise<SerialCapture>((resolve, reject) => {
     child.once('close', (code) => {
       hasClosed = true
+      if (onAbort !== undefined) signal?.removeEventListener('abort', onAbort)
       clearTimeout(timer)
       if (reason === 'ended' && code !== 0) reason = 'failed'
       // Spawn failures have no exit event; normal exits already swept above.
@@ -179,8 +190,11 @@ export async function startSerialProcess(
   try {
     await readiness
   } catch (error: unknown) {
-    await close('failed')
-    await result
+    try {
+      await close('failed')
+    } finally {
+      await result
+    }
     throw error
   }
   return {

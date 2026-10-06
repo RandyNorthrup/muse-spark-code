@@ -54,11 +54,7 @@ export function serialAdapterCommand(
       }
     }
     case 'arduino-cli': {
-      return {
-        file: adapter.file,
-        args: ['monitor', '--port', port, '--config', `baudrate=${baud}`, '--quiet'],
-        writable: false,
-      }
+      throw new Error('serial-line-settings-unsupported')
     }
     case 'windows': {
       return {
@@ -68,29 +64,17 @@ export function serialAdapterCommand(
         writable: true,
       }
     }
-    case 'pyserial':
-    case 'posix-raw': {
+    case 'pyserial': {
       return {
         file: adapter.file,
-        args: ['-I', adapter.script, adapter.kind === 'pyserial' ? 'serial' : 'raw', ...args],
+        args: ['-I', adapter.script, 'serial', ...args],
         readyWord: 'serial-ready',
         writable: true,
       }
     }
+    case 'posix-raw':
     case 'stty': {
-      // Fixed script; the port is a positional argument, never shell source.
-      // Both cat children stay in the parent's process group for Stop/deadline.
-      return {
-        file: adapter.shell,
-        args: [
-          '-c',
-          String.raw`exec 3<> "$1" || exit 1; printf "serial-ready\n" >&2; cat <&3 & serial_reader=$!; cat >&3; kill "$serial_reader"; wait "$serial_reader" 2>/dev/null`,
-          'muse-serial',
-          port,
-        ],
-        readyWord: 'serial-ready',
-        writable: true,
-      }
+      throw new Error('serial-line-settings-unsupported')
     }
   }
 }
@@ -99,26 +83,13 @@ export function serialAdapterCommand(
 export function serialSttyCommand(
   adapter: SerialAdapter,
   platform: NodeJS.Platform,
-  port: string,
-  settings: SerialLineSettings,
+  _port: string,
+  _settings: SerialLineSettings,
 ): SerialCommand | undefined {
   if (adapter.kind !== 'stty' && adapter.kind !== 'posix-raw') return undefined
   if (platform !== 'linux' && platform !== 'darwin') throw new Error('serial-stty-platform-invalid')
-  return {
-    file: adapter.kind === 'stty' ? adapter.file : '/bin/stty',
-    args: [
-      platform === 'darwin' ? '-f' : '-F',
-      port,
-      String(settings.baud),
-      'raw',
-      '-echo',
-      '-hupcl',
-      'cs8',
-      '-parenb',
-      '-cstopb',
-    ],
-    writable: false,
-  }
+  // stty opens before a helper could apply approved DTR/RTS states.
+  throw new Error('serial-line-settings-unsupported')
 }
 
 /** Selection uses tools the host discovered; writes need transparent binary IO. */
@@ -126,11 +97,9 @@ export function selectSerialAdapter(
   available: readonly SerialAdapter[],
   isWriteNeeded: boolean,
 ): SerialAdapter {
-  for (const kind of ['pio', 'arduino-cli', 'windows', 'pyserial', 'posix-raw', 'stty']) {
+  for (const kind of ['pio', 'windows', 'pyserial']) {
     const adapter = available.find(
-      (entry) =>
-        entry.kind === kind &&
-        (!isWriteNeeded || (entry.kind !== 'pio' && entry.kind !== 'arduino-cli')),
+      (entry) => entry.kind === kind && (!isWriteNeeded || entry.kind !== 'pio'),
     )
     if (adapter !== undefined) return adapter
   }

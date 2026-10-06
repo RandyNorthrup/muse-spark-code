@@ -18,12 +18,29 @@ export interface NativeLeaseHelper {
 export async function withNativeLeaseMutex<T>(
   helper: NativeLeaseHelper,
   file: string,
-  operation: () => Promise<T>,
+  operation: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
   const handle = await startLeaseHelper(helper, ['mutex', file], 'lease-ready')
+  const listening = new AbortController()
   try {
-    return await operation()
+    handle.signal.throwIfAborted()
+    const lost = new Promise<never>((_resolve, reject) => {
+      handle.signal.addEventListener(
+        'abort',
+        () => {
+          reject(new Error('lease-helper-unavailable'))
+        },
+        {
+          once: true,
+          signal: listening.signal,
+        },
+      )
+    })
+    const result = await Promise.race([operation(handle.signal), lost])
+    handle.signal.throwIfAborted()
+    return result
   } finally {
+    listening.abort()
     await handle.close()
   }
 }
@@ -57,7 +74,7 @@ async function startLeaseHelper(
   args: readonly string[],
   readyWord: string,
   stop?: () => Promise<void>,
-): Promise<{ close: () => Promise<void> }> {
+): Promise<{ close: () => Promise<void>; signal: AbortSignal }> {
   const startedAt = Date.now()
   const child = spawn(helper.file, [...helper.prefix, ...args], {
     env: helper.process.env,
@@ -69,8 +86,16 @@ async function startLeaseHelper(
   let stderr = ''
   let stdout = ''
   let isClosing = false
+  const lifetime = new AbortController()
+  const pendingStops = new Map<string, Promise<void>>()
+  const invalidate = () => {
+    lifetime.abort(new Error('lease-helper-unavailable'))
+  }
+  child.once('exit', invalidate)
+  child.once('error', invalidate)
   const ended = new Promise<void>((resolve) =>
     child.once('close', () => {
+      invalidate()
       resolve()
     }),
   )
@@ -82,6 +107,7 @@ async function startLeaseHelper(
       reject(new Error('lease-helper-timeout'))
     }, helper.process.readyTimeoutMs)
     const fail = () => {
+      invalidate()
       clearTimeout(timer)
       reject(new Error('lease-helper-unavailable'))
     }
@@ -90,6 +116,7 @@ async function startLeaseHelper(
     child.stderr.on('data', (bytes: Buffer) => {
       stderr += bytes.toString('utf8')
       if (Buffer.byteLength(stderr) > helper.process.maxStatusBytes) {
+        invalidate()
         clearTimeout(timer)
         reject(new Error('lease-helper-status-oversize'))
         return
@@ -121,15 +148,26 @@ async function startLeaseHelper(
     }
     const lines = stdout.split('\n')
     stdout = lines.pop() ?? ''
-    for (const line of lines) {
+    for (const frame of lines) {
+      const line = frame.endsWith('\r') ? frame.slice(0, -1) : frame
       const callId = z.uuid().safeParse(line.startsWith('stop:') ? line.slice('stop:'.length) : '')
       if (stop === undefined || !callId.success) {
         void helper.process.kill(child, startedAt)
         return
       }
-      void stop()
-        .then(() => child.stdin.write(`stopped:${callId.data}\n`))
-        .catch(() => child.stdin.write(`failed:${callId.data}\n`))
+      const replying = (async () => {
+        // Ensure the promise is tracked even when the host callback throws immediately.
+        await Promise.resolve()
+        try {
+          await stop()
+          child.stdin.write(`stopped:${callId.data}\n`)
+        } catch {
+          child.stdin.write(`failed:${callId.data}\n`)
+        } finally {
+          pendingStops.delete(callId.data)
+        }
+      })()
+      pendingStops.set(callId.data, replying)
     }
   })
   try {
@@ -140,6 +178,7 @@ async function startLeaseHelper(
     throw error
   }
   return {
+    signal: lifetime.signal,
     close: async () => {
       if (isClosing) {
         await ended
@@ -147,8 +186,20 @@ async function startLeaseHelper(
       }
       isClosing = true
       if (!isReady) throw new Error('lease-helper-unavailable')
-      await helper.process.kill(child, startedAt)
-      await ended
+      let timer: ReturnType<typeof setTimeout> | undefined
+      try {
+        const forced = new Promise<void>((resolve, reject) => {
+          timer = setTimeout(() => {
+            void helper.process.kill(child, startedAt).then(resolve).catch(reject)
+          }, helper.process.readyTimeoutMs)
+        })
+        await Promise.race([Promise.all(pendingStops.values()), ended, forced])
+        child.stdin.end()
+        await Promise.race([ended, forced])
+        await ended
+      } finally {
+        clearTimeout(timer)
+      }
     },
   }
 }

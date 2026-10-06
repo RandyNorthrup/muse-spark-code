@@ -15180,6 +15180,15 @@ every user.
   CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
   `docs/certification/m103*.md`.
 
+**Lane P review corrections (RVM103P3, 2026-10-05).** Fix CRLF Stop
+framing, native-lock loss during stale reclamation, unowned POSIX exclusivity
+cleanup, empty CIM enumeration, cancellable opening with settled Stop,
+Windows COM namespace aliases, and adapter line-state admission. Strengthen
+platform discovery and active-capture fixtures. Each finding gets a whole-file
+regression run and a byte-exact red drill in `docs/certification/m103-p.md`.
+Run focused gates directly on Win11; W retains the full quality, host-record
+and shipping qualification. No live devices, model calls or new dependencies.
+
 **Lanes and file ownership.** One integration branch
 (`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
 and T, and the Eclipse and JetBrains qualification rows); the owner has
@@ -15592,6 +15601,13 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**FIXM103P rig deferral (2026-10-05):** the rig/shared brief prohibits the
+full `quality` command in a lane. Focused P suites and the listed local gates
+run instead. The pre-existing stale host API file-count record is W-owned;
+W must regenerate and review it with the maker entry/package, then run full
+quality and the platform matrix before integration. No rule, threshold or
+record comparison is weakened. Evidence: `docs/certification/m103-p.md`.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -16170,6 +16186,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3 corrections
+  are checked on Win11, including a separate process stopping the compiled
+  current-user C# pipe. No physical board, reset or flash is claimed. The
+  same platform-metadata test runs CIM, ioreg or sysfs on its actual OS;
+  POSIX socat cases still need the lead's Linux/macOS reruns of this tree.
+  Approved line settings use PlatformIO, native Windows or pyserial;
+  Arduino monitor, raw and shell adapters refuse before opening because
+  they cannot guarantee the approved DTR/RTS values. Follow-up: qualify any
+  additional line-control adapter before admitting it. The unchanged stale
+  host API record and final maker/helper packaging remain W-owned integration
+  gates; the lane does not claim them or full quality passed.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

@@ -93,6 +93,61 @@ async function fixture() {
 }
 
 describe('host-only serial approval', () => {
+  it.each(['Stop', 'turn cancellation'])(
+    'waits for cancelled opening cleanup on %s',
+    async (method) => {
+      const f = await fixture()
+      const { entered, waiting } = enteredSignal()
+      const cleanup = Promise.withResolvers<undefined>()
+      let openingSignal: AbortSignal | undefined
+      let hasClosedPort = false
+      f.open.mockImplementation(async (_input, _maxBytes, signal) => {
+        openingSignal = signal
+        entered.abort()
+        await cleanup.promise
+        hasClosedPort = true
+        throw new Error('serial-open-stopped')
+      })
+      const running = runSerialAction(f.input, f.deps)
+      let hasSettled = false
+      let stopping: Promise<boolean> | undefined
+      try {
+        await waiting
+        if (method === 'Stop') {
+          stopping = didStopHardwareLease(
+            f.deps.lease,
+            await serialLeaseResource(f.input.identity, process.platform),
+          )
+          void stopping.then(() => {
+            hasSettled = true
+          })
+        } else {
+          f.abort.abort()
+        }
+        await vi.waitFor(() => {
+          expect(openingSignal?.aborted).toBe(true)
+        })
+        await delay(50)
+        expect(hasSettled).toBe(false)
+        expect(hasClosedPort).toBe(false)
+        expect(f.write).not.toHaveBeenCalled()
+        cleanup.resolve(undefined)
+        if (stopping !== undefined) expect(await stopping).toBe(true)
+        expect(await running).toEqual({ status: 'refused', reason: 'context' })
+        expect(hasClosedPort).toBe(true)
+        expect(f.log.mock.calls.at(-1)?.[0].outcome).toBe('stopped')
+      } finally {
+        cleanup.resolve(undefined)
+        try {
+          await running
+        } catch {
+          /* Preserve the assertion when a red drill rejects the action. */
+        }
+        await stopping
+      }
+    },
+  )
+
   it('shows exact binary bytes, identity, settings and reset warning before opening', async () => {
     const f = await fixture()
     f.confirm.mockImplementation((request) => {
@@ -277,8 +332,8 @@ describe('host-only serial approval', () => {
         await serialLeaseResource(f.input.identity, process.platform),
       ),
     ).toBe(true)
-    expect(await running).toEqual({ status: 'refused', reason: 'approval' })
     expect(Date.now() - before).toBeLessThan(500)
+    expect(await running).toEqual({ status: 'refused', reason: 'approval' })
     expect(f.open).not.toHaveBeenCalled()
   })
 
@@ -339,31 +394,38 @@ describe('host-only serial approval', () => {
     const f = await fixture()
     const ended = new AbortController()
     const { entered, waiting } = enteredSignal()
-    const result = new Promise<SerialCapture>((resolve) => {
-      const timer = setTimeout(() => {
-        resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
-      }, 1000)
-      ended.signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer)
-          resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
-        },
-        { once: true },
-      )
+    f.open.mockImplementation(() => {
+      const result = new Promise<SerialCapture>((resolve) => {
+        const timer = setTimeout(() => {
+          resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
+        }, 1000)
+        ended.signal.addEventListener(
+          'abort',
+          () => {
+            clearTimeout(timer)
+            resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+          },
+          { once: true },
+        )
+      })
+      return Promise.resolve({ pid: undefined, result, close: f.close, write: f.write })
     })
     f.close.mockImplementation(() => {
       ended.abort()
       return Promise.resolve()
     })
-    f.open.mockImplementation(() => {
-      return Promise.resolve({ pid: undefined, result, close: f.close, write: f.write })
-    })
     f.write.mockImplementation(() => {
       entered.abort()
       return Promise.resolve()
     })
-    const running = runSerialAction(f.input, f.deps)
+    const running = runSerialAction(f.input, {
+      ...f.deps,
+      limits: { ...f.deps.limits, approvalTtlMs: 5000 },
+      confirm: async (request) => {
+        await delay(1100)
+        return allow(request)
+      },
+    })
     await waiting
     f.abort.abort()
     const complete = await running

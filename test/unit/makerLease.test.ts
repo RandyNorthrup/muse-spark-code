@@ -3,6 +3,7 @@ import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   claimHardwareLease,
@@ -38,6 +39,161 @@ function recordFile(directory: string, resource: string) {
 }
 
 describe('hardware lease', () => {
+  it('finishes an in-flight Stop acknowledgement before concurrent owner teardown', async () => {
+    let deps = await fixture()
+    if (process.platform === 'win32') {
+      // Pause the real pipe writer so owner EOF deterministically races its flush.
+      const helper = await makerNativeHelper(deps.directory, (source) =>
+        source.replace(
+          'using (var writer = new StreamWriter(pipe))',
+          'Thread.Sleep(MutexPollMs); using (var writer = new StreamWriter(pipe))',
+        ),
+      )
+      deps = {
+        ...deps,
+        exclusive: (file, operation) => withNativeLeaseMutex(helper, file, operation),
+        listenOwnerPipe: (endpoint, id, stop) => listenNativeOwnerPipe(helper, endpoint, id, stop),
+      }
+    }
+    const entered = new AbortController()
+    const cleanup = Promise.withResolvers<undefined>()
+    const claimed = await claimHardwareLease(deps, 'port:closing-stop', 'owner', () => {
+      entered.abort()
+      return cleanup.promise
+    })
+    if (claimed.status !== 'acquired') throw new Error('test-claim')
+    let releasing: Promise<void> | undefined
+    const stopping = didStopHardwareLease(deps, 'port:closing-stop')
+    try {
+      await vi.waitFor(() => {
+        expect(entered.signal.aborted).toBe(true)
+      })
+      let hasReleased = false
+      releasing = (async () => {
+        await claimed.release()
+        hasReleased = true
+      })()
+      await delay(100)
+      expect(hasReleased).toBe(false)
+      cleanup.resolve(undefined)
+      expect(await stopping).toBe(true)
+      await releasing
+    } finally {
+      cleanup.resolve(undefined)
+      await stopping
+      await (releasing ?? claimed.release())
+    }
+  })
+
+  it('invalidates a lost native mutex before a stale probe can erase a new holder', async () => {
+    const deps = await fixture()
+    const resource = 'port:lost-mutex'
+    const id = randomUUID()
+    const old = {
+      version: 1,
+      id,
+      resource,
+      holder: 'dead',
+      pid: 999_999_999,
+      endpoint:
+        process.platform === 'win32'
+          ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
+          : path.join(deps.directory, `${id}.sock`),
+    }
+    const file = recordFile(deps.directory, resource)
+    await writeFile(file, JSON.stringify(old), { mode: 0o600 })
+    const lose = path.join(deps.directory, 'lose-mutex')
+    const entered = new AbortController()
+    const probe = Promise.withResolvers<boolean>()
+    const helper = {
+      file: process.execPath,
+      prefix: [
+        '-e',
+        String.raw`
+process.stderr.write('lease-ready\n');
+process.stdin.resume();
+process.stdin.on('end', () => process.exit(0));
+setInterval(() => { if (require('node:fs').existsSync(process.argv[1])) process.exit(0); }, 20);`,
+        lose,
+      ],
+      process: makerProcessDeps(),
+    }
+    const listen = vi.fn(deps.listenOwnerPipe)
+    const stale = claimHardwareLease(
+      {
+        ...deps,
+        exclusive: (file, operation) => withNativeLeaseMutex(helper, file, operation),
+        listenOwnerPipe: listen,
+        isProcessAlive: () => false,
+        isEndpointAlive: () => {
+          entered.abort()
+          return probe.promise
+        },
+      },
+      resource,
+      'stale claimant',
+      () => Promise.resolve(),
+    )
+    const rejected = expect(stale).rejects.toThrow('lease-helper-unavailable')
+    await vi.waitFor(() => {
+      expect(entered.signal.aborted).toBe(true)
+    })
+    await writeFile(lose, '')
+    await rejected
+    const winner = await claimHardwareLease(
+      { ...deps, isProcessAlive: () => false, isEndpointAlive: () => Promise.resolve(false) },
+      resource,
+      'new holder',
+      () => Promise.resolve(),
+    )
+    if (winner.status !== 'acquired') throw new Error('test-claim')
+    try {
+      probe.resolve(false)
+      await delay(100)
+      expect(JSON.parse(await readFile(file, 'utf8'))).toEqual(winner.record)
+      expect(listen).not.toHaveBeenCalled()
+    } finally {
+      probe.resolve(false)
+      // A red drill may erase the record; restore our test holder for cleanup.
+      await writeFile(file, JSON.stringify(winner.record), { mode: 0o600 })
+      await winner.release()
+    }
+  })
+
+  it('accepts Stop from a separate process through the real native owner endpoint', async () => {
+    const deps = await fixture()
+    const stop = vi.fn(() => Promise.resolve())
+    const claimed = await claimHardwareLease(deps, 'port:cross-process', 'owner', stop)
+    if (claimed.status !== 'acquired') throw new Error('test-claim')
+    try {
+      const client = await startSerialProcess(
+        {
+          file: process.execPath,
+          args: [
+            '-e',
+            String.raw`
+const socket = require('node:net').connect(process.argv[1]);
+socket.setTimeout(2000, () => process.exit(1));
+socket.on('error', () => process.exit(1));
+socket.once('connect', () => socket.write(JSON.stringify({ command: 'stop', id: process.argv[2] }) + '\n'));
+socket.on('data', bytes => process.stdout.write(bytes));
+socket.once('end', () => process.exit(0));`,
+            claimed.record.endpoint,
+            claimed.record.id,
+          ],
+          writable: false,
+        },
+        makerProcessDeps({ durationMs: 5000 }),
+      )
+      const capture = await client.result
+      expect(capture.reason).toBe('ended')
+      expect(capture.bytes.toString('utf8').trim()).toBe('{"stopped":true}')
+      expect(stop).toHaveBeenCalledTimes(1)
+    } finally {
+      await claimed.release()
+    }
+  })
+
   it('serializes competing claims, reports the holder and releases idempotently', async () => {
     const deps = await fixture()
     const stop = vi.fn().mockResolvedValue(undefined)
@@ -48,10 +204,13 @@ describe('hardware lease', () => {
     expect(results.filter((result) => result.status === 'acquired')).toHaveLength(1)
     const acquired = results.find((result) => result.status === 'acquired')!
     const busy = results.find((result) => result.status === 'busy')!
-    expect(busy.holder.id).toBe(acquired.record.id)
-    expect(await didStopHardwareLease(deps, 'port:test')).toBe(true)
-    expect(stop).toHaveBeenCalledTimes(1)
-    await acquired.release()
+    try {
+      expect(busy.holder.id).toBe(acquired.record.id)
+      expect(await didStopHardwareLease(deps, 'port:test')).toBe(true)
+      expect(stop).toHaveBeenCalledTimes(1)
+    } finally {
+      await acquired.release()
+    }
     await acquired.release()
     expect(await didStopHardwareLease(deps, 'port:test')).toBe(false)
   })
@@ -187,7 +346,8 @@ describe('hardware lease', () => {
         await serialLeaseResource({ port: alias }, process.platform),
       )
     }
-    expect(await serialLeaseResource({ port: 'com7' }, 'win32')).toBe('port:COM7')
+    for (const port of ['COM3', 'com3', String.raw`\\.\COM3`, String.raw`\\?\com3`])
+      expect(await serialLeaseResource({ port }, 'win32')).toBe('port:COM3')
   })
 
   it('requires a private directory and refuses oversized records', async () => {
@@ -308,13 +468,14 @@ setTimeout(() => process.exit(0), 100);`
     const script = String.raw`
 const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
 process.stderr.write('pipe-ready\n');
-setTimeout(() => process.stdout.write('stop:' + ids[0] + '\n'), 20);
+setTimeout(() => process.stdout.write('stop:' + ids[0] + '\r\n'), 20);
 let count = 0;
 require('node:readline').createInterface({ input: process.stdin }).on('line', (line) => {
   if (line !== 'stopped:' + ids[count]) process.exit(1);
   count += 1;
   if (count < ids.length) process.stdout.write('stop:' + ids[count] + '\n');
 });
+process.stdin.on('end', () => process.exit(0));
 setInterval(() => {}, 100);`
     const stop = vi.fn(() => Promise.resolve())
     const close = await listenNativeOwnerPipe(

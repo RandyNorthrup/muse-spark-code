@@ -76,7 +76,12 @@ export interface SerialSessionDependencies {
   readonly identityNow: (port: string) => Promise<SerialIdentity>
   /** Metadata check (fuser/lsof or OS exclusive open), never a probe open. */
   readonly isPortBusy: (identity: SerialIdentity) => Promise<boolean>
-  readonly open: (input: SerialActionInput, maxBytes: number) => Promise<SerialProcess>
+  /** Cancellation must settle only after the opener and its port have closed. */
+  readonly open: (
+    input: SerialActionInput,
+    maxBytes: number,
+    signal: AbortSignal,
+  ) => Promise<SerialProcess>
   readonly log: (event: SerialActionLog) => Promise<void>
   readonly signal: AbortSignal
   /** Project detection supplies this; never inferred from a UART bridge. */
@@ -153,12 +158,23 @@ export async function runSerialAction(
     return { status: 'refused', reason: 'identity' }
   const bytes = Buffer.from(input.payloadHex, 'hex')
   let process: SerialProcess | undefined
+  let opening: Promise<SerialProcess> | undefined
   let stopping: Promise<void> | undefined
   const stopped = new AbortController()
   const approvalDeps = { ...deps, signal: AbortSignal.any([deps.signal, stopped.signal]) }
   const stop = () => {
     stopped.abort()
-    stopping ??= process?.close() ?? Promise.resolve()
+    stopping ??= (async () => {
+      let opened = process
+      if (opening !== undefined) {
+        try {
+          opened = await opening
+        } catch {
+          return // The cancelled opener has settled with its port closed.
+        }
+      }
+      await opened?.close()
+    })()
     return stopping
   }
   const claimed = await claimHardwareLease(
@@ -230,7 +246,8 @@ export async function runSerialAction(
       if (!canProceed() || Date.now() >= request.expiresAt)
         return { status: 'refused', reason: 'context' }
       try {
-        process = await deps.open({ ...input, identity }, deps.limits.maxBytes)
+        opening = deps.open({ ...input, identity }, deps.limits.maxBytes, approvalDeps.signal)
+        process = await opening
         if (canProceed()) {
           const connected = serialIdentitySchema.parse(await deps.identityNow(identity.port))
           if (!canProceed()) await process.close()
@@ -252,12 +269,17 @@ export async function runSerialAction(
         await deps.log({ request, outcome })
         return { status: 'complete', capture }
       } catch (error: unknown) {
+        if (approvalDeps.signal.aborted) {
+          await deps.log({ request, outcome: 'stopped' })
+          return { status: 'refused', reason: 'context' }
+        }
         await deps.log({ request, outcome: 'failed' })
         if (error instanceof Error && error.message === 'serial-helper-busy')
           return { status: 'busy' }
         throw error
       } finally {
         await process?.close()
+        opening = undefined
       }
     }
     return { status: 'refused', reason: 'changed' }

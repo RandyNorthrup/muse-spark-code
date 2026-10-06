@@ -33,7 +33,10 @@ export function makerProcessDeps(
   }
 }
 
-export async function makerNativeHelper(directory: string): Promise<NativeLeaseHelper> {
+export async function makerNativeHelper(
+  directory: string,
+  transformSource?: (source: string) => string,
+): Promise<NativeLeaseHelper> {
   const processDeps = makerProcessDeps()
   if (process.platform !== 'win32')
     return {
@@ -46,7 +49,10 @@ export async function makerNativeHelper(directory: string): Promise<NativeLeaseH
     systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
     env: processDeps.env,
     log: () => undefined,
-    readSource: () => readFile(path.resolve('native/windows/MuseSparkSerial.cs'), 'utf8'),
+    readSource: async () => {
+      const source = await readFile(path.resolve('native/windows/MuseSparkSerial.cs'), 'utf8')
+      return transformSource?.(source) ?? source
+    },
     run: (program, args, env) =>
       new Promise((resolve, reject) =>
         execFile(program, [...args], { env, timeout: 20_000 }, (error, stdout) => {

@@ -55,20 +55,27 @@ def serial(args):
     port.rts = args.rts == "1"
     port.exclusive = True
     port.open()
+    owns_exclusive = False
     try:
         fcntl.ioctl(port.fileno(), termios.TIOCEXCL)
+        owns_exclusive = True
         transfer(args, lambda count: port.read(count), port.write)
     finally:
-        fcntl.ioctl(port.fileno(), termios.TIOCNXCL)
-        port.close()
+        try:
+            if owns_exclusive:
+                fcntl.ioctl(port.fileno(), termios.TIOCNXCL)
+        finally:
+            port.close()
 
 
 def raw(args):
     # stty configured the line first, under the same host connect approval.
     fd = os.open(args.port, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+    owns_exclusive = False
     try:
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         fcntl.ioctl(fd, termios.TIOCEXCL)
+        owns_exclusive = True
 
         def read(count):
             if select.select([fd], [], [], args.poll_ms / MILLISECONDS_PER_SECOND)[0]:
@@ -84,8 +91,11 @@ def raw(args):
 
         transfer(args, read, write)
     finally:
-        fcntl.ioctl(fd, termios.TIOCNXCL)
-        os.close(fd)
+        try:
+            if owns_exclusive:
+                fcntl.ioctl(fd, termios.TIOCNXCL)
+        finally:
+            os.close(fd)
 
 
 def transfer(args, read, write):

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { constants } from 'node:fs'
-import { open, access, mkdtemp, rm, type FileHandle } from 'node:fs/promises'
+import { open, access, mkdtemp, readFile, writeFile, rm, type FileHandle } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
@@ -60,6 +60,109 @@ async function readPty(peer: FileHandle, length: number): Promise<Buffer> {
 }
 
 describe('bounded serial helper', () => {
+  it('waits for opener closure even when forced termination fails', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm103-kill-failure-'))
+    directories.push(directory)
+    const marker = path.join(directory, 'pid')
+    const exitMarker = path.join(directory, 'may-exit')
+    const abort = new AbortController()
+    const kill = vi
+      .fn<ReturnType<typeof makerProcessDeps>['kill']>()
+      .mockRejectedValue(new Error('test-termination-failed'))
+    const opening = startSerialProcess(
+      {
+        file: process.execPath,
+        args: [
+          '-e',
+          `
+require('node:fs').writeFileSync(process.argv[1], String(process.pid));
+process.stdin.resume();
+process.stdin.on('end', () => setInterval(() => {
+  if (require('node:fs').existsSync(process.argv[2])) process.exit(0);
+}, 20));
+setInterval(() => {}, 100);`,
+          marker,
+          exitMarker,
+        ],
+        readyWord: 'serial-ready',
+        writable: true,
+      },
+      makerProcessDeps({ durationMs: 30_000, kill }),
+      abort.signal,
+    )
+    const settled = vi.fn()
+    const observed = (async () => {
+      try {
+        await opening
+      } finally {
+        settled()
+      }
+    })()
+    const stopped = expect(observed).rejects.toThrow('test-termination-failed')
+    let pid = 0
+    try {
+      await vi.waitFor(async () => {
+        pid = Number(await readFile(marker, 'utf8'))
+        expect(pid).toBeGreaterThan(0)
+      })
+      abort.abort()
+      await vi.waitFor(() => {
+        expect(kill).toHaveBeenCalledTimes(1)
+      })
+      expect(settled).not.toHaveBeenCalled()
+      expect(await isTestProcessAlive(pid)).toBe(true)
+    } finally {
+      abort.abort()
+      await writeFile(exitMarker, '')
+      await stopped
+      await vi.waitFor(async () => {
+        expect(await isTestProcessAlive(pid)).toBe(false)
+      })
+    }
+  })
+
+  it('cancels a real helper before readiness and waits until its process closes', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm103-opening-'))
+    directories.push(directory)
+    const marker = path.join(directory, 'pid')
+    const abort = new AbortController()
+    const command = {
+      file: process.execPath,
+      args: [
+        '-e',
+        `
+require('node:fs').writeFileSync(process.argv[1], String(process.pid));
+process.stdin.resume();
+process.stdin.on('end', () => setTimeout(() => process.exit(0), 100));
+setInterval(() => {}, 100);`,
+        marker,
+      ],
+      readyWord: 'serial-ready',
+      writable: true,
+    } as const
+    const opening = startSerialProcess(
+      command,
+      makerProcessDeps({ durationMs: 30_000 }),
+      abort.signal,
+    )
+    const stopped = expect(opening).rejects.toThrow('serial-open-stopped')
+    let pid = 0
+    try {
+      await vi.waitFor(async () => {
+        pid = Number(await readFile(marker, 'utf8'))
+        expect(pid).toBeGreaterThan(0)
+      })
+    } finally {
+      abort.abort()
+      await stopped
+    }
+    expect(await isTestProcessAlive(pid)).toBe(false)
+    await expect(startSerialProcess(command, makerProcessDeps(), abort.signal)).rejects.toThrow(
+      'serial-open-stopped',
+    )
+    expect(await readFile(marker, 'utf8')).toBe(String(pid))
+  })
+
   it('preserves binary bytes and kills the child at the read deadline', async () => {
     const session = await startSerialProcess(fake(), makerProcessDeps({ durationMs: 300 }))
     const bytes = Buffer.from([0, 10, 255, 128, 27, 65])
@@ -203,6 +306,7 @@ describe('serial framing and adapters', () => {
       rts: false,
     }
     for (const adapter of choices) {
+      if (adapter.kind === 'arduino-cli') continue
       const command = serialAdapterCommand(adapter, '/dev/ttyACM0', settings)
       expect(command.args).toContain('/dev/ttyACM0')
       expect(command.writable).toBe(adapter.kind === 'pyserial')
@@ -212,36 +316,74 @@ describe('serial framing and adapters', () => {
       file: '/usr/bin/python3',
       script: '/shipped/serial.py',
     }
-    expect(serialSttyCommand(raw, 'linux', '/dev/ttyACM0', settings)?.args).toEqual([
-      '-F',
-      '/dev/ttyACM0',
-      '115200',
-      'raw',
-      '-echo',
-      '-hupcl',
-      'cs8',
-      '-parenb',
-      '-cstopb',
-    ])
-    expect(serialSttyCommand(raw, 'darwin', '/dev/cu.test', settings)?.args[0]).toBe('-f')
+    for (const platform of ['linux', 'darwin'] as const)
+      expect(() => serialSttyCommand(raw, platform, '/dev/ttyACM0', settings)).toThrow(
+        'serial-line-settings-unsupported',
+      )
     expect(() => serialSttyCommand(raw, 'win32', 'COM1', settings)).toThrow(
       'serial-stty-platform-invalid',
     )
     expect(serialSttyCommand(choices[0]!, 'linux', 'port', settings)).toBeUndefined()
     const shell: SerialAdapter = { kind: 'stty', file: '/bin/stty', shell: '/bin/sh' }
-    expect(serialAdapterCommand(shell, '/dev/tty-test; touch /tmp/no', settings).args.at(-1)).toBe(
-      '/dev/tty-test; touch /tmp/no',
+    expect(() => serialAdapterCommand(shell, '/dev/tty-test; touch /tmp/no', settings)).toThrow(
+      'serial-line-settings-unsupported',
     )
     expect(
       serialAdapterCommand({ kind: 'windows', file: 'helper.exe' }, 'COM1', settings).args[0],
     ).toBe('serial')
+  })
+
+  it('honours both approved line states or refuses an incapable adapter before opening', () => {
+    const capable: SerialAdapter[] = [
+      { kind: 'pio', file: '/pio' },
+      { kind: 'windows', file: '/helper' },
+      { kind: 'pyserial', file: '/python', script: '/serial.py' },
+    ]
+    const incapable: SerialAdapter[] = [
+      { kind: 'arduino-cli', file: '/arduino-cli' },
+      { kind: 'posix-raw', file: '/python', script: '/serial.py' },
+      { kind: 'stty', file: '/stty', shell: '/sh' },
+    ]
+    for (const isDtrEnabled of [false, true])
+      for (const isRtsEnabled of [false, true]) {
+        const settings = {
+          baud: 115_200,
+          durationMs: 1000,
+          maxBytes: 128,
+          chunkBytes: 32,
+          pollMs: 20,
+          dtr: isDtrEnabled,
+          rts: isRtsEnabled,
+        }
+        for (const adapter of capable) {
+          const command = serialAdapterCommand(adapter, 'COM3', settings)
+          if (adapter.kind === 'pio') {
+            expect(command.args.slice(-4)).toEqual([
+              '--dtr',
+              isDtrEnabled ? '1' : '0',
+              '--rts',
+              isRtsEnabled ? '1' : '0',
+            ])
+          } else
+            expect(command.args.slice(-2)).toEqual([
+              isDtrEnabled ? '1' : '0',
+              isRtsEnabled ? '1' : '0',
+            ])
+        }
+        for (const adapter of incapable)
+          expect(() => serialAdapterCommand(adapter, 'COM3', settings)).toThrow(
+            'serial-line-settings-unsupported',
+          )
+      }
+    expect(selectSerialAdapter([incapable[0]!, capable[1]!], false)).toBe(capable[1])
+    expect(() => selectSerialAdapter(incapable, false)).toThrow('serial-adapter-unavailable')
   })
 })
 
 if (process.platform !== 'win32') {
   describe('socat data path on the rig', () => {
     it.each(['posix-raw', 'stty'] as const)(
-      'reads and writes exact bytes through stty and a killable %s child',
+      'refuses approved line settings on %s and independently verifies its low-level binary IO',
       async (kind) => {
         const directory = await mkdtemp(path.join(tmpdir(), 'm103-pty-'))
         directories.push(directory)
@@ -287,12 +429,56 @@ if (process.platform !== 'win32') {
                     file: '/usr/bin/python3',
                     script: path.resolve('native/posix/serial.py'),
                   }
-            const setup = serialSttyCommand(adapter, process.platform, left, settings)!
+            expect(() => serialAdapterCommand(adapter, left, settings)).toThrow(
+              'serial-line-settings-unsupported',
+            )
+            // PTYs do not implement DTR/RTS. These test-only commands exercise
+            // low-level IO/cleanup; they cannot be selected for an approved action.
+            const setup = {
+              file: '/bin/stty',
+              args: [
+                process.platform === 'darwin' ? '-f' : '-F',
+                left,
+                String(settings.baud),
+                'raw',
+                '-echo',
+                '-hupcl',
+                'cs8',
+                '-parenb',
+                '-cstopb',
+              ],
+              writable: false,
+            }
             const stty = await startSerialProcess(setup, makerProcessDeps())
             const setupResult = await stty.result
             expect(setupResult.reason).toBe('ended')
             const session = await startSerialProcess(
-              serialAdapterCommand(adapter, left, settings),
+              {
+                file: kind === 'stty' ? '/bin/sh' : '/usr/bin/python3',
+                args:
+                  kind === 'stty'
+                    ? [
+                        '-c',
+                        String.raw`exec 3<> "$1" || exit 1; printf "serial-ready\n" >&2; cat <&3 & serial_reader=$!; cat >&3; kill "$serial_reader"; wait "$serial_reader" 2>/dev/null`,
+                        'muse-serial',
+                        left,
+                      ]
+                    : [
+                        '-I',
+                        path.resolve('native/posix/serial.py'),
+                        'raw',
+                        left,
+                        String(settings.baud),
+                        String(settings.durationMs),
+                        String(settings.maxBytes),
+                        String(settings.chunkBytes),
+                        String(settings.pollMs),
+                        '0',
+                        '0',
+                      ],
+                readyWord: 'serial-ready',
+                writable: true,
+              },
               makerProcessDeps(),
             )
             const inbound = Buffer.from([0, 255, 10, 128, 65])
