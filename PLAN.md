@@ -6878,6 +6878,35 @@ provider wire shapes; no live or paid captures are needed.
 on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
 their actual commands to the help reference when that parallel feature lands.
 
+### M118 lane X — ACP, CLI and editor sharing adapters (2026-10-06)
+
+Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
+`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
+Implement `/share chat`, `/prompt save|list|use|share` and the CLI
+`share`/`prompts` parser and runner against lane 0's portable contracts.
+Prompt storage and the scrubbed renderer are injected P/C ports, shared across
+workspaces through `agentDataFolder`; never a separate library or a model turn.
+ACP command interception is opt-in through a runtime binding, with reserved
+commands failing explicitly when that binding is absent. A preview's exact
+bytes/request are held in memory, bound to its one-use final action, and the
+live confidential setting is checked again at release. Cancellation or session
+replacement invalidates pending actions. Prompt use returns insert-only text.
+
+The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
+catalog. Supply tested adapters and named integration handoffs for their actual
+runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
+Do not edit those other lanes' files or invent a protocol method. Lane X's
+certification records exact parser syntax, lifecycle and final-confirmation
+drills. Scoped checks run directly on win11; full quality and native editor
+certification remain with W. No paid/live/network calls or new dependencies.
+
+- [x] X parser/runner, ACP local interception and native-menu adapters behind
+      injected P/C/UI ports; no model send and no fake production bindings.
+- [x] Win11 owning/regression tests and static/build checks recorded in
+      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
+- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
+      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
+
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
 - [x] Generate static Marketplace/Open VSX and npm/GitHub release version
@@ -18404,6 +18433,13 @@ joined with M57, M58 and PR #49's sign-in
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M118 lane X bounded certification.** The rig brief prohibits aggregate
+quality, merges, pushes and other lanes' edits. Run at most three owning test
+files per invocation, all typechecks, scoped lint/format, localization,
+deadcode, duplication, host API and production build directly on win11. Keep
+unbound P/C/TUI/MHP and main/help wiring explicit in the handoff; no fake
+production implementation, gate weakening or quality claim.
 
 **M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
 aggregate quality, merges and pushes. Run the owning contracts, typecheck,
