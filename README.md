@@ -430,18 +430,42 @@ asked (PLAN.md D69). The menu now says what each mode does on each backend.
 
 > Detected device connections, flashing and actuation require a fresh
 > approval for that exact action, with no standing allowance or Auto reviewer.
-> Plan and unattended runs refuse them; known irreversible operations are
+> Typed device tools refuse Plan and unattended runs; known irreversible operations are
 > refused in every mode. The shared guard parses bash/sh, PowerShell and cmd,
 > checks every HTTP transfer, and treats unresolved device commands as
 > actuation. A stop-looking shell command is exempt only for a host-registered
 > target and its exact fixed out-of-band stop; ordinary MCP stop names do not
 > establish that contract. The product's Stop path remains ungated.
 >
-> Bypass remains opt-in for ordinary work. Host-designated hardware
-> workspaces cap it. This guard is not an OS device sandbox: a program or
-> script you allow can reach a device. Muse Code can execute commands without
-> emitting an approval, so its Auto-skip capture and hardware-workspace mode
-> cap still require qualification. Machine registration, hardware controls,
+> In a hardware workspace, every model shell command asks you afresh with
+> its exact text, in every interactive mode including Plan. The advisory
+> classifier adds board/port/machine warnings; a missed warning cannot skip
+> the question. Maker enablement, a detected hardware project, a connected
+> board, a mounted board root or a registered machine establishes that context.
+> There is no Always allow choice, Auto reviewer or hook grant for these
+> questions. Bypass and unattended origins deny all shell commands there,
+> including read-only commands, verification/then_run, workers and hooks.
+> Ordinary workspaces retain their existing permission modes and grants.
+>
+> The strict read-only table exempts only these complete argv shapes:
+> `git --no-pager log --no-show-signature --no-decorate -1`, `ls` (bash),
+> `Get-ChildItem` (PowerShell), `dir` (cmd), `cat <workspace file>` (bash),
+> `Get-Content -LiteralPath <workspace file>` (PowerShell), `type <workspace file>`
+> (cmd), `pio --version`, `esptool version`, `esptool --help`, `espefuse --help`,
+> `picotool --help`, and `picotool help`. File reads require a regular file whose
+> real path is inside the workspace and outside mounted board roots, without
+> traversal, symlinks or Windows device-name components.
+> Expansions, pipelines, redirections, wrappers, aliases, extra arguments and
+> command chains ask. Plain `git status` and `git diff` ask too: repository
+> helpers can execute code. Device operations belong in typed maker tools.
+>
+> Approval binds the exact payload, all observed targets and its expiry;
+> changing any identity, even an unrelated registered machine, invalidates it.
+> This guard is not an OS device sandbox: a program or script you approve can
+> reach a device. Hardware Muse Code sessions select `promptUnmatched`, and
+> unattended hardware sessions select `denyUnmatched`, before turns; CLI
+> standing policies and silent execution still require live qualification.
+> Machine registration, hardware controls,
 > actual target re-read and physical/editor certification remain M103 work;
 > this guard alone does not certify safe hardware operation. Keep the
 > machine's physical E-stop available; a software stop is not an emergency stop.
@@ -3521,6 +3545,8 @@ first time one is used; Node bundles require the shared English fallback
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+Hardware shell policy and approval handling load on first use from
+`dist/hardwareShell.js` and `dist/hardwareGuard.js`; both ship in VSIX and ACP.
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary

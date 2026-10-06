@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **M103 hardware guard, third design (unreleased).** Hardware workspace
+  context now makes every model shell command ask the host afresh, with exact
+  text, no standing grant and only an exact read-only argv table exempted.
+  Bypass and unattended shell routes deny every command there; ordinary
+  workspaces keep their policy. Detection supplies warnings and irreversible
+  refusals, never a hardware execution exemption. Bind all observed targets,
+  staged arguments, payload and expiry; preserve ungated Stop. Fix wrapper,
+  global-option, destination, HTTP spelling and offline-help regressions.
+  Split parser/policy into a second first-use bundle and include both lazy
+  bundles in VSIX/ACP packaging without raising an existing size cap.
+
 - **M103 hardware guard redesign (unreleased, not hardware-certified).**
   Parse literal shell words and device write destinations for bash/sh,
   PowerShell and cmd; fail closed on unresolved device commands. Judge every

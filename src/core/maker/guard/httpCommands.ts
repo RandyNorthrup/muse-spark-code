@@ -4,6 +4,11 @@ import type { TargetIdentity } from '../ports'
 
 export interface HardwareContext {
   readonly isHardwareWorkspace?: boolean
+  readonly isMakerEnabled?: boolean
+  readonly isHardwareProject?: boolean
+  readonly hasConnectedBoard?: boolean
+  readonly workspaceRoot?: string
+  readonly isUnattended?: boolean
   /** Host-observed addresses/ports and stop payloads; never model input. */
   readonly targets?: readonly (TargetIdentity & { readonly stop?: string })[]
   readonly boardRoots?: readonly string[]
@@ -39,7 +44,7 @@ export function hasRefusedPayload(text: string): boolean {
 
 function urlOf(text: string): URL | undefined {
   try {
-    return new URL(text)
+    return new URL(/^[\w.-]+(?::\d+)?\//.test(text) ? `http://${text}` : text)
   } catch {
     return undefined
   }
@@ -137,7 +142,7 @@ export function httpAction(
       hasExplicitMethod = false
       continue
     }
-    if (/^(?:https?|wss?):\/\//i.test(arg)) {
+    if (/^(?:https?|wss?):\/\//i.test(arg) || (!arg.startsWith('-') && urlOf(arg) !== undefined)) {
       transfer.urls.push(arg)
       continue
     }
@@ -147,10 +152,14 @@ export function httpAction(
       continue
     }
     const equal = arg.indexOf('=')
+    const colon = /^-(?:method|body|uri|infile|headers):/i.test(arg) ? arg.indexOf(':') : -1
     const isShort = /^-[XdFTKH].+/.test(arg)
     let flag = arg
     let value = command.argv[index + 1]
-    if (equal !== -1 && arg.startsWith('--')) {
+    if (colon !== -1) {
+      flag = arg.slice(0, colon)
+      value = arg.slice(colon + 1)
+    } else if (equal !== -1 && arg.startsWith('--')) {
       flag = arg.slice(0, equal)
       value = arg.slice(equal + 1)
     } else if (isShort) {
@@ -160,7 +169,7 @@ export function httpAction(
     const isWriteFlag = WRITE_FLAG.test(flag) || /^-[dFT]$/.test(flag)
     if (isWriteFlag || VALUE_FLAG.test(flag)) {
       if (value === undefined) transfer.unknown = true
-      if (!isShort && (equal === -1 || !arg.startsWith('--'))) index += 1
+      if (colon === -1 && !isShort && (equal === -1 || !arg.startsWith('--'))) index += 1
       if (/^(?:-X|--request|-method)$/i.test(flag)) {
         transfer.method = value ?? ''
         hasExplicitMethod = true

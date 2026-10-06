@@ -1,3 +1,4 @@
+import { developerHardwareCorpus } from './helpers/hardwareCorpus'
 import { describe, expect, it } from 'vitest'
 import { hardwareAction, isHardwareStop } from '../../src/core/maker/guard/hardwareCommands'
 import { parseShell, type GuardDialect } from '../../src/core/maker/guard/shellParse'
@@ -138,7 +139,7 @@ describe('REDM103G review regressions and fail-closed rules', () => {
   it.each(['bash', 'powershell'] as const)(
     'R1: unknown plus host-owned hardware signal asks once (%s)',
     (dialect) => {
-      const engine = new PermissionEngine('allowAll')
+      const engine = new PermissionEngine('onRequest')
       for (const command of [
         'node -e "run()"',
         'source setup.sh',
@@ -180,49 +181,9 @@ describe('REDM103G review regressions and fail-closed rules', () => {
   })
 })
 
-const developerCorpus = [
-  'git status',
-  'git diff --stat',
-  'git log -1',
-  'npm run build',
-  'npm test',
-  'npx tsc --noEmit',
-  'npx eslint src/app.ts',
-  'node scripts/build.mjs',
-  'python -m pytest',
-  'cargo test',
-  'go test ./...',
-  'dotnet build',
-  'pio run',
-  'pio test -e native',
-  'pio test --without-uploading',
-  'idf.py build',
-  'idf.py menuconfig',
-  'idf.py qemu monitor',
-  'arduino-cli compile',
-  'esptool merge-bin app.bin',
-  'esptool image-info app.bin',
-  'espefuse summary',
-  'picotool otp list',
-  'gpioinfo',
-  'ros2 topic echo /cmd_vel',
-  'cp /media/CIRCUITPY/code.py ./backup.py',
-  'cat README.md',
-  'echo "espefuse burn-key KEY0 key.bin"',
-  'echo "pio run -t upload"',
-  'git status && npm run build',
-  'echo hello > result.txt',
-  'curl https://example.invalid/api/status',
-  `curl ${HTTP}//printer.local/printer/info`,
-  'Get-Content README.md',
-  'Copy-Item /media/CIRCUITPY/code.py ./backup.py',
-  'echo "gpioset gpiochip0 17=1"',
-  'git diff -- src/espefuse.ts',
-]
-
 describe('F9/F10/R6: ordinary developer false-positive corpus', () => {
   it.each(dialects)('zero hardware asks/refusals across corpus (%s)', (dialect) => {
-    const errors = developerCorpus.filter((command) => {
+    const errors = developerHardwareCorpus.filter((command) => {
       const action = hardwareAction(command, dialect)
       return action !== undefined && action !== 'observe' && action !== 'offline'
     })

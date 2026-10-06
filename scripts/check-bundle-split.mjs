@@ -306,8 +306,14 @@ const CHECKPOINT_ONLY = [
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
 const HARDWARE_GUARD = { output: 'dist/hardwareGuard.js', metafile: 'dist/meta/hardwareGuard.json' }
 const hardwareGuard = inputsOf(HARDWARE_GUARD)
+const HARDWARE_SHELL = { output: 'dist/hardwareShell.js', metafile: 'dist/meta/hardwareShell.json' }
+const hardwareShell = inputsOf(HARDWARE_SHELL)
 const HOST_HARDWARE_TEXT = [
   'approvalHardwareNote',
+  'hardwareShellNote',
+  'hardwareProgramWarning',
+  'hardwareConnectWarning',
+  'hardwareActuateWarning',
   'hardwareRefused',
   'hardwareUnattended',
   'hardwareExpired',
@@ -323,9 +329,6 @@ for (const name of browserFiles) {
 }
 for (const file of [
   'src/core/maker/guardEntry.ts',
-  'src/core/maker/guard/shellParse.ts',
-  'src/core/maker/guard/hardwareCommands.ts',
-  'src/core/maker/guard/httpCommands.ts',
   'src/core/maker/ports.ts',
   'src/core/maker/sessionGuard.ts',
   'src/core/maker/guardSecrets.ts',
@@ -341,6 +344,21 @@ for (const file of [
         `${output} carries ${file}, which loads only on the first hardware classification`,
       )
   }
+}
+for (const file of [
+  'src/core/maker/shellEntry.ts',
+  'src/core/maker/guard/shellParse.ts',
+  'src/core/maker/guard/shellPolicy.ts',
+  'src/core/maker/guard/hardwareCommands.ts',
+  'src/core/maker/guard/httpCommands.ts',
+]) {
+  if (!hardwareShell.has(file)) problems.push(`${HARDWARE_SHELL.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [HARDWARE_GUARD.output, hardwareGuard],
+  ])
+    if (inputs.has(file)) problems.push(`${output} eagerly carries first-use shell module ${file}`)
 }
 const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 // The English fallback is shared; installed-language state stays in each bundle.
@@ -501,6 +519,8 @@ for (const bundle of [
   BUNDLES.modelApi,
   BUNDLES.acp,
   CHECKPOINT_STORE,
+  HARDWARE_GUARD,
+  HARDWARE_SHELL,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,

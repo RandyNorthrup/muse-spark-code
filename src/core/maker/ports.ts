@@ -1,7 +1,7 @@
 // M103-G's frozen subset of lane I: no editor imports or model-visible grants.
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
-import { MACHINE_APPROVAL_TTL_MS } from '../../shared/constants'
+import { MACHINE_APPROVAL_TTL_MS, UI_TEXT } from '../../shared/constants'
 import type { ActionClass } from './guard/actionClass'
 
 /** A host-observed identity; an unknown USB identity must be shown as unknown. */
@@ -15,6 +15,7 @@ export interface ApprovalRequest {
   readonly id: string
   readonly digest: string
   readonly target: TargetIdentity
+  readonly targets: readonly TargetIdentity[]
   readonly expiresAt: number
   readonly action: ActionClass
   readonly payload: string
@@ -34,17 +35,23 @@ export class HardwareApproval {
   public constructor(
     id: string,
     payload: string,
-    target: TargetIdentity,
+    target: TargetIdentity | readonly TargetIdentity[],
     action: ActionClass,
     now: number,
     parsedCommand?: string,
   ) {
+    const targets = ('address' in target ? [target] : target).map((identity) =>
+      Object.freeze({ ...identity }),
+    )
+    const first = targets[0]
+    if (first === undefined) throw new Error(UI_TEXT.hardwareRefused)
     this.request = Object.freeze({
       id,
       digest: createHash('sha256')
         .update(parsedCommand === undefined ? payload : JSON.stringify({ payload, parsedCommand }))
         .digest('hex'),
-      target: Object.freeze({ ...target }),
+      target: first,
+      targets: Object.freeze(targets),
       expiresAt: now + MACHINE_APPROVAL_TTL_MS,
       action,
       payload,
@@ -52,19 +59,28 @@ export class HardwareApproval {
   }
 
   /** Wrong, late, replayed or changed-target answers cannot widen this request. */
-  public accept(answer: unknown, target: TargetIdentity, now: number): boolean {
+  public accept(
+    answer: unknown,
+    target: TargetIdentity | readonly TargetIdentity[],
+    now: number,
+  ): boolean {
     if (this.isSettled) return false
     this.isSettled = true
     const parsed = answerSchema.safeParse(answer)
+    const targets = 'address' in target ? [target] : target
     return (
       parsed.success &&
       parsed.data.id === this.request.id &&
       parsed.data.digest === this.request.digest &&
       parsed.data.decision === 'sendOnce' &&
       now < this.request.expiresAt &&
-      target.address === this.request.target.address &&
-      target.vidPid === this.request.target.vidPid &&
-      target.usbSerial === this.request.target.usbSerial
+      targets.length === this.request.targets.length &&
+      targets.every(
+        (identity, index) =>
+          identity.address === this.request.targets[index]?.address &&
+          identity.vidPid === this.request.targets[index].vidPid &&
+          identity.usbSerial === this.request.targets[index].usbSerial,
+      )
     )
   }
 }

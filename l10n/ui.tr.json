@@ -2046,7 +2046,11 @@
   "paidDailyRaisePrompt": "Bekleyen ayırmalara yetecek bugünkü USD sınırını girin (0.50–500).",
   "approvalHardwareNote": "Fiziksel aygıt işlemi. Seri bağlantı noktasını açmak kartı sıfırlayabilir. Tam komutu ve hedefi inceleyin; onay bir kez geçerlidir ve iki dakika sonra sona erer.",
   "hardwareRefused": "Bu aygıt işlemi reddedildi. Komutu inceleyip kendi terminalinizde kendiniz çalıştırın.",
-  "hardwareUnattended": "Gözetimsiz çalıştırmalarda fiziksel aygıt işlemleri reddedilir.",
+  "hardwareUnattended": "Gözetimsiz çalıştırmalarda donanım çalışma alanlarındaki kabuk komutları ve fiziksel cihaz işlemleri reddedilir.",
   "hardwareExpired": "Aygıt onayının süresi doldu. Hiçbir şey gönderilmedi.",
-  "hardwareBypassNotice": "Donanım çalışma alanlarında izinler atlanamaz. Otomatik veya Elle modunu kullanın ve her cihaz işlemini bir kez onaylayın."
+  "hardwareBypassNotice": "Donanım çalışma alanlarında izinler atlanamaz. Otomatik veya Elle modunu kullanın ve her cihaz işlemini bir kez onaylayın.",
+  "hardwareShellNote": "Donanım çalışma alanı: bu kabuk komutunun tam metnini inceleyin. Onay tek kullanımlıktır ve iki dakika sonra sona erer. Cihaz işlemleri için donanım araçlarını kullanın. {warning}",
+  "hardwareProgramWarning": "Bu komut bir kartı programlıyor gibi görünüyor.",
+  "hardwareConnectWarning": "Bu komut bir cihaz bağlantı noktası açıyor gibi görünüyor; kart sıfırlanabilir.",
+  "hardwareActuateWarning": "Bu komut bir bağlantı noktasına yazıyor veya bir makine komutu gönderiyor gibi görünüyor."
 }

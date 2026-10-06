@@ -2198,7 +2198,11 @@
   "paidDailyRaisePrompt": "Wpisz dzisiejszy limit w USD (0.50–500), wystarczający na oczekujące rezerwacje.",
   "approvalHardwareNote": "Działanie na urządzeniu fizycznym. Otwarcie portu szeregowego może zresetować płytkę. Sprawdź dokładne polecenie i cel; zgoda jest jednorazowa i wygasa po dwóch minutach.",
   "hardwareRefused": "Ta operacja urządzenia jest zabroniona. Sprawdź polecenie i uruchom je samodzielnie we własnym terminalu.",
-  "hardwareUnattended": "Działania na urządzeniach fizycznych są zabronione podczas pracy bez nadzoru.",
+  "hardwareUnattended": "Polecenia powłoki w obszarach roboczych sprzętu i działania na urządzeniach fizycznych są odrzucane przy uruchomieniach bez nadzoru.",
   "hardwareExpired": "Zgoda na działanie urządzenia wygasła. Nic nie wysłano.",
-  "hardwareBypassNotice": "W obszarach roboczych ze sprzętem nie można pomijać uprawnień. Użyj trybu automatycznego lub ręcznego i zatwierdzaj każdą operację urządzenia osobno."
+  "hardwareBypassNotice": "W obszarach roboczych ze sprzętem nie można pomijać uprawnień. Użyj trybu automatycznego lub ręcznego i zatwierdzaj każdą operację urządzenia osobno.",
+  "hardwareShellNote": "Obszar roboczy sprzętu: sprawdź dokładną treść tego polecenia powłoki. Zgoda obowiązuje jednorazowo i wygasa po dwóch minutach. Do działań na urządzeniach używaj narzędzi sprzętowych. {warning}",
+  "hardwareProgramWarning": "To polecenie wygląda na programowanie płytki.",
+  "hardwareConnectWarning": "To polecenie wygląda na otwieranie portu urządzenia; płytka może się zresetować.",
+  "hardwareActuateWarning": "To polecenie wygląda na zapis do portu lub wysłanie polecenia do maszyny."
 }

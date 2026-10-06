@@ -494,6 +494,109 @@ async function startSession(
 }
 
 describe('M103-G hardware dispatch boundary', () => {
+  it('hardware workspace hooks never start a process or grant a model shell command', async () => {
+    const runHook = vi.fn(permitHook)
+    const t = setup({
+      hardwareContext: () => ({ isMakerEnabled: true }),
+      hooks: [...hooksFor('PreLLMCall', 'observe'), ...hooksFor('PermissionRequest', 'allow')],
+      runHook,
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'abort',
+    ])
+    await answer(session, request, 'abort')
+    await turnDone()
+    expect(runHook).not.toHaveBeenCalled()
+    expect(t.shellCalls).toEqual([])
+  })
+  it.each(['promptUnmatched', 'onRequest', 'denyUnmatched'])(
+    'third design: classifier misses ask separately for every command in %s',
+    async (mode) => {
+      const t = setup({ hardwareContext: () => ({ isHardwareWorkspace: true }) })
+      const { session, events, turnDone } = await startSession(t, mode)
+      const command = 'unknown-device-command --anything'
+      t.api.script(
+        { calls: [{ name: 'bash', arguments: JSON.stringify({ command }) }] },
+        { calls: [{ name: 'bash', arguments: JSON.stringify({ command }) }] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'two commands' }])
+      for (const index of [0, 1]) {
+        const request = await approvalRequest(events, index)
+        expect(request.subject.command).toBe(command)
+        expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+          'allow_once',
+          'abort',
+        ])
+        expect(request.note).toContain(UI_TEXT.hardwareShellNote.split('{warning}', 1)[0]?.trim())
+        await session.decideApproval({
+          approvalId: request.approvalId,
+          requirementId: request.requirementId,
+          choiceId: 'allow_once',
+        })
+      }
+      await turnDone()
+      expect(t.shellCalls.map((call) => call.command)).toEqual([command, command])
+    },
+  )
+  it('hardware context gained while an ordinary card waits invalidates its standing grant', async () => {
+    let isHardwareWorkspace = false
+    const t = setup({ hardwareContext: () => ({ isHardwareWorkspace }) })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      { calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.availableChoices.some((choice) => choice.choiceId === 'allow_session')).toBe(
+      true,
+    )
+    isHardwareWorkspace = true
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      requirementId: request.requirementId,
+      choiceId: 'allow_session',
+    })
+    await turnDone()
+    expect(t.shellCalls).toEqual([])
+  })
+  it.each([false, true])(
+    'R2F7: every transfer binds its second identity, changed=%s',
+    async (changes) => {
+      let usbSerial = 'second-one'
+      const t = setup({
+        hardwareContext: () => ({
+          targets: [
+            { address: 'https://first.local', usbSerial: 'first-one' },
+            { address: 'https://second.local', usbSerial },
+          ],
+        }),
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        {
+          calls: [
+            shellCall(
+              'curl https://example.invalid --next --json "{}" https://first.local/api/job --next --json "{}" https://second.local/api/job',
+            ),
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device request' }])
+      const request = await approvalRequest(events, 0)
+      if (changes) usbSerial = 'second-replacement'
+      await answer(session, request, 'allow_once')
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(changes ? 0 : 1)
+    },
+  )
   it.each([false, true])(
     'R5: allow-once binds a registered target and rejects identity change=%s',
     async (changes) => {
@@ -501,41 +604,36 @@ describe('M103-G hardware dispatch boundary', () => {
       const t = setup({
         hardwareContext: () => ({ targets: [{ address: 'https://printer.local', usbSerial }] }),
       })
-      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
       t.api.script(
         {
-          calls: [
-            {
-              name: 'bash',
-              arguments: JSON.stringify({
-                command: 'curl --json "{}" https://printer.local/api/job',
-              }),
-            },
-          ],
+          calls: [shellCall('curl --json "{}" https://printer.local/api/job')],
         },
         { text: 'done' },
       )
       await session.sendTurn([{ type: 'text', text: 'device request' }])
       const request = await approvalRequest(events, 0)
       if (changes) usbSerial = 'machine-two'
-      await session.decideApproval({
-        approvalId: request.approvalId,
-        requirementId: request.requirementId,
-        choiceId: 'allow_once',
-      })
+      await answer(session, request, 'allow_once')
       await turnDone()
       expect(t.shellCalls).toHaveLength(changes ? 0 : 1)
     },
   )
-  it.each(['then_run', 'verification'] as const)(
-    'F6: %s inherits unattended origin before any shell dispatch',
-    async (route) => {
+  it.each([
+    ['then_run', false],
+    ['verification', false],
+    ['then_run', true],
+    ['verification', true],
+  ] as const)(
+    'F6: %s inherits unattended origin before any shell dispatch, hardwareWorkspace=%s',
+    async (route, inHardwareWorkspace) => {
+      const command = inHardwareWorkspace ? 'npm test' : 'pio run -t upload'
       const t = setup({
-        isUnattended: () => true,
+        isUnattended: () => !inHardwareWorkspace,
+        hardwareContext: () => ({ isHardwareWorkspace: inHardwareWorkspace }),
         verify: {
           isDiagnosticsOn: () => false,
-          checkCommands: () =>
-            route === 'verification' ? [{ name: 'upload', command: 'pio run -t upload' }] : [],
+          checkCommands: () => (route === 'verification' ? [{ name: 'upload', command }] : []),
           isFormatOnEdit: () => false,
           diagnosticsAfterEdit: () => Promise.resolve([]),
           formatAfterEdit: () => Promise.resolve(undefined),
@@ -558,7 +656,7 @@ describe('M103-G hardware dispatch boundary', () => {
               arguments: JSON.stringify({
                 path: 'ordinary.ts',
                 content: 'export const value = 1',
-                ...(route === 'then_run' && { then_run: 'pio run -t upload' }),
+                ...(route === 'then_run' && { then_run: command }),
               }),
             },
           ],

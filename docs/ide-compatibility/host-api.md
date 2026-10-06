@@ -390,14 +390,14 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 2     |
-| `node:fs`              | 28    |
+| `node:fs`              | 29    |
 | `node:fs/promises`     | 38    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 6     |
 | `node:os`              | 7     |
-| `node:path`            | 70    |
+| `node:path`            | 71    |
 | `node:process`         | 1     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

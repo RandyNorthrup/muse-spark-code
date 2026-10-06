@@ -437,7 +437,7 @@ describe('the ACP agent (M63)', () => {
         }),
       ).rejects.toThrow()
       expect(h.host.startSession).toHaveBeenCalledWith(
-        expect.objectContaining({ approvalMode: 'onRequest' }),
+        expect.objectContaining({ approvalMode: 'promptUnmatched' }),
       )
     })
   })

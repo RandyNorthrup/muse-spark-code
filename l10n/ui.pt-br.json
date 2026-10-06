@@ -2122,7 +2122,11 @@
   "paidDailyRaisePrompt": "Informe o limite de hoje em USD (0.50–500), suficiente para as reservas pendentes.",
   "approvalHardwareNote": "Ação em um dispositivo físico. Abrir uma porta serial pode reiniciar a placa. Revise o comando exato e o destino; a autorização vale uma única vez e expira após dois minutos.",
   "hardwareRefused": "Esta operação do dispositivo foi recusada. Revise o comando e execute-o você mesmo no seu próprio terminal.",
-  "hardwareUnattended": "Ações em dispositivos físicos são recusadas em execuções sem supervisão.",
+  "hardwareUnattended": "Comandos de shell em espaços de trabalho de hardware e ações em dispositivos físicos são recusados em execuções sem supervisão.",
   "hardwareExpired": "A autorização do dispositivo expirou. Nada foi enviado.",
-  "hardwareBypassNotice": "Em espaços de trabalho com hardware, não é possível ignorar permissões. Use Automático ou Manual e aprove cada ação do dispositivo uma única vez."
+  "hardwareBypassNotice": "Em espaços de trabalho com hardware, não é possível ignorar permissões. Use Automático ou Manual e aprove cada ação do dispositivo uma única vez.",
+  "hardwareShellNote": "Espaço de trabalho de hardware: revise este comando exato do shell. A aprovação vale uma vez e expira após dois minutos. Use as ferramentas de hardware para ações em dispositivos. {warning}",
+  "hardwareProgramWarning": "Este comando parece programar uma placa.",
+  "hardwareConnectWarning": "Este comando parece abrir uma porta de dispositivo; a placa pode ser reiniciada.",
+  "hardwareActuateWarning": "Este comando parece escrever em uma porta ou enviar um comando a uma máquina."
 }

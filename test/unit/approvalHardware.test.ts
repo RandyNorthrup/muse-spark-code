@@ -140,9 +140,135 @@ describe('Muse Code hardware approvals', () => {
     expect(scrubHardwareApproval(ordinary)).toBe(ordinary)
     expect(scrubHardwareApproval(stop)).toBe(stop)
   })
+  it('hardware shell cards never offer standing choices, even for allowlisted reads', () => {
+    const read = scrubHardwareApproval(card('pio --version'), { isHardwareWorkspace: true })
+    expect(read.availableChoices.map((choice) => choice.choiceId)).toEqual(['allow_once', 'abort'])
+    expect(isReviewableApproval(read, 'auto', 'parent-turn')).toBe(false)
+  })
+
+  it.each([
+    ['pwsh', '-EncodedCommand', 'ZQBjAGgAbwA='],
+    ['node', '-e', 'run()'],
+  ])('R2F6: staged-only interpreter asks without standing choices: %j', (...argv) => {
+    const original = card()
+    const subject = {
+      kind: 'shell',
+      stages: [{ requirementId: original.requirementId, position: 1, totalStages: 1, argv }],
+    }
+    expect(approvalHardwareAction(subject, { isHardwareWorkspace: true })).toBe('actuate')
+    const scrubbed = scrubHardwareApproval({ ...original, subject }, { isHardwareWorkspace: true })
+    expect(scrubbed.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'abort',
+    ])
+    expect(isReviewableApproval(scrubbed, 'auto', 'parent-turn')).toBe(false)
+    const conflicting = { ...subject, command: 'esptool --help' }
+    expect(approvalHardwareAction(conflicting, { isHardwareWorkspace: true })).toBe('actuate')
+    expect(
+      scrubHardwareApproval({ ...original, subject: conflicting }, { isHardwareWorkspace: true })
+        .availableChoices,
+    ).toEqual(scrubbed.availableChoices)
+  })
 })
 
 describe('Muse Code guard over the real MSP transport', () => {
+  it.each(['staged shell', 'typed tool'] as const)(
+    'R2F7: %s binds every host target, including its second identity',
+    async (kind) => {
+      let usbSerial = 'second-one'
+      const h = acpMspHost(() => ({
+        targets: [
+          { address: 'https://first.local', usbSerial: 'first-one' },
+          { address: 'https://second.local', usbSerial },
+        ],
+      }))
+      try {
+        const { session } = await h.host.resumeSession('old-1', 'muse-spark-1.3')
+        const events: AgentEvent[] = []
+        session.onEvent((event) => {
+          events.push(event)
+        })
+        const capture = raceRequested('old-1')
+        // Supported internal fields from the captured stage schema. These
+        // target values are adversarial tests, not a new CLI wire claim.
+        h.server.notify('approval/requested', {
+          ...capture,
+          subject:
+            kind === 'staged shell'
+              ? {
+                  kind: 'shell',
+                  stages: [
+                    {
+                      requirementId: { approvalId: capture['approvalId'], sourceIndex: 0 },
+                      position: 1,
+                      totalStages: 1,
+                      argv: ['curl', '--json', '{}', 'https://second.local/api/job'],
+                    },
+                  ],
+                }
+              : {
+                  kind: 'tool',
+                  toolName: 'mcp__moonraker__send_gcode',
+                  target: 'https://second.local',
+                },
+        })
+        const request = await pendingHardwareCard(events)
+        usbSerial = 'replacement-board'
+        await expect(
+          session.decideApproval({
+            approvalId: request.approvalId,
+            requirementId: request.requirementId,
+            choiceId: 'allow_once',
+          }),
+        ).rejects.toThrow(UI_TEXT.hardwareExpired)
+        expect(h.server.requestsFor('approval/decide')).toHaveLength(0)
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
+
+  it.each([
+    ['npm test', true],
+    ['git status', true],
+    ['espefuse burn-key KEY0 key.bin', false],
+  ] as const)(
+    'MSP rejects hardware unattended commands and irreversible operations before a surface: %s, unattended=%s',
+    async (command, isUnattended) => {
+      const h = acpMspHost(() => ({ isHardwareWorkspace: isUnattended, isUnattended }))
+      h.server.handle('approval/decide', (params) => ({
+        commandId: params['commandId'],
+        terminal: true,
+      }))
+      try {
+        const { events } = await observeHardware(h, command)
+        await vi.waitFor(() => {
+          expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
+        })
+        expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
+        expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      } finally {
+        await h.host.close()
+      }
+    },
+  )
+
+  it('caps resumed hardware session modes before turns and refuses autonomous goal wakes', async () => {
+    const h = acpMspHost(() => ({ hasConnectedBoard: true }))
+    try {
+      const { session } = await h.host.resumeSession('old-1', 'muse-spark-1.3')
+      await session.setApprovalMode('onRequest')
+      expect(h.server.requestsFor('session/setApprovalMode')[0]?.params?.['mode']).toBe(
+        'promptUnmatched',
+      )
+      await expect(session.controlGoal({ verb: 'set', objective: 'move machine' })).rejects.toThrow(
+        UI_TEXT.hardwareUnattended,
+      )
+      expect(h.server.requestsFor('goal/set')).toHaveLength(0)
+    } finally {
+      await h.host.close()
+    }
+  })
   it('F5: a failed MSP decision retains expiry and consumed approval across retries', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
     const h = acpMspHost()
@@ -239,24 +365,6 @@ describe('Muse Code guard over the real MSP transport', () => {
       await h.host.close()
     }
   })
-
-  it('refuses irreversible commands without asking any surface', async () => {
-    const h = acpMspHost()
-    h.server.handle('approval/decide', (params) => ({
-      commandId: params['commandId'],
-      terminal: true,
-    }))
-    try {
-      const { events } = await observeHardware(h, 'espefuse burn-key KEY0 key.bin')
-      await vi.waitFor(() => {
-        expect(h.server.requestsFor('approval/decide')).toHaveLength(1)
-      })
-      expect(h.server.requestsFor('approval/decide')[0]?.params?.['choiceId']).toBe('abort')
-      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
-    } finally {
-      await h.host.close()
-    }
-  })
 })
 
 describe('engine-minted host approvals', () => {
@@ -296,5 +404,24 @@ describe('engine-minted host approvals', () => {
     expect(approval().accept({ confirm: true, token: 'model-chosen' }, target, 1)).toBe(false)
     const value = approval()
     expect(value.accept({ ...answer(value), decision: 'reject' }, target, 1)).toBe(false)
+  })
+  it('R2F7 typed flash/serial/machine/GPIO approvals bind exact bytes, every identity and expiry', () => {
+    const second = { address: 'COM6', usbSerial: 'second-board' }
+    for (const operation of ['flash', 'serial-write', 'machine-send', 'gpio']) {
+      const value = new HardwareApproval(
+        operation,
+        'exact bytes\u{0}\r\n',
+        [target, second],
+        'actuate',
+        0,
+      )
+      expect(
+        value.accept(answer(value), [target, { ...second, usbSerial: 'replacement' }], 1),
+      ).toBe(false)
+      expect(value.accept(answer(value), [target, second], 1)).toBe(false)
+      const fresh = new HardwareApproval(operation, 'changed bytes', [target, second], 'actuate', 0)
+      expect(fresh.request.digest).not.toBe(value.request.digest)
+      expect(fresh.accept(answer(fresh), [target, second], MACHINE_APPROVAL_TTL_MS)).toBe(false)
+    }
   })
 })

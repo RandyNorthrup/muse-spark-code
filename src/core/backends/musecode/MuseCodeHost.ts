@@ -8,6 +8,7 @@
 
 import { Buffer } from 'node:buffer'
 import { SessionHardwareGuard } from '../../maker/sessionGuard'
+import { hardwareApprovalMode, prepareHardwareTurn } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
@@ -966,6 +967,7 @@ export class MuseSession implements AgentSession {
    * more than the user typed (editor context, M5).
    */
   public async sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission> {
+    await prepareHardwareTurn(this.hardwareContext(), (mode) => this.setApprovalMode(mode))
     let ack: unknown
     try {
       ack = await this.command('turn/start', {
@@ -1054,10 +1056,10 @@ export class MuseSession implements AgentSession {
 
   /** Select one of the host's preconfigured approval modes. */
   public async setApprovalMode(mode: string): Promise<void> {
-    if (mode === 'allowAll' && this.hardwareContext().isHardwareWorkspace === true)
-      throw new Error(UI_TEXT.hardwareBypassNotice)
     try {
-      await this.command('session/setApprovalMode', { mode })
+      await this.command('session/setApprovalMode', {
+        mode: hardwareApprovalMode(mode, this.hardwareContext()),
+      })
     } catch (error: unknown) {
       throw ceilingOr(error)
     }
@@ -1212,6 +1214,7 @@ export class MuseSession implements AgentSession {
    * `session/goalChanged`.
    */
   public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    await prepareHardwareTurn(this.hardwareContext(), command.verb)
     let ack: unknown
     try {
       ack = await this.command(
@@ -1823,15 +1826,13 @@ export class MuseCodeHost implements AgentHost {
   }
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
-    if (options.approvalMode === 'allowAll' && this.hardwareContext().isHardwareWorkspace === true)
-      throw new Error(UI_TEXT.hardwareBypassNotice)
     return await this.opened(async () => {
       let result: unknown
       try {
         result = await this.command('session/start', {
           workspaceRoot: options.workspaceRoot,
           modelId: options.modelId,
-          approvalMode: options.approvalMode,
+          approvalMode: hardwareApprovalMode(options.approvalMode, this.hardwareContext()),
           ...this.mcpConfig(options.mcpServers),
         })
       } catch (error: unknown) {

@@ -32,6 +32,7 @@ const BUNDLES = [
   'acp.js',
   'modelApi.js',
   'hardwareGuard.js',
+  'hardwareShell.js',
   'reviewer.js',
   'uiText.js',
   'validation.js',

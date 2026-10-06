@@ -2046,7 +2046,11 @@
   "paidDailyRaisePrompt": "Heutiges Limit in USD (0.50–500) eingeben, ausreichend für die ausstehenden Reservierungen.",
   "approvalHardwareNote": "Aktion an einem physischen Gerät. Das Öffnen eines seriellen Ports kann die Platine zurücksetzen. Prüfen Sie den genauen Befehl und das Ziel; die Genehmigung gilt einmal und läuft nach zwei Minuten ab.",
   "hardwareRefused": "Dieser Gerätebefehl wird verweigert. Prüfen Sie den Befehl und führen Sie ihn selbst in Ihrem eigenen Terminal aus.",
-  "hardwareUnattended": "Aktionen an physischen Geräten werden bei unbeaufsichtigten Ausführungen verweigert.",
+  "hardwareUnattended": "Shell-Befehle in Hardware-Arbeitsbereichen und Aktionen physischer Geräte werden bei unbeaufsichtigten Ausführungen abgelehnt.",
   "hardwareExpired": "Die Gerätegenehmigung ist abgelaufen. Es wurde nichts gesendet.",
-  "hardwareBypassNotice": "In Hardware-Arbeitsbereichen können Berechtigungen nicht umgangen werden. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einzeln."
+  "hardwareBypassNotice": "In Hardware-Arbeitsbereichen können Berechtigungen nicht umgangen werden. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einzeln.",
+  "hardwareShellNote": "Hardware-Arbeitsbereich: Prüfen Sie diesen genauen Shell-Befehl. Die Genehmigung gilt einmal und läuft nach zwei Minuten ab. Verwenden Sie die Hardware-Werkzeuge für Geräteaktionen. {warning}",
+  "hardwareProgramWarning": "Dieser Befehl scheint eine Platine zu programmieren.",
+  "hardwareConnectWarning": "Dieser Befehl scheint einen Geräteport zu öffnen; die Platine kann zurückgesetzt werden.",
+  "hardwareActuateWarning": "Dieser Befehl scheint in einen Port zu schreiben oder einen Maschinenbefehl zu senden."
 }

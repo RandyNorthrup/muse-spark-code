@@ -6,8 +6,9 @@ import {
   markHardwareApproval,
 } from '../agent/approvalHardware'
 import { isDeviceAction, isPhysicalTool } from './guard/actionClass'
-import { hardwareTarget } from './guard/hardwareCommands'
+import { hardwareTargets } from './guard/hardwareCommands'
 import type { HardwareContext } from './guard/httpCommands'
+import { isHardwareWorkspace } from './guard/shellPolicy'
 import { parseShell } from './guard/shellParse'
 import { HardwareApproval } from './ports'
 
@@ -46,17 +47,35 @@ export class SessionHardwareGuard {
 
   /** Return false when a refused action must not reach any approval surface. */
   public admit(event: Card): boolean {
+    if (
+      isHardwareWorkspace(this.context()) &&
+      event.subject.kind === 'shell' &&
+      (this.context().isUnattended === true ||
+        ('permissionMode' in event && event.permissionMode === 'bypassPermissions'))
+    ) {
+      this.reject(event.approvalId)
+      return false
+    }
     const key = this.key(event.approvalId, event.requirementId.sourceIndex)
     const action = approvalHardwareAction(event.subject, this.context())
     let approval = this.approvals.get(key)
-    if (approval === undefined && isDeviceAction(action)) {
+    if (
+      approval === undefined &&
+      (isDeviceAction(action) ||
+        (event.subject.kind === 'shell' && isHardwareWorkspace(this.context())))
+    ) {
       approval = new HardwareApproval(
         event.approvalId,
         this.payload(event),
-        hardwareTarget(
-          event.subject.command ?? event.subject.toolName ?? event.subject.kind,
+        hardwareTargets(
+          event.subject.command ??
+            event.subject.target ??
+            event.subject.host ??
+            event.subject.toolName ??
+            event.subject.kind,
           'bash',
           this.context(),
+          event.subject.stages?.map((stage) => stage.argv),
         ),
         action ?? 'actuate',
         Date.now(),
@@ -99,10 +118,23 @@ export class SessionHardwareGuard {
     offered: ApprovalChoice | undefined,
     subject: ApprovalSubject | undefined,
   ): void {
+    if (offered?.decision === 'abort' || offered?.decision === 'deny') return
+    if (
+      subject?.kind === 'shell' &&
+      isHardwareWorkspace(this.context()) &&
+      offered?.scope !== 'once'
+    )
+      throw new Error(UI_TEXT.hardwareRefused)
     const approval = this.approvals.get(key)
-    if (approval === undefined) return
+    if (approval === undefined) {
+      if (subject !== undefined && isDeviceAction(approvalHardwareAction(subject, this.context())))
+        throw new Error(UI_TEXT.hardwareRefused)
+      return
+    }
     const current = this.pending(id)
     if (offered === undefined || subject === undefined || current === undefined)
+      throw new Error(UI_TEXT.hardwareRefused)
+    if (offered.decision === 'approved' && offered.scope !== 'once')
       throw new Error(UI_TEXT.hardwareRefused)
     if (
       offered.decision === 'approved' &&
@@ -113,7 +145,12 @@ export class SessionHardwareGuard {
       offered.decision === 'approved' &&
       !approval.accept(
         { id, digest: approval.request.digest, decision: 'sendOnce' },
-        hardwareTarget(subject.command ?? subject.toolName ?? subject.kind, 'bash', this.context()),
+        hardwareTargets(
+          subject.command ?? subject.target ?? subject.host ?? subject.toolName ?? subject.kind,
+          'bash',
+          this.context(),
+          subject.stages?.map((stage) => stage.argv),
+        ),
         Date.now(),
       )
     )

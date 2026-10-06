@@ -9,9 +9,17 @@ export { isDeviceAction, isPhysicalTool } from './guard/actionClass'
 export {
   hardwareAction,
   hardwareArgvAction,
-  hardwareTarget,
+  hardwareTargets,
   isHardwareStop,
 } from './guard/hardwareCommands'
+export {
+  isHardwareWorkspace,
+  isReadOnlyHardwareCommand,
+  isReadOnlyHardwareArgv,
+  hardwareShellNote,
+  hardwareApprovalMode,
+  prepareHardwareTurn,
+} from './guard/shellPolicy'
 export { parseShell } from './guard/shellParse'
 export { approvalHardwareAction, scrubHardwareApproval } from '../agent/approvalHardware'
 export {

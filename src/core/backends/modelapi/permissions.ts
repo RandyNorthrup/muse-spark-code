@@ -67,11 +67,13 @@ import { UI_TEXT } from '../../../shared/constants'
 import type { ApprovalMode } from '../../../shared/permissionModes'
 import { countSecretMatches } from '../../redact'
 import { hardwareAction, isHardwareStop } from '../../maker/guard/hardwareCommands'
+import { isHardwareWorkspace, isReadOnlyHardwareCommand } from '../../maker/guard/shellPolicy'
 import type { HardwareContext } from '../../maker/guard/httpCommands'
 import { isDeviceAction, isPhysicalTool } from '../../maker/guard/actionClass'
 import { type CommandRule, isEvaluator, judgeCommand } from './commandRules'
 import type { PermissionPolicy } from './permissionPolicy'
-import { commandShape, type ShellDialect } from './shellSyntax'
+import { commandShape } from './shellSyntax'
+import type { GuardDialect } from '../../maker/guard/shellParse'
 
 export type ToolClass =
   'read' | 'edit' | 'shell' | 'interactive' | 'paid' | 'mcp' | 'spawn' | 'network' | 'device'
@@ -215,7 +217,7 @@ export interface PermissionQuery {
    */
   readonly command?: string | undefined
   /** The shell the command is for (M78); bash when not said. */
-  readonly dialect?: ShellDialect | undefined
+  readonly dialect?: GuardDialect | undefined
   /** An edit whose target is a protected path (D24). */
   readonly isProtected?: boolean
   /** An MCP tool its server marks read-only (M50). */
@@ -296,20 +298,31 @@ export class PermissionEngine {
     query: PermissionQuery & { readonly command: string },
     policy: PermissionPolicy,
   ): PermissionJudgement {
+    const policyDialect = query.dialect === 'cmd' ? 'bash' : (query.dialect ?? 'bash')
     if (
       isHardwareStop(query.command, query.dialect, query.hardware) &&
       countSecretMatches(query.command, []) === 0
     )
       return settled('allow', 'hardwareDetected')
-    const { decision, rule } = judgeCommand(
-      policy.commandRules,
-      query.command,
-      query.dialect ?? 'bash',
-    )
+    const { decision, rule } = judgeCommand(policy.commandRules, query.command, policyDialect)
     if (decision === 'forbid') {
       return settled('deny', 'forbidRule', rule)
     }
     const action = hardwareAction(query.command, query.dialect, query.hardware)
+    if (isHardwareWorkspace(query.hardware)) {
+      if (
+        action === 'refused' ||
+        query.isUnattended === true ||
+        query.hardware?.isUnattended === true ||
+        this.mode === 'allowAll'
+      )
+        return settled('deny', 'hardwareDetected', rule)
+      if (!isReadOnlyHardwareCommand(query.command, query.dialect, query.hardware))
+        return settled('ask', 'hardwareDetected', rule)
+      return countSecretMatches(query.command, []) > 0
+        ? settled('ask', 'secretDetected', rule)
+        : settled('allow')
+    }
     if (isDeviceAction(action)) {
       return settled(
         action === 'refused' || query.isUnattended === true || this.mode === 'denyUnmatched'
@@ -344,12 +357,11 @@ export class PermissionEngine {
     if (this.allowed.has(ruleKey(query.toolName, query.command))) {
       return settled('allow')
     }
-    const dialect = query.dialect ?? 'bash'
-    const shape = commandShape(query.command, dialect)
+    const shape = commandShape(query.command, policyDialect)
     if (
       !shape.isPlain ||
       shape.commands.length !== 1 ||
-      isEvaluator(shape.commands[0] ?? [], dialect)
+      isEvaluator(shape.commands[0] ?? [], policyDialect)
     ) {
       return {
         verdict: 'ask',
@@ -358,7 +370,7 @@ export class PermissionEngine {
         hasSessionChoice: true,
       }
     }
-    return unsettledAsk(this.mode === REVIEWED_MODE && query.hardware?.isHardwareWorkspace !== true)
+    return unsettledAsk(this.mode === REVIEWED_MODE && !isHardwareWorkspace(query.hardware))
   }
 
   public setMode(mode: ApprovalMode): void {
@@ -384,10 +396,19 @@ export class PermissionEngine {
    * loopback when no card is shown (M81), since Bypass alone never does.
    */
   public isAllowedForSession(query: PermissionQuery): boolean {
-    return this.allowed.has(ruleKey(query.toolName, query.command))
+    return (
+      !(query.toolClass === 'shell' && isHardwareWorkspace(query.hardware)) &&
+      this.allowed.has(ruleKey(query.toolName, query.command))
+    )
   }
 
   public judge(query: PermissionQuery, policy: PermissionPolicy = NO_POLICY): PermissionJudgement {
+    if (
+      query.toolClass === 'shell' &&
+      query.command === undefined &&
+      isHardwareWorkspace(query.hardware)
+    )
+      return settled('deny', 'hardwareDetected')
     if (query.toolName === 'machine_stop' && query.toolClass === 'device')
       return settled('allow', 'hardwareDetected')
     if (
@@ -396,7 +417,11 @@ export class PermissionEngine {
       isPhysicalTool(query.toolName)
     ) {
       return settled(
-        query.isUnattended === true || this.mode === 'denyUnmatched' ? 'deny' : 'ask',
+        query.isUnattended === true ||
+          query.hardware?.isUnattended === true ||
+          this.mode === 'denyUnmatched'
+          ? 'deny'
+          : 'ask',
         'hardwareDetected',
       )
     }

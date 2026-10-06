@@ -25,6 +25,7 @@ interface AttemptWorld {
   api: FakeModelApi
   io: MemoryToolIo
   root: string
+  isHardwareWorkspace?: boolean
 }
 
 function writeCall(
@@ -123,6 +124,7 @@ function harness(
           personalAgentsRoot: undefined,
           isWorkspaceTrusted: () => true,
           isUnattended: () => true,
+          hardwareContext: () => ({ isHardwareWorkspace: world.isHardwareWorkspace === true }),
           isConfidentialWorkspace: () => false,
           confirmContributorModel: () => Promise.resolve(false),
           store: undefined,
@@ -154,31 +156,45 @@ function harness(
 }
 
 describe('best-of-N on the fake Model API', () => {
-  it('F7: real candidate hosts preserve Auto edits and refuse hardware without a card', async () => {
-    const t = harness(2)
-    for (const world of t.worlds)
-      world.api.script(
-        writeCall('ordinary.txt', 'candidate edit'),
-        { calls: [{ name: 'bash', arguments: JSON.stringify({ command: 'pio run -t upload' }) }] },
-        { text: 'done' },
+  it.each([false, true])(
+    'F7: real candidates preserve Auto edits and deny shell, hardwareWorkspace=%s',
+    async (inHardwareWorkspace) => {
+      const t = harness(2)
+      for (const world of t.worlds) {
+        world.isHardwareWorkspace = inHardwareWorkspace
+        world.api.script(
+          writeCall('ordinary.txt', 'candidate edit'),
+          {
+            calls: [
+              {
+                name: 'bash',
+                arguments: JSON.stringify({
+                  command: inHardwareWorkspace ? 'npm test' : 'pio run -t upload',
+                }),
+              },
+            ],
+          },
+          { text: 'done' },
+        )
+      }
+      await t.manager.start(
+        { prompt: 'edit and upload', attempts: 2, requestCeilingPerAttempt: 5 },
+        'modelApi',
       )
-    await t.manager.start(
-      { prompt: 'edit and upload', attempts: 2, requestCeilingPerAttempt: 5 },
-      'modelApi',
-    )
-    await awaitCompletedRun(t.updates)
-    for (const world of t.worlds) {
-      expect(world.io.files.get(`${world.root}/ordinary.txt`)).toBe('candidate edit')
-      expect(world.io.shellCalls).toEqual([])
-      expect(JSON.stringify(world.api.responseBodies())).toContain(
-        'Physical device operation refused',
+      await awaitCompletedRun(t.updates)
+      for (const world of t.worlds) {
+        expect(world.io.files.get(`${world.root}/ordinary.txt`)).toBe('candidate edit')
+        expect(world.io.shellCalls).toEqual([])
+        expect(JSON.stringify(world.api.responseBodies())).toContain(
+          'Physical device operation refused',
+        )
+      }
+      expect(t.updates.at(-1)?.runAttempts.every((attempt) => attempt.status === 'completed')).toBe(
+        true,
       )
-    }
-    expect(t.updates.at(-1)?.runAttempts.every((attempt) => attempt.status === 'completed')).toBe(
-      true,
-    )
-    t.manager.dispose()
-  })
+      t.manager.dispose()
+    },
+  )
   it('counts HTTP retries before they run and blocks the next paid request', async () => {
     const t = harness(2)
     const [retrying, quiet] = t.worlds

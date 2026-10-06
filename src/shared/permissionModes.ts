@@ -99,7 +99,7 @@ export function approvalModeFor(
   isHardwareWorkspace?: boolean,
 ): ApprovalMode {
   const mapped =
-    mode === 'bypassPermissions' && isHardwareWorkspace ? 'onRequest' : mspApprovalMode(mode)
+    mode === 'bypassPermissions' && isHardwareWorkspace ? 'promptUnmatched' : mspApprovalMode(mode)
   return !hasApprovalUi && PROMPTING_MODES.has(mapped) ? 'denyUnmatched' : mapped
 }
 
@@ -108,10 +108,9 @@ export function availablePermissionModes(
   canBypass: boolean,
   isHardwareWorkspace?: boolean,
 ): readonly [PermissionMode, ...PermissionMode[]] {
-  const [first, ...rest] = PERMISSION_MODES
   return canBypass && !isHardwareWorkspace
     ? PERMISSION_MODES
-    : [first, ...rest.filter((mode) => mode !== 'bypassPermissions')]
+    : ['manual', 'acceptEdits', 'plan', 'auto']
 }
 
 /**

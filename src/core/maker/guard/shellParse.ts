@@ -12,7 +12,7 @@ export interface ShellProgram {
 }
 
 const KEYWORDS =
-  /^(?:if|for|while|until|case|function|foreach|switch|try|return|call|start|set|export)$/i
+  /^(?:if|for|while|until|case|function|foreach|switch|try|return|call|start|set|export|env|command|exec|nohup|sudo|start-process|set-alias|new-alias)$/i
 const EXPANSION = /[$`]/
 const CMD_EXPANSION = /[%!]/
 const PS_SPECIAL = /[{}()[\],@]/
@@ -146,7 +146,8 @@ export function parseShell(text: string, dialect: GuardDialect): ShellProgram {
       /\.(?:sh|bash|ps1|cmd|bat)$/i.test(entry) ||
       KEYWORDS.test(name) ||
       DYNAMIC.test(name) ||
-      /^(?:[\w]+)=/.test(name) ||
+      /^(?:[\w]+)=/.test(entry) ||
+      /^\.[\\/]/.test(entry) ||
       (INTERPRETER.test(name) &&
         command.argv.length > 1 &&
         command.argv.slice(1).some((arg) => !/^(?:--version|--help|-h|-v)$/i.test(arg))) ||

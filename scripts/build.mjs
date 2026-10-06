@@ -52,6 +52,7 @@ import path from 'node:path'
 import * as esbuild from 'esbuild'
 import {
   hardwareGuardSplit,
+  hardwareShellSplit,
   browserHardwareText,
   hardwareConstantTables,
 } from './lib/hardwareGuardSplit.mjs'
@@ -333,9 +334,19 @@ const checkpointStoreOptions = {
 
 const hardwareGuardOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, hardwareConstantTables],
+  plugins: [sharedUiText, sharedValidation, hardwareShellSplit, hardwareConstantTables],
   entryPoints: [HARDWARE_GUARD_ENTRY],
   outfile: HARDWARE_GUARD_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+const hardwareShellOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, hardwareConstantTables],
+  entryPoints: ['src/core/maker/shellEntry.ts'],
+  outfile: 'dist/hardwareShell.js',
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
@@ -467,6 +478,7 @@ if (isWatch) {
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
     esbuild.context(hardwareGuardOptions),
+    esbuild.context(hardwareShellOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(bundledSkillsOptions),
     esbuild.context(codeIntelOptions),
@@ -495,6 +507,7 @@ if (isWatch) {
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
     hardwareGuard: esbuild.build(hardwareGuardOptions),
+    hardwareShell: esbuild.build(hardwareShellOptions),
     agentImport: esbuild.build(agentImportOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
     codeIntel: esbuild.build(codeIntelOptions),

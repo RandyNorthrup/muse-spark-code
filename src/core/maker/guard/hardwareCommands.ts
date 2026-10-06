@@ -31,7 +31,10 @@ const HARDWARE_RULES: readonly HardwareRule[] = [
   ['refused', /\bavrdude\b.*(?:-U\s*|\s)(?:[lhe]fuse|lock):w(?::|\b)/i],
   ['refused', /\bstm32_programmer_cli\b.*\bRDP\s*=\s*0xCC\b/i],
   ['refused', /\bpicotool\b.*\botp\s+(?:set|load)\b/i],
-  ['program', /\b(?:pio|platformio)\s+run\b.*(?:-t\s*|--target[=\s]+)(?:uploadfs|upload|erase)\b/i],
+  [
+    'program',
+    /\b(?:pio|platformio)\b.*\brun\b.*(?:-t\s*|--target[=\s]+)(?:uploadfs|upload|erase)\b/i,
+  ],
   ['program', /\bidf\b.*\b(?:flash|app-flash|erase-flash|dfu-flash)\b/i],
   ['program', /\besptool\b.*\b(?:write[-_]flash|erase[-_]flash|erase[-_]region)\b/i],
   ['program', /\barduino-cli\b.*\b(?:upload|burn-bootloader)\b/i],
@@ -103,10 +106,19 @@ function devicePath(path: string, context: HardwareContext): ActionClass | undef
 
 function executable(command: ShellCommand): ShellCommand {
   const name = commandName(command.argv[0] ?? '')
+  if (/^(?:env|command|exec|nohup|sudo)$/.test(name)) {
+    const entry = command.argv.findIndex(
+      (arg, index) => index > 0 && !arg.startsWith('-') && !/^[\w]+=/.test(arg),
+    )
+    return entry > 0 ? executable({ ...command, argv: command.argv.slice(entry) }) : command
+  }
   if (/^python\d*$/.test(name)) {
     const module = command.argv.indexOf('-m')
-    const entry = module === -1 ? 1 : module + 1
-    return { ...command, argv: command.argv.slice(entry) }
+    const entry =
+      module === -1
+        ? command.argv.findIndex((arg, index) => index > 0 && !arg.startsWith('-'))
+        : module + 1
+    return entry < 1 ? command : { ...command, argv: command.argv.slice(entry) }
   }
   return command
 }
@@ -131,14 +143,16 @@ function classifyCommand(
     const isCopy = /^(?:cp|copy|copy-item|move|mv|move-item|rsync)$/.test(name)
     const pathFlag = args.findIndex((arg) =>
       isCopy
-        ? /^-(?:destination|target-directory|t)$/i.test(arg)
-        : /^-(?:literalpath|path|filepath)$/i.test(arg),
+        ? /^(?:-destination|--target-directory|-t)(?:[=:]|$)/i.test(arg)
+        : /^-(?:literalpath|path|filepath)(?::|$)/i.test(arg),
     )
-    const destinationIndex = pathFlag === -1 ? -1 : pathFlag + 1
-    const target =
-      name === 'dd'
-        ? args.find((arg) => arg.startsWith('of='))?.slice('of='.length)
-        : args.at(destinationIndex)
+    const flag = args[pathFlag] ?? ''
+    const delimiter = flag.search(/[=:]/)
+    const positionals = args.filter((arg) => !arg.startsWith('-'))
+    let target: string | undefined
+    if (name === 'dd') target = args.find((arg) => arg.startsWith('of='))?.slice('of='.length)
+    else if (pathFlag === -1) target = isCopy ? positionals.at(-1) : positionals[0]
+    else target = delimiter === -1 ? args[pathFlag + 1] : flag.slice(delimiter + 1)
     if (target !== undefined) writes.push(devicePath(target, context))
     if (name === 'tee')
       for (const destination of args) {
@@ -156,7 +170,7 @@ function classifyCommand(
       HARDWARE_RULES.find(([, command]) => command.test(text))?.[0]
     if (
       /^(?:pio|platformio)$/.test(name) &&
-      command.argv[1] === 'test' &&
+      command.argv.slice(1).find((arg) => !arg.startsWith('-')) === 'test' &&
       !/--without-uploading\b|(?:-e\s*|--environment[=\s]+)native\b/.test(text)
     )
       row = 'program'
@@ -164,6 +178,7 @@ function classifyCommand(
       row ??= /\b(?:connect\s+list|devs)\b/.test(text) ? 'observe' : 'connect'
     if (
       /^(?:esptool|espefuse|picotool)$/.test(name) &&
+      command.argv.slice(1).every((arg) => !/^(?:--help|-h|help|version|--version)$/.test(arg)) &&
       !/\b(?:merge[-_]bin|image[-_]info|summary|dump|otp\s+(?:list|get))\b/.test(text)
     )
       row ??= 'actuate'
@@ -186,7 +201,7 @@ function hasDeviceSignal(command: string, context: HardwareContext): boolean {
   if (context.isHardwareWorkspace === true) return true
   const text = command.replaceAll(/["'\\`^]/g, '')
   return (
-    /\b(?:pio|platformio|idf(?:\.py)?|esptool|espefuse|avrdude|picotool|mpremote|ampy|dfu-util|st-flash|openocd|nrfjprog|esphome|espota|gpioset|pinctrl|raspi-gpio|ros2|System\.IO\.Ports|cncjs|socket\.io)\b|\/dev\/(?:tty|cu\.|serial|gpiochip)|\bCOM\d+\b|CIRCUITPY|RPI-RP2|\/media\/|\/Volumes\/|\/sys\/(?:class|devices)\/|\/(?:printer|machine)\/|\/server\/jsonrpc|\/fs\//i.test(
+    /\b(?:pio|platformio|idf(?:\.py)?|esptool|espefuse|avrdude|arduino-cli|west|stm32_programmer_cli|stty|screen|minicom|picocom|cu|picotool|mpremote|ampy|dfu-util|st-flash|openocd|nrfjprog|esphome|espota|gpioset|pinctrl|raspi-gpio|ros2|System\.IO\.Ports|cncjs|socket\.io)\b|\/dev\/(?:tty|cu\.|serial|gpiochip)|\bCOM\d+\b|CIRCUITPY|RPI-RP2|\/media\/|\/Volumes\/|\/sys\/(?:class|devices)\/|\/(?:printer|machine)\/|\/server\/jsonrpc|\/fs\//i.test(
       text,
     ) ||
     context.targets?.some((target) =>
@@ -279,25 +294,40 @@ export function hardwareArgvAction(
     : action
 }
 
-export function hardwareTarget(
+export function hardwareTargets(
   command: string,
   dialect: GuardDialect = 'bash',
   context: HardwareContext = {},
-): TargetIdentity {
+  stages: readonly (readonly string[])[] = [],
+): readonly TargetIdentity[] {
   const parsed = parseShell(command, dialect)
-  const candidates = parsed.commands.flatMap((item) => [
-    ...item.argv,
-    ...item.redirects.map((redirect) => redirect.target),
-  ])
-  const address = candidates.find(
+  const candidates = [
+    ...stages.flat(),
+    ...parsed.commands.flatMap((item) => [
+      ...item.argv,
+      ...item.redirects.map((redirect) => redirect.target),
+    ]),
+  ]
+  const addresses = candidates.filter(
     (candidate) =>
       /^(?:https?|wss?):\/\//i.test(candidate) || devicePath(candidate, context) !== undefined,
   )
-  const registered = context.targets?.find(
-    (target) =>
-      address !== undefined &&
-      (isRegisteredTarget(address, { targets: [target] }) ||
-        isMachineTarget(address, { targets: [target] })),
-  )
-  return registered ?? { address: address ?? command }
+  // Bind the entire observed inventory too: unresolved shell code and typed
+  // tools cannot hide a second target from a text classifier. Registry churn
+  // invalidates the card even when an unrelated machine changed.
+  const targets: TargetIdentity[] = [
+    ...(context.targets ?? []),
+    ...(context.boardRoots ?? []).map((address) => ({ address })),
+  ]
+  for (const address of addresses) {
+    const registered = context.targets?.find(
+      (target) =>
+        isRegisteredTarget(address, { targets: [target] }) ||
+        isMachineTarget(address, { targets: [target] }),
+    )
+    if (registered === undefined && targets.every((target) => target.address !== address))
+      targets.push({ address })
+  }
+  if (targets.length === 0) targets.push({ address: command })
+  return targets.toSorted((left, right) => left.address.localeCompare(right.address))
 }

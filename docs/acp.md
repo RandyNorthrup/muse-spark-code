@@ -262,7 +262,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
 The portable guard is shared with the extension and Model API backend.
 Detected connect, program and actuate calls offer allow-once/reject-once only;
-Plan, unattended runs and irreversible operations refuse them. Unresolved
+Typed device tools refuse Plan and unattended runs; irreversible operations
+are always refused. Unresolved
 shell syntax plus a device signal or host-designated hardware workspace asks
 once, including encoded/interpreter commands and HTTP config files. All
 HTTP transfers and device destinations are checked; reading a file from a
@@ -270,8 +271,20 @@ board retains ordinary policy. Failed decisions cannot renew or replay an
 expired or consumed approval. Exact parsed command, original text and
 host-observed target are bound to its digest.
 
-Bypass remains opt-in for ordinary work and is capped for host-designated
-hardware workspaces. A shell stop requires a registered canonical stop
+In a hardware workspace (host-owned maker enablement/project detection,
+connected board, mounted board root or registered machine), every model shell
+command needs fresh exact-text host approval, including in Plan. The classifier
+only adds warnings and refuses known irreversible operations. Only a fully
+parsed command matching the strict read-only table in the README is exempt;
+no standing shell grants, hook allowance or reviewer can answer the question.
+Bypass and every unattended origin deny all shell commands there, including
+allowlisted reads, verification/then_run and workers. Non-hardware policy stays
+unchanged. Muse Code's hardware mode is capped to `promptUnmatched` before
+turns (`denyUnmatched` when unattended); its existing standing policies and
+silent execution still need live qualification. Approvals bind exact bytes,
+staged argv, every observed identity and expiry; registry churn rejects them.
+
+A shell stop requires a registered canonical stop
 contract; a physical MCP tool's name alone never grants a stop exemption.
 The guard does not sandbox scripts, and Muse Code commands that emit no
 approval remain an explicit qualification gap. Device registration, the

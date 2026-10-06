@@ -2571,9 +2571,15 @@ export const EN = {
   // M103-G: the always-on physical-action guard.
   approvalHardwareNote:
     'Physical device action. Opening a serial port may reset the board. Review the exact command and target; approval applies once and expires after two minutes.',
+  hardwareShellNote:
+    'Hardware workspace: review this exact shell command. Approval applies once and expires after two minutes. Use maker tools for device actions. {warning}',
+  hardwareProgramWarning: 'This looks like it programs a board.',
+  hardwareConnectWarning: 'This looks like it opens a device port; the board may reset.',
+  hardwareActuateWarning: 'This looks like it writes to a port or sends a machine command.',
   hardwareRefused:
     'This device operation is refused. Review and run the command yourself in your own terminal.',
-  hardwareUnattended: 'Physical device actions are refused in unattended runs.',
+  hardwareUnattended:
+    'Shell commands in hardware workspaces and physical device actions are refused in unattended runs.',
   hardwareExpired: 'The device approval expired. Nothing was sent.',
   hardwareBypassNotice:
     'Bypass permissions are unavailable in hardware workspaces. Use Auto or Manual and approve each device action once.',

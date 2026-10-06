@@ -242,6 +242,7 @@ quality`) and as a CI job.
 | `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
 | `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
 | `dist/hardwareGuard.js`    | ≤ 25 KiB (REDM103G: first-use shared command parser and approval guard; original caps and startup no-growth remain hard gates)                                                                                    |
+| `dist/hardwareShell.js`    | ≤ 20 KiB (REDM103G2: first-use shell parser, advisory classifier and strict read-only policy; the existing guard cap is unchanged)                                                                                |
 | `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
 | `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
 | `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
@@ -4889,6 +4890,43 @@ it. These decisions keep every physical effect behind a person who sees
 exactly what will be sent.
 
 #### Guard redesign (REDM103G, 2026-10-05)
+
+**Third design (REDM103G2, owner ruling after RVM103G2).** Detection is
+advisory, never an execution exemption in a hardware workspace. A host-owned
+maker enablement/project-detection flag, connected board, mounted board root
+or registered machine makes a hardware workspace. Every model shell command
+there asks the host afresh with exact text and no standing/reviewer/hook grant;
+only a single fully parsed command matching the read-only argv table is exempt.
+Unattended origins (including verification/then_run) and Bypass deny all model
+shell commands there, even allowlisted reads. Canonical registered out-of-band
+Stop remains exempt. Literal irreversible operations remain refused. Muse Code
+hardware sessions select promptUnmatched before turns so onRequest cannot skip
+simple commands; CLI-side standing policies still require the lead's live
+qualification before any safety certification. Non-hardware permission policy
+stays unchanged. Approval binding snapshots every relevant host identity,
+including staged argv and typed-tool target fields, not just the first URL.
+Parser/classifier labels retain the prior fixes and add the round-two wrapper,
+global-option, destination, URL and offline-help cases. The read-only table and
+classifier remain first-use code; a separate lazy shell bundle is permitted
+if required to keep the existing guard budget. Evidence is named regressions
+for both reports, table mutations, hardware/non-hardware corpus parity,
+real-host denial/binding, byte-exact red drills and strict startup comparison.
+Both lazy bundles must ship in VSIX/ACP and participate in the notices and
+ACP release inventory; packaging must fail when either runtime is excluded.
+No live/paid/device calls or aggregate quality run are authorized on this rig.
+
+**Third-design focused receipts:** `docs/certification/m103-g2.md` records
+1,959 passing tests in eighteen full owning files, thirteen failed/restored
+mutation drills and passing type/lint/format/dead-code/duplication/l10n/API,
+production build, local package and offline release-inventory checks. Against
+an independently built `bfc27a28`, activation is 596018 versus 596065 bytes
+and eager browser JavaScript is 898341 versus 898355; both strict no-growth
+checks pass. The 300-pair corpus has zero new outside asks, thirteen read-only
+hardware exemptions and 287 fresh asks; all pairs deny unattended. This closes
+the guard lane's startup acceptance; full M103 and CLI/physical qualification
+still require the owning lanes and lead gates.
+
+**The following records the superseded second design and its receipts.**
 
 The RVM103G review invalidated textual safety allow-lists. Lane G now
 parses shell words, command boundaries, pipelines and redirection direction
@@ -15633,6 +15671,18 @@ lane A's first step.
 
 ## 7. Gates
 
+**REDM103G2 (2026-10-05, Windows 11 rig).** The third-design lane brief
+requires focused owning files (at most three per run), byte-exact red drills,
+static/build/package checks and no merge. It explicitly forbids aggregate
+quality/full-unit/live/paid/device runs; those remain lead gates, not waived
+requirements. Existing startup budgets stay unchanged; the shell policy has
+its own first-use bundle and guarded cap. Receipts and remaining CLI/physical
+qualification are in `docs/certification/m103-g2.md`. The common rules also
+name `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` and
+`check:reference`; none exists on this base. Do not invent a competing catalog:
+the lead must integrate the updated README/ACP/changelog feature description
+into the release train's reference infrastructure before release.
+
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
 120 minutes. No cap, threshold, skip or user-facing feature may be weakened.
@@ -16115,10 +16165,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                             | Date       |
-| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `scripts/lib/hardwareGuardSplit.mjs`                                   | Same-build generated synchronous function/constructor proxies                       | The guard entry, proxy and package come from one build. Signatures are trusted only for this fixed local module; missing/malformed exports throw before classification or approval can allow dispatch. The split gate verifies the implementation is present only in its lazy bundle; built-bundle probes verify first-use loading and language transfer. No external shape or model input supplies a module path. | 2026-10-05 |
-| `scripts/lib/hardwareGuardSplit.mjs`, `src/core/maker/guardSecrets.ts` | Same-build secret-reader injection and pure constant-table construction annotations | The lazy guard calls the caller's original detector/redactor, with no second pattern list; missing readers throw. Only immutable Set declarations in the constants file are annotated for the guard build, so used tables remain and unused allocations can be omitted. Production probes check real secret detection/redaction and the hard 25 KiB cap.                                                           | 2026-10-05 |
+| REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Date       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `scripts/lib/hardwareGuardSplit.mjs`                                   | Same-build generated synchronous function/constructor proxies                       | The guard and shell entries, proxies and packages come from one build. Signatures are trusted only for these fixed local modules; missing/malformed exports throw before classification or approval can allow dispatch. Forwarding arrows keep the signatures/call behavior while avoiding startup growth. The split gate verifies each implementation is present only in its lazy bundle; built-bundle probes verify first-use loading and language transfer. No external shape or model input supplies a module path. | 2026-10-05 |
+| `scripts/lib/hardwareGuardSplit.mjs`, `src/core/maker/guardSecrets.ts` | Same-build secret-reader injection and pure constant-table construction annotations | The lazy guard calls the caller's original detector/redactor, with no second pattern list; missing readers throw. Only immutable Set declarations in the constants file are annotated for the guard build, so used tables remain and unused allocations can be omitted. Production probes check real secret detection/redaction and the hard 25 KiB cap.                                                                                                                                                                | 2026-10-05 |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
