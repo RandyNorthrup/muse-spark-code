@@ -14,6 +14,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The report CLI help test follows the documented complete-reference contract
+  for subcommand `--help` and `-h`.
+
 - The Help reference gate accepts Windows file paths and continues checking
   keyboard dispatch against the runtime registry.
 
