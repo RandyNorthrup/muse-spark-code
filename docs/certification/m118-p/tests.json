@@ -78,5 +78,23 @@
     "files": ["Composer.test.tsx", "Transcript.test.tsx", "prompts.test.ts"],
     "pending": 0,
     "failed": 0
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptNative.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000",
+      "--reporter=json",
+      "--outputFile=temp/m118-tests-native.json"
+    ],
+    "exit": 0,
+    "tests": 3,
+    "passed": 3,
+    "files": ["promptNative.test.ts"],
+    "pending": 0,
+    "failed": 0
   }
 ]

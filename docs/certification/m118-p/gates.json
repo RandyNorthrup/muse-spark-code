@@ -157,5 +157,15 @@
     "name": "host-globals",
     "command": ["node", "scripts/check-host-globals.mjs"],
     "exit": 0
+  },
+  {
+    "name": "native-unit-types",
+    "command": ["npm", "run", "typecheck:unit"],
+    "exit": 0
+  },
+  {
+    "name": "native-eslint",
+    "command": ["npx", "eslint", "--max-warnings=0", "test/unit/promptNative.test.ts"],
+    "exit": 0
   }
 ]

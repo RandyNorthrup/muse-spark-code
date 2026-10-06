@@ -1189,6 +1189,86 @@
           "planted": "<span key={index}>{part}</span>"
         }
       ]
+    },
+    {
+      "name": "native-edit-cancel",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptNative",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptNative.test.ts > native prompt review and release > keeps cancelled edits local and rejects an edited preview before insertion"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": ") !== UI_TEXT.promptSave",
+          "planted": ") === UI_TEXT.promptSave"
+        }
+      ]
+    },
+    {
+      "name": "native-preview-bytes",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptNative",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptNative.test.ts > native prompt review and release > keeps cancelled edits local and rejects an edited preview before insertion"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "if (document.getText() !== text) throw new Error(UI_TEXT.promptFileInvalid)",
+          "planted": "if (false) throw new Error(UI_TEXT.promptFileInvalid)"
+        }
+      ]
+    },
+    {
+      "name": "native-file-confidential",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptNative",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptNative.test.ts > native prompt review and release > rechecks confidential policy after the save dialog before writing"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "if (uri === undefined) return\n      if (deps.isConfidentialWorkspace() !== false)",
+          "planted": "if (uri === undefined) return\n      if (false)"
+        }
+      ]
+    },
+    {
+      "name": "native-file-secret",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptNative",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptNative.test.ts > native prompt review and release > refreshes registered values after the save dialog and requires a new preview"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "if (privacy.redactRegisteredSecrets(text) !== text)",
+          "planted": "if (false)"
+        }
+      ]
     }
   ],
   "nonRedAttempts": [
