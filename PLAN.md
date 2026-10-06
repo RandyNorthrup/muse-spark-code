@@ -19273,6 +19273,12 @@ The required release merge and mechanical move preserve all released changelog
 sections byte-exact; every production JavaScript bundle is byte-identical after
 the move. Extraction/adapter and screenshot outcomes are in
 `docs/certification/m104-a.md`. No model or paid calls.
+The original raw screenshot zero-difference item remains unqualified: 69 of
+154 PNGs differ in time-dependent caret/animation/clock/scroll state despite
+byte-identical webview assets. Controlled paired renders match all 154 after
+two pair retries, but do not waive that original requirement. The lead must
+qualify the stable original capture alongside real extension-host integration;
+no renderer, threshold, test or cap was weakened.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
