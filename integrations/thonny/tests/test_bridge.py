@@ -160,7 +160,9 @@ def test_silent_backend_times_out_and_detaches_cleanly():
     quick.progress()
     time.sleep(0.1)
     quick.progress()
+    started = time.monotonic()
     reply = quick.wait(pending, timeout=5.0)
+    assert time.monotonic() - started < 2.0, "timed-out request must not block the full wait"
     assert reply["ok"] is False
     assert reply["error"]["code"] == protocol.ERR_TIMEOUT
     quick.detach()
@@ -174,7 +176,9 @@ def test_detach_fails_pending_with_not_connected():
     _, _, _, engine = _harness()
     pending = engine.submit(_read_frame())
     engine.detach()
+    started = time.monotonic()
     reply = engine.wait(pending, timeout=5.0)
+    assert time.monotonic() - started < 2.0, "detached request must fail at once"
     assert reply["ok"] is False
     assert reply["error"]["code"] == protocol.ERR_NOT_CONNECTED
 
