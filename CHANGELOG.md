@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
+  within npm-run-all2's existing dependency range.
+
 ### Fixed
 
 - The Help reference gate accepts Windows file paths and continues checking

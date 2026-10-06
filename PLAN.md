@@ -13059,6 +13059,19 @@ packaging and scoped static/build gates. No timeout, threshold, hook or bundle
 cap changes. Aggregate quality and hosted cross-platform runs remain with the
 lead under the explicit rig/shared rule; local hook-on commits only.
 
+Round 5 repairs the last two hosted failures on `48a2e8575`. Update only
+the dev-only `shell-quote` lock entry within `npm-run-all2`'s existing
+`^1.8.4` range to a fixed version for GHSA-pqg4-j6r4-53mv; add no direct
+dependency, override or audit exception. Verify clean installation in an
+isolated directory because this rig's existing dependencies are hard-linked
+to a shared install. Preserve the deliberate complete-reference contract for
+`exec --help`, `report --help` and `scan-secrets --help`: commit `94a1e7d3b`
+and `docs/certification/help-reference.md` record parity with `help --all`.
+Update the stale report parser expectation, then run the requested Help,
+reference and fake stdio suites with default timeouts, audit, typecheck,
+lint, formatting, reference freshness and production build. No new command
+or feature, gate change, paid/live call, merge, push, tag or publication.
+
 ### Delivery order (2026-10-06)
 
 The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff
