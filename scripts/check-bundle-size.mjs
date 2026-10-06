@@ -4,7 +4,7 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import { webviewDeferredBudgetGroups, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -135,12 +135,36 @@ const BUDGETS = [
   // What's New's page script (M99): it only passes clicks back to the host.
   // 0.7 KiB when made, plus 15%, rounded up to 25 KiB.
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
+  // HELPREF: an independent lazy page, sharing the caller's React and text.
+  { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
+  { path: 'dist/reference.js', budgetKiB: 100 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   { path: 'dist/acp.js', budgetKiB: 850 },
+]
+
+// DIET1: independently emitted optional surfaces, measured on main, each plus
+// 15%, rounded up to 25 KiB. Closure caps also charge their shared imports.
+const WEBVIEW_SURFACE_BUDGETS = [
+  // Sign-in: 3.9 KiB + 15%, rounded to 25 KiB.
+  { entry: 'SignIn', budgetKiB: 25 },
+  // Goal panel: 3.2 KiB by the same rule.
+  { entry: 'GoalPanel', budgetKiB: 25 },
+  // Schedule panel: 1.6 KiB by the same rule.
+  { entry: 'SchedulePanel', budgetKiB: 25 },
+  // Palette: 5.4 KiB (7.5 KiB closure) by the same rule.
+  { entry: 'Palette', budgetKiB: 25 },
+  // Popover menu: 2.0 KiB by the same rule.
+  { entry: 'PopoverMenu', budgetKiB: 25 },
+  // Radial menu body: 4.9 KiB by the same rule.
+  { entry: 'GooeyMenuContent', budgetKiB: 25 },
+  // Account & usage body: 12.7 KiB by the same rule.
+  { entry: 'UsageDialogContent', budgetKiB: 25 },
+  // Agent map body: 8.0 KiB by the same rule.
+  { entry: 'AgentMapContent', budgetKiB: 25 },
 ]
 
 let hasFailure = false
@@ -163,18 +187,26 @@ for (const { path, budgetKiB } of BUDGETS) {
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
 }
 
-// TRAIN13B: optional UI chunks, 38.6 KiB + 15%, rounded to 25 KiB.
-const WEBVIEW_DEFERRED_BUDGET_KIB = 50
+// Each new lazy closure has its own cap; old surfaces and unclassified
+// deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-const eager = new Set(webviewStartupOutputs(webview))
-const deferredKiB =
-  Object.keys(webview.outputs)
-    .filter((file) => file.endsWith('.js') && !eager.has(file))
-    .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
-if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
-console.log(
-  `${deferredKiB <= WEBVIEW_DEFERRED_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview deferred JS: ${deferredKiB.toFixed(1)} KiB (budget ${WEBVIEW_DEFERRED_BUDGET_KIB} KiB)`,
-)
+for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
+  for (const [file, output] of Object.entries(webview.outputs)) {
+    if (output.entryPoint?.replaceAll('\\', '/') !== `src/webview/components/${entry}.tsx`) continue
+    const sizeKiB = statSync(file).size / BYTES_PER_KIB
+    if (sizeKiB > budgetKiB) hasFailure = true
+    console.log(
+      `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} ${file} (${entry}): ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+    )
+  }
+}
+for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview)) {
+  const sizeKiB = outputs.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
+}
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

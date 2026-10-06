@@ -23,6 +23,7 @@ export { parseProcessTable } from '../core/resources/trees/processTable'
 import { execFile } from 'node:child_process'
 import { stopResourceTree } from '../core/resources/admission'
 import type { ResourceLease } from '../core/resources/launch'
+import { withoutCredentials } from '../core/credentialEnvironment'
 import path from 'node:path'
 import {
   setEnvironmentVariable,
@@ -31,6 +32,8 @@ import {
 import { powerShellQuoted } from '../core/shellQuote'
 import {
   ORPHAN_SWEEP_ROUNDS,
+  POSIX_TREE_EXIT_POLL_MS,
+  POSIX_TREE_EXIT_WAIT_MS,
   PROCESS_TABLE_TIMEOUT_MS,
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
@@ -51,6 +54,7 @@ export type RunProgram = (
   file: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
+  timeoutMs?: number,
 ) => Promise<string>
 
 export interface ProcessTreeDeps {
@@ -85,12 +89,12 @@ export function treeSpawnOptions(platform: NodeJS.Platform): { readonly detached
   return { detached: platform !== 'win32' }
 }
 
-export const runProgram: RunProgram = (file, args, env) =>
+export const runProgram: RunProgram = (file, args, env, timeoutMs = PROCESS_TABLE_TIMEOUT_MS) =>
   new Promise((resolve, reject) => {
     execFile(
       file,
       [...args],
-      { windowsHide: true, timeout: PROCESS_TABLE_TIMEOUT_MS, env },
+      { windowsHide: true, timeout: timeoutMs, env: withoutCredentials(env) },
       (error, stdout) => {
         if (error === null) {
           resolve(stdout)
@@ -113,7 +117,7 @@ export function windowsPowerShell(
   readonly file: string
   readonly env: NodeJS.ProcessEnv
 } {
-  const env = { ...base }
+  const env = withoutCredentials(base)
   setEnvironmentVariable(
     env,
     'win32',
@@ -328,6 +332,54 @@ async function didTerminateJob(
   return false
 }
 
+/** Wait for group exit, allowing Linux's unreaped zombies to count as exited. */
+async function waitForPosixGroup(pid: number, deps: ProcessTreeDeps): Promise<void> {
+  const deadline = Date.now() + POSIX_TREE_EXIT_WAIT_MS
+  try {
+    for (;;) {
+      process.kill(-pid, 0)
+      if (deps.platform === 'linux') {
+        // A zombie may retain its group indefinitely when init does not reap
+        // it. ps supplies only group IDs and states, with no inherited secrets.
+        const table = await (deps.run ?? runProgram)(
+          '/bin/ps',
+          ['-eo', 'pgid=,stat='],
+          {},
+          Math.max(1, deadline - Date.now()),
+        )
+        const isRunning = table.split('\n').some((line) => {
+          const [group, state] = line.trim().split(/\s+/, 2)
+          return group === String(pid) && state !== undefined && !state.startsWith('Z')
+        })
+        if (!isRunning) {
+          return
+        }
+      }
+      const remaining = deadline - Date.now()
+      if (remaining <= 0) {
+        process.kill(-pid, SIGKILL)
+        deps.log(
+          `process group ${String(pid)} was still present ${String(POSIX_TREE_EXIT_WAIT_MS)} ms after SIGKILL; signalled it again`,
+        )
+        return
+      }
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, Math.min(POSIX_TREE_EXIT_POLL_MS, remaining))
+      })
+    }
+  } catch (error: unknown) {
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ESRCH') {
+      return
+    }
+    deps.log(`process group ${String(pid)} exit could not be confirmed: ${String(error)}`)
+    try {
+      process.kill(-pid, SIGKILL)
+    } catch {
+      // The group can disappear between the failed probe and this last signal.
+    }
+  }
+}
+
 /**
  * Kills `root` and its descendants; resolves once they are gone, as far as
  * can be seen. `startedAt` is when the shell was spawned; `job` the job
@@ -356,6 +408,7 @@ export async function killTree(
       deps.log(`process group ${String(pid)} could not be signalled: ${String(error)}`)
       root.kill(SIGKILL)
     }
+    await waitForPosixGroup(pid, deps)
     return
   }
   const { systemRoot } = deps

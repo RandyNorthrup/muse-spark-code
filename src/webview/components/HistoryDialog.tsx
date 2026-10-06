@@ -1,3 +1,4 @@
+import { webviewKey, WEBVIEW_KEYBINDINGS } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
 // branches, Archive / Unarchive per row and a "Show archived" switch.
@@ -27,6 +28,8 @@ import {
   usePaletteNavigation,
 } from './paletteDialog'
 
+const ARCHIVE_KEY = WEBVIEW_KEYBINDINGS['history.archive'].archive.keys[0].key
+
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
   readonly sessions: readonly SessionRow[] | undefined
@@ -41,7 +44,6 @@ export interface HistoryDialogProps {
 
 const ROW_ID_PREFIX = 'history-row-'
 // Archives or restores the highlighted row from the search box (M37).
-const ARCHIVE_KEY = 'Delete'
 
 /** What the list renders: group titles and numbered rows, in order. */
 export type HistoryEntry =
@@ -185,7 +187,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
   }, [activeRow])
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === ARCHIVE_KEY) {
+    if (webviewKey('history.archive', event) === 'archive') {
       // Only on the highlighted row; with text selected, Delete edits it.
       if (activeRow !== undefined && event.currentTarget.value === '') {
         event.preventDefault()

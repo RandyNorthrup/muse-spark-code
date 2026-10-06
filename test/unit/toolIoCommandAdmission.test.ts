@@ -36,7 +36,7 @@ function rootDirectory() {
   return root
 }
 
-function localIo() {
+function localIo(passNames: readonly string[] = []) {
   return createToolIo({
     platform: process.platform,
     systemRoot: process.env['SystemRoot'],
@@ -45,6 +45,7 @@ function localIo() {
     // GitHub's runner, so `Write-Output`'s module auto-loading analysed every
     // installed module first: 17 to 29 s, and once past this test's deadline.
     env: () => process.env,
+    passEnvironmentVariables: () => passNames,
     listFiles: () => Promise.resolve([]),
     searchWorkerPath: 'unused',
     log: () => undefined,
@@ -53,6 +54,70 @@ function localIo() {
 }
 
 describe('native command final owner admission', () => {
+  it('D89.5 fences the RVENVFENCE credential names in a real unattended shell', async () => {
+    const names = ['AZURE_DEVOPS_EXT_PAT', 'SYSTEM_ACCESSTOKEN', 'TF_TOKEN_app_terraform_io']
+    for (const name of names) vi.stubEnv(name, `envfence-fake-${name}`)
+    vi.stubEnv('TOKENIZERS_PARALLELISM', 'envfence-harmless-tokenizers')
+    vi.stubEnv('KEY_PATH', 'envfence-harmless-path')
+    try {
+      const result = await localIo(names).runShell(
+        process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
+        rootDirectory(),
+        REAL_SHELL_TIMEOUT_MS,
+      )
+      expect(result.exitCode).toBe(0)
+      for (const name of names) expect(result.stdout.includes(`envfence-fake-${name}`)).toBe(false)
+      expect(result.stdout.includes('envfence-harmless-tokenizers')).toBe(true)
+      expect(result.stdout.includes('envfence-harmless-path')).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('D89.5 real-shell environment probe withholds parent credentials unless interactive and named', async () => {
+    vi.stubEnv('OPENAI_API_KEY', 'envfence-fake-parent')
+    try {
+      const io = localIo(['OPENAI_API_KEY'])
+      const command = process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env'
+      for (const isInteractive of [false, true]) {
+        const result = await io.runShell(
+          command,
+          rootDirectory(),
+          REAL_SHELL_TIMEOUT_MS,
+          undefined,
+          undefined,
+          undefined,
+          isInteractive,
+        )
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout.includes('envfence-fake-parent')).toBe(isInteractive)
+      }
+      const fenced = await localIo().runShell(
+        command,
+        rootDirectory(),
+        REAL_SHELL_TIMEOUT_MS,
+        undefined,
+        undefined,
+        undefined,
+        true,
+      )
+      expect(fenced.stdout).not.toContain('envfence-fake-parent')
+      if (io.runHook === undefined) throw new Error('expected hook IO')
+      const hook = await io.runHook(
+        process.platform === 'win32' ? 'set' : 'env',
+        '{}',
+        rootDirectory(),
+        REAL_SHELL_TIMEOUT_MS,
+        undefined,
+        ['OPENAI_API_KEY'],
+      )
+      expect(hook.exitCode).toBe(0)
+      expect(hook.stdout).not.toContain('envfence-fake-parent')
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
+
   it('refuses after the held Windows assembly before any process entry', async () => {
     const root = rootDirectory()
     const entered = Promise.withResolvers<undefined>()

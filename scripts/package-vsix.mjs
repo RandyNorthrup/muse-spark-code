@@ -7,6 +7,7 @@ import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
 import { loadL10n } from './lib/l10nSource.mjs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
+import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
 const HISTORY = 'https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md'
@@ -75,7 +76,10 @@ export async function stageVsix(root, stage) {
   )
   writeFileSync(
     path.join(stage, 'README.md'),
-    readFileSync(path.join(root, 'docs/marketplace-readme.md')),
+    renderPackageReadme(
+      readFileSync(path.join(root, 'docs/marketplace-readme.md'), 'utf8'),
+      JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version,
+    ),
   )
   writeFileSync(
     path.join(stage, 'CHANGELOG.md'),
@@ -90,6 +94,10 @@ async function main() {
   await stageVsix(root, stage)
   // The same strict localization gate reads the exact staged bytes too.
   execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged', stage], {
+    cwd: root,
+    stdio: 'inherit',
+  })
+  execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-vsix', stage], {
     cwd: root,
     stdio: 'inherit',
   })

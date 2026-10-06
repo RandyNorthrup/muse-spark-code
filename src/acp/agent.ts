@@ -11,6 +11,7 @@
 // paid.ts). Every update of a turn goes out before the turn's response.
 
 import { randomUUID } from 'node:crypto'
+import { compactReference } from '../shared/cliCommands'
 import path from 'node:path'
 import {
   agent as acpAgent,
@@ -60,6 +61,7 @@ import {
   MSP_REQUESTED_CAPABILITIES,
   type PermissionMode,
   UI_TEXT,
+  SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
 import { fill } from '../shared/l10n/text'
@@ -331,17 +333,19 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
-      if (this.deps.resources === undefined) return
       this.skills = []
     }
     this.send({
       sessionUpdate: 'available_commands_update',
       availableCommands: [
+        { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         ...(this.deps.resources === undefined ? [] : resourceCommands()),
         ...this.skills
           .filter(
             (skill) =>
-              this.deps.resources === undefined || !['resources', 'usage'].includes(skill.selector),
+              skill.selector !== SLASH_COMMAND_NAMES.help &&
+              (this.deps.resources === undefined ||
+                !['resources', 'usage'].includes(skill.selector)),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -860,6 +864,33 @@ class AcpSession {
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
+    }
+    if (
+      parsed.parts.length === 1 &&
+      parsed.parts[0]?.type === 'text' &&
+      parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
+    ) {
+      const preparing: PreparingPrompt = { isCancelled: false }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+      } finally {
+        this.preparing = undefined
+      }
+      if ('error' in preparing) throw preparing.error
+      if (preparing.isCancelled) {
+        await this.outbox
+        return 'cancelled'
+      }
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: {
+          type: 'text',
+          text: compactReference(this.skills.map((skill) => skill.selector)),
+        },
+      })
+      await this.outbox
+      return 'end_turn'
     }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing

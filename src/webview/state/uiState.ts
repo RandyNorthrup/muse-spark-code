@@ -296,6 +296,15 @@ export interface UiState {
   readonly focusRequests: number
   /** Incremented per host `openUsage`; Account & usage opens when it changes (M94). */
   readonly usageRequests: number
+  readonly helpRequests: number
+  readonly referenceValues:
+    | {
+        readonly model: string
+        readonly error?: boolean | undefined
+        readonly values: Readonly<Record<string, string>>
+        readonly nls: Readonly<Record<string, string>>
+      }
+    | undefined
   /** Text waiting to be inserted at the composer caret, if any. */
   readonly pendingInsert: string | undefined
   readonly auth: {
@@ -596,6 +605,8 @@ export const initialUiState: UiState = {
   handoff: undefined,
   focusRequests: 0,
   usageRequests: 0,
+  helpRequests: 0,
+  referenceValues: undefined,
   pendingInsert: undefined,
   judge: undefined,
   auth: { status: 'checking', detail: undefined, backend: undefined, methods: undefined },
@@ -2472,6 +2483,20 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'openUsage': {
       return { ...state, usageRequests: state.usageRequests + 1 }
+    }
+    case 'openHelp': {
+      return { ...state, helpRequests: state.helpRequests + 1 }
+    }
+    case 'referenceValues': {
+      return {
+        ...state,
+        referenceValues: {
+          model: message.model,
+          values: message.values,
+          nls: message.nls,
+          error: message.error,
+        },
+      }
     }
     case 'conversationCleared': {
       if (message.accountBoundary === true) {

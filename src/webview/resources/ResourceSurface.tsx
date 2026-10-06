@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { UI_TEXT } from '../../shared/constants'
@@ -88,7 +89,7 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
           aria-label={UI_TEXT.resourceTitle}
           className="resource-popover"
           onKeyDown={(event) => {
-            if (event.key !== 'Escape') {
+            if (webviewKey('dialog', event) !== 'close') {
               return
             }
 

@@ -155,6 +155,7 @@ describe('C1 final process admission', () => {
       () => {
         if (!isAllowed) throw new Error('permission changed')
       },
+      false,
       'check',
     )
     expect(childProcess.spawn).not.toHaveBeenCalled()

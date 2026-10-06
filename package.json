@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.14.0",
+  "version": "0.14.2",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -296,6 +296,11 @@
       {
         "command": "museSpark.openPullRequestInConversation",
         "title": "%command.openPullRequestInConversation.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openHelp",
+        "title": "%command.openHelp.title%",
         "category": "%command.category%"
       }
     ],
@@ -1109,6 +1114,16 @@
           "default": "auto",
           "description": "%config.judge.engine.description%",
           "scope": "machine"
+        },
+        "museSpark.shell.passEnvironmentVariables": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "description": "%config.shell.passEnvironmentVariables.description%",
+          "scope": "machine"
         }
       }
     },
@@ -1175,6 +1190,7 @@
     "harness:pseudo": "node scripts/pseudo-l10n.mjs",
     "readme:shots": "node scripts/readme-shots.mjs",
     "test:a11y": "node scripts/a11y.mjs",
+    "check:badges": "node scripts/check-badges.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
     "check:host-api": "node scripts/check-host-api.mjs",
     "format": "prettier --write .",
@@ -1201,7 +1217,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1210,7 +1226,9 @@
     "images": "node scripts/render-images.mjs",
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
-    "schema:exec": "node scripts/exec-schema.mjs"
+    "schema:exec": "node scripts/exec-schema.mjs",
+    "reference:generate": "node scripts/gen-reference.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

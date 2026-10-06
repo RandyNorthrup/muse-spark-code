@@ -27,11 +27,11 @@ import { Buffer } from 'node:buffer'
 import { admitResource, stopResourceTree } from '../../resources/admission'
 import type { ResourceLease } from '../../resources/launch'
 import { type ChildProcess, spawn as nodeSpawn } from 'node:child_process'
+import { withoutCredentials } from '../../credentialEnvironment'
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
-  HOOK_FORBIDDEN_ENV_NAMES,
   PLUGIN_CHILD_MAX_HEAP_MB,
   PLUGIN_CHILD_MAX_MEMORY_BYTES,
   PLUGIN_HOOK_TIMEOUT_MS,
@@ -211,19 +211,6 @@ function isAtLeast(have: readonly [number, number, number], want: string): boole
     if (mine !== need) return mine > need
   }
   return true
-}
-
-/** No credential name, even in an allowlist a caller widened by mistake. */
-function withoutCredentials(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const clean: NodeJS.ProcessEnv = {}
-  for (const [name, value] of Object.entries(env)) {
-    const upper = name.toUpperCase()
-    if (value === undefined || upper.endsWith('_API_KEY') || HOOK_FORBIDDEN_ENV_NAMES.has(upper)) {
-      continue
-    }
-    clean[name] = value
-  }
-  return clean
 }
 
 /**

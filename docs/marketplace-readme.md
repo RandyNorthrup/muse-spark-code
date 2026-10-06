@@ -5,8 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://badgen.net/vs-marketplace/v/RandyNorthrup.muse-spark-code?label=Marketplace&color=2b7de9"></a>
-  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://badgen.net/open-vsx/version/RandyNorthrup/muse-spark-code?label=Open%20VSX&color=3b6"></a>
+  <a href="https://marketplace.visualstudio.com/items?itemName=RandyNorthrup.muse-spark-code"><img alt="Marketplace version" src="https://img.shields.io/badge/Marketplace-v{version}-2b7de9"></a>
+  <a href="https://open-vsx.org/extension/RandyNorthrup/muse-spark-code"><img alt="Open VSX version" src="https://img.shields.io/badge/Open%20VSX-v{version}-3b6"></a>
   <img alt="WCAG 2.2 AA checked" src="https://img.shields.io/badge/WCAG%202.2-AA%20checked-2b7de9">
   <img alt="15 languages" src="https://img.shields.io/badge/languages-15-2b7de9">
   <img alt="MIT license" src="https://img.shields.io/badge/license-MIT-green">
@@ -22,7 +22,35 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-## What's new in 0.14.0
+**Contents:** [What's new](#whats-new-in-0142) · [Get started](#get-started) ·
+[Work in the panel](#work-in-the-panel)
+
+## What's new in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
+
+- **Safer shell commands.** Commands the agent runs no longer see your
+  credential variables (API keys, tokens, passwords). Name any you want passed
+  through in `museSpark.shell.passEnvironmentVariables`; scheduled and other
+  unattended commands never get them.
+- **Exact store badges.** The Marketplace and Open VSX pages show the version
+  you are installing, not a cached older one.
+- **Faster start.** The chat panel loads about 100 KiB less at startup; syntax
+  highlighting, dialogs and Tasks load when first needed.
+- **Fix:** stopped or timed-out commands on macOS and Linux now wait until
+  their processes have exited.
+
+### Earlier in 0.14.0
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes
   ghost text. First-use consent names the model price and the separate

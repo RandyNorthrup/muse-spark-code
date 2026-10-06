@@ -13,6 +13,7 @@
 // owner is known to be gone.
 
 import { type ChildProcess, execFile, spawn } from 'node:child_process'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import { randomBytes } from 'node:crypto'
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { networkInterfaces } from 'node:os'
@@ -93,7 +94,7 @@ async function killBrowser(child: ChildProcess, deps: HostBrowserDeps): Promise<
     execFile(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
-      { windowsHide: true },
+      { windowsHide: true, env: withoutCredentials(deps.env) },
       (error) => {
         if (error !== null && child.exitCode === null) {
           deps.warn("Browser check: the browser's process tree needed a forced end")
@@ -117,7 +118,7 @@ function spawnBrowser(
     deps.windowsJob === undefined
       ? spawn(executable, [...args], {
           stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'],
-          env: { ...env },
+          env: withoutCredentials(env),
           windowsHide: true,
           // Its own process group on POSIX, so the kill ends everything it started.
           detached: deps.platform !== 'win32',
@@ -128,7 +129,7 @@ function spawnBrowser(
           file: executable,
           args,
           cwd: path.dirname(executable),
-          env: { ...env },
+          env: withoutCredentials(env),
           isVerbatim: false,
           debugPipes: true,
           resource: deps.resource,

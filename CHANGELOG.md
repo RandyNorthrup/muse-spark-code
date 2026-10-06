@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Security
+
+- Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
+  within npm-run-all2's existing dependency range.
+
 ### Fixed
 
 - Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
@@ -88,6 +93,128 @@ happened, not what was planned; superseded entries are kept.
   missing-browser-chunk checks accept Windows filesystem error paths.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
+- The release-artifact check validates complete ACP help, including its reference
+  hint, in English and every installed language using the CLI's shared formatter.
+
+- The report CLI help test follows the documented complete-reference contract
+  for subcommand `--help` and `-h`.
+
+- The Help reference gate accepts Windows file paths and continues checking
+  keyboard dispatch against the runtime registry.
+
+- Activation paid-setting checks are directly importable in tests, and ACP
+  stdio checks include the localized Help reference hint.
+
+### Performance
+
+- Optional menus, sign-in, goals, schedules, Account & usage and Agent map
+  content load on first use with accessible loading and retry after a failed
+  chunk request. A lossless native encoding keeps the complete English fallback
+  inline while reducing webview startup from 794.1 to 733.8 KiB (60.3 KiB).
+  The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
+  stay unchanged.
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
+
+## [0.14.2] - 2026-10-06
+
+### Fixed
+
+- Hungarian Help translations now package correctly alongside the other languages.
+
+- Help includes the shell credential pass-through setting and its restrictions
+  on interactive Model API commands.
+
+- Best-of-N help states the implemented shared parent-budget prerequisite in
+  all fourteen languages. The reference guard rejects state predicates across
+  every emitted description, including shortcuts, enum meanings and facts;
+  conditional text retains typed selectors on every help surface.
+
+- Help keeps conditional state in typed descriptions with a rejecting guard
+  for new plain-text claims. Hooks describes both backends, and secret-scanner
+  help explains scanning and in-memory key matching without storage.
+
+- Auto help names both command reviewers, their rule precedence and paid
+  admission, and separates ordinary model questions from private MCP form replies.
+
+- Help search matches the JSON text displayed for schemas, facts and CLI
+  contracts. Markdown preserves argument placeholders in every prose field,
+  and the modal keyboard row includes both Tab and Shift+Tab from its handler table.
+
+- Help derives keyboard actions, CLI options and paid identities from the tables
+  used at runtime, preserves enum defaults and meanings, and describes conditional
+  availability explicitly. All descriptions have catalogue translations. Search
+  includes displayed shortcut text and keeps related command targets visible.
+  Headless image help states its flag, mode and budget admission without promising
+  an interactive price question. Deferred and headless package reference-bundle
+  fixtures are complete.
+
+- Help now distinguishes host/backend combinations, subscription and key billing,
+  paid defaults and actual voice/Tab availability. It retains setting schemas,
+  command prerequisites and CLI/slash syntax, refreshes skills on first ACP help,
+  uses installed manifest translations in CLI help, and offers retry after a
+  help-loading failure. The reference gate checks these source inventories.
+
+### Added
+
+- **Help & Reference.** `/help` and **Muse Spark: Open Help & Reference** open
+  a lazy, searchable shared-webview page for features, commands, settings,
+  slash syntax, CLI options and keyboard actions. Current/default values, direct setting links,
+  safe command actions and documentation use all 14 translated tables. ACP
+  `/help` answers locally; CLI `help --all` prints the generated reference.
+  `check:reference` guards catalogue coverage and generated-file freshness.
+
+### Performance
+
+- Frequent Help reference values use shorter lossless dictionary tokens, keeping
+  the complete reference within its existing bundle limit.
+
+- Shorter tokens in the lossless inline English dictionary keep chat startup smaller than 0.14.0 while adding Help & Reference; the complete fallback and existing size limits remain.
+
+## [0.14.1] - 2026-10-05
+
+### Security
+
+- Cover common credential suffix families, Azure DevOps PATs,
+  `SYSTEM_ACCESSTOKEN` and Terraform's `TF_TOKEN_*` in the shared environment
+  fence. A scheduled shell delayed in directory preparation now retains its
+  original unattended admission after backgrounding and turn completion;
+  a later interactive turn cannot grant it credential pass-through.
+- Fence credential environment variables from VS Code Model API shell commands,
+  verification/`then_run`, schedules, child workers, hooks/plugins, Git and native
+  helpers, using the same matcher as ACP/headless. Terminal overrides are fenced
+  too. The new machine-scoped `museSpark.shell.passEnvironmentVariables` array
+  permits named variables only for interactive top-level shell commands; its
+  description warns that output can expose them to the model provider. MCP's
+  explicitly configured environment and Muse Code's own credentials are unchanged.
+
+### Fixed
+
+- Marketplace/Open VSX and ACP npm landing pages now show static version badges
+  generated from the packaged version, avoiding stale badge-service caches.
+  Release refresh discovers every GitHub README badge, including CI and
+  Markdown images, before purging GitHub's image proxy. A packaging/quality
+  check rejects broken images, dynamic store versions and version mismatches.
+
+- Timed-out and stopped POSIX shell commands now wait for their process
+  group to exit before returning. Cleanup is bounded and reports a group
+  that remains; macOS monitor tests recognize exited zombies correctly.
+- Chat startup now loads syntax highlighting only for a closed supported code
+  fence, leaving code text and Copy, Insert and Apply immediately available
+  while its engine loads. Action-only dialogs and the separate Tasks surface
+  also load on demand; the command palette reuses its shared list shell. The
+  900 KiB startup budget and existing deferred budget stay unchanged.
 
 ## [0.14.0] - 2026-10-05
 
@@ -324,6 +451,24 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
 - Extension hooks use the held-project trust check before loading or running, including Setup and Manual hooks.
 
 - Register every newly merged and split bundle in the report’s exact frame

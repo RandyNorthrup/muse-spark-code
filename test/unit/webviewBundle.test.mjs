@@ -13,6 +13,7 @@ import {
 import path from 'node:path'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -89,7 +90,30 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
-  it.each(['GitPanel', 'UsageDialog'])('loads %s only through its dynamic import', (name) => {
+  it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
+    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
+      (group) => group.name === 'deferred JS',
+    )
+    expect(legacy).toBeDefined()
+    expect(
+      legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
+    ).toBeLessThanOrEqual(32.1 * 1024)
+  })
+
+  it.each([
+    'GitPanel',
+    'UsageDialog',
+    'SignIn',
+    'GoalPanel',
+    'SchedulePanel',
+    'Palette',
+    'PopoverMenu',
+    'GooeyMenuContent',
+    'UsageDialogContent',
+    'AgentMapContent',
+  ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>
       Object.hasOwn(output.inputs, source),
@@ -98,7 +122,7 @@ describe('the production webview chunks (FIX78W)', () => {
     const [[output]] = owners
     expect(initialOutputs().has(output)).toBe(false)
     expect(built.outputs[output].entryPoint).toBe(source)
-    expect(built.outputs[ENTRY].imports).toContainEqual(
+    expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
       expect.objectContaining({ path: output, kind: 'dynamic-import' }),
     )
   })
@@ -118,12 +142,14 @@ describe('the production webview chunks (FIX78W)', () => {
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
     const listed = files
+      .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
       .toSorted((a, b) => a.localeCompare(b, 'en'))
     expect(listed).toEqual(
       [
         ...Object.keys(built.outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
       ]
         .filter((file) => file.endsWith('.js'))
         .toSorted((a, b) => a.localeCompare(b, 'en')),

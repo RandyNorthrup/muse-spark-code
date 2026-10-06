@@ -363,7 +363,16 @@ describe('RVM91X-2 the probe and the child see only the allowlisted environment'
       const pending = runPluginHook(
         call(),
         fakeDeps(tree, {
-          env: { ...FAKE_ENV, META_API_KEY: 'k', AWS_SECRET_ACCESS_KEY: 'k' },
+          env: {
+            ...FAKE_ENV,
+            META_API_KEY: 'k',
+            AWS_SECRET_ACCESS_KEY: 'k',
+            GH_TOKEN: 'fake',
+            NPM_TOKEN: 'fake',
+            HF_TOKEN: 'fake',
+            SERVICE_PASSWORD: 'fake',
+            AZURE_STORAGE_ACCOUNT_KEY: 'fake',
+          },
           runVersion: (_command, env) => {
             probed.push(env)
             return Promise.resolve('v24.0.0')

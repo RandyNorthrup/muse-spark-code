@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { mcpJobExecutable } from '../../src/host/backend/mcpJobExecutable'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import type { RunProgram } from '../../src/host/processTree'
@@ -10,6 +10,7 @@ import { readJobSource } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '' }
+afterEach(() => vi.unstubAllEnvs())
 
 beforeAll(async () => {
   paths.root = await mkdtemp(path.join(tmpdir(), 'muse-job-build-'))
@@ -17,7 +18,8 @@ beforeAll(async () => {
 
 afterAll(() => removeFolder(paths.root))
 
-const runWithoutAddType: RunProgram = async (_file, args) => {
+const runWithoutAddType: RunProgram = async (_file, args, env) => {
+  expect(env['GH_TOKEN']).toBeUndefined()
   if (args.some((arg) => arg.includes('Add-Type'))) {
     throw new Error('PowerShell compiler startup timed out (killed=true, signal=SIGTERM)')
   }
@@ -34,6 +36,7 @@ describe('Windows job helper compilation under load', () => {
     { name: 'MCP launcher', prepare: mcpJobExecutable },
     { name: 'shell assembly', prepare: shellJobAssembly },
   ])('prepares $name when PowerShell cannot start its Add-Type compiler', async ({ prepare }) => {
+    vi.stubEnv('GH_TOKEN', 'envfence-fake')
     const storageDir = await mkdtemp(path.join(paths.root, 'startup-failure-'))
     const logged: string[] = []
     const ready = prepare({

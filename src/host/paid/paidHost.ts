@@ -1,3 +1,4 @@
+import { paidWindowOnceFeatures } from '../../shared/paid'
 // The host side of the paid Model API features (M33–M35, PLAN.md D30): the
 // gate over VS Code's settings, the extension's global state and a modal
 // confirmation naming the price, the popup before each paid use (M58,
@@ -246,7 +247,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     // Tab's "Allow once" covers this window until it closes (M94 Q-M94a):
     // memory only, so it never persists past the window. "Allow always"
     // stays workspace-scoped, as for every feature.
-    windowOnceFeatures: new Set<PaidFeature>(['tab']),
+    windowOnceFeatures: paidWindowOnceFeatures(),
     // The once holds only under the price acceptance it was given under,
     // shared by every window (the generations "always" is checked against):
     // another window's withdrawal and new acceptance makes this one ask again.

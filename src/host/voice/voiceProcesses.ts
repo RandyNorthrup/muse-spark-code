@@ -11,6 +11,7 @@ import type { ResourceLease } from '../../core/resources/launch'
 import { spawnMcpJob } from '../backend/mcpJobLaunch'
 import { observeResourceProcess } from '../resources/resourceAdmission'
 import { treeSpawnOptions } from '../processTree'
+import { withoutCredentials } from '../../core/credentialEnvironment'
 import type { HelperChild, HelperInvocation } from '../../core/voice/dictation'
 import { helperEnvironment } from '../../core/voice/helperLocation'
 import type { VoiceSocket, VoiceSocketHandlers } from '../../core/voice/museVoice'
@@ -65,7 +66,7 @@ function admittedVoiceProcess(
       child =
         job === undefined
           ? spawn(command, [...args], {
-              env,
+              env: withoutCredentials(env),
               stdio: ['pipe', 'pipe', 'pipe'],
               windowsHide: true,
               ...treeSpawnOptions(process.platform),
@@ -76,7 +77,7 @@ function admittedVoiceProcess(
               file: command,
               args,
               cwd: process.cwd(),
-              env,
+              env: withoutCredentials(env),
               isVerbatim: false,
               resource,
               log: () => {

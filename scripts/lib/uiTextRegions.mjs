@@ -6,7 +6,7 @@ import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
-import { brotliCompressSync, constants as zlibConstants } from 'node:zlib'
+import { brotliCompressSync, deflateSync, constants as zlibConstants } from 'node:zlib'
 import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
 
@@ -133,17 +133,41 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser still carries all English; repeated fragments share a dictionary. */
+/** The browser carries complete English in an inline native-DEFLATE payload. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
-      const { EN, compactEnglishSource } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      // DIET1: the complete fallback stays inline. Native DEFLATE decoding
+      // completes before dependent ESM modules run (Chrome 128 and later).
+      const alphabet =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
+      const compressed = deflateSync(
+        JSON.stringify([Object.keys(EN).join('|'), Object.values(EN)]),
+        { level: L10N_BROWSER_COMPRESSION_LEVEL },
+      )
+      let packed = ''
+      for (let offset = 0; offset < compressed.length; offset += 4) {
+        let word = 0
+        for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
+        let digits = ''
+        for (let digit = 0; digit < 5; digit++) {
+          digits = alphabet[word % 85] + digits
+          word = Math.floor(word / 85)
+        }
+        packed += digits
+      }
+      const contents = `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
+const bytes=new Uint8Array(${compressed.length});
+for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
+const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
+export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
       return {
-        contents: compactEnglishSource(EN),
+        contents,
         loader: 'js',
-        watchFiles: [args.path, 'src/shared/l10n/compactEnglish.ts', 'src/shared/constants.ts'],
+        watchFiles: [args.path, 'src/shared/constants.ts'],
       }
     })
   },

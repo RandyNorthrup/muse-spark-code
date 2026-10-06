@@ -2,7 +2,8 @@ import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
   Suspense,
-  lazy,
+  createElement,
+  Fragment,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -26,6 +27,7 @@ import {
   SETTING_DEFAULTS,
   type SubagentAction,
   UI_TEXT,
+  SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import {
   parseReviewPrompt,
@@ -38,7 +40,7 @@ import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/e
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
-import { fill, templateParts } from '../shared/l10n/text'
+import { fill, formatNumber, templateParts } from '../shared/l10n/text'
 import {
   availablePermissionModes,
   nextPermissionMode,
@@ -64,17 +66,12 @@ import { Composer, type ImageData, type SlashPaletteSlot } from './components/Co
 import { DiffTally } from './components/DiffTally'
 import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
-import { GoalPanel } from './components/GoalPanel'
-import { SchedulePanel } from './components/SchedulePanel'
 import { Header } from './components/Header'
-import { HandoffDialog } from './components/HandoffDialog'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
-import { SecretPromptDialog } from './components/SecretPromptDialog'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
-import { Palette, type PaletteKeys, type PaletteView } from './components/Palette'
-import { type MenuEntry, PopoverMenu } from './components/PopoverMenu'
-import { SignIn } from './components/SignIn'
+import type { PaletteKeys, PaletteView } from './components/Palette'
+import type { MenuEntry } from './components/PopoverMenu'
 import { TodoPanel } from './components/TodoPanel'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import { diffTally } from './diffTally'
@@ -101,31 +98,87 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { SessionBoardDialog } from './components/SessionBoardDialog'
-import { ShareView } from './components/ShareView'
-import { DeferredSurface } from './components/DeferredSurface'
+import { deferred } from './components/DeferredSurface'
+import { Modal } from './components/Modal'
 import type { ResourceSurfaceLoader } from './resources/resourcePort'
 
-const HistoryDialog = lazy(async () => {
+const SignIn = deferred(async () => {
+  const module = await import('./components/SignIn')
+  return { default: module.SignIn }
+})
+const GoalPanel = deferred(async () => {
+  const module = await import('./components/GoalPanel')
+  return { default: module.GoalPanel }
+})
+const SchedulePanel = deferred(async () => {
+  const module = await import('./components/SchedulePanel')
+  return { default: module.SchedulePanel }
+})
+const Palette = deferred(async () => {
+  const module = await import('./components/Palette')
+  return { default: module.Palette }
+})
+const PopoverMenu = deferred(async () => {
+  const module = await import('./components/PopoverMenu')
+  return { default: module.PopoverMenu }
+})
+
+const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
-const AgentMap = lazy(async () => {
+const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
-})
-const UsageDialog = lazy(async () => {
+}, true)
+const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
-})
-const BestOfNDialog = lazy(async () => {
+}, true)
+const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
-})
-const ReviewPane = lazy(async () => {
+}, true)
+const ReviewPane = deferred(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
+}, true)
+const ReferencePage = deferred(async () => {
+  const stylesheet = document.createElement('link')
+  stylesheet.rel = 'stylesheet'
+  stylesheet.href = new URL('referencePage.css', import.meta.url).href
+  document.head.append(stylesheet)
+  const module = await import('./components/ReferencePage')
+  return {
+    default: module.createReferencePage({
+      react: { createElement, Fragment, useEffect, useMemo, useState },
+      text: UI_TEXT,
+      fill,
+      formatNumber,
+      Modal,
+    }),
+  }
+}, true)
+
+const HandoffDialog = deferred(async () => {
+  const { HandoffDialog } = await import('./components/HandoffDialog')
+  return { default: HandoffDialog }
+}, true)
+
+const SecretPromptDialog = deferred(async () => {
+  const { SecretPromptDialog } = await import('./components/SecretPromptDialog')
+  return { default: SecretPromptDialog }
+}, true)
+
+const SessionBoardDialog = deferred(async () => {
+  const { SessionBoardDialog } = await import('./components/SessionBoardDialog')
+  return { default: SessionBoardDialog }
 })
+
+const ShareView = deferred(async () => {
+  const { ShareView } = await import('./components/ShareView')
+  return { default: ShareView }
+}, true)
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -192,14 +245,23 @@ function restoreNoteOf(state: UiState): string | undefined {
 
 // These panels share this runtime's React and installed language; importing
 // them waits for state to show (Git) or the user's Account & usage action.
-const GitPanel = lazy(async () => {
+const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
 })
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
 type Overlay =
-  PaletteView | 'modes' | 'attach' | 'history' | 'board' | 'bestOfN' | 'usage' | 'agents' | 'review'
+  | PaletteView
+  | 'modes'
+  | 'attach'
+  | 'history'
+  | 'board'
+  | 'bestOfN'
+  | 'usage'
+  | 'agents'
+  | 'review'
+  | 'help'
 
 // The palette rows that leave it open (a value changes in place); run from
 // the prompt's "/" palette they keep the `/` too, so it stays (M38).
@@ -642,6 +704,11 @@ export function App({
   )
   const onSubmit = useCallback(() => {
     const current = store.getState()
+    if (current.draft.trim() === `/${SLASH_COMMAND_NAMES.help}`) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setOverlay('help')
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -1570,6 +1637,10 @@ export function App({
           openOverlay('usage')
           break
         }
+        case 'openHelp': {
+          openOverlay('help')
+          break
+        }
         case 'openAgents': {
           setSelectedAgentId(undefined)
           openOverlay('agents')
@@ -1770,6 +1841,13 @@ export function App({
     seenUsageRequests.current = usageRequests
     openOverlay('usage')
   }, [usageRequests, openOverlay])
+  const helpRequests = state.helpRequests
+  const seenHelpRequests = useRef(helpRequests)
+  useEffect(() => {
+    if (helpRequests === seenHelpRequests.current) return
+    seenHelpRequests.current = helpRequests
+    openOverlay('help')
+  }, [helpRequests, openOverlay])
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
@@ -1813,6 +1891,7 @@ export function App({
         onBack={onPaletteBack}
         onClose={slot.onClose}
         isAttached
+        keepFocus
         keys={slashPaletteKeys}
         onActiveRowChange={slot.onActiveRowChange}
       />
@@ -2093,6 +2172,7 @@ export function App({
       break
     }
     case 'history':
+    case 'help':
     case 'usage':
     case 'agents':
     case 'review':
@@ -2210,6 +2290,7 @@ export function App({
   // map, review pane, a share file or the install confirmation is open waits for it to close, then
   // opens, so its Start is never reachable under a dialog that hides it.
   const isOtherModalOpen =
+    overlay === 'help' ||
     overlay === 'usage' ||
     overlay === 'agents' ||
     overlay === 'bestOfN' ||
@@ -2229,6 +2310,7 @@ export function App({
         onChange={onHandoffChanged}
         onConfirm={onHandoffConfirm}
         onCancel={onHandoffCancel}
+        onClose={onHandoffCancel}
       />
     )
   // The report-a-problem preview (M93 lane W): the sealed draft the host
@@ -2254,6 +2336,7 @@ export function App({
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
         onEdit={onSecretPromptDismiss}
+        onClose={onSecretPromptDismiss}
       />
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
@@ -2286,22 +2369,28 @@ export function App({
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
-        <DeferredSurface onClose={closeOverlay} isModal={false}>
-          {history}
-          {board}
-        </DeferredSurface>
+        {history}
+        {board}
       </div>
-      <DeferredSurface onClose={closeOverlay}>
+      <>
+        {overlay === 'help' ? (
+          <ReferencePage
+            postMessage={postMessage}
+            values={state.referenceValues}
+            settings={state.settings}
+            onClose={closeOverlay}
+          />
+        ) : null}
         {usageDialog}
         {agentMap}
         {reviewPane}
         {bestOfN}
-      </DeferredSurface>
+      </>
       {handoffDialog}
       {secretPromptDialog}
       {reportDialog}
       {state.share === undefined ? null : (
-        <DeferredSurface onClose={onCloseShare}>
+        <>
           <ShareView
             title={state.share.title}
             exportedAt={state.share.exportedAt}
@@ -2314,7 +2403,7 @@ export function App({
             onCopy={onCopy}
             onSectionError={onShareSectionError}
           />
-        </DeferredSurface>
+        </>
       )}
       <main
         ref={bodyRef}
@@ -2342,7 +2431,7 @@ export function App({
       state.git.state.worktree === undefined &&
       state.git.state.pullRequest === undefined &&
       state.git.state.hold === undefined ? null : (
-        <DeferredSurface onClose={onGitClose} isModal={false}>
+        <>
           <GitPanel
             git={state.git}
             isInert={isModalOpen}
@@ -2355,31 +2444,35 @@ export function App({
             onGenerate={onGitGenerate}
             onOpenLink={onOpenExternal}
           />
-        </DeferredSurface>
+        </>
       )}
-      <GoalPanel
-        key={state.sessionId}
-        goal={state.goal}
-        isInert={isModalOpen}
-        onCommand={onGoalCommand}
-        editor={{
-          draft: state.goalEdit?.draft,
-          isPending: state.goalEdit?.pending !== undefined,
-          onStart: onGoalEditStarted,
-          onChange: onGoalEditChanged,
-          onCancel: onGoalEditCanceled,
-          onSave: onGoalEditSaved,
-        }}
-      />
-      <SchedulePanel
-        jobs={state.schedules}
-        nowMs={now()}
-        isPaidOn={state.paid.features.includes('scheduledPrompts')}
-        isInert={isModalOpen}
-        onRun={onScheduleRun}
-        onCancel={onScheduleCancel}
-        onEnable={onScheduleEnable}
-      />
+      {state.goal === undefined ? null : (
+        <GoalPanel
+          key={state.sessionId}
+          goal={state.goal}
+          isInert={isModalOpen}
+          onCommand={onGoalCommand}
+          editor={{
+            draft: state.goalEdit?.draft,
+            isPending: state.goalEdit?.pending !== undefined,
+            onStart: onGoalEditStarted,
+            onChange: onGoalEditChanged,
+            onCancel: onGoalEditCanceled,
+            onSave: onGoalEditSaved,
+          }}
+        />
+      )}
+      {state.schedules.length === 0 ? null : (
+        <SchedulePanel
+          jobs={state.schedules}
+          nowMs={now()}
+          isPaidOn={state.paid.features.includes('scheduledPrompts')}
+          isInert={isModalOpen}
+          onRun={onScheduleRun}
+          onCancel={onScheduleCancel}
+          onEnable={onScheduleEnable}
+        />
+      )}
       <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
       {isBodyGated ? null : (
         <ApprovalDock waiting={waiting} onDecide={onDecide} isInert={isModalOpen} />

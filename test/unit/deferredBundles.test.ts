@@ -72,6 +72,7 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: {
         extension: 'src/extension.ts',
+        reference: 'src/shared/reference/referenceEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',

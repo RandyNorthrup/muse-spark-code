@@ -60,6 +60,205 @@ export const EN = {
     'Use an already approved paired device with normal resource load.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
+  referenceAgentControls:
+    'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
+
+  referenceBestOfNRequirements:
+    'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
+  referenceWindowsSessions:
+    'Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).',
+  referencePaletteKeys:
+    'Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.',
+  referenceServe:
+    '{command} [options]              Serve the Agent Client Protocol on stdin and stdout',
+  referenceTabSnooze: 'Snooze for 15 minutes; Snooze for an hour; Snooze until restart.',
+  referenceElicitationKeys: 'Cancel',
+  referenceGoalKeys: 'Cancel',
+  referenceMicKeys: 'records your voice into the composer (tap to toggle, hold to talk)',
+  referenceOutputKeys: 'Open output',
+  referenceAgentKeys: 'Send message',
+  referenceDialogKeys: 'Browse matches, activate the selected conversation or close the dialog.',
+  referencePopoverKeys: 'Navigate options, adjust a value, choose an option or close the popover.',
+  referenceExecImages:
+    'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
+  referenceCliOptions: {
+    json: 'JSON: Resources',
+    'resource-governor':
+      '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
+    'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
+    'memory-max':
+      '--memory-max <percent>: Throttle when used memory stays above this percentage for two samples.',
+    backend:
+      '--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key',
+    'trust-workspace':
+      '--trust-workspace                Load the folder’s rules, skills and memory',
+    maintenance: 'Run the Setup maintenance event instead of init.',
+    'muse-binary': '--muse-binary <path>             The Muse Code CLI to run',
+    'shell-sandbox': '--shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
+    'allow-dangerously-skip-permissions':
+      '--allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
+    'allow-contributor-models':
+      '--allow-contributor-models       List contributor-tier models (Meta may train on their content)',
+    'web-search':
+      '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
+    'image-generation':
+      '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    verbose: '--verbose                        Log every detail on stderr',
+    help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+    version: 'Print the installed agent version.',
+    cwd: 'Use this directory as the workspace.',
+    'prompt-file': 'Read the prompt from this file.',
+    'untrusted-file': 'Attach this file as untrusted data; repeat the option for more files.',
+    'permission-mode': 'Choose how Muse asks before it acts.',
+    model: 'Choose the model for this run.',
+    effort: 'Choose how much effort Muse puts into each reply.',
+    output: 'Choose the result format: text, json or jsonl.',
+    'max-budget-usd': 'Set the hard spending limit in USD for this run.',
+    'max-requests': 'Set the maximum number of model requests.',
+    timeout: 'Set the run deadline in seconds.',
+    'fail-on-denial': 'Stop the run when a permission request is denied.',
+    ephemeral: 'Keep the session in memory without saving it.',
+    'key-stdin':
+      'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
+    out: '--out <file>         Write the report to a file instead of stdout',
+    description: '--description <text>  What was happening, in your own words',
+    'no-facts': '--no-facts           Leave the support facts out',
+    'no-events': '--no-events          Leave the recent events out',
+  },
+  referenceScanSecrets:
+    'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
+  referenceAuthClear: 'Remove the stored Model API key.',
+  referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
+  referenceTabMenu:
+    'Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.',
+  referenceTabOff: 'Turn Tab off: museSpark.modelApiTab=false.',
+  referenceTabOn:
+    'museSpark.modelApiTab=true. Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.',
+  referenceBrowserDownload:
+    'Chrome for Testing: Download (Settings: museSpark.browserCheckRuntime).',
+  referenceRemoveSkills:
+    'Remove only the extension-managed Muse Code skill copy and its links; leave other skills untouched.',
+  referenceInstallSkills:
+    "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
+  referenceExecContract:
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.',
+  referenceBriefHelp:
+    'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
+  referenceKeyStdin:
+    'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
+  referenceModalKeys: 'Close the dialog or move focus within it.',
+  referenceRenameKeys: 'Confirm or cancel renaming this conversation.',
+  referenceRadialKeys:
+    'Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.',
+  referenceRowKeys: 'ContextMenu / Shift+F10: More actions',
+  referenceEffortKeys: 'Choose how much effort Muse puts into each reply.',
+  referenceMenuKeys: 'Navigate items, choose or complete a selection, or close the list.',
+  referenceArchiveKeys: 'Archive / Unarchive',
+  referenceModeKeys: 'cycles the permission mode while the composer has focus',
+  referenceDictationKeys: 'records your voice into the composer (tap to toggle, hold to talk)',
+  referenceNewlineKeys: 'Insert a new line in the draft.',
+  referenceSendKeys: 'Send the draft using the gesture selected by useCtrlEnterToSend.',
+  referenceThinking:
+    'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
+  referenceSandbox:
+    'On Windows, when this window uses the Muse Code shell sandbox, set it up with one administrator approval, then start a new conversation. shellSandbox="off" does not require setup.',
+  referenceSetup: 'Run Setup hooks for init from spark-hooks.json in a trusted workspace.',
+  referenceSkills: "SKILL.md. museCode: Turn Muse Code's skills on or off. modelApi: SKILL.md.",
+  referenceDictation:
+    'Voice dictation is not available on Linux: no distribution ships a speech recogniser, and this extension adds no third-party engine. Voice dictation is not available in a remote window (SSH, WSL, a container, a tunnel or a codespace): the extension runs on the remote machine, which cannot hear this computer’s microphone. Open the folder in a local window to dictate.',
+  referenceVoice:
+    'Paid voice is unavailable on Model API in this version. Muse Code needs a local window, a stored Model API key and explicit opt-in. Linux also needs arecord or parec.',
+  referenceBestOfN:
+    'Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.',
+  referenceNativeAgentsConditions:
+    'When run.subagent_delegation_mode="auto", Muse Code can delegate to agents. When it is "off", delegation tools are unavailable. run.workflow_trigger_mode: auto / explicit / off.',
+  referenceNativeAgents:
+    'run.workflow_trigger_mode: auto / explicit / off. Muse Code agent delegation controls.',
+  referenceAttachments:
+    'Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.',
+  referenceConversationActions:
+    'Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.',
+  referenceQuestions:
+    'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
+  referencePermissionLimits:
+    'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
+  referenceElicitationTitle: 'MCP elicitation',
+  referenceElicitation:
+    'MCP forms ask for information for the requesting MCP server. Submitted form values go to that server, outside the model conversation and transcript. A server can include them in later tool output. Never enter a password or key.',
+  referenceSecretPrompt:
+    'When a prompt contains a detected secret, the transcript redacts it and asks whether to send it anyway or return to editing.',
+  referenceCodeIntelExtra:
+    'Use editor language services for definitions, references, symbols, calls and safe renames. Hover Repo map (mcp__ide__repoMap / repo_map).',
+  referenceContext:
+    'Click to compact now Summarise older context to free the window Cannot rewind before the latest compaction.',
+  referenceBundled:
+    'Bundled skills: project_setup, feature_delivery, quality_retrofit. muse_gadgets is available on Model API only.',
+  referenceExports:
+    'A portable file you can import or share Muse Code’s full JSON record of this conversation Resume an exported session file on the Model API backend',
+  referenceResumeAgents:
+    'Pick up unfinished Claude Code work in this conversation. Pick up unfinished Codex work in this conversation.',
+  referencePlanModes:
+    'Only the latest reply in Plan mode can be saved as a plan. A new conversation with this plan as its brief, out of Plan mode Implement a plan from the main conversation; a side chat stays in Plan mode.',
+  referenceBrowser:
+    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.',
+  referenceBudget:
+    'Shared daily budget for interactive paid extras: museSpark.paidDailyBudgetUsd. Tab has its own separate budget.',
+  referenceCache: 'Settings (modelApiPromptCacheRetention).',
+  referenceMcp:
+    'MCP servers: Muse Code runs its own servers; on Model API this window runs configured servers. ACP Model API has no editor MCP servers.',
+  referenceTab:
+    'Tab uses the stored Model API key on either chat backend. The default trigger is Invoke; automatic typing suggestions require Automatic.',
+  referenceNativeSearch:
+    'Muse Code web search and native cron use the subscription. Native cron has no MSP schedule controls; extension search and schedules are separate paid Model API features.',
+  referenceCustomAgents:
+    'Define custom agents in project or personal AGENT.md files. Select an agent or ask for explore or second-opinion; tool allowlists narrow its abilities. Model API child tasks require paid subagent consent.',
+  referenceCodeOutput:
+    'Copy copies code; Insert writes at the editor cursor; Apply replaces the editor selection. Open tool output to read the full result; clipped output can be paged. Select transcript text to quote it in the composer, ask about it, add a comment or copy it.',
+  referencePaidContexts:
+    'Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.',
+  referenceAcp:
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /resources, /resources resume, /usage resources and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+  referenceWebFetchTitle: 'Web fetch',
+  referenceWebFetchDetail:
+    'Fetch public web pages as readable text, with permission and network checks.',
+  referenceCodeIntelTitle: 'Code intelligence',
+  referenceCodeIntelDetail:
+    'Use editor language services for definitions, references, symbols, calls and safe renames.',
+  referenceShellDetail:
+    'Run your own !commands, or let the agent run commands under your permission mode.',
+  referenceBoardDetail:
+    'Filter conversations by title or branch, inspect their state, changes and approvals, and activate a conversation.',
+  helpReferenceTitle: 'Help & Reference',
+  referenceIntro: 'Commands, settings and features, with descriptions and documentation.',
+  referenceSearch: 'Search the reference',
+  referenceFeatures: 'Features',
+  referenceCommands: 'Commands',
+  referenceSettings: 'Settings',
+  referenceShortcuts: 'Keyboard shortcuts',
+  referenceCurrent: 'Current value',
+  referenceDefault: 'Default',
+  referenceOpenSetting: 'Open setting',
+  referenceRun: 'Run',
+  referenceDocs: 'Documentation',
+  referenceNoMatches: 'No matching entries.',
+  referenceUnavailable: 'Current values are unavailable in this host.',
+  referenceHidden: 'Hidden to protect sensitive values',
+  referenceApplies: 'Editors: {editors}. Backends: {backends}.',
+  referencePaid:
+    'Meta Model API (your key, pay as you go): Allow once / Allow always in this workspace',
+  referenceVersion: 'Print the installed agent version.',
+  referenceSidebar: 'Open the Muse Spark chat in the sidebar.',
+  referenceNewTab: 'Open a new Muse Spark conversation in an editor tab.',
+  referenceFocus: 'Move keyboard focus between the chat input and editor.',
+  referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
+  referenceDiagnostics: 'Show local backend and extension diagnostics.',
+  referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
+  referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',
+  referenceRules: 'Create or open AGENTS.md in the workspace root.',
+  referenceWalkthrough: 'Open the Getting Started walkthrough.',
+  referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
+
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
@@ -257,7 +456,8 @@ export const EN = {
     issue: 'Report an issue.',
     docs: 'Open the Muse Code documentation.',
     mcpServers: 'What Muse Code connects to; sign in to a server.',
-    hooks: "Where Muse Code's hooks come from.",
+    hooks:
+      'Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.',
     'paid:imageGeneration': 'Turn paid image generation on or off.',
     'paid:voice': 'Turn paid Muse Voice on or off.',
     manageSkills: "Turn Muse Code's skills on or off.",
@@ -519,7 +719,8 @@ export const EN = {
   mcpItem: 'MCP servers…',
   mcpItemDetail: 'What Muse Code connects to; sign in to a server',
   hooksItem: 'Hooks…',
-  hooksItemDetail: 'Where Muse Code’s hooks come from',
+  hooksItemDetail:
+    'Inspect project, user, managed and spark-hooks.json hook sources for the selected backend.',
   mcpTitle: 'Muse Code MCP servers',
   mcpNoSettings: 'Muse Code has no settings file yet, so no MCP servers. It would be at {path}',
   mcpUnreadable: 'Muse Code’s settings file could not be read:',
@@ -1234,6 +1435,8 @@ export const EN = {
   showMore: 'Show more',
   showLess: 'Show less',
   loadingOutput: 'Loading…',
+  surfaceLoadFailed: 'This panel could not load.',
+  surfaceLoadRetry: 'Try again',
   toolFailed: 'Failed',
   toolRejected: 'Rejected',
   // M46: a task the user (or Stop) ended.
