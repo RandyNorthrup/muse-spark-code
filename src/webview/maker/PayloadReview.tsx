@@ -1,16 +1,21 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  MAKER_REVIEW_BATCH_MS,
   MAKER_REVIEW_DEFAULT_CHAR_WIDTH,
   MAKER_REVIEW_DEFAULT_WIDTH,
   MAKER_REVIEW_OVERSCAN_ROWS,
   MAKER_REVIEW_ROW_HEIGHT,
   MAKER_REVIEW_SMALL_ROWS,
-  MAKER_REVIEW_BATCH_MS,
   MAKER_REVIEW_CANCEL_EVENT,
+  MAKER_REVIEW_QUERY_VISIBLE_CHARS,
   UI_TEXT,
 } from '../../shared/constants'
-import { fill, formatNumber } from '../../shared/l10n/text'
-import type { ApprovalRequest, MakerMachineSummary } from '../../shared/makerProtocol'
+import { fill, formatNumber, plural } from '../../shared/l10n/text'
+import {
+  makerSearchResultSchema,
+  type ApprovalRequest,
+  type MakerMachineSummary,
+} from '../../shared/makerProtocol'
 import {
   canonicalPayload,
   outgoingPayloadBytes,
@@ -18,6 +23,7 @@ import {
 } from '../../core/maker/canonicalPayload'
 import { summarizePayload, type PayloadSummary } from '../../core/maker/payloadSummary'
 import { PayloadSummaryView } from './PayloadSummaryView'
+import { findPayloadMatch } from './payloadSearch'
 
 /** First row/highlight at or after a logical line. */
 function lowerBound(values: readonly { readonly line: number }[], line: number): number {
@@ -29,6 +35,25 @@ function lowerBound(values: readonly { readonly line: number }[], line: number):
     else high = mid
   }
   return low
+}
+
+/** Prepare immutable worker data in bounded slices before enabling search. */
+async function searchRowsBlob(payload: CanonicalPayload, signal: AbortSignal): Promise<Blob> {
+  const parts = ['[']
+  let part = ''
+  let started = performance.now()
+  for (const [index, row] of payload.rows.entries()) {
+    signal.throwIfAborted()
+    part += `${index === 0 ? '' : ','}${JSON.stringify(row.text)}`
+    if (performance.now() - started < MAKER_REVIEW_BATCH_MS) continue
+    parts.push(part)
+    part = ''
+    await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    started = performance.now()
+  }
+  signal.throwIfAborted()
+  parts.push(part, ']')
+  return new Blob(parts, { type: 'text/javascript' })
 }
 
 export function PayloadReview({
@@ -59,6 +84,7 @@ export function PayloadReview({
     limits: MakerMachineSummary['limits'] | undefined
     payload: CanonicalPayload
     summary: PayloadSummary
+    searchRows: Blob
   }>()
   const [failed, setFailed] = useState(false)
   const [width, setWidth] = useState(MAKER_REVIEW_DEFAULT_WIDTH)
@@ -67,22 +93,31 @@ export function PayloadReview({
   const [reachedEnd, setReachedEnd] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
-  const [query, setQuery] = useState('')
+  const query = useRef<HTMLInputElement>(null)
+  const queryText = useRef('')
+  const searchButton = useRef<HTMLButtonElement>(null)
+  const [queryLength, setQueryLength] = useState(0)
   const [match, setMatch] = useState(-1)
-  const [isSearching, setSearching] = useState(false)
+  const worker = useRef<Worker>(undefined)
   const [highlightIndex, setHighlightIndex] = useState(0)
   const searchGeneration = useRef(0)
+  const cancelSearch = useCallback(() => {
+    searchGeneration.current += 1
+    worker.current?.terminate()
+    worker.current = undefined
+    const button = searchButton.current
+    if (button === null) return
+    button.setAttribute('aria-busy', 'false')
+    button.disabled = queryText.current === ''
+  }, [])
   useEffect(() => {
-    const cancel = () => {
-      searchGeneration.current += 1
-      setSearching(false)
-    }
+    const cancel = cancelSearch
     window.addEventListener(MAKER_REVIEW_CANCEL_EVENT, cancel)
     return () => {
       window.removeEventListener(MAKER_REVIEW_CANCEL_EVENT, cancel)
-      searchGeneration.current += 1
+      cancel()
     }
-  }, [])
+  }, [cancelSearch])
   const prepared =
     result?.content === content &&
     result.encoding === encoding &&
@@ -117,7 +152,7 @@ export function PayloadReview({
   }, [])
   useEffect(() => {
     const controller = new AbortController()
-    searchGeneration.current += 1
+    cancelSearch()
     if (viewport.current !== null) viewport.current.scrollTop = 0
     const context = document.createElement('canvas').getContext('2d')
     if (context !== null && viewport.current !== null)
@@ -136,8 +171,8 @@ export function PayloadReview({
       const bytes = outgoingPayloadBytes(content, encoding)
       const payload = await canonicalPayload(bytes, width, measure, controller.signal)
       const summary = await summarizePayload(bytes, request, limits, controller.signal)
+      const searchRows = await searchRowsBlob(payload, controller.signal)
       controller.signal.throwIfAborted()
-      setSearching(false)
       setFailed(false)
       setReachedEnd(false)
       setConfirmed(false)
@@ -145,16 +180,16 @@ export function PayloadReview({
       setStart(0)
       setMatch(-1)
       setHighlightIndex(0)
-      setPrepared({ content, encoding, width, request, limits, payload, summary })
+      setPrepared({ content, encoding, width, request, limits, payload, summary, searchRows })
       callbacks.current.onRendered?.(payload.digest)
     })().catch(() => {
       if (!controller.signal.aborted) setFailed(true)
     })
     return () => {
       controller.abort()
-      searchGeneration.current += 1
+      cancelSearch()
     }
-  }, [content, encoding, width, request, limits])
+  }, [content, encoding, width, request, limits, cancelSearch])
   useEffect(() => {
     if (prepared === undefined || isLarge) return
     const node = viewport.current
@@ -184,61 +219,59 @@ export function PayloadReview({
     setStart(row)
     node.focus()
   }
-  const search = async () => {
-    if (prepared === undefined || query === '') return
-    const current = ++searchGeneration.current
+  const search = () => {
+    const value = queryText.current
+    if (prepared === undefined || value === '') return
+    cancelSearch()
+    const current = searchGeneration.current
     const rows = prepared.payload.rows
-    let started = performance.now()
-    const canContinue = async () => {
-      await new Promise<void>((resolve) => setTimeout(resolve, 0))
-      started = performance.now()
-      return current === searchGeneration.current
-    }
-    setSearching(true)
+    // Immutable job data is encoded as JSON, never interpreted as executable
+    // model text. No inbound messages or payload authority exist in this worker.
+    const source = new Blob(
+      [
+        `postMessage((${findPayloadMatch.toString()})(`,
+        prepared.searchRows,
+        `,${JSON.stringify(value)},${String(match)}))`,
+      ],
+      { type: 'text/javascript' },
+    )
+    let url: string | undefined
     try {
-      if (!(await canContinue())) return
-      // KMP avoids repeatedly copying/scanning a query-sized suffix for every row.
-      const prefix = new Uint32Array(query.length)
-      let matched = 0
-      for (let index = 1; index < query.length; index += 1) {
-        while (matched > 0 && query[index] !== query[matched]) {
-          matched = prefix[matched - 1] ?? 0
-          if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
-        }
-        if (query[index] === query[matched]) matched += 1
-        prefix[index] = matched
-        if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
+      url = URL.createObjectURL(source)
+      const active = new Worker(url)
+      worker.current = active
+      const button = searchButton.current
+      if (button !== null) {
+        button.disabled = true
+        button.setAttribute('aria-busy', 'true')
       }
-      matched = 0
-      let offset = 0
-      const rowEnds: { line: number }[] = []
-      for (const [index, row] of rows.entries()) {
-        rowEnds.push({ line: offset + row.text.length })
-        let at = 0
-        while (at < row.text.length) {
-          const character = row.text.charAt(at)
-          at += 1
-          while (matched > 0 && character !== query[matched]) {
-            matched = prefix[matched - 1] ?? 0
-            if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue()))
-              return
-          }
-          if (character === query[matched]) matched += 1
-          offset += 1
-          if (matched === query.length) {
-            if (index > match) {
-              setMatch(index)
-              jump(lowerBound(rowEnds, offset - query.length + 1))
-              return
-            }
-            matched = prefix[matched - 1] ?? 0
-          }
-          if (performance.now() - started >= MAKER_REVIEW_BATCH_MS && !(await canContinue())) return
+      active.addEventListener('message', (event: MessageEvent<unknown>) => {
+        if (current !== searchGeneration.current) return
+        const result = makerSearchResultSchema.safeParse(event.data)
+        cancelSearch()
+        if (
+          !result.success ||
+          result.data.match >= rows.length ||
+          result.data.jump >= rows.length ||
+          (result.data.match === -1) !== (result.data.jump === -1) ||
+          result.data.jump > result.data.match
+        ) {
+          setFailed(true)
+          return
         }
-      }
-      setMatch(-1)
+        setMatch(result.data.match)
+        if (result.data.jump >= 0) jump(result.data.jump)
+      })
+      active.addEventListener('error', () => {
+        if (current !== searchGeneration.current) return
+        cancelSearch()
+        setFailed(true)
+      })
+    } catch {
+      cancelSearch()
+      setFailed(true)
     } finally {
-      if (current === searchGeneration.current) setSearching(false)
+      if (url !== undefined) URL.revokeObjectURL(url)
     }
   }
   const rows = prepared?.payload.rows ?? []
@@ -259,21 +292,51 @@ export function PayloadReview({
       <label>
         {UI_TEXT.makerPayloadSearch}
         <input
-          value={query}
+          ref={query}
+          readOnly={queryLength > MAKER_REVIEW_QUERY_VISIBLE_CHARS}
+          aria-describedby={
+            queryLength > MAKER_REVIEW_QUERY_VISIBLE_CHARS ? 'maker-long-search' : undefined
+          }
           onChange={(event) => {
-            setQuery(event.currentTarget.value)
+            queryText.current = event.currentTarget.value
+            // Native inputs also lay out their whole value. Keep long query data
+            // in memory and display a bounded, explicitly labelled prefix.
+            event.currentTarget.value = queryText.current.slice(0, MAKER_REVIEW_QUERY_VISIBLE_CHARS)
+            setQueryLength(queryText.current.length)
+            cancelSearch()
             setMatch(-1)
-            searchGeneration.current += 1
-            setSearching(false)
           }}
         />
       </label>
+      {queryLength > MAKER_REVIEW_QUERY_VISIBLE_CHARS && (
+        <p role="status" id="maker-long-search">
+          {fill(plural(UI_TEXT.makerLongSearch, queryLength), {
+            shown: formatNumber(MAKER_REVIEW_QUERY_VISIBLE_CHARS),
+            count: formatNumber(queryLength),
+          })}
+        </p>
+      )}
       <button
         type="button"
-        disabled={prepared === undefined || query === '' || isSearching}
-        aria-busy={isSearching}
+        disabled={queryLength === 0}
         onClick={() => {
-          void search()
+          queryText.current = ''
+          if (query.current !== null) query.current.value = ''
+          setQueryLength(0)
+          setMatch(-1)
+          cancelSearch()
+          query.current?.focus()
+        }}
+      >
+        {UI_TEXT.makerClearSearch}
+      </button>
+      <button
+        type="button"
+        ref={searchButton}
+        disabled={prepared === undefined || queryLength === 0}
+        aria-busy={false}
+        onClick={() => {
+          search()
         }}
       >
         {UI_TEXT.makerFindNext}

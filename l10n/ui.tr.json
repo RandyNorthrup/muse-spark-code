@@ -2536,5 +2536,10 @@
   "makerTemperatureSettings": {
     "one": "Sıcaklık ayarı ({shown}/{count}): {temperatures}. En yüksek: {maximum}.",
     "other": "Sıcaklık ayarları ({count} farklı değerin ilk {shown} tanesi): {temperatures}. En yüksek: {maximum}."
+  },
+  "makerClearSearch": "Aramayı temizle",
+  "makerLongSearch": {
+    "one": "{count} arama karakterinin ilk {shown} karakteri gösteriliyor. Düzenlemek için temizleyin; arama sorgunun tamamını kullanır.",
+    "other": "{count} arama karakterinin ilk {shown} karakteri gösteriliyor. Düzenlemek için temizleyin; arama sorgunun tamamını kullanır."
   }
 }

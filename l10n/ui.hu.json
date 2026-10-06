@@ -2536,5 +2536,10 @@
   "makerTemperatureSettings": {
     "one": "Hőmérséklet-beállítás ({shown}/{count}): {temperatures}. Maximum: {maximum}.",
     "other": "Hőmérséklet-beállítások (az első {shown} a {count} különbözőből): {temperatures}. Maximum: {maximum}."
+  },
+  "makerClearSearch": "Keresés törlése",
+  "makerLongSearch": {
+    "one": "A keresés első {shown} karaktere látható a(z) {count} karakterből. Szerkesztéshez törölje; a keresés a teljes lekérdezést használja.",
+    "other": "A keresés első {shown} karaktere látható a(z) {count} karakterből. Szerkesztéshez törölje; a keresés a teljes lekérdezést használja."
   }
 }

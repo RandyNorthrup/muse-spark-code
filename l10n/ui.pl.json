@@ -2728,5 +2728,12 @@
     "few": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}.",
     "many": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}.",
     "other": "Ustawione temperatury (pierwsze {shown} z {count} różnych): {temperatures}. Maksimum: {maximum}."
+  },
+  "makerClearSearch": "Wyczyść wyszukiwanie",
+  "makerLongSearch": {
+    "one": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
+    "few": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
+    "many": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
+    "other": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania."
   }
 }

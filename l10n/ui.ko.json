@@ -2440,5 +2440,9 @@
   "makerNextHighlight": "다음 강조 표시",
   "makerTemperatureSettings": {
     "other": "설정 온도(서로 다른 {count}개 중 처음 {shown}개): {temperatures}. 최대: {maximum}."
+  },
+  "makerClearSearch": "검색 지우기",
+  "makerLongSearch": {
+    "other": "검색 문자 {count}개 중 처음 {shown}개를 표시합니다. 편집하려면 지우세요. 검색에는 전체 검색어가 사용됩니다."
   }
 }

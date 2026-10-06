@@ -2632,5 +2632,11 @@
     "one": "Temperatura configurada ({shown}/{count}): {temperatures}. Máxima: {maximum}.",
     "many": "Temperaturas configuradas (primeiras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}.",
     "other": "Temperaturas configuradas (primeiras {shown} de {count} distintas): {temperatures}. Máxima: {maximum}."
+  },
+  "makerClearSearch": "Limpar pesquisa",
+  "makerLongSearch": {
+    "one": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira.",
+    "many": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira.",
+    "other": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira."
   }
 }

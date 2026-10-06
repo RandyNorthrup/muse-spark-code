@@ -5,11 +5,17 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
+
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { compactBrowserEnglish } from '../../scripts/lib/uiTextRegions.mjs'
 import { isolateMakerValidation } from '../../scripts/lib/makerValidation.mjs'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
 import { MakerApproval } from '../../src/core/maker/ports.ts'
+
+// Select the fixture engine, never a subset of tests. The rig may supply a
+// cached WebKit client matching its native runtime without changing pins.
+const ENGINE = process.env['MUSE_MAKER_BROWSER'] ?? 'Chrome'
+if (!['Chrome', 'WebKit'].includes(ENGINE)) throw new Error('Unknown maker fixture browser')
 
 const ID = '2b4a9acb-2dc5-4f46-aeb8-40aee71bb875'
 const machine = {
@@ -77,6 +83,7 @@ ${isPreview ? 'wireMakerPreview(globalThis.document, host);' : 'listenForMaker(h
 `
 const rig = {
   browser: undefined,
+  hostDelay: 0,
   server: undefined,
   page: undefined,
   port: 0,
@@ -138,16 +145,19 @@ beforeAll(async () => {
       return
     }
     if (pathname === '/maker-ready') {
-      response
-        .writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
-        .end(
-          JSON.stringify([
-            ...rig.hostFrames,
-            ...rig.hostApprovals
-              .map((pending) => pending.reopen({ v: 1, type: 'makerReady' }))
-              .filter((frame) => frame !== undefined),
-          ]),
-        )
+      const reply = () =>
+        response
+          .writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' })
+          .end(
+            JSON.stringify([
+              ...rig.hostFrames,
+              ...rig.hostApprovals
+                .map((pending) => pending.reopen({ v: 1, type: 'makerReady' }))
+                .filter((frame) => frame !== undefined),
+            ]),
+          )
+      if (rig.hostDelay > 0) globalThis.setTimeout(reply, rig.hostDelay)
+      else reply()
       return
     }
     if (pathname === '/' || pathname === '/preview') {
@@ -160,9 +170,16 @@ beforeAll(async () => {
         rig.table === undefined
           ? ''
           : `<script id="muse-l10n" type="application/json">${JSON.stringify(rig.table)}</script>`
-      const html = `<html><head><style>${isPreview ? '' : css}</style>${isPreview ? '<link rel="stylesheet" href="/temp/browser-preview/stdin.css">' : '<link rel="stylesheet" href="/temp/browser-main/stdin.css">'}</head><body data-artifact-id="${ID}" style="--vscode-font-family:Arial;--vscode-font-size:13px">${embedded}<main id="root"><button>Chat</button></main>${isPreview ? `<canvas id="maker-canvas"></canvas><p id="maker-preview-unavailable" hidden>Unavailable</p><button data-maker-stop="">Stop all machines</button>${stopHtml}` : ''}<script type="module" src="/temp/browser-${isPreview ? 'preview' : 'main'}/stdin.js"></script></body></html>`
+      const html = `<html><head><style nonce="simulator">${isPreview ? '' : css}</style>${isPreview ? '<link rel="stylesheet" href="/temp/browser-preview/stdin.css">' : '<link rel="stylesheet" href="/temp/browser-main/stdin.css">'}</head><body data-artifact-id="${ID}" style="--vscode-font-family:Arial;--vscode-font-size:13px">${embedded}${isPreview ? '' : `<div id="maker-stop-shell" class="maker-static-stop"><button type="button">${rig.table?.table?.makerStopAll ?? rig.english.makerStopAll}</button></div>`}<main id="root"><button>Chat</button></main>${isPreview ? `<canvas id="maker-canvas"></canvas><p id="maker-preview-unavailable" hidden>Unavailable</p><button data-maker-stop="">Stop all machines</button>${stopHtml}` : ''}<script type="module" nonce="simulator" src="/temp/browser-${isPreview ? 'preview' : 'main'}/stdin.js"></script></body></html>`
       response
-        .writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' })
+        .writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...(!isPreview && {
+            'Content-Security-Policy':
+              "default-src 'none'; script-src 'nonce-simulator'; worker-src blob:; style-src 'self' 'nonce-simulator'; connect-src 'self'",
+          }),
+        })
         .end(html)
       return
     }
@@ -176,23 +193,56 @@ beforeAll(async () => {
   })
   await new Promise((resolve) => rig.server.listen(0, '127.0.0.1', resolve))
   rig.port = rig.server.address().port
-  rig.browser = await chromium.launch({ executablePath: findChrome() })
+  if (ENGINE === 'WebKit') {
+    const { webkit } = await import(process.env['MUSE_MAKER_WEBKIT_CLIENT'] ?? 'playwright-core')
+    rig.browser = await webkit.launch()
+  } else {
+    rig.browser = await chromium.launch({ executablePath: findChrome() })
+  }
 })
 afterEach(async () => {
   await rig.page?.close()
   rig.failed = undefined
+  rig.hostDelay = 0
   rig.table = undefined
   rig.hostFrames = []
   rig.hostApprovals = []
 })
 afterAll(async () => {
+  writeFileSync('temp/redm103u-browser-receipt.json', JSON.stringify(rig.results, null, 2) + '\n')
+  rig.server?.closeAllConnections()
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
-  writeFileSync('temp/redm103u-browser-receipt.json', JSON.stringify(rig.results, null, 2) + '\n')
 })
-async function page(width = 320, height = 760, isPreview = false) {
-  rig.page = await rig.browser.newPage({ viewport: { width, height } })
+async function page(width = 320, height = 760, isPreview = false, isStorageDenied = false) {
+  rig.page = await rig.browser.newPage({
+    viewport: { width, height },
+  })
   rig.page.setDefaultTimeout(3000)
+  if (isStorageDenied)
+    await rig.page.addInitScript(() => {
+      Object.defineProperty(globalThis, 'sessionStorage', {
+        get() {
+          throw new Error('Denied')
+        },
+      })
+    })
+  await rig.page.addInitScript(() => {
+    const NativeWorker = globalThis.Worker
+    Object.assign(globalThis, { workerFacts: { created: 0, terminated: 0 } })
+    Object.defineProperty(globalThis, 'Worker', {
+      value: class extends NativeWorker {
+        constructor(...args) {
+          super(...args)
+          globalThis.workerFacts.created += 1
+        }
+        terminate() {
+          globalThis.workerFacts.terminated += 1
+          return super.terminate()
+        }
+      },
+    })
+  })
   await rig.page.goto(`http://127.0.0.1:${rig.port}/${isPreview ? 'preview' : ''}`)
   await rig.page.waitForFunction(() => globalThis.emit !== undefined)
   return rig.page
@@ -227,7 +277,7 @@ const stopFacts = (p, selector) =>
     }
   })
 
-it('Chrome: CR is visible and a clipped initial view completes on outer scrolling alone', async () => {
+it(`${ENGINE}: CR is visible and a clipped initial view completes on outer scrolling alone`, async () => {
   const p = await page()
   const request = await openApproval(p, 'G1 X1\r')
   expect(await p.locator('.maker-payload').textContent()).toContain('␍')
@@ -247,7 +297,7 @@ it('Chrome: CR is visible and a clipped initial view completes on outer scrollin
     digest: request.digest,
   })
 })
-it('Chrome: BOMs at the start and middle remain visible in the exact approved payload', async () => {
+it(`${ENGINE}: BOMs at the start and middle remain visible in the exact approved payload`, async () => {
   const p = await page()
   const request = await openApproval(p, '\u{FEFF}M105\u{FEFF}\r\n')
   expect(await p.locator('.maker-payload').textContent()).toContain(
@@ -255,7 +305,7 @@ it('Chrome: BOMs at the start and middle remain visible in the exact approved pa
   )
   expect(await p.locator('.maker-digest').textContent()).toBe(request.digest)
 })
-it('Chrome: a long unbroken token fits every measured row in a 161 px pane', async () => {
+it(`${ENGINE}: a long unbroken token fits every measured row in a 161 px pane`, async () => {
   const p = await page(161)
   await openApproval(p, 'W'.repeat(1000))
   const facts = await p.locator('.maker-payload').evaluate((node) => ({
@@ -272,7 +322,7 @@ it('Chrome: a long unbroken token fits every measured row in a 161 px pane', asy
   rig.results.push({ probe: 'long-token', ...facts })
 })
 it.each([5, 10])(
-  'Chrome: %s machines retain bounded shared Stop at short and ordinary pane sizes',
+  `${ENGINE}: %s machines retain bounded shared Stop at short and ordinary pane sizes`,
   async (count) => {
     const p = await page(320, 120)
     await emit(p, state(count))
@@ -306,7 +356,7 @@ it.each([5, 10])(
     }
   },
 )
-it('Chrome: ten standalone machines retain Stop all and an internally scrolling list', async () => {
+it(`${ENGINE}: ten standalone machines retain Stop all and an internally scrolling list`, async () => {
   const p = await page(320, 120, true)
   for (const height of [120, 400]) {
     await p.setViewportSize({ width: 320, height })
@@ -320,7 +370,7 @@ it('Chrome: ten standalone machines retain Stop all and an internally scrolling 
     expect(await p.evaluate(() => globalThis.sent.at(-1))).toEqual({ v: 1, type: 'makerStop' })
   }
 })
-it('Chrome: 100,000 lines remain virtual and queued Stop input responds below 100 ms', async () => {
+it(`${ENGINE}: 100,000 lines remain virtual and queued Stop input responds below 100 ms`, async () => {
   const p = await page()
   await emit(p, state())
   await p.locator('.maker-surface').waitFor({ state: 'attached' })
@@ -364,7 +414,7 @@ it('Chrome: 100,000 lines remain virtual and queued Stop input responds below 10
   rig.results.push({ probe: 'large-payload', ...facts })
 })
 it.each([10_000, 20_000])(
-  'Chrome: worst-case search with %s repeated rows keeps Stop below 100 ms',
+  `${ENGINE}: worst-case search with %s repeated rows keeps Stop below 100 ms`,
   async (count) => {
     const p = await page()
     await emit(p, state())
@@ -389,22 +439,33 @@ it.each([10_000, 20_000])(
       const search = [...globalThis.document.querySelectorAll('button')].find(
         (node) => node.textContent === 'Find next',
       )
+      const searchStarted = globalThis.performance.now()
       search.click()
+      const dispatchMs = globalThis.performance.now() - searchStarted
       await new Promise((resolve) => globalThis.setTimeout(resolve, 200))
       globalThis.clearInterval(interval)
       return {
         latency,
         stops,
         sent: globalThis.sent.filter((frame) => frame.type === 'makerStop').length,
+        workers: globalThis.workerFacts,
+        dispatchMs,
       }
+    })
+    rig.results.push({
+      probe: 'worst-case-search',
+      engine: ENGINE,
+      queryLength: count * 6 + 1,
+      ...facts,
     })
     expect(facts.latency).toBeLessThan(100)
     expect(facts.stops).toBeGreaterThan(0)
     expect(facts.sent).toBe(facts.stops)
-    rig.results.push({ probe: 'worst-case-search', queryLength: count * 6 + 1, ...facts })
+    expect(facts.workers.created).toBe(1)
+    expect(facts.workers.terminated).toBe(1)
   },
 )
-it('Chrome: retry reloads and refetches a failed static dependency, preserving panel state', async () => {
+it(`${ENGINE}: retry reloads and refetches a failed static dependency, preserving panel state`, async () => {
   rig.failed = rig.presentation
   const p = await page()
   const before = rig.requests.get(rig.presentation) ?? 0
@@ -424,7 +485,7 @@ it('Chrome: retry reloads and refetches a failed static dependency, preserving p
   rig.results.push({ probe: 'static-dependency-reload', refetches: 2, restoredMachines: 10 })
 })
 it.each([false, true])(
-  'Chrome: reload re-fetches large host payloads (JSON expansion %s) and retains Stop',
+  `${ENGINE}: reload re-fetches large host payloads (JSON expansion %s) and retains Stop`,
   async (escaped) => {
     rig.failed = rig.presentation
     const p = await page()
@@ -459,7 +520,7 @@ it.each([false, true])(
     })
   },
 )
-it('Chrome: the lazy English projection preserves the installed German table', async () => {
+it(`${ENGINE}: the lazy English projection preserves the installed German table`, async () => {
   rig.table = { locale: 'de', table: rig.german }
   const p = await page()
   await emit(p, state())
@@ -469,7 +530,7 @@ it('Chrome: the lazy English projection preserves the installed German table', a
   await p.locator('.maker-payload').waitFor({ state: 'attached' })
   await p.getByText(rig.german.makerCanonicalLegend).waitFor()
 })
-it('Chrome: an invalid deferred maker key refuses the installed table and uses English', async () => {
+it(`${ENGINE}: an invalid deferred maker key refuses the installed table and uses English`, async () => {
   const table = { ...rig.english, makerCanonicalLegend: 1 }
   rig.table = { locale: 'de', table }
   const p = await page()
@@ -478,4 +539,53 @@ it('Chrome: an invalid deferred maker key refuses the installed table and uses E
   await emit(p, requestFor('G1 X1\r'))
   await p.getByRole('dialog', { name: 'Approve hardware action' }).waitFor()
   expect(await p.getByText(rig.english.makerCanonicalLegend).count()).toBe(1)
+})
+
+it(`${ENGINE}: storage-denied reload retains static Stop before delayed replay`, async () => {
+  rig.failed = rig.presentation
+  const p = await page(320, 760, false, true)
+  const content = '\0'.repeat(400_000)
+  const frame = requestFor(content)
+  await emit(p, state())
+  await emit(p, frame)
+  await p.getByRole('button', { name: 'Retry', exact: true }).waitFor()
+  rig.hostFrames = [state()]
+  rig.hostApprovals = [new MakerApproval(frame.request, () => true)]
+  rig.hostDelay = 1000
+  rig.failed = undefined
+  await Promise.all([
+    p.waitForEvent('load'),
+    p.getByRole('button', { name: 'Retry', exact: true }).click(),
+  ])
+  const facts = await p.evaluate(() => {
+    const stop = globalThis.document.querySelector('#maker-stop-shell button')
+    stop?.click()
+    return {
+      stop: stop !== null,
+      surfaces: globalThis.document.querySelectorAll('.maker-surface').length,
+      ready: globalThis.sent.some((message) => message.type === 'makerReady'),
+      sent: globalThis.sent.at(-1),
+    }
+  })
+  expect(facts).toEqual({
+    stop: true,
+    surfaces: 0,
+    ready: true,
+    sent: { v: 1, type: 'makerStop' },
+  })
+  await p.locator('.maker-digest').waitFor()
+  expect(await p.locator('.maker-digest').textContent()).toBe(frame.request.digest)
+  expect(await p.getByRole('button', { name: 'Send once', exact: true }).isDisabled()).toBe(true)
+  rig.results.push({ probe: 'storage-denied-reload', engine: ENGINE, ...facts })
+})
+
+it(`${ENGINE}: worker finds an unmounted row under the nonce and blob-only CSP`, async () => {
+  const p = await page()
+  await openApproval(p, 'M104 S190\n'.repeat(250) + 'needle')
+  await p.getByLabel('Search canonical payload').fill('needle')
+  await p.getByRole('button', { name: 'Find next', exact: true }).click()
+  await p.waitForFunction(() =>
+    globalThis.document.querySelector('.maker-payload').textContent.includes('needle'),
+  )
+  expect(await p.evaluate(() => globalThis.workerFacts)).toEqual({ created: 1, terminated: 1 })
 })

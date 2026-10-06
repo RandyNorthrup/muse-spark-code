@@ -1,11 +1,31 @@
 // Only this lazy entry belongs to startup. All maker schemas and UI wait for
-// a host maker message; the buffer preserves approvals arriving during import.
+// a host maker message; the storage-independent Stop shell is installed first.
 import type { MakerSurfaceMessage } from '../shared/makerProtocol'
-import { MAKER_PROTOCOL_MAX_ITEMS, MAKER_PROTOCOL_VERSION, UI_TEXT } from '../shared/constants'
+import {
+  MAKER_PROTOCOL_MAX_ITEMS,
+  MAKER_PROTOCOL_VERSION,
+  MAKER_STOP_SHELL_ID,
+  UI_TEXT,
+} from '../shared/constants'
 import type { HostBridge } from './hostBridge'
 import { isMakerReloadPending, reloadPanelSurface } from './reloadPanelSurface'
 
 export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
+  // Host-rendered HTML already shows Stop. Companion hosts without that markup
+  // get the same small shell synchronously, before any storage access or import.
+  const fallback =
+    document.querySelector<HTMLDivElement>(`#${MAKER_STOP_SHELL_ID}`) ??
+    document.createElement('div')
+  fallback.id = MAKER_STOP_SHELL_ID
+  fallback.className = 'maker-toolbar maker-loading-toolbar maker-static-stop'
+  const stop = fallback.querySelector('button') ?? document.createElement('button')
+  stop.type = 'button'
+  if (stop.textContent === '') stop.textContent = UI_TEXT.makerStopAll
+  stop.addEventListener('click', () => {
+    host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
+  })
+  fallback.replaceChildren(stop)
+  document.body.append(fallback)
   const shouldReopen = isMakerReloadPending()
   const pending: unknown[] = []
   let receive: ((raw: unknown) => void) | undefined
@@ -13,19 +33,11 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
   let isDisposed = false
   const isGone = () => isDisposed
   let dispose: (() => void) | undefined
-  let fallback: HTMLDivElement | undefined
   const load = () => {
     if (isLoading || isDisposed) return
     isLoading = true
-    fallback ??= document.createElement('div')
-    fallback.className = 'maker-toolbar maker-loading-toolbar'
     const status = document.createElement('p')
     status.textContent = UI_TEXT.loadingOutput
-    const stop = document.createElement('button')
-    stop.textContent = UI_TEXT.makerStopAll
-    stop.addEventListener('click', () => {
-      host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
-    })
     fallback.replaceChildren(stop, status)
     document.body.append(fallback)
     void import('./maker/MakerSurface')
@@ -48,7 +60,7 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         dispose = surface.dispose
         for (const message of pending) receive(message)
         pending.length = 0
-        fallback?.remove()
+        fallback.remove()
       })
       .catch(() => {
         isLoading = false
@@ -63,10 +75,10 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         const dismiss = document.createElement('button')
         dismiss.textContent = UI_TEXT.usageClose
         dismiss.addEventListener('click', () => {
-          fallback?.remove()
+          fallback.replaceChildren(stop)
           pending.length = 0
         })
-        fallback?.append(retry, dismiss)
+        fallback.append(retry, dismiss)
       })
   }
   const listener = (event: MessageEvent<unknown>) => {
@@ -95,7 +107,7 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
       isDisposed = true
       host.messages.removeEventListener('message', listener)
       dispose?.()
-      fallback?.remove()
+      fallback.remove()
       pending.length = 0
     },
     { once: true },

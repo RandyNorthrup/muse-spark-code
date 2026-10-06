@@ -2632,5 +2632,11 @@
     "one": "Température définie  ({shown}/{count}): {temperatures}. Maximum : {maximum}.",
     "many": "Températures définies ({shown} premières sur {count} distinctes) : {temperatures}. Maximum : {maximum}.",
     "other": "Températures définies ({shown} premières sur {count} distinctes) : {temperatures}. Maximum : {maximum}."
+  },
+  "makerClearSearch": "Effacer la recherche",
+  "makerLongSearch": {
+    "one": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière.",
+    "many": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière.",
+    "other": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière."
   }
 }

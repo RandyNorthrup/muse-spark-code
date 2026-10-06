@@ -397,3 +397,9 @@ export const makerSurfaceMessageSchema = z.discriminatedUnion('type', [
   frame('makerOpenPreview', { artifactId: uuid }),
 ])
 export type MakerSurfaceMessage = z.infer<typeof makerSurfaceMessageSchema>
+
+/** Worker results carry row positions only, never hardware authority. */
+export const makerSearchResultSchema = z.strictObject({
+  match: z.number().check(z.int(), z.minimum(-1)),
+  jump: z.number().check(z.int(), z.minimum(-1)),
+})

@@ -4170,12 +4170,18 @@ portable host independently rehashes the exact frozen outgoing bytes and
 refuses a mismatch. Read-only/native preview paint cannot authorize a send;
 V/R still own installed-editor routing. Stop all occupies a bounded viewport
 region with an internally scrolling per-machine list, including short panes
-and serial-only sessions. Stop uses its own event path and cancels search; search yields by elapsed time.
+and serial-only sessions. Stop uses its own event path and terminates the search Web Worker. Long
+queries stay outside React state and show a bounded prefix with a character
+count and Clear control; search retains the entire query. Unparseable heater values and unknown
+commands/macros need danger acknowledgement, including serial text and hex
+payloads without host analysis.
 Retry saves chat UI position and a maker-open marker, then reloads the document,
 refetching static dependencies too; Close restores chat. Every new approval-panel document
 posts `makerReady` when its listener is installed. Hosts replay current admission,
 previews and pending approvals through `MakerApproval.reopen`, which revokes
-previous review readiness. Payloads and consent never live in browser storage. The review, English
+previous review readiness. The static shell shows Stop before storage access
+and keeps it functional immediately after reload, before replay even when
+storage is denied. Payloads and consent never live in browser storage. The review, English
 fallback and validation load in their own second maker chunk.
 
 The [maker review Help reference](docs/reference.md) describes summaries,

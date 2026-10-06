@@ -2440,5 +2440,9 @@
   "makerNextHighlight": "次の強調表示",
   "makerTemperatureSettings": {
     "other": "設定温度（異なる {count} 件のうち最初の {shown} 件）：{temperatures}。最高：{maximum}。"
+  },
+  "makerClearSearch": "検索をクリア",
+  "makerLongSearch": {
+    "other": "検索文字列の{count}文字中、先頭{shown}文字を表示しています。編集するにはクリアしてください。検索には文字列全体が使われます。"
   }
 }

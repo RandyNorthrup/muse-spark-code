@@ -77,7 +77,8 @@ export async function summarizePayload(
       .slice(0, MAKER_REVIEW_SUMMARY_LINE_CHARS)
       .replaceAll(/\([^)]*\)|;.*$/g, '')
       .toUpperCase()
-    const rawHead = /^\s*(?:N\d+\s*)?([GMT]\d+|\$\d+|[A-Z_]+)/.exec(command)?.[1] ?? ''
+    const header = /^\s*(?:N\d+\s*)?([GMT]\d+|\$[^\s]*|[A-Z_][A-Z_0-9]*)/.exec(command)
+    const rawHead = header?.[1] ?? ''
     const head = rawHead.replace(/^([GMT])0+(\d+)$/, '$1$2')
     const parameter = (letter: string) => {
       const value = new RegExp(String.raw`${letter}\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))`).exec(
@@ -91,7 +92,18 @@ export async function summarizePayload(
     }
     const heater = heaters[head]
     const temperature = heater === undefined ? undefined : (parameter('S') ?? parameter('R'))
-    if (heater !== undefined && temperature !== undefined) {
+    const tail = command.slice(header?.[0].length ?? 0).replace(/\*\d+\s*$/, '')
+    // Only complete, finite numeric words are understood. Prefixes of expressions
+    // and duplicate temperature words must never stand in for their actual value.
+    const hasLiteralWords = /^(?:\s*[A-Z]\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+))*\s*$/.test(tail)
+    const isLiteralTemperature =
+      hasLiteralWords &&
+      (tail.match(/[SR]/g)?.length ?? 0) === 1 &&
+      temperature !== undefined &&
+      Number.isFinite(temperature)
+    if (heater !== undefined && !isLiteralTemperature) {
+      highlight('temperature')
+    } else if (heater !== undefined && temperature !== undefined) {
       temperatureSettings[heater].add(temperature)
       temperatures[heater] = Math.max(temperatures[heater] ?? 0, temperature)
       const maximum = heater === 'chamber' ? undefined : limits?.[heater]
@@ -106,7 +118,7 @@ export async function summarizePayload(
     }
     if (
       // Command-wide acknowledgement avoids firmware boolean/parameter spelling gaps.
-      /^(?:M(?:80|81|121|143|211|302|564|570)|SET_KINEMATIC_POSITION|FORCE_MOVE|SET_VELOCITY_LIMIT|SET_PIN|SHUTDOWN_MACHINE)$/.test(
+      /^(?:M(?:42|80|81|121|143|211|302|564|570)|SET_GCODE_OFFSET|SET_STEPPER_CARRIAGES|SET_KINEMATIC_POSITION|FORCE_MOVE|SET_VELOCITY_LIMIT|SET_PIN|SHUTDOWN_MACHINE)$/.test(
         head,
       ) ||
       /\$(?:20|21)\s*=\s*0\b/.test(command) ||
@@ -116,7 +128,15 @@ export async function summarizePayload(
     // These firmware equivalents lack a portable heater-to-limit mapping; disclose the risk.
     if (/^(?:G10|M568|SET_HEATER_TEMPERATURE|TEMPERATURE_WAIT)$/.test(head))
       highlight('temperature')
+    // A serial request has no analyser. An unrecognised command/macro can set
+    // heaters or move a machine, so absence of host analysis cannot imply safety.
+    const isUnderstood =
+      hasLiteralWords &&
+      /^(?:G[0-4]|G20|G21|G90|G91|M82|M83|M10[4-7]|M109|M11[459]|M140|M141|M190|M191|M400|M503|STATUS|HELP|GET_POSITION|QUERY_ENDSTOPS|\$\$|\$#|\$G|\$I|\$N)$/.test(
+        head,
+      )
     if (
+      (request !== undefined && !isUnderstood && command.trim() !== '') ||
       analysis?.unknown.includes(head) ||
       analysis?.unknown.includes(rawHead) ||
       analysis?.refused.includes(head) ||

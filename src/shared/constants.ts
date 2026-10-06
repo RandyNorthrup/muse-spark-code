@@ -251,6 +251,7 @@ export const MAKER_REVIEW_ROW_HEIGHT = 20
 export const MAKER_REVIEW_OVERSCAN_ROWS = 2
 export const MAKER_REVIEW_DEFAULT_WIDTH = 240
 export const MAKER_REVIEW_DEFAULT_CHAR_WIDTH = 8
+export const MAKER_REVIEW_QUERY_VISIBLE_CHARS = 512
 export const MAKER_REVIEW_SUMMARY_LINE_CHARS = 2048
 export const MAKER_REVIEW_TEMPERATURE_VALUES = 8
 export const MAKER_REVIEW_BYTE_MAX = 255
@@ -266,6 +267,7 @@ export const MAKER_REVIEW_ELF_HEADER_BYTES = 32
 export const MAKER_REVIEW_ELF_CLASS_OFFSET = 4
 export const MAKER_REVIEW_ELF_ENDIAN_OFFSET = 5
 export const PANEL_RELOAD_EVENT = 'muse-panel-reload'
+export const MAKER_STOP_SHELL_ID = 'maker-stop-shell'
 export const MAKER_RELOAD_STATE_KEY = 'maker-panel-reload'
 export const MAKER_DIGEST_RADIX = 16
 // M103 U: bounded preview geometry and UI defaults; no device opens at startup.

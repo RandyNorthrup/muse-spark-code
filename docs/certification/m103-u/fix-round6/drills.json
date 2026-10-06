@@ -1,0 +1,629 @@
+[
+  {
+    "name": "danger-default",
+    "finding": "P2-1",
+    "path": "src/core/maker/payloadSummary.ts",
+    "exit": 1,
+    "files": ["test/unit/makerPayloadReview.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerPayloadReview.test.tsx > MicroPython flash review shows its frozen target and explicitly unknown file metadata",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S190oops always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S190 S250 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104 S190 R250 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M104  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S190oops always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S190 S250 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109 S190 R250 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M109  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M140  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M190  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M141  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191 S{250} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191 R{100} always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191 Svariable always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191 S[250] always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191 S#1 always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > unparsed heater value M191  always needs danger acknowledgement",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > serial text shares conservative danger review without host analysis",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > serial hex shares conservative danger review without host analysis"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  45 failed | 63 passed (108)"],
+    "beforeSha256": "3a058107dfe2f63ff6e6a27fd509a774c539f69f96250e0e376e76ee5fb0fb7b",
+    "restoredSha256": "3a058107dfe2f63ff6e6a27fd509a774c539f69f96250e0e376e76ee5fb0fb7b",
+    "byteExact": true
+  },
+  {
+    "name": "worker-absent",
+    "finding": "P2-2",
+    "path": "src/webview/maker/PayloadReview.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerPayloadReview.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerPayloadReview.test.tsx > Stop cancels search on its own event path before any search work resumes",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > query changes terminate the worker and reject late messages and malformed results",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > long query display stays bounded while the worker searches the entire original query"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  3 failed | 105 passed (108)"],
+    "beforeSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "restoredSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "byteExact": true
+  },
+  {
+    "name": "worker-cancel",
+    "finding": "P2-2",
+    "path": "src/webview/maker/PayloadReview.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerPayloadReview.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerPayloadReview.test.tsx > Stop cancels search on its own event path before any search work resumes",
+      " FAIL  test/unit/makerPayloadReview.test.tsx > query changes terminate the worker and reject late messages and malformed results"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  2 failed | 106 passed (108)"],
+    "beforeSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "restoredSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "byteExact": true
+  },
+  {
+    "name": "worker-boundary",
+    "finding": "P2-2",
+    "path": "src/webview/maker/PayloadReview.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerPayloadReview.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerPayloadReview.test.tsx > query changes terminate the worker and reject late messages and malformed results"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  1 failed | 107 passed (108)"],
+    "beforeSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "restoredSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "byteExact": true
+  },
+  {
+    "name": "query-display",
+    "finding": "P2-2",
+    "path": "src/webview/maker/PayloadReview.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerPayloadReview.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerPayloadReview.test.tsx > long query display stays bounded while the worker searches the entire original query"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  1 failed | 107 passed (108)"],
+    "beforeSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "restoredSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "byteExact": true
+  },
+  {
+    "name": "static-stop",
+    "finding": "P2-3",
+    "path": "src/webview/makerEntry.ts",
+    "exit": 1,
+    "files": ["test/unit/makerEntryLoading.test.ts"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerEntryLoading.test.ts > initial load failure preserves Stop, Retry and pending messages",
+      " FAIL  test/unit/makerEntryLoading.test.ts > Stop is functional before denied storage and remains present before delayed host replay"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  2 failed (2)"],
+    "beforeSha256": "c73da51080acbfd56f35662c8327a3e0fbc0495e4ba5f22281001b5ae337111f",
+    "restoredSha256": "c73da51080acbfd56f35662c8327a3e0fbc0495e4ba5f22281001b5ae337111f",
+    "byteExact": true
+  },
+  {
+    "name": "html-stop",
+    "finding": "P2-3",
+    "path": "src/host/html.ts",
+    "exit": 1,
+    "files": ["test/unit/html.test.ts"],
+    "failingRegressions": [
+      " FAIL  test/unit/html.test.ts > buildWebviewHtml > renders localized Stop in the static shell before executable scripts, allowing only blob workers"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  1 failed | 9 passed (10)"],
+    "beforeSha256": "940f11de849a8a00635eea5cf31bba3da7280fcdcf66cbe89afed85fb0d560aa",
+    "restoredSha256": "940f11de849a8a00635eea5cf31bba3da7280fcdcf66cbe89afed85fb0d560aa",
+    "byteExact": true
+  },
+  {
+    "name": "stop-handover",
+    "finding": "P2-3",
+    "path": "src/webview/maker/MakerSurface.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerUi.test.tsx"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerUi.test.tsx > mount resolves only after Stop is committed, so the static shell can hand over safely"
+    ],
+    "summary": ["\n Test Files  1 failed (1)", "      Tests  1 failed | 11 passed (12)"],
+    "beforeSha256": "a463ece40fddc8ec42fddf8d699bcae45b9f22fb7785ca26b2424c601ac13830",
+    "restoredSha256": "a463ece40fddc8ec42fddf8d699bcae45b9f22fb7785ca26b2424c601ac13830",
+    "byteExact": true
+  },
+  {
+    "name": "main-search-block",
+    "finding": "P2-2",
+    "path": "src/webview/maker/PayloadReview.tsx",
+    "exit": 1,
+    "files": ["test/unit/makerReviewBrowser.test.mjs"],
+    "failingRegressions": [
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 10000 repeated rows keeps Stop below 100 ms",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 20000 repeated rows keeps Stop below 100 ms",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > WebKit: worst-case search with 10000 repeated rows keeps Stop below 100 ms",
+      " FAIL  test/unit/makerReviewBrowser.test.mjs > WebKit: worst-case search with 20000 repeated rows keeps Stop below 100 ms"
+    ],
+    "summary": ["4 failed / 28 passed across two complete 16-case engine runs"],
+    "beforeSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "restoredSha256": "3ced76b36787c7c350db80454b18f490d51ee041cacc9b42eb0d9a204fa3c596",
+    "byteExact": true,
+    "runs": [
+      {
+        "engine": "Chrome",
+        "exit": 1,
+        "failingRegressions": [
+          " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 10000 repeated rows keeps Stop below 100 ms",
+          " FAIL  test/unit/makerReviewBrowser.test.mjs > Chrome: worst-case search with 20000 repeated rows keeps Stop below 100 ms"
+        ],
+        "summary": ["\n Test Files  1 failed (1)", "      Tests  2 failed | 14 passed (16)"],
+        "facts": [
+          {
+            "probe": "long-token",
+            "client": 121,
+            "scroll": 121,
+            "fits": true
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 120,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 120,
+            "scrollHeight": 148,
+            "clientHeight": 14,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 160,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 160,
+            "scrollHeight": 148,
+            "clientHeight": 30,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 400,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 400,
+            "scrollHeight": 148,
+            "clientHeight": 86,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 760,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 760,
+            "scrollHeight": 148,
+            "clientHeight": 86,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 120,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 120,
+            "scrollHeight": 298,
+            "clientHeight": 14,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 160,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 160,
+            "scrollHeight": 298,
+            "clientHeight": 30,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 400,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 400,
+            "scrollHeight": 298,
+            "clientHeight": 86,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 760,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 760,
+            "scrollHeight": 298,
+            "clientHeight": 86,
+            "buttons": 10
+          },
+          {
+            "probe": "standalone-stop",
+            "count": 10,
+            "height": 120,
+            "visible": true,
+            "top": 64,
+            "bottom": 92
+          },
+          {
+            "probe": "standalone-stop",
+            "count": 10,
+            "height": 400,
+            "visible": true,
+            "top": 272,
+            "bottom": 300
+          },
+          {
+            "probe": "large-payload",
+            "latency": 70.10000228881836,
+            "rows": 19,
+            "height": 2000000,
+            "stops": 185
+          },
+          {
+            "probe": "worst-case-search",
+            "engine": "Chrome",
+            "queryLength": 60001,
+            "latency": 153.79999923706055,
+            "stops": 40,
+            "sent": 40,
+            "workers": {
+              "created": 1,
+              "terminated": 1
+            },
+            "dispatchMs": 153
+          },
+          {
+            "probe": "worst-case-search",
+            "engine": "Chrome",
+            "queryLength": 120001,
+            "latency": 158.4000015258789,
+            "stops": 40,
+            "sent": 40,
+            "workers": {
+              "created": 1,
+              "terminated": 1
+            },
+            "dispatchMs": 155.8000030517578
+          },
+          {
+            "probe": "static-dependency-reload",
+            "refetches": 2,
+            "restoredMachines": 10
+          },
+          {
+            "probe": "large-host-reload",
+            "escaped": false,
+            "chars": 1048576,
+            "readyRefetch": true,
+            "stop": true
+          },
+          {
+            "probe": "large-host-reload",
+            "escaped": true,
+            "chars": 400000,
+            "readyRefetch": true,
+            "stop": true
+          },
+          {
+            "probe": "storage-denied-reload",
+            "engine": "Chrome",
+            "stop": true,
+            "surfaces": 0,
+            "ready": true,
+            "sent": {
+              "v": 1,
+              "type": "makerStop"
+            }
+          }
+        ]
+      },
+      {
+        "engine": "WebKit",
+        "exit": 1,
+        "failingRegressions": [
+          " FAIL  test/unit/makerReviewBrowser.test.mjs > WebKit: worst-case search with 10000 repeated rows keeps Stop below 100 ms",
+          " FAIL  test/unit/makerReviewBrowser.test.mjs > WebKit: worst-case search with 20000 repeated rows keeps Stop below 100 ms"
+        ],
+        "summary": ["\n Test Files  1 failed (1)", "      Tests  2 failed | 14 passed (16)"],
+        "facts": [
+          {
+            "probe": "long-token",
+            "client": 121,
+            "scroll": 121,
+            "fits": true
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 120,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 120,
+            "scrollHeight": 148,
+            "clientHeight": 14,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 160,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 160,
+            "scrollHeight": 148,
+            "clientHeight": 30,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 400,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 400,
+            "scrollHeight": 148,
+            "clientHeight": 86,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 5,
+            "height": 760,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 5,
+            "height": 760,
+            "scrollHeight": 148,
+            "clientHeight": 86,
+            "buttons": 5
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 120,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 120,
+            "scrollHeight": 298,
+            "clientHeight": 14,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 160,
+            "visible": true,
+            "top": 42,
+            "bottom": 74
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 160,
+            "scrollHeight": 298,
+            "clientHeight": 30,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 400,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 400,
+            "scrollHeight": 298,
+            "clientHeight": 86,
+            "buttons": 10
+          },
+          {
+            "probe": "shared-stop",
+            "count": 10,
+            "height": 760,
+            "visible": true,
+            "top": 54,
+            "bottom": 86
+          },
+          {
+            "probe": "shared-stop-list",
+            "count": 10,
+            "height": 760,
+            "scrollHeight": 298,
+            "clientHeight": 86,
+            "buttons": 10
+          },
+          {
+            "probe": "standalone-stop",
+            "count": 10,
+            "height": 120,
+            "visible": true,
+            "top": 64,
+            "bottom": 92
+          },
+          {
+            "probe": "standalone-stop",
+            "count": 10,
+            "height": 400,
+            "visible": true,
+            "top": 272,
+            "bottom": 300
+          },
+          {
+            "probe": "large-payload",
+            "latency": 27,
+            "rows": 19,
+            "height": 2000000,
+            "stops": 89
+          },
+          {
+            "probe": "worst-case-search",
+            "engine": "WebKit",
+            "queryLength": 60001,
+            "latency": 158,
+            "stops": 25,
+            "sent": 25,
+            "workers": {
+              "created": 1,
+              "terminated": 1
+            },
+            "dispatchMs": 155
+          },
+          {
+            "probe": "worst-case-search",
+            "engine": "WebKit",
+            "queryLength": 120001,
+            "latency": 173,
+            "stops": 22,
+            "sent": 22,
+            "workers": {
+              "created": 1,
+              "terminated": 1
+            },
+            "dispatchMs": 171
+          },
+          {
+            "probe": "static-dependency-reload",
+            "refetches": 2,
+            "restoredMachines": 10
+          },
+          {
+            "probe": "large-host-reload",
+            "escaped": false,
+            "chars": 1048576,
+            "readyRefetch": true,
+            "stop": true
+          },
+          {
+            "probe": "large-host-reload",
+            "escaped": true,
+            "chars": 400000,
+            "readyRefetch": true,
+            "stop": true
+          },
+          {
+            "probe": "storage-denied-reload",
+            "engine": "WebKit",
+            "stop": true,
+            "surfaces": 0,
+            "ready": true,
+            "sent": {
+              "v": 1,
+              "type": "makerStop"
+            }
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -75,6 +75,12 @@ export const EN = {
   makerCanonicalLegend: String.raw`Control pictures show control bytes; \xNN shows an escaped byte and \\ a literal backslash.`,
   makerPayloadSearch: 'Search canonical payload',
   makerFindNext: 'Find next',
+  makerClearSearch: 'Clear search',
+  makerLongSearch: forms({
+    one: 'Showing {shown} of {count} search character. Clear to edit; search uses the whole query.',
+    other:
+      'Showing the first {shown} of {count} search characters. Clear to edit; search uses the whole query.',
+  }),
   makerNextHighlight: 'Next highlight',
   makerHighlightPosition: 'Highlight {current} of {count}',
   makerHighlightLine: 'Line {line}',

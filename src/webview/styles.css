@@ -3895,3 +3895,12 @@ li:focus-within > .row-actions .row-actions-button,
   font-size: 0.9em;
   overflow-wrap: anywhere;
 }
+
+/* Independent Stop shell precedes storage, lazy maker CSS and host replay. */
+.maker-static-stop {
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  z-index: 30;
+  max-width: calc(100% - 16px);
+}

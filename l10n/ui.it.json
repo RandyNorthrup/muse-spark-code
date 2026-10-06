@@ -2632,5 +2632,11 @@
     "one": "Temperatura impostata ({shown}/{count}): {temperatures}. Massima: {maximum}.",
     "many": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}.",
     "other": "Temperature impostate (prime {shown} di {count} distinte): {temperatures}. Massima: {maximum}."
+  },
+  "makerClearSearch": "Cancella ricerca",
+  "makerLongSearch": {
+    "one": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
+    "many": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
+    "other": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa."
   }
 }

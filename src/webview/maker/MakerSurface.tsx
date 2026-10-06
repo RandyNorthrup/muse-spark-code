@@ -1,4 +1,5 @@
 import { createRoot } from 'react-dom/client'
+import { flushSync } from 'react-dom'
 import {
   type ReactNode,
   lazy,
@@ -240,7 +241,10 @@ export async function mountMaker(
   window.addEventListener(PANEL_RELOAD_EVENT, reloading)
   for (const message of pending) store.receive(message)
   const root = createRoot(element)
-  root.render(<MakerSurface store={store} />)
+  // The loader may remove the static shell only after React has committed Stop.
+  flushSync(() => {
+    root.render(<MakerSurface store={store} />)
+  })
   return {
     receive: store.receive,
     dispose: () => {

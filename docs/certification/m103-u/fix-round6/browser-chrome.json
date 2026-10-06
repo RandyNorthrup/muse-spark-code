@@ -1,0 +1,208 @@
+[
+  {
+    "probe": "long-token",
+    "client": 121,
+    "scroll": 121,
+    "fits": true
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 74
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 120,
+    "scrollHeight": 148,
+    "clientHeight": 14,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 74
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 160,
+    "scrollHeight": 148,
+    "clientHeight": 30,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 400,
+    "visible": true,
+    "top": 54,
+    "bottom": 86
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 400,
+    "scrollHeight": 148,
+    "clientHeight": 86,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 760,
+    "visible": true,
+    "top": 54,
+    "bottom": 86
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 760,
+    "scrollHeight": 148,
+    "clientHeight": 86,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 74
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 120,
+    "scrollHeight": 298,
+    "clientHeight": 14,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 74
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 160,
+    "scrollHeight": 298,
+    "clientHeight": 30,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 54,
+    "bottom": 86
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 400,
+    "scrollHeight": 298,
+    "clientHeight": 86,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 760,
+    "visible": true,
+    "top": 54,
+    "bottom": 86
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 760,
+    "scrollHeight": 298,
+    "clientHeight": 86,
+    "buttons": 10
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 64,
+    "bottom": 92
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 272,
+    "bottom": 300
+  },
+  {
+    "probe": "worst-case-search",
+    "engine": "Chrome",
+    "queryLength": 60001,
+    "latency": 140.39999771118164,
+    "stops": 24,
+    "sent": 24,
+    "workers": {
+      "created": 1,
+      "terminated": 1
+    },
+    "dispatchMs": 55.70000076293945
+  },
+  {
+    "probe": "worst-case-search",
+    "engine": "Chrome",
+    "queryLength": 120001,
+    "latency": 14.599998474121094,
+    "stops": 38,
+    "sent": 38,
+    "workers": {
+      "created": 1,
+      "terminated": 1
+    },
+    "dispatchMs": 4
+  },
+  {
+    "probe": "static-dependency-reload",
+    "refetches": 2,
+    "restoredMachines": 10
+  },
+  {
+    "probe": "large-host-reload",
+    "escaped": false,
+    "chars": 1048576,
+    "readyRefetch": true,
+    "stop": true
+  },
+  {
+    "probe": "large-host-reload",
+    "escaped": true,
+    "chars": 400000,
+    "readyRefetch": true,
+    "stop": true
+  },
+  {
+    "probe": "storage-denied-reload",
+    "engine": "Chrome",
+    "stop": true,
+    "surfaces": 0,
+    "ready": true,
+    "sent": {
+      "v": 1,
+      "type": "makerStop"
+    }
+  }
+]

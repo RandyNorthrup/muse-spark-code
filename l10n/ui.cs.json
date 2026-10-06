@@ -2728,5 +2728,12 @@
     "few": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}.",
     "many": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}.",
     "other": "Nastavení teploty (prvních {shown} z {count} různých): {temperatures}. Maximum: {maximum}."
+  },
+  "makerClearSearch": "Vymazat hledání",
+  "makerLongSearch": {
+    "one": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
+    "few": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
+    "many": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
+    "other": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz."
   }
 }

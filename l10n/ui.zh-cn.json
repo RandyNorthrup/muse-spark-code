@@ -2440,5 +2440,9 @@
   "makerNextHighlight": "下一个高亮",
   "makerTemperatureSettings": {
     "other": "温度设置（{count} 个不同值中的前 {shown} 个）：{temperatures}。最高：{maximum}。"
+  },
+  "makerClearSearch": "清除搜索",
+  "makerLongSearch": {
+    "other": "显示搜索文本共 {count} 个字符中的前 {shown} 个。清除后可编辑；搜索使用完整查询。"
   }
 }

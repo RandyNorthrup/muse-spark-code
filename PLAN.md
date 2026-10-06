@@ -18935,6 +18935,27 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**FIXM103U6 (2026-10-06, Mac mini).** Fix all three RVM103U5 P2
+findings. Danger review defaults to acknowledgement for commands or heater
+values it cannot understand, including expressions, variables, macros and
+serial payloads without host analysis. Search runs in a cancellable Web Worker.
+Its immutable row JSON is prepared in bounded, cancellable slices and reused
+at dispatch, so starting search does not serialize the full payload synchronously.
+Query/busy updates must not repeatedly lay out an unbounded controlled input.
+A long query remains complete in memory while its field shows a bounded prefix
+and a localized count; Clear restores editing without truncating the search.
+The static Stop shell is installed before storage reads, remains usable before
+host replay, and is supplied in the extension HTML as well as the shared
+HostBridge loader. Permit only locally constructed blob workers in the panel
+CSP; physical admission, nonce script policy and all existing guards remain.
+Measure worst-case queued Stop below 100 ms in Chrome and WebKit. Run the
+complete browser fixture separately for each engine (Chrome by default), so
+ordinary unit gates do not require an additional native browser. Add failing
+regressions and SHA-256-verified byte-exact drills for every fix. Use the
+repository default test deadlines, bounded rig gates and hooks-on commits;
+no dependency, merge, paid/live model call or physical operation. Existing
+notices-path and installed-adapter qualification residuals remain explicit.
+
 **FIXM103U5 (2026-10-06, Mac mini).** Address every RVM103U4 finding
 within U's existing architecture: preserve BOM bytes in the reversible
 canonical rendering, conservatively acknowledge safety/power commands and
@@ -20836,6 +20857,17 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+FIXM103U6 uses the same bounded rig gates and default test deadlines. P2-1
+and P2-3 are fixed, with complete owning-file regressions and SHA-256-verified
+removal drills. P2-2 has worker/cancellation and bounded native query changes,
+but final Chrome still misses the unchanged 100 ms Stop bound; this blocks
+qualification as M103U-STOP-LATENCY in §9. The common brief's stop-after-two-
+failed-fixes rule ends further blind edits to this path. Complete browser
+files still run separately in Chrome/WebKit without a timeout increase.
+The existing M103U-NOTICES-PATH remains outside lane scope; a failing notices
+step cannot qualify a production package. No aggregate quality, merge,
+rebase, push, hardware or paid/live model call is authorized in this lane.
+
 FIXM103U5 (2026-10-06, Mac mini) uses the same scoped verification.
 The first production build passed size, split and host-global checks, but the
 notices step failed on the inherited namespaced maker-validation absolute path.
@@ -20995,13 +21027,32 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M103U-WEBKIT-RIG (FIXM103U5, 2026-10-06):** the installed WebKit
-  2311 reports version 26.6, but Playwright 1.63 expects revision 2359.
-  Page creation refuses `Page.overrideSetting: PushAPIEnabled` with an
-  unknown-setting error. The owned probe and children were closed. Safe
-  for now: Chrome simulator receipts qualify only Chrome; no WebKit or
-  installed-editor equivalence is claimed. Follow-up: provision the
-  matching rig browser/client and repeat the complete browser regressions.
+- **M103U-STOP-LATENCY (FIXM103U6, RVM103U5 P2-2, 2026-10-06):**
+  matching runs in a disposable worker, Stop cancels it, native query display
+  is bounded, and immutable row JSON is prepared in cancellable slices.
+  These fix the observed 683 ms native-input and 200.7 ms synchronous job
+  dispatch causes. Nevertheless, the final unchanged Chrome file returns
+  14 passed / 2 failed: preparation and 60,001-character search each miss the
+  100 ms bound at 140.4 ms; exact renderer/GC/scheduling cause is unconfirmed.
+  A preceding complete pass does not qualify this unstable timing. The shared
+  brief requires stopping after repeated failure following two fixes; further
+  blind changes were stopped. Safe for now: no release/physical Stop timing
+  qualification is claimed, admission and dispatch guards are unchanged, and
+  the test still fails at the original limit. Follow-up: profile native input,
+  renderer/GC and scheduling on an isolated rig, decide whether Stop needs
+  independent servicing outside that renderer, then rerun both complete
+  browser files at unchanged deadlines/bounds. Receipts: `docs/certification/m103-u.md`.
+
+- **M103U-WEBKIT-RIG (FIXM103U6, 2026-10-06):** shared browser
+  fixture can run using the rig's installed WebKit 2311 with a
+  matching cached Playwright 1.61.1 client in the ignored lane `temp/`.
+  Chrome retains the repository's pinned 1.63.0 client. The same complete
+  browser fixture runs separately for each engine; no test is skipped or
+  filtered, and no test or hook deadline is raised. The product pins and
+  dependencies are unchanged. The 1.63.0 client's expected WebKit 2359 is
+  still absent here. Follow-up: provision that exact native runtime at
+  integration before claiming qualification of that client/runtime pair.
+  Installed-editor/native/ACP routing remains M103U-ADAPTER-QUALIFICATION.
 
 - **M103U-NOTICES-PATH (FIXM103U5, 2026-10-06):** the Mac mini production
   notices step treats `maker-validation:/Users/.../node_modules/zod` as a
@@ -21038,8 +21089,12 @@ before a repaired one loads (2026-09-30).
   installation. Adapters replay current admission/preview and retain pending
   requests across reload, calling `MakerApproval.reopen` before replay to
   revoke prior readiness. Browser storage contains only a maker-open marker.
-  Chrome simulator recovery is qualified; installed V/R/W routing remains
-  the same named adapter qualification residual, with no physical claim.
+  FIXM103U6 installs a storage-independent static Stop shell before reading
+  the UI marker, including shared HostBridge clients without host markup.
+  React commits its Stop before the shell is removed; dismissing a loader
+  failure retains Stop. Chrome and WebKit simulator recovery are qualified;
+  installed V/R/W routing remains the same named adapter qualification
+  residual, with no physical claim.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

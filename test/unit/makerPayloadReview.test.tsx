@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { createHash, randomBytes } from 'node:crypto'
+import { Blob as NodeBlob } from 'node:buffer'
+import { runInNewContext } from 'node:vm'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { MAKER_REVIEW_SMALL_ROWS, UI_TEXT } from '../../src/shared/constants'
@@ -7,8 +9,10 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { canonicalPayload, outgoingPayloadBytes } from '../../src/core/maker/canonicalPayload'
 import { summarizePayload } from '../../src/core/maker/payloadSummary'
+import type { ApprovalRequest } from '../../src/shared/makerProtocol'
 import { ApprovalDialog } from '../../src/webview/maker/ApprovalDialog'
 import { PayloadReview } from '../../src/webview/maker/PayloadReview'
+import { findPayloadMatch } from '../../src/webview/maker/payloadSearch'
 import { MakerSurface } from '../../src/webview/maker/MakerSurface'
 import {
   installMakerBrowser,
@@ -20,8 +24,58 @@ import {
 } from './helpers/makerUi'
 
 const browser = { visible: installMakerBrowser() }
+const searchWorkers: {
+  deliver: (data: unknown) => void
+  terminate: ReturnType<typeof vi.fn>
+}[] = []
+
 beforeEach(() => {
   browser.visible = installMakerBrowser()
+  searchWorkers.length = 0
+  const blobs = new Map<string, NodeBlob>()
+  vi.stubGlobal('Blob', NodeBlob)
+  vi.stubGlobal(
+    'URL',
+    class extends URL {
+      static override createObjectURL(blob: Blob | MediaSource) {
+        if (!(blob instanceof NodeBlob)) throw new Error('Unexpected worker blob')
+        const url = `blob:simulator-${String(blobs.size)}`
+        blobs.set(url, blob)
+        return url
+      }
+      static override revokeObjectURL(url: string) {
+        blobs.delete(url)
+      }
+    },
+  )
+  vi.stubGlobal(
+    'Worker',
+    class {
+      listeners = new Map<string, (event: { data: unknown }) => void>()
+      terminate = vi.fn()
+      constructor(url: string) {
+        searchWorkers.push(this)
+        const blob = blobs.get(url)
+        if (blob === undefined) throw new Error('Missing worker blob')
+        void blob.text().then((source) => {
+          setTimeout(() => {
+            if (this.terminate.mock.calls.length > 0) return
+            runInNewContext(source, {
+              postMessage: (data: unknown) => {
+                this.deliver(data)
+              },
+            })
+          }, 0)
+        })
+      }
+      addEventListener(type: string, callback: (event: { data: unknown }) => void) {
+        this.listeners.set(type, callback)
+      }
+      deliver(data: unknown) {
+        this.listeners.get('message')?.({ data })
+      }
+    },
+  )
 })
 afterEach(() => {
   cleanup()
@@ -165,13 +219,34 @@ it('long unbroken and wide Unicode tokens wrap to the measured width', async () 
   const empty = await prepare('')
   expect(empty.lineCount).toBe(0)
 })
-async function approval(content = 'M104 S190') {
-  const request = {
+async function approval(content = 'M104 S190', serialEncoding?: 'text' | 'hex') {
+  const base = {
     ...uiApproval(),
     expiresAt: Date.now() + 60_000,
     payload: content,
     digest: hash(content),
   }
+  const request: ApprovalRequest =
+    serialEncoding === undefined
+      ? base
+      : {
+          id: base.id,
+          digest: base.digest,
+          expiresAt: base.expiresAt,
+          action: base.action,
+          kind: 'serial',
+          target: { kind: 'serial', port: 'simulator-port' },
+          payload: {
+            encoding: serialEncoding,
+            value: serialEncoding === 'hex' ? Buffer.from(content).toString('hex') : content,
+          },
+          baud: 115_200,
+          durationMs: 1000,
+          dtr: false,
+          rts: false,
+          warnsAboutReset: true,
+          flashIdentity: { status: 'unknown' },
+        }
   const answer = vi.fn()
   const review = vi.fn()
   const rendered = vi.fn()
@@ -355,6 +430,13 @@ it('MicroPython flash review shows its frozen target and explicitly unknown file
     `${UI_TEXT.makerEntryPoint}: ${UI_TEXT.makerSummaryUnknown}`,
   )
   expect(screen.getByRole('dialog')).toHaveTextContent('simulator-workspace')
+  act(() => {
+    browser.visible()
+  })
+  const send = screen.getByRole('button', { name: UI_TEXT.makerSendOnce })
+  expect(send).toBeDisabled()
+  fireEvent.click(screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers))
+  expect(send).toBeEnabled()
 })
 it('replacement payload resets consent and recomputes its digest', async () => {
   const receipt = vi.fn()
@@ -434,11 +516,14 @@ it('Stop cancels search on its own event path before any search work resumes', a
   const find = screen.getByRole('button', { name: UI_TEXT.makerFindNext })
   fireEvent.click(find)
   expect(find).toHaveAttribute('aria-busy', 'true')
+  expect(searchWorkers).toHaveLength(1)
+  const active = searchWorkers[0]
   fireEvent.click(
     screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-1) ?? document.body,
   )
   expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
   expect(find).toHaveAttribute('aria-busy', 'false')
+  expect(active?.terminate).toHaveBeenCalledOnce()
   store.dispose()
 })
 it('a changed reviewed digest irrevocably rejects a pending approval', () => {
@@ -473,4 +558,110 @@ it('read-only native preview rendering supplies no approval authority', async ()
   })
   expect(post).not.toHaveBeenCalled()
   store.dispose()
+})
+
+async function expectDangerReview(content: string, encoding?: 'text' | 'hex') {
+  const { send, answer, request } = await approval(content, encoding)
+  if (encoding !== undefined) expect(request).not.toHaveProperty('analysis')
+  const ack = screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers)
+  act(() => {
+    browser.visible()
+  })
+  expect(send).toBeDisabled()
+  fireEvent.click(send)
+  expect(answer).not.toHaveBeenCalled()
+  fireEvent.click(ack)
+  expect(send).toBeEnabled()
+}
+
+it.each(
+  ['M104', 'M109', 'M140', 'M190', 'M141', 'M191'].flatMap((command) =>
+    [
+      'S{250}',
+      'R{100}',
+      'Svariable',
+      'S[250]',
+      'S#1',
+      'S190oops',
+      'S190 S250',
+      'S190 R250',
+      '',
+    ].map((value) => `${command} ${value}`),
+  ),
+)('unparsed heater value %s always needs danger acknowledgement', async (content) => {
+  await expectDangerReview(content)
+})
+it.each(['text', 'hex'] as const)(
+  'serial %s shares conservative danger review without host analysis',
+  async (encoding) => {
+    for (const content of [
+      'M104 S{250}',
+      'M140 S{100}',
+      'M42 P5 S255',
+      'SET_GCODE_OFFSET X=900 MOVE=1',
+      'SET_STEPPER_CARRIAGES STEPPER=x CARRIAGES=x DISABLE_CHECKS=1',
+      'SET_HEATER_TEMPERATURE HEATER=extruder TARGET={target}',
+      'SET_HEATER_TEMPERATURE HEATER=heater_bed TARGET=variable',
+      'G10 P0 S{250}',
+      'M568 P0 S{250}',
+      'CUSTOM_HEATER_MACRO TARGET=250',
+      'M99999 S250',
+      'M106 S{fan}',
+      'STATUS HEATER=variable',
+      '{heater_macro}',
+    ]) {
+      await expectDangerReview(content, encoding)
+      cleanup()
+    }
+  },
+)
+
+it('worker search matches across virtual rows and respects next-match position', () => {
+  expect(findPayloadMatch(['ab', 'aba', 'ba'], 'ababa', -1)).toEqual({ match: 1, jump: 0 })
+  expect(findPayloadMatch(['ab', 'aba', 'ba'], 'ababa', 1)).toEqual({ match: 2, jump: 1 })
+  expect(findPayloadMatch(['ab', 'aba', 'ba'], 'ababa', 2)).toEqual({ match: -1, jump: -1 })
+  expect(findPayloadMatch(['😀', 'needle'], '😀needle', -1)).toEqual({ match: 1, jump: 0 })
+  expect(findPayloadMatch(['abababx'], 'abababy', -1)).toEqual({ match: -1, jump: -1 })
+  expect(findPayloadMatch(['ab'], '', -1)).toEqual({ match: -1, jump: -1 })
+})
+it('query changes terminate the worker and reject late messages and malformed results', async () => {
+  await approval('M104 S190\n'.repeat(250) + 'needle')
+  const input = screen.getByLabelText(UI_TEXT.makerPayloadSearch)
+  fireEvent.change(input, { target: { value: 'needle' } })
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerFindNext }))
+  const stale = searchWorkers[0]
+  fireEvent.change(input, { target: { value: 'absent' } })
+  expect(stale?.terminate).toHaveBeenCalledOnce()
+  act(() => {
+    stale?.deliver({ match: 250, jump: 250 })
+  })
+  expect(screen.getByRole('region', { name: UI_TEXT.makerReadPayload })).not.toHaveTextContent(
+    'needle',
+  )
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerFindNext }))
+  act(() => {
+    searchWorkers[1]?.deliver({ match: '250', jump: 250 })
+  })
+  expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.makerLoadFailed)
+  expect(searchWorkers[1]?.terminate).toHaveBeenCalledOnce()
+})
+
+it('long query display stays bounded while the worker searches the entire original query', async () => {
+  await approval('a'.repeat(600) + 'Y\n' + 'a'.repeat(600) + 'Z')
+  const input = screen.getByLabelText(UI_TEXT.makerPayloadSearch)
+  fireEvent.change(input, { target: { value: 'a'.repeat(600) + 'Z' } })
+  expect(input).toHaveValue('a'.repeat(512))
+  expect(input).toHaveAttribute('readonly')
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerFindNext }))
+  await waitFor(() => {
+    expect(
+      screen.getByRole('region', { name: UI_TEXT.makerReadPayload }).scrollTop,
+    ).toBeGreaterThan(0)
+  })
+  expect(screen.getByRole('region', { name: UI_TEXT.makerReadPayload }).scrollTop).toBeGreaterThan(
+    0,
+  )
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerClearSearch }))
+  expect(input).toHaveValue('')
+  expect(input).not.toHaveAttribute('readonly')
 })

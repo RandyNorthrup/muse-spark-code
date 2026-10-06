@@ -2440,5 +2440,9 @@
   "makerNextHighlight": "下一個醒目標示",
   "makerTemperatureSettings": {
     "other": "溫度設定（{count} 個不同值中的前 {shown} 個）：{temperatures}。最高：{maximum}。"
+  },
+  "makerClearSearch": "清除搜尋",
+  "makerLongSearch": {
+    "other": "顯示搜尋文字共 {count} 個字元中的前 {shown} 個。清除後可編輯；搜尋使用完整查詢。"
   }
 }

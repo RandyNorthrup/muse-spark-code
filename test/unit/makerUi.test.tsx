@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testi
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
 import { UI_TEXT } from '../../src/shared/constants'
-import { MakerSurface } from '../../src/webview/maker/MakerSurface'
+import { MakerSurface, mountMaker } from '../../src/webview/maker/MakerSurface'
 import { MachineWizard } from '../../src/webview/maker/MachineWizard'
 import {
   uiApproval,
@@ -283,4 +283,21 @@ describe('shared maker views', () => {
     expect(close).toHaveBeenCalledOnce()
     store.dispose()
   })
+})
+
+it('mount resolves only after Stop is committed, so the static shell can hand over safely', async () => {
+  const { host, post, store } = uiBridge()
+  const element = document.createElement('div')
+  document.body.append(element)
+  const surface = await mountMaker(element, host)
+  try {
+    const stop = within(element).getByRole('button', { name: UI_TEXT.makerStopAll })
+    fireEvent.click(stop)
+    expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  } finally {
+    act(() => {
+      surface.dispose()
+    })
+    store.dispose()
+  }
 })

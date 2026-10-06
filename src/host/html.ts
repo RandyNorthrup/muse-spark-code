@@ -10,6 +10,7 @@
 
 import {
   NONCE_BYTES,
+  MAKER_STOP_SHELL_ID,
   PRODUCT_NAME,
   WEBVIEW_L10N_ELEMENT_ID,
   WEBVIEW_ROOT_ELEMENT_ID,
@@ -58,8 +59,17 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     `style-src ${options.cspSource} 'nonce-${options.nonce}'`,
     `font-src ${options.cspSource}`,
     `script-src 'nonce-${options.nonce}'`,
+    ...(options.surface === 'tasks' ? [] : [`worker-src blob:`]),
   ].join('; ')
   const { locale, table } = options.l10n
+  const stopLabel = table.makerStopAll
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+  const stopShell =
+    options.surface === 'tasks'
+      ? ''
+      : `<div id="${MAKER_STOP_SHELL_ID}" class="maker-static-stop"><button type="button">${stopLabel}</button></div>`
 
   return `<!DOCTYPE html>
 <html lang="${locale}">
@@ -71,6 +81,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <title>${PRODUCT_NAME}</title>
 </head>
 <body${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}>
+${stopShell}
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
 <script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>

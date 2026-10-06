@@ -2536,5 +2536,10 @@
   "makerTemperatureSettings": {
     "one": "Temperatureinstellung ({shown}/{count}): {temperatures}. Maximum: {maximum}.",
     "other": "Temperatureinstellungen (erste {shown} von {count} verschiedenen): {temperatures}. Maximum: {maximum}."
+  },
+  "makerClearSearch": "Suche löschen",
+  "makerLongSearch": {
+    "one": "Die ersten {shown} von {count} Suchzeichen werden angezeigt. Zum Bearbeiten löschen; gesucht wird mit der gesamten Abfrage.",
+    "other": "Die ersten {shown} von {count} Suchzeichen werden angezeigt. Zum Bearbeiten löschen; gesucht wird mit der gesamten Abfrage."
   }
 }

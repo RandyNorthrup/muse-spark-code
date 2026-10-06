@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker danger acknowledgement now includes unparseable heater expressions,
+  variables and unknown macros, including serial payloads without analysis,
+  M42 and Klipper offset/carriage safety equivalents. Search runs in a
+  cancellable Web Worker, searching the complete query while bounding its
+  displayed prefix. The static Stop
+  shell is present before storage access and remains functional immediately
+  after reload while host replay is pending, including denied storage.
+
 - Maker search now uses cancellable elapsed-time slices and linear matching,
   preserving responsive Stop during long queries on 100,000-line payloads.
   Reload re-fetches pending approvals from the host, revokes previous review
