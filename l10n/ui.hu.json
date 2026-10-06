@@ -2453,5 +2453,20 @@
   "shareBrowser": "Megnyitás böngészőben",
   "shareConfidential": "A megosztás le van tiltva, amíg ez a munkaterület bizalmas.",
   "shareReviewPrivacy": "Megerősítés előtt ellenőrizze a pontos előnézetet, hogy tartalmaz-e magánjellegű szöveget. Az ismert és regisztrált titkokat eltávolítjuk; más magánjellegű szöveg megmaradhat.",
-  "shareCancelled": "Megosztás megszakítva"
+  "shareCancelled": "Megosztás megszakítva",
+  "promptLimits": "A prompt túllépi a méretkorlátot, vagy ebben a hatókörben túl sok prompt van.",
+  "promptWorkspaceRequired": "Nyisson meg egy munkaterületet a munkaterületi promptok mentéséhez.",
+  "promptStoreDamaged": "A prompttár olvashatatlan vagy sérült. A fájlok változatlanok maradtak.",
+  "promptStoreBusy": "A prompttár foglalt vagy megváltozott. Próbálja újra.",
+  "promptSecretsNote": "A promptok egyszerű szövegként tárolódnak. Ne mentsen jelszavakat vagy kulcsokat.",
+  "promptSearch": "Promptok és címkék keresése",
+  "promptEmpty": "Nincs megfelelő mentett prompt.",
+  "promptDuplicate": "Másolat készítése",
+  "promptRun": "Változók ellenőrzése és beszúrás",
+  "promptEdit": "Prompt szerkesztése",
+  "promptDelete": "Prompt törlése",
+  "promptDeleteConfirm": "Törli ezt a promptot?",
+  "promptLink": "Importálás hivatkozásból vagy nyers gist URL-ből",
+  "promptFromFile": "Importálás fájlból",
+  "promptImportConfirm": "Importált prompt mentése"
 }

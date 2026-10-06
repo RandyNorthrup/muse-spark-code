@@ -38,6 +38,20 @@ const context: PaletteContext = {
   isKeyStored: false,
 }
 
+it('exposes prompt actions only with a bound host and keeps real tips', () => {
+  const absent = flattenPalette(buildPalette(context))
+  expect(absent.filter((item) => item.action.type === 'promptCommand')).toEqual([])
+  const bound = flattenPalette(buildPalette({ ...context, arePromptCommandsBound: true })).filter(
+    (item) => item.action.type === 'promptCommand',
+  )
+  expect(bound.map((item) => item.action)).toEqual([
+    { type: 'promptCommand', command: 'library' },
+    { type: 'promptCommand', command: 'use' },
+    { type: 'promptCommand', command: 'share' },
+  ])
+  expect(bound.every((item) => item.tip !== undefined && item.tip.trim() !== '')).toBe(true)
+})
+
 describe('formatTokenWindow', () => {
   afterEach(() => {
     setUiText(EN, 'en')

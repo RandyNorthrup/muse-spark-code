@@ -297,6 +297,31 @@
         "command": "museSpark.openPullRequestInConversation",
         "title": "%command.openPullRequestInConversation.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.sharePrompt",
+        "title": "%command.sharePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.promptLibrary",
+        "title": "%command.promptLibrary.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.savePrompt",
+        "title": "%command.savePrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.useSavedPrompt",
+        "title": "%command.useSavedPrompt.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.copyToMyPrompts",
+        "title": "%command.copyToMyPrompts.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -409,6 +434,40 @@
           "command": "museSpark.openInNewTab",
           "when": "view == museSpark.chatView",
           "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "editorHasSelection",
+          "group": "museSpark@1"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.savePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@1"
+        },
+        {
+          "command": "museSpark.useSavedPrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.chatAvailable",
+          "group": "museSpark@2"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.transcriptRole == user && museSpark.messageIsOwn",
+          "group": "museSpark@3"
+        },
+        {
+          "command": "museSpark.sharePrompt",
+          "when": "(webviewId == 'museSpark.chatPanel' || webviewId == 'museSpark.chatView') && museSpark.composerHasText",
+          "group": "museSpark@3"
         }
       ]
     },
@@ -1119,6 +1178,11 @@
           },
           "description": "%config.shell.passEnvironmentVariables.description%",
           "scope": "machine"
+        },
+        "museSpark.syncPromptsAndBookmarks": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.syncPromptsAndBookmarks.description%"
         }
       }
     },

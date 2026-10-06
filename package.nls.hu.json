@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Promptkönyvtár",
   "command.savePrompt.title": "Prompt mentése",
   "command.useSavedPrompt.title": "Mentett prompt használata…",
-  "command.copyToMyPrompts.title": "Másolás a saját promptjaimba"
+  "command.copyToMyPrompts.title": "Másolás a saját promptjaimba",
+  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak."
 }

@@ -2453,5 +2453,20 @@
   "shareBrowser": "Tarayıcıda aç",
   "shareConfidential": "Bu çalışma alanı gizli olduğu sürece paylaşım engellenir.",
   "shareReviewPrivacy": "Onaylamadan önce özel metin için tam önizlemeyi inceleyin. Bilinen ve kayıtlı gizli bilgiler kaldırılır; diğer özel metinler kalabilir.",
-  "shareCancelled": "Paylaşım iptal edildi"
+  "shareCancelled": "Paylaşım iptal edildi",
+  "promptLimits": "İstem boyut sınırını aşıyor veya bu kapsamda çok fazla istem var.",
+  "promptWorkspaceRequired": "Çalışma alanı istemlerini kaydetmek için bir çalışma alanı açın.",
+  "promptStoreDamaged": "İstem deposu okunamıyor veya bozuk. Dosyalar değiştirilmedi.",
+  "promptStoreBusy": "İstem deposu meşgul veya değişti. Tekrar deneyin.",
+  "promptSecretsNote": "İstemler düz metin olarak saklanır. Parola veya anahtar kaydetmeyin.",
+  "promptSearch": "İstem ve etiket ara",
+  "promptEmpty": "Eşleşen kayıtlı istem yok.",
+  "promptDuplicate": "Çoğalt",
+  "promptRun": "Değişkenleri incele ve ekle",
+  "promptEdit": "İstemi düzenle",
+  "promptDelete": "İstemi sil",
+  "promptDeleteConfirm": "Bu istem silinsin mi?",
+  "promptLink": "Bağlantıdan veya ham gist URL’sinden içe aktar",
+  "promptFromFile": "Dosyadan içe aktar",
+  "promptImportConfirm": "İçe aktarılan istemi kaydet"
 }

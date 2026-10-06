@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Knihovna promptů",
   "command.savePrompt.title": "Uložit prompt",
   "command.useSavedPrompt.title": "Použít uložený prompt…",
-  "command.copyToMyPrompts.title": "Zkopírovat do mých promptů"
+  "command.copyToMyPrompts.title": "Zkopírovat do mých promptů",
+  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní."
 }

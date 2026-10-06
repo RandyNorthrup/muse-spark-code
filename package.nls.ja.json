@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "プロンプトライブラリ",
   "command.savePrompt.title": "プロンプトを保存",
   "command.useSavedPrompt.title": "保存したプロンプトを使用…",
-  "command.copyToMyPrompts.title": "自分のプロンプトにコピー"
+  "command.copyToMyPrompts.title": "自分のプロンプトにコピー",
+  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。"
 }

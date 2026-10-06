@@ -2359,5 +2359,20 @@
   "shareBrowser": "브라우저에서 열기",
   "shareConfidential": "이 작업 영역이 기밀인 동안에는 공유가 차단됩니다.",
   "shareReviewPrivacy": "확인하기 전에 정확한 미리 보기에서 비공개 텍스트를 검토하세요. 알려진 비밀 정보와 등록된 비밀 정보는 제거되지만 다른 비공개 텍스트는 남을 수 있습니다.",
-  "shareCancelled": "공유 취소됨"
+  "shareCancelled": "공유 취소됨",
+  "promptLimits": "프롬프트가 크기 제한을 초과했거나 이 범위의 프롬프트가 너무 많습니다.",
+  "promptWorkspaceRequired": "작업 공간 프롬프트를 저장하려면 작업 공간을 여세요.",
+  "promptStoreDamaged": "프롬프트 저장소를 읽을 수 없거나 손상되었습니다. 파일은 변경되지 않았습니다.",
+  "promptStoreBusy": "프롬프트 저장소가 사용 중이거나 변경되었습니다. 다시 시도하세요.",
+  "promptSecretsNote": "프롬프트는 일반 텍스트로 저장됩니다. 암호나 키를 저장하지 마세요.",
+  "promptSearch": "프롬프트 및 태그 검색",
+  "promptEmpty": "일치하는 저장된 프롬프트가 없습니다.",
+  "promptDuplicate": "복제",
+  "promptRun": "변수 검토 후 삽입",
+  "promptEdit": "프롬프트 편집",
+  "promptDelete": "프롬프트 삭제",
+  "promptDeleteConfirm": "이 프롬프트를 삭제할까요?",
+  "promptLink": "링크 또는 원시 gist URL에서 가져오기",
+  "promptFromFile": "파일에서 가져오기",
+  "promptImportConfirm": "가져온 프롬프트 저장"
 }

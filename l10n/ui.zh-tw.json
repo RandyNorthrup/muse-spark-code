@@ -2359,5 +2359,20 @@
   "shareBrowser": "在瀏覽器中開啟",
   "shareConfidential": "此工作區為機密時，分享功能會被阻擋。",
   "shareReviewPrivacy": "確認前請檢查實際預覽中的私人文字。已知及已註冊的秘密資訊會被移除，但其他私人文字可能仍然存在。",
-  "shareCancelled": "已取消分享"
+  "shareCancelled": "已取消分享",
+  "promptLimits": "提示詞超過大小上限，或此範圍中的提示詞過多。",
+  "promptWorkspaceRequired": "請開啟工作區以儲存工作區提示詞。",
+  "promptStoreDamaged": "提示詞儲存區無法讀取或已損壞。檔案保持不變。",
+  "promptStoreBusy": "提示詞儲存區忙碌或已變更。請重試。",
+  "promptSecretsNote": "提示詞以純文字儲存。請勿儲存密碼或金鑰。",
+  "promptSearch": "搜尋提示詞和標籤",
+  "promptEmpty": "沒有符合的已儲存提示詞。",
+  "promptDuplicate": "建立副本",
+  "promptRun": "檢查變數並插入",
+  "promptEdit": "編輯提示詞",
+  "promptDelete": "刪除提示詞",
+  "promptDeleteConfirm": "刪除此提示詞？",
+  "promptLink": "從連結或gist原始內容網址匯入",
+  "promptFromFile": "從檔案匯入",
+  "promptImportConfirm": "儲存匯入的提示詞"
 }

@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "Prompt library",
   "command.savePrompt.title": "Save prompt",
   "command.useSavedPrompt.title": "Use saved prompt…",
-  "command.copyToMyPrompts.title": "Copy to my prompts"
+  "command.copyToMyPrompts.title": "Copy to my prompts",
+  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local."
 }

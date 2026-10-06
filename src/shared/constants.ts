@@ -4038,6 +4038,17 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
 // M118 lane 0: our portable prompt/share formats, never provider wire shapes.
+export const PROMPT_LIMITS = {
+  perScope: 200,
+  title: 80,
+  body: 10_000,
+  fileBytes: 128 * 1024,
+} as const
+export const PROMPT_SYNC_KEY = 'museSpark.savedPrompts.v1'
+export const PROMPT_SYNC_SETTING = 'syncPromptsAndBookmarks'
+export const PROMPT_FILE_MODE = 0o600
+export const PROMPT_FOLDER_MODE = 0o700
+export const PROMPT_BUNDLE_FILE = 'prompts.js'
 export const PROMPT_SCHEMA_VERSION = 1
 export const PROMPT_FILE_EXTENSION = '.muse-prompt.md'
 export const PROMPT_USER_FOLDER = 'prompts'

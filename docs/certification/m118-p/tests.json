@@ -1,0 +1,82 @@
+[
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptStore.test.ts",
+      "test/unit/promptImport.test.ts",
+      "test/unit/promptPrivacy.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000",
+      "--reporter=json",
+      "--outputFile=temp/m118-tests-1.json"
+    ],
+    "exit": 0,
+    "tests": 19,
+    "passed": 19,
+    "files": ["promptStore.test.ts", "promptImport.test.ts", "promptPrivacy.test.ts"],
+    "pending": 0,
+    "failed": 0
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptEntry.test.ts",
+      "test/unit/promptLibrary.test.tsx",
+      "test/unit/shareContracts.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000",
+      "--reporter=json",
+      "--outputFile=temp/m118-tests-2.json"
+    ],
+    "exit": 0,
+    "tests": 50,
+    "passed": 50,
+    "files": ["promptEntry.test.ts", "promptLibrary.test.tsx", "shareContracts.test.ts"],
+    "pending": 0,
+    "failed": 0
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/promptMenus.test.ts",
+      "test/unit/sharingArtifacts.test.ts",
+      "test/unit/paletteRegistry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000",
+      "--reporter=json",
+      "--outputFile=temp/m118-tests-3.json"
+    ],
+    "exit": 0,
+    "tests": 45,
+    "passed": 45,
+    "files": ["promptMenus.test.ts", "sharingArtifacts.test.ts", "paletteRegistry.test.ts"],
+    "pending": 0,
+    "failed": 0
+  },
+  {
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/Composer.test.tsx",
+      "test/unit/Transcript.test.tsx",
+      "test/unit/prompts.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000",
+      "--reporter=json",
+      "--outputFile=temp/m118-tests-4.json"
+    ],
+    "exit": 0,
+    "tests": 166,
+    "passed": 166,
+    "files": ["Composer.test.tsx", "Transcript.test.tsx", "prompts.test.ts"],
+    "pending": 0,
+    "failed": 0
+  }
+]

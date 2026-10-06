@@ -1,0 +1,1216 @@
+{
+  "machine": "macmini",
+  "controls": [
+    {
+      "name": "store-title-cap",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "checked.title.length > PROMPT_LIMITS.title",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-body-cap",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "checked.body.length > PROMPT_LIMITS.body",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-duplicate-id",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "rows.some((row) => row.prompt.id === prompt.id)",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-directory-link",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "!stat.isDirectory() || stat.isSymbolicLink()",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-count",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "existing === undefined && rows.length >= PROMPT_LIMITS.perScope",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-trust",
+      "file": "src/core/prompts/promptStore.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "ada7eb6b1a19e2343490e48e2f55ef7f5379c448845408775d25b424344aaa22",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "prompt.untrusted || existing?.prompt.untrusted === true",
+          "planted": "prompt.untrusted"
+        }
+      ]
+    },
+    {
+      "name": "sync-id-conflict",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > syncs only user scope, newest wins, and validates before any writes"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "seen.has(prompt.id)",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "sync-off",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > syncs only user scope, newest wins, and validates before any writes"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "if (this.sync?.isOn() !== true) return",
+          "planted": "if (this.sync === undefined) return"
+        }
+      ]
+    },
+    {
+      "name": "copy-trust",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > round trips exact Markdown and shows both scopes in any workspace"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "...prompt,\n      id: this.identity.id(),",
+          "planted": "...prompt,\n      untrusted: false,\n      id: this.identity.id(),"
+        }
+      ]
+    },
+    {
+      "name": "variable-cancel",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > insert-only variable review > cancelled variables/review and oversized expansion never insert"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "if (value === undefined) return 'cancelled'",
+          "planted": "if (value === undefined) { await port.insert(prompt.body); return 'cancelled' }"
+        }
+      ]
+    },
+    {
+      "name": "variable-review",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > insert-only variable review > cancelled variables/review and oversized expansion never insert"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "if (!(await port.review(text, prompt))) return 'cancelled'",
+          "planted": "await port.review(text, prompt)"
+        }
+      ]
+    },
+    {
+      "name": "variable-cap",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > insert-only variable review > cancelled variables/review and oversized expansion never insert"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "if (text.length > PROMPT_LIMITS.body)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "import-untrusted",
+      "file": "src/core/prompts/promptLibrary.ts",
+      "test": "promptStore",
+      "exit": 1,
+      "restore": "f1ac479b4c4ef4265029ee9e7e5bade4a4a66a4be9342f9a0f0569de67f5fc9d",
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > syncs only user scope, newest wins, and validates before any writes"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "id: this.identity.id(), untrusted: true",
+          "planted": "id: this.identity.id(), untrusted: false"
+        }
+      ]
+    },
+    {
+      "name": "import-confidential",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt import > refuses malformed/oversized inputs and remote import in a confidential workspace"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (source.kind !== 'file' && this.port.isConfidentialWorkspace() !== false)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "import-stale",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt import > rejects stale/cancelled previews and isolates returned preview mutations"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (preview?.id !== id) throw new Error(UI_TEXT.promptFileInvalid)",
+          "planted": "if (preview === undefined) throw new Error(UI_TEXT.promptFileInvalid)"
+        }
+      ]
+    },
+    {
+      "name": "import-copy-isolation",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt import > previews all text/variables, imports untrusted, and never resolves or runs anything"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "return structuredClone(preview)",
+          "planted": "return preview"
+        }
+      ]
+    },
+    {
+      "name": "share-confidential",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt sharing > refuses stale previews, cancellation, changed secrets and changed/unknown policy"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (this.port.isConfidentialWorkspace() !== false)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "share-final-click",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt sharing > scrubs preview and exports valid portable Markdown only on the final click",
+        "FAIL  test/unit/promptImport.test.ts > prompt sharing > refuses stale previews, cancellation, changed secrets and changed/unknown policy"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "this.pending = preview\n    return { ...preview }",
+          "planted": "this.pending = preview\n    void this.port.release(destination, text, clean.title)\n    return { ...preview }"
+        }
+      ]
+    },
+    {
+      "name": "share-refresh-secret",
+      "file": "src/core/prompts/promptImport.ts",
+      "test": "promptImport",
+      "exit": 1,
+      "restore": "dd83f1694d74bce211b6b2353cf4fa6433baeff3eab0e16df4d26c657ea96b25",
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt sharing > refuses stale previews, cancellation, changed secrets and changed/unknown policy"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (scrubShareText(preview.text, this.port) !== preview.text)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "store-scope-independent",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "prompt.scope !== scope",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "sync-user-independent",
+      "files": ["src/core/prompts/promptLibrary.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptLibrary.ts": "58f1b0b0599df87e3ae807bc7a9662614af3ac8c490548100fdd4164e05403db"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > syncs only user scope, newest wins, and validates before any writes"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptLibrary.ts",
+          "removed": "prompt.scope !== 'user'",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "linked-file-defenses",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "!before.isFile() ||\n    before.isSymbolicLink() ||",
+          "planted": "false ||"
+        },
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "if (!sameFile(before, stat))",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "import-byte-defenses",
+      "files": ["src/core/prompts/promptImport.ts", "src/core/prompts/promptStore.ts"],
+      "test": "promptImport",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptImport.ts": "42084eeb7ca6638089a4250f9cdcfe40f65996162f43b4ed3bdb4fdf4aac77a2",
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt import > enforces the byte cap even on otherwise valid portable files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes)",
+          "planted": "if (false)"
+        },
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-whitespace-title",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "checked.title.trim() === ''",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "store-metadata-bytes",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > enforces title/body/count limits and preserves untrusted status on edit"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "Buffer.byteLength(file, 'utf8') > PROMPT_LIMITS.fileBytes",
+          "planted": "false"
+        }
+      ]
+    },
+    {
+      "name": "import-generation",
+      "files": ["src/core/prompts/promptImport.ts"],
+      "test": "promptImport",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptImport.ts": "42084eeb7ca6638089a4250f9cdcfe40f65996162f43b4ed3bdb4fdf4aac77a2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt import > fences overlapping and cancelled reads before a stale preview can be accepted"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "if (generation !== this.generation)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "share-export-id",
+      "files": ["src/core/prompts/promptImport.ts"],
+      "test": "promptImport",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptImport.ts": "42084eeb7ca6638089a4250f9cdcfe40f65996162f43b4ed3bdb4fdf4aac77a2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptImport.test.ts > prompt sharing > keeps ordinary export bytes deterministic and round trips without losing metadata"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptImport.ts",
+          "removed": "id: scrubShareText(prompt.id, this.port)",
+          "planted": "id: randomUUID()"
+        }
+      ]
+    },
+    {
+      "name": "privacy-workspace",
+      "files": ["src/core/prompts/promptPrivacy.ts"],
+      "test": "promptPrivacy",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptPrivacy.ts": "9165efddebc1767e43378985c438665a9e15a4c8a195aaedf3fe3f6d955c23a5"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > scrubs known/registered values and the user name while preserving relative workspace paths",
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > covers drive/UNC paths, escaped separators, file URLs and case variations"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptPrivacy.ts",
+          "removed": "if (root === '') continue",
+          "planted": "continue"
+        }
+      ]
+    },
+    {
+      "name": "privacy-home",
+      "files": ["src/core/prompts/promptPrivacy.ts"],
+      "test": "promptPrivacy",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptPrivacy.ts": "9165efddebc1767e43378985c438665a9e15a4c8a195aaedf3fe3f6d955c23a5"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > scrubs known/registered values and the user name while preserving relative workspace paths",
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > covers drive/UNC paths, escaped separators, file URLs and case variations"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptPrivacy.ts",
+          "removed": "if (input.home !== '')",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "privacy-user",
+      "files": ["src/core/prompts/promptPrivacy.ts"],
+      "test": "promptPrivacy",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptPrivacy.ts": "9165efddebc1767e43378985c438665a9e15a4c8a195aaedf3fe3f6d955c23a5"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > scrubs known/registered values and the user name while preserving relative workspace paths"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptPrivacy.ts",
+          "removed": "if (input.user !== '')",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "privacy-registered",
+      "files": ["src/core/prompts/promptPrivacy.ts"],
+      "test": "promptPrivacy",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptPrivacy.ts": "9165efddebc1767e43378985c438665a9e15a4c8a195aaedf3fe3f6d955c23a5"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > scrubs known/registered values and the user name while preserving relative workspace paths"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptPrivacy.ts",
+          "removed": "for (const secret of secrets) result = result.replaceAll(secret, () => '[redacted]')",
+          "planted": "for (const secret of secrets) result = result.replaceAll(secret, () => secret)"
+        }
+      ]
+    },
+    {
+      "name": "privacy-public-url",
+      "files": ["src/core/prompts/promptPrivacy.ts"],
+      "test": "promptPrivacy",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptPrivacy.ts": "9165efddebc1767e43378985c438665a9e15a4c8a195aaedf3fe3f6d955c23a5"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptPrivacy.test.ts > prompt privacy adapter > covers drive/UNC paths, escaped separators, file URLs and case variations"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptPrivacy.ts",
+          "removed": "(?<!\\w)[A-Za-z]",
+          "planted": "[A-Za-z]"
+        }
+      ]
+    },
+    {
+      "name": "insertion-ready",
+      "files": ["src/host/prompts/promptInsertion.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptInsertion.ts": "1f25a8203b282944220c1dc7e88566ce8675779ba0330bbbbc4de9097e63d58a"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > holds a load until a new surface is ready, then inserts once",
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > targets the original active surface, drops a closed pending load, and rejects a failed open"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptInsertion.ts",
+          "removed": "if (!this.ready.has(surface.id)) return",
+          "planted": "if (false) return"
+        }
+      ]
+    },
+    {
+      "name": "insertion-target",
+      "files": ["src/host/prompts/promptInsertion.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptInsertion.ts": "1f25a8203b282944220c1dc7e88566ce8675779ba0330bbbbc4de9097e63d58a"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > targets the original active surface, drops a closed pending load, and rejects a failed open"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptInsertion.ts",
+          "removed": "load.target === undefined || load.target === surface.id",
+          "planted": "true"
+        }
+      ]
+    },
+    {
+      "name": "insertion-once",
+      "files": ["src/host/prompts/promptInsertion.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptInsertion.ts": "1f25a8203b282944220c1dc7e88566ce8675779ba0330bbbbc4de9097e63d58a"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > holds a load until a new surface is ready, then inserts once"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptInsertion.ts",
+          "removed": "this.pending = this.pending.filter((load) => !waiting.includes(load))",
+          "planted": "this.pending = this.pending"
+        }
+      ]
+    },
+    {
+      "name": "insertion-closed",
+      "files": ["src/host/prompts/promptInsertion.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptInsertion.ts": "1f25a8203b282944220c1dc7e88566ce8675779ba0330bbbbc4de9097e63d58a"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > targets the original active surface, drops a closed pending load, and rejects a failed open"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptInsertion.ts",
+          "removed": "this.pending = this.pending.filter((load) => load.target !== surface.id)",
+          "planted": "this.pending = this.pending"
+        }
+      ]
+    },
+    {
+      "name": "insertion-failed-open",
+      "files": ["src/host/prompts/promptInsertion.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptInsertion.ts": "1f25a8203b282944220c1dc7e88566ce8675779ba0330bbbbc4de9097e63d58a"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > loads in any chat without sending > targets the original active surface, drops a closed pending load, and rejects a failed open"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptInsertion.ts",
+          "removed": "this.pending = this.pending.filter((entry) => entry !== load)",
+          "planted": "this.pending = this.pending"
+        }
+      ]
+    },
+    {
+      "name": "command-import-confirm",
+      "files": ["src/host/prompts/promptCommands.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptCommands.ts": "6683f4c6437b9b483e625a199e96ec206ec971d453d561b838a89201131557d2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > prompt menus and commands > inserts after variable review, and cancelled imports/shares have no side effects"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptCommands.ts",
+          "removed": "if (await this.deps.ui.preview(UI_TEXT.sharePreview, text, UI_TEXT.promptImportConfirm))",
+          "planted": "if (true)"
+        }
+      ]
+    },
+    {
+      "name": "command-share-confirm",
+      "files": ["src/host/prompts/promptCommands.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptCommands.ts": "6683f4c6437b9b483e625a199e96ec206ec971d453d561b838a89201131557d2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > prompt menus and commands > inserts after variable review, and cancelled imports/shares have no side effects"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptCommands.ts",
+          "removed": "await this.deps.ui.preview(\n          UI_TEXT.shareReviewPrivacy,\n          preview.text,\n          format === 'file' ? UI_TEXT.shareFile : UI_TEXT.shareCopy,\n        )",
+          "planted": "true"
+        }
+      ]
+    },
+    {
+      "name": "command-delete-confirm",
+      "files": ["src/host/prompts/promptCommands.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptCommands.ts": "6683f4c6437b9b483e625a199e96ec206ec971d453d561b838a89201131557d2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > prompt menus and commands > confirms deletion and saves imported content without sending"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptCommands.ts",
+          "removed": "if (await this.deps.ui.confirm(UI_TEXT.promptDeleteConfirm))",
+          "planted": "if (true)"
+        }
+      ]
+    },
+    {
+      "name": "ui-no-import-run",
+      "files": ["src/webview/prompts/PromptLibrary.tsx"],
+      "test": "promptLibrary",
+      "exit": 1,
+      "hashes": {
+        "src/webview/prompts/PromptLibrary.tsx": "155f6717075011ad825632d7180252dab81fb754dd1b2420c5fb3ad4caf9a60e"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > mounts the screenshot harness over the shared component",
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > keeps imports idle until accepted and shares idle until confirmed"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/prompts/PromptLibrary.tsx",
+          "removed": "  const preview = props.importPreview",
+          "planted": "  if (props.importPreview !== undefined) props.port.run(props.importPreview.prompt)\n  const preview = props.importPreview"
+        }
+      ]
+    },
+    {
+      "name": "ui-user-scope",
+      "files": ["src/webview/prompts/PromptLibrary.tsx"],
+      "test": "promptLibrary",
+      "exit": 1,
+      "hashes": {
+        "src/webview/prompts/PromptLibrary.tsx": "155f6717075011ad825632d7180252dab81fb754dd1b2420c5fb3ad4caf9a60e"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > labels both scopes and duplicates; filters by search and tag"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/prompts/PromptLibrary.tsx",
+          "removed": "prompt.scope === 'user' ? UI_TEXT.promptScopeUser : UI_TEXT.promptScopeWorkspace",
+          "planted": "UI_TEXT.promptScopeWorkspace"
+        }
+      ]
+    },
+    {
+      "name": "ui-delete-confirm",
+      "files": ["src/webview/prompts/PromptLibrary.tsx"],
+      "test": "promptLibrary",
+      "exit": 1,
+      "hashes": {
+        "src/webview/prompts/PromptLibrary.tsx": "155f6717075011ad825632d7180252dab81fb754dd1b2420c5fb3ad4caf9a60e"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > edits exact text, confirms delete, copies to user and routes insert/run/share explicitly"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/prompts/PromptLibrary.tsx",
+          "removed": "setDeleting(prompt)",
+          "planted": "props.port.remove(prompt)"
+        }
+      ]
+    },
+    {
+      "name": "ui-capability-link",
+      "files": ["src/webview/prompts/PromptLibrary.tsx"],
+      "test": "promptLibrary",
+      "exit": 1,
+      "hashes": {
+        "src/webview/prompts/PromptLibrary.tsx": "155f6717075011ad825632d7180252dab81fb754dd1b2420c5fb3ad4caf9a60e"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > supports a user-only library, creates drafts, and traps focus"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/prompts/PromptLibrary.tsx",
+          "removed": "{props.canImportLinks ? (",
+          "planted": "{true ? ("
+        }
+      ]
+    },
+    {
+      "name": "draft-title-nonblank",
+      "files": ["src/core/prompts/promptTypes.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptTypes.ts": "903e9af575aec3ac0dc206fbb078c60d586dabcd351b0a6326341f914aa45e52"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > validates editable fields and strips caller-owned trust and identities"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptTypes.ts",
+          "removed": "z.refine((title) => title.trim() !== ''),",
+          "planted": ""
+        }
+      ]
+    },
+    {
+      "name": "draft-title-cap",
+      "files": ["src/core/prompts/promptTypes.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptTypes.ts": "903e9af575aec3ac0dc206fbb078c60d586dabcd351b0a6326341f914aa45e52"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > validates editable fields and strips caller-owned trust and identities"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptTypes.ts",
+          "removed": "z.maxLength(PROMPT_LIMITS.title),",
+          "planted": ""
+        }
+      ]
+    },
+    {
+      "name": "draft-body-cap",
+      "files": ["src/core/prompts/promptTypes.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptTypes.ts": "903e9af575aec3ac0dc206fbb078c60d586dabcd351b0a6326341f914aa45e52"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > validates editable fields and strips caller-owned trust and identities"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptTypes.ts",
+          "removed": "body: z.string().check(z.maxLength(PROMPT_LIMITS.body)),",
+          "planted": "body: z.string(),"
+        }
+      ]
+    },
+    {
+      "name": "draft-tag-empty",
+      "files": ["src/core/prompts/promptTypes.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptTypes.ts": "903e9af575aec3ac0dc206fbb078c60d586dabcd351b0a6326341f914aa45e52"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > validates editable fields and strips caller-owned trust and identities"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptTypes.ts",
+          "removed": "tags: z.array(z.string().check(z.minLength(1))),",
+          "planted": "tags: z.array(z.string()),"
+        }
+      ]
+    },
+    {
+      "name": "draft-host-fields",
+      "files": ["src/core/prompts/promptTypes.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptTypes.ts": "903e9af575aec3ac0dc206fbb078c60d586dabcd351b0a6326341f914aa45e52"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > validates editable fields and strips caller-owned trust and identities"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptTypes.ts",
+          "removed": "z.object({",
+          "planted": "z.looseObject({"
+        }
+      ]
+    },
+    {
+      "name": "context-own-message",
+      "files": ["src/host/prompts/promptCommands.ts"],
+      "test": "promptMenus",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptCommands.ts": "6683f4c6437b9b483e625a199e96ec206ec971d453d561b838a89201131557d2"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptMenus.test.ts > prompt menus and commands > accepts exact composer/own-message text and refuses assistant/system/tool sources",
+        "FAIL  test/unit/promptMenus.test.ts > prompt menus and commands > shares exact composer or own-message text without saving it first"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptCommands.ts",
+          "removed": "return source['museSpark.promptSource'] === 'userMessage' &&",
+          "planted": "return false &&"
+        }
+      ]
+    },
+    {
+      "name": "store-lock",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > refuses a concurrent writer and preserves the lock"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "handle = await open(lock, 'wx', PROMPT_FILE_MODE)",
+          "planted": "handle = await open(lock, 'w', PROMPT_FILE_MODE)"
+        }
+      ]
+    },
+    {
+      "name": "file-byte-defenses",
+      "files": ["src/core/prompts/promptStore.ts"],
+      "test": "promptStore",
+      "exit": 1,
+      "hashes": {
+        "src/core/prompts/promptStore.ts": "41423ed3ce61b7e1c86dcd641ac92e7c8b83259cfea096bcc737743c30220cf9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptStore.test.ts > portable prompt store and library > rejects conflicting ids, wrong scopes, symlinks and overlarge files"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "before.size > BigInt(PROMPT_LIMITS.fileBytes)",
+          "planted": "false"
+        },
+        {
+          "file": "src/core/prompts/promptStore.ts",
+          "removed": "if (bytesRead > PROMPT_LIMITS.fileBytes)",
+          "planted": "if (false)"
+        }
+      ]
+    },
+    {
+      "name": "palette-bound-port",
+      "files": ["src/shared/palette.ts"],
+      "test": "paletteRegistry",
+      "exit": 1,
+      "hashes": {
+        "src/shared/palette.ts": "86500e8a23f302b1167a1e557273d73d41ff1238e73613dbd0fc0c240a3ef692"
+      },
+      "failedTests": [
+        "FAIL  test/unit/paletteRegistry.test.ts > exposes prompt actions only with a bound host and keeps real tips"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/shared/palette.ts",
+          "removed": "context.arePromptCommandsBound === true",
+          "planted": "true"
+        }
+      ]
+    },
+    {
+      "name": "composer-exact-context",
+      "files": ["src/webview/components/Composer.tsx"],
+      "test": "Composer",
+      "exit": 1,
+      "hashes": {
+        "src/webview/components/Composer.tsx": "226490f6cba8ccd10a0c7a7c9b36292d7a69318e5fcb7a56177ab5072cd423ef"
+      },
+      "failedTests": [
+        "FAIL  test/unit/Composer.test.tsx > offers exact composer prompt text to the shared menus without sending"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/components/Composer.tsx",
+          "removed": "'museSpark.promptText': draft,",
+          "planted": "'museSpark.promptText': '',"
+        }
+      ]
+    },
+    {
+      "name": "entry-error-scrub",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptEntry",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptEntry.test.ts > prompt lazy entry > sanitises initialization failures, retries and installs the language on cached calls"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "throw safePromptFailure(error)",
+          "planted": "throw error"
+        }
+      ]
+    },
+    {
+      "name": "entry-retry",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptEntry",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptEntry.test.ts > prompt lazy entry > sanitises initialization failures, retries and installs the language on cached calls"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "if (!hasStarted) hosts.delete(deps)",
+          "planted": "if (false) hosts.delete(deps)"
+        }
+      ]
+    },
+    {
+      "name": "entry-language",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptEntry",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptEntry.test.ts > prompt lazy entry > sanitises initialization failures, retries and installs the language on cached calls"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "  setUiText(table, locale)",
+          "planted": ""
+        }
+      ]
+    },
+    {
+      "name": "bundle-shape",
+      "files": ["src/host/prompts/promptBundle.ts"],
+      "test": "promptEntry",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptBundle.ts": "07f92fe73a928cf63b2bafe673b0cb5294ddae1f0ad00d12a86a3c7a342d124f"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptEntry.test.ts > prompt lazy entry > refuses a malformed bundle, then loads the repaired lazy entry once"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptBundle.ts",
+          "removed": "typeof value.runPromptCommand === 'function'",
+          "planted": "true"
+        },
+        {
+          "file": "src/host/prompts/promptBundle.ts",
+          "removed": "'runPromptCommand' in value",
+          "planted": "true"
+        }
+      ]
+    },
+    {
+      "name": "entry-sync-off",
+      "files": ["src/host/prompts/promptEntry.ts"],
+      "test": "promptEntry",
+      "exit": 1,
+      "hashes": {
+        "src/host/prompts/promptEntry.ts": "c84bf428dee7b09cbf26d2917eef495f949396806706aa24ff8cea3966f575ec"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptEntry.test.ts > prompt lazy entry > never reads or writes the native mirror while sync is disabled"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/host/prompts/promptEntry.ts",
+          "removed": "get<boolean>(PROMPT_SYNC_SETTING) ===",
+          "planted": "get<boolean>(PROMPT_SYNC_SETTING) ||"
+        }
+      ]
+    },
+    {
+      "name": "ui-redaction-highlight",
+      "files": ["src/webview/prompts/PromptLibrary.tsx"],
+      "test": "promptLibrary",
+      "exit": 1,
+      "hashes": {
+        "src/webview/prompts/PromptLibrary.tsx": "fca0dd215121ba201d56602be3c9139d4fb89c2a72f515f3a8024b6fcdcc3ae9"
+      },
+      "failedTests": [
+        "FAIL  test/unit/promptLibrary.test.tsx > shared prompt library > keeps imports idle until accepted and shares idle until confirmed"
+      ],
+      "restoredByteExact": true,
+      "mutations": [
+        {
+          "file": "src/webview/prompts/PromptLibrary.tsx",
+          "removed": "<mark key={index}>{part}</mark>",
+          "planted": "<span key={index}>{part}</span>"
+        }
+      ]
+    }
+  ],
+  "nonRedAttempts": [
+    {
+      "name": "store-scope",
+      "exit": 0
+    },
+    {
+      "name": "store-file-link",
+      "exit": 0
+    },
+    {
+      "name": "sync-user-only",
+      "exit": 0
+    },
+    {
+      "name": "import-size",
+      "exit": 0
+    },
+    {
+      "name": "message-exact-context",
+      "exit": 0
+    }
+  ]
+}

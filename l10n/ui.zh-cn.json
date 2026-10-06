@@ -2359,5 +2359,20 @@
   "shareBrowser": "在浏览器中打开",
   "shareConfidential": "此工作区为机密时，分享功能被阻止。",
   "shareReviewPrivacy": "确认前请检查实际预览中的私密文本。已知及已注册的秘密信息会被移除，但其他私密文本可能仍然存在。",
-  "shareCancelled": "已取消分享"
+  "shareCancelled": "已取消分享",
+  "promptLimits": "提示词超过大小上限，或此范围中的提示词过多。",
+  "promptWorkspaceRequired": "请打开工作区以保存工作区提示词。",
+  "promptStoreDamaged": "提示词存储无法读取或已损坏。文件保持不变。",
+  "promptStoreBusy": "提示词存储正忙或已更改。请重试。",
+  "promptSecretsNote": "提示词以明文存储。请勿保存密码或密钥。",
+  "promptSearch": "搜索提示词和标签",
+  "promptEmpty": "没有匹配的已保存提示词。",
+  "promptDuplicate": "复制副本",
+  "promptRun": "检查变量并插入",
+  "promptEdit": "编辑提示词",
+  "promptDelete": "删除提示词",
+  "promptDeleteConfirm": "删除此提示词？",
+  "promptLink": "从链接或gist原始内容网址导入",
+  "promptFromFile": "从文件导入",
+  "promptImportConfirm": "保存导入的提示词"
 }

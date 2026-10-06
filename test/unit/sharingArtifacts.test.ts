@@ -22,7 +22,7 @@ describe('M118 integration artifacts', () => {
     const { stdout } = await run(process.execPath, ['scripts/exec-schema.mjs', '--check'])
     expect(stdout).toContain('Exec schemas match.')
   })
-  it('hands off each command and native/webview menu without registering it prematurely', async () => {
+  it('registers P commands and menus while retaining C’s pending share-chat contract', async () => {
     const raw: unknown = JSON.parse(
       await readFile('docs/certification/m118-manifest-patch.json', 'utf8'),
     )
@@ -38,7 +38,17 @@ describe('M118 integration artifacts', () => {
       JSON.parse(await readFile('package.json', 'utf8')),
     ).contributes
     expect(
-      manifest.commands.some((c) => Object.values<string>(PROMPT_COMMAND_IDS).includes(c.command)),
-    ).toBe(false)
+      manifest.commands
+        .filter((c) => Object.values<string>(PROMPT_COMMAND_IDS).includes(c.command))
+        .map((c) => c.command),
+    ).toEqual(Object.values(PROMPT_COMMAND_IDS).filter((id) => id !== PROMPT_COMMAND_IDS.shareChat))
+    for (const entry of promptMenuEntries) {
+      const menu = entry.menu === 'editor/context' ? entry.menu : 'webview/context'
+      expect(
+        manifest.menus[menu]?.some(
+          (m) => m.command === entry.command && m.when.includes(entry.when),
+        ),
+      ).toBe(true)
+    }
   })
 })

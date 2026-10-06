@@ -2547,5 +2547,20 @@
   "shareBrowser": "Apri nel browser",
   "shareConfidential": "La condivisione è bloccata finché questa area di lavoro è riservata.",
   "shareReviewPrivacy": "Controlla l’anteprima esatta per individuare testo privato prima di confermare. I segreti noti e registrati vengono rimossi; altro testo privato potrebbe rimanere.",
-  "shareCancelled": "Condivisione annullata"
+  "shareCancelled": "Condivisione annullata",
+  "promptLimits": "Il prompt supera il limite di dimensione oppure questo ambito contiene troppi prompt.",
+  "promptWorkspaceRequired": "Apri uno spazio di lavoro per salvarvi i prompt.",
+  "promptStoreDamaged": "L’archivio dei prompt è illeggibile o danneggiato. I file sono rimasti invariati.",
+  "promptStoreBusy": "L’archivio dei prompt è occupato o è cambiato. Riprova.",
+  "promptSecretsNote": "I prompt sono salvati come testo semplice. Non salvare password o chiavi.",
+  "promptSearch": "Cerca prompt e tag",
+  "promptEmpty": "Nessun prompt salvato corrisponde.",
+  "promptDuplicate": "Duplica",
+  "promptRun": "Controlla le variabili e inserisci",
+  "promptEdit": "Modifica prompt",
+  "promptDelete": "Elimina prompt",
+  "promptDeleteConfirm": "Eliminare questo prompt?",
+  "promptLink": "Importa da link o URL di gist grezzo",
+  "promptFromFile": "Importa da file",
+  "promptImportConfirm": "Salva prompt importato"
 }

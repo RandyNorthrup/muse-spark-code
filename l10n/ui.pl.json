@@ -2641,5 +2641,20 @@
   "shareBrowser": "Otwórz w przeglądarce",
   "shareConfidential": "Udostępnianie jest zablokowane, gdy ten obszar roboczy jest poufny.",
   "shareReviewPrivacy": "Przed potwierdzeniem sprawdź dokładny podgląd pod kątem prywatnego tekstu. Znane i zarejestrowane sekrety są usuwane; inny prywatny tekst może pozostać.",
-  "shareCancelled": "Udostępnianie anulowane"
+  "shareCancelled": "Udostępnianie anulowane",
+  "promptLimits": "Prompt przekracza limit rozmiaru lub w tym zakresie jest zbyt wiele promptów.",
+  "promptWorkspaceRequired": "Otwórz obszar roboczy, aby zapisać w nim prompty.",
+  "promptStoreDamaged": "Magazyn promptów jest nieczytelny lub uszkodzony. Pliki pozostały bez zmian.",
+  "promptStoreBusy": "Magazyn promptów jest zajęty lub zmieniony. Spróbuj ponownie.",
+  "promptSecretsNote": "Prompty są zapisywane jako zwykły tekst. Nie zapisuj haseł ani kluczy.",
+  "promptSearch": "Szukaj promptów i tagów",
+  "promptEmpty": "Brak pasujących zapisanych promptów.",
+  "promptDuplicate": "Duplikuj",
+  "promptRun": "Sprawdź zmienne i wstaw",
+  "promptEdit": "Edytuj prompt",
+  "promptDelete": "Usuń prompt",
+  "promptDeleteConfirm": "Usunąć ten prompt?",
+  "promptLink": "Importuj z linku lub adresu surowego gistu",
+  "promptFromFile": "Importuj z pliku",
+  "promptImportConfirm": "Zapisz zaimportowany prompt"
 }

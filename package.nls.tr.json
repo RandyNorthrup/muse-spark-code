@@ -169,5 +169,6 @@
   "command.promptLibrary.title": "İstem kitaplığı",
   "command.savePrompt.title": "İstemi kaydet",
   "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
-  "command.copyToMyPrompts.title": "İstemlerime kopyala"
+  "command.copyToMyPrompts.title": "İstemlerime kopyala",
+  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır."
 }
