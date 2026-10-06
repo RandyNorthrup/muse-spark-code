@@ -2962,6 +2962,10 @@ export const SHELL_OUTPUT_MAX_CHARS = 2 * 1024 * 1024
 // tool returns anyway: a background process it started (`server &`) can
 // hold the pipes open for as long as it runs (PLAN.md D25).
 export const SHELL_DRAIN_GRACE_MS = 250
+// SIGKILL delivery to the leader can precede a descendant's actual exit.
+// Keep POSIX cleanup bounded even if a process cannot finish exiting.
+export const POSIX_TREE_EXIT_WAIT_MS = 2000
+export const POSIX_TREE_EXIT_POLL_MS = 20
 // A child the shell starts while `taskkill /T` enumerates its tree outlives
 // the kill (PLAN.md D25, M27). On Windows each command therefore runs in a
 // job object of its own, named so a Stop can end it whole; the helper type

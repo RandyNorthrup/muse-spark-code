@@ -15,6 +15,9 @@ happened, not what was planned; superseded entries are kept.
   Markdown images, before purging GitHub's image proxy. A packaging/quality
   check rejects broken images, dynamic store versions and version mismatches.
 
+- Timed-out and stopped POSIX shell commands now wait for their process
+  group to exit before returning. Cleanup is bounded and reports a group
+  that remains; macOS monitor tests recognize exited zombies correctly.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

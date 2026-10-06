@@ -6812,6 +6812,28 @@ quality for the lead. Run the bounded owning tests and static/build gates here,
 with hooks on. Badge-check public requests are the brief's sole added network
 exception; release cache refresh remains CI-only. Time box: 60 minutes.
 
+### CIFIX14T — Timed-out monitor cleanup on macOS (2026-10-05)
+
+- [x] Collect 30 complete baseline owning-file runs under twelve CPU load
+      workers. Capture a running descendant after return with a 300-call
+      native diagnostic; prove Mac zombies also accept signal zero.
+- [x] Fix the proven product race: SIGKILL returned before a descendant
+      exited (loaded native probe: PID 60465, parent 1, group 60423, state R).
+      Await POSIX group exit for up to two seconds, then signal again and log.
+      Exclude Linux zombies from running groups and make the Mac test probe
+      recognize exited zombies and already-reaped PIDs. Preserve Windows jobs.
+- [x] Prove 30/30 loaded runs (210 tests), with the wait removed failing 3/3
+      loaded drills. All seven guard drills restore exact SHA-256 bytes.
+      Five owning shell files pass 113 tests, with six existing Windows skips.
+- [x] Complete static/build checks and prepare the hook-on local repair
+      commit within the 60-minute lane. No push, merge, rebase or paid/live call.
+
+Evidence belongs in `docs/certification/cifix14-monitor.md`. The explicit rig
+brief prohibits pushes, merges, rebases and paid/live calls; the shared lane
+rules reserve aggregate quality and integrated coverage for the lead. Test
+deadlines, retries, skips and every existing gate remain unchanged. Shared
+shell execution covers the extension and ACP/headless runtime on every editor.
+
 ### CIFIX14C — Packaged ACP help agrees with its canonical table (2026-10-05)
 
 - [x] Reproduce the release job's strict English fallback check against the
@@ -18821,6 +18843,23 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**CIFIX14T verified local result (2026-10-05).** The five owning suites
+pass 113 tests (six existing Windows-only skips); the exact restored monitor
+file passes 30/30 loaded runs, 210 tests. Removing the wait fails 3/3 loaded
+drills; all seven drills restore SHA-256-exact source. All five compiler
+projects, final unit compile, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass. Extension 437.4 / 600 KiB,
+Model API 446.6 / 475 KiB, ACP 817.5 / 850 KiB; every budget is unchanged.
+Native Mac proof and complete receipts are in `docs/certification/cifix14-monitor.md`.
+Hosted Node 22 and native Linux/Windows certification remain with the lead.
+
+**CIFIX14T bounded-lane gate delegation (2026-10-05).** The requested Mac
+mini reproduction and red drills run directly here with hooks enabled.
+`common.md` prohibits aggregate quality/full unit runs; collect the owned
+shell tests and required static/build checks, leaving full quality, merged
+coverage and hosted cross-platform certification to the lead. No gate is
+weakened and no integrated-green claim is made by this lane.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
