@@ -254,7 +254,7 @@ describe('the runtime store (M81 A1)', () => {
     const test = pin()
     const dir = storage()
     expect(
-      await prepareRuntime(request(dir), deps(test, undefined, { arch: 'arm64' }).store),
+      await prepareRuntime(request(dir), deps(test, undefined, { arch: 'ia32' }).store),
     ).toEqual({
       ok: false,
       reason: 'runtimeUnsupported',
@@ -271,6 +271,41 @@ describe('the runtime store (M81 A1)', () => {
       ok: false,
       reason: 'runtimeIntegrity',
     })
+  })
+
+  it('prepares Linux ARM64 through the same verified store and returns its own platform', async () => {
+    const executable = 'chrome-headless-shell-linux-arm64/chrome-headless-shell'
+    const files = [{ name: executable, data: SHELL, mode: 0o10_0755 }]
+    const archive = buildZip(files)
+    const manifest = structuredClone(shipped)
+    manifest.platforms['linux-arm64'] = {
+      ...manifest.platforms['linux-arm64'],
+      archiveBytes: archive.length,
+      archiveSha256: sha256(archive),
+      entryCount: 1,
+      extractedBytes: SHELL.length,
+      executable,
+      executableBytes: SHELL.length,
+      executableSha256: sha256(SHELL),
+      executableEntries: [executable],
+    }
+    const { store, fetch } = deps({ archive, manifest }, undefined, { arch: 'arm64' })
+    const result = await prepareRuntime(request(storage()), store)
+    expect(result).toMatchObject({ ok: true, runtime: { platform: 'linux-arm64' } })
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('refuses an older pin with no Linux ARM64 record before download or consent', async () => {
+    const test = pin()
+    Reflect.deleteProperty(test.manifest.platforms, 'linux-arm64')
+    const { store, fetch } = deps(test, undefined, { arch: 'arm64' })
+    const consent = vi.fn(() => Promise.resolve('download' as const))
+    expect(await prepareRuntime(request(storage(), { consent }), store)).toEqual({
+      ok: false,
+      reason: 'runtimeUnsupported',
+    })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(consent).not.toHaveBeenCalled()
   })
 
   it('refuses when admission is gone, before and after the consent', async () => {

@@ -597,6 +597,7 @@ for (const file of GIT_ONLY) {
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
   'src/core/context/bundledSkillsInstall.ts',
+  'src/core/context/baseAgentToolset.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {

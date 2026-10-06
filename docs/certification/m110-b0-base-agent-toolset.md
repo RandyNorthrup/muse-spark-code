@@ -58,3 +58,54 @@ piece. The split guard now names the portable installer's real path.
 Full image/OS/editor support still requires the lead's integrated quality
 run and the accepted table's platform receipts. The common brief delegates
 `npm run quality` to the lead; this lane runs scoped checks directly here.
+
+## First-boot and Linux ARM64 runtime preparation
+
+`createBaseAgentToolset` is exported by the existing lazy bundled-skills
+entry. It supplies the portable `bundled` source and first-party root and
+performs only explicitly requested preparation. Both enhancements default on;
+explicit false is read afresh each time. N/OS3 inject M81's actual
+`prepareRuntime`, `RuntimePrepareRequest`, lifetime/admission and consent
+surface. No second downloader, browser launch, CLI install or sign-in is added.
+
+The Chrome for Testing 154.0.8037.92 Linux ARM64 archive was downloaded on
+this rig from its exact storage.googleapis.com URL. Its 121,182,296 bytes
+hash to `0ed0e47d9e9f639197f508d62ada09e5c6b4c4c60edab3160a9312a733091df6`;
+287 entries expand to 279,456,406 bytes. The executable is 190,385,552 bytes,
+SHA-256 `8ef1e673b0083695a65e383dedf07fca9ecc1cffebf02b92c0059eb3879d8a9e`.
+The existing M81 store validates the pin, download, entries and executable.
+Legacy manifests without this optional platform refuse before consent or
+download. Native Linux ARM64 browser execution remains an integration
+receipt, not a claim based on this amd64 rig. No model attempts.
+
+Capture command (archive retained under gitignored temp):
+
+```sh
+curl --fail --location --output temp/m110-b0/chrome-headless-shell-linux-arm64.zip https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux-arm64/chrome-headless-shell-linux-arm64.zip
+sha256sum temp/m110-b0/chrome-headless-shell-linux-arm64.zip
+```
+
+| Control                                      | Threat rows | Red drill / failed test                                                                        |
+| -------------------------------------------- | ----------- | ---------------------------------------------------------------------------------------------- |
+| ARM64 platform uses its own pin              | H17         | B0-ARM-PLATFORM; platform mapping and ARM64 store preparation                                  |
+| Missing ARM64 pin refuses before work        | H09/H17     | B0-ARM-MISSING-PIN; older pin refusal                                                          |
+| Default-on skills/browser and explicit false | H12/H18     | B0-SKILLS-DEFAULT/OFF and B0-BROWSER-DEFAULT/OFF; default and explicit-false preparation tests |
+| Chosen platform determines package roots     | H10         | B0-PORTABLE-ROOT; exact Windows package paths                                                  |
+
+All seven mutations exited 1, with named assertion failures and byte-exact
+restoration; see `m110-b0-browser-boot-drills.json`. The initial Windows
+assertion normalized separators and could not detect use of the wrong path
+implementation; it was strengthened to require native Windows paths before
+the successful red run. Final scoped run: runtimeManifest, runtimeStore and
+baseAgentToolset, **31 tests passed** at default timeout. Localization gate:
+14 language tables, zero problems; only an existing platform-description
+key changes, so no manifest key is added.
+
+**B0-N-OS3-BOOT:** bind this factory after settings/consent are available,
+with packageRoot `/usr/local/share/muse-toolset` in the toolset layer and
+per-tools-user storage. Load `dist/bundledSkills.js` and
+`dist/browserRuntime.js` through the installed package's lazy factories.
+Include those bundles and both skill asset trees in the node/native package;
+the current standalone ACP packager does not include them. Respect H17/H18
+before passing Muse Code install paths. No backend-specific model support
+is required; this filesystem/runtime preparation is shared by all editors.

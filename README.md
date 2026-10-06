@@ -2109,8 +2109,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   after 15 is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 154.0.8037.92), on Windows
-  x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
-  has not yet been run by this project's own checks). The first check asks
+  x64, Linux x64/ARM64 and macOS (Intel and Apple silicon; the Linux ARM64
+  and Apple silicon builds have not yet been run by this project's own
+  browser checks). The first check asks
   before downloading it, about 100 to 120 MB from Google's
   `storage.googleapis.com`, into the extension's own storage; with
   `museSpark.browserCheckRuntime` (machine-scoped) set to `download` it
@@ -2158,6 +2159,7 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   | Platform    | Archive bytes | Archive SHA-256                                                    |
   | ----------- | ------------- | ------------------------------------------------------------------ |
   | Linux x64   | 120,477,194   | `636aa5c79f2693632e9921b8bbb050038ba11672e02346c06c20f991aed096f9` |
+  | Linux ARM64 | 121,182,296   | `0ed0e47d9e9f639197f508d62ada09e5c6b4c4c60edab3160a9312a733091df6` |
   | macOS arm64 | 99,221,129    | `77da14e75d7f2568e6f7898d3df7cdc6faac74b15e903b2c9d486ebb6ca9b929` |
   | macOS x64   | 104,748,425   | `a54292aaacbb77f76f6ef47558e7c51ab884044e0adacca315567f83c060bcc4` |
   | Windows x64 | 120,822,223   | `3ac2561f02d9d87aadc0399d00b9002d718a4c365624fa67db9e7bfaf6b1a568` |

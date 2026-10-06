@@ -7,7 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+
+
 ### Added
+
+- Added portable default-on first-boot toolset preparation with explicit-off
+  settings preserved, and a verified Chrome for Testing Linux ARM64 pin
+  through the existing runtime store. Native ARM64 execution qualification
+  remains pending.
 
 - Prepared home-node labels, messages and errors in all 14 display languages;
   this groundwork enables no node command or listener.

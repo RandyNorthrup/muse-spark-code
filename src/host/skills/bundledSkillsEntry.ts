@@ -9,3 +9,6 @@ export {
   installBundledSkills,
   removeBundledSkills,
 } from '../../core/context/bundledSkillsInstall'
+
+// First-boot callers supply M81's lazy store and real consent surface.
+export { createBaseAgentToolset } from '../../core/context/baseAgentToolset'

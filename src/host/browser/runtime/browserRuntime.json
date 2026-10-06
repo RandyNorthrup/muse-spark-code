@@ -84,6 +84,23 @@
         "chrome-headless-shell-mac-arm64/libvk_swiftshader.dylib",
         "chrome-headless-shell-mac-arm64/libvulkan.dylib"
       ]
+    },
+    "linux-arm64": {
+      "url": "https://storage.googleapis.com/chrome-for-testing-public/154.0.8037.92/linux-arm64/chrome-headless-shell-linux-arm64.zip",
+      "archiveBytes": 121182296,
+      "archiveSha256": "0ed0e47d9e9f639197f508d62ada09e5c6b4c4c60edab3160a9312a733091df6",
+      "entryCount": 287,
+      "extractedBytes": 279456406,
+      "executable": "chrome-headless-shell-linux-arm64/chrome-headless-shell",
+      "executableBytes": 190385552,
+      "executableSha256": "8ef1e673b0083695a65e383dedf07fca9ecc1cffebf02b92c0059eb3879d8a9e",
+      "executableEntries": [
+        "chrome-headless-shell-linux-arm64/chrome-headless-shell",
+        "chrome-headless-shell-linux-arm64/libEGL.so",
+        "chrome-headless-shell-linux-arm64/libGLESv2.so",
+        "chrome-headless-shell-linux-arm64/libvk_swiftshader.so",
+        "chrome-headless-shell-linux-arm64/libvulkan.so.1"
+      ]
     }
   }
 }
