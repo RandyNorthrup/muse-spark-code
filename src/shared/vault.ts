@@ -207,7 +207,10 @@ const sessionTarget = z.strictObject({
   origin: httpsOrigin,
   browserId: id,
 })
-const disclosureTarget = z.strictObject({ kind: z.literal('disclosure'), recipient: text })
+const disclosureTarget = z.strictObject({
+  kind: z.literal('disclosure'),
+  recipient: z.literal('person'),
+})
 
 /** A resolved use. Callers resolve command paths and verify live destinations before hashing. */
 export const vaultUseSchema = z.discriminatedUnion('kind', [
@@ -276,7 +279,7 @@ export const vaultBindingSchema = z.discriminatedUnion('kind', [
     issuer: vaultIssuerSchema,
     resource,
   }),
-  z.strictObject({ kind: z.literal('disclosure'), recipient: text }),
+  z.strictObject({ kind: z.literal('disclosure'), recipient: z.literal('person') }),
 ])
 export type VaultBinding = z.infer<typeof vaultBindingSchema>
 

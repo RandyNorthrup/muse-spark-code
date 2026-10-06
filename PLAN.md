@@ -7505,11 +7505,14 @@ It builds on:
      - **Headers.** For remote MCP servers and M95's custom headers, the
        extension's own transport adds the item's header for its bound origin
        only (D74's origin check), as it does for first-party keys.
-     - **Disclosure.** The value goes back to the requester, so the model
-       and its provider see it. Only for an item whose `allowDisclosure` the
-       user set; asked every time, whatever the mode; logged loudly; shown as
-       a disclosure row in the transcript. A disclosed value cannot be
-       recalled, so the row offers **Rotate**.
+     - **Disclosure (owner correction, 2026-10-06).** A value never reaches
+       a model, provider or agent context. Disclosure is only to the person,
+       shown by the authenticated host UI after fresh presence. Destination
+       processes use the named command-bound routes above. The recipient
+       schema expresses only `person`; arbitrary recipients are refused.
+       `allowDisclosure` remains explicit, every use asks regardless of mode,
+       and the audit names disclosure. An already released value cannot be
+       recalled; the UI offers **Rotate**.
    - **The feeder** (`dist/vaultExec.js`) is the one way a brokered value
      reaches a child process.
      - The host starts it in place of the command, inside the command's own
@@ -7723,7 +7726,9 @@ It builds on:
        imported while CXP is a draft, since a CXF passkey carries its private
        key.
    - **Third-party browser automation** (an MCP server such as the user's
-     Chrome Control) never gets a fill. It gets a value only by disclosure.
+     Chrome Control) never gets a fill. Only the named, command-bound MCP
+     environment or origin-bound header routes can supply a value; no value
+     returns to a model or agent context (owner correction, 2026-10-06).
 
 10. **Unattended work gets only what was granted for it.**
     - **Unattended requesters:** headless `exec`, schedules (M52), timed
@@ -20619,6 +20624,16 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109B review repair (2026-10-06).** All nine RVM109B findings are in
+scope: forbid model disclosure; serialize authorization state with immediate
+lock/revoke/cancellation barriers and a local generation; use one validation
+helper after asynchronous boundaries for epoch, deadline, item expiry,
+registration and live grant coverage; cache session consent only after a
+successful ticket; own temporary unlock resources from acquisition; cancel
+private reads on socket close; limit revocation to the affected item; and audit
+terminal denials for pending approvals and unused tickets. Generated fakes
+only, no dependencies or live calls. Certification: `docs/certification/m109-b.md`.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
@@ -20933,6 +20948,17 @@ Each joins when its dependency merges, and none blocks the others.
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109B review repair (2026-10-06, Mac mini).** RVM109B's five P1 and
+four P2 findings have regression tests and failing/restored red drills; no
+finding is deferred. B's targeted gates run directly with hooks enabled and
+no gate weakened. Aggregate quality remains prohibited in this lane and
+required at W/lead integration. The host API record is the existing named
+**B-W-host-api** deferral: its W-owned generated Node totals still need
+child_process 13 → 14, crypto 46 → 53, fs 33 → 36, fs/promises 47 → 49,
+net 7 → 10 and path 84 → 89. This repair adds no Node import or host API;
+`docs/certification/m109-b-host-api.patch` still applies cleanly. Evidence and
+restored-source check results: `docs/certification/m109-b.md`.
 
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
@@ -22140,6 +22166,24 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM109B / RVM109B (2026-10-06).** All five P1 and four P2 findings
+  are fixed; none is deferred as an accepted residual. Disclosure recipients
+  are person-only and require fresh presence; processes retain only D89.4's
+  named bound routes. The broker's queued authorization and immediate
+  invalidation barriers use a local generation in addition to the shared
+  epoch, so a failed epoch write cannot resurrect an old unlock. Deadline,
+  item expiry, live grant coverage and requester registration are rechecked
+  after awaits before caching consent or releasing bytes. Revocation wipes
+  every affected active use before termination/audit I/O, and cancellation
+  and lock audit terminal denials for approvals and unused tickets. Private
+  connection closure cancels reads and erases pending/late material; failed
+  unlocks erase temporary keys and lock opened stores. Tests and byte-exact
+  red receipts: `docs/certification/m109-b.md`. B's existing C/P/T/route,
+  Windows, all-editor, audit-contract and W/full-gate handoffs remain open;
+  this unbound lane enables no product feature and claims no new platform
+  certification. A failed shared epoch write still reports failure rather
+  than claiming the other broker versions received it.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

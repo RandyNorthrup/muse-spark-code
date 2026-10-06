@@ -107,7 +107,7 @@ async function channelSetup() {
   const server = new VaultChannelServer(deps)
   servers.push(server)
   await server.listen(socket)
-  return { ...fixture, discovery, claimed, peers, deps, socket, server }
+  return { ...fixture, brokerDeps: fixture.deps, discovery, claimed, peers, deps, socket, server }
 }
 function workerConnection(fixture: Awaited<ReturnType<typeof channelSetup>>) {
   fixture.deps.identify = (identity, hostId) =>
@@ -190,6 +190,59 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
   }
 }
 describe('native authenticated broker channel', () => {
+  it('P2-7 closing a private connection cancels presence and erases its pending material', async () => {
+    const fixture = await channelSetup(),
+      open = fixture.brokerDeps.repository.open
+    let held: Uint8Array = new Uint8Array()
+    fixture.brokerDeps.repository.open = async (key) => {
+      const store = await open(key),
+        read = store.read.bind(store)
+      store.read = async (id) => {
+        const item = await read(id)
+        if (item.material.kind === 'apiKey') held = item.material.value
+        return item
+      }
+      return store
+    }
+    await fixture.broker.lock()
+    await fixture.broker.unlock()
+    const entry = await fixture.firstParty(true),
+      waiting = Promise.withResolvers<boolean>()
+    fixture.brokerDeps.unlock.presence = vi.fn(() => waiting.promise)
+    const read = vi.spyOn(fixture.broker, 'firstPartyRead'),
+      client = await openClient(fixture)
+    const pending = client.firstPartyRead(entry.request),
+      observed = expect(pending).rejects.toThrow()
+    try {
+      await vi.waitFor(() => {
+        expect(fixture.brokerDeps.unlock.presence).toHaveBeenCalledOnce()
+      })
+      expect(held.some((byte) => byte !== 0)).toBe(true)
+      client.close()
+      await observed
+      await vi.waitFor(() => {
+        expect(held.every((byte) => byte === 0)).toBe(true)
+      })
+      const result = read.mock.results[0]
+      if (result?.type !== 'return') throw new Error('expected private read promise')
+      let hasSettled = false
+      void (async () => {
+        try {
+          await result.value
+        } catch {
+          hasSettled = true
+        }
+      })()
+      await vi.waitFor(() => {
+        expect(hasSettled).toBe(true)
+      })
+      await expect(result.value).rejects.toThrow()
+    } finally {
+      client.close()
+      waiting.resolve(true)
+    }
+  })
+
   it('audit pages stay under the frame limit and resume at the last generation', async () => {
     const fixture = await channelSetup()
     const record = await auditRecord(fixture)

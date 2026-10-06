@@ -241,6 +241,7 @@ export class VaultChannelServer {
     }
     this.sockets.add(socket)
     socket.pause()
+    const cancellation = new AbortController()
     let identity: VaultConnectionIdentity | null = null
     let sequence = 0
     let buffer = Buffer.alloc(0)
@@ -249,6 +250,7 @@ export class VaultChannelServer {
     const timeout = setTimeout(() => socket.destroy(), VAULT_APPROVAL_TTL_MS)
     const close = (): void => {
       clearTimeout(timeout)
+      cancellation.abort()
       socket.destroy()
     }
     const write = async (frame: unknown): Promise<void> => {
@@ -314,7 +316,11 @@ export class VaultChannelServer {
         if (!identity.firstParty || identity.requester !== null)
           response = { kind: 'denied', reason: 'peer' }
         else {
-          const material = await this.deps.broker.firstPartyRead(identity.peer, request)
+          const material = await this.deps.broker.firstPartyRead(
+            identity.peer,
+            request,
+            cancellation.signal,
+          )
           try {
             response = vaultPrivateMaterialSchema.parse({
               v: VAULT_PROTOCOL_VERSION,
@@ -331,6 +337,7 @@ export class VaultChannelServer {
       await write({ v: VAULT_PROTOCOL_VERSION, sequence: message.sequence, response })
     }
     socket.once('close', () => {
+      cancellation.abort()
       clearTimeout(timeout)
       this.identities.delete(socket)
       this.sockets.delete(socket)

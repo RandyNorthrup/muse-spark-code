@@ -86,6 +86,10 @@ export class VaultBroker implements VaultBrokerPort {
   private lastUse = 0
   private disposed = false
   private locking = false
+  private lockTask: Promise<void> | null = null
+  private opening: { source: Uint8Array; key: Buffer; store: VaultStorePort | null } | null = null
+  private readonly grantItems = new Map<string, string>()
+  private readonly revokedGrants = new Set<string>()
   private readonly timer: ReturnType<typeof setInterval>
   private readonly registrations = new Map<string, VaultRequesterRegistration>()
   private readonly invalidations = new Set<(requesterId: string | null) => void>()
@@ -144,27 +148,38 @@ export class VaultBroker implements VaultBrokerPort {
         }),
       )
   }
+  private get generation(): number {
+    return this.queue.generation
+  }
+  private eraseOpening(): void {
+    this.opening?.source.fill(0)
+    this.opening?.key.fill(0)
+    this.opening?.store?.lock()
+  }
   private erase(): void {
-    for (const item of this.privateReads) eraseMaterial(item)
-    this.privateReads.clear()
-    for (const entry of this.active.values()) {
-      if (entry.material) eraseMaterial(entry.material)
-      entry.lifetime.close()
-      void entry.lifetime.terminate().catch(() => {
-        /* The closed feeder channel is authoritative; unavailable process termination cannot restore access. */
-      })
-    }
-    this.active.clear()
-    this.key?.fill(0)
-    this.key = null
-    this.store?.lock()
-    this.store = null
-    this.slot = null
-    this.pending.clear()
-    this.tickets.clear()
-    this.sessions.clear()
-    this.deps.audit.close()
-    for (const listener of this.invalidations) listener(null)
+    this.queue.invalidate(() => {
+      this.eraseOpening()
+      for (const item of this.privateReads) eraseMaterial(item)
+      this.privateReads.clear()
+      for (const entry of this.active.values()) {
+        if (entry.material) eraseMaterial(entry.material)
+        entry.lifetime.close()
+        void entry.lifetime.terminate().catch(() => {
+          /* The closed feeder channel is authoritative; unavailable process termination cannot restore access. */
+        })
+      }
+      this.active.clear()
+      this.key?.fill(0)
+      this.key = null
+      this.store?.lock()
+      this.store = null
+      this.slot = null
+      this.pending.clear()
+      this.tickets.clear()
+      this.sessions.clear()
+      this.deps.audit.close()
+      for (const listener of this.invalidations) listener(null)
+    }, true)
   }
   private isStopped(): boolean {
     return this.disposed || this.locking
@@ -235,28 +250,98 @@ export class VaultBroker implements VaultBrokerPort {
       taint,
     })
   }
-  private async ticketExpired(operation: Operation): Promise<boolean> {
-    if (this.clock.now() < operation.ticket.expiresAt) return false
-    await this.record(operation.request, 'deny', 'failClosed', null, 'expired')
-    return true
+  /** Return the check itself: callers revalidate in their continuation's own turn,
+   * with no promise gap between checking authority and committing/releasing it. */
+  private async validate(
+    generation: number,
+    request?: VaultApprovalRequest,
+    authority?: Authorized['authority'],
+    isConsumed = false,
+    item?: VaultItemMetadata,
+    openingEpoch?: number | null,
+  ): Promise<() => Denial['reason'] | null> {
+    const held: { grant?: VaultGrant; isLoaded: boolean } = { isLoaded: false }
+    const check = (): Denial['reason'] | null => {
+      if (
+        generation !== this.generation ||
+        this.isStopped() ||
+        (openingEpoch === undefined && !this.key) ||
+        (request && request.lockEpoch !== this.epoch)
+      )
+        return 'locked'
+      if (
+        item?.dates.expiresAt !== null &&
+        item?.dates.expiresAt !== undefined &&
+        this.clock.now() >= item.dates.expiresAt
+      )
+        return 'expired'
+      if (!request) return null
+      if (!this.registered(request.requester)) return 'peer'
+      if (
+        this.clock.now() >= request.expiresAt ||
+        (request.item.dates.expiresAt !== null && this.clock.now() >= request.item.dates.expiresAt)
+      )
+        return 'expired'
+      if (item && JSON.stringify(item) !== JSON.stringify(request.item)) return 'policy'
+      if (authority?.kind === 'grant') {
+        if (this.revokedGrants.has(authority.grantId)) return 'scope'
+        if (
+          held.isLoaded &&
+          (!held.grant ||
+            !isGrantCovered(
+              isConsumed ? { ...held.grant, uses: Math.max(0, held.grant.uses - 1) } : held.grant,
+              request.item,
+              request.requester,
+              request.use,
+              this.clock.now(),
+            ))
+        )
+          return 'scope'
+      }
+      return null
+    }
+    if (check()) return check
+    if (openingEpoch !== undefined) {
+      const epoch = await this.deps.epoch.current()
+      return openingEpoch !== null && epoch !== openingEpoch ? () => 'locked' : check
+    }
+    if (!(await this.current())) return () => 'locked'
+    if (!request || authority?.kind !== 'grant' || check()) return check
+    const grants = await this.deps.repository.grants()
+    if (check()) return check
+    const parsed = grants.map((entry) => vaultGrantSchema.parse(entry))
+    for (const entry of parsed) this.grantItems.set(entry.id, entry.itemId)
+    const grant = parsed.find((entry) => entry.id === authority.grantId)
+    if (grant) held.grant = grant
+    held.isLoaded = true
+    return check
+  }
+  private async denied(
+    request: VaultApprovalRequest,
+    reason: Denial['reason'],
+    grantId: string | null = null,
+  ): Promise<Denial> {
+    const outcome = reason === 'expired' || reason === 'locked' ? reason : 'denied'
+    if (this.key && !this.locking)
+      await this.record(request, 'deny', 'failClosed', grantId, outcome)
+    return deny(reason)
   }
   private async ticket(
     request: VaultApprovalRequest,
     authority: Authorized['authority'],
+    generation: number,
   ): Promise<VaultApprovalResult> {
-    if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
-    if (!this.registered(request.requester)) return deny('peer')
-    if (this.clock.now() >= request.expiresAt) return deny('expired')
-    if (this.tickets.size >= VAULT_LIMITS.items) {
-      await this.record(request, 'deny', 'failClosed', null, 'denied')
-      return deny('policy')
-    }
-    if (
-      authority.kind === 'grant' &&
-      !(await this.deps.repository.consumeGrant(authority.grantId, this.clock.now()))
-    ) {
-      await this.record(request, 'deny', 'failClosed', authority.grantId, 'denied')
-      return deny('scope')
+    let reason = (await this.validate(generation, request, authority))()
+    if (reason) return await this.denied(request, reason)
+    if (this.tickets.size >= VAULT_LIMITS.items) return await this.denied(request, 'policy')
+    if (authority.kind === 'grant') {
+      const isConsumed = await this.deps.repository.consumeGrant(
+        authority.grantId,
+        this.clock.now(),
+      )
+      reason = (await this.validate(generation, request, authority, isConsumed))()
+      if (!isConsumed || reason)
+        return await this.denied(request, reason ?? 'scope', authority.grantId)
     }
     await this.record(
       request,
@@ -265,8 +350,8 @@ export class VaultBroker implements VaultBrokerPort {
       authority.kind === 'grant' ? authority.grantId : null,
       'pending',
     )
-    if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
-    if (!this.registered(request.requester)) return deny('peer')
+    reason = (await this.validate(generation, request, authority, true))()
+    if (reason) return await this.denied(request, reason)
     const ticket = vaultTicketSchema.parse({
       id: id(),
       requestId: request.id,
@@ -284,97 +369,153 @@ export class VaultBroker implements VaultBrokerPort {
     return { kind: 'ticket', ticket: structuredClone(ticket), authority }
   }
   /** Avoid nested queue acquisition during a first agent use. */
-  private async unlockOutsideQueue(slotId: string | null = null): Promise<void> {
-    // Unlock runs before the queued request resumes; this uses the same single-writer helper.
-    if (this.isStopped()) throw new Error(UI_TEXT.vault.locked)
+  private async unlockOutsideQueue(
+    slotId: string | null = null,
+    generation = this.generation,
+  ): Promise<void> {
+    const validate = async (epoch: number | null): Promise<() => void> => {
+      const check = await this.validate(generation, undefined, undefined, false, undefined, epoch)
+      return () => {
+        if (check()) throw new Error(UI_TEXT.vault.locked)
+      }
+    }
+    let check = await validate(null)
+    check()
     const before = await this.deps.epoch.current()
+    check = await validate(before)
+    check()
     const unlocked = await this.deps.unlock.unlock(slotId)
-    const key = Buffer.alloc(VAULT_KEY_BYTES)
+    const opening: NonNullable<VaultBroker['opening']> = {
+      source: unlocked.key,
+      key: Buffer.alloc(VAULT_KEY_BYTES),
+      store: null,
+    }
+    this.opening = opening
     try {
+      check = await validate(before)
+      check()
       if (unlocked.key.byteLength !== VAULT_KEY_BYTES) throw new Error(UI_TEXT.vault.noAccess)
-      key.set(unlocked.key)
-      if (before !== (await this.deps.epoch.current()) || this.isStopped())
-        throw new Error(UI_TEXT.vault.locked)
+      opening.key.set(unlocked.key)
+      unlocked.key.fill(0)
       const slot = vaultSlotRecordSchema.parse(unlocked.slot)
-      const store = await this.deps.repository.open(key)
-      try {
-        await this.deps.audit.open(key)
-      } catch (error: unknown) {
-        store.lock()
-        throw error
-      }
-      if (before !== (await this.deps.epoch.current()) || this.isStopped()) {
-        store.lock()
-        throw new Error(UI_TEXT.vault.locked)
-      }
-      this.store = store
-      this.key = key
+      opening.store = await this.deps.repository.open(opening.key)
+      check = await validate(before)
+      check()
+      await this.deps.audit.open(opening.key)
+      check = await validate(before)
+      check()
+      this.store = opening.store
+      this.key = opening.key
       this.slot = slot
       this.epoch = before
       this.lastUse = this.clock.now()
     } catch (error: unknown) {
-      key.fill(0)
+      opening.key.fill(0)
+      opening.store?.lock()
       this.deps.audit.close()
       throw error
     } finally {
       unlocked.key.fill(0)
+      if (this.opening === opening) this.opening = null
     }
   }
-  private async lockTo(epoch: number): Promise<void> {
-    if (this.locking) return
-    this.locking = true
-    this.epoch = Math.max(this.epoch, epoch)
-    const entries = Array.from(this.active.values(), (entry) => ({ ...entry }))
-    this.active.clear()
-    // Close immediately, before asynchronous process termination or audit I/O.
-    for (const item of this.privateReads) eraseMaterial(item)
-    this.privateReads.clear()
-    for (const entry of entries) {
-      if (entry.material) eraseMaterial(entry.material)
-      entry.lifetime.close()
-    }
-    this.pending.clear()
-    this.tickets.clear()
-    this.sessions.clear()
-    const isHadKey = this.key !== null
-    this.key?.fill(0)
-    this.key = null
-    this.store?.lock()
-    this.store = null
-    this.slot = null
-    for (const listener of this.invalidations) listener(null)
-    try {
-      for (const entry of entries) {
-        const isEnded = await entry.lifetime.terminate()
-        if (isHadKey)
-          await this.record(
-            entry.operation.request,
-            'deny',
-            'failClosed',
-            null,
-            isEnded ? 'locked' : 'unrecallable',
-          )
+  private lockTo(epoch: number, shouldBump = false): Promise<void> {
+    if (this.lockTask) return this.lockTask
+    const snapshot = this.queue.invalidate(() => {
+      this.locking = true
+      this.epoch = Math.max(this.epoch, epoch)
+      const active = Array.from(this.active.values(), (entry) => ({ ...entry }))
+      const pending = [
+        ...this.pending.values(),
+        ...Array.from(this.tickets.values(), (entry) => entry.request),
+      ]
+      const hasKey = this.key !== null
+      this.active.clear()
+      this.pending.clear()
+      this.tickets.clear()
+      this.sessions.clear()
+      this.eraseOpening()
+      for (const item of this.privateReads) eraseMaterial(item)
+      this.privateReads.clear()
+      for (const entry of active) {
+        entry.lifetime.close()
+        if (entry.material) eraseMaterial(entry.material)
       }
-    } finally {
-      this.erase()
-      this.locking = false
-      this.deps.onLocked(this.epoch)
-    }
+      this.key?.fill(0)
+      this.key = null
+      this.store?.lock()
+      this.store = null
+      this.slot = null
+      for (const listener of this.invalidations) listener(null)
+      return { active, pending, hasKey }
+    }, true)
+    const task = (async () => {
+      try {
+        const settled = await Promise.allSettled([
+          ...snapshot.active.map(async (entry) => {
+            let isEnded = false
+            try {
+              isEnded = await entry.lifetime.terminate()
+            } catch {
+              /* Audit retained liability. */
+            }
+            if (snapshot.hasKey)
+              await this.record(
+                entry.operation.request,
+                'deny',
+                'failClosed',
+                null,
+                isEnded ? 'locked' : 'unrecallable',
+              )
+          }),
+          ...snapshot.pending.map((request) =>
+            this.record(request, 'deny', 'failClosed', null, 'locked'),
+          ),
+          ...(shouldBump
+            ? [
+                (async () => {
+                  const value = await this.deps.epoch.bump()
+                  this.epoch = Math.max(this.epoch, value)
+                })(),
+              ]
+            : []),
+        ])
+        const failed = settled.find((result) => result.status === 'rejected')
+        if (failed?.status === 'rejected') throw failed.reason
+      } finally {
+        this.deps.audit.close()
+        this.locking = false
+        this.lockTask = null
+        this.deps.onLocked(this.epoch)
+      }
+    })()
+    this.lockTask = task
+    return task
+  }
+  private requestersForItem(itemId: string | undefined): Set<string> {
+    const affected = new Set<string>()
+    for (const request of [
+      ...this.pending.values(),
+      ...Array.from(this.tickets.values(), (entry) => entry.request),
+      ...Array.from(this.active.values(), (entry) => entry.operation.request),
+    ])
+      if (request.item.id === itemId) affected.add(request.requester.id)
+    return affected
   }
   private async invalidateGrant(grantId: string): Promise<void> {
-    const affected = new Set<string>()
-    for (const entry of [
-      ...this.tickets.values(),
-      ...Array.from(this.active.values(), (active) => active.operation),
-    ])
-      if (entry.authority.kind === 'grant' && entry.authority.grantId === grantId)
-        affected.add(entry.request.requester.id)
-    for (const requesterId of affected) await this.endRequester(requesterId, grantId)
+    this.queue.invalidate(() => {
+      this.revokedGrants.add(grantId)
+    })
+    const affected = this.requestersForItem(this.grantItems.get(grantId))
+    await Promise.all(
+      Array.from(affected, (requesterId) => this.endRequester(requesterId, grantId)),
+    )
   }
   async unlock(slotId: string | null = null): Promise<void> {
+    const generation = this.generation
     await this.queue.run(async () => {
       if (await this.current()) return
-      await this.unlockOutsideQueue(slotId)
+      await this.unlockOutsideQueue(slotId, generation)
     })
   }
   /** The local channel closes worker sockets immediately; hosts still receive their UI callbacks. */
@@ -454,6 +595,7 @@ export class VaultBroker implements VaultBrokerPort {
     input: VaultUse,
     inputTaint: VaultTaint,
   ): Promise<VaultAuthorizationResult> {
+    const generation = this.generation
     const use = vaultUseSchema.parse(input)
     const taint = vaultTaintSchema.parse(inputTaint)
     const identity = vaultRequesterSchema.parse(requester)
@@ -474,20 +616,25 @@ export class VaultBroker implements VaultBrokerPort {
       if (!registration) return await denial('peer')
       if (!(await this.current())) {
         try {
-          await this.unlockOutsideQueue()
+          await this.unlockOutsideQueue(null, generation)
         } catch {
           return await denial('locked')
         }
       }
-      if (!this.store) return deny('locked')
+      if (!this.store || (await this.validate(generation))()) return deny('locked')
       const metadata = await this.store.list()
+      if ((await this.validate(generation))()) return deny('locked')
+      if (!this.registered(identity)) return deny('peer')
       const item = metadata
         .map((item) => vaultItemMetadataSchema.parse(item))
         .find((item) => item.handle === handle)
       if (!item) return await denial('scope')
       const request = this.mint(identity, item, use, taint)
       const heldGrants = await this.deps.repository.grants()
+      const invalid = (await this.validate(generation, request))()
+      if (invalid) return await this.denied(request, invalid)
       const grants = heldGrants.map((grant) => vaultGrantSchema.parse(grant))
+      for (const grant of grants) this.grantItems.set(grant.id, grant.itemId)
       const decision = evaluateVaultPolicy(
         item,
         identity,
@@ -506,14 +653,15 @@ export class VaultBroker implements VaultBrokerPort {
         return await this.ticket(
           request,
           decision.grant ? { kind: 'grant', grantId: decision.grant.id } : { kind: 'mode' },
+          generation,
         )
       if (this.pending.size >= VAULT_LIMITS.items) {
         await this.record(request, 'deny', 'failClosed', null, 'denied')
         return deny('policy')
       }
       await this.record(request, 'ask', taint.tainted ? 'taint' : 'user', null, 'pending')
-      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
-      if (!this.registered(identity)) return deny('peer')
+      const reason = (await this.validate(generation, request))()
+      if (reason) return await this.denied(request, reason)
       this.pending.set(request.id, request)
       this.deps.onApproval(structuredClone(request))
       return { kind: 'approval', request: structuredClone(request) }
@@ -523,6 +671,7 @@ export class VaultBroker implements VaultBrokerPort {
     peer: VaultAuthenticatedPeer,
     input: VaultApprovalAnswer,
   ): Promise<VaultApprovalResult> {
+    const generation = this.generation
     const answer = vaultApprovalAnswerSchema.parse(input)
     return await this.queue.run(async () => {
       const request = this.pending.get(answer.requestId)
@@ -531,53 +680,53 @@ export class VaultBroker implements VaultBrokerPort {
         !peer.ui ||
         peer.hostId !== request.requester.hostId ||
         !(await this.deps.identity.verifyHost(peer))
-      ) {
-        await this.record(request, 'deny', 'failClosed', null, 'denied')
-        return deny('peer')
-      }
-      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
-      if (answer.digest !== request.digest) {
-        await this.record(request, 'deny', 'failClosed', null, 'denied')
-        return deny('digest')
-      }
-      if (this.clock.now() >= request.expiresAt) {
+      )
+        return await this.denied(request, 'peer')
+      let reason = (await this.validate(generation, request))()
+      if (reason) {
         this.pending.delete(request.id)
-        await this.record(request, 'deny', 'failClosed', null, 'expired')
-        return deny('expired')
+        return await this.denied(request, reason)
       }
+      if (answer.digest !== request.digest) return await this.denied(request, 'digest')
       if (answer.decision === 'deny') {
         this.pending.delete(request.id)
         await this.record(request, 'deny', 'user', null, 'denied')
         return deny('policy')
       }
-      const registration = this.registrations.get(request.requester.id)
       const metadata = await this.store?.list()
       const item = metadata?.find((item) => item.id === request.item.id)
-      if (!(await this.current()) || request.lockEpoch !== this.epoch) return deny('locked')
-      if (
-        !registration ||
-        !item ||
-        this.pending.get(request.id) !== request ||
-        JSON.stringify(item) !== JSON.stringify(request.item)
-      ) {
+      reason = (await this.validate(generation, request, undefined, false, item))()
+      if (!item || this.pending.get(request.id) !== request) reason ??= 'policy'
+      if (reason) {
         this.pending.delete(request.id)
-        return deny('policy')
+        return await this.denied(request, reason)
       }
-      this.pending.delete(request.id)
-      if (answer.decision === 'allowSession') {
-        if (
-          item.policy.mode !== 'askOncePerSession' ||
+      if (
+        answer.decision === 'allowSession' &&
+        (request.item.policy.mode !== 'askOncePerSession' ||
           request.requester.sessionId === null ||
           request.taint.tainted ||
-          request.use.kind === 'disclosure'
-        )
-          return deny('policy')
-        const key = sessionKey(request.requester, item.id)
+          request.use.kind === 'disclosure')
+      ) {
+        this.pending.delete(request.id)
+        return await this.denied(request, 'policy')
+      }
+      const result = await this.ticket(request, { kind: 'user' }, generation)
+      this.pending.delete(request.id)
+      if (result.kind === 'ticket') {
+        const invalid = (await this.validate(generation, request))()
+        if (invalid || !this.tickets.has(result.ticket.id)) {
+          this.tickets.delete(result.ticket.id)
+          return await this.denied(request, invalid ?? 'policy')
+        }
+      }
+      if (result.kind === 'ticket' && answer.decision === 'allowSession') {
+        const key = sessionKey(request.requester, request.item.id)
         const digests = this.sessions.get(key) ?? new Set<string>()
         digests.add(request.digest)
         this.sessions.set(key, digests)
       }
-      return await this.ticket(request, { kind: 'user' })
+      return result
     })
   }
   async redeem(
@@ -586,8 +735,9 @@ export class VaultBroker implements VaultBrokerPort {
     actualInput: VaultUse,
     lifetime: VaultUseLifetime,
   ): Promise<VaultApprovalResult> {
-    const ticket = vaultTicketSchema.parse(input)
-    const actual = vaultUseSchema.parse(actualInput)
+    const generation = this.generation
+    const ticket = vaultTicketSchema.parse(input),
+      actual = vaultUseSchema.parse(actualInput)
     return await this.queue.run(async () => {
       const operation = this.tickets.get(ticket.id)
       if (!operation) return deny('replay')
@@ -596,61 +746,29 @@ export class VaultBroker implements VaultBrokerPort {
         JSON.stringify(ticket) !== JSON.stringify(operation.ticket)
       )
         return deny('peer')
+      let isAdmitted = false
       try {
-        if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
-        if (await this.ticketExpired(operation)) return deny('expired')
-        if (vaultUseDigest(actual) !== ticket.digest) {
-          await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
-          return deny('digest')
-        }
-        const metadata = await this.store?.list()
-        const current = metadata?.find((item) => item.id === ticket.itemId)
-        if (
-          !current ||
-          JSON.stringify(current) !== JSON.stringify(operation.request.item) ||
-          !this.registrations.has(requesterId)
-        )
-          return deny('policy')
-        if (operation.authority.kind === 'grant') {
-          const grants = await this.deps.repository.grants()
-          const grantId = operation.authority.grantId
-          const grant = grants.find((entry) => entry.id === grantId)
-          if (
-            !grant ||
-            !isGrantCovered(
-              { ...grant, uses: Math.max(0, grant.uses - 1) },
-              current,
-              operation.request.requester,
-              actual,
-              this.clock.now(),
-            )
-          ) {
-            await this.record(operation.request, 'deny', 'failClosed', null, 'denied')
-            return deny('scope')
-          }
-        }
-        if (!(await this.current()) || ticket.lockEpoch !== this.epoch) return deny('locked')
-        if (await this.ticketExpired(operation)) return deny('expired')
-        if (this.tickets.get(ticket.id) !== operation || !this.registrations.has(requesterId))
-          return deny('policy')
+        let reason = (
+          await this.validate(generation, operation.request, operation.authority, true)
+        )()
+        if (reason) return await this.denied(operation.request, reason)
+        if (vaultUseDigest(actual) !== ticket.digest)
+          return await this.denied(operation.request, 'digest')
+        const metadata = await this.store?.list(),
+          item = metadata?.find((item) => item.id === ticket.itemId)
+        reason = (
+          await this.validate(generation, operation.request, operation.authority, true, item)
+        )()
+        if (reason || !item || this.tickets.get(ticket.id) !== operation)
+          return await this.denied(operation.request, reason ?? 'policy')
         this.active.set(ticket.id, { operation, lifetime, material: null, released: false })
-        if (
-          current.requirePresence &&
-          !(await this.deps.unlock.presence(current.id, id(), actual))
-        ) {
-          await this.record(operation.request, 'deny', 'presence', null, 'denied')
-          this.active.delete(ticket.id)
-          return deny('presence')
+        if (item.requirePresence || actual.kind === 'disclosure') {
+          const isPresent = await this.deps.unlock.presence(item.id, id(), actual)
+          reason = (await this.validate(generation, operation.request, operation.authority, true))()
+          if (reason || !isPresent)
+            return await this.denied(operation.request, reason ?? 'presence')
         }
-        if (
-          !(await this.current()) ||
-          ticket.lockEpoch !== this.epoch ||
-          !this.registrations.has(requesterId) ||
-          !this.active.has(ticket.id)
-        ) {
-          this.active.delete(ticket.id)
-          return deny('locked')
-        }
+        if (!this.active.has(ticket.id)) return await this.denied(operation.request, 'policy')
         await this.record(
           operation.request,
           'allow',
@@ -658,11 +776,15 @@ export class VaultBroker implements VaultBrokerPort {
           operation.authority.kind === 'grant' ? operation.authority.grantId : null,
           'pending',
         )
-        if (!(await this.current())) return deny('locked')
+        reason = (await this.validate(generation, operation.request, operation.authority, true))()
+        if (reason || !this.active.has(ticket.id))
+          return await this.denied(operation.request, reason ?? 'policy')
         this.lastUse = this.clock.now()
+        isAdmitted = true
         return { kind: 'ticket', ticket: structuredClone(ticket), authority: operation.authority }
       } finally {
         this.tickets.delete(ticket.id)
+        if (!isAdmitted) this.active.delete(ticket.id)
       }
     })
   }
@@ -673,33 +795,38 @@ export class VaultBroker implements VaultBrokerPort {
     actualInput: VaultUse,
     run: (item: VaultItem) => Promise<void>,
   ): Promise<void> {
-    const actual = vaultUseSchema.parse(actualInput)
-    const entry = this.active.get(ticketId)
+    const actual = vaultUseSchema.parse(actualInput),
+      entry = this.active.get(ticketId)
     if (
       entry?.operation.request.requester.id !== requesterId ||
       vaultUseDigest(actual) !== entry.operation.request.digest ||
       entry.released
     )
       throw new Error(UI_TEXT.vault.noAccess)
+    const generation = this.generation
     entry.released = true
-    if (this.clock.now() >= entry.operation.ticket.expiresAt)
-      throw new Error(UI_TEXT.vault.noAccess)
-    if (!(await this.current())) throw new Error(UI_TEXT.vault.locked)
-    const epoch = this.epoch
-    const item = vaultItemSchema.parse(await this.store?.read(entry.operation.request.item.id))
-    try {
-      if (
-        !(await this.current()) ||
-        epoch !== this.epoch ||
-        this.clock.now() >= entry.operation.ticket.expiresAt ||
-        !this.active.has(ticketId) ||
-        JSON.stringify(item.metadata) !== JSON.stringify(entry.operation.request.item)
+    const validate = async (metadata?: VaultItemMetadata): Promise<() => void> => {
+      const check = await this.validate(
+        generation,
+        entry.operation.request,
+        entry.operation.authority,
+        true,
+        metadata,
       )
-        throw new Error(UI_TEXT.vault.noAccess)
-      entry.material = item
+      return () => {
+        if (check() || this.active.get(ticketId) !== entry) throw new Error(UI_TEXT.vault.noAccess)
+      }
+    }
+    let check = await validate()
+    check()
+    const item = vaultItemSchema.parse(await this.store?.read(entry.operation.request.item.id))
+    entry.material = item
+    try {
+      check = await validate(item.metadata)
+      check()
       await run(item)
-      if (!(await this.current()) || epoch !== this.epoch || !this.active.has(ticketId))
-        throw new Error(UI_TEXT.vault.locked)
+      check = await validate()
+      check()
     } finally {
       eraseMaterial(item)
       entry.material = null
@@ -728,38 +855,73 @@ export class VaultBroker implements VaultBrokerPort {
     await this.deps.repository.saveGrant(grant)
   }
   async revoke(peer: VaultAuthenticatedPeer, grantId: string): Promise<void> {
-    if (!peer.ui || !(await this.deps.identity.verifyHost(peer)) || !(await this.current()))
+    const generation = this.generation
+    if (
+      !peer.ui ||
+      !(await this.deps.identity.verifyHost(peer)) ||
+      (await this.validate(generation))()
+    )
       throw new Error(UI_TEXT.vault.noAccess)
-    await this.deps.repository.removeGrant(grantId)
-    const requesters = new Set<string>()
-    for (const operation of [
-      ...this.tickets.values(),
-      ...Array.from(this.active.values(), (entry) => entry.operation),
+    this.queue.invalidate(() => {
+      this.revokedGrants.add(grantId)
+    })
+    let itemId = this.grantItems.get(grantId)
+    if (!itemId) {
+      const grants = await this.deps.repository.grants()
+      if ((await this.validate(generation))()) throw new Error(UI_TEXT.vault.locked)
+      itemId = grants.find((entry) => entry.id === grantId)?.itemId
+    }
+    const affected = this.requestersForItem(itemId)
+    const cleanup = Array.from(affected, (requesterId) => this.endRequester(requesterId, grantId))
+    const settled = await Promise.allSettled([
+      ...cleanup,
+      this.deps.repository.removeGrant(grantId),
     ])
-      if (operation.authority.kind === 'grant' && operation.authority.grantId === grantId)
-        requesters.add(operation.request.requester.id)
-    // Pending approvals for the same item must also be invalidated.
-    for (const request of this.pending.values()) requesters.add(request.requester.id)
-    for (const requesterId of requesters) await this.endRequester(requesterId, grantId)
+    const failed = settled.find((entry) => entry.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
   }
   async endRequester(requesterId: string, grantId: string | null = null): Promise<void> {
-    const requester = this.registrations.get(requesterId)?.requester
-    this.registrations.delete(requesterId)
-    for (const listener of this.invalidations) listener(requesterId)
-    for (const [id, request] of this.pending)
-      if (request.requester.id === requesterId) this.pending.delete(id)
-    for (const [id, operation] of this.tickets)
-      if (operation.request.requester.id === requesterId) this.tickets.delete(id)
-    if (requester)
-      for (const key of this.sessions.keys())
-        if (key.startsWith(JSON.stringify([requester.hostId, requester.sessionId]).slice(0, -1)))
-          this.sessions.delete(key)
-    for (const [id, entry] of this.active)
-      if (entry.operation.request.requester.id === requesterId) {
-        this.active.delete(id)
-        entry.lifetime.close()
-        if (entry.material) eraseMaterial(entry.material)
-        const isEnded = await entry.lifetime.terminate()
+    const snapshot = this.queue.invalidate(() => {
+      const requester = this.registrations.get(requesterId)?.requester
+      this.registrations.delete(requesterId)
+      const pending: VaultApprovalRequest[] = []
+      for (const [id, request] of this.pending)
+        if (request.requester.id === requesterId) {
+          pending.push(request)
+          this.pending.delete(id)
+        }
+      for (const [id, operation] of this.tickets)
+        if (operation.request.requester.id === requesterId) {
+          pending.push(operation.request)
+          this.tickets.delete(id)
+        }
+      if (requester)
+        for (const key of this.sessions.keys())
+          if (key.startsWith(JSON.stringify([requester.hostId, requester.sessionId]).slice(0, -1)))
+            this.sessions.delete(key)
+      const active = []
+      for (const [id, entry] of this.active)
+        if (entry.operation.request.requester.id === requesterId) {
+          this.active.delete(id)
+          entry.lifetime.close()
+          if (entry.material) eraseMaterial(entry.material)
+          active.push(entry)
+        }
+      for (const listener of this.invalidations) listener(requesterId)
+      this.deps.onRevoked(requesterId, grantId)
+      return { active, pending }
+    })
+    const settled = await Promise.allSettled([
+      ...snapshot.pending.map((request) =>
+        this.record(request, 'deny', 'failClosed', grantId, 'revoked'),
+      ),
+      ...snapshot.active.map(async (entry) => {
+        let isEnded = false
+        try {
+          isEnded = await entry.lifetime.terminate()
+        } catch {
+          /* Audit retained liability and continue every entry. */
+        }
         await this.record(
           entry.operation.request,
           'deny',
@@ -767,8 +929,10 @@ export class VaultBroker implements VaultBrokerPort {
           grantId,
           isEnded ? 'revoked' : 'unrecallable',
         )
-      }
-    this.deps.onRevoked(requesterId, grantId)
+      }),
+    ])
+    const failed = settled.find((entry) => entry.status === 'rejected')
+    if (failed?.status === 'rejected') throw failed.reason
   }
   async policyChanged(itemId: string): Promise<void> {
     for (const item of this.privateReads)
@@ -776,26 +940,12 @@ export class VaultBroker implements VaultBrokerPort {
         eraseMaterial(item)
         this.privateReads.delete(item)
       }
-    const affected = new Set<string>()
-    for (const entry of [
-      ...this.pending.values(),
-      ...Array.from(this.tickets.values(), (entry) => entry.request),
-      ...Array.from(this.active.values(), (entry) => entry.operation.request),
-    ])
-      if (entry.item.id === itemId) affected.add(entry.requester.id)
+    const affected = this.requestersForItem(itemId)
     this.sessions.clear()
-    for (const requesterId of affected) await this.endRequester(requesterId)
+    await Promise.all(Array.from(affected, (requesterId) => this.endRequester(requesterId)))
   }
   async lock(): Promise<void> {
-    let epoch: number
-    try {
-      epoch = await this.deps.epoch.bump()
-    } catch (error: unknown) {
-      // A failed shared write cannot leave this broker's keys or uses alive.
-      await this.lockTo(this.epoch)
-      throw error
-    }
-    await this.lockTo(epoch)
+    await this.lockTo(this.epoch, true)
   }
   async dispose(): Promise<void> {
     this.disposed = true
@@ -804,16 +954,76 @@ export class VaultBroker implements VaultBrokerPort {
     await this.lock()
     this.invalidations.clear()
   }
-  async firstPartyRead(peer: VaultAuthenticatedPeer, input: unknown): Promise<Buffer> {
-    if (!peer.ui || !(await this.deps.identity.verifyHost(peer)))
-      throw new Error(UI_TEXT.vault.noAccess)
-    const request = vaultPrivateReadSchema.parse(input)
-    if (!(await this.current())) await this.unlock()
-    const epoch = this.epoch
-    const item = vaultItemSchema.parse(await this.store?.read(request.itemId))
-    this.privateReads.add(item)
+  async firstPartyRead(
+    peer: VaultAuthenticatedPeer,
+    input: unknown,
+    signal?: AbortSignal,
+  ): Promise<Buffer> {
+    const generation = this.generation
+    let item: VaultItem | null = null
+    let stopWaiting: (() => void) | null = null
+    const wait = async <T>(operation: Promise<T>): Promise<T> => {
+      if (!signal) return await operation
+      const cancelled = new Promise<never>((_resolve, reject) => {
+        stopWaiting = () => {
+          reject(new Error(UI_TEXT.vault.noAccess))
+        }
+      })
+      if (signal.aborted) stopWaiting?.()
+      try {
+        return await Promise.race([operation, cancelled])
+      } finally {
+        stopWaiting = null
+      }
+    }
+    const cancel = (): void => {
+      stopWaiting?.()
+      if (!item) {
+        return
+      }
+
+      eraseMaterial(item)
+      this.privateReads.delete(item)
+    }
+    const validate = async (): Promise<() => void> => {
+      const check = await this.validate(generation, undefined, undefined, false, item?.metadata)
+      return () => {
+        if (check() || signal?.aborted || (item && !this.privateReads.has(item)))
+          throw new Error(UI_TEXT.vault.locked)
+      }
+    }
+    signal?.addEventListener('abort', cancel, { once: true })
     try {
-      if (!(await this.current()) || epoch !== this.epoch) throw new Error(UI_TEXT.vault.locked)
+      if (
+        !peer.ui ||
+        !(await wait(this.deps.identity.verifyHost(peer))) ||
+        signal?.aborted ||
+        generation !== this.generation
+      )
+        throw new Error(UI_TEXT.vault.noAccess)
+      const request = vaultPrivateReadSchema.parse(input)
+      if (!(await wait(this.current()))) {
+        if (signal?.aborted || generation !== this.generation) throw new Error(UI_TEXT.vault.locked)
+        await wait(this.unlock())
+      }
+      let check = await wait(validate())
+      check()
+      const store = this.store
+      if (!store) throw new Error(UI_TEXT.vault.locked)
+      item = await wait(
+        (async () => {
+          const result = vaultItemSchema.parse(await store.read(request.itemId))
+          item = result
+          this.privateReads.add(result)
+          if (signal?.aborted) {
+            cancel()
+            throw new Error(UI_TEXT.vault.noAccess)
+          }
+          return result
+        })(),
+      )
+      check = await wait(validate())
+      check()
       if (
         !item.metadata.firstParty ||
         !item.metadata.hidden ||
@@ -824,21 +1034,19 @@ export class VaultBroker implements VaultBrokerPort {
         )
       )
         throw new Error(UI_TEXT.vault.noAccess)
+      if (item.metadata.requirePresence) {
+        const isPresent = await wait(this.deps.unlock.presence(item.metadata.id, id(), request))
+        check = await wait(validate())
+        check()
+        if (!isPresent) throw new Error(UI_TEXT.vault.noAccess)
+      }
+      const metadata = await wait(store.list())
+      check = await wait(validate())
+      check()
+      const itemId = item.metadata.id
       if (
-        item.metadata.requirePresence &&
-        !(await this.deps.unlock.presence(item.metadata.id, id(), request))
-      )
-        throw new Error(UI_TEXT.vault.noAccess)
-      if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)
-        throw new Error(UI_TEXT.vault.locked)
-      const metadata = await this.store?.list()
-      if (!this.privateReads.has(item) || !(await this.current()) || epoch !== this.epoch)
-        throw new Error(UI_TEXT.vault.locked)
-      if (
-        JSON.stringify(metadata?.find((candidate) => candidate.id === item.metadata.id)) !==
-          JSON.stringify(item.metadata) ||
-        (item.metadata.dates.expiresAt !== null &&
-          this.clock.now() >= item.metadata.dates.expiresAt)
+        JSON.stringify(metadata.find((candidate) => candidate.id === itemId)) !==
+        JSON.stringify(item.metadata)
       )
         throw new Error(UI_TEXT.vault.noAccess)
       const owned = Buffer.alloc(item.material.value.byteLength)
@@ -846,8 +1054,8 @@ export class VaultBroker implements VaultBrokerPort {
       this.lastUse = this.clock.now()
       return owned
     } finally {
-      this.privateReads.delete(item)
-      eraseMaterial(item)
+      signal?.removeEventListener('abort', cancel)
+      cancel()
     }
   }
 }

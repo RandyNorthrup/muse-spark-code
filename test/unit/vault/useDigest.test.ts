@@ -128,7 +128,7 @@ describe('canonical vault uses', () => {
         resource: 'https://example.test/mcp',
       },
       { kind: 'session', origin: 'https://example.test', browserId: 'a'.repeat(32) },
-      { kind: 'disclosure', recipient: 'model/provider' },
+      { kind: 'disclosure', recipient: 'person' },
       {
         kind: 'sshSign',
         namespace: 'git',

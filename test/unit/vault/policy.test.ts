@@ -184,8 +184,8 @@ describe('vault policy', () => {
   })
   it('disclosure is separately enabled and always asks', () => {
     const { item, who, standing } = context()
-    const actual: VaultUse = { kind: 'disclosure', recipient: 'model' }
-    item.bindings = [{ kind: 'disclosure', recipient: 'model' }]
+    const actual: VaultUse = { kind: 'disclosure', recipient: 'person' }
+    item.bindings = [{ kind: 'disclosure', recipient: 'person' }]
     expect(evaluateVaultPolicy(item, who, actual, taint, [standing], 'ask', 1, new Set())).toEqual({
       kind: 'denied',
       reason: 'disclosure',
