@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import type { PromptCacheRetention } from '../../../shared/constants'
+import { TOOL_SCHEMA_MAX_DEPTH } from '../../../shared/constants'
 import { webResultSchema } from '../../../shared/webResults'
 
 /** A source the reply cites (`url_citation`, search-grounding); offsets are not used. */
@@ -353,7 +354,207 @@ export interface FunctionToolDefinition {
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
-  readonly strict: false
+  // False everywhere the canonical body goes (Meta included); true only
+  // where the model's quirks say `supportsStrictTools` (M101 item 24), set
+  // through `withStrictTools`, never by hand.
+  readonly strict: boolean
+}
+
+/**
+ * Flags function tools strict where the model takes it (M101 item 24);
+ * search tools pass through. Off returns the same definitions, so the
+ * canonical body (and the golden bytes) stays `strict: false` where the
+ * quirk is off.
+ */
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[] {
+  return shouldUseStrict
+    ? tools.map((tool) => {
+        if (tool.type !== 'function') return tool
+        if (tool.parameters['type'] !== 'object') {
+          throw new Error('strict_tool_schema_unsupported')
+        }
+        return { ...tool, parameters: strictToolSchema(tool.parameters), strict: true }
+      })
+    : tools
+}
+
+// Conservative common strict subset. Unknown/unsupported constraints refuse
+// the request rather than disappearing or changing their meaning silently.
+const STRICT_SCHEMA_KEYS = new Set([
+  'type',
+  'description',
+  'enum',
+  'properties',
+  'required',
+  'additionalProperties',
+  'items',
+  'minLength',
+  'maxLength',
+])
+const schemaRecord = z.record(z.string(), z.unknown())
+
+function strictToolSchema(node: unknown, isOptional = false, depth = 0): Record<string, unknown> {
+  const parsed = schemaRecord.safeParse(node)
+  if (!parsed.success || depth > TOOL_SCHEMA_MAX_DEPTH) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const schema = parsed.data
+  const type = schema['type']
+  if (!isGrammarType(type) || Object.keys(schema).some((key) => !STRICT_SCHEMA_KEYS.has(key))) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (schema['description'] !== undefined && typeof schema['description'] !== 'string') {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const types = typeof type === 'string' ? [type] : type
+  // isGrammarType verified the union; parse again to narrow without a cast.
+  const parsedTypes = z.array(z.string()).parse(types)
+  for (const bound of ['minLength', 'maxLength']) {
+    const value = schema[bound]
+    if (
+      value !== undefined &&
+      (typeof value !== 'number' ||
+        value < 0 ||
+        !Number.isSafeInteger(value) ||
+        !parsedTypes.includes('string'))
+    ) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+  }
+  if (
+    typeof schema['minLength'] === 'number' &&
+    typeof schema['maxLength'] === 'number' &&
+    schema['minLength'] > schema['maxLength']
+  ) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  const result = { ...schema }
+  if (isOptional && !parsedTypes.includes('null')) {
+    result['type'] = [...parsedTypes, 'null']
+  }
+  const values = schema['enum']
+  if (values !== undefined) {
+    const enumeration = z
+      .array(z.union([z.string(), z.number(), z.boolean(), z.null()]))
+      .safeParse(values)
+    if (!enumeration.success || enumeration.data.length === 0) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['enum'] =
+      isOptional && !enumeration.data.includes(null)
+        ? [...enumeration.data, null]
+        : [...enumeration.data]
+  }
+  if (parsedTypes.includes('object')) {
+    if (schema['additionalProperties'] !== undefined && schema['additionalProperties'] !== false) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    const properties = schemaRecord.safeParse(
+      schema['properties'] === undefined ? {} : schema['properties'],
+    )
+    const required = z
+      .array(z.string())
+      .safeParse(schema['required'] === undefined ? [] : schema['required'])
+    if (
+      !properties.success ||
+      !required.success ||
+      required.data.some((key) => !Object.hasOwn(properties.data, key))
+    ) {
+      throw new Error('strict_tool_schema_unsupported')
+    }
+    result['properties'] = Object.fromEntries(
+      Object.entries(properties.data).map(([key, value]) => [
+        key,
+        strictToolSchema(value, !required.data.includes(key), depth + 1),
+      ]),
+    )
+    result['required'] = Object.keys(properties.data)
+    result['additionalProperties'] = false
+  } else if (
+    ['properties', 'required', 'additionalProperties'].some((key) => Object.hasOwn(schema, key))
+  ) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  if (parsedTypes.includes('array')) {
+    result['items'] = strictToolSchema(schema['items'], false, depth + 1)
+  } else if (Object.hasOwn(schema, 'items')) {
+    throw new Error('strict_tool_schema_unsupported')
+  }
+  return result
+}
+
+/** JSON-schema keywords no constrained-decoding grammar takes (llama.cpp server, SoL-Pi #59/#65). */
+const GRAMMAR_UNSAFE_KEYS: ReadonlySet<string> = new Set([
+  '$ref',
+  '$defs',
+  'definitions',
+  'oneOf',
+  'anyOf',
+  'allOf',
+  'not',
+  'if',
+  'then',
+  'else',
+  'dependentSchemas',
+  'patternProperties',
+  'propertyNames',
+  'contains',
+])
+
+/** The primitive types a constrained-decoding grammar converts. */
+const GRAMMAR_SAFE_TYPES: ReadonlySet<string> = new Set([
+  'object',
+  'array',
+  'string',
+  'integer',
+  'number',
+  'boolean',
+  'null',
+])
+
+function isGrammarType(value: unknown): boolean {
+  return typeof value === 'string'
+    ? GRAMMAR_SAFE_TYPES.has(value)
+    : Array.isArray(value) &&
+        value.length > 0 &&
+        value.every((type: unknown) => typeof type === 'string' && GRAMMAR_SAFE_TYPES.has(type))
+}
+
+/**
+ * Whether a tool parameter schema converts to a constrained-decoding
+ * grammar (M101 item 24): known primitive types only, no references or
+ * combinators, bounded depth. Structural, not a byte limit: the byte
+ * budget beside it is a regression tripwire, and the exact upstream
+ * grammar limit stays a residual until a live capture names it.
+ */
+export function isToolSchemaGrammarSafe(node: unknown, depth = 0): boolean {
+  if (depth > TOOL_SCHEMA_MAX_DEPTH) {
+    return false
+  }
+  if (
+    node === null ||
+    typeof node === 'string' ||
+    typeof node === 'number' ||
+    typeof node === 'boolean'
+  ) {
+    return true
+  }
+  if (typeof node !== 'object') {
+    return false
+  }
+  if (Array.isArray(node)) {
+    return node.every((item: unknown) => isToolSchemaGrammarSafe(item, depth + 1))
+  }
+  const entries: readonly [string, unknown][] = Object.entries(node)
+  return entries.every(
+    ([key, value]) =>
+      !GRAMMAR_UNSAFE_KEYS.has(key) &&
+      (key !== 'type' || isGrammarType(value)) &&
+      isToolSchemaGrammarSafe(value, depth + 1),
+  )
 }
 
 /** Meta's hosted search (search-grounding, M33): the model decides when to search. */

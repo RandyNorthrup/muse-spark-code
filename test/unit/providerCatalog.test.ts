@@ -282,6 +282,27 @@ describe('catalogue filter', () => {
     fixture['groq'] = { models: { tiered: { id: 'tiered', tool_call: true, cost: prices } } }
     expect(filterCatalog(fixture)['groq']?.models['tiered']?.cost).toEqual(prices)
   })
+
+  it('preserves long-context tiers and 1-hour cache-write prices (M101 BYO 6)', () => {
+    const fixture = downloadFixture()
+    const prices = {
+      input: 1.25,
+      output: 10,
+      cache_read: 0.125,
+      cache_write: 2,
+      cache_write_1h: 4,
+      tiers: [{ up_to: 272_000, input: 1.25, output: 10, cache_read: 0.125, cache_write: 4 }],
+    }
+    fixture['openrouter'] = {
+      models: { tiered: { id: 'tiered', tool_call: true, cost: prices } },
+    }
+    const filtered = filterCatalog(fixture)
+    expect(filtered['openrouter']?.models['tiered']?.cost).toEqual(prices)
+    // The sealed snapshot carries them to the runtime price reader unchanged.
+    const snapshot: { providers: Record<string, { models: Record<string, unknown> }> } =
+      parseCatalogSnapshot(snapshotText(snapshotDocument(filtered, DATE)))
+    expect(snapshot.providers['openrouter']?.models['tiered']).toMatchObject({ cost: prices })
+  })
 })
 
 describe('snapshot validation and cap', () => {

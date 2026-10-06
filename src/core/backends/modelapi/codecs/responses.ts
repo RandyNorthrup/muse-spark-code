@@ -21,6 +21,7 @@ import {
   streamEventSchema,
   usageSchema,
   webSearchCallItemSchema,
+  withStrictTools,
 } from '../schemas'
 import { parseSse } from '../sse'
 import { cleanWireText, isBlankWireText } from './shared'
@@ -34,6 +35,8 @@ export interface ResponsesCodecQuirks {
    * today's bytes and sends the image. Lane P fills this per model.
    */
   readonly vision?: boolean | undefined
+  /** Selected model's effective supportsStrictTools; absent stays off. */
+  readonly supportsStrictTools?: boolean | undefined
 }
 
 /**
@@ -313,7 +316,7 @@ export function createResponsesCodec(quirks: ResponsesCodecQuirks): ResponsesWir
         model: body.model,
         input: mapped,
         instructions: cleanWireText(body.instructions),
-        tools: body.tools,
+        tools: withStrictTools(body.tools, quirks.supportsStrictTools === true),
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,

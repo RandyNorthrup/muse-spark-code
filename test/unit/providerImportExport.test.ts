@@ -6,12 +6,14 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   exportProviders,
   importProviders,
+  parseProvidersDocument,
   previewProvidersImport,
   type ImportPreview,
 } from '../../src/host/providers/importExport'
 import type { AddressPolicy, ProviderEntry } from '../../src/host/providers/providerPorts'
 import { memoryProvidersStore, memorySecrets } from './helpers/fakes'
 import { saveProviderCredential } from '../../src/host/providers/credentialRecords'
+import { providerEntrySchema } from '../../src/core/providers/providersFile'
 
 const OPENROUTER: ProviderEntry = {
   id: 'openrouter',
@@ -46,6 +48,21 @@ const POLICY: AddressPolicy = {
 
 const memoryStore = memoryProvidersStore
 
+const CUSTOM = {
+  id: 'custom',
+  preset: 'custom',
+  address: 'https://custom.example/v1',
+  auth: 'none' as const,
+  format: 'chat' as const,
+  models: ['m'],
+  modelLimits: { m: { contextTokens: 8192, outputTokens: 1024 } },
+  compat: {
+    toolChoice: 'omit' as const,
+    outputCapParam: 'max_tokens' as const,
+    supportsStrictTools: true,
+  },
+}
+
 /** Every key anywhere in a parsed export that would carry a credential. */
 function credentialKeys(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -59,6 +76,19 @@ function credentialKeys(value: unknown): string[] {
 }
 
 describe('exportProviders', () => {
+  it('preserves custom compat through export and confirmed re-import (F3)', async () => {
+    expect(providerEntrySchema.parse(CUSTOM)).toEqual(CUSTOM)
+    const exported = await exportProviders(memoryStore([CUSTOM]))
+    expect(JSON.parse(exported)).toEqual({ v: 1, providers: [CUSTOM] })
+    const target = memoryStore()
+    await importProviders(
+      { store: target, policy: POLICY, confirm: () => Promise.resolve(true) },
+      exported,
+    )
+    expect(target.current).toEqual([CUSTOM])
+    expect(providerEntrySchema.parse(target.current[0])).toEqual(CUSTOM)
+  })
+
   it('round-trips canonical provider options and the default model', async () => {
     const entry: ProviderEntry = {
       ...OPENROUTER,
@@ -103,6 +133,25 @@ describe('exportProviders', () => {
 })
 
 describe('previewProvidersImport', () => {
+  it('preserves direct-import compat and previews compat-only edits (F3)', () => {
+    const document = { v: 1, providers: [CUSTOM] }
+    expect(parseProvidersDocument(document).providers).toEqual([CUSTOM])
+    const changed = { ...CUSTOM, compat: { ...CUSTOM.compat, toolChoice: 'auto' as const } }
+    expect(
+      previewProvidersImport([CUSTOM], JSON.stringify({ v: 1, providers: [changed] }), POLICY).rows,
+    ).toEqual([{ change: 'changed', entry: changed, needsKey: false, address: { kind: 'ok' } }])
+  })
+
+  it('refuses malformed compat and compat on a fixed preset (F3)', () => {
+    for (const entry of [
+      { ...CUSTOM, compat: { toolChoice: 'bad' } },
+      { ...CUSTOM, compat: { typo: true } },
+      { ...OPENROUTER, compat: CUSTOM.compat },
+    ]) {
+      expect(() => parseProvidersDocument({ v: 1, providers: [entry] })).toThrow()
+    }
+  })
+
   it('diffs an import entry by entry, each needing its key', () => {
     const changed: ProviderEntry = { ...OPENROUTER, models: ['other/model'] }
     const preview = previewProvidersImport(

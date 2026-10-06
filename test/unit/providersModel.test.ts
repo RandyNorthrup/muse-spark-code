@@ -24,6 +24,7 @@ import {
   reserveWorstCaseUsd,
   resolvePriceCard,
   settleUsageUsd,
+  splitCacheWrites,
   ticksToUsdPerToken,
   type ModelPricing,
   type PriceCard,
@@ -235,5 +236,134 @@ describe('priceCard', () => {
     expect(isValidUsage({ inputTokens: 1, outputTokens: -1 })).toBe(false)
     expect(isValidUsage({ inputTokens: 1, cachedTokens: 2, outputTokens: 0 })).toBe(false)
     expect(isValidUsage({ inputTokens: 2, cachedTokens: 2, outputTokens: 0 })).toBe(true)
+  })
+
+  it('splits 1-hour writes out of written tokens and validates the subset', () => {
+    expect(
+      splitCacheWrites({ inputTokens: 1000, cacheWriteTokens: 1000, outputTokens: 0 }),
+    ).toEqual({ standard: 1000, oneHour: 0 })
+    expect(
+      splitCacheWrites({
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWrite1hTokens: 400,
+        outputTokens: 0,
+      }),
+    ).toEqual({ standard: 600, oneHour: 400 })
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWrite1hTokens: 400,
+        outputTokens: 0,
+      }),
+    ).toBe(true)
+    // The 1-hour-written can never exceed the written it is part of.
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWrite1hTokens: 401,
+        outputTokens: 0,
+      }),
+    ).toBe(false)
+    expect(isValidUsage({ inputTokens: 1000, cacheWrite1hTokens: 1, outputTokens: 0 })).toBe(false)
+  })
+
+  it('settles 5-minute and 1-hour writes disjointly at their own rates (F5)', () => {
+    const hourly: PriceCard = { ...card, cacheWrite1h: 2 * (card.cacheWrite ?? 0) }
+    // A 100%-1h write settles at the 1 h price, not the 5-minute one.
+    expect(
+      settleUsageUsd(hourly, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWrite1hTokens: 1000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(1000 * (hourly.cacheWrite1h ?? 0), 12)
+    expect(
+      settleUsageUsd(hourly, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWrite1hTokens: 400,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(600 * (card.cacheWrite ?? 0) + 400 * (hourly.cacheWrite1h ?? 0), 12)
+    // A 1 h claim past the written total leaves the cost unknown.
+    expect(
+      settleUsageUsd(hourly, {
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWrite1hTokens: 401,
+        outputTokens: 0,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('applies long-context tiers to cached reads and writes too', () => {
+    const cacheTiered: PriceCard = {
+      ...tiered,
+      longContextTier: {
+        fromTokens: 200_000,
+        input: 4e-6,
+        output: 16e-6,
+        cachedInput: 4e-7,
+        cacheWrite: 5e-6,
+        cacheWrite1h: 10e-6,
+      },
+    }
+    const usage = {
+      inputTokens: 300_000,
+      cachedTokens: 100_000,
+      cacheWriteTokens: 100_000,
+      cacheWrite1hTokens: 50_000,
+      outputTokens: 0,
+    }
+    expect(settleUsageUsd(cacheTiered, usage)).toBeCloseTo(
+      100_000 * 4e-6 + 100_000 * 4e-7 + 50_000 * 5e-6 + 50_000 * 10e-6,
+      12,
+    )
+    // Below the tier the card's own cache rates still price the same usage.
+    expect(
+      settleUsageUsd(cacheTiered, { ...usage, inputTokens: 199_999, cachedTokens: 0 }),
+    ).toBeCloseTo(99_999 * 2e-6 + 50_000 * 2.5e-6 + 50_000 * 2.5e-6, 12)
+    // A tier cache rate that is not finite or is negative invalidates the card.
+    expect(
+      isValidPriceCard({
+        ...tiered,
+        longContextTier: { fromTokens: 200_000, input: 4e-6, output: 16e-6, cachedInput: -1 },
+      }),
+    ).toBe(false)
+  })
+
+  it('reserves cold writes at the dearest applicable write price', () => {
+    const hourly: PriceCard = { ...card, cacheWrite1h: 5e-6 }
+    expect(
+      reserveRequestUsd(hourly, { inputTokens: 1000, cacheWriteTokens: 1000, outputTokens: 0 }),
+    ).toBeCloseTo(1000 * card.input + 1000 * (5e-6 - card.input), 12)
+    // The tier's dearer write rates bind only where the estimate reaches it.
+    const cacheTiered: PriceCard = {
+      ...tiered,
+      longContextTier: {
+        fromTokens: 200_000,
+        input: 4e-6,
+        output: 16e-6,
+        cacheWrite1h: 10e-6,
+      },
+    }
+    expect(
+      reserveRequestUsd(cacheTiered, {
+        inputTokens: 300_000,
+        cacheWriteTokens: 100_000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(300_000 * 4e-6 + 100_000 * (10e-6 - 4e-6), 12)
+    expect(
+      reserveRequestUsd(cacheTiered, {
+        inputTokens: 100_000,
+        cacheWriteTokens: 100_000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(100_000 * card.input + 100_000 * ((card.cacheWrite ?? 0) - card.input), 12)
   })
 })

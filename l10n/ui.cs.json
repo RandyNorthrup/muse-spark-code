@@ -1007,6 +1007,7 @@
   "allowSessionPrefix": "Vždy povolit v této relaci:",
   "reject": "Odmítnout",
   "modelApiStalled": "Model API neposlalo nic po dobu {seconds} s, proto byla odpověď ukončena; pro opakování odešlete zprávu znovu",
+  "modelApiRetryAfterTooLong": "Poskytovatel požádal o čekání {wait} s před opakováním, což je nad limit {cap} s, takže požadavek nebyl opakován.",
   "queuedTurnDropped": "Neodesláno: tlačítko Zastavit vymazalo zprávy ve frontě",
   "compactionStopped": "komprimace byla zastavena",
   "compactionStoppedNotice": "Komprimace zastavena; konverzace zůstává beze změny.",
@@ -2790,7 +2791,8 @@
       "id": "ID poskytovatele, nikdy \"meta\"",
       "modelRef": "Odkaz na model",
       "outputCap": "Limit výstupu překračuje kontextové okno",
-      "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu"
+      "customLimits": "Vlastní modely vyžadují kontextová okna a limity výstupu",
+      "compat": "Možnosti kompatibility platí pouze pro vlastní server"
     },
     "descriptions": {
       "openai": "OpenAI Responses API s modely GPT",

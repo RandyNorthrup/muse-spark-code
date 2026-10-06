@@ -914,6 +914,7 @@
   "allowSessionPrefix": "このセッションでは常に許可:",
   "reject": "拒否",
   "modelApiStalled": "Model API から {seconds} 秒間何も送られてこなかったため、応答を終了しました。再試行するにはメッセージをもう一度送信してください",
+  "modelApiRetryAfterTooLong": "プロバイダーが再試行の前に {wait} 秒の待機を求めましたが、上限の {cap} 秒を超えているため、要求は再試行されませんでした。",
   "queuedTurnDropped": "未送信: 停止によりキュー内のメッセージがクリアされました",
   "compactionStopped": "圧縮は停止されました",
   "compactionStoppedNotice": "圧縮を停止しました。会話は元のままです。",
@@ -2496,7 +2497,8 @@
       "id": "プロバイダーID。「meta」は使用できません",
       "modelRef": "モデル参照",
       "outputCap": "出力上限がコンテキストウィンドウを超えています",
-      "customLimits": "カスタムモデルにはコンテキストウィンドウと出力上限が必要です"
+      "customLimits": "カスタムモデルにはコンテキストウィンドウと出力上限が必要です",
+      "compat": "互換性オプションはカスタムサーバーにのみ適用されます"
     },
     "descriptions": {
       "openai": "GPTモデルを利用するOpenAI Responses API",

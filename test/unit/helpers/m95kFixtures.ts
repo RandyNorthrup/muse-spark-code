@@ -211,7 +211,8 @@ export function testProvidersHost(parts: TestHostParts = {}): {
       Promise.resolve({
         bindHost: '127.0.0.1',
         redirectUri: 'http://127.0.0.1:9/callback',
-        waitForCode: () => Promise.resolve('fixture-code'),
+        waitForCode: () =>
+          Promise.resolve({ code: 'fixture-code', params: { code: 'fixture-code' } }),
         close: () => undefined,
       }),
     loopbackFetch: () => Promise.reject(new Error('no network in this test')),

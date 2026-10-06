@@ -914,6 +914,7 @@
   "allowSessionPrefix": "이 세션에서 항상 허용:",
   "reject": "거부",
   "modelApiStalled": "Model API에서 {seconds}초 동안 아무것도 보내지 않아 응답을 종료했습니다. 다시 시도하려면 메시지를 다시 보내세요",
+  "modelApiRetryAfterTooLong": "제공업체가 다시 시도하기 전에 {wait}초를 기다리라고 요청했지만, {cap}초 제한을 초과하므로 요청을 다시 시도하지 않았습니다.",
   "queuedTurnDropped": "전송되지 않음: 중지로 인해 대기 중인 메시지가 지워졌습니다",
   "compactionStopped": "압축이 중지되었습니다",
   "compactionStoppedNotice": "압축이 중지되었습니다. 대화는 이전 상태 그대로입니다.",
@@ -2496,7 +2497,8 @@
       "id": "공급자 ID이며 \"meta\"는 사용할 수 없습니다",
       "modelRef": "모델 참조",
       "outputCap": "출력 한도가 컨텍스트 창을 초과합니다",
-      "customLimits": "사용자 지정 모델에는 컨텍스트 창과 출력 한도가 필요합니다"
+      "customLimits": "사용자 지정 모델에는 컨텍스트 창과 출력 한도가 필요합니다",
+      "compat": "호환성 옵션은 사용자 지정 서버에만 적용됩니다"
     },
     "descriptions": {
       "openai": "GPT 모델을 사용하는 OpenAI Responses API",

@@ -12,7 +12,8 @@
 
 import { ZAI_KEY_PATTERN } from '../../shared/constants'
 import { fill, UI_TEXT } from '../../shared/l10n/text'
-import type { ProviderFormat } from './providersFile'
+import { RETRY_TABLES, type RetryTables } from '../../shared/retryPolicy'
+import type { CustomCompat, ProviderFormat } from './providersFile'
 
 /** The panel's filter chips (D74): Cloud, On this computer, Aggregator. */
 export type PresetCategory = 'cloud' | 'local' | 'aggregator' | 'custom'
@@ -107,6 +108,18 @@ export interface FormatQuirks {
   readonly neverSendEmptyTools: true
   /** Compaction keeps the turn's tools with `tool_choice: auto`. */
   readonly keepToolsWithHistory: true
+  /**
+   * Retry classification per format (M101 BYO 5): the shared retry tables,
+   * so every provider retries its own failures and never its quota.
+   */
+  readonly retry: RetryTables
+  /**
+   * The server takes `strict: true` tool schemas (M101 item 24): OpenAI
+   * and Azure's constrained decoding. Off everywhere else until a wire
+   * capture proves it, including llama.cpp (its grammar limit bounds what
+   * converts) and Meta (the canonical body keeps `strict: false`).
+   */
+  readonly supportsStrictTools: boolean
 }
 
 /** The five formats' defaults; presets override per provider. */
@@ -125,6 +138,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     ],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.responses,
+    supportsStrictTools: false,
   },
   chat: {
     outputCapParam: 'max_completion_tokens',
@@ -137,6 +152,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['prompt_tokens_details.cached_tokens'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.chat,
+    supportsStrictTools: false,
   },
   anthropic: {
     outputCapParam: 'max_tokens',
@@ -149,6 +166,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['cache_read_input_tokens', 'cache_creation_input_tokens'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.anthropic,
+    supportsStrictTools: false,
   },
   gemini: {
     outputCapParam: 'maxOutputTokens',
@@ -161,6 +180,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['cachedContentTokenCount'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.gemini,
+    supportsStrictTools: false,
   },
   ollama: {
     outputCapParam: 'num_predict',
@@ -173,6 +194,8 @@ export const FORMAT_QUIRKS: Record<ProviderFormat, FormatQuirks> = {
     cachedUsageFields: ['prompt_eval_cached_count'],
     neverSendEmptyTools: true,
     keepToolsWithHistory: true,
+    retry: RETRY_TABLES.ollama,
+    supportsStrictTools: false,
   },
 }
 
@@ -207,6 +230,39 @@ export function quirksOf(preset: ProviderPreset): FormatQuirks {
   return { ...FORMAT_QUIRKS[preset.format], ...preset.quirks }
 }
 
+/**
+ * A custom server's effective quirks (M101 BYO 14): its chosen format's
+ * defaults plus its stored compatibility overrides. Presets keep their own
+ * quirks; overrides ride only on `custom` entries. Each override applies
+ * only when set: the schema types an absent override as undefined, and an
+ * undefined must never blank a required quirk.
+ */
+export function customQuirksFor(
+  format: ProviderFormat,
+  compat: CustomCompat | undefined,
+): FormatQuirks {
+  if (compat === undefined) {
+    return { ...FORMAT_QUIRKS[format] }
+  }
+  return {
+    ...FORMAT_QUIRKS[format],
+    ...(compat.outputCapParam !== undefined && { outputCapParam: compat.outputCapParam }),
+    ...(compat.toolChoice !== undefined && { toolChoice: compat.toolChoice }),
+    ...(compat.sendsParallelToolCalls !== undefined && {
+      sendsParallelToolCalls: compat.sendsParallelToolCalls,
+    }),
+    ...(compat.reasoningField !== undefined && { reasoningField: compat.reasoningField }),
+    ...(compat.reasoningReplay !== undefined && { reasoningReplay: compat.reasoningReplay }),
+    ...(compat.usageOnFinishChunk !== undefined && {
+      usageOnFinishChunk: compat.usageOnFinishChunk,
+    }),
+    ...(compat.usageNeedsOptIn !== undefined && { usageNeedsOptIn: compat.usageNeedsOptIn }),
+    ...(compat.supportsStrictTools !== undefined && {
+      supportsStrictTools: compat.supportsStrictTools,
+    }),
+  }
+}
+
 // The presets. Origins, headers, key shapes, key tests and quirks are from
 // the research (`docs/certification/m95-research.md`) and the live captures
 // (`docs/certification/m95-captures.md`, 2026-10-04). A preset without its
@@ -231,7 +287,12 @@ const OPENAI_PRESET: ProviderPreset = {
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
-  quirks: {},
+  quirks: {
+    // OpenAI's documented retryable envelope error, past the format's statuses.
+    retry: { ...RETRY_TABLES.responses, errorKinds: ['server_error'] },
+    // OpenAI's constrained decoding takes strict tool schemas.
+    supportsStrictTools: true,
+  },
   wireCapture: true,
 }
 
@@ -252,7 +313,10 @@ const AZURE_PRESET: ProviderPreset = {
   },
   keyTest: { kind: 'paid-token' },
   modelsList: { path: '/openai/v1/models', priceSource: 'catalogue' },
-  quirks: {},
+  quirks: {
+    // Azure OpenAI's constrained decoding takes strict tool schemas.
+    supportsStrictTools: true,
+  },
   wireCapture: false,
 }
 

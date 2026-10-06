@@ -1716,8 +1716,9 @@ export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number]
 // dev.meta.ai/docs/error-handling: 429 and the server errors are retryable
 // with exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
 // A 504 is not: the guide says to stream instead, which every long request
-// here already does.
-export const MODEL_API_RETRYABLE_STATUSES: ReadonlySet<number> = new Set([429, 500, 502, 503])
+// here already does. The per-format status tables moved into the shared
+// retry policy (M101 BYO 5); the providers bundle carries them in
+// `FormatQuirks`.
 // A stream that ends with an `error` event of these codes (the instance shut
 // down or was overloaded mid-reply) is retried whole, as the guide says.
 export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
@@ -1744,6 +1745,19 @@ export const BOUNDED_FILE_READ_CHUNK_BYTES = 64 * 1024
 export const HTTP_UNAUTHORIZED = 401
 // Refused before any work was done: the one status a per-call-billed request retries (M34).
 export const HTTP_TOO_MANY_REQUESTS = 429
+// Shared per-format retry policy (M101 BYO 5).
+export const PROVIDER_RETRY_AFTER_CAP_MS = 60_000
+export const PROVIDER_RETRY_HTTP_STATUS = {
+  paymentRequired: 402,
+  requestTimeout: 408,
+  conflict: 409,
+  tooManyRequests: HTTP_TOO_MANY_REQUESTS,
+  internalServerError: 500,
+  badGateway: 502,
+  serviceUnavailable: 503,
+  gatewayTimeout: 504,
+  overloaded: 529,
+} as const
 // A request that never reached Meta (M56, PLAN.md D43), read from the causes
 // under fetch's "fetch failed", as Node 24 throws them (captured 2026-09-25,
 // docs/certification/m56.md). Node's verification codes for a certificate
@@ -1788,6 +1802,15 @@ export const CONTEXT_PRESSURE_MEDIUM = 0.7
 export const CONTEXT_PRESSURE_HIGH = 0.9
 // A turn stops after this many model calls (tool rounds) to bound a loop.
 export const MODEL_API_MAX_TOOL_ROUNDS = 50
+// Tool parameter schemas convert to a constrained-decoding grammar on
+// servers that take one (llama.cpp, SoL-Pi #59/#65; M101 item 24): nested
+// past this, a schema trips the check. Past the current toolset's nesting
+// (ask_user's selection mode is the deepest), deeper is a tripwire, not a
+// grammar proof. The byte budget beside it is a regression tripwire on the
+// emitted toolset's size, not the upstream grammar limit, which stays a
+// residual until a live capture names it.
+export const TOOL_SCHEMA_MAX_DEPTH = 12
+export const TOOL_SCHEMA_JSON_BUDGET_BYTES = 32_768
 // The in-process tools (Claude Code's set, MSP's names where they exist so
 // the transcript rows render identically).
 export const MODEL_API_TOOLS = {

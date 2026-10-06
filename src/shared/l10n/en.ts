@@ -1575,6 +1575,10 @@ export const EN = {
   reject: 'Reject',
   modelApiStalled:
     'The Model API sent nothing for {seconds} s, so the reply was ended; send the message again to retry',
+  // {wait}: the Retry-After the provider asked for, in seconds; {cap}: the
+  // wait past which a request fails at once instead of waiting it out.
+  modelApiRetryAfterTooLong:
+    'The provider asked to wait {wait} s before retrying, past the {cap} s limit, so the request was not retried.',
   queuedTurnDropped: 'Not sent: Stop cleared the queued messages',
   compactionStopped: 'the compaction was stopped',
   compactionEmpty: 'The summary was empty; the conversation is unchanged.',
@@ -3275,6 +3279,7 @@ export const EN = {
       modelRef: 'A model reference',
       outputCap: 'Output cap exceeds context window',
       customLimits: 'Custom models require context windows and output caps',
+      compat: 'Compatibility overrides apply only to a custom server',
     },
     descriptions: {
       openai: 'OpenAI Responses API with GPT models',

@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import {
   azureOrigin,
   buildOpenRouterAuthUrl,
+  customQuirksFor,
   listedPresets,
   OPENROUTER_ATTRIBUTION,
   OPENROUTER_PRIVACY_CHOICES,
@@ -140,7 +141,13 @@ describe('the preset table', () => {
   })
 
   it('reads quirks from the preset over its format defaults', () => {
-    expect(quirksOf(preset('openai'))).toEqual(FORMAT_QUIRKS.responses)
+    // M101 BYO 5: OpenAI adds its documented server_error past the responses table.
+    // M101 item 24: OpenAI takes strict tool schemas.
+    expect(quirksOf(preset('openai'))).toEqual({
+      ...FORMAT_QUIRKS.responses,
+      retry: { ...FORMAT_QUIRKS.responses.retry, errorKinds: ['server_error'] },
+      supportsStrictTools: true,
+    })
     expect(quirksOf(preset('openrouter')).reasoningField).toBe('reasoning_details')
     expect(quirksOf(preset('deepseek')).reasoningField).toBe('reasoning_content')
     expect(quirksOf(preset('gemini')).reasoningField).toBe('thoughtSignature')
@@ -151,6 +158,39 @@ describe('the preset table', () => {
       expect(quirksOf(candidate).neverSendEmptyTools).toBe(true)
       expect(quirksOf(candidate).keepToolsWithHistory).toBe(true)
     }
+  })
+
+  it('resolves custom-server quirks from format defaults plus compat (M101 BYO 14)', () => {
+    expect(customQuirksFor('chat', undefined)).toEqual(FORMAT_QUIRKS.chat)
+    expect(
+      customQuirksFor('chat', {
+        toolChoice: 'string-only',
+        sendsParallelToolCalls: false,
+        outputCapParam: 'max_tokens',
+      }),
+    ).toEqual({
+      ...FORMAT_QUIRKS.chat,
+      toolChoice: 'string-only',
+      sendsParallelToolCalls: false,
+      outputCapParam: 'max_tokens',
+    })
+    // Overrides never leak across servers: a bare custom server keeps Zed's defaults.
+    expect(customQuirksFor('chat', undefined).sendsParallelToolCalls).toBe(
+      FORMAT_QUIRKS.chat.sendsParallelToolCalls,
+    )
+    // An explicitly-unset override never blanks a required quirk.
+    expect(customQuirksFor('chat', { toolChoice: undefined })).toEqual(FORMAT_QUIRKS.chat)
+  })
+
+  it('gates strict tool schemas per capable server (M101 item 24)', () => {
+    expect(quirksOf(preset('openai')).supportsStrictTools).toBe(true)
+    expect(quirksOf(preset('azure')).supportsStrictTools).toBe(true)
+    for (const id of ['xai', 'anthropic', 'gemini', 'openrouter', 'ollama', 'llamacpp', 'custom']) {
+      expect(quirksOf(preset(id)).supportsStrictTools).toBe(false)
+    }
+    // A custom server claims it only through its compatibility overrides.
+    expect(customQuirksFor('chat', { supportsStrictTools: true }).supportsStrictTools).toBe(true)
+    expect(customQuirksFor('chat', undefined).supportsStrictTools).toBe(false)
   })
 
   it('builds Azure origins from resource names only', () => {

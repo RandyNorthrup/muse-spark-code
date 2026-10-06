@@ -976,6 +976,7 @@
   "allowSessionPrefix": "Sempre permitir nesta sessão:",
   "reject": "Rejeitar",
   "modelApiStalled": "A Model API não enviou nada por {seconds} s, então a resposta foi encerrada; envie a mensagem novamente para tentar de novo",
+  "modelApiRetryAfterTooLong": "O provedor pediu para aguardar {wait} s antes de tentar de novo, acima do limite de {cap} s, então a solicitação não foi repetida.",
   "queuedTurnDropped": "Não enviada: Parar limpou as mensagens da fila",
   "compactionStopped": "a compactação foi interrompida",
   "compactionStoppedNotice": "Compactação interrompida; a conversa está como estava.",
@@ -2692,7 +2693,8 @@
       "id": "Um identificador de provedor, nunca \"meta\"",
       "modelRef": "Uma referência de modelo",
       "outputCap": "O limite de saída ultrapassa a janela de contexto",
-      "customLimits": "Modelos personalizados exigem janelas de contexto e limites de saída"
+      "customLimits": "Modelos personalizados exigem janelas de contexto e limites de saída",
+      "compat": "As opções de compatibilidade valem apenas para um servidor personalizado"
     },
     "descriptions": {
       "openai": "API Responses da OpenAI com modelos GPT",

@@ -945,6 +945,7 @@
   "allowSessionPrefix": "Mindig engedélyezve ebben a munkamenetben:",
   "reject": "Elutasítás",
   "modelApiStalled": "A Model API {seconds} mp-ig semmit sem küldött, ezért a válasz lezárult; az újrapróbáláshoz küldje el ismét az üzenetet",
+  "modelApiRetryAfterTooLong": "A szolgáltató {wait} mp várakozást kért az újrapróbálkozás előtt, ami meghaladja a {cap} mp-es korlátot, ezért a kérés nem lett újrapróbálva.",
   "queuedTurnDropped": "Nincs elküldve: a Leállítás törölte a sorba állított üzeneteket",
   "compactionStopped": "a tömörítés leállt",
   "compactionStoppedNotice": "A tömörítés leállt; a beszélgetés változatlan.",
@@ -2594,7 +2595,8 @@
       "id": "Szolgáltatóazonosító, soha nem \"meta\"",
       "modelRef": "Modellhivatkozás",
       "outputCap": "A kimeneti korlát meghaladja a kontextusablakot",
-      "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges"
+      "customLimits": "Az egyéni modellekhez kontextusablak és kimeneti korlát szükséges",
+      "compat": "A kompatibilitási beállítások csak egyéni kiszolgálóra vonatkoznak"
     },
     "descriptions": {
       "openai": "OpenAI Responses API GPT-modellekkel",

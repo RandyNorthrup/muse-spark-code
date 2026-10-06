@@ -976,6 +976,7 @@
   "allowSessionPrefix": "Consenti sempre in questa sessione:",
   "reject": "Rifiuta",
   "modelApiStalled": "La Model API non ha inviato nulla per {seconds} s, quindi la risposta è stata terminata; invia di nuovo il messaggio per riprovare",
+  "modelApiRetryAfterTooLong": "Il provider ha chiesto di attendere {wait} s prima di riprovare, oltre il limite di {cap} s, quindi la richiesta non è stata ripetuta.",
   "queuedTurnDropped": "Non inviato: Arresta ha svuotato i messaggi in coda",
   "compactionStopped": "la compattazione è stata interrotta",
   "compactionStoppedNotice": "Compattazione interrotta; la conversazione è invariata.",
@@ -2692,7 +2693,8 @@
       "id": "Un identificativo del fornitore, mai \"meta\"",
       "modelRef": "Un riferimento al modello",
       "outputCap": "Il limite di output supera la finestra di contesto",
-      "customLimits": "I modelli personalizzati richiedono finestre di contesto e limiti di output"
+      "customLimits": "I modelli personalizzati richiedono finestre di contesto e limiti di output",
+      "compat": "Le opzioni di compatibilità valgono solo per un server personalizzato"
     },
     "descriptions": {
       "openai": "API Responses di OpenAI con modelli GPT",

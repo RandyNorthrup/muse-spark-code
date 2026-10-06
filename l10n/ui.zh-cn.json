@@ -914,6 +914,7 @@
   "allowSessionPrefix": "在此会话中始终允许：",
   "reject": "拒绝",
   "modelApiStalled": "Model API 在 {seconds} 秒内没有发送任何内容，因此回复已结束；请再次发送消息以重试",
+  "modelApiRetryAfterTooLong": "提供商要求在重试前等待 {wait} 秒，超过了 {cap} 秒的上限，因此未重试该请求。",
   "queuedTurnDropped": "未发送：“停止”清除了排队的消息",
   "compactionStopped": "压缩已停止",
   "compactionStoppedNotice": "压缩已停止；对话保持原样。",
@@ -2496,7 +2497,8 @@
       "id": "提供商 ID，不能是 \"meta\"",
       "modelRef": "模型引用",
       "outputCap": "输出上限超过上下文窗口",
-      "customLimits": "自定义模型需要上下文窗口和输出上限"
+      "customLimits": "自定义模型需要上下文窗口和输出上限",
+      "compat": "兼容性选项仅适用于自定义服务器"
     },
     "descriptions": {
       "openai": "使用 GPT 模型的 OpenAI Responses API",
