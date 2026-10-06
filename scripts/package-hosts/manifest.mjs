@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 
@@ -51,7 +51,7 @@ export function inside(root, name) {
 export function hostManifest(root, host) {
   if (!Object.hasOwn(HOSTS, host)) throw new Error('MHP_UNKNOWN_HOST')
   const directory = path.join(root, 'hosts', host)
-  if (!existsSync(directory))
+  if (!lstatSync(directory, { throwIfNoEntry: false }))
     return { host, outcome: 'skipped-host-absent', reason: `hosts/${host} is absent` }
   const source = inside(root, path.join('hosts', host))
   if (!statSync(source).isDirectory()) throw new Error('MHP_HOST_NOT_DIRECTORY')

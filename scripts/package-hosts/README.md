@@ -64,3 +64,35 @@ The frozen method-table and panel-carrier tests run alongside the runner tests.
 
 See `docs/certification/m104-i.md` for executed commands, drills, absent hosts
 and the integration handoff for lane J's root documentation.
+
+The local readiness checks are:
+
+```sh
+npm run check:mhp
+npm run test:host-api
+npm run check:host-conformance
+npm run package:host -- jetbrains
+```
+
+The test command runs distribution guards and both frozen MHP suites in groups
+of at most three files. Packaging requires the production ACP staging tree;
+an absent folder is explicitly reported and produces no native artifact.
+
+Signing and publishing use optional injected commands. The release helpers
+validate the host, product version, source tree, complete inventory and every
+SHA-256 before a channel command runs. Missing secrets and registries are
+named; missing certificate/key pairs fail, and passwords are optional for
+unencrypted signing material. Xcode without Developer ID and
+notarization credentials is marked `unsigned-local-only`. Channel commands
+receive only their own supplied credentials, and their captured output never
+reaches the log. Recovery consumes previously signed bytes without re-signing.
+
+The native publish job also downloads the archive and receipt from the tagged
+GitHub Release and compares their bytes before dispatching the registry command.
+Missing attachments fail before registry publication. The existing release job
+still needs the lane-I asset staging helper wired into its downloads, checksum
+and upload inventory; that change is outside the assigned "new jobs after npm"
+region and is pending scope approval. The official Node pin manifest is also
+pending permission to read nodejs.org's checksum list (shared rules currently
+prohibit that network call). Neither native release readiness nor per-editor
+qualification is claimed until those integration requirements are satisfied.

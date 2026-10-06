@@ -1027,7 +1027,7 @@
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
     "check:mhp": "node scripts/mhp-schema.mjs --check",
-    "test:host-api": "vitest run --config test/hostApi/vitest.config.mjs",
+    "test:host-api": "vitest run --config test/hostApi/vitest.config.mjs test/hostApi --maxWorkers=3 --testTimeout=120000 && vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3 --testTimeout=120000",
     "check:host-conformance": "node test/hostApi/run.mjs",
     "package:host": "node scripts/package-hosts/package.mjs"
   },

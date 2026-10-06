@@ -74,7 +74,7 @@ jobs:
           node-version: 22
       - run: npm ci --ignore-scripts --no-audit
       - run: node scripts/mhp-schema.mjs --check
-      - run: npx --no-install vitest run --config test/hostApi/vitest.config.mjs
+      - run: npm run test:host-api
 
   host:
     name: ${{ matrix.host }} native build and conformance
@@ -97,7 +97,7 @@ jobs:
         env:
           HOST_ID: ${{ matrix.host }}
         run: |
-          if [ -d "hosts/$HOST_ID" ]; then
+          if [ -e "hosts/$HOST_ID" ] || [ -L "hosts/$HOST_ID" ]; then
             echo 'present=true' >> "$GITHUB_OUTPUT"
           else
             echo 'present=false' >> "$GITHUB_OUTPUT"

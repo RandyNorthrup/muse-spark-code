@@ -6,6 +6,7 @@ import {
   cpSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -20,6 +21,7 @@ export function packageHost(root, host, run = execFileSync) {
   const { directory, manifest } = found
   const stage = path.join(root, 'dist', 'hosts', host)
   const runtime = path.join(stage, 'runtime')
+  rmSync(stage, { recursive: true, force: true })
   mkdirSync(runtime, { recursive: true })
   // Consume the production npm staging tree, including native keyring dependencies.
   // Never install, copy from a shared node_modules, or manufacture a runtime here.

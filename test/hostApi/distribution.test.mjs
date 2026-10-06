@@ -1,4 +1,12 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -60,12 +68,27 @@ describe('native distribution guards', () => {
     rmSync(path.join(directory, 'distribution.json'))
     expect(() => hostManifest(fixture.root, 'jetbrains')).toThrow()
   })
+  it('refuses a host path that is a file rather than an adapter folder', () => {
+    mkdirSync(path.join(fixture.root, 'hosts'))
+    writeFileSync(path.join(fixture.root, 'hosts', 'jetbrains'), 'not a folder')
+    expect(() => hostManifest(fixture.root, 'jetbrains')).toThrow('MHP_HOST_NOT_DIRECTORY')
+  })
+  it('fails a broken host symlink instead of reporting an absent-folder skip', () => {
+    mkdirSync(path.join(fixture.root, 'hosts'))
+    symlinkSync(
+      path.join(fixture.root, 'missing-adapter'),
+      path.join(fixture.root, 'hosts', 'jetbrains'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    expect(() => hostManifest(fixture.root, 'jetbrains')).toThrow()
+  })
   it('rejects unknown hosts, unsafe artifact paths and incompatible protocols', () => {
     expect(() => hostManifest(fixture.root, 'typo')).toThrow('MHP_UNKNOWN_HOST')
     for (const artifacts of [['../escape.zip'], ['/absolute.zip'], [String.raw`C:\escape.zip`], []])
       expect(distributionSchema.safeParse({ ...manifest, artifacts }).success).toBe(false)
     expect(distributionSchema.safeParse({ ...manifest, mhp: '2.x' }).success).toBe(false)
     expect(distributionSchema.safeParse({ ...manifest, build: [] }).success).toBe(false)
+    expect(distributionSchema.safeParse({ ...manifest, extra: true }).success).toBe(false)
   })
   it('refuses a symlink outside the host tree', () => {
     const directory = host()
@@ -121,6 +144,10 @@ describe('native distribution guards', () => {
       ),
     ).toBe('fixture runtime')
     expect(run.mock.calls[0][2].env.MUSE_MHP_VERSION).toBe('mhp/1.1.0')
+    const stale = path.join(fixture.root, 'dist', 'hosts', 'jetbrains', 'muse-spark-code-old.zip')
+    writeFileSync(stale, 'obsolete build')
+    packageHost(fixture.root, 'jetbrains', run)
+    expect(existsSync(stale)).toBe(false)
     writeFileSync(path.join(directory, 'artifact.zip'), '')
     expect(() =>
       packageHost(
@@ -135,6 +162,34 @@ describe('native distribution guards', () => {
     const run = vi.fn()
     expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow()
     expect(run).not.toHaveBeenCalled()
+  })
+  it('refuses a runtime entry that is a directory before invoking a native command', () => {
+    host()
+    const runtime = path.join(fixture.root, 'dist', 'acp-package')
+    mkdirSync(path.join(runtime, 'dist', 'acp.js'), { recursive: true })
+    for (const name of ['package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
+      writeFileSync(path.join(runtime, name), 'fixture runtime')
+    const run = vi.fn()
+    expect(() => packageHost(fixture.root, 'jetbrains', run)).toThrow('MHP_HOST_RUNTIME_INCOMPLETE')
+    expect(run).not.toHaveBeenCalled()
+  })
+  it('rejects duplicate output names from two native artifacts', () => {
+    const directory = host()
+    writeFileSync(
+      path.join(directory, 'distribution.json'),
+      JSON.stringify({ ...manifest, artifacts: ['artifact.zip', 'nested/artifact.zip'] }),
+    )
+    mkdirSync(path.join(directory, 'nested'))
+    writeFileSync(path.join(directory, 'artifact.zip'), 'archive')
+    writeFileSync(path.join(directory, 'nested', 'artifact.zip'), 'other archive')
+    const runtime = path.join(fixture.root, 'dist', 'acp-package')
+    mkdirSync(path.join(runtime, 'dist'), { recursive: true })
+    for (const name of ['dist/acp.js', 'package.json', 'LICENSE', 'THIRD_PARTY_NOTICES.txt'])
+      writeFileSync(path.join(runtime, name), 'fixture runtime')
+    writeFileSync(path.join(fixture.root, 'package.json'), JSON.stringify({ version: '1.2.3' }))
+    expect(() => packageHost(fixture.root, 'jetbrains', () => '')).toThrow(
+      'MHP_HOST_DUPLICATE_ARTIFACT',
+    )
   })
 })
 
@@ -182,11 +237,26 @@ describe('MHP 1.1 every-host conformance runner', () => {
       (report) => {
         report.protocol = 'mhp/1.0.0'
       },
+      (report) => {
+        report.extra = true
+      },
     ]) {
       const report = fakeReport()
       mutate(report)
       expect(() => validateReport('jetbrains', report)).toThrow()
     }
+  })
+  it('rejects extra results even if all required scenarios are present', () => {
+    const report = fakeReport()
+    report.results.push({ ...report.results[0], scenario: 'extra' })
+    expect(() => validateReport('jetbrains', report)).toThrow('MHP_CONFORMANCE_COUNT')
+  })
+  it('reports duplicate scenario identities with the explicit correlation error', () => {
+    const report = fakeReport()
+    report.results[1] = report.results[0]
+    expect(() => validateReport('jetbrains', report)).toThrow(
+      'MHP_CONFORMANCE_MISSING_OR_DUPLICATE',
+    )
   })
   it.each(contract.scenarios.map((scenario) => scenario.id))(
     'rejects incorrect %s behavior',
