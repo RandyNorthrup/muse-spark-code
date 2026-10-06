@@ -10,7 +10,12 @@ beforeEach(() => {
   vi.resetModules()
   existsSync.mockReturnValue(true)
   readFileSync.mockReturnValue(
-    JSON.stringify({ outputs: { 'dist/webview/main.js': { imports: [] } } }),
+    JSON.stringify({
+      outputs: {
+        'dist/webview/main.js': { imports: [] },
+        'dist/webview/models.js': { imports: [] },
+      },
+    }),
   )
   statSync.mockImplementation((file) => ({
     size: file === CONTENT_FILE ? CONTENT_BUDGET_BYTES : 0,
@@ -25,22 +30,37 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks())
 
 describe('bundled What’s New content budget', () => {
-  it('counts eager chunks against the unchanged startup cap', async () => {
-    readFileSync.mockReturnValue(
-      JSON.stringify({
-        outputs: {
-          'dist/webview/main.js': {
-            imports: [{ path: 'dist/webview/chunks/eager.js', kind: 'import-statement' }],
+  it.each([
+    { root: 'dist/webview/main.js', budget: 900, over: true },
+    { root: 'dist/webview/models.js', budget: 475, over: true },
+    { root: 'dist/webview/models.js', budget: 475, over: false },
+  ])(
+    'counts $root eager chunks at the $budget KiB boundary (over: $over)',
+    async ({ root, budget, over }) => {
+      const other = root.endsWith('main.js') ? 'dist/webview/models.js' : 'dist/webview/main.js'
+      const eager = 'dist/webview/chunks/eager.js'
+      readFileSync.mockReturnValue(
+        JSON.stringify({
+          outputs: {
+            [root]: { imports: [{ path: eager, kind: 'import-statement' }] },
+            [other]: { imports: [] },
+            [eager]: { imports: [] },
           },
-          'dist/webview/chunks/eager.js': { imports: [] },
-        },
-      }),
-    )
-    statSync.mockImplementation((file) => ({
-      size: file.endsWith('eager.js') ? 900 * 1024 + 1 : 0,
-    }))
-    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
-  })
+        }),
+      )
+      statSync.mockImplementation((file) => ({
+        size: file === eager ? budget * 1024 + (over ? 1 : 0) : 0,
+      }))
+      const run = import('../../scripts/check-bundle-size.mjs')
+      if (over) {
+        await expect(run).rejects.toThrow('exit 1')
+        expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`OVER ${root}`))
+      } else {
+        await run
+        expect(process.exit).not.toHaveBeenCalled()
+      }
+    },
+  )
 
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')

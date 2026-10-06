@@ -18054,7 +18054,12 @@ the legacy Model API tariff is known and pricing is not unpriced, local or
 plan. Native settled costs remain in their provider rows. Consolidate the
 reviewer split mutation into the existing parameterized cohort drill and
 reuse the existing fake-host dependency fixture for Gemini; gates and
-assertions remain unchanged or stronger.
+assertions remain unchanged or stronger. Restore the split checker to scan
+every emitted JavaScript file, including browser chunks, against its own
+text and declared readers; do not attribute all browser text to main.js.
+Model the new Models entry point in the existing budget fixtures without
+changing any cap. Replace formatter/linter-conflicting nested ternaries
+with ordinary control flow.
 
 **M95R3 contributor guard repair (2026-10-05).** The release/M95 join
 left a remembered-consent return ahead of the confidential-workspace check
@@ -20910,8 +20915,10 @@ merge/repair commits with unchanged hooks and one final full quality run.
 These preserve reviewable integration work and do not propose a release.
 Copilot's joined factory/host regression remains stopped under the shared
 two-fix rule; acceptance 9 awaits the size-rule clarification in §3. All
-fixed bundle caps stay unchanged; browser startup/deferred overages belong
-to the separately planned batch diet if the joined build still reports them.
+fixed bundle caps stay unchanged. The joined build reports providers
+146.4/125 KiB, browser startup 910.7/900 KiB and deferred browser code
+59.0/50 KiB. The brief assigns the startup diet to a separate batch; the
+provider composition also requires a lazy split before this tree can ship.
 Exact final gate receipts belong in docs/certification/m95-r3.md. No
 assertion, coverage threshold, ignore, deadline or rule is relaxed.
 

@@ -171,12 +171,11 @@ function loadSupportBundle(name: string): unknown {
     { filename: entry },
   )
   Reflect.apply(run, undefined, [
-    (file: string): unknown =>
-      file.startsWith('./') && bundleTexts.has(path.basename(file, '.js'))
-        ? loadSupportBundle(path.basename(file, '.js'))
-        : file === 'vscode'
-          ? {}
-          : createRequire(entry)(file),
+    (file: string): unknown => {
+      if (file.startsWith('./') && bundleTexts.has(path.basename(file, '.js')))
+        return loadSupportBundle(path.basename(file, '.js'))
+      return file === 'vscode' ? {} : createRequire(entry)(file)
+    },
     module,
     module.exports,
     path.dirname(entry),

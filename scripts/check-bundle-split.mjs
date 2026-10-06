@@ -699,7 +699,7 @@ function shippedBundles() {
         const metafile = `${dir}/${name}`
         const { outputs } = JSON.parse(readFileSync(metafile, 'utf8'))
         return Object.keys(outputs)
-          .filter((output) => output.endsWith('.js') && !output.startsWith('dist/webview/chunks/'))
+          .filter((output) => output.endsWith('.js'))
           .map((output) => ({ output, metafile }))
       }),
   )
@@ -835,13 +835,7 @@ function blockKeys(name) {
 const outputText = new Map()
 function textOf(output) {
   if (!outputText.has(output)) {
-    const files =
-      output === 'dist/webview/main.js'
-        ? Object.keys(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs).filter(
-            (file) => file.endsWith('.js'),
-          )
-        : [output]
-    outputText.set(output, files.map((file) => readFileSync(file, 'utf8')).join('\n'))
+    outputText.set(output, readFileSync(output, 'utf8'))
   }
   return outputText.get(output)
 }

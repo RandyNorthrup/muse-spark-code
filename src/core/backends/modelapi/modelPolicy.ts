@@ -158,12 +158,12 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
     ref,
     isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
   )
-  const estimate = (usage: PricedUsage) =>
-    isPlan
-      ? 0
-      : policy.pricing.kind === 'priced'
-        ? estimateCostUsd({ ...usage, cachedTokens: usage.cachedTokens ?? 0 }, ref)
-        : undefined
+  const estimate = (usage: PricedUsage) => {
+    if (isPlan) return 0
+    return policy.pricing.kind === 'priced'
+      ? estimateCostUsd({ ...usage, cachedTokens: usage.cachedTokens ?? 0 }, ref)
+      : undefined
+  }
   return {
     ref,
     client,

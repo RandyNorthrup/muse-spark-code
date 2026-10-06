@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
   release 0.14.0, retaining lazy bundle boundaries and translated strings.
   Keep bundle drills in memory and include the release build inputs and
   provider bundle in private ACP packaging fixtures.
+- Restore model-text split checks over every browser chunk and its own
+  declared readers, retaining all size caps and guard failures.
 - Keep Account & usage open for unpriced models whose usage includes cached
   tokens; show dollar estimates only with a verified Model API tariff.
 - Restore the confidential contributor-model warning before remembered
