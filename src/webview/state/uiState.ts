@@ -1305,13 +1305,15 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         !isCutOff &&
         entry.approval === undefined &&
         entry.question === undefined &&
-        entry.elicitation === undefined
+        entry.elicitation === undefined &&
+        entry.argumentPreview === undefined
       ) {
         return entry
       }
       return {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        argumentPreview: undefined,
         approval: undefined,
         question: undefined,
         elicitation: undefined,

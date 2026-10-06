@@ -89,18 +89,40 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
-  it.each(['GitPanel', 'UsageDialog'])('loads %s only through its dynamic import', (name) => {
-    const source = `src/webview/components/${name}.tsx`
-    const owners = Object.entries(built.outputs).filter(([, output]) =>
+  it.each(['GitPanel', 'UsageDialog', 'ToolArgumentPreview'])(
+    'loads %s only through its dynamic import',
+    (name) => {
+      const source = `src/webview/components/${name}.tsx`
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      const [[output]] = owners
+      expect(initialOutputs().has(output)).toBe(false)
+      expect(built.outputs[output].entryPoint).toBe(source)
+      expect(built.outputs[ENTRY].imports).toContainEqual(
+        expect.objectContaining({ path: output, kind: 'dynamic-import' }),
+      )
+    },
+  )
+
+  it('keeps the substantive preview UI in its lazy chunk', () => {
+    const source = 'src/webview/components/ToolArgumentPreview.tsx'
+    const [file] = Object.entries(built.outputs).find(([, output]) =>
       Object.hasOwn(output.inputs, source),
     )
-    expect(owners).toHaveLength(1)
-    const [[output]] = owners
-    expect(initialOutputs().has(output)).toBe(false)
-    expect(built.outputs[output].entryPoint).toBe(source)
-    expect(built.outputs[ENTRY].imports).toContainEqual(
-      expect.objectContaining({ path: output, kind: 'dynamic-import' }),
-    )
+    const chunk = readFileSync(file, 'utf8')
+    for (const key of [
+      'toolArgumentPreviewLabel',
+      'toolArgumentPreviewPending',
+      'toolArgumentPreviewTruncated',
+    ]) {
+      expect(chunk).toContain(key)
+    }
+    const row = readFileSync('src/webview/components/ToolRow.tsx', 'utf8')
+    expect(row).not.toContain('toolArgumentPreviewLabel')
+    expect(row).not.toContain('toolArgumentPreviewPending')
+    expect(row).not.toContain('toolArgumentPreviewTruncated')
   })
 
   it.each([

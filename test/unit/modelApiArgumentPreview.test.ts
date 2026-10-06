@@ -9,6 +9,7 @@ import {
   type FunctionCallItem,
   outputItemSchema,
   type StreamEvent,
+  streamEventSchema,
 } from '../../src/core/backends/modelapi/schemas'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -17,6 +18,9 @@ import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 import { startWatchedSession } from './helpers/sessionTurns'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import type { AgentEvent } from '../../src/shared/agentEvents'
+import { ArgumentPreview } from '../../src/core/backends/modelapi/argumentPreview'
+import { UpdateTranslator } from '../../src/acp/translate'
+import { TOOL_ARGUMENT_PREVIEW_INTERVAL_MS } from '../../src/shared/constants'
 
 const ROOT = '/ws'
 const WRITE_PROMPT = [{ type: 'text' as const, text: 'write the file' }]
@@ -320,6 +324,122 @@ describe('Model API argument preview admission', () => {
     } finally {
       stream.gate.resolve(undefined)
       await h.host.close()
+    }
+  })
+
+  it.each([
+    [String.raw`{"\u0070assword":"dummy-first\n`, 'dummy-second"}'],
+    [String.raw`{"\u0070ass`, String.raw`word":"dummy-first\"dummy-second"}`],
+    [String.raw`[{"password":"dummy-first\uD83D`, String.raw`\uDE00dummy-second"}]`],
+  ])('keeps decoded sensitive values out of events, history and ACP: %s', async (first, second) => {
+    const h = await setup()
+    const frames = [
+      DELTAS[0],
+      { type: 'response.function_call_arguments.delta', item_id: 'wire-call', delta: first },
+      { type: 'response.function_call_arguments.delta', item_id: 'wire-call', delta: second },
+      {
+        type: 'response.function_call_arguments.done',
+        item_id: 'wire-call',
+        arguments: first + second,
+      },
+    ].map((frame) => streamEventSchema.parse(frame))
+    const stream = controlledStream(h.client, frames)
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      const translator = new UpdateTranslator(ROOT, false)
+      const previews = previewEvents(h.events)
+      expect(previews.at(-1)?.item.argumentPreview.text).toContain('[redacted]')
+      const displayed = JSON.stringify({
+        previews,
+        transcript: h.session.snapshot().transcript,
+        acp: previews.flatMap((event) => translator.updates(event)),
+      })
+      expect(displayed).not.toContain('dummy-first')
+      expect(displayed).not.toContain('dummy-second')
+      await h.session.cancel()
+      stream.gate.resolve(undefined)
+      await done
+    } finally {
+      stream.gate.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
+  it('processes 5,000 tiny deltas in under half a second with coalesced snapshots for both editors', async () => {
+    const h = await setup({ now: () => Date.now() })
+    const snapshots = vi.spyOn(ArgumentPreview.prototype, 'snapshot')
+    const frames: StreamEvent[] = [
+      DELTAS[0]!,
+      {
+        type: 'response.function_call_arguments.delta',
+        item_id: 'wire-call',
+        delta: '{"content":"',
+      },
+      ...Array.from({ length: 5000 }, (): StreamEvent => ({
+        type: 'response.function_call_arguments.delta',
+        item_id: 'wire-call',
+        delta: String.raw`x\n`,
+      })),
+    ]
+    const stream = controlledStream(h.client, frames)
+    const done = h.turnDone()
+    try {
+      const started = performance.now()
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      const elapsed = performance.now() - started
+      expect(elapsed).toBeLessThan(500)
+      const previews = previewEvents(h.events)
+      expect(previews.length).toBeLessThanOrEqual(
+        Math.floor(elapsed / TOOL_ARGUMENT_PREVIEW_INTERVAL_MS) + 1,
+      )
+      expect(snapshots).toHaveBeenCalledTimes(previews.length)
+      const translator = new UpdateTranslator(ROOT, false)
+      expect(previews.flatMap((event) => translator.updates(event))).toHaveLength(previews.length)
+      stream.gate.resolve(undefined)
+      await done
+      expect(previewEvents(h.events).at(-1)?.item.argumentPreview.text).toContain('third')
+      const settled = h.events.length
+      await new Promise((resolve) => setTimeout(resolve, TOOL_ARGUMENT_PREVIEW_INTERVAL_MS * 2))
+      expect(h.events).toHaveLength(settled)
+    } finally {
+      snapshots.mockRestore()
+      stream.gate.resolve(undefined)
+      await h.host.close()
+    }
+  })
+
+  it.each([
+    ['flushes a coalesced preview while streaming and cancels it on interruption', true],
+    ['cancels a queued coalesced preview before interrupt settlement', false],
+  ] as const)('%s', async (_name, isFlushed) => {
+    vi.useFakeTimers()
+    const h = await setup({ now: () => Date.now() })
+    const stream = controlledStream(h.client, DELTAS)
+    const done = h.turnDone()
+    try {
+      await h.session.sendTurn(WRITE_PROMPT)
+      await stream.reached.promise
+      expect(previewEvents(h.events)).toHaveLength(1)
+      if (isFlushed) {
+        await vi.advanceTimersByTimeAsync(TOOL_ARGUMENT_PREVIEW_INTERVAL_MS)
+        expect(previewEvents(h.events).at(-1)?.item.argumentPreview.text).toContain('second')
+      }
+      await h.session.cancel()
+      stream.gate.resolve(undefined)
+      await done
+      const settled = h.events.length
+      await vi.advanceTimersByTimeAsync(TOOL_ARGUMENT_PREVIEW_INTERVAL_MS * 2)
+      expect(h.events).toHaveLength(settled)
+      expect(
+        h.session.snapshot().transcript.some(({ item }) => item.argumentPreview !== undefined),
+      ).toBe(false)
+    } finally {
+      stream.gate.resolve(undefined)
+      await h.host.close()
+      vi.useRealTimers()
     }
   })
 

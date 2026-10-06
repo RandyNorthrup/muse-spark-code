@@ -1603,6 +1603,8 @@ export const MODEL_API_PARALLEL_READS = 4
 export const MODEL_API_CONTINUATIONS_MAX = 1
 export const TOOL_REPEAT_LIMIT = 3
 export const TOOL_ARGUMENT_PREVIEW_MAX_CHARS = 16_000
+// Coalesce each call to ten display snapshots per second, plus final arguments.
+export const TOOL_ARGUMENT_PREVIEW_INTERVAL_MS = 100
 export const STRUCTURED_OUTPUT_REPAIRS_MAX = 1
 export const WEB_SEARCH_MAX_PER_REQUEST = 5
 export const WEB_SEARCH_MIN_PER_REQUEST = 1

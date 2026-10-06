@@ -4,7 +4,7 @@
 // its budget or is missing.
 
 import { existsSync, readFileSync, statSync } from 'node:fs'
-import { webviewStartupOutputs } from './lib/webviewBundles.mjs'
+import { webviewPreviewOutputs, webviewStartupOutputs } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -167,9 +167,17 @@ for (const { path, budgetKiB } of BUDGETS) {
 const WEBVIEW_DEFERRED_BUDGET_KIB = 50
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 const eager = new Set(webviewStartupOutputs(webview))
+// M106 L1: preview UI measured independently, plus 15%, rounded to 25 KiB.
+const WEBVIEW_PREVIEW_BUDGET_KIB = 25
+const preview = new Set(webviewPreviewOutputs(webview))
+const previewKiB = [...preview].reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (previewKiB > WEBVIEW_PREVIEW_BUDGET_KIB) hasFailure = true
+console.log(
+  `${previewKiB <= WEBVIEW_PREVIEW_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview argument preview JS: ${previewKiB.toFixed(1)} KiB (budget ${WEBVIEW_PREVIEW_BUDGET_KIB} KiB)`,
+)
 const deferredKiB =
   Object.keys(webview.outputs)
-    .filter((file) => file.endsWith('.js') && !eager.has(file))
+    .filter((file) => file.endsWith('.js') && !eager.has(file) && !preview.has(file))
     .reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
 if (deferredKiB > WEBVIEW_DEFERRED_BUDGET_KIB) hasFailure = true
 console.log(

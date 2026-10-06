@@ -23,4 +23,17 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'ReviewPane',
   'HistoryDialog',
   'ReportDialog',
+  'ToolArgumentPreview',
 ]
+
+// M106 L1: this new surface has its own measured cap. Shared/static dependencies
+// stay under their existing startup/deferred caps; only its entry moves here.
+export function webviewPreviewOutputs(meta) {
+  return Object.entries(meta.outputs)
+    .filter(
+      ([, output]) =>
+        output.entryPoint?.replaceAll('\\', '/') ===
+        'src/webview/components/ToolArgumentPreview.tsx',
+    )
+    .map(([file]) => file)
+}

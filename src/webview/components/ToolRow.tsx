@@ -487,20 +487,9 @@ function ToolRowView({
     case 'preview': {
       body =
         entry.argumentPreview === undefined ? null : (
-          <section className="tool-detail" aria-label={UI_TEXT.toolArgumentPreviewLabel}>
-            <span className="shell-label">{UI_TEXT.toolArgumentPreviewLabel}</span>
-            {entry.argumentPreview.text === '' ? null : (
-              <Suspense fallback={null}>
-                <ToolArgumentPreview text={entry.argumentPreview.text} />
-              </Suspense>
-            )}
-            <p className="tool-detail-meta" role="status">
-              {UI_TEXT.toolArgumentPreviewPending}
-            </p>
-            {entry.argumentPreview.truncated ? (
-              <p className="tool-detail-meta">{UI_TEXT.toolArgumentPreviewTruncated}</p>
-            ) : null}
-          </section>
+          <Suspense fallback={null}>
+            <ToolArgumentPreview preview={entry.argumentPreview} />
+          </Suspense>
         )
       break
     }

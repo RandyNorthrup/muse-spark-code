@@ -56,8 +56,9 @@ describe('argument preview across editor surfaces', () => {
     expect(screen.getByText(UI_TEXT.toolArgumentPreviewTruncated)).toBeTruthy()
   })
 
-  it('shows pending without an empty content box or a false truncation marker', () => {
+  it('shows pending without an empty content box or a false truncation marker', async () => {
     showPreview('', false)
+    await screen.findByRole('status')
     expect(document.querySelector('pre')).toBeNull()
     expect(screen.queryByText(UI_TEXT.toolArgumentPreviewTruncated)).toBeNull()
     expect(screen.getByRole('status')).toBeTruthy()
@@ -73,6 +74,7 @@ describe('argument preview across editor surfaces', () => {
     })
     expect(loaded.locale, JSON.stringify(log.warn.mock.calls)).toBe('de')
     showPreview('', true)
+    await screen.findByRole('region', { name: 'Vorschau der Argumente' })
     expect(screen.getByRole('region', { name: 'Vorschau der Argumente' })).toBeTruthy()
     expect(screen.getByRole('status').textContent).toBe(UI_TEXT.toolArgumentPreviewPending)
     expect(screen.getByText(UI_TEXT.toolArgumentPreviewTruncated)).toBeTruthy()
@@ -129,6 +131,64 @@ describe('argument preview across editor surfaces', () => {
       args: '{"path":"a.ts","content":"complete"}',
     })
   })
+
+  it.each(['reconcile', 'terminal', 'interrupted'] as const)(
+    'clears a persisted preview on %s settlement',
+    (route) => {
+      const live = uiReducer(
+        { ...initialUiState, sessionId: 's1', activeTurnId: 'turn' },
+        action(PREVIEW),
+      )
+      const restored = restoredUiState(webviewStateOf(live, true))
+      const settled =
+        route === 'reconcile'
+          ? uiReducer(restored, {
+              type: 'hostMessage',
+              message: { type: 'surfaceState', sessionId: 's1' },
+              at: 2,
+            })
+          : uiReducer(
+              live,
+              action(
+                route === 'terminal'
+                  ? { type: 'turnCompleted', turnId: 'turn', terminal: 'completed' }
+                  : {
+                      type: 'itemCompleted',
+                      item: { ...PREVIEW.item, argumentPreview: undefined, status: 'interrupted' },
+                    },
+              ),
+            )
+      expect(settled.transcript[0]).toMatchObject({
+        status: 'interrupted',
+        argumentPreview: undefined,
+      })
+      renderTranscript(settled.transcript)
+      expect(screen.queryByText(UI_TEXT.toolArgumentPreviewPending)).toBeNull()
+    },
+  )
+
+  it.each(['completed', 'interrupted'] as const)(
+    'clears a stale restored preview from an already %s row',
+    (status) => {
+      const state = uiReducer({ ...initialUiState, sessionId: 's1' }, action(PREVIEW))
+      const saved = webviewStateOf(
+        {
+          ...state,
+          transcript: state.transcript.map((entry) =>
+            entry.kind === 'tool' ? { ...entry, status } : entry,
+          ),
+        },
+        true,
+      )
+      const restored = restoredUiState(saved)
+      const settled = uiReducer(restored, {
+        type: 'hostMessage',
+        message: { type: 'surfaceState', sessionId: 's1' },
+        at: 2,
+      })
+      expect(settled.transcript[0]).toMatchObject({ status, argumentPreview: undefined })
+    },
+  )
 
   it('sends the same labeled preview through ACP, pending until the real call begins', () => {
     const translator = new UpdateTranslator('/ws', false)

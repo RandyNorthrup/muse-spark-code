@@ -291,6 +291,11 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/webview/whatsNew.js` | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`              | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
+**FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is
+independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to
+25 KiB. Only its new entry moves out of the deferred group; shared/static
+dependencies retain their existing startup and deferred caps.
+
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -19407,6 +19412,17 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**FIXM106L1 review repairs (2026-10-06).** Resolve RVM106L1's four findings
+within the preview lane: an incremental partial-JSON tokenizer decodes and
+normalizes keys and withholds whole sensitive string values using M84's
+existing field rules, then scrubs decoded snapshots; advance only over new
+deltas and coalesce each call to ten previews per second plus final data;
+clear previews on every row-settlement path; move the entire preview UI
+into its lazy component. Preserve existing caps, using a separate measured
+preview chunk budget only if the deferred group cannot fit. Regression
+tests and byte-exact red drills are recorded in `docs/certification/m106-l1.md`.
+No wire shape, dependency, capability default, or execution admission changes.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.
@@ -21219,6 +21235,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M106-L1 review repairs (FIXM106L1, 2026-10-06).** RVM106L1's P1,
+  both P2 findings and P3 are fixed; no finding is left as a residual.
+  Decoded sensitive JSON string values never enter previews, updates are
+  coalesced across every editor, and all row settlement clears them.
+  Remaining integration/evidence handoffs are named separately:
+  **L1-CAPTURE:** U9 lacks argument frames; synthetic regressions prove the
+  existing parser contract only. Safe for now: no guessed wire fields or
+  capture claim. Follow-up: W supplies exact scrubbed frames with provenance.
+  **L1-CAPABILITY:** production factories must bind M95's evidence-bearing
+  resolver in all editors. Safe for now: absent capability leaves previews
+  off. Follow-up: W binds and certifies the factories.
+  **L1-DOCS:** README, CHANGELOG and the new help registry remain W-owned.
+  Safe for now: there is no new command, setting or public support claim.
+  Follow-up: W documents decoded-field redaction, coalescing and settlement.
+  The previous **L1-BUNDLE** registration handoff is resolved in this repair.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

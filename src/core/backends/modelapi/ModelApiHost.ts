@@ -112,6 +112,7 @@ import {
   THINKING_OFF_EFFORT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
@@ -1039,6 +1040,7 @@ type OpenItem = OpenItemFields &
         readonly kind: 'argumentPreview'
         readonly call: FunctionCallItem
         readonly preview: ArgumentPreview
+        previewAt?: number
       }
   )
 
@@ -1911,6 +1913,7 @@ export class ModelApiSession implements AgentSession {
   private readonly transcript: TranscriptItem[] = []
   /** Display rows only; consumed by runCall, never included in the request body. */
   private readonly argumentPreviewRows = new Map<string, ItemSnapshot>()
+  private readonly argumentPreviewTimers = new Map<string, ReturnType<typeof setTimeout>>()
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
@@ -3884,7 +3887,23 @@ export class ModelApiSession implements AgentSession {
   private showArgumentPreview(
     entry: Extract<OpenItem, { kind: 'argumentPreview' }>,
     turnId: string,
+    isForced = false,
   ) {
+    const now = this.deps.now()
+    const elapsed =
+      entry.previewAt === undefined ? TOOL_ARGUMENT_PREVIEW_INTERVAL_MS : now - entry.previewAt
+    if (!isForced && elapsed < TOOL_ARGUMENT_PREVIEW_INTERVAL_MS) {
+      if (!this.argumentPreviewTimers.has(entry.call.call_id)) {
+        const timer = setTimeout(() => {
+          this.argumentPreviewTimers.delete(entry.call.call_id)
+          this.showArgumentPreview(entry, turnId, true)
+        }, TOOL_ARGUMENT_PREVIEW_INTERVAL_MS - elapsed)
+        timer.unref()
+        this.argumentPreviewTimers.set(entry.call.call_id, timer)
+      }
+      return
+    }
+    this.clearArgumentPreviewTimer(entry.call.call_id)
     const item = {
       itemId: entry.ourId,
       turnId,
@@ -3906,11 +3925,19 @@ export class ModelApiSession implements AgentSession {
       this.rerecordTranscript(item)
     }
     this.argumentPreviewRows.set(entry.call.call_id, item)
+    entry.previewAt = now
     this.emit({ type: 'toolArgumentPreview', item })
+  }
+
+  private clearArgumentPreviewTimer(callId: string): void {
+    const timer = this.argumentPreviewTimers.get(callId)
+    if (timer !== undefined) clearTimeout(timer)
+    this.argumentPreviewTimers.delete(callId)
   }
 
   /** A failed/abandoned preview has no executable arguments or successful result. */
   private interruptArgumentPreview(callId: string): void {
+    this.clearArgumentPreviewTimer(callId)
     const preview = this.argumentPreviewRows.get(callId)
     if (preview === undefined) return
     this.argumentPreviewRows.delete(callId)
@@ -4051,7 +4078,11 @@ export class ModelApiSession implements AgentSession {
           } else {
             entry.preview.finish(event.arguments)
           }
-          this.showArgumentPreview(entry, turnId)
+          this.showArgumentPreview(
+            entry,
+            turnId,
+            event.type === 'response.function_call_arguments.done',
+          )
         }
         return undefined
       }
@@ -4175,7 +4206,7 @@ export class ModelApiSession implements AgentSession {
       const entry = open.get(wireId)
       if (entry?.kind === 'argumentPreview') {
         entry.preview.finish(item.arguments)
-        this.showArgumentPreview(entry, turnId)
+        this.showArgumentPreview(entry, turnId, true)
       }
     }
   }
@@ -9406,6 +9437,7 @@ export class ModelApiSession implements AgentSession {
       args: effectiveCall.arguments,
       ...(paid !== undefined && { paid }),
     }
+    this.clearArgumentPreviewTimer(call.call_id)
     this.argumentPreviewRows.delete(call.call_id)
     if (preview === undefined) {
       this.recordTranscript(turnId, started)
