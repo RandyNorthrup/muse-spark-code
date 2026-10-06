@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { customQuirksFor, PRESETS, quirksOf } from '../../src/core/providers/presets'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
+import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
@@ -169,6 +170,62 @@ function golden(name: string): string {
 }
 
 describe('responsesCodec encodeRequest', () => {
+  it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
+    const captured = z
+      .object({
+        request: z.object({
+          tools: z.array(
+            z.object({
+              type: z.literal('function'),
+              name: z.string(),
+              description: z.string(),
+              strict: z.literal(true),
+              parameters: z.record(z.string(), z.unknown()),
+            }),
+          ),
+        }),
+      })
+      .parse(
+        JSON.parse(
+          readFileSync(new URL('../fixtures/m106/u9-strict-stream.json', import.meta.url), 'utf8'),
+        ),
+      )
+    const tools = captured.request.tools.map(
+      (tool) =>
+        mcpFunctionDefinition(tool.name, {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.parameters,
+        }).definition,
+    )
+    const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true })
+    expect(codec.encodeRequest({ ...firstTurnBody(), tools })['tools']).toEqual(
+      captured.request.tools,
+    )
+  })
+
+  it('keeps explicit strict-off bytes with a capable model and gates strict-on by its record (M106)', () => {
+    const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
+    const before = JSON.stringify(body)
+    for (const supported of [true, false, undefined]) {
+      const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true }, () => ({
+        ...CONSERVATIVE_CAPABILITIES,
+        supportsStrictTools: supported,
+      }))
+      const off = codec.encodeRequest(body, { shouldUseStrictTools: false })
+      expect(JSON.stringify(off)).toBe(
+        JSON.stringify(
+          createResponsesCodec({ ...withRetention, vision: false }).encodeRequest(body),
+        ),
+      )
+      const on = codec.encodeRequest(body, { shouldUseStrictTools: true })
+      const tools = z.array(z.object({ strict: z.boolean() })).parse(on['tools'])
+      expect(tools.every((tool) => tool.strict === (supported === true))).toBe(true)
+      expect({ ...on, tools: off['tools'] }).toEqual(off)
+      expect(JSON.stringify(body)).toBe(before)
+    }
+  })
+
   it('binds strict request schemas only to the injected supportsStrictTools gate (F4)', () => {
     const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
     for (const preset of PRESETS) {

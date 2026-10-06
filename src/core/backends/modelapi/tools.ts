@@ -81,7 +81,7 @@ import { GOAL_TOOL_DEFINITIONS } from './goals'
 import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
-import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
 import { runChecksDefinition, THEN_RUN_PROPERTY } from './verifyTools'
@@ -564,6 +564,8 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** Session setting AND selected-model support, resolved by the caller before cache-key generation. */
+  readonly shouldUseStrictTools?: boolean
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -622,7 +624,7 @@ export function toolDefinitions(
     },
     strict: false,
   })
-  return [
+  const definitions: readonly FunctionToolDefinition[] = [
     define(
       MODEL_API_TOOLS.readFile,
       'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
@@ -824,6 +826,7 @@ export function toolDefinitions(
         )
       : []),
   ]
+  return withStrictTools(definitions, options.shouldUseStrictTools === true)
 }
 
 // --- helpers ---

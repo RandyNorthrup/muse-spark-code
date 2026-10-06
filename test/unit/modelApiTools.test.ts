@@ -501,11 +501,38 @@ describe('toolDefinitions / classifyTool', () => {
 })
 
 describe('strict tool schemas and grammar safety (M101 item 24)', () => {
+  it.each(['linux', 'darwin', 'win32'] as const)(
+    'rewrites every harness declaration through the effective strict option on %s (M106)',
+    (platform) => {
+      const options = {
+        hasShell: true,
+        hasSkills: true,
+        hasImageGeneration: true,
+        hasSubagents: true,
+        hasMemory: true,
+        hasPackedRecall: true,
+        hasWebFetch: true,
+        hasBrowserCheck: true,
+        hasCodeIntel: true,
+        checks: [{ name: 'unit', command: 'npm test', changedFiles: false }],
+      }
+      const off = toolDefinitions(platform, { ...options, shouldUseStrictTools: false })
+      expect(JSON.stringify(off)).toBe(JSON.stringify(toolDefinitions(platform, options)))
+      const on = toolDefinitions(platform, { ...options, shouldUseStrictTools: true })
+      expect(on.map((tool) => tool.name)).toEqual(off.map((tool) => tool.name))
+      expect(on.every((tool) => tool.strict)).toBe(true)
+      for (const tool of on) {
+        expect(tool.parameters['required']).toEqual(
+          Object.keys(tool.parameters['properties'] ?? {}),
+        )
+        expect(tool.parameters['additionalProperties']).toBe(false)
+      }
+    },
+  )
+
   it('requires every property and makes optional values nullable recursively (F4)', () => {
     const definitions = toolDefinitions('linux')
-    const read = withStrictTools(definitions, true).find(
-      (tool) => tool.type === 'function' && tool.name === 'read_file',
-    )
+    const read = withStrictTools(definitions, true).find((tool) => tool.name === 'read_file')
     expect(read).toMatchObject({
       strict: true,
       parameters: {
@@ -614,16 +641,13 @@ describe('strict tool schemas and grammar safety (M101 item 24)', () => {
     const strict = withStrictTools(definitions, true)
     expect(strict).not.toBe(definitions)
     for (const tool of strict) {
-      if (tool.type !== 'function') continue
       expect(tool.strict).toBe(true)
       expect(tool.parameters['required']).toEqual(Object.keys(tool.parameters['properties'] ?? {}))
       expect(tool.parameters['additionalProperties']).toBe(false)
     }
     expect(definitions.every((tool) => !tool.strict)).toBe(true)
-    const recall = strict.find(
-      (tool) => tool.type === 'function' && tool.name === MODEL_API_TOOLS.recallOutput,
-    )
-    expect(recall?.type === 'function' && recall.parameters['properties']).toMatchObject({
+    const recall = strict.find((tool) => tool.name === MODEL_API_TOOLS.recallOutput)
+    expect(recall?.parameters['properties']).toMatchObject({
       search: { minLength: 1, maxLength: OBS_PACK_PAGE_CHARS },
     })
   })

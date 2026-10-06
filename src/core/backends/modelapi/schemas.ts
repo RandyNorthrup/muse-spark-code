@@ -360,30 +360,43 @@ export type InputItem =
   | ReasoningItem
   | WebSearchCallInputItem
 
+/** MCP conversion evidence stays off the wire and survives copying a declaration. */
+export const NON_STRICT_TOOL = Symbol('nonStrictTool')
+
 export interface FunctionToolDefinition {
   readonly type: 'function'
   readonly name: string
   readonly description: string
   readonly parameters: Record<string, unknown>
-  // False everywhere the canonical body goes (Meta included); true only
-  // where the model's quirks say `supportsStrictTools` (M101 item 24), set
-  // through `withStrictTools`, never by hand.
+  // Set through M101's rewrite only while the session enables strict tools
+  // and the selected model's capability record supports them (M106).
   readonly strict: boolean
+  /** The original MCP schema cannot convert losslessly; never auto-promote its fitted schema. */
+  readonly [NON_STRICT_TOOL]?: true
 }
 
 /**
  * Flags function tools strict where the model takes it (M101 item 24);
  * search tools pass through. Off returns the same definitions, so the
- * canonical body (and the golden bytes) stays `strict: false` where the
- * quirk is off.
+ * canonical body (and the golden bytes) stays `strict: false` when the
+ * session setting or capability is off. Unconvertible MCP tools retain
+ * their declaration; harness schema failures still refuse the request.
  */
+export function withStrictTools(
+  tools: readonly FunctionToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly FunctionToolDefinition[]
+export function withStrictTools(
+  tools: readonly ToolDefinition[],
+  shouldUseStrict: boolean,
+): readonly ToolDefinition[]
 export function withStrictTools(
   tools: readonly ToolDefinition[],
   shouldUseStrict: boolean,
 ): readonly ToolDefinition[] {
   return shouldUseStrict
     ? tools.map((tool) => {
-        if (tool.type !== 'function') return tool
+        if (tool.type !== 'function' || tool[NON_STRICT_TOOL] === true) return tool
         if (tool.parameters['type'] !== 'object') {
           throw new Error('strict_tool_schema_unsupported')
         }
@@ -394,6 +407,7 @@ export function withStrictTools(
 
 /** Strict optional properties are nullable on the wire; restore omission for tool parsers. */
 export function restoreOptionalToolArguments(json: string, tool: FunctionToolDefinition): string {
+  if (tool[NON_STRICT_TOOL] === true) return json
   let value: unknown
   try {
     value = JSON.parse(json)

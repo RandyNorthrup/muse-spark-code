@@ -1,4 +1,5 @@
 import path from 'node:path'
+import * as z from 'zod/mini'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { McpServerPool, type McpPoolDeps } from '../../src/core/backends/modelapi/mcp/pool'
 import { readMcpServerEntries } from '../../src/core/backends/musecode/museConfigView'
@@ -8,6 +9,7 @@ import { type FakeMcpHttp, startFakeMcpHttp } from './helpers/fakeMcpHttpServer'
 import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
 import { countLogged } from './helpers/logText'
 import { FAKE_MCP_SERVER, fixtureJobLifecycle, realSpawner } from './helpers/mcpFixtures'
+import { withStrictTools } from '../../src/core/backends/modelapi/schemas'
 
 const ROOT = path.dirname(FAKE_MCP_SERVER)
 const pools: McpServerPool[] = []
@@ -85,6 +87,51 @@ function silentStartupBatch(): { pool: McpServerPool; starts: string[] } {
 }
 
 describe('McpServerPool (M50)', { timeout: SPAWN_TIMEOUT_MS }, () => {
+  it('logs one named strict fallback per offered MCP tool without repeating it per request (M106)', async () => {
+    const tools = [
+      { name: 'good', inputSchema: { type: 'object', properties: { path: { type: 'string' } } } },
+      {
+        name: 'bad',
+        inputSchema: {
+          type: 'object',
+          properties: { path: { type: 'string', pattern: 'private-schema-content' } },
+        },
+      },
+    ]
+    const fetcher: typeof fetch = (_input, init) => {
+      const request = z
+        .object({ id: z.optional(z.number()), method: z.optional(z.string()) })
+        .parse(JSON.parse(typeof init?.body === 'string' ? init.body : '{}'))
+      return Promise.resolve(
+        request.id === undefined
+          ? new Response(null, { status: 202 })
+          : Response.json({
+              jsonrpc: '2.0',
+              id: request.id,
+              result:
+                request.method === 'initialize'
+                  ? { protocolVersion: '2025-06-18', capabilities: { tools: {} } }
+                  : { tools },
+            }),
+      )
+    }
+    const { pool: servers, log } = pool(
+      { strict: { url: 'https://strict.test/mcp' } },
+      { fetch: fetcher },
+    )
+    await servers.start()
+    for (let request = 0; request < 2; request += 1) {
+      expect(withStrictTools(servers.definitions(), true).map((tool) => tool.strict)).toEqual([
+        true,
+        false,
+      ])
+    }
+    expect(countLogged(log, 'MCP tool bad of strict:')).toBe(1)
+    expect(countLogged(log, 'strict: false; the schema cannot be converted losslessly')).toBe(1)
+    expect(countLogged(log, 'MCP tool good of strict:')).toBe(0)
+    expect(countLogged(log, 'private-schema-content')).toBe(0)
+  })
+
   it('passes cancellation through an awaited process-start admission barrier', async () => {
     const entered = Promise.withResolvers<undefined>()
     const resume = Promise.withResolvers<undefined>()

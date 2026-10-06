@@ -11,6 +11,10 @@ import {
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../src/shared/constants'
 import { TINY_PNG_BASE64 } from './helpers/fakeModelApi'
+import {
+  restoreOptionalToolArguments,
+  withStrictTools,
+} from '../../src/core/backends/modelapi/schemas'
 
 // Meta's function name rule (tool-calling): `[A-Za-z0-9_.-]`, at most one dot.
 const META_NAME = /^[A-Za-z0-9_-]+$/
@@ -161,6 +165,75 @@ describe('functionParameters (M50)', () => {
 })
 
 describe('mcpFunctionDefinition (M50)', () => {
+  it('keeps unconvertible MCP tools non-strict without blocking convertible tools (M106)', () => {
+    const good = mcpFunctionDefinition('mcp__s__good', {
+      name: 'good',
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string' }, limit: { type: 'integer' } },
+        required: ['path'],
+        additionalProperties: false,
+      },
+    })
+    const bad = mcpFunctionDefinition('mcp__s__bad', {
+      name: 'bad',
+      inputSchema: {
+        type: 'object',
+        properties: { path: { type: 'string', pattern: '^src/' } },
+      },
+    })
+    const definitions = [good.definition, bad.definition]
+    const before = JSON.stringify(definitions)
+    const strict = withStrictTools(definitions, true)
+    expect(strict[0]).toMatchObject({
+      strict: true,
+      parameters: {
+        required: ['path', 'limit'],
+        properties: { limit: { type: ['integer', 'null'] } },
+      },
+    })
+    expect(strict[1]).toBe(bad.definition)
+    expect(strict[1]?.strict).toBe(false)
+    expect(withStrictTools([{ ...bad.definition }], true)[0]?.strict).toBe(false)
+    expect(bad.notes.filter((note) => note.includes('strict: false'))).toHaveLength(1)
+    expect(good.notes).toEqual([])
+    expect(JSON.stringify(definitions)).toBe(before)
+    expect(withStrictTools(definitions, false)).toBe(definitions)
+    expect(restoreOptionalToolArguments('{"path":null}', bad.definition)).toBe('{"path":null}')
+  })
+
+  it('does not certify a lossy MCP fit as strict even when the fitted schema converts (M106)', () => {
+    const values = Array.from({ length: 300 }, (_, index) => `${'v'.repeat(60)}-${String(index)}`)
+    for (const inputSchema of [
+      {
+        type: 'object',
+        properties: { choice: { type: 'string', enum: values } },
+      },
+      {
+        type: 'object',
+        properties: { choice: { $ref: '#/$defs/S', enum: ['b'] } },
+        $defs: { S: { type: 'string', enum: ['a'] } },
+      },
+      { type: 'array' },
+      undefined,
+    ]) {
+      const { definition, notes } = mcpFunctionDefinition('mcp__s__lossy', {
+        name: 'lossy',
+        inputSchema,
+      })
+      expect(withStrictTools([definition], true)[0]).toBe(definition)
+      expect(notes.filter((note) => note.includes('strict: false'))).toHaveLength(1)
+      // Eligibility is internal: the canonical request retains exactly its wire fields.
+      expect(Object.keys(definition)).toEqual([
+        'type',
+        'name',
+        'description',
+        'parameters',
+        'strict',
+      ])
+    }
+  })
+
   it('describes the tool by its description, else its title, else its name, clipped', () => {
     const plain = mcpFunctionDefinition('mcp__s__t', {
       name: 't',
@@ -193,7 +266,10 @@ describe('mcpFunctionDefinition (M50)', () => {
       inputSchema: { type: 'array' },
     })
     expect(definition.description).toBe(`Does a thing\n\n${MODEL_API_MODEL_TEXT.mcpSchemaReplaced}`)
-    expect(notes).toEqual(['the schema is past the Model API limits or not an object'])
+    expect(notes).toEqual([
+      'the schema is past the Model API limits or not an object',
+      'strict: false; the schema cannot be converted losslessly',
+    ])
   })
 })
 

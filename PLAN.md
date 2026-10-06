@@ -21743,6 +21743,17 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**Lane T mechanism delivered (2026-10-05, Kubuntu).** The four owned source
+regions consume FIXM101P2's rewrite, retain non-strict MCP fallback and its
+argument bytes, and expose injected effective-session options. Seven paired
+goldens preserve all original off bytes; the fake M75 pair and twelve red
+drills are in `docs/certification/m106-t.md`. Registration and portable
+session-setting binding are **M106T-SESSION-BINDING** (W); evidence-record
+mapping is **M106T-CAPTURE-BINDING** (M95/W); the feature catalog/docs update
+is **M106T-HELP-REFERENCE** (W); the forbidden-in-T counted live pair remains
+**M106T-LIVE-M75** (lead/W). No default, price or paid-use policy is changed
+in this lane. These handoffs do not certify the setting or live default yet.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
 FIXM101P2; everything else starts against lane 0's contracts.

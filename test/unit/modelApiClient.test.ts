@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import * as z from 'zod/mini'
 import {
   MissingApiKeyError,
   ModelApiClient,
@@ -11,6 +13,31 @@ import type { CreateResponseBody, StreamEvent } from '../../src/core/backends/mo
 import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { errorBodySchema } from '../../src/core/backends/modelapi/schemas'
+
+it('parses the captured U9 strict-schema 400 without retrying or inferring a missing code (M106)', async () => {
+  const capture = z
+    .object({ status: z.literal(400), response: errorBodySchema })
+    .parse(
+      JSON.parse(
+        readFileSync(new URL('../fixtures/m106/u9-strict-refusal.json', import.meta.url), 'utf8'),
+      ),
+    )
+  const attempts = vi.fn(() =>
+    Promise.resolve(Response.json(capture.response, { status: capture.status })),
+  )
+  const { client, sleeps } = setup(undefined, attempts)
+  const events = Array.fromAsync(client.streamResponse(body, new AbortController().signal))
+  await expect(events).rejects.toBeInstanceOf(ModelApiError)
+  await expect(events).rejects.toMatchObject({
+    status: 400,
+    message: "'additionalProperties' is required to be supplied and to be false.",
+    kind: 'invalid_request_error',
+    code: undefined,
+  })
+  expect(attempts).toHaveBeenCalledTimes(1)
+  expect(sleeps).toEqual([])
+})
 
 const body: CreateResponseBody = {
   model: 'muse-spark-1.3',

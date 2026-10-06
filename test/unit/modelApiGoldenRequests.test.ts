@@ -57,6 +57,9 @@ import {
 } from '../../src/host/judge/modelApiSameJudge'
 import { JudgeResultCache } from '../../src/core/judge/same/resultCache'
 import { judgeJob, judgeOnce, SpyJudgeStore, startJudgeEntry } from './helpers/judgeSameRig'
+import * as z from 'zod/mini'
+import { CONSERVATIVE_CAPABILITIES } from '../../src/core/providers/capabilities'
+import { FORMAT_QUIRKS } from '../../src/core/providers/presets'
 
 const ROOT = '/ws'
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'golden-requests')
@@ -73,6 +76,7 @@ function isRegenerate(): boolean {
 }
 
 interface Harness {
+  readonly shouldUseStrictTools: boolean
   readonly api: FakeModelApi
   readonly rawBodies: string[]
   readonly host: ModelApiHost
@@ -83,7 +87,11 @@ interface Harness {
 
 async function setup(
   files: Record<string, string>,
-  options: { readonly paidSubagents?: boolean; readonly judge?: JudgeAdvisory } = {},
+  options: {
+    readonly paidSubagents?: boolean
+    readonly judge?: JudgeAdvisory
+    readonly shouldUseStrictTools?: boolean
+  } = {},
 ): Promise<Harness> {
   const api = fakeModelApi()
   const rawBodies: string[] = []
@@ -113,6 +121,16 @@ async function setup(
     // Packing stays on (it is not a hook): scenario 4 watches a long output
     // ride whole twice, then as a placeholder.
     observationPacking: () => true,
+    // Integration resolves the session setting AND model record before building the prefix.
+    ...(options.shouldUseStrictTools !== undefined && {
+      modelFacts: () => ({
+        capabilities: {
+          ...CONSERVATIVE_CAPABILITIES,
+          supportsStrictTools: options.shouldUseStrictTools,
+        },
+        quirks: FORMAT_QUIRKS.responses,
+      }),
+    }),
     ...(options.paidSubagents === true && {
       isPaidFeatureOn: () => true,
       allowsPaidUse: () => Promise.resolve(true),
@@ -127,7 +145,15 @@ async function setup(
   if (!(session instanceof ModelApiSession)) {
     throw new TypeError('expected the Model API session')
   }
-  return { api, rawBodies, host, io, session, ...watchSessionTurns(session) }
+  return {
+    api,
+    rawBodies,
+    host,
+    io,
+    session,
+    shouldUseStrictTools: options.shouldUseStrictTools === true,
+    ...watchSessionTurns(session),
+  }
 }
 
 /** One user text turn, driven to completion. */
@@ -231,9 +257,28 @@ function checkGolden(scenario: string, harness: Harness): void {
   // string, not a parsed/reserialized body. Its whitespace and order survive.
   const doc = { scenario, requests: normalizeBodies(harness.rawBodies) }
   const text = `${JSON.stringify(doc, undefined, 2)}\n`
-  const file = path.join(FIXTURE_DIR, `${scenario}.json`)
+  const directory = harness.shouldUseStrictTools ? path.join(FIXTURE_DIR, 'strict') : FIXTURE_DIR
+  const file = path.join(directory, `${scenario}.json`)
+  if (harness.shouldUseStrictTools) {
+    const baseline = z
+      .object({ requests: z.array(z.string()) })
+      .parse(JSON.parse(readFileSync(path.join(FIXTURE_DIR, `${scenario}.json`), 'utf8')))
+    expect(doc.requests).toHaveLength(baseline.requests.length)
+    const fields = z.object({ tools: z.unknown(), prompt_cache_key: z.string() })
+    for (const [index, raw] of doc.requests.entries()) {
+      const offRaw = baseline.requests[index]
+      const on = fields.parse(JSON.parse(raw))
+      const off = fields.parse(JSON.parse(offRaw ?? ''))
+      // Only rewritten schemas/flags and their existing cache digest may differ.
+      expect(
+        raw
+          .replace(JSON.stringify(on.tools), () => JSON.stringify(off.tools))
+          .replace(JSON.stringify(on.prompt_cache_key), () => JSON.stringify(off.prompt_cache_key)),
+      ).toBe(offRaw)
+    }
+  }
   if (isRegenerate()) {
-    mkdirSync(FIXTURE_DIR, { recursive: true })
+    mkdirSync(directory, { recursive: true })
     writeFileSync(file, text)
     return
   }
@@ -319,99 +364,108 @@ async function readGolden(harness: Harness): Promise<void> {
   checkGolden('02-tool-call', harness)
 }
 
-describe('M91-G golden requests with hooks off', () => {
-  it('records a plain one-turn reply', async () => {
-    const harness = await setup({})
-    await plainGolden(harness)
-    await harness.host.close()
-  })
-
-  it('records a turn with one tool call and its result', async () => {
-    const harness = await setup({ 'a.txt': 'Alpha.\n' })
-    await readGolden(harness)
-    await harness.host.close()
-  })
-
-  it('records an edit_file with then_run', async () => {
-    const harness = await setup({ 'owned.ts': 'export const one = 1\n' })
-    harness.api.script({ calls: [editThenRunCall()] }, { text: 'Renamed, and the command ran.' })
-    await runTurn(harness, 'Rename one to two, then run echo then.')
-    expect(harness.api.responseBodies()).toHaveLength(2)
-    checkGolden('03-edit-then-run', harness)
-    await harness.host.close()
-  })
-
-  it('records a long tool output whole twice, then as a placeholder', async () => {
-    const harness = await setup({ 'big.txt': BIG })
-    harness.api.script(
-      {
-        calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c1' }],
-      },
-      { text: 'Read it.' },
-    )
-    await runTurn(harness, 'Read big.txt.')
-    harness.api.script({ text: 'Again.' })
-    await runTurn(harness, 'And?')
-    harness.api.script({ text: 'Once more.' })
-    await runTurn(harness, 'And?')
-    expect(harness.api.responseBodies()).toHaveLength(4)
-    checkGolden('04-packed-output', harness)
-    await harness.host.close()
-  })
-
-  it('records a manual compaction and the turn after it', async () => {
-    const harness = await setup({})
-    harness.api.script({ text: 'First reply.' })
-    await runTurn(harness, 'First.')
-    harness.api.inputTokens = 77
-    harness.api.script({ text: 'THE SUMMARY' })
-    await expect(harness.session.compact()).resolves.toEqual({
-      status: 'accepted',
-      reason: undefined,
+describe.each([false, true])(
+  'golden requests with hooks off and strict tools %s',
+  (shouldUseStrictTools) => {
+    it('records a plain one-turn reply', async () => {
+      const harness = await setup({}, { shouldUseStrictTools })
+      await plainGolden(harness)
+      await harness.host.close()
     })
-    harness.api.script({ text: 'Later.' })
-    await runTurn(harness, 'Next.')
-    expect(harness.api.responseBodies()).toHaveLength(3)
-    checkGolden('05-manual-compaction', harness)
-    await harness.host.close()
-  })
 
-  it('records a subagent child turn', async () => {
-    const harness = await setup({}, { paidSubagents: true })
-    harness.api.script(
-      {
-        calls: [
-          {
-            name: 'subagent_spawn',
-            arguments: '{"role":"worker","objective":"Map the workspace files"}',
-            callId: 'spawn1',
-          },
-        ],
-      },
-      { text: 'Mapped.' },
-      { text: 'Parent continues.' },
-    )
-    await harness.session.sendTurn([{ type: 'text', text: 'Delegate.' }])
-    await vi.waitFor(() => {
+    it('records a turn with one tool call and its result', async () => {
+      const harness = await setup({ 'a.txt': 'Alpha.\n' }, { shouldUseStrictTools })
+      await readGolden(harness)
+      await harness.host.close()
+    })
+
+    it('records an edit_file with then_run', async () => {
+      const harness = await setup(
+        { 'owned.ts': 'export const one = 1\n' },
+        { shouldUseStrictTools },
+      )
+      harness.api.script({ calls: [editThenRunCall()] }, { text: 'Renamed, and the command ran.' })
+      await runTurn(harness, 'Rename one to two, then run echo then.')
+      expect(harness.api.responseBodies()).toHaveLength(2)
+      checkGolden('03-edit-then-run', harness)
+      await harness.host.close()
+    })
+
+    it('records a long tool output whole twice, then as a placeholder', async () => {
+      const harness = await setup({ 'big.txt': BIG }, { shouldUseStrictTools })
+      harness.api.script(
+        {
+          calls: [{ name: 'read_file', arguments: '{"path":"big.txt"}', callId: 'c1' }],
+        },
+        { text: 'Read it.' },
+      )
+      await runTurn(harness, 'Read big.txt.')
+      harness.api.script({ text: 'Again.' })
+      await runTurn(harness, 'And?')
+      harness.api.script({ text: 'Once more.' })
+      await runTurn(harness, 'And?')
+      expect(harness.api.responseBodies()).toHaveLength(4)
+      checkGolden('04-packed-output', harness)
+      await harness.host.close()
+    })
+
+    it('records a manual compaction and the turn after it', async () => {
+      const harness = await setup({}, { shouldUseStrictTools })
+      harness.api.script({ text: 'First reply.' })
+      await runTurn(harness, 'First.')
+      harness.api.inputTokens = 77
+      harness.api.script({ text: 'THE SUMMARY' })
+      await expect(harness.session.compact()).resolves.toEqual({
+        status: 'accepted',
+        reason: undefined,
+      })
+      harness.api.script({ text: 'Later.' })
+      await runTurn(harness, 'Next.')
       expect(harness.api.responseBodies()).toHaveLength(3)
-      expect(harness.session.status).toBe('idle')
+      checkGolden('05-manual-compaction', harness)
+      await harness.host.close()
     })
-    checkGolden('06-subagent-child', harness)
-    await harness.host.close()
-  })
 
-  it('records a turn with skills and rules loaded', async () => {
-    const harness = await setup({
-      'AGENTS.md': 'End every reply with PINEAPPLE.\n',
-      '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+    it('records a subagent child turn', async () => {
+      const harness = await setup({}, { paidSubagents: true, shouldUseStrictTools })
+      harness.api.script(
+        {
+          calls: [
+            {
+              name: 'subagent_spawn',
+              arguments: '{"role":"worker","objective":"Map the workspace files"}',
+              callId: 'spawn1',
+            },
+          ],
+        },
+        { text: 'Mapped.' },
+        { text: 'Parent continues.' },
+      )
+      await harness.session.sendTurn([{ type: 'text', text: 'Delegate.' }])
+      await vi.waitFor(() => {
+        expect(harness.api.responseBodies()).toHaveLength(3)
+        expect(harness.session.status).toBe('idle')
+      })
+      checkGolden('06-subagent-child', harness)
+      await harness.host.close()
     })
-    harness.api.script({ text: 'Done.' })
-    await runTurn(harness, 'Go.')
-    expect(harness.api.responseBodies()).toHaveLength(1)
-    checkGolden('07-skills-and-rules', harness)
-    await harness.host.close()
-  })
-})
+
+    it('records a turn with skills and rules loaded', async () => {
+      const harness = await setup(
+        {
+          'AGENTS.md': 'End every reply with PINEAPPLE.\n',
+          '.agents/skills/shout/SKILL.md': skillFile('shout', 'Repeat in caps', 'UPPER CASE.'),
+        },
+        { shouldUseStrictTools },
+      )
+      harness.api.script({ text: 'Done.' })
+      await runTurn(harness, 'Go.')
+      expect(harness.api.responseBodies()).toHaveLength(1)
+      checkGolden('07-skills-and-rules', harness)
+      await harness.host.close()
+    })
+  },
+)
 
 // Lane M98-G: the judge's invariance over the M91-G harness (PLAN.md M98
 // acceptance item 1). No independent baseline: every main-body comparison

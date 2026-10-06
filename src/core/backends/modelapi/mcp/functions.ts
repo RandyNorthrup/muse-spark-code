@@ -39,7 +39,12 @@ import {
   TOOL_OUTPUT_MAX_CHARS,
 } from '../../../../shared/constants'
 import { readImageInfo } from '../../../imageDimensions'
-import type { FunctionOutputPart, FunctionToolDefinition } from '../schemas'
+import {
+  type FunctionOutputPart,
+  type FunctionToolDefinition,
+  NON_STRICT_TOOL,
+  withStrictTools,
+} from '../schemas'
 import {
   type CallToolResult,
   type ContentBlock,
@@ -325,9 +330,30 @@ export function mcpFunctionDefinition(
   const description = clipDescription(
     isReplaced ? `${described}\n\n${MODEL_API_MODEL_TEXT.mcpSchemaReplaced}` : described,
   )
+  const definition: FunctionToolDefinition = {
+    type: 'function',
+    name,
+    description,
+    parameters,
+    strict: false,
+  }
+  // Preflight the original schema with M101's rewrite. A fitted schema can
+  // already have lost a constraint (including $ref siblings), so it cannot
+  // establish strict support. The existing pool logs these notes once when
+  // offering the tool, naming its server and tool without schema contents.
+  if (!isReplaced && notes.length === 0 && isObject(tool.inputSchema)) {
+    try {
+      withStrictTools([{ ...definition, parameters: tool.inputSchema }], true)
+      return { definition, notes }
+    } catch (error: unknown) {
+      if (!(error instanceof Error) || error.message !== 'strict_tool_schema_unsupported') {
+        throw error
+      }
+    }
+  }
   return {
-    definition: { type: 'function', name, description, parameters, strict: false },
-    notes,
+    definition: { ...definition, [NON_STRICT_TOOL]: true },
+    notes: [...notes, 'strict: false; the schema cannot be converted losslessly'],
   }
 }
 

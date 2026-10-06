@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M106 strict-tool declarations reuse M101's schema rewrite. Convertible
+  MCP tools become strict on capable models; unsupported schemas retain
+  non-strict arguments and produce one named conversion note. Strict-off
+  request goldens remain unchanged. Session-setting registration and the
+  counted live M75 pair remain integration work.
+
 - M101 integration: combine release 0.14.0 and reviewed cache, compaction,
   overflow, tools and provider lanes. Bind strict schemas to selected model
   capabilities (including owner-confirmed Meta support), restore optional

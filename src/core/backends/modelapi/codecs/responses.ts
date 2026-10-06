@@ -49,6 +49,8 @@ export interface ResponsesCodecQuirks {
  * as same-model.
  */
 export interface ResponsesEncodeOptions {
+  /** Fixed session choice; false preserves canonical non-strict declarations. */
+  readonly shouldUseStrictTools?: boolean | undefined
   readonly model?: string | undefined
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
@@ -329,7 +331,10 @@ export function createResponsesCodec(
         model: body.model,
         input: mapped,
         instructions: cleanWireText(body.instructions),
-        tools: withStrictTools(body.tools, effective.supportsStrictTools === true),
+        tools: withStrictTools(
+          body.tools,
+          options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+        ),
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,
         stream: body.stream,
