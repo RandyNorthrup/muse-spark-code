@@ -22,6 +22,19 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
+## What's new in 0.14.1
+
+- **Safer shell commands.** Commands the agent runs no longer see your
+  credential variables (API keys, tokens, passwords). Name any you want passed
+  through in `museSpark.shell.passEnvironmentVariables`; scheduled and other
+  unattended commands never get them.
+- **Exact store badges.** The Marketplace and Open VSX pages show the version
+  you are installing, not a cached older one.
+- **Faster start.** The chat panel loads about 100 KiB less at startup; syntax
+  highlighting, dialogs and Tasks load when first needed.
+- **Fix:** stopped or timed-out commands on macOS and Linux now wait until
+  their processes have exited.
+
 ## What's new in 0.14.0
 
 - **Tab completions** (see [Tab completions](https://github.com/RandyNorthrup/muse-spark-code#tab-completions)). Alt+\ invokes

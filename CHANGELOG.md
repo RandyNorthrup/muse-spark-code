@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+## [0.14.1] - 2026-10-05
+
 ### Security
 
 - Cover common credential suffix families, Azure DevOps PATs,
