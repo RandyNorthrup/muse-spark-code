@@ -2944,7 +2944,12 @@
     "sms": "Textová zpráva",
     "privateLink": "Soukromý odkaz",
     "paidSms": "Každá textová zpráva stojí {price}. Sdílený denní rozpočet: {budget}.",
-    "generatedAsOf": "Vytvořeno k {asOf}"
+    "generatedAsOf": "Vytvořeno k {asOf}",
+    "verificationMessage": "Váš ověřovací kód pro e-mailové zprávy je {code}.",
+    "nameTemplate": "Šablona názvu souboru",
+    "retention": "Počet uchovaných zpráv",
+    "format": "Formát",
+    "verifyRecipient": "Ověřit příjemce"
   },
   "reportRowsMore": {
     "one": "Další {count} řádek",

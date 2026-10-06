@@ -2850,7 +2850,12 @@
     "sms": "Message texte",
     "privateLink": "Lien privé",
     "paidSms": "Chaque message texte coûte {price}. Budget quotidien partagé : {budget}.",
-    "generatedAsOf": "Généré au {asOf}"
+    "generatedAsOf": "Généré au {asOf}",
+    "verificationMessage": "Votre code de vérification pour les rapports par e-mail est {code}.",
+    "nameTemplate": "Modèle de nom de fichier",
+    "retention": "Rapports à conserver",
+    "format": "Format de sortie",
+    "verifyRecipient": "Vérifier le destinataire"
   },
   "reportRowsMore": {
     "one": "{count} ligne de plus",

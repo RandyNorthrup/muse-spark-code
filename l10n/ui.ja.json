@@ -2662,7 +2662,12 @@
     "sms": "テキストメッセージ",
     "privateLink": "非公開リンク",
     "paidSms": "テキストメッセージは 1 件 {price} です。共有の日次予算: {budget}。",
-    "generatedAsOf": "{asOf} 時点で生成"
+    "generatedAsOf": "{asOf} 時点で生成",
+    "verificationMessage": "メールで受け取るレポートの確認コードは {code} です。",
+    "nameTemplate": "ファイル名のテンプレート",
+    "retention": "保持するレポート数",
+    "format": "形式",
+    "verifyRecipient": "受信者を確認"
   },
   "reportRowsMore": {
     "other": "ほか {count} 行"

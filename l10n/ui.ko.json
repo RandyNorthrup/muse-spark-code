@@ -2662,7 +2662,12 @@
     "sms": "문자 메시지",
     "privateLink": "비공개 링크",
     "paidSms": "문자 메시지는 건당 {price}입니다. 공유 일일 예산: {budget}.",
-    "generatedAsOf": "{asOf} 기준 생성"
+    "generatedAsOf": "{asOf} 기준 생성",
+    "verificationMessage": "이메일 보고서의 인증 코드는 {code}입니다.",
+    "nameTemplate": "파일 이름 템플릿",
+    "retention": "보관할 보고서 수",
+    "format": "형식",
+    "verifyRecipient": "수신자 인증"
   },
   "reportRowsMore": {
     "other": "외 {count}개 행"

@@ -2756,7 +2756,12 @@
     "sms": "Kısa mesaj",
     "privateLink": "Özel bağlantı",
     "paidSms": "Kısa mesajların her biri {price} tutarındadır. Ortak günlük bütçe: {budget}.",
-    "generatedAsOf": "{asOf} itibarıyla oluşturuldu"
+    "generatedAsOf": "{asOf} itibarıyla oluşturuldu",
+    "verificationMessage": "E-posta raporları için doğrulama kodunuz {code}.",
+    "nameTemplate": "Dosya adı şablonu",
+    "retention": "Saklanacak rapor sayısı",
+    "format": "Biçim",
+    "verifyRecipient": "Alıcıyı doğrula"
   },
   "reportRowsMore": {
     "one": "{count} satır daha",

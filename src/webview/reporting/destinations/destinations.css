@@ -1,0 +1,43 @@
+.ms-report-destinations,
+.ms-report-destinations fieldset {
+  display: grid;
+  min-width: 0;
+  gap: var(--ms-gap);
+  padding: var(--ms-gap);
+  border: 1px solid var(--vscode-widget-border);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-foreground);
+  background: var(--vscode-editor-background);
+  font: inherit;
+}
+
+.ms-report-destinations input,
+.ms-report-destinations select,
+.ms-report-destinations button {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  color: inherit;
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: var(--ms-radius);
+  font: inherit;
+}
+
+.ms-report-destinations output {
+  overflow-wrap: anywhere;
+}
+
+.ms-report-destinations button {
+  cursor: pointer;
+  padding: var(--ms-gap);
+}
+
+.ms-report-destinations button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.ms-report-destinations :focus-visible {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
