@@ -7278,7 +7278,584 @@ It builds on:
     by account (labels resolved locally), shows each account's thresholds as
     meters, and lists swaps, spreads and stops as events.
 
+---
+
+### D89 — A credential vault and broker for agents (M109, 2026-10-05)
+
+The owner, 2026-10-05: "how do our agents handle auth? i would like ideally
+for there to be some sort of secure enclave that passwords and usernames and
+keys for like unattended access or ssh or sudo etc is stored safely and the
+agents can securely call on them if needed and the orchastrator can restrict
+the access as needed or maybe the agents need to ask the orchastrator for
+permission figure out a good secure plan for this". Then: "this could even be
+secure tokens for logins and website account logins etc", and "and they
+should be modes for this from the orchastrator as well like ask, always allow
+etc".
+
+**How the agents handle credentials today** (research §1). No agent gets a
+stored secret. The Model API key lives in SecretStorage, or the OS store
+outside VS Code (D61), and never reaches a child process (rule 8). Muse Code
+keeps its own sign-in. Hooks get a narrow environment, the ACP agent strips
+credential variables and agent sockets from its tools, and M96's workers run
+without git's credentials or `SSH_AUTH_SOCK`. But in the VS Code window the
+Model API backend's shell tool gets the user's environment as VS Code's
+terminal does (`shellEnvironmentOf` in `src/extension.ts`): `*_API_KEY`
+variables, `SSH_AUTH_SOCK`, token variables, and every credential file the
+user can read. sudo is whatever sudoers says. So the only way to give an
+agent a credential on purpose is to put it where every process can read it.
+
+So the harness gets one encrypted vault, and a broker that performs each use
+for the agent. Agents get handles and approved, scoped, logged uses, never
+values. Every platform fact below, with its source and date, is in
+`docs/research/credential-vault-2026-10-05.md`.
+
+It builds on:
+
+- D61 and rule 8: the OS store, values entered only by the password box or
+  standard input;
+- D74/M95: credentials bound to their origin, and each key registered with
+  the redactor per request; M95b's OAuth sign-ins and loopback helper; D88/M108's
+  accounts;
+- D75/M96: roles, the workers' credential fence and M96's MCP bridge; M96c's
+  scheduler and runners;
+- D80/M100: pinned mutual TLS between paired devices; D87/M107: relocation;
+- D83: approvals minted and bound by the engine, answered only from the host's
+  own UI; D84/M104: MHP, the companion page, every editor;
+- D48 and rule 12: money keeps its own question, which a vault grant never
+  answers; D64: control destinations, not content.
+
+1. **One vault per user, shared by every editor.**
+   - **Where.** The runtime's per-user data folder (`vault/` beside D83.17's
+     lease files): `vault.v1` (items), `slots.v1` (keyslots), `audit/` and
+     `run/` (the broker's socket and lock). Owner-only: mode 0700, or an
+     owner-only DACL. VS Code, its forks and the ACP agent open the same
+     vault.
+   - **An item** has an id, a handle `secret://<name>`
+     (`^[a-z][a-z0-9-]{0,47}$`), a label, a kind, its fields, its bindings
+     (the targets it may be used for), its protection (`requirePresence`),
+     its agent policy (D89.6) and its dates (created, rotated, expires, last
+     used). Names and labels are shown to agents, so the add dialog says to
+     keep secrets out of them, and an item can be hidden from agents.
+   - **Kinds:**
+     - `apiKey`: one value bound to an origin (D74's `{v, auth, origin}`
+       record, unchanged);
+     - `oauth`: access and refresh tokens, the issuer, the expiry, and the
+       resource it is bound to (RFC 8707);
+     - `sshKey`: generated in the vault (Ed25519 in software, or ECDSA P-256
+       resident in the Secure Enclave or the TPM where D89.2 allows) or
+       imported; its public key and fingerprint are shown and exportable;
+     - `password`: an optional username and a password for a named target,
+       such as sudo on this machine or a database;
+     - `webLogin`: origins, a username, a password and an optional TOTP seed;
+     - `totp`: a seed alone;
+     - `session`: one origin's cookies after the user signs in (D89.9);
+     - `secret`: any named value, for environment injection or disclosure;
+     - internal kinds agents never see: `devicePair` (M100's pair keys) and
+       the harness's own records (M95's local profile id).
+   - **Never in the vault:** Muse Code's sign-in and `muse mcp login` tokens
+     (the CLI's, D1, D42); VS Code's GitHub session (M71); another
+     application's stores (D74); passkeys (D89.9).
+
+2. **Encrypted at rest under a per-user key, hardware-protected where the
+   platform allows.**
+   - **Format.** A random 256-bit vault key encrypts each item with
+     AES-256-GCM (`node:crypto`). Each item has its own key from
+     HKDF-SHA-256 over its id, a random 96-bit nonce, and its id, kind and
+     format version as additional data, so blocks cannot be swapped. The
+     index (names, kinds, bindings, policies) is encrypted the same way. A
+     generation number rises with every write.
+   - **Keyslots.** The vault key is wrapped in one or more slots, like a LUKS
+     header. Any slot unlocks, and adding one needs an unlocked vault.
+
+     | Slot          | Windows                                                                                                                                                                              | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
+     | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                              | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
+     | Presence      | A Platform Crypto Provider key made with forced high protection (the OS prompt, cached per broker process), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
+     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                          | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
+     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                    | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                  | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                               | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+
+   - **Defaults** (`museSpark.vault.protection: auto`): the hardware slot
+     where it works, plus the OS-store slot, so a reset TPM or a replaced
+     board loses nothing, and the recovery code offered at setup.
+     `requirePresence` is per item and off by default: it prompts at every
+     use, which a key the extension reads per request (the Model API key)
+     cannot bear. The add dialog recommends it for sudo, SSH keys and web
+     logins.
+   - **What each tier stops** (research §5). Every slot stops other users;
+     hardware, passphrase and recovery slots stop a copied disk; only presence
+     and the passphrase stop a process running as the user, which can ask
+     DPAPI, the Keychain, the Secret Service or a silent TPM key exactly as
+     the broker does. The panel names the tier in force in those words, for
+     example "Protected by this PC's TPM. It unlocks silently when you sign in,
+     so programs running as you can unlock it too."
+   - **Rollback.** The slot records hold the last generation. A vault file
+     older than that is refused, and the panel says so.
+   - **Platform limits, said plainly:**
+     - The Secure Enclave holds only P-256 keys and imports none, so
+       passwords and Ed25519 keys are vault items under an SE-wrapped vault
+       key, never SE keys.
+     - Keychain items with SE-backed access control or biometry need the
+       data protection keychain, whose entitlement must come from a
+       provisioning profile and is "not for command-line tools" (TN3137). They
+       wait for Q-M109.
+     - Windows Hello only signs, with randomized RSA-PSS, so it is a gate in
+       the broker, never a key.
+     - The Secret Service isolates nothing within a session.
+     - Windows elevation is UAC on the secure desktop, which no program can
+       answer.
+
+3. **The broker: one process holds the key and performs every use.**
+   - **Process.** `dist/vaultBroker.js` runs as its own Node process: the
+     runtime's Node, or VS Code's executable run as Node
+     (`ELECTRON_RUN_AS_NODE`). The first host that needs it starts it; the
+     next finds it through `run/broker.lock` (process id, start time,
+     protocol version, socket). There is one broker per user session and
+     protocol version. A host on another version starts its own, and every
+     broker honours the vault's lock epoch (D89.11).
+   - **Channel.** An owner-only Unix socket in `run/`, with the peer's uid
+     checked (`SO_PEERCRED`, `getpeereid`), or a named pipe with an
+     owner-only DACL that refuses remote clients. A per-boot token from an
+     owner-only file. zod on every frame (rule 7).
+   - **Unlock** comes at first use, silently for silent slots. The vault key
+     stays in an unpooled Buffer and is zeroed at lock. The vault locks after
+     `museSpark.vault.lockAfterIdleMinutes` (240), when the screen locks
+     where the platform helper reports it, at **Lock vault now**, and when
+     the broker exits.
+   - **First-party uses stay in the host.** The extension's own HTTPS clients
+     (the Model API backend, M95's providers, Muse Voice, Tab, the judge)
+     need VS Code's proxy and certificate handling (D43). So they read their
+     key from the broker per request, as they read SecretStorage today,
+     register it with the redactor for that request (D74), and keep it no
+     longer. No agent reaches these uses.
+   - **Who asks is known, never claimed.** A host (an extension window, the
+     ACP agent, the companion's runtime) speaks only for the requesters it
+     started. The broker knows a requester by the socket, ticket or session
+     its request came on, never by what the request says.
+   - **If the broker cannot start** (a policy that blocks the child process,
+     a broken install), the host loads the same code in its own process for
+     first-party reads only, so the Model API key keeps working. Every
+     agent use is then refused, since the separate process is what protects
+     them, and the panel says why and how to fix it.
+
+4. **Agents get handles and brokered uses, never values.**
+   - **What the model sees.**
+     - `secret_list` returns handles, kinds, labels and what each may be
+       used for (hosts, origins, commands). It never returns a value, and
+       never lists hidden or first-party items.
+     - `secret_request` asks the user for access to something the vault does
+       not hold. The card offers **Add to vault**; the model gets back a
+       handle, never the value.
+     - A handle in a command's arguments is refused with the reason: an
+       argument is visible to every process. Nothing substitutes a handle
+       into a command, a file or the model's text. The only references ever
+       resolved are MCP entries' `${secret:<name>}`, at server start (below).
+   - **Uses, by kind:**
+     - **SSH: signing in the broker.** The broker is an RFC 9987 agent on a
+       socket or pipe of its own for each requester, and `SSH_AUTH_SOCK` in
+       that requester's processes names it. Keys never leave the broker.
+       - Each signature is bound to the destination's host key from OpenSSH's
+         `session-bind@openssh.com`, matched to its `known_hosts` names, and
+         to the remote user parsed from the request. A client that sends no
+         `session-bind` is "destination not proven", which only an any-host
+         grant covers.
+       - Forwarded use (`is_forwarding`) is refused unless the grant allows
+         it. Commit signing (SSHSIG, namespace `git`) is a target of its own.
+       - The user's own agent (1Password, Bitwarden, OpenSSH) is fronted, not
+         hidden: its keys appear as external keys under the same grants.
+       - On Windows the broker serves its own pipes, never the system pipe,
+         and pins Windows' OpenSSH for git where Git for Windows' bundled ssh
+         cannot reach a pipe (lane S's capture).
+     - **sudo: standard input for one command.** The feeder (below) runs
+       `sudo -S -k -p '' -- <argv>` for exactly the approved argv and working
+       folder, writes the password to sudo's standard input, and leaves
+       nothing cached for a later command (`-k`).
+       - A script that calls sudo itself can be granted the askpass route:
+         `SUDO_ASKPASS` names a one-shot helper whose ticket is good for
+         `VAULT_ASKPASS_USES` (3) uses within `VAULT_ASKPASS_TTL_MS` (10
+         minutes). That hands the password to whatever runs the helper, so it
+         is a disclosure to the command's tree, labelled so, and the broker
+         runs `sudo -K` when the command ends.
+       - Where `sudo -n true` succeeds (`NOPASSWD`), the panel says the vault
+         adds nothing there and that any approved command can become root.
+       - Windows elevation is never brokered (UAC).
+     - **git over HTTPS: a scoped helper.** For the wrapped command the
+       feeder is the only credential helper (`GIT_CONFIG_COUNT`:
+       `credential.helper` reset, then the feeder; `credential.useHttpPath`
+       true). It answers `get` only for the granted protocol, host and path,
+       marks the answer `ephemeral` with `password_expiry_utc`, and ignores
+       `store`. The token is in git's memory for that command: a disclosure to
+       git's process tree, scoped and logged. SSH remotes through the
+       broker's agent are preferred, and the panel says why.
+     - **Environment: one process.** The feeder puts each granted value into
+       exactly that command's environment, under the granted name, and
+       scrubs its output (D89.8). The program and its children see the value,
+       and the card says so.
+     - **One-time codes.** A TOTP seed never leaves the broker. The current
+       code goes to one command's standard input, or into a fill.
+     - **Web logins: fill** (D89.9).
+     - **Headers.** For remote MCP servers and M95's custom headers, the
+       extension's own transport adds the item's header for its bound origin
+       only (D74's origin check), as it does for first-party keys.
+     - **Disclosure.** The value goes back to the requester, so the model
+       and its provider see it. Only for an item whose `allowDisclosure` the
+       user set; asked every time, whatever the mode; logged loudly; shown as
+       a disclosure row in the transcript. A disclosed value cannot be
+       recalled, so the row offers **Rotate**.
+   - **The feeder** (`dist/vaultExec.js`) is the one way a brokered value
+     reaches a child process.
+     - The host starts it in place of the command, inside the command's own
+       M27 job object, M96 cgroup scope and M107 admission, with a single-use
+       ticket on an inherited pipe: never an argument or an environment
+       variable.
+     - It proves the ticket, receives only what the ticket allows, starts the
+       command, relays and scrubs its output, and keeps its broker connection
+       open for its life. When that connection drops (revocation, lock), it
+       ends the command's tree.
+   - **Every backend gets every use:**
+     - **The Model API backend.** The shell tool gains a `secrets` parameter
+       (environment names to handles, `stdin`, `git`, `sudo`, `ssh`), and a
+       command that has one runs through the feeder.
+     - **Muse Code** runs its own tools, so it gets `vault_run` on the
+       extension's `ide` MCP server: a command run by the extension's feeder,
+       under the extension's own approval card, returning only scrubbed
+       output. When the vault holds SSH items, `muse serve` also gets
+       `SSH_AUTH_SOCK` naming its own broker socket. No value enters
+       `muse serve`'s environment, as rule 8 already says of the Model API
+       key.
+     - **External agents** (M96 over ACP) get a socket of their own, and
+       `vault_run` through M96's MCP bridge.
+     - **Hooks** get environment values only, under an Always grant bound to
+       the hook command's digest. A hook never asks and never discloses.
+     - **MCP servers.** A stdio entry may name `${secret:<name>}` in its
+       `env`, as the MCP specification tells stdio servers to take
+       credentials from the environment. The extension's pool (M50) and M96's
+       bridge start that server with the value, under a grant bound to its
+       command, arguments and working folder. A Muse Code session that loads
+       the same file itself sees an unresolved reference; the panel says that
+       server reaches Muse Code only through the bridge.
+
+5. **The agent credential fence: the harness hands out no ambient authority.**
+   - Every process an agent starts in VS Code gets what the ACP agent's tools
+     get today (`withoutCredentials`, `withoutKeyringRoutes`): no credential
+     variable, no D-Bus or keyring address, no CI token. `SSH_AUTH_SOCK` is
+     only ever the requester's own broker socket.
+   - Git's credential helpers are reset for agent processes
+     (`GIT_CONFIG_COUNT`), with `GIT_TERMINAL_PROMPT=0`. `GIT_ASKPASS`,
+     `SSH_ASKPASS` and `SUDO_ASKPASS` name the broker's refusing helper,
+     which tells the agent to ask for a grant instead.
+   - `muse serve` keeps the user's own credential variables, which are Muse
+     Code's (D1, rule 8). The fence changes only its `SSH_AUTH_SOCK` and its
+     git and askpass variables, which its tools inherit.
+   - `museSpark.vault.agentFence` is on by default. Off restores today's
+     environment for the main conversation only and says what that exposes.
+     Workers, schedules and headless runs stay fenced (M96, D65).
+   - **What a fence cannot do** (D64: control destinations, not content). A
+     file the user can read, an approved command can read. So:
+     - the panel lists the known plaintext credential files it finds, by
+       name and path only, never content: `~/.ssh/id_*`,
+       `~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.aws/credentials`,
+       `~/.docker/config.json`;
+     - each has **Import**, on the user's click, then **Keep** or **Delete
+       the file**, saying what stops working and how the vault serves it
+       instead;
+     - a CSV export of logins imports the same way, with a reminder to
+       delete the export;
+     - another application's private store (a browser's, a password
+       manager's, Muse Code's, gh's keyring entry) is never read (D74).
+
+6. **Modes per item, set by the orchestrator and applied to its whole
+   fleet.**
+   - **The orchestrator** here is the harness host (the extension window or
+     the ACP agent) acting for the user. The orchestrating model never
+     approves anything (D89.7).
+   - **Modes:** **Ask every time**, **Ask once per session**, **Always
+     allow** and **Never**, plus a separate **Unattended allowed** flag.
+     - New items start at Ask every time.
+     - Migrated first-party items (provider, account, machine and pair keys)
+       are first-party only: Never for agents, and hidden from them.
+     - **A session** is one conversation and the tasks it delegates, until it
+       ends or the window reloads. A session answer covers only the requester
+       role it was given to.
+   - **Grants** narrow a mode. Each names:
+     - roles: M96's roles, the orchestrator, subagents, hooks, MCP servers by
+       name, or any;
+     - workspaces: a trusted folder's id, or any;
+     - the target:
+       - SSH: the exact host, its host key fingerprint and the remote user;
+         or the key's fingerprint for signing;
+       - a web login, header or OAuth item: its origin;
+       - sudo: the argv digest;
+       - git: the protocol, host and path;
+       - environment: the variable names and the command's digest;
+     - a use count, an expiry, and a time window (days and hours, local time).
+   - **sudo is never open-ended.** An Always or session grant for sudo names
+     exact commands (argv digests, shown as the argv). Any other sudo use
+     asks.
+   - **Always is set in the vault, never from a prompt.** A card offers
+     **Allow once**, **Allow for this session** (where the item's mode
+     permits it) and **Deny**, and links **Manage in vault**. A standing
+     grant is made in the vault panel or with `vault grant`, every scope field
+     shown.
+   - **Role ceilings.** M96's role charter gains a `secrets` key: `none`,
+     `ask`, or a list of handles. A role's grants are never wider than its
+     ceiling. The built-in research, design and marketing roles start at
+     `none`.
+   - **Delegation with secrets** (the owner's "the agents need to ask the
+     orchastrator").
+     - The orchestrating model may list in `delegate` the handles a task
+       needs. The harness shows the user one card for the task: its role,
+       targets and use count, until the task ends.
+     - Once that is approved, the worker's uses inside it proceed, and
+       anything else asks.
+     - The model can narrow a task's access, but never widen it, answer a
+       card or mint a grant.
+   - **The fleet.** One policy, applied by the broker, governs the main
+     conversation, subagents (M48), best-of-N candidates (M77), team workers
+     of every kind (M96), schedules (M52), timed sends (M88), goals (M45),
+     relocated work (M107) and paired devices (M100).
+
+7. **An approval shows the exact use and binds to it** (D83.16).
+   - **The broker mints each request:**
+     - an id (128 random bits);
+     - the requester (host, conversation, task, role, device);
+     - the item and the use's kind;
+     - the canonical use (host key fingerprint and user; argv and working
+       folder; origin and frame; environment names; protocol, host and path)
+       and its SHA-256;
+     - a nonce and an expiry (`VAULT_APPROVAL_TTL_MS`, 120 seconds; an
+       unanswered card is Deny).
+   - **The card says the use in words.** For example:
+     - "Sign in to deploy@203.0.113.7 (ED25519 SHA256:…) with prod-deploy";
+     - "Run `sudo systemctl restart api` in ~/srv";
+     - "Fill the password for https://github.com into its sign-in form".
+   - **Bound.** The broker accepts only an answer that echoes the id and
+     digest before the expiry, and only once: a used or expired id is refused.
+     At use time it checks the actual use against the digest (the
+     signature's `session-bind` host key, the feeder's argv, the fill's frame
+     origin). Any difference refuses, and asks again.
+   - **Approval comes only from the host's own UI** (D83.3). These never
+     answer a vault card:
+     - a value in a tool's arguments or results;
+     - a hook's allow;
+     - the Auto reviewer (M78, M90);
+     - a tool's "Always allow in this session";
+     - Muse Code's own approvals.
+   - **Bypass never grants a secret.** Asks still ask, and only the user's own
+     grants apply.
+   - **Untrusted content always asks** (CaMeL's capability idea, research
+     §4). Each context item carries its provenance. A request is tainted when
+     the model request that produced it held untrusted content:
+     - a web page or search result (M69);
+     - a browser check page (M81);
+     - an MCP result from any server but `ide`;
+     - an issue or pull request body from another author (M71);
+     - an external agent's or a device's report;
+     - anything in a Restricted Mode workspace.
+
+     A tainted request asks, whatever its mode or grant, and the card names
+     the content it followed. On Muse Code the extension does not build the
+     requests, so taint lasts for the rest of the session once such an item
+     is seen.
+
+   - **Presence.** An item with `requirePresence` adds the OS prompt to each
+     use: Touch ID or the password; the Platform Crypto Provider prompt or
+     Windows Hello; a TPM PIN or the passphrase. The OS draws it from the
+     broker, naming the use. It is the one approval a compromised host cannot
+     forge.
+
+8. **Scrubbing, everywhere a value could surface.**
+   - **The feeder** scrubs its command's output with every form of the
+     values it released: as is, percent-encoded, JSON-escaped, base64 and
+     base64url at all three alignments, and hex in either case.
+   - **The scrub service.** The broker builds an Aho–Corasick automaton over
+     those forms of every value in the vault at unlock, and holds it only in
+     its own memory. The host passes text through it wherever text leaves or
+     is kept:
+     - each Model API request, before it is sent;
+     - transcript rows and history;
+     - logs;
+     - exports (M84) and the flight recorder (M93);
+     - the usage journal (M102), and M96's ledger and reports;
+     - relocated results (M100, M107).
+
+     There is no telemetry to scrub.
+
+   - **Scrubbing is a second line, not the boundary.** A process that holds a
+     value can encode it in a way no scrubber knows (D64). The boundary is
+     that values reach no agent, and the card says so for every route that
+     hands one to a process.
+   - On Muse Code the extension never sees what Muse Code sends to Meta. That
+     is why no value is injected into Muse Code's own processes (D89.4).
+
+9. **Web logins.**
+   - **Fill.** A fill types the username, password or current TOTP code into
+     the harness's own browser: M81's pinned Chrome for Testing, with the
+     item's origin added to that check's explicit hosts. It uses CDP
+     `Input.insertText` on the focused element, and only when:
+     - the top-level page and the element's frame are on the item's exact
+       origin, compared after IDNA, so a look-alike never matches;
+     - the page is HTTPS with no certificate error;
+     - the element is an input of the expected kind.
+
+     The browser check then never reads a password field's value, and the
+     scrub service covers its page reads.
+
+   - **Passkeys stay with the OS.** A passkey sign-in, or one behind a
+     CAPTCHA or a push prompt, is the user's.
+     - **Sign in yourself** opens a headed window of the same pinned build
+       (downloaded with consent and its SHA-256 through M81's store). The
+       user signs in and approves on the device.
+     - On close the vault keeps that origin's cookies as a `session` item,
+       with their own expiry and at most `VAULT_SESSION_MAX_DAYS` (30). A
+       later fill restores them into the check's browser, for that origin
+       only.
+     - The vault never creates, holds, imports or exports a passkey, and
+       never uses a virtual authenticator outside tests. CXF files are not
+       imported while CXP is a draft, since a CXF passkey carries its private
+       key.
+   - **Third-party browser automation** (an MCP server such as the user's
+     Chrome Control) never gets a fill. It gets a value only by disclosure.
+
+10. **Unattended work gets only what was granted for it.**
+    - **Unattended requesters:** headless `exec`, schedules (M52), timed
+      sends (M88), goal continuations (M45), relocated work on its receiver
+      (M107, M100), and any task the user marks unattended.
+    - Such a request is served only by a grant marked **Unattended allowed**
+      whose scope covers it. Anything else waits, or fails closed:
+      - in a window, it waits `VAULT_APPROVAL_TTL_MS` with the card shown;
+      - headless, it fails closed at once, with exit code `denied` and a
+        message naming the item, the use and how to grant it, for example
+        "prod-deploy needs an unattended grant for deploy@203.0.113.7: add
+        one in the vault, or run this interactively".
+    - Presence items are never unattended, and a tainted request (D89.7)
+      fails closed.
+    - **Headless** uses the vault only with the hard flag `--vault` and
+      unattended grants made beforehand for the `headless` requester and that
+      workspace. CI keeps D65's standard-input key and has no vault; rule
+      8's CI exception is unchanged.
+
+11. **Audit, revocation and the break glass.**
+    - **The log.** `audit/` holds append-only JSONL, owner-only, capped and
+      rotated at `VAULT_AUDIT_MAX_BYTES` (8 MiB). Each record is chained to
+      the last by SHA-256 and authenticated with a key derived from the
+      vault key, and the chain head's generation is kept with the slots, so
+      an edited or truncated log is detected. A record holds:
+      - the time and the requester;
+      - the item's handle and the use's kind;
+      - the target, with argv redacted and its digest;
+      - the decision and who made it (mode, grant id, the user's answer,
+        taint, fail-closed);
+      - the outcome.
+
+      Never a value.
+
+    - **Review.** The vault panel and `vault audit` filter by item,
+      requester, kind and outcome, and show each item's last use.
+    - **Revoke** a grant, or change an item's mode, and it applies at once:
+      - the next request is refused;
+      - the requester's agent sockets close and its tickets are cancelled;
+      - its feeders' connections drop, so they end their commands' trees;
+      - the SSH client processes the broker knows by their socket's peer are
+        ended.
+
+      An SSH session that already authenticated stays authenticated if its
+      process cannot be ended, and a disclosed value cannot be recalled. The
+      audit says which, and offers **Rotate**.
+
+    - **Lock vault now** is a command, a panel button, a status item while
+      the vault is unlocked, a keybinding no OS or VS Code default uses,
+      `vault lock`, and `/vault lock` in ACP. It does all of the above for
+      every requester, zeroes the key, and bumps the lock epoch file that
+      every broker watches, so every window and editor locks at once.
+
+12. **Every editor** (D84):
+
+    | Surface                                     | The vault                                                                                                                                                                                                               |
+    | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | VS Code family                              | the Vault section of Models & Agents (items, grants, the audit, the tier banner, Lock vault now); approval cards in the transcript and the Agent map; values entered only in VS Code's password box                     |
+    | JetBrains, Visual Studio, Eclipse (M104b–d) | the same panel and cards through the bridges; values entered in the IDE's terminal (`vault add`)                                                                                                                        |
+    | The companion page                          | the same panel and cards; no value crosses it (D84: no `secrets/*` in MHP)                                                                                                                                              |
+    | ACP clients                                 | `session/request_permission` with `allow_once`, **Allow for this session** (`allow_always`, labelled so) and `reject_once`; `/vault` (status, list, lock, audit)                                                        |
+    | Any terminal                                | `muse-spark-code-acp vault status\|unlock\|lock\|list\|add\|remove\|grant\|revoke\|audit\|import\|public-key`, values from standard input with echo off; `vault watch` answers pending requests, bound by id and digest |
+    | Headless `exec`                             | `--vault` and unattended grants only; it never prompts                                                                                                                                                                  |
+
+13. **Devices: secrets never travel** (D80.4, D80.9).
+    - A paired device uses its own vault, grants and approvals. No item,
+      grant or approval is ever sent.
+    - A task relocated to device B that needs a key living only on device A
+      may ask A's broker, over M100's pinned mutual-TLS channel, for a
+      signature (SSH) or a one-time code: the two uses whose value stays on
+      A. A's user approves each use on A, Ask every time whatever A's mode,
+      never unattended, bound as D89.7 says. Every other use is refused,
+      since it would send the value.
+    - This is the per-action binding D80.8 waited for, for secret uses only.
+      It forwards no other approval.
+    - Offers and status never name items (D88.10's rule).
+
+14. **Migration with no data loss.**
+    - **Copy, verify, then retain.** Each value is copied, decrypted back and
+      compared by SHA-256. The old entry stays in place, mirrored on every
+      vault write, for `VAULT_LEGACY_RETAIN_RELEASES` (two minor releases),
+      so a downgrade still finds its key. Then it is deleted, with a notice.
+      **Undo migration** restores every entry until then.
+    - **A store whose milestone has not merged** is born in the vault
+      instead: that milestone's credential lane writes through the vault
+      client once M109's lanes C and B have merged.
+
+    | Store                                                         | Today                                                                                                      | In the vault                                                                                                      | Lane                                      |
+    | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+    | The Model API key                                             | SecretStorage `museSpark.modelApiKey`                                                                      | `apiKey` `meta-model-api`, bound to `https://api.meta.ai`; first-party, hidden from agents                        | M, after C, P and B                       |
+    | The runtime's keyStore                                        | The OS store, `Muse Spark Code (Unofficial)` / `museSpark.modelApiKey` (`src/runtime/keyStore.ts`, D61)    | the same item; `keyStore.ts` becomes the OS-store keyslot (lane P)                                                | M                                         |
+    | M85's TypeSafe key                                            | SecretStorage                                                                                              | `apiKey` bound to `https://api.typesafe.ai`; first-party                                                          | M                                         |
+    | M95's provider credentials and local profile id               | `museSpark.provider.<id>`, a `{v, auth, origin}` record                                                    | `apiKey` or `oauth` items, the record's origin unchanged; the profile id an internal item                         | M once M95 lane K merges; else born there |
+    | M95b's plan sign-ins                                          | SecretStorage tokens; the refresh token bound to its issuer; a cross-window refresh lock in global storage | `oauth` items; the broker serialises refreshes, replacing the lock                                                | M with M95b                               |
+    | M95c's custom headers                                         | SecretStorage values bound to the origin                                                                   | a header field on the provider's item                                                                             | M with M95c                               |
+    | M108's accounts                                               | `museSpark.provider.<id>.account.<accountId>`                                                              | one item per account, with its account binding                                                                    | M with M108 lane K                        |
+    | M100's pair keys                                              | SecretStorage, one per pair                                                                                | `devicePair`, internal, never usable by an agent                                                                  | M with M100 lane P                        |
+    | M103's machine registry                                       | each machine's API key in SecretStorage or the OS store                                                    | `apiKey` bound to the machine's registered address, used by the maker engine; D83's actuation approvals unchanged | M with M103                               |
+    | MCP OAuth tokens                                              | none: M50 left OAuth for remote servers for later                                                          | born in the vault                                                                                                 | O                                         |
+    | MCP header and `env` values                                   | plain text in the user's MCP files                                                                         | `${secret:<name>}` on **Move to vault**, written as an edit the user reviews and saves (D64)                      | O                                         |
+    | Ambient credential files                                      | the user's own files                                                                                       | imported on the user's click (D89.5)                                                                              | M                                         |
+    | Muse Code's sign-in, its MCP logins, VS Code's GitHub session | the CLI's and VS Code's                                                                                    | never read or moved                                                                                               | —                                         |
+
+15. **Threat model.** The full model, each row with its tests, is lane 0's
+    `docs/certification/m109-threat-model.md`. PLAN §9 records the
+    residuals (lane W).
+
+    | #   | Threat                                                                                   | What stops it                                                                                                                                                                                           | Residual                                                                                                    |
+    | --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+    | V1  | Prompt injection makes an agent ask for a secret, or tells it what to do with one        | No value ever enters the context; taint makes every request after untrusted content ask; the card shows the exact use; grants bind targets; disclosure is a separate, per-item, always-asked permission | A user who approves a use the injection chose                                                               |
+    | V2  | Exfiltration through a granted use (an injected variable sent to another host)           | Environment grants bind the command's digest; the card shows the argv; M69's and the sandbox's network rules still apply; output is scrubbed                                                            | A program that holds a value can send it anywhere it can reach; the card says the program sees the value    |
+    | V3  | A malicious MCP server                                                                   | A stdio server gets only values granted to its own command; remote tokens are audience-bound (RFC 8707) and never passed to another server; MCP results taint the context                               | A server holds what it was granted                                                                          |
+    | V4  | A compromised extension host (another extension in VS Code's one extension host process) | Brokered values never enter it (the broker and the feeder hold them); presence items need an OS prompt it cannot draw                                                                                   | It reads first-party keys per request, as today, and can forge answers for items without presence           |
+    | V5  | Another local user                                                                       | Owner-only files, sockets and pipes; every slot is per user                                                                                                                                             | Root and administrators                                                                                     |
+    | V6  | Malware running as the user, reading files                                               | The vault file is ciphertext; the hardware slot stops a copied disk; presence and passphrase slots stop a silent unlock                                                                                 | Silent slots unlock for any same-user process, exactly as SecretStorage does today; the tier banner says so |
+    | V7  | Memory dumps and debuggers                                                               | The key and values only in the broker and feeders, in unpooled Buffers zeroed after use; Linux's Yama at 1 or more blocks non-descendants                                                               | Node has no `mlock` or `MADV_DONTDUMP`; on Windows a same-user process can usually read the broker's memory |
+    | V8  | Clipboard leakage                                                                        | The vault never puts a value on the clipboard; only a public key can be copied                                                                                                                          | —                                                                                                           |
+    | V9  | Logs, crash dumps, exports                                                               | No value is logged; the scrub service runs at every boundary (D89.8); the audit holds no value; the broker writes no heap snapshot and its crash report (M93) carries no buffer                         | A value the feeder did not release and the service never saw                                                |
+    | V10 | Relocation to another device                                                             | Values never travel; remote signing and codes only with a per-use approval on the owning device (D89.13)                                                                                                | —                                                                                                           |
+    | V11 | Replay of an approval or a grant                                                         | Single-use ids, digests and expiries; use counters; generation rollback refusal; the audit chain                                                                                                        | —                                                                                                           |
+    | V12 | Unattended misuse (a schedule's prompt injected by a page)                               | Only unattended grants serve it; presence and tainted requests fail closed                                                                                                                              | What the user granted unattended                                                                            |
+    | V13 | One requester using another's access                                                     | Per-requester sockets; tickets on inherited pipes, single use, bound to one use; peer process ids logged                                                                                                | A same-user process that finds a socket in the owner-only folder                                            |
+    | V14 | Look-alike or downgraded origins in a fill                                               | The exact origin after IDNA, HTTPS with a valid certificate, the frame's origin checked                                                                                                                 | —                                                                                                           |
+    | V15 | sudo swapped between card and run                                                        | The feeder runs the exact approved argv through sudo's absolute path; `-k`; askpass labelled, capped and followed by `sudo -K`                                                                          | `NOPASSWD` sudoers, which the panel names                                                                   |
+    | V16 | The vault as one target holding everything                                               | Per-item keys, presence items, lock on idle and screen lock, the break glass, the recovery code                                                                                                         | A silently unlocked vault is as exposed to same-user code as today's stores                                 |
+
 ## 3. Open questions (need the owner)
+
+- **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
+  Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
+  silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
+  Touch ID, so it cannot run the capture that shows our ad hoc signed helper
+  may create the key and keep its blob in a file (research §7). Keychain
+  items with SE-backed access control or biometry need more: a provisioned
+  entitlement, so a helper `.app` signed under an Apple Developer Program
+  team, which only the owner can join. **Default:** macOS uses the login
+  Keychain, passphrase and recovery slots; presence on macOS is the
+  passphrase; the SE slot is built and certified on fakes and stays off,
+  saying why, until a capable Mac is available.
 
 - **Q-M108 — Second credentials for M108's live captures (2026-10-05).**
   Several of M108's wire facts need a second credential:
@@ -20030,6 +20607,323 @@ Each joins when its dependency merges, and none blocks the others.
   - [ ] D with M100 and M107, or named as waiting
   - [ ] Editor rows recorded; strings in all 14 tables; budgets measured;
         full gate green
+
+---
+
+### M109 — A credential vault and broker for agents (D89)
+
+**Status 2026-10-05: planned.** The research is
+`docs/research/credential-vault-2026-10-05.md`.
+
+- **Lanes 0, C, P, B and U** need nothing unmerged.
+- **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
+- **H** follows B and U.
+- **R** waits for M96; its device part for M100's lanes S and E and M107's
+  lane R.
+- **M** moves each store as its owner milestone merges (D89.14).
+- Every lane certifies on fakes. The rig captures need no model call. The
+  Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
+
+- **Goal.** One encrypted vault per user holds API keys, OAuth tokens, SSH
+  keys, sudo and other passwords, website logins with their TOTP seeds,
+  session cookies and any named secret. It is protected by the platform's
+  hardware where that exists, and by the OS store elsewhere. A broker
+  performs each use for the agent: it signs for SSH, feeds sudo, answers git,
+  injects one process's environment and fills a login form. So agents,
+  subagents, team workers, hooks and MCP servers get handles and approved
+  uses, never values. The user sets a mode per item (Ask every time, Ask
+  once per session, Always allow, Never, Unattended allowed) and scoped
+  grants. Every approval names the exact use and binds to it. Every request,
+  grant and use is logged without its value and revocable at once, and one
+  click locks everything. It works the same in every editor.
+- **Depends on.**
+  - **D61 and rule 8:** the OS store, and values entered only in the password
+    box or on standard input.
+  - **M95 (D74):** credentials bound to their origin; the redactor's
+    per-request keys; the Models & Agents panel. **M95b:** the loopback OAuth
+    helper. **M108:** accounts.
+  - **M96 (D75):** roles and charters, `delegate`, the workers' fence, the
+    MCP bridge, the team host. **M96c:** the scheduler.
+  - **M100 (D80):** the paired channel. **M107 (D87):** relocation.
+  - **M103 (D83):** the approval-binding rules and the machine registry.
+  - **M104 (D84):** MHP, the bridges, the companion page.
+  - **M81:** the pinned browser, its CDP pipe and its runtime store.
+  - **M50:** the MCP pool; **M27:** Windows job objects; **M80 (D65):**
+    headless and its exit codes.
+- **Scope.** D89 entire; strings in all 14 tables; README ("The vault"),
+  SECURITY, PRIVACY, CHANGELOG, CONTRIBUTING, AGENTS.md rule 8, `docs/acp.md`,
+  `docs/ci.md`, `docs/ide-compatibility/**` rows, registry rows, certification.
+- **Settings**, all machine-scoped, so no workspace can change them:
+  - `museSpark.vault` (on);
+  - `museSpark.vault.protection`: `auto` (D89.2's defaults), `osStore`,
+    `hardware` or `passphrase`;
+  - `museSpark.vault.agentFence` (on);
+  - `museSpark.vault.lockAfterIdleMinutes` (240);
+  - `museSpark.vault.lockOnScreenLock` (on).
+
+  Items, grants and slots live only in the vault, which only the panel, the
+  CLI and the broker write.
+
+- **Lanes and file ownership.** One integration branch, `feature/m109-vault`,
+  under M87's region rules. Muse implements, Codex reviews in one pass by
+  class, and the lead integrates. C, P, B, S and X (the crypto, the slots,
+  the broker, the agent protocol and the feeder) go to Codex or Claude.
+  **Order:**
+  1. Lane 0.
+  2. C; then P and B in parallel; U from day 1 against the fakes.
+  3. S, X, T, O and M after B; L after B with M81 A1; H after B and U; R
+     with M96.
+  4. W last.
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                       | Starts                                                           |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| 0 Contracts, strings, threat model (lead) | The schemas: items and kinds, bindings, policies, grants, requests, answers, tickets, audit records, slot records, and the versioned broker protocol; the canonical use and its digest; the requester model; every string; the threat model (D89.15's V1–V16, each with its tests); every research quote re-read and checked; the fakes (an in-memory vault, a fake slot per tier, a fake broker, an RFC 9987 client and server pair with and without `session-bind`, a fake sudo, a fake git, a fake CDP target, a fake clock); the capture plan | new `src/shared/vault.ts`, `src/shared/vaultProtocol.ts`, `src/core/vault/useDigest.ts`, `test/unit/helpers/vault/**`, `docs/certification/m109-threat-model.md` | `constants.ts` (`VAULT_*`, and `VAULT_MODEL_TEXT` with its declared lazy readers); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/modelsPanel.ts` (the vault slice); `src/shared/hostApi/**` (vault messages, with M104 lane 0); `docs/schemas/exec-*` (`--vault`, with M80's versioning)               | day 0                                                            |
+| C Store and crypto                        | D89.1 and D89.2's format: AES-256-GCM per item with HKDF keys and additional data; the encrypted index; generations and rollback refusal; atomic writes and the single-writer lock; slot records; the passphrase slot (Argon2id or scrypt, feature-detected); the recovery code; encrypted backup and restore; Buffer hygiene                                                                                                                                                                                                                     | new `src/core/vault/store.ts`, `crypto.ts`, `keyslots.ts`, `kdf.ts`, `backup.ts`                                                                                 | —                                                                                                                                                                                                                                                                                                                 | after 0                                                          |
+| P Platform slots                          | D89.2's slots: the Windows helper (DPAPI, the Platform Crypto Provider's RSA decrypt key with OAEP, the forced-protection presence key, the Windows Hello gate in a window of its own); the macOS helper (the login Keychain; the Secure Enclave ECDH wrap with and without `userPresence`, behind `SecureEnclave.isAvailable` and Q-M109); Linux (`systemd-creds --user`, tpm2-tools, the TPM2 PIN, the Secret Service); the SecretStorage slot; tier detection and the tier banner's facts; screen-lock signals                                 | new `src/host/vault/slots/**`, `src/runtime/vault/slots/**`, `native/windows/MuseSparkVault.cs`, `native/darwin/VaultKey.swift`                                  | `native/darwin/build.sh` and its CI check; the Windows helpers' compile step (beside M27's); `src/runtime/keyStore.ts` (it becomes the OS-store slot)                                                                                                                                                             | after 0 and C                                                    |
+| B Broker                                  | D89.3, D89.6, D89.7, D89.10 and D89.11: start, discovery and the lock file; the channel and its peer checks; the versioned handshake; unlock, idle and screen lock, the lock epoch; the policy engine (modes, grants, scopes, ceilings, sessions, taint, unattended); minting requests and checking answers; the replay set and use counters; the audit log; revocation; presence prompts through P's helpers; the first-party read path                                                                                                          | new `src/core/vault/broker/**`, `src/host/vault/brokerProcess.ts`, `src/host/vault/brokerClient.ts`, `src/runtime/vault/brokerClient.ts`                         | `src/host/auth/credentialStore.ts` and `src/runtime/authCommands.ts` (the key's store becomes the vault client; rule 8's entry flows are unchanged)                                                                                                                                                               | after C                                                          |
+| S SSH agent                               | D89.4's SSH: RFC 9987 framing, identities and signing; `session-bind` verified and bound to `known_hosts`; the remote user; forwarding refused; SSHSIG; per-requester sockets and pipes; fronting the user's own agent; key generation (Ed25519, and P-256 hardware keys through P); importing key files; public-key export; Windows' pipe and the OpenSSH choice for git                                                                                                                                                                         | new `src/core/vault/ssh/**`                                                                                                                                      | —                                                                                                                                                                                                                                                                                                                 | after B                                                          |
+| X Exec routes and the fence               | D89.4's feeder, sudo, askpass, git helper, environment and one-time codes; D89.5's fence; the shell tool's `secrets` parameter; `vault_run` on the `ide` server; `secret_list` and `secret_request`; handles refused in arguments                                                                                                                                                                                                                                                                                                                 | new `src/core/vault/exec/**` (the `dist/vaultExec.js` entry), `src/host/vault/vaultExecSpawn.ts`                                                                 | `src/host/backend/toolIo.ts` (`shellEnvironment` and the spawn path); `src/runtime/credentialVariables.ts`; `src/extension.ts` (`shellEnvironmentOf`, loaders only); the Model API shell tool's schema and handler; the `ide` server's tool table; `museCodeBackendManager.ts` (`SSH_AUTH_SOCK` for `muse serve`) | after B                                                          |
+| T Taint and scrub                         | D89.7's provenance on context items, and Muse Code's session taint; D89.8's scrub service (the automaton over every form of every value) and the host's calls at each boundary                                                                                                                                                                                                                                                                                                                                                                    | new `src/core/vault/taint.ts`, `src/core/vault/scrub.ts`                                                                                                         | the Model API request builder (provenance and the pre-send scrub); `src/shared/redact.ts` (a hook for the service, no new pattern); M84's export; M93's second scrub; M102's journal writer; M96's ledger and reports                                                                                             | after B                                                          |
+| L Web logins                              | D89.9: fill through M81's CDP pipe with the origin, certificate and frame checks; password fields never read back; TOTP (RFC 6238 over `node:crypto`); **Sign in yourself** in the headed pinned build; `session` items and cookie restore; CSV import of logins                                                                                                                                                                                                                                                                                  | new `src/core/vault/web/**`                                                                                                                                      | M81's check runner (explicit hosts, the fill call, masked reads); M81's runtime store (the headed build's pin)                                                                                                                                                                                                    | after B, with M81 A1 merged                                      |
+| O MCP and OAuth                           | D89.4's MCP uses and D89.14's MCP rows: `${secret:<name>}` in stdio entries under command-bound grants; headers for remote servers; the MCP OAuth 2.1 client M50 left for later (discovery, PKCE, the RFC 8707 resource, refresh rotation, tokens born in the vault, no passthrough); **Move to vault** as a reviewable edit                                                                                                                                                                                                                      | new `src/core/mcp/oauth/**`, `src/core/vault/mcpSecrets.ts`                                                                                                      | M50's pool (`mcpServers.ts`, `mcpProcess.ts`: resolution at start); M95b's loopback helper (reused); M96's bridge (resolution for bridged callers)                                                                                                                                                                | after B                                                          |
+| M Migration and import                    | D89.14's table and D89.5's import: copy, verify, retain and mirror, undo, delete after the window; each store as its milestone lands; ambient files found by name and imported on the user's click; CSV logins with L                                                                                                                                                                                                                                                                                                                             | new `src/core/vault/migrate/**`, `src/host/vault/migrateSecretStorage.ts`, `src/runtime/vault/migrateKeyStore.ts`                                                | the owners' credential modules as each merges: `src/host/providers/**` (M95 K), `accountSecrets.ts` (M108 K), `deviceSecrets.ts` (M100 P), the maker host's secrets (M103), the TypeSafe key's module (M85)                                                                                                       | after C, P and B                                                 |
+| U Panel and VS Code                       | D89.12's VS Code row: the Vault section (items; add and edit through the password box; grants with every scope field; the audit view; the tier banner; Lock vault now); the approval card for each use kind; presence notes; the status item while unlocked; commands and the keybinding; harness scenes and axe                                                                                                                                                                                                                                  | new `src/webview/models/sections/vault/**`, `src/webview/components/VaultApprovalCard.tsx` (lazy), `src/host/vault/vaultPanelHost.ts`                            | `src/shared/modelsPanel.ts` (the vault slice); the panel host's handlers; `App.tsx` (the card's mount); `extension.ts` (commands and loaders only); `test/harness` scenes                                                                                                                                         | after 0                                                          |
+| H Runtime, ACP, headless, companion       | D89.12's other rows: the `vault` commands and `vault watch`; ACP's permission mapping and `/vault`; exec's `--vault` and its fail-closed exit; the companion through the panel; the native bridges through M104                                                                                                                                                                                                                                                                                                                                   | new `src/runtime/vault/vaultCommand.ts`, `src/acp/vault.ts`                                                                                                      | `src/runtime/cliArgs.ts`; `main.ts`; `src/acp/agent.ts`; `runExec.ts`; `docs/schemas/*`                                                                                                                                                                                                                           | after B and U                                                    |
+| R Roles, fleets and devices               | D89.6's role ceilings and delegation card; per-worker sockets and tickets for every worker kind; unattended marking for M52, M88, M45, M96c's scheduler and M107; D89.13's remote signing and codes over M100's channel                                                                                                                                                                                                                                                                                                                           | new `src/core/vault/fleet.ts`, `src/core/vault/remote.ts`                                                                                                        | M96's charter schema and `delegate` tool; the team host's spawn environment; M96c's admission; `src/core/team/remotePool.ts` and `src/host/devices/deviceReceiver.ts` (with M100); M107's relocation                                                                                                              | after B and X with M96 merged; devices with M100 S, E and M107 R |
+| W Wiring, docs and gates (last)           | Bundles (`dist/vault.js`, `dist/vaultBroker.js`, `dist/vaultExec.js`, the panel chunk), budgets, `package.json`, AGENTS.md rule 8, docs, registry rows, PLAN §8 and §9, certification, the full gate                                                                                                                                                                                                                                                                                                                                              | `docs/certification/m109*.md`                                                                                                                                    | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; SECURITY; PRIVACY; CHANGELOG; CONTRIBUTING; AGENTS.md; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN                                                                                                          | last                                                             |
+
+- **Steps.**
+  1. Lane 0: the threat model and the fakes first, then the contracts.
+  2. The lanes in the order above, each against the fakes.
+  3. **The captures,** on the owner's rigs in a scratch folder, with no model
+     call (counted: zero):
+     - **Windows PC and Win11 VM:** the Platform Crypto Provider's
+       algorithms (RSA, ECC); the forced-protection prompt and its
+       per-process cache; Hello's signature padding (one challenge signed
+       twice); DPAPI and Credential Manager over `ssh -n` into the VM;
+       `SSH_AUTH_SOCK` naming a pipe for Windows' ssh and for Git for
+       Windows' ssh; which of them send `session-bind`.
+     - **Kubuntu VM:** `/dev/tpmrm0` and the `tss` group; systemd's version
+       and `systemd-creds --user`; Yama's `ptrace_scope` and the memory
+       drill; sudo through the feeder and askpass, with a throwaway local user
+       and password made for the capture and removed after. The rig's own
+       `NOPASSWD` sudo is recorded as the warning case.
+     - **Mac mini (Intel, no Touch ID):** the login Keychain slot;
+       `SecureEnclave.isAvailable` reading false; the memory drill; sudo as
+       on Kubuntu.
+     - **Every rig:** a headed Chrome for Testing against a throwaway
+       WebAuthn test page (which authenticators it reaches) and a fill on a
+       local HTTPS test page.
+     - **Q-M109's capture** on a capable Mac, when the owner has one.
+  4. Lane W.
+- **Acceptance** (fakes unless named):
+  1. **The vault and its slots.** Create, unlock and lock. Any slot unlocks.
+     A lost hardware slot recovers through the OS-store slot or the recovery
+     code. An older vault file is refused. A `basic_text` SecretStorage is
+     refused as a slot. The tier banner on each platform says what research
+     §5 says (the rigs).
+  2. **Encryption.** No value, name or label appears in plain text in any
+     file the vault writes (a grep with planted canaries). Swapped item
+     blocks fail authentication.
+  3. **The broker.** One per user session and protocol version; owner-only
+     channels (another user's connection refused on Kubuntu and the Mac
+     mini; another SID's pipe client refused on Windows). It locks at idle,
+     at screen lock where reported, at Lock vault now and at exit, and the
+     lock epoch locks every broker at once. With the child process blocked,
+     first-party reads still work and every agent use is refused, saying
+     why.
+  4. **Handles only.** No model request, transcript row, log, export,
+     journal record, ledger entry or device frame holds a value (planted
+     canaries through every route). A handle in a command's arguments is
+     refused.
+  5. **SSH.** A granted host's signature goes through the requester's
+     socket. A different host key, a missing `session-bind` without an
+     any-host grant, and forwarding without a grant are refused or asked. The
+     user's own agent is fronted under the same grants. On Windows the broker
+     never opens the system pipe.
+  6. **sudo.** Exactly the approved argv runs. A changed argv, working
+     folder or sudo path is refused. Nothing is cached after a brokered
+     command (`sudo -n true` fails afterwards for the throwaway user on the
+     rigs). Askpass is labelled, capped in uses and time, and followed by
+     `sudo -K`. `NOPASSWD` shows its warning.
+  7. **git.** The helper answers only the granted protocol, host and path,
+     marked `ephemeral`; it never stores; every other helper is reset.
+  8. **Environment.** Only the one command gets the value; its output is
+     scrubbed in every listed form; revocation ends its tree.
+  9. **Modes and grants.** Each mode and each scope field (role, workspace,
+     target, count, expiry, window) allows and refuses as D89.6 says. sudo
+     grants are never open-ended. Always is made only in the vault. Role
+     ceilings bound grants. A delegation card binds to its task.
+  10. **Approvals.** The card shows the exact use. An answer with a wrong
+      digest, a used id or a late time is refused. A use that differs from
+      its digest asks again. Hooks, the Auto reviewer, tool session rules,
+      Muse Code's approvals and Bypass never answer a vault card.
+  11. **Taint.** A request after a web page, an MCP result or another
+      author's issue asks despite an Always grant; on Muse Code, for the rest
+      of the session.
+  12. **Presence.** Each use of a presence item shows the OS prompt (the rigs
+      where the platform has one); a presence item is never unattended.
+  13. **Unattended.** Only unattended grants serve it. Headless without
+      `--vault` uses nothing. A missing grant fails closed with exit `denied`
+      and D89.10's message.
+  14. **Audit and revocation.** Every request, decision and use is logged,
+      never a value. An edited or truncated log is detected. Revoke refuses
+      the next use and ends in-flight feeders and known SSH clients. Lock
+      vault now ends everything, in every window.
+  15. **Web logins.** A fill happens only on the exact origin and frame over
+      valid HTTPS: a look-alike, plain HTTP, a cross-origin frame and a
+      certificate error are refused. Password fields are never read back.
+      Sign in yourself keeps a `session` item with its expiry. No passkey is
+      ever stored.
+  16. **MCP.** A stdio server gets only its granted values. A remote
+      server's OAuth tokens are audience-bound and never reach another
+      server. Move to vault writes an edit the user reviews.
+  17. **Migration.** Every store in D89.14's table moves with equal SHA-256.
+      Legacy entries are mirrored, then removed after the window. Undo
+      restores them. The previous release's code, run against a migrated
+      store, still finds its key.
+  18. **Devices.** A remote task gets a signature or a code only after the
+      owning device's user approves that use. No value, item or grant
+      crosses the channel (a frame test).
+  19. **Editors.** The panel in VS Code, the companion page and the fake
+      native bridges; ACP's permission mapping and `/vault`; the CLI and
+      `vault watch`; exec's `--vault`.
+  20. **Budgets.** No existing cap rises. Activation reads no vault and starts
+      no broker. The first send of a Meta-key-only setup stays within
+      `VAULT_FIRST_SEND_SLACK_MS` (25) of the baseline before M109.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m109-<lane>.md`:
+  - `vaultStore.test.ts`, `keyslots.test.ts`, `kdf.test.ts`;
+  - `broker.test.ts`, `policy.test.ts`, `approvals.test.ts`,
+    `audit.test.ts`;
+  - `sshAgent.test.ts`, `vaultExec.test.ts`, `sudoFeed.test.ts`,
+    `gitHelper.test.ts`;
+  - `scrub.test.ts`, `taint.test.ts`;
+  - `webFill.test.ts`, `mcpOAuth.test.ts`, `migrate.test.ts`;
+  - `acpVault.test.ts`, `execVault.test.ts`;
+  - the e2e `vault.e2e.test.ts`: a fake model drives the Model API backend
+    through SSH, sudo, git and environment uses, with grants, asks and a
+    revoke in mid-use.
+
+  **The adversarial suite** (`test/unit/vault/adversarial/**` and the e2e).
+  Each case must fail closed:
+  - **Injection tries to exfiltrate a secret.** A fake page tells the model
+    to call `secret_list`, then run `curl` to an outside host with
+    `secret://prod-deploy` in its environment, then ask for disclosure, then
+    put the handle in an argument. With Always allow set, every step asks
+    (taint) and its card shows the outside host; disclosure is refused (the
+    item does not allow it); the argument is refused; no value appears in any
+    model request (canaries).
+  - **A scrubber bypass.** A granted command prints its value as is,
+    percent-encoded, base64 at each of three alignments, base64url, hex and
+    JSON-escaped, split across two writes and two lines, and wrapped in ANSI
+    escapes: each is caught. Forms no scrubber can know (XOR with a printed
+    key, one character per command) pass, as D89.8 says, and the test asserts
+    that the route's card says the program sees the value.
+  - **Replay of a grant.** An answered id reused; an answer with a changed
+    digest; an answer after its expiry; a grant past its use count or outside
+    its window; a vault file restored from an older generation; a truncated
+    audit log. Each is refused or detected.
+  - **Unattended misuse.** A schedule whose prompt was injected asks for an
+    item without an unattended grant; a schedule granted host A asks for host
+    B; a schedule asks for a presence item; headless runs without `--vault`;
+    a relocated task asks the owning device for an environment value. Each
+    fails closed.
+  - **Impersonation.** A worker's process connects to another worker's
+    socket; a command looks for its feeder's ticket in the environment and
+    tries a stale one; a foreign uid connects to a socket.
+  - **SSH spoofing.** A server with another host key; a client that strips
+    `session-bind`; a forwarded request; a `session-bind` with a bad
+    signature.
+  - **sudo swaps.** The argv changed between card and run; a `sudo` earlier
+    in `PATH`; a working folder behind a symbolic link; a timestamp cached
+    after the run.
+  - **Fill.** A look-alike IDN origin; a plain HTTP page; a cross-origin
+    frame; a certificate error; a page script copying the field into the DOM
+    (the read is scrubbed).
+  - **MCP.** A server asks for another server's value; a remote server
+    echoes its token to the model; a token for one resource is sent to
+    another.
+  - **Forged answers.** A tool result holding an approval-shaped object; a
+    hook returning allow; the Auto reviewer approving; Bypass on.
+
+  **Red drills:**
+  - let a tainted request use an Always grant;
+  - accept an answer without its digest;
+  - reuse an approval id;
+  - skip the `session-bind` host check;
+  - run sudo without `-k`;
+  - pass the feeder's ticket in an environment variable;
+  - write a value to the audit;
+  - serve an unattended request from an ordinary grant;
+  - let Bypass grant;
+  - fill into a cross-origin frame;
+  - skip the rollback check;
+  - delete a legacy entry before it is verified.
+
+- **Gates.** The full `npm run quality`; `check:l10n`; the host API record;
+  D6's budgets and the split guard (the new bundles, each read only by its
+  declared readers); the exec schema check; `test:a11y` (the Vault section
+  and each card kind, in four themes and at 320 px); semgrep, with three new
+  rules (no `console.*` in vault code, no value-typed field in a log or event
+  schema, `secret://` resolved only under `src/core/vault/**`); gitleaks over
+  the fixtures (test keys are generated when the tests run, never committed);
+  `check:editor-matrix` (M104); PSScriptAnalyzer and the C# helper's compile
+  check; the Swift helper's CI build and check.
+- **Security.**
+  - Agents get uses, not values; the feeder is the only way a value reaches a
+    child process, and every such route is labelled.
+  - Approvals are bound (D83.16), answered only from the host's own UI, and
+    never by Bypass, the Auto reviewer, hooks or session rules.
+  - Taint forces an ask; unattended work fails closed outside its grants.
+  - Values never travel between devices.
+  - First-party keys keep D74's origin binding and per-request redaction.
+  - AGENTS.md rule 8 is amended by lane W: secrets live in the vault; the
+    entry flows (the password box, `auth set` on standard input) are
+    unchanged; agents get uses, not values.
+  - M96c's T21 ("the extension never reads SSH keys") is amended for one
+    case: a key file the user picks in **Import**.
+  - PLAN §9 records the residuals of D89.15: silent slots against same-user
+    code, the compromised extension host, Windows' same-user memory reads,
+    programs that receive a value, `NOPASSWD` sudo, and SSH sessions
+    authenticated before a revocation.
+- **Docs.** README: the vault, the tier per platform and what each stops,
+  the modes and grants, the fence and what it cannot stop, sudo with
+  `NOPASSWD`, Windows elevation, passkeys. SECURITY: the threat model's
+  summary and residuals. PRIVACY: what the audit holds, and that nothing
+  leaves the machine. AGENTS.md: rule 8. CONTRIBUTING: the fakes and the
+  captures. Also `docs/acp.md`, `docs/ci.md` (CI unchanged; `--vault` is for
+  local headless runs), `docs/ide-compatibility/**`, CHANGELOG, this plan and
+  certification.
+- **Performance and bundles.**
+  - `dist/vault.js` (the host's client, panel host and migration) loads on
+    first vault need. `dist/vaultBroker.js` runs only in the broker process,
+    and `dist/vaultExec.js` only in the feeder. The panel section is a lazy
+    chunk of `dist/webview/models.js`.
+  - Activation reads nothing. Whether a key exists comes from a non-secret
+    marker in global state, so M94's deferred key check stays a marker read.
+    The broker starts off the critical path when the panel opens and an item
+    exists, so the first send pays nothing (acceptance 20).
+  - SSH signing stays under `VAULT_SIGN_P95_MS` (20 ms, presence excluded);
+    the feeder adds under `VAULT_FEEDER_START_MS` (200 ms) to a command; the
+    scrub service runs at `VAULT_SCRUB_MIN_MBPS` (50 MB/s) or more over 1,000
+    values. Each is measured on the rigs.
+  - A user with no item loads none of it beyond the marker read.
+    `dist/extension.js` gains loaders only, and no cap rises.
+- **Size.** L.
+- **Certification checklist** (§6.0, plus):
+  - [ ] The threat model, V1–V16, each with its tests and drill
+  - [ ] Every research quote re-read and checked, each with its URL and
+        date
+  - [ ] Lanes 0, C, P, B, S, X, T, L, O, M, U and H with drills
+  - [ ] R with M96, and its device part with M100 and M107, or named as
+        waiting
+  - [ ] The rig captures recorded, with zero model calls; the Secure Enclave
+        slot after Q-M109, or named as waiting for it
+  - [ ] Every merged store migrated with equal SHA-256, and the downgrade
+        drill
+  - [ ] The adversarial suite green; editor rows recorded; strings in all
+        14 tables; budgets measured; full gate green
 
 ## 7. Gates
 
