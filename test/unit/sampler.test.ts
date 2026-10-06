@@ -258,6 +258,18 @@ describe('machine resource sampler', () => {
     expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
   })
 
+  it('keeps malformed or empty cgroup membership unknown instead of assuming no container limit', async () => {
+    for (const membership of ['', 'broken', '2:memory:relative', '1::/', '0::/\nbroken\n']) {
+      const r = rig('linux')
+      r.files.set('/proc/self/cgroup', membership)
+      expect(await reading(r, 'memoryTotalBytes')).toBeNull()
+      expect(await reading(r, 'memoryAvailableBytes')).toBeNull()
+      expect(vi.mocked(r.port.read).mock.calls.map(([file]) => file)).not.toContain(
+        '/sys/fs/cgroup/memory.max',
+      )
+    }
+  })
+
   it('refuses malformed cgroup paths, counters and unavailable hierarchy without treating them as unlimited', async () => {
     for (const group of ['/../../outside', '/delegated/../outside', 'relative', '/other']) {
       const r = rig('linux')

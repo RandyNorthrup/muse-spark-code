@@ -29,7 +29,10 @@ export async function linuxMemoryLimit(
 ): Promise<MemoryLimit | null | undefined> {
   const membership = await read('/proc/self/cgroup')
   if (membership == null) return null
-  const row = membership.split('\n').find((line) => line.startsWith('0::'))
+  const rows = membership.split('\n').filter((line) => line !== '')
+  if (rows.length === 0 || rows.some((line) => !/^(?:0:|[1-9]\d*:[^:]+):\/[^\0]*$/.test(line)))
+    return null
+  const row = rows.find((line) => line.startsWith('0::'))
   // An OS without v2 has no v2 limit to apply; a failed v2 read remains unknown.
   if (row === undefined) return undefined
   const group = row.slice('0::'.length)
