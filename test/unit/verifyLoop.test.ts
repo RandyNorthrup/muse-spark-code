@@ -1081,20 +1081,20 @@ describe('an automatic check takes the shell tool’s permission path, per mode'
   })
 })
 
+async function checkWithJournal(checkRuns: NonNullable<VerifyHooks['checkRuns']>) {
+  const t = setup({ checks: [TEST], isDiagnosticsOn: false, shell: () => passed(), checkRuns })
+  const { events, turn } = await start(t, 'allowAll')
+  t.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
+  await turn()
+  return { ...t, events }
+}
+
 describe('run_checks (the model’s own call)', () => {
   it('does not invent a commit or journal then_run when its commit source is unavailable', async () => {
     const append = vi.fn<NonNullable<VerifyHooks['checkRuns']>['append']>(() => Promise.resolve())
     const commit = vi.fn(() => Promise.reject(new Error('private-commit-canary')))
-    const t = setup({
-      checks: [TEST],
-      isDiagnosticsOn: false,
-      shell: () => passed(),
-      checkRuns: { commit, append },
-    })
-    const { events, turn } = await start(t, 'allowAll')
-    t.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
-    await turn()
-    expect(completedRows(events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
+    const t = await checkWithJournal({ commit, append })
+    expect(completedRows(t.events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
       { name: 'test', outcome: 'passed' },
     ])
     expect(append).not.toHaveBeenCalled()
@@ -1171,19 +1171,11 @@ describe('run_checks (the model’s own call)', () => {
   })
 
   it('keeps check results intact when journal persistence fails and logs no failure text', async () => {
-    const t = setup({
-      checks: [TEST],
-      isDiagnosticsOn: false,
-      shell: () => passed(),
-      checkRuns: {
-        commit: () => Promise.resolve('a'.repeat(40)),
-        append: () => Promise.reject(new Error('private-journal-canary')),
-      },
+    const t = await checkWithJournal({
+      commit: () => Promise.resolve('a'.repeat(40)),
+      append: () => Promise.reject(new Error('private-journal-canary')),
     })
-    const { events, turn } = await start(t, 'allowAll')
-    t.api.script({ calls: [RUN_CHECKS] }, { text: 'ok' })
-    await turn()
-    expect(completedRows(events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
+    expect(completedRows(t.events, 'run_checks')[0]?.verifySummary?.checks).toEqual([
       { name: 'test', outcome: 'passed' },
     ])
     expect(logLines(t.log).join('\n')).not.toContain('private-journal-canary')

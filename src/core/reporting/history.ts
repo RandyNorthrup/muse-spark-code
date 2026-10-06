@@ -37,6 +37,18 @@ interface ReportFiles {
   remove(name: string): Promise<void>
 }
 
+interface SavedReport {
+  id: string
+  document: ReportDocument
+}
+
+function compareSavedReports(a: SavedReport, b: SavedReport): number {
+  const date = Date.parse(b.document.header.asOf) - Date.parse(a.document.header.asOf)
+  if (date !== 0) return date
+  if (a.id < b.id) return -1
+  return a.id > b.id ? 1 : 0
+}
+
 function hasCode(error: unknown, code: string): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === code
 }
@@ -78,15 +90,17 @@ export class ReportStorage {
         break
       }
     }
-    const canonical = isMissing ? undefined : await realpath(directory)
+    const realDirectory = isMissing ? undefined : await realpath(directory)
+    const canonical = realDirectory?.replaceAll('\\', '/')
     const confined = async () => {
       if (canonical === undefined) throw new Error(UI_TEXT.reportUi.generationFailed)
       const info = await lstat(directory)
-      if (info.isSymbolicLink() || (await realpath(directory)) !== canonical)
+      const actual = await realpath(directory)
+      if (info.isSymbolicLink() || actual.replaceAll('\\', '/') !== canonical)
         throw new Error(UI_TEXT.reportUi.generationFailed)
       // An ancestor must not have become a link into a different tree.
       let ancestor = directory
-      while (ancestor !== root) {
+      while (ancestor.replaceAll('\\', '/') !== root.replaceAll('\\', '/')) {
         ancestor = path.dirname(ancestor)
         const info = await lstat(ancestor)
         if (info.isSymbolicLink()) throw new Error(UI_TEXT.reportUi.generationFailed)
@@ -239,7 +253,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
   ) {}
 
   private async entries(files: ReportFiles, kind: ReportKind) {
-    const entries: { id: string; document: ReportDocument }[] = []
+    const entries: SavedReport[] = []
     const names = await files.list()
     for (const name of names) {
       if (!/^[a-f0-9]+\.json$/.test(name)) continue
@@ -251,12 +265,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
         throw new Error(UI_TEXT.reportUi.generationFailed)
       entries.push({ id, document })
     }
-    return entries.toSorted((a, b) => {
-      const date = Date.parse(b.document.header.asOf) - Date.parse(a.document.header.asOf)
-      if (date !== 0) return date
-      if (a.id < b.id) return -1
-      return a.id > b.id ? 1 : 0
-    })
+    return entries.toSorted(compareSavedReports)
   }
 
   public async save(workspaceKey: string, input: ReportDocument) {
@@ -275,10 +284,17 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       ['history', workspaceKey, scope.kind],
       true,
       async (files) => {
+        // Refuse a corrupt bucket before a failed save can grow it.
+        const previous = await this.entries(files, scope.kind)
         await files.write(`${id}.json`, text)
-        const entries = await this.entries(files, scope.kind)
+        const entries = [
+          ...previous.filter((entry) => entry.id !== id),
+          { id, document: verified },
+        ].toSorted(compareSavedReports)
         for (const entry of entries.slice(REPORT_HISTORY_MAX_PER_KIND))
           await files.remove(`${entry.id}.json`)
+        if (entries.slice(0, REPORT_HISTORY_MAX_PER_KIND).every((entry) => entry.id !== id))
+          throw new Error(UI_TEXT.reportUi.saveFailed)
       },
     )
     return { status: 'saved' as const, entry: { id, header: verified.header } }

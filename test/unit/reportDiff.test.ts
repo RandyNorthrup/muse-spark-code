@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { compareReports, reportDiffNotice, reportDiffSection } from '../../src/core/reporting/diff'
-import { reportDiffSchema, reportSectionSchema } from '../../src/shared/reportSchema'
+import {
+  reportDiffSchema,
+  reportSectionSchema,
+  type ReportValue,
+} from '../../src/shared/reportSchema'
 import { REPORT_MAX_SECTIONS, UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -8,6 +12,49 @@ import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { reportDocument, unavailableSource } from './helpers/reporting/snapshot'
 
 describe('report diff', () => {
+  it('retains presence changes when a field value is Not applicable', () => {
+    const before = reportDocument()
+    before.sections[0]!.columns.push({ key: 'retired', label: 'name' })
+    before.sections[0]!.rows[0]!.cells['retired'] = { type: 'label', value: 'notApplicable' }
+    const after = structuredClone(before)
+    after.sections[0]!.columns = [
+      { key: 'state', label: 'status' },
+      { key: 'newField', label: 'name' },
+    ]
+    Reflect.deleteProperty(after.sections[0]!.rows[0]!.cells, 'retired')
+    after.sections[0]!.rows[0]!.cells['newField'] = { type: 'label', value: 'notApplicable' }
+    const section = reportDiffSection(compareReports(before, after), true)
+    expect(
+      section.rows.find((row) => row.cells['field']?.value === 'retired')?.cells['outcome'],
+    ).toEqual({ type: 'label', value: 'removed' })
+    expect(
+      section.rows.find((row) => row.cells['field']?.value === 'newField')?.cells['outcome'],
+    ).toEqual({ type: 'label', value: 'added' })
+  })
+
+  it('compares columns named constructor without inherited object values', () => {
+    const before = reportDocument()
+    const after = structuredClone(before)
+    const field: ReportValue = { type: 'text', value: 'Field data' }
+    after.sections[0]!.columns.push({ key: 'constructor', label: 'name' })
+    Reflect.set(after.sections[0]!.rows[0]!.cells, 'constructor', field)
+    const section = reportDiffSection(compareReports(before, after), true)
+    expect(
+      section.rows.find((row) => row.cells['field']?.value === 'constructor')?.cells,
+    ).toMatchObject({
+      outcome: { value: 'added' },
+      before: { type: 'label', value: 'notApplicable' },
+      after: { type: 'text', value: 'Field data' },
+    })
+    const reversed = reportDiffSection(compareReports(after, before), true)
+    expect(
+      reversed.rows.find((row) => row.cells['field']?.value === 'constructor')?.cells,
+    ).toMatchObject({
+      outcome: { value: 'removed' },
+      before: { type: 'text', value: 'Field data' },
+      after: { type: 'label', value: 'notApplicable' },
+    })
+  })
   it('lists exactly added, removed, changed and unchanged rows, including Needs you and source fields', () => {
     const before = reportDocument('project', [
       unavailableSource('plan').record,
@@ -144,6 +191,7 @@ describe('report diff', () => {
     const diff = compareReports(before, after)
     expect(reportDiffNotice(diff)).toBe(`No change since ${before.header.asOf}`)
     await installGerman(new FakeLogOutputChannel())
+    const noChangeTemplate = UI_TEXT.reportUi.noChange
     try {
       expect(reportDiffNotice(diff)).toBe(
         fill(UI_TEXT.reportUi.noChange, { asOf: before.header.asOf }),
@@ -152,6 +200,10 @@ describe('report diff', () => {
     } finally {
       restoreEnglish()
     }
+    expect(reportDiffNotice(diff, noChangeTemplate)).toBe(
+      fill(noChangeTemplate, { asOf: before.header.asOf }),
+    )
+    expect(reportDiffNotice(diff)).toBe(`No change since ${before.header.asOf}`)
   })
 
   it('rejects mismatched kind, scope or invalid document instead of comparing unrelated reports', () => {

@@ -70,7 +70,7 @@ this lane; existing lane-0 translations are read at use time.
 
 | Handoff                 | Owner                          | Exact binding                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------------------- | ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M113-H-R-codec          | R/W                            | Supply `ReportHistoryCodec.encode/decode` using R's scrub-before-hash canonical JSON and saved-hash verification, excluding exactly the two header paths in lane 0's contract. Render `reportDiffSection`; use `reportDiffNotice` for equal hashes.                                                                                                                                                                              |
+| M113-H-R-codec          | R/W                            | Supply `ReportHistoryCodec.encode/decode` using R's scrub-before-hash canonical JSON and saved-hash verification, excluding exactly the two header paths in lane 0's contract. Render `reportDiffSection`; use `reportDiffNotice` for equal hashes, passing the renderer-selected table’s no-change template for an explicit locale.                                                                                             |
 | M113-H-history-surfaces | X/V/M104                       | Construct `ReportHistory` with the authorized agent data root, workspace/kind authorization and the live `keepHistory` setting. Bind its `history/get/compare` methods to `reports/*`, CLI `report history`, ACP `/report history`, the report tab and native/companion surfaces. Call `save` after generating a verified report; use the returned id for saved comparison. TUI/Desktop use the same port once their hosts land. |
 | M113-H-check-source     | K/S                            | Place `CheckRunJournal.source()` in the snapshot's `checkRuns` source port. Its data is the frozen `CheckRunRecord[]`; the quality collector stays K-owned.                                                                                                                                                                                                                                                                      |
 | M113-H-M68-binding      | W/host/runtime verify adapters | Supply `VerifyHooks.checkRuns.commit` from the bounded read-only Git HEAD reader and `append` as a closure over the workspace key and `CheckRunJournal.append`. Both VS Code and runtime/ACP adapters use the same port; no storage module is added to activation by this lane.                                                                                                                                                  |
@@ -106,6 +106,42 @@ with all 14 UI tables valid. Host API reports one generated inventory drift,
 with the exact five Node count changes listed above. No gate was weakened to
 claim those integration-owned artifacts green.
 
+Final restored receipts (Kubuntu, repository default timeout throughout):
+
+| Command / scope                                                                                                                       | Result                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npx --no-install vitest run test/unit/reportHistory.test.ts test/unit/reportDiff.test.ts test/unit/checkRuns.test.ts --maxWorkers=3` | Exit 0; 15 history + 7 diff + 8 journal = 30 tests, 1.66 s total                                                             |
+| `npx --no-install vitest run test/unit/verifyLoop.test.ts --maxWorkers=3`                                                             | Exit 0; all 76 tests, 4.92 s total                                                                                           |
+| `npm run typecheck`                                                                                                                   | Exit 0; host, webview, unit, e2e and integration projects                                                                    |
+| Changed-file ESLint, `--max-warnings=0`                                                                                               | Exit 0; all nine changed TypeScript files                                                                                    |
+| Changed-file Prettier and `git diff --check`                                                                                          | Exit 0; all ten changed files                                                                                                |
+| `npm run deadcode` (plain knip)                                                                                                       | Exit 0; only the two existing configuration hints for vendor/axe-core                                                        |
+| `npx --no-install jscpd`                                                                                                              | Exit 0; 1,198 files, zero clones                                                                                             |
+| `npm run check:reference`                                                                                                             | Exit 0; current: 53 features, 44 commands, 59 settings, 26 slash and 116 CLI entries                                         |
+| `npm run check:l10n`                                                                                                                  | Exit 1; exactly the seven lane-0 unused manifest keys below, 14 valid UI tables, no new translation issue                    |
+| `npm run check:host-api`                                                                                                              | Exit 1; one generated inventory freshness issue, exactly the five Node import-count deltas above; 332 VS Code APIs unchanged |
+| `npm run build`                                                                                                                       | Exit 0; size, split, host-global and third-party-notice gates all pass                                                       |
+
+The seven existing manifest issues are `command.showReport.title`,
+`config.reports.network.description`,
+`config.reports.network.enumDescriptions.whenSignedIn`,
+`config.reports.network.enumDescriptions.always`,
+`config.reports.network.enumDescriptions.off`,
+`config.reports.keepHistory.description`, and
+`config.reports.agentSources.description`. Their registrations and the host
+inventory are named W handoffs, not ignored failures.
+
+Production sizes: extension 439.5/600 KiB, Model API 447.4/475 KiB,
+ACP 821.5/850 KiB, checkpoint store 76.9/225 KiB, webview startup
+797.7/900 KiB, deferred webview JavaScript 50.0/50 KiB. Every budget is
+unchanged. No reporting engine/panel entry is registered on this lane-0
+base; W owns the planned lazy reporting bundle and its separate budget.
+
+The first implementation commit is `04e13dc1acad974482bc84d85e21e2ef55dffe62`;
+normal pre-commit ESLint/Prettier and gitleaks hooks passed with zero leaks.
+Ignored local `temp/m113h-drills/final-*.log` files contain the scoped gate
+outputs; the durable named mutation receipts follow below.
+
 The shared reader/writer limits one artifact to
 `REPORT_MAX_TEXT_CHARS * REPORT_MAX_SOURCES` (6.25 MiB), derived from existing
 report bounds. Oversized files fail explicitly before allocation/write;
@@ -128,49 +164,86 @@ the original source bytes and compared SHA-256 before the next mutation.
 Receipts/logs are in ignored `temp/m113h-drills/`; the table below is the
 durable record. No leaked test canary is a real credential.
 
-| Mutation                   | Named failing assertion                                   | Exit | Restored SHA-256                                                   |
-| -------------------------- | --------------------------------------------------------- | ---: | ------------------------------------------------------------------ |
-| `history-retention`        | drops the oldest on the 51st report                       |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-off`              | does no storage or codec work when history is off         |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-auth`             | authorizes before storage                                 |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-date-order`       | orders equal stamps                                       |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-filename`         | refuses a renamed saved id                                |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-kind`             | refuses a valid document of another kind                  |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `history-verified-decode`  | fails corrupt or hash-tampered history                    |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-name`             | rejects POSIX and Windows path traversal                  |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-read-cap`         | refuses oversized files                                   |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-write-cap`        | refuses oversized files                                   |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-read-only`        | refuses oversized files                                   |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-directory-link`   | rejects directory redirects                               |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-hard-link`        | rejects directory redirects                               |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-directory-mode`   | keeps identical bytes idempotently                        |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-file-mode`        | keeps identical bytes idempotently                        |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `diff-scope`               | rejects mismatched kind, scope                            |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-section-union`       | compares all 65 sections                                  |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-removed`             | lists exactly added, removed, changed                     |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-changed`             | lists exactly added, removed, changed                     |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-source-fields`       | lists exactly added, removed, changed                     |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-order`               | ignores object insertion order                            |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-row-cap`             | compares all 65 sections                                  |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `diff-no-change`           | says No change since                                      |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
-| `journal-output-canary`    | persists only five approved fields                        |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-new-name-scrub`   | persists only five approved fields                        |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-prior-name-scrub` | scrubs valid legacy names                                 |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-retention`        | drops the oldest on the 501st check                       |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-read-bound`       | bounds malformed-line inspection                          |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-strict`           | feeds a normalized source                                 |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-duration`         | rejects invalid counts                                    |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-commit`           | rejects invalid counts                                    |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-timestamp`        | rejects invalid counts                                    |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-cancel`           | records all contract outcomes                             |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `journal-missing`          | feeds a normalized source                                 |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
-| `verify-append`            | journals each executed check                              |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
-| `verify-timeout`           | maps timeout to failed evidence                           |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
-| `verify-output-canary`     | journals each executed check                              |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
-| `verify-log-canary`        | keeps check results intact when journal persistence fails |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
-| `storage-native-identity`  | refuses a file whose held native identity differs         |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `storage-writer-lock`      | serializes simultaneous writers                           |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
-| `diff-final-row-cap`       | compares all 65 sections                                  |    1 | `f44f6fddd7df72fb8076d540216ce1ef9246b1096f70d9b05e9bc6941c93abbe` |
-| `diff-short-full-order`    | compares all 65 sections                                  |    1 | `f44f6fddd7df72fb8076d540216ce1ef9246b1096f70d9b05e9bc6941c93abbe` |
+| Mutation                         | Named failing assertion                                            | Exit | Restored SHA-256                                                   |
+| -------------------------------- | ------------------------------------------------------------------ | ---: | ------------------------------------------------------------------ |
+| `history-retention`              | drops the oldest on the 51st report                                |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-off`                    | does no storage or codec work when history is off                  |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-auth`                   | authorizes before storage                                          |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-date-order`             | orders equal stamps                                                |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-filename`               | refuses a renamed saved id                                         |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-kind`                   | refuses a valid document of another kind                           |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `history-verified-decode`        | fails corrupt or hash-tampered history                             |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-name`                   | rejects POSIX and Windows path traversal                           |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-read-cap`               | refuses oversized files                                            |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-write-cap`              | refuses oversized files                                            |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-read-only`              | refuses oversized files                                            |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-directory-link`         | rejects directory redirects                                        |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-hard-link`              | rejects directory redirects                                        |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-directory-mode`         | keeps identical bytes idempotently                                 |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-file-mode`              | keeps identical bytes idempotently                                 |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `diff-scope`                     | rejects mismatched kind, scope                                     |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-section-union`             | compares all 65 sections                                           |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-removed`                   | lists exactly added, removed, changed                              |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-changed`                   | lists exactly added, removed, changed                              |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-source-fields`             | lists exactly added, removed, changed                              |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-order`                     | ignores object insertion order                                     |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-row-cap`                   | compares all 65 sections                                           |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `diff-no-change`                 | says No change since                                               |    1 | `3c5acfe3bde97ffa4cb65b252f479fa5518defd15f72f020d110a93ca6d821be` |
+| `journal-output-canary`          | persists only five approved fields                                 |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-new-name-scrub`         | persists only five approved fields                                 |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-prior-name-scrub`       | scrubs valid legacy names                                          |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-retention`              | drops the oldest on the 501st check                                |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-read-bound`             | bounds malformed-line inspection                                   |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-strict`                 | feeds a normalized source                                          |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-duration`               | rejects invalid counts                                             |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-commit`                 | rejects invalid counts                                             |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-timestamp`              | rejects invalid counts                                             |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-cancel`                 | records all contract outcomes                                      |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `journal-missing`                | feeds a normalized source                                          |    1 | `2322c1e0318dba81d8c141f82e63d52852b83204b7d4b2e186d5b508a9c6bc8f` |
+| `verify-append`                  | journals each executed check                                       |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
+| `verify-timeout`                 | maps timeout to failed evidence                                    |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
+| `verify-output-canary`           | journals each executed check                                       |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
+| `verify-log-canary`              | keeps check results intact when journal persistence fails          |    1 | `2d12753ecdf0fa5ce7e2cf6d7dfbfe97b37286ff31701efc4ca8ecbd3c772e69` |
+| `storage-native-identity`        | refuses a file whose held native identity differs                  |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `storage-writer-lock`            | serializes simultaneous writers                                    |    1 | `dbca2a3c4e64faeb64be3a17147d11f1e17d40757d694dc664ec18d0e73d754d` |
+| `diff-final-row-cap`             | compares all 65 sections                                           |    1 | `f44f6fddd7df72fb8076d540216ce1ef9246b1096f70d9b05e9bc6941c93abbe` |
+| `diff-short-full-order`          | compares all 65 sections                                           |    1 | `f44f6fddd7df72fb8076d540216ce1ef9246b1096f70d9b05e9bc6941c93abbe` |
+| `diff-explicit-locale`           | says No change since                                               |    1 | `4dca4e8c8da5367edbb26885093c94123edfe4c29a945e28e394e937f92e58fb` |
+| `diff-field-presence`            | retains presence changes when a field value is Not applicable      |    1 | `9fa4a9fed37c12a399d40a7a936f3e71b2d32501ea202fa48fab0711c3fe3490` |
+| `diff-own-field-value`           | compares columns named constructor without inherited object values |    1 | `9fa4a9fed37c12a399d40a7a936f3e71b2d32501ea202fa48fab0711c3fe3490` |
+| `history-corrupt-save-preflight` | refuses to grow a corrupt history bucket on a failed save          |    1 | `4c8fcf3c6498d3d0f71e42db446a1af4dbd5daf8c877d7844d1317e528eb6866` |
+| `history-retained-save-result`   | drops the oldest on the 51st report                                |    1 | `4c8fcf3c6498d3d0f71e42db446a1af4dbd5daf8c877d7844d1317e528eb6866` |
+| `history-idempotent-retention`   | drops the oldest on the 51st report                                |    1 | `4c8fcf3c6498d3d0f71e42db446a1af4dbd5daf8c877d7844d1317e528eb6866` |
 
-All 42 mutations fired and restored exactly. The two final diff drills also prove that the short section is precisely the first ten rows of the full section after sorting; truncation never changes their order.
+All 48 distinct mutations fired and restored exactly. The two final diff drills also prove that the short section is precisely the first ten rows of the full section after sorting; truncation never changes their order.
+
+The explicit-locale drill proves R can render the same-hash sentence in a supplied language while the installed UI table remains English. File-path comparisons normalize Windows separators. The duplication gate initially found a nine-line repeated verify-test setup; `checkWithJournal` now drives those two cases through one actual fake-API turn, with no gate change.
+
+Final review added two regression tests before fixing the display section:
+adding/removing a cell whose value is `notApplicable` had been mistaken for
+no field change, and a column named `constructor` had read the inherited
+prototype value for an absent cell. Both tests failed in the original full
+diff-file run (`field-regressions-before.log`: two failed, five passed).
+Own-property presence now chooses added/removed outcomes, and own-property
+lookup supplies the missing-value label in both directions. The two named
+mutations above independently prove those fixes fire.
+
+History also refuses a corrupt bucket before writing a new artifact, so a
+failed save cannot grow the bucket. A backdated report that falls outside
+the retained fifty is pruned and fails explicitly rather than acknowledging
+an id that `get` cannot retrieve. Both protections have named, byte-restored
+red drills above.
+
+The final save path reuses the preflight's validated documents when inserting
+and sorting the new saved id; it does not scan the bucket twice. The existing
+ordering rule is shared by listing and save. Replacement removes an existing
+identical id before ranking, so replaying the oldest retained report cannot
+count it twice and prune it. The saturated-retention test and final
+`history-idempotent-retention` drill prove that bound and idempotence together.
+The intermediate void-discard attempt failed the lint rule and was replaced;
+no lint override or gate setting was changed.
+
+The `constructor` regression fixture also exposed TypeScript's special
+built-in member typing. It now creates that valid dynamic column with
+`Reflect.set` and a typed `ReportValue`, preserving the own-property test
+without a cast or rule exemption.

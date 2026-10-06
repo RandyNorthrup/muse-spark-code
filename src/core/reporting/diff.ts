@@ -66,10 +66,13 @@ export function compareReports(before: ReportDocument, after: ReportDocument): R
 }
 
 /** The display sentence stays outside report-v1's untranslated data. Read at render time. */
-export function reportDiffNotice(diff: ReportDiff): string | undefined {
+export function reportDiffNotice(
+  diff: ReportDiff,
+  noChangeTemplate = UI_TEXT.reportUi.noChange,
+): string | undefined {
   const parsed = reportDiffSchema.parse(diff)
   return parsed.from.contentHash === parsed.to.contentHash
-    ? fill(UI_TEXT.reportUi.noChange, { asOf: parsed.from.asOf })
+    ? fill(noChangeTemplate, { asOf: parsed.from.asOf })
     : undefined
 }
 
@@ -138,9 +141,13 @@ export function reportDiffSection(input: ReportDiff, isFull = false): ReportSect
         ...new Set([...Object.keys(row.before.cells), ...Object.keys(row.after.cells)]),
       ].toSorted(compareKey)
       for (const field of fields) {
-        const before = row.before.cells[field] ?? absent
-        const after = row.after.cells[field] ?? absent
-        if (canonical(before) !== canonical(after))
+        const hasBefore = Object.hasOwn(row.before.cells, field)
+        const hasAfter = Object.hasOwn(row.after.cells, field)
+        const before = hasBefore ? (row.before.cells[field] ?? absent) : absent
+        const after = hasAfter ? (row.after.cells[field] ?? absent) : absent
+        if (!hasBefore) add(section, row.key, field, 'added', before, after)
+        else if (!hasAfter) add(section, row.key, field, 'removed', before, after)
+        else if (canonical(before) !== canonical(after))
           add(section, row.key, field, 'changed', before, after)
       }
       if (canonical(row.before.sourceIds) !== canonical(row.after.sourceIds))

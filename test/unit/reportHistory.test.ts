@@ -213,6 +213,12 @@ describe('report history', () => {
     expect(result.entries.at(-1)!.header.asOf).toBe(at(1).header.asOf)
     const retained = await readdir(t.folder)
     expect(retained.filter((name) => name.endsWith('.json'))).toHaveLength(50)
+    await expect(t.history.save('workspace', at(0))).rejects.toThrow()
+    const afterBackdated = await readdir(t.folder)
+    expect(afterBackdated.filter((name) => name.endsWith('.json'))).toHaveLength(50)
+    await t.history.save('workspace', at(1))
+    const afterRepeat = await readdir(t.folder)
+    expect(afterRepeat.filter((name) => name.endsWith('.json'))).toHaveLength(50)
     expect(await t.history.history({ workspaceKey: 'workspace', kind: 'quality' })).toMatchObject({
       status: 'listed',
       entries: [{ header: { kind: 'quality' } }],
@@ -359,6 +365,18 @@ describe('report history', () => {
     expect(await t.history.history({ workspaceKey: 'workspace', kind: 'project' })).toMatchObject({
       status: 'failed',
     })
+  })
+
+  it('refuses to grow a corrupt history bucket on a failed save', async () => {
+    const t = await fixture()
+    await t.history.save('workspace', at(1))
+    const names = await readdir(t.folder)
+    const name = names.find((candidate) => candidate.endsWith('.json'))
+    if (name === undefined) throw new Error('Expected saved report')
+    await writeFile(path.join(t.folder, name), '{')
+    await expect(t.history.save('workspace', at(2))).rejects.toThrow()
+    const afterFailedSave = await readdir(t.folder)
+    expect(afterFailedSave.filter((candidate) => candidate.endsWith('.json'))).toEqual([name])
   })
 
   it('rejects directory redirects and hard-linked saved files without touching their targets', async () => {
