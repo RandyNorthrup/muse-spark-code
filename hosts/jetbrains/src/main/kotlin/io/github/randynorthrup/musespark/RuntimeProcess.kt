@@ -13,6 +13,16 @@ class RuntimeProcess private constructor(
 ) : Closeable {
   private var stderr: Thread? = null
   private val closed = AtomicBoolean()
+  private val containmentClosed = AtomicBoolean()
+  private val forceStop = {
+    if (containmentClosed.compareAndSet(false, true)) containment.close()
+    process.toHandle().destroyForcibly()
+  }
+  private val shutdown = Thread({ runCatching(forceStop) }, "Muse runtime JVM shutdown")
+
+  init {
+    Runtime.getRuntime().addShutdownHook(shutdown)
+  }
 
   override fun close() {
     if (!closed.compareAndSet(false, true)) return
@@ -23,15 +33,22 @@ class RuntimeProcess private constructor(
         start()
       }
     val descendants = process.descendants().toList().asReversed()
-    descendants.forEach { it.destroy() }
-    process.toHandle().destroy()
-    process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
-    containment.close()
-    process.toHandle().destroyForcibly()
-    process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
-    descendants.filter { it.isAlive }.forEach { it.destroyForcibly() }
-    stderr?.join(STOP_MILLIS)
-    stderrClose.join(STOP_MILLIS)
+    try {
+      try {
+        descendants.forEach { it.destroy() }
+        process.toHandle().destroy()
+        process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
+      } finally {
+        forceStop()
+      }
+      process.waitFor(STOP_SECONDS, TimeUnit.SECONDS)
+      descendants.filter { it.isAlive }.forEach { it.destroyForcibly() }
+      stderr?.join(STOP_MILLIS)
+      stderrClose.join(STOP_MILLIS)
+    } finally {
+      // During JVM exit the registered hook is already running; it never touches streams.
+      runCatching { Runtime.getRuntime().removeShutdownHook(shutdown) }
+    }
   }
 
   fun drainStderr(diagnostic: (String) -> Unit) {
@@ -100,6 +117,15 @@ class RuntimeProcess private constructor(
     ): RuntimeProcess {
       require(command.isNotEmpty() && Path.of(command.first()).isAbsolute) { "MHP_RUNTIME_NOT_FOUND" }
       val windows = com.intellij.openapi.util.SystemInfo.isWindows
+      // Prepare the native signal function before starting a child or registering its shutdown hook.
+      val kill =
+        if (windows) {
+          null
+        } else {
+          com.sun.jna.NativeLibrary
+            .getInstance("c")
+            .getFunction("kill")
+        }
       val job = if (windows) WindowsJob() else null
       val launch =
         if (windows) {
@@ -132,10 +158,7 @@ class RuntimeProcess private constructor(
       val process = runCatching { builder.createProcess() }.onFailure { job?.close() }.getOrThrow()
       val containment =
         job ?: Closeable {
-          com.sun.jna.NativeLibrary
-            .getInstance("c")
-            .getFunction("kill")
-            .invokeInt(arrayOf(-Math.toIntExact(process.pid()), KILL_SIGNAL))
+          requireNotNull(kill).invokeInt(arrayOf(-Math.toIntExact(process.pid()), KILL_SIGNAL))
         }
       return runCatching {
         if (job != null) {

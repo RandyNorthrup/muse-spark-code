@@ -5295,6 +5295,10 @@ have equivalent functionality even if we need to develop it ourselves".
   reconnect/project lifetime coverage and byte-exact red drills. Run strict
   Plugin Verifier against all three declared IDEA releases. No shared wire,
   paid behavior, other editor or gate threshold changes; no IDE agreement.
+  The JVM shutdown path also retains an eagerly prepared containment handle
+  and force-kills without stream I/O: daemon cleanup alone can be abandoned
+  when the IDE exits. Separate-JVM fake tests cover an attached runtime and a
+  parent-first worker; the shutdown hook is removed after normal cleanup.
 - **MHP 1.2 proposal (E3; other hosts unchanged).** The frozen 1.1
   `initialize` direction is runtime-to-host, but its result cannot carry the
   host's actual metadata. Add capability `hostMetadata` and protocol version

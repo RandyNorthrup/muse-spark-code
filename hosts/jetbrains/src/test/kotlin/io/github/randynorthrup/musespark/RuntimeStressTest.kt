@@ -33,6 +33,51 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
     }
   }
 
+  fun testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker() = exitFixture("alive")
+
+  fun testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited() = exitFixture("parent-first")
+
+  private fun exitFixture(mode: String) {
+    val receipt = Files.createTempFile(Path.of("build"), "jvm-exit-", ".pid")
+    val sdk = Path.of(System.getProperty("idea.home.path"))
+    val classpath =
+      listOf(
+        Path.of("build/classes/kotlin/test").toAbsolutePath(),
+        Path.of("build/classes/kotlin/main").toAbsolutePath(),
+        sdk.resolve("lib/*"),
+      ).joinToString(java.io.File.pathSeparator)
+    val builder =
+      ProcessBuilder(
+        Path.of(System.getProperty("java.home"), "bin/java").toString(),
+        "-Didea.home.path=$sdk",
+        "-Djna.boot.library.path=${sdk.resolve("lib/jna/amd64")}",
+        "-Djna.noclasspath=true",
+        "-cp",
+        classpath,
+        "io.github.randynorthrup.musespark.RuntimeExitFixture",
+        receipt.toAbsolutePath().toString(),
+        mode,
+      )
+    builder.environment().clear()
+    builder.environment()["PATH"] = "/usr/bin:/bin"
+    val helper = builder.start()
+    try {
+      assertTrue("Separate JVM exit stalled", helper.waitFor(WAIT_SECONDS, TimeUnit.SECONDS))
+      assertEquals(helper.errorStream.readAllBytes().toString(Charsets.UTF_8), 0, helper.exitValue())
+      val pids = Files.readAllLines(receipt).map(String::toLong)
+      assertEquals(2, pids.size)
+      waitUntil("IDE JVM exit stops its contained workers") { pids.none(::running) }
+    } finally {
+      helper.destroyForcibly()
+      if (Files.size(receipt) > 0) {
+        Files.readAllLines(receipt).map(String::toLong).forEach { pid ->
+          ProcessHandle.of(pid).ifPresent { it.destroyForcibly() }
+        }
+      }
+      Files.deleteIfExists(receipt)
+    }
+  }
+
   fun testAggregateMailboxBytesFailBeforeTheActorCanDrainThem() {
     val receipt = Files.createTempFile(Path.of("build"), "mailbox-budget-", ".pid")
     val releasePath = receipt.resolveSibling(receipt.fileName.toString() + ".release")
@@ -193,7 +238,11 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
       fixture.owner.terminated.get(WAIT_SECONDS, TimeUnit.SECONDS)
     } finally {
       releaseEdt.countDown()
-      fixture.close()
+      try {
+        fixture.close()
+      } finally {
+        fixture.emergencyCleanup()
+      }
     }
     exercise("normal") {}
   }
@@ -215,7 +264,11 @@ class RuntimeStressTest : HeavyPlatformTestCase() {
       fixture.assertStopped()
     } finally {
       releaseEdt.countDown()
-      fixture.close()
+      try {
+        fixture.close()
+      } finally {
+        fixture.emergencyCleanup()
+      }
     }
     exercise("normal") {}
   }

@@ -24,7 +24,9 @@ calls**. No IDE agreement accepted, merge, rebase, push or shared-install change
 5. POSIX starts a session/process group before exec through system Perl/POSIX.
    Windows attaches a stdin-gated launcher to a kill-on-close job before
    releasing it. A parent-exit callback detects death despite inherited open
-   stdout, and containment still reaches reparented workers.
+   stdout, and containment still reaches reparented workers. A JVM shutdown
+   hook force-kills through an eagerly prepared handle without stream I/O;
+   normal cleanup removes it.
 6. Each owner gets a fresh epoch, included in outbound IDs and captured by
    protocol, editor, widget, surface and native-lifetime callbacks. Cancelled
    requests retain bounded correlation; closed work never targets a replacement.
@@ -54,6 +56,7 @@ one physical JVM thread can synchronously read and write every pipe at once.
 | RVM104E2 R5: raw Tab error logger text                    | `MhpConnectionTest.runtimeFailureTextCannotBecomeAnIdeLoggerException`; `RuntimeStressTest.testR2RawTabFailureExposesOnlyFixedTextAndReconnects`. A schema-valid uppercase canary is absent from the exception and stack exposed to the platform.                                                                         |
 | RVM104E2 R6: metadata deadline leaves Connecting          | `RuntimeStressTest.testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects`: blocked native EDT metadata, owner termination without EDT release, then visible failure, native unregistration and successful replacement.                                                                                    |
 | Stress: output flood and shutdown hang                    | `RuntimeStressTest.testOutputFloodFailsBoundedAdmissionAndReconnects`, `testShutdownHangCannotFreezeProjectCloseAndReconnects`. Flood admission fails visibly; a child ignoring SIGTERM and stdin cannot gate native disposal.                                                                                            |
+| IDE JVM exit                                              | `RuntimeStressTest.testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker` and `testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited` start separate JVMs, exit them without project cleanup, and require both PID receipts to be stopped.                                                                                 |
 | Aggregate actor admission                                 | `RuntimeStressTest.testAggregateMailboxBytesFailBeforeTheActorCanDrainThem` holds initialization deliberately and fills the mailbox with four half-frame notifications; byte admission fails independently of the downstream writer.                                                                                      |
 
 The stress suite uses `HeavyPlatformTestCase`, creating and closing real IDE
@@ -66,15 +69,18 @@ only after assertions, so a containment red drill cannot leave a running orphan.
 
 ## Initial verification
 
-- Headless: **60/60 passed, zero failures/errors/skips**, ktlint, detekt and
-  `buildPlugin` exit 0 (`temp/native-final-baseline.log`).
+- Headless: **62/62 passed, zero failures/errors/skips**, ktlint, detekt and
+  `buildPlugin` exit 0 (`temp/exit-after-fix.log`). The two separate-JVM tests
+  failed before the hook with workers still running (`temp/exit-before-fix.log`).
 - Xvfb/JCEF before the final aggregate-byte test: **59/59 passed**, ktlint,
   detekt and ZIP build exit 0 (`temp/native-ui-green.log`). Includes the shared
   composer, approvals, Stop, native Tab and actual project lifetime tests.
 - Shared production build exits 0 (`temp/build.log`). Native main is
   **913.0/950 KiB**, notes **0.7/25 KiB**; unchanged native gates pass.
 
-Red drills, restored final UI run, scoped repository checks and fresh three-IDE
+Thirteen deliberate regressions have failed and restored source bytes exactly
+(`temp/red-drills.json`); final hook/containment drills, restored UI run,
+scoped repository checks and fresh three-IDE
 Plugin Verifier receipts follow in the verification commit. Existing receipts
 in `m104-e3.md` are historical and do not certify this new ZIP.
 

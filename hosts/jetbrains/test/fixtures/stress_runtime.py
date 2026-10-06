@@ -35,12 +35,14 @@ if mode == "metadata":
 if mode == "metadata":
     while not release.exists():
         time.sleep(0.01)
-call("initialize", {
+initialized = call("initialize", {
     "host": {"id": "fake-runtime", "version": "1"},
     "protocolRange": {"minimum": "mhp/1.1.0", "maximumExclusive": "mhp/1.3.0" if mode == "metadata" else "mhp/1.2.0"},
     "capabilities": caps, "locale": "en",
     "theme": {"kind": "dark", "tokens": {}}, "folders": [], "trusted": True,
 }, "initialize")
+if mode == "metadata" and "error" in initialized:
+    time.sleep(120)  # A rejected handshake keeps its pipe open; the host must terminate it.
 call("commands/register", {"id": "stress-fixture", "title": "Stress fixture"}, "command")
 call("tab/register", {"languages": ["plaintext"], "trigger": "invoke"}, "tab")
 

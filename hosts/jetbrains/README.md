@@ -68,7 +68,8 @@ through the system Perl/POSIX launcher; Windows assigns a gated command launcher
 to a kill-on-close job before releasing it to start the runtime. A parent exit
 also fails the connection, even when its worker keeps stdout open. Containment
 retains workers after parent-first exit; a missing launcher or failed job
-assignment refuses startup. Transport failure removes native commands, widgets,
+assignment refuses startup. A JVM shutdown hook uses the prepared containment
+handle to force termination without stream I/O, and normal cleanup removes it. Transport failure removes native commands, widgets,
 panels and Tab bindings. Reconnect creates a new epoch, and closed-epoch work,
 surface callbacks and replies cannot target the replacement. Runtime failure
 text is validated and replaced with fixed words before it can reach Tab's
