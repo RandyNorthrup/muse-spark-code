@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "{target} fordítása",
+  "makerDetectCheck": "{target} ellenőrzése",
+  "makerDetectSimulate": "{target} szimulálása",
+  "makerDetectPython": "Python-szintaxis ellenőrzése",
+  "makerDetectPresetsTitle": "Javasolt ellenőrzések ehhez a projekthez",
+  "makerDetectCloud": "A Wokwi feltölti a firmware-t a felhőjébe, és saját tokent igényel.",
+  "makerDetectCircuitPy": "Ez a munkaterület egy CIRCUITPY-meghajtón található. A kód mentése újraindíthatja a panelt.",
+  "makerDetectMachineConfig": "Gépkonfiguráció észlelve. A módosítások telepítése előtt ellenőrizze a fűtés és a mozgástartomány korlátait.",
+  "makerDetectBoardRequired": "Arduino- vagy Zephyr-fordítási ellenőrzés hozzáadása előtt válasszon célpanelt.",
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",
   "crashDetail": "Az Újratöltés újraépíti a panelt; a beszélgetést a gazdafolyamat megőrzi.",

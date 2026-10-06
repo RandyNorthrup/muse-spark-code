@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "Zbuduj {target}",
+  "makerDetectCheck": "Sprawdź {target}",
+  "makerDetectSimulate": "Symuluj {target}",
+  "makerDetectPython": "Sprawdź składnię Pythona",
+  "makerDetectPresetsTitle": "Sugerowane kontrole dla tego projektu",
+  "makerDetectCloud": "Wokwi przesyła oprogramowanie układowe do swojej chmury i wymaga Twojego własnego tokenu.",
+  "makerDetectCircuitPy": "Ten obszar roboczy znajduje się na dysku CIRCUITPY. Zapisanie kodu może ponownie uruchomić płytkę.",
+  "makerDetectMachineConfig": "Wykryto konfigurację maszyny. Przed wdrożeniem zmian sprawdź ograniczenia grzania i zakresu ruchu.",
+  "makerDetectBoardRequired": "Wybierz płytkę docelową przed dodaniem kontroli kompilacji Arduino lub Zephyr.",
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",
   "crashDetail": "Ponowne załadowanie odbudowuje panel; rozmowę przechowuje host.",

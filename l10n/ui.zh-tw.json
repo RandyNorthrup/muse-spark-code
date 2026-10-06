@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "建置 {target}",
+  "makerDetectCheck": "檢查 {target}",
+  "makerDetectSimulate": "模擬 {target}",
+  "makerDetectPython": "檢查 Python 語法",
+  "makerDetectPresetsTitle": "此創客專案的建議檢查",
+  "makerDetectCloud": "Wokwi 會將韌體上傳至雲端，並需要您自己的權杖。",
+  "makerDetectCircuitPy": "此工作區位於 CIRCUITPY 磁碟機上。儲存程式碼可能會重新啟動開發板。",
+  "makerDetectMachineConfig": "偵測到機器設定。部署變更前，請檢查加熱與行程限制。",
+  "makerDetectBoardRequired": "新增 Arduino 或 Zephyr 建置檢查前，請選擇目標開發板。",
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",
   "crashDetail": "重新載入會重建面板；對話由延伸主機保留。",

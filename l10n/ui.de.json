@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "{target} bauen",
+  "makerDetectCheck": "{target} prüfen",
+  "makerDetectSimulate": "{target} simulieren",
+  "makerDetectPython": "Python-Syntax prüfen",
+  "makerDetectPresetsTitle": "Empfohlene Prüfungen für dieses Projekt",
+  "makerDetectCloud": "Wokwi lädt Firmware in seine Cloud hoch und benötigt Ihren eigenen Token.",
+  "makerDetectCircuitPy": "Dieser Arbeitsbereich liegt auf einem CIRCUITPY-Laufwerk. Das Speichern von Code kann die Platine neu starten.",
+  "makerDetectMachineConfig": "Maschinenkonfiguration erkannt. Prüfen Sie die Heizungs- und Verfahrgrenzen, bevor Sie Änderungen übernehmen.",
+  "makerDetectBoardRequired": "Wählen Sie eine Zielplatine, bevor Sie eine Build-Prüfung für Arduino oder Zephyr hinzufügen.",
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",
   "crashDetail": "„Neu laden“ baut das Panel neu auf; die Unterhaltung bleibt im Host erhalten.",

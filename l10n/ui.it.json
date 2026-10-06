@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "Compila {target}",
+  "makerDetectCheck": "Verifica {target}",
+  "makerDetectSimulate": "Simula {target}",
+  "makerDetectPython": "Verifica la sintassi Python",
+  "makerDetectPresetsTitle": "Verifiche suggerite per questo progetto",
+  "makerDetectCloud": "Wokwi carica il firmware nel proprio cloud e richiede il tuo token.",
+  "makerDetectCircuitPy": "Questo spazio di lavoro si trova su un’unità CIRCUITPY. Salvare il codice può riavviare la scheda.",
+  "makerDetectMachineConfig": "Rilevata una configurazione della macchina. Controlla i limiti di riscaldamento e movimento prima di applicare le modifiche.",
+  "makerDetectBoardRequired": "Scegli una scheda di destinazione prima di aggiungere una verifica di compilazione Arduino o Zephyr.",
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",
   "crashDetail": "Ricarica ricostruisce il pannello; la conversazione viene conservata dall’host.",

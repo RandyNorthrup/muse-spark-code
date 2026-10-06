@@ -9,6 +9,32 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M103 lane D's portable maker project detector and catalogue gate: bounded,
+  read-only project markers select relevant bundled maker skills, while
+  ordinary workspaces keep the existing catalogue and request text. Optional
+  Raspberry Pi facts use the OS model file and bounded, credential-free
+  `vcgencmd` probes. A validated, localized `presetsOffered` event suggests
+  finite build, syntax, analysis and simulation checks without running them
+  or changing settings. Wokwi suggestions require explicit cloud opt-in and
+  an expected result; Arduino and Zephyr require a chosen board target.
+  Host integration follows in M103's wiring lane.
+
+### Fixed
+
+- Maker detection validates opened file and directory handles against the
+  held workspace root before reading or listing, so an ancestor replacement
+  cannot redirect detection outside the workspace. Windows uses native
+  handle paths and directory queries, including case-sensitive roots.
+
+- CIRCUITPY volume labels and root boot_out.txt retain the board-save notice
+  and generic Python syntax suggestions, including Windows drive roots and
+  differently named Linux mount points.
+
+- Maker Pico SDK and Zephyr build suggestions now use detected application
+  CMakeLists.txt directories; toolchain and workspace metadata still select
+  skills without offering unusable builds.
+
+
 - Bundled-skill updates reconcile owned links when an id moves between the
   vendor and first-party roots. Failed upgrades restore the previous copy,
   links and marker, keeping Update available. Maker topic checks now reject

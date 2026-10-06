@@ -1,4 +1,13 @@
 {
+  "makerDetectBuild": "Собрать {target}",
+  "makerDetectCheck": "Проверить {target}",
+  "makerDetectSimulate": "Симулировать {target}",
+  "makerDetectPython": "Проверить синтаксис Python",
+  "makerDetectPresetsTitle": "Рекомендуемые проверки для этого проекта",
+  "makerDetectCloud": "Wokwi загружает прошивку в своё облако и требует ваш собственный токен.",
+  "makerDetectCircuitPy": "Эта рабочая область находится на диске CIRCUITPY. Сохранение кода может перезапустить плату.",
+  "makerDetectMachineConfig": "Обнаружена конфигурация устройства. Проверьте ограничения нагрева и перемещения перед применением изменений.",
+  "makerDetectBoardRequired": "Выберите целевую плату перед добавлением проверки сборки Arduino или Zephyr.",
   "untitledConversation": "Без названия",
   "crashTitle": "В панели произошла ошибка",
   "crashDetail": "Перезагрузка пересоздает панель; беседа сохраняется на хосте.",
