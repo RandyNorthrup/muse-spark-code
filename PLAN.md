@@ -7070,7 +7070,231 @@ one governor for everything the harness starts.
     registers when the governor first loads. Each spawning bundle gains only
     its admission call, and no cap rises (D6).
 
+---
+
+### D88 — Several accounts per provider, with use thresholds (M108, 2026-10-05)
+
+The owner, 2026-10-05: "i also want to plan out and impliment multi account
+and account use threshholds so we can have multiple accounts from the same
+vendor that get swapped out at a cap or runs them in parellel on different or
+maybe even the same machine if we have not already". Later the same day: "to
+be clear the rotating would not be to circumvent limits it will be to enhance
+and extend them".
+
+So the feature adds capacity from accounts the user legitimately holds:
+automatic swapping and parallel use are on by default, each account's own
+limits are respected and shown, and the harness never misrepresents identity
+to a vendor. Each vendor's terms, read on 2026-10-05 with every source cited
+in `docs/research/account-terms-2026-10-05.md`, decide where it may act
+without asking.
+
+It builds on:
+
+- M95's provider registry, capability record and per-provider credentials,
+  and M95b's sign-ins;
+- M102's journal, which records usage per account;
+- M106's rate-limit bucket, for headroom;
+- M107's governor and relocation, and M100's paired devices.
+
+1. **An account is one credential for one provider.**
+   - **Kinds:**
+     - an API key: Meta's Model API keys and every API-key preset, including
+       organisation, project and team keys;
+     - an OAuth sign-in: OpenRouter's connect, Hugging Face's OAuth;
+     - a plan sign-in: the ChatGPT plan (M95b), and the Muse Code subscription
+       through its CLI (decision 8).
+   - **Not accounts here.** Copilot reaches us only through VS Code's own
+     `vscode.lm`, which chooses the GitHub account. Claude's plans, Google's
+     consumer tiers and the Z.ai Coding Plan are never held at all (D74).
+   - **Each account has:**
+     - an id (`^[a-z][a-z0-9-]{0,31}$`);
+     - a label the user chooses ("work", "personal", "team org");
+     - its place in its provider's pool;
+     - an optional **limit group** ("shares limits with"). The research found
+       limits attach to a Meta team, an OpenAI organisation or project, a
+       Gemini project or an account, not to a key, so two keys in one group
+       share one limit;
+     - its thresholds.
+   - **Storage.** `providers.json` gains `accounts` with those fields, and
+     never a credential. The credential a provider has today becomes its
+     `default` account, with nothing re-entered.
+   - **Models.** Scans run per account, since an organisation may lack a
+     model. Prices stay per provider and model.
+
+2. **Credentials per account, where they live today.**
+   - **Where.** In VS Code, SecretStorage
+     `museSpark.provider.<id>.account.<accountId>`; the existing
+     `museSpark.provider.<id>` entry stays as `default`. In the runtime, the
+     same names in the OS store (D61).
+   - **How they come in.** Only through the password box, or from standard
+     input (`auth set --provider <id> --account <id>`), each bound to its
+     origin (D74). Rule 8 is unchanged: a second Meta key comes in by the
+     same flow as the first.
+   - **Never** in `providers.json`, history, the journal (which holds an
+     opaque account id only), logs (every account's key is registered with
+     the redactor), exports, MHP frames, the companion page, or relocated
+     work (a device uses its own accounts, D80.4).
+   - **Removal.** Removing an account deletes its secret and revokes a
+     sign-in.
+
+3. **Per-account thresholds,** each optional, over D82's local day, week and
+   month:
+   - spend in USD per day, week or month: the journal's settled cost plus the
+     reservations in flight;
+   - input and output tokens per day or month;
+   - requests per day;
+   - a plan window's percentage: Muse Code's 5-hour and weekly bars from
+     `usage/changed`; the ChatGPT plan's windows once M95b captures them;
+     OpenRouter's key limit;
+   - rate-limit headroom: from M106's bucket, the remaining requests or
+     tokens below a percentage of the key's limit in the current minute.
+
+   They sit inside D78's shared daily budget and M82's conversation cap: a
+   swap never raises either.
+
+4. **Two kinds of trigger.**
+   - A **user cap** is a spend, token or request threshold the user set. It
+     may always move work to another account, except where the vendor allows
+     only one account per person (decision 6).
+   - A **vendor limit** is a plan window, rate-limit headroom, a 429, a quota
+     error or a plan's usage-limit error. The policy record (decision 6)
+     decides what it may do.
+
+5. **The actions.**
+   - **Swap** (on by default): at the next request boundary, to the next
+     account in the pool with room. It sticks until a threshold moves it
+     again.
+   - **Parallel** (on by default): background fan-out (team workers,
+     subagents, best-of-N candidates, scheduled runs) gets an account at
+     admission. Work is spread by headroom and sticks per worker, for its
+     cache and replay. The main conversation stays on its account unless a
+     swap moves it.
+   - **Route:** work goes to a paired device whose own account has room,
+     through M107's relocation under M100's consent.
+   - **Stop and tell:** when no account has room, or the record says so. The
+     notice names the reset time and links the vendor's usage page.
+   - **Never silent.**
+     - The model pill names the provider and the account ("OpenAI · work").
+     - A swap writes a transcript row: "Now on OpenAI · personal: work
+       reached its $20 daily cap".
+     - Account & usage and the usage page show every account.
+   - **Each account's own limits are respected.** No request goes to an
+     account past its own vendor limit, and each account's 429 and
+     `Retry-After` are honoured.
+
+6. **The vendor's terms decide what runs without asking.**
+   - **The record.** `src/core/providers/accountPolicy.ts` holds, per provider
+     and product:
+     - whether several accounts are allowed (yes, with conditions, one per
+       person, or unclear);
+     - where limits attach (team, organisation, project, account, tenant or
+       global);
+     - pooling against vendor limits: `on`, `confirm` or `notOffered`;
+     - the clause quoted, its URL, the date the page showed, and the date
+       checked.
+   - **`on`:** swaps and parallel use against vendor limits run by default.
+     From the research: Anthropic's API, Mistral's API, DeepSeek, Z.ai's API,
+     and Azure within one tenant.
+   - **`confirm`:** before the first swap or spread against a vendor limit on
+     that provider, one dialog does four things:
+     - it quotes the clause, with its source and date;
+     - it says plainly that the vendor's terms restrict or prohibit using
+       several accounts to get past its limits, and that the vendor may act
+       against the accounts;
+     - it asks the user to confirm that the accounts are legitimately theirs
+       to use this way;
+     - it offers **Confirm**, **Only at my own caps** and **Cancel**.
+
+     The answer is recorded per machine and provider, with the record's
+     version and date. It is revocable in the panel, and asked again when
+     that provider's row changes. This covers Meta (API and subscription),
+     OpenAI (API and ChatGPT plan), Google, GitHub, xAI, Groq, OpenRouter,
+     Mistral's consumer plans, Together, Fireworks, Hugging Face, and Azure
+     across tenants. Several of them prohibit pooling against their limits
+     whatever the purpose; the dialog says so rather than softening it.
+
+   - **One account per person.** Where the vendor allows only that (Mistral's
+     consumer plans, OpenRouter, GitHub's free accounts), the same
+     confirmation comes before any swap, even at a user cap.
+   - **`notOffered`:** never an account (D74's list).
+   - **A limit group adds no capacity.** Against a vendor limit the pool
+     skips another key of the same group, and says why.
+   - **The vendor's documented recovery comes first.**
+     - The ChatGPT plan: pause, link to Usage, and offer credits or the
+       user's own API key, as OpenAI's guidance says.
+     - Meta's subscription: upgrade, wait, or the user's own pay-as-you-go
+       key, which asks D48's question.
+   - **Identity is never misrepresented.**
+     - Each request carries only its own account's credential and headers.
+     - The harness never creates or signs up accounts.
+     - It never rotates network addresses, user agents or identifiers, and
+       never proxies to hide where a request came from.
+   - **Re-checked.** The record is re-read before each release, and whenever a
+     row is older than `ACCOUNT_POLICY_RECHECK_DAYS` (90). The panel shows each
+     row's check date.
+
+7. **Reasoning, cache and consent across accounts.**
+   - **Replay.** CAPAUDIT F1's producer identity gains the account. Native
+     reasoning items and encrypted content go back only to the account, or
+     the limit group if a capture shows that works, that produced them.
+     Otherwise they are dropped by the captured policy, and the text stays.
+   - **Cache.** A swap into another limit group starts cold. The swap row
+     names the estimated re-read cost, and the reservation includes it.
+   - **Paid consent** (D48) binds the provider, the account and the price: an
+     account's first paid use asks, since it may bill another organisation.
+   - **Liability.** Uncertain liability stays with the account that incurred
+     it (M82).
+
+8. **Muse Code accounts.**
+   - The CLI owns its sign-in. A second Muse Code account is a second
+     `muse serve` with its own `XDG_CONFIG_HOME`, which the CLI honours on
+     every platform (`launch.ts`).
+   - That home is an owner-only folder in the extension's storage, signed in
+     with `muse login` in a terminal the panel opens.
+   - This waits for a capture that shows sign-in and serve work there, and
+     that records what else moves with the config home: settings, hooks,
+     skills, MCP servers, memory. The panel copies only the non-secret
+     configuration the user picks.
+   - Plan-window thresholds come from `usage/changed`, and the subscription's
+     limits follow the record's Meta subscription row (`confirm`).
+
+9. **Every editor** (D84):
+
+   | Surface                                     | Accounts                                                                                                                                                                                                        |
+   | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | VS Code family                              | the Accounts section of Models & Agents (add, label, order, limit group, thresholds, the record's row and its check date); the account in the picker and pill; swap rows; the confirmation dialog               |
+   | JetBrains, Visual Studio, Eclipse (M104b–d) | the same panel through the bridges                                                                                                                                                                              |
+   | The companion page                          | the same panel                                                                                                                                                                                                  |
+   | ACP clients                                 | `/accounts` (list, current, thresholds, `use <id>`); an `account` session option; swap notices                                                                                                                  |
+   | Any terminal                                | `muse-spark-code-acp providers accounts list\|add\|remove\|order\|thresholds`; `auth set --provider <id> --account <id>`                                                                                        |
+   | Headless `exec`                             | `--account <id>`. `--account-pool` swaps at user caps, and at vendor limits only where the record is `on` or a confirmation was recorded on that machine. CI with `--key-stdin` has one account and never swaps |
+
+10. **Devices.** A paired device's offer status gains, per provider, an
+    account headroom bucket (`ample`, `some`, `none`), never labels, ids or
+    credentials. Routing follows M100's consent. The receiver applies its own
+    record and its own confirmations, which never travel between machines.
+
+11. **The usage page.** Records gain `account`, an opaque id. The page groups
+    by account (labels resolved locally), shows each account's thresholds as
+    meters, and lists swaps, spreads and stops as events.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M108 — Second credentials for M108's live captures (2026-10-05).**
+  Several of M108's wire facts need a second credential:
+  - whether two keys of one Meta team share one limit in the
+    `x-ratelimit-*` headers;
+  - whether encrypted reasoning and the prompt cache carry across keys and
+    across teams;
+  - whether Muse Code signs in and serves from a second `XDG_CONFIG_HOME`;
+  - how a second ChatGPT plan account behaves.
+
+  The keys and sign-ins are the owner's to mint or provide: a second Meta key
+  on the same team and one on another team, and a second Muse Code or
+  ChatGPT sign-in if he has one. **Default:** every lane builds and certifies
+  on fakes. Until the captures run, any account change drops native reasoning
+  (the safe replay policy), limit groups stay user-declared, and Muse Code
+  accounts stay off.
 
 - **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
   `native/darwin/muse-dictate`. The lane's shared rules forbid network except
@@ -19604,6 +19828,208 @@ Each joins when its dependency merges, and none blocks the others.
   - [ ] The owner's case (acceptance 15) measured and recorded
   - [ ] Editor matrix rows recorded; strings in all 14 tables; budgets
         measured; full gate green
+
+---
+
+### M108 — Several accounts per provider, with use thresholds (D88)
+
+**Status 2026-10-05: planned.** The terms research is
+`docs/research/account-terms-2026-10-05.md`.
+
+- **Lanes 0, K, T, U and J** need only M95 and M102.
+- **P** needs K and T.
+- **M** waits for its capture (Q-M108).
+- **D** waits for M100 and M107's relocation.
+- Every lane certifies on fakes. The captures that need a second credential
+  wait for the owner (Q-M108) and block no lane.
+
+- **Goal.** A user holds several accounts with one provider (keys,
+  organisation and project keys, team seats, plan sign-ins), each with its
+  own label and thresholds. The harness swaps to the next account at a
+  threshold and spreads background work across accounts, on this machine or
+  a paired one. It always shows which account is in use, respects each
+  account's own limits, and follows each vendor's terms as recorded.
+- **Depends on.**
+  - **M95 (D74):** the registry, `providers.json`, credentials bound to their
+    origin, the capability record, the Models & Agents panel, the price
+    cards.
+  - **M95b:** the ChatGPT plan's sign-in and usage-limit screen.
+  - **M102:** the journal and the usage page.
+  - **M106 lane R:** the rate-limit bucket.
+  - **M107 lane R** and **M100:** routing to a device.
+  - **D78 and M82:** budgets; **D48:** paid consent.
+  - **CAPAUDIT F1:** replay producer identity, built with M95.
+- **Scope.** D88 entire; strings in all 14 tables; README ("Several accounts
+  per provider", with the terms table), PRIVACY, SECURITY, CHANGELOG,
+  `docs/acp.md`, `docs/ci.md`, `docs/ide-compatibility/**` rows, registry
+  rows, certification.
+- **Settings.** `museSpark.accountSwap` (on) and `museSpark.accountParallel`
+  (on), machine-scoped. Thresholds, order and limit groups live with each
+  account in `providers.json`, which only the panel and the CLI write.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m108-accounts`, under M87's region rules. Muse implements, Codex
+  reviews in one pass by class, and the lead integrates. K (credentials), P
+  (the pool, the policy gate, replay identity) and D go to Codex or Claude.
+  **Order:**
+  1. Lane 0.
+  2. K, T, U and J in parallel.
+  3. P after K and T; H after K and P; M after its capture; D after P with
+     M100 and M107 R merged.
+  4. W last.
+
+| Lane                                           | Items                                                                                                                                                                                                                                                                                                                              | Files it owns                                                                                                                                                                        | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                     | Starts                                       |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 0 Contracts, strings, the policy record (lead) | The account, threshold, trigger, event and confirmation schemas; the policy record from the research, with every quote re-read and checked byte-for-byte (xAI's Terms of Service pages read in a browser); the fakes (a fake provider with per-account limits and 429s, a fake journal, a fake clock, a fake device); every string | new `src/shared/accounts.ts`, `src/core/providers/accountPolicy.ts`, `test/unit/helpers/accounts/**`, `docs/certification/m108-policy.md` (each row's verified quote and check date) | `constants.ts` (`ACCOUNT_*`, `ACCOUNT_POLICY_RECHECK_DAYS`); `en.ts`, the 14 tables, `package.nls*.json`; `providersFile.ts` (the `accounts` schema); `src/shared/usageJournal.ts` (`account`, with M102 lane 0); `src/shared/devices.ts` (the headroom bucket, with M100 lane 0); `src/shared/hostApi/**` (accounts messages, with M104 lane 0); `docs/schemas/exec-*` (with M80's versioning) | day 0                                        |
+| K Account store                                | D88.1 and D88.2: the accounts in `providers.json`; secret names and the `default` migration; a second Meta key through rule 8's flow; origin binding; add, remove and revoke; scans per account                                                                                                                                    | new `src/core/providers/accounts.ts`, `src/host/providers/accountSecrets.ts`, `src/runtime/providers/accountStore.ts`                                                                | `providersFile.ts`; `credentialRecord.ts`; the registry's client lookup (a client per account); `src/runtime/keyStore.ts` (names); the Meta key flow in `src/host/auth/**`; the redactor's registered values                                                                                                                                                                                    | after 0, with M95 merged                     |
+| T Thresholds                                   | D88.3 and D88.4: evaluation from the journal and live snapshots; day, week and month; the trigger's kind; the admission check before each request                                                                                                                                                                                  | new `src/core/accounts/thresholds.ts`                                                                                                                                                | `src/host/paid/paidDailyBudget.ts` and `sessionBudget.ts` (the admission hook); M102's `aggregate.ts` (a per-account read); M106's `pacing.ts` (the headroom read)                                                                                                                                                                                                                              | after 0, with M102 merged                    |
+| P Pool and policy                              | D88.5–D88.7: order, swap at a request boundary, spread and sticky assignment, the policy gate (`on`, `confirm`, `notOffered`), one account per person, limit groups, the vendor's recovery first, the confirmation record, replay identity per account, the cold-cache estimate, paid consent per account                          | new `src/core/accounts/pool.ts`, `src/core/accounts/policyGate.ts`, `src/core/accounts/confirmations.ts`                                                                             | `ModelApiHost.ts` (the per-request client choice through the registry); the replay wrapper (producer identity, with M95's owner); `src/core/paid/paidConsent.ts` (account binding); the admission regions of `subagentTools.ts`, `bestOfNRunner.ts`, `schedules.ts` and the team pool (M96)                                                                                                     | after K and T                                |
+| M Muse Code accounts                           | D88.8: a config home per account, after its capture; sign-in in a terminal; plan-window thresholds; the pay-as-you-go offer (D48); the subscription row                                                                                                                                                                            | new `src/core/backends/musecode/accountHomes.ts`                                                                                                                                     | `museCodeBackendManager.ts` (the launch environment: `XDG_CONFIG_HOME` per account); `launch.ts`; `MuseCodeHost.ts` (`usage/changed`)                                                                                                                                                                                                                                                           | after 0 and the Q-M108 capture               |
+| D Devices                                      | D88.10: the per-provider headroom bucket in offers; routing by account headroom; the receiver's own record and confirmations                                                                                                                                                                                                       | —                                                                                                                                                                                    | `src/core/team/remotePool.ts` (routing, after M107 R); `src/host/devices/deviceReceiver.ts` (admission)                                                                                                                                                                                                                                                                                         | after P, with M100 S and E and M107 R merged |
+| U Panel and VS Code                            | D88.9's VS Code and shared parts: the Accounts section, the account in the picker and pill, swap rows, the confirmation dialog quoting the clause, the threshold editors; harness scenes and axe                                                                                                                                   | new `src/webview/models/sections/accounts/**`, `src/webview/components/AccountChip.tsx` (lazy)                                                                                       | `src/shared/modelsPanel.ts` (account slices); the panel host's handlers; `App.tsx` (the pill); `extension.ts` (commands, loaders only); `test/harness` scenes                                                                                                                                                                                                                                   | after 0                                      |
+| H Runtime, ACP, headless, companion            | D88.9's other rows: the CLI's `providers accounts` and `auth set --account`; ACP's `/accounts`, the session option and notices; exec's `--account` and `--account-pool`; the companion through the panel                                                                                                                           | new `src/runtime/providers/accountsCommand.ts`, `src/acp/accounts.ts`                                                                                                                | `src/runtime/cliArgs.ts`; `main.ts`; `src/acp/agent.ts`; `runExec.ts`; `docs/schemas/*`                                                                                                                                                                                                                                                                                                         | after K and P                                |
+| J The usage page                               | D88.11: the account dimension, per-account meters, swap and stop events, the text summary                                                                                                                                                                                                                                          | new `src/core/usage/accountUsage.ts`, `src/webview/usage/AccountsSection.tsx`                                                                                                        | `aggregate.ts` (group by account); `usageText.ts`; `UsageApp.tsx` (the mount)                                                                                                                                                                                                                                                                                                                   | after 0, with M102 merged                    |
+| W Wiring, docs and gates (last)                | Bundles, budgets, `package.json`, docs, registry rows, certification, the full gate                                                                                                                                                                                                                                                | `docs/certification/m108*.md`                                                                                                                                                        | `scripts/build.mjs`; the bundle-size and split gates; the host API record; README; PRIVACY; SECURITY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN                                                                                                                                                                                                                 | last                                         |
+
+- **Steps.**
+  1. Lane 0, including the record's byte-checked quotes.
+  2. K, T, U and J against the fakes; then P and H.
+  3. **The captures (Q-M108),** once the owner provides the credentials, in
+     `C:\muse-live-ws` on contributor models:
+     - two keys of one Meta team and one of another: the `x-ratelimit-*`
+       values per key, encrypted reasoning replayed across keys and across
+       teams, and `cached_tokens` across keys;
+     - a second Muse Code config home: sign in, serve, and what moves;
+     - a second ChatGPT plan account, if the owner has one.
+
+     Expected: about 8 inference turns and one Muse Code turn, counted from
+     the trace logs, with the spend recorded.
+
+  4. M and D as their dependencies land.
+  5. Lane W.
+- **Acceptance** (fakes unless named):
+  1. **Accounts.**
+     - Several accounts per provider can be added, labelled, ordered,
+       grouped and removed, in the panel and through the CLI.
+     - The existing credential is `default` with nothing re-entered.
+     - A removed account's secret is gone, and a sign-in is revoked.
+  2. **Credentials.**
+     - Each account's secret is under its own name, bound to its origin, and
+       entered only by the password box or standard input.
+     - No `providers.json`, history, journal, log, export, MHP frame,
+       companion response or device frame holds a key (a grep test with
+       planted canaries, rule 8).
+  3. **Thresholds.**
+     - Spend, tokens and requests per day, week and month, plan-window
+       percentages and rate-limit headroom each trip at their value, from
+       generated journals and snapshots.
+     - Nothing raises D78's budget or M82's cap (a red drill lets a swap
+       reset the day's spend, and the test fails).
+  4. **Swap.**
+     - At a user cap, the next account with room takes the next request,
+       and the pill, the transcript row and Account & usage say so.
+     - The swap sticks.
+     - With every account full, work stops with the reset time and the
+       vendor's usage link.
+  5. **Parallel.** Workers, subagents, best-of-N candidates and schedules
+     spread over accounts by headroom and stick per worker. No account gets a
+     request past its own 429 or `Retry-After` (the fake provider counts
+     them).
+  6. **The policy.**
+     - `on` rows pool at vendor limits without asking.
+     - `confirm` rows show the dialog, quoting the clause, its URL and date,
+       once per machine and provider. The answer is recorded with the
+       record's version; **Only at my own caps** keeps vendor limits from
+       swapping; a changed row asks again; revoking stops pooling at once.
+     - One-account-per-person rows ask even at a user cap.
+     - `notOffered` products cannot be added.
+     - A limit group's second key is skipped at a vendor limit, with the
+       reason.
+     - The ChatGPT plan shows OpenAI's recovery first, and Meta's
+       subscription its upgrade, wait or pay-as-you-go choice, with D48's
+       question.
+     - A red drill pools a `confirm` row without the dialog, and the test
+       fails.
+  7. **Identity.** Each request carries only its own account's credential and
+     headers. A request built for account B carries nothing from account A
+     (a frame test).
+  8. **Replay, cache, consent.**
+     - Until the Q-M108 capture, a request after an account change carries
+       no native reasoning item from another account.
+     - The swap row names the cold-cache estimate, and the reservation
+       includes it.
+     - An account's first paid use asks D48's question.
+  9. **Muse Code.** With the capture recorded, a second account serves from
+     its own config home and its plan-window thresholds trip from
+     `usage/changed`. Without it, Muse Code accounts are off and say why.
+  10. **Devices.** A device whose account has room takes routed work; its
+      offer holds a headroom bucket and nothing else about accounts; its own
+      confirmations apply there.
+  11. **Editors.** The panel in VS Code, the companion page and the fake
+      native bridges; ACP's `/accounts`, the session option and the notices;
+      the CLI's commands; exec's `--account` and `--account-pool`, with CI
+      never swapping.
+  12. **The usage page.** Grouping by account, the meters and the events
+      agree with the journal (a property test). Labels are never written to
+      the journal.
+  13. **The record's age.** A row older than 90 days shows its age in the
+      panel, and the release checklist fails until it is re-checked.
+  14. **Budgets.** No existing cap rises.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m108-<lane>.md`:
+  - `accounts.test.ts`;
+  - `accountSecrets.test.ts`;
+  - `thresholds.test.ts`;
+  - `pool.test.ts`;
+  - `policyGate.test.ts` (every row of the record);
+  - `confirmations.test.ts`;
+  - `accountUsage.test.ts`;
+  - `acpAccounts.test.ts`;
+  - `execAccounts.test.ts`;
+  - the e2e `accounts.e2e.test.ts`: a fake provider with two accounts, one
+    hitting a user cap and one a 429, through a turn and a fan-out.
+
+  **Red drills:**
+  - swap silently;
+  - pool a `confirm` row without the dialog;
+  - send account A's header on B;
+  - write a label to the journal;
+  - let a swap raise the daily budget;
+  - replay native reasoning across accounts;
+  - accept a key from an argument.
+
+- **Gates.** The full `npm run quality`, `check-l10n`, the host API record,
+  D6's budgets and the split guard, the exec schema check, `test:a11y` (the
+  Accounts section and the dialog, in four themes and at 320 px), semgrep,
+  gitleaks over the fixtures.
+- **Security.**
+  - Rule 8 per account.
+  - Origin binding per account (D74).
+  - Every account's key is registered with the redactor, and account ids in
+    vendor headers and errors stay redacted (D74).
+  - Confirmations are local, per machine, and never travel.
+  - The record is data in the bundle, not fetched at run time.
+  - Nothing creates accounts or disguises a request's origin.
+  - PLAN §9 records the residual: a user can still confirm pooling that a
+    vendor prohibits, and the vendor may act on the accounts. The dialog
+    says so.
+- **Docs.** README: the accounts section, the terms table with each row's
+  date, and what is never done. PRIVACY: what the journal holds per account.
+  SECURITY: credentials per account. Also `docs/acp.md`, `docs/ci.md`,
+  CHANGELOG, this plan and certification.
+- **Performance and bundles.** The pool, the gate and the record load with
+  `dist/providers.js` (M95's lazy bundle); the panel section is part of
+  `dist/webview/models.js`. A Meta-only user with one key loads none of it.
+  `dist/extension.js` and the chat startup gain nothing, and no cap rises.
+- **Size.** M–L.
+- **Certification checklist** (§6.0, plus):
+  - [ ] The record's quotes byte-checked, each with its URL, date shown and
+        date checked
+  - [ ] Lanes 0, K, T, P, U, H and J with drills
+  - [ ] M and the cross-account replay and cache facts after the Q-M108
+        captures, or named as waiting for them
+  - [ ] D with M100 and M107, or named as waiting
+  - [ ] Editor rows recorded; strings in all 14 tables; budgets measured;
+        full gate green
 
 ## 7. Gates
 
