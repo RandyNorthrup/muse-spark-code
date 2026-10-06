@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import {
-  cpSync,
   existsSync,
   lstatSync,
   mkdtempSync,
@@ -65,6 +64,7 @@ export function hookVerificationDigest(base: string, range?: PlaybookPushRange):
 
 export class PlaybookOutcomes {
   private hookFolder: string | undefined
+  private hasConfiguredHooks = false
   constructor(
     private readonly workspace: string,
     private readonly admission: PlaybookHookAdmission,
@@ -74,7 +74,11 @@ export class PlaybookOutcomes {
     if (!this.admission.admit(effect)) throw new Error(UI_TEXT.playbookUnavailable)
     const result = spawnSync(effect.command, [...effect.args], {
       cwd: effect.cwd,
-      env: withoutCredentials(process.env),
+      env: Object.fromEntries(
+        Object.entries(withoutCredentials(process.env)).filter(
+          ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
+        ),
+      ),
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       windowsHide: true,
@@ -131,26 +135,36 @@ export class PlaybookOutcomes {
   }
 
   snapshot(): string[] {
-    const head = this.run(
-      {
-        kind: 'git',
-        cwd: this.workspace,
-        command: 'git',
-        args: ['rev-parse', '--verify', '--quiet', 'HEAD'],
-      },
-      true,
-    ).trimEnd()
-    return this.git(['rev-list', '--all', ...(head ? [head] : [])])
+    // for-each-ref includes branches, tags and notes; worktree HEADs also
+    // cover detached commits that have no named ref in the common repository.
+    const refs = this.git(['for-each-ref', '--format=%(objectname)']).split('\n').filter(Boolean)
+    const heads = this.git(['worktree', 'list', '--porcelain'])
       .split('\n')
-      .filter(Boolean)
+      .filter((line) => line.startsWith('HEAD '))
+      .map((line) => line.slice('HEAD '.length))
+      .filter((oid) => !/^0+$/u.test(oid))
+    const tips = [...new Set([...refs, ...heads])]
+    return tips.length > 0
+      ? this.git(['rev-list', ...tips, '--'])
+          .split('\n')
+          .filter(Boolean)
+      : []
+  }
+
+  pushAnchor(range: PlaybookPushRange): string | undefined {
+    const update = range.updates.find((item) => !/^0+$/u.test(item.localOid))
+    return update ? this.git(['rev-parse', '--verify', update.localOid + '^{commit}']) : undefined
   }
 
   commits(work: Work, range?: PlaybookPushRange, initialBaseline = work.baseline): string[] {
     const baseline = new Set(work.baseline)
-    const commits = this.reachable(work.refs).filter((commit) => !baseline.has(commit))
+    const commits = this.snapshot().filter((commit) => !baseline.has(commit))
     if (!range) return commits
-    const tips = range.updates.map((update) => update.localOid)
-    if (tips.length === 0) throw new Error(UI_TEXT.playbookUnavailable)
+    const tips = range.updates
+      .filter((update) => !/^0+$/u.test(update.localOid))
+      .map((update) => update.localOid)
+    if (range.updates.length === 0) throw new Error(UI_TEXT.playbookUnavailable)
+    if (tips.length === 0) return commits
     const initial = new Set(initialBaseline)
     const introduced = this.git(['rev-list', ...tips, '--'])
       .split('\n')
@@ -172,6 +186,8 @@ export class PlaybookOutcomes {
       true,
     ).trimEnd()
     this.hookFolder = hookDir
+    this.hasConfiguredHooks =
+      Boolean(config) || PLAYBOOK_HOOK_NAMES.some((name) => existsSync(path.join(hookDir, name)))
     const hash = createHash('sha256').update(config.replaceAll('\\', '/'))
     const visit = (entry: string): void => {
       if (!existsSync(entry)) return
@@ -203,7 +219,7 @@ export class PlaybookOutcomes {
     let result: Receipt['result'] = 'fail'
     const directory = mkdtempSync(path.join(tmpdir(), 'muse-playbook-hooks-'))
     const isolated = path.join(directory, 'tree')
-    let isAdded = false
+    let isAddAttempted = false
     let rootRef: string | undefined
     try {
       const object = this.bytes({
@@ -217,8 +233,8 @@ export class PlaybookOutcomes {
       const headers = object.subarray(0, separator).toString('utf8').split('\n')
       const parent = headers.find((line) => line.startsWith('parent '))?.slice('parent '.length)
       const tree = headers.find((line) => line.startsWith('tree '))?.slice('tree '.length)
+      isAddAttempted = true
       this.git(['worktree', 'add', '--detach', isolated, commit])
-      isAdded = true
       // Stage the commit's complete tree against its first parent, exactly the
       // state that pre-commit and staged scanners are defined to inspect.
       if (!range && parent) this.git(['update-ref', 'HEAD', parent], isolated)
@@ -227,37 +243,37 @@ export class PlaybookOutcomes {
         this.git(['symbolic-ref', 'HEAD', rootRef], isolated)
       }
       this.git(['read-tree', commit], isolated)
-      const hooks = this.git(
-        ['rev-parse', '--path-format=absolute', '--git-path', 'hooks'],
-        isolated,
-      )
-      const sourceHooks = this.hookFolder
-      if (!sourceHooks) throw new Error(UI_TEXT.playbookUnavailable)
-      if (
-        hooks.replaceAll('\\', '/') !== sourceHooks.replaceAll('\\', '/') &&
-        existsSync(sourceHooks) &&
-        !existsSync(hooks)
-      )
-        cpSync(sourceHooks, hooks, {
-          recursive: true,
-          dereference: false,
-          preserveTimestamps: true,
-        })
-      if (new PlaybookOutcomes(isolated, this.admission).digest(range) !== digest)
-        throw new Error(UI_TEXT.playbookUnavailable)
+      const hooks = this.hookFolder
+      if (!hooks || this.digest(range) !== digest) throw new Error(UI_TEXT.playbookUnavailable)
       const message = path.join(directory, 'message')
       writeFileSync(message, object.subarray(separator + 2))
       const originalMessage = readFileSync(message)
       for (const hook of PLAYBOOK_HOOK_NAMES) {
         if ((hook === 'pre-push') !== (range !== undefined)) continue
         const hookFile = path.join(hooks, hook)
-        if (!existsSync(hookFile)) continue // Git defines an absent hook as no hook.
+        if (!existsSync(hookFile)) {
+          if (this.hasConfiguredHooks) throw new Error(UI_TEXT.playbookUnavailable)
+          continue
+        }
         const stat = lstatSync(hookFile)
         if (
           !stat.isFile() ||
           (process.platform !== 'win32' && (stat.mode & PLAYBOOK_HOOK_EXECUTABLE_MASK) === 0)
         )
           throw new Error(UI_TEXT.playbookUnavailable)
+        // Husky's native wrapper exits successfully if its body is absent,
+        // or if sourced user startup code sets HUSKY=0. Neither is evidence
+        // that a hook ran. Refuse startup scripts rather than interpret shell.
+        if (hooks.replaceAll('\\', '/').endsWith('/.husky/_')) {
+          for (const file of [path.join(hooks, 'h'), path.join(path.dirname(hooks), hook)])
+            if (!existsSync(file) || !lstatSync(file).isFile())
+              throw new Error(UI_TEXT.playbookUnavailable)
+          const home = process.env['HOME'] ?? process.env['USERPROFILE']
+          const configHome =
+            process.env['XDG_CONFIG_HOME'] ?? (home ? path.join(home, '.config') : undefined)
+          if (configHome && existsSync(path.join(configHome, 'husky', 'init.sh')))
+            throw new Error(UI_TEXT.playbookUnavailable)
+        }
         const args: string[] = []
         if (hook === 'commit-msg') args.push(message)
         else if (hook === 'pre-push' && range) args.push(range.remote, range.url)
@@ -277,6 +293,8 @@ export class PlaybookOutcomes {
           cwd: isolated,
           command: 'git',
           args: [
+            '-c',
+            `core.hooksPath=${hooks}`,
             'hook',
             'run',
             ...(input === undefined ? [] : [`--to-stdin=${stdinFile}`]),
@@ -301,26 +319,38 @@ export class PlaybookOutcomes {
         this.git(['diff', '--no-ext-diff', '--no-textconv', '--exit-code'], isolated) !== ''
       )
         throw new Error(UI_TEXT.playbookUnavailable)
-      if (
-        !readFileSync(message).equals(originalMessage) ||
-        new PlaybookOutcomes(isolated, this.admission).digest(range) !== digest ||
-        this.digest(range) !== digest
-      )
+      if (!readFileSync(message).equals(originalMessage) || this.digest(range) !== digest)
         throw new Error(UI_TEXT.playbookUnavailable)
       result = 'pass'
     } catch (error) {
       output += error instanceof Error ? redactSecrets(error.message) : UI_TEXT.playbookUnavailable
     } finally {
-      try {
-        if (rootRef) this.git(['update-ref', '-d', rootRef])
-        if (isAdded) this.git(['worktree', 'remove', '--force', isolated])
-      } catch (error) {
-        result = 'fail'
-        output +=
-          error instanceof Error ? redactSecrets(error.message) : UI_TEXT.playbookUnavailable
+      // Git may register a worktree before post-checkout fails. Attempt Git
+      // cleanup even when add did not return successfully; prune after rm.
+      for (const args of [
+        ...(rootRef ? [['update-ref', '-d', rootRef]] : []),
+        ...(isAddAttempted ? [['worktree', 'remove', '--force', isolated]] : []),
+      ]) {
+        try {
+          this.git(args)
+        } catch (error) {
+          result = 'fail'
+          output +=
+            error instanceof Error ? redactSecrets(error.message) : UI_TEXT.playbookUnavailable
+        }
       }
       rmSync(directory, { recursive: true, force: true })
+      if (isAddAttempted) {
+        try {
+          this.git(['worktree', 'prune'])
+        } catch (error) {
+          result = 'fail'
+          output +=
+            error instanceof Error ? redactSecrets(error.message) : UI_TEXT.playbookUnavailable
+        }
+      }
     }
+
     return {
       receipt: {
         workId: work.id,

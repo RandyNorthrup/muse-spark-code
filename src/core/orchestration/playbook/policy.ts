@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { redactSecrets } from '../../../shared/redact'
 import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../../shared/constants'
 import {
   defaultPlaybookSettings,
@@ -458,10 +459,11 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         range,
       )
       const commits = outcomes.commits(work.value, range, initialBaseline)
+      const anchor = range ? outcomes.pushAnchor(range) : undefined
       const hasPushReceipt =
         !range ||
         (range.updates.length > 0 &&
-          hasOutcomeReceipts([range.updates[0]?.localOid ?? ''], pushDigest, this.records, 'push'))
+          (!anchor || hasOutcomeReceipts([anchor], pushDigest, this.records, 'push')))
       const isAllowed = hasPushReceipt && hasOutcomeReceipts(commits, digest, this.records)
       const code = isAllowed ? 'checksPassed' : 'unverifiedCommit'
       return this.decide(isAllowed ? 'allow' : 'refuse', 'neverAround', code, {
@@ -826,19 +828,13 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         range,
       )
       const commits = outcomes.commits(work.value, range, initialBaseline)
-      if (
-        range?.updates.some(
-          (update) => !outcomes.reachable(work.value.refs).includes(update.localOid),
-        )
-      )
-        throw new Error(UI_TEXT.playbookUnavailable)
       for (const commit of commits) {
         if (hasOutcomeReceipts([commit], digest, this.records)) continue
         const checked = outcomes.verify(work.value, commit, digest, this.options.now())
         output += checked.output
         this.publishVerification(checked.receipt)
       }
-      const anchor = range?.updates[0]?.localOid
+      const anchor = range ? outcomes.pushAnchor(range) : undefined
       if (
         range &&
         anchor &&
@@ -850,7 +846,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         this.publishVerification(checked.receipt)
       }
       const decision = this.outcomeAdmission(workId, range)
-      return { decision, output }
+      return { decision, output: redactSecrets(output) }
     } catch (error) {
       output += error instanceof Error ? error.message : UI_TEXT.playbookUnavailable
       const digest = actionIdentity({ effect: 'verification-unavailable', subject: workId })
@@ -877,7 +873,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
         decision: this.decide('refuse', 'neverAround', 'hookVerificationFailed', {
           needsUser: true,
         }),
-        output,
+        output: redactSecrets(output),
       }
     }
   }

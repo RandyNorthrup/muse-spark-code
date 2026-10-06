@@ -52,6 +52,11 @@ The shared policy verifies commit outcomes before harness-managed push or
 completion. Its command guard is an advisory early warning. Each newly
 reachable commit needs a passing receipt for the repository's own hooks;
 failed or unavailable hooks add a strike and block completion and push.
+Verification discovers new branches, tags, notes and detached worktree HEADs.
+Hooks run from the source repository's absolute hook directory. Configured
+hook sets must contain every required hook; Husky startup scripts and missing
+dispatch/body files fail closed. Annotated tags verify their target commit;
+ref deletions need no hook receipt.
 Lane and generation leases fence stale reviews, and edited moves and merges
 inherit review history. Editor/planner integration remains M116 I/U/W work.
 See the [shared policy help reference](docs/reference.md) for its lifecycle.

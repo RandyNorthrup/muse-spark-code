@@ -12045,6 +12045,20 @@ repository's own working rule (AGENTS.md rule 14).
     strikes and lifetime counts throughout the family; only a complete
     independent redesign can close an existing strike epoch.
 
+15. **RVM116P3 repair (FIXM116P3, 2026-10-06).** Keep the synchronous
+    outcome/journal architecture. Resolve the source hook directory once and
+    run native Git hooks with that absolute hooksPath and a credential/Git/
+    hook-disable scrubbed environment. Configured hook sets fail closed on
+    missing/non-executable hooks and missing Husky dispatch/body files; Husky
+    startup scripts cannot silently suppress a body. Snapshot all refs and
+    every worktree HEAD before/after work, including new branches/tags/notes.
+    Peel annotated tags; deletion-only pushes require no hook receipt. Scrub
+    outer errors, require explicit renewal/cancellation generations, contain
+    hook descendants, clean partial worktree registration, and connect hook
+    strikes to patch refusal and independent redesign even without findings.
+    Each review finding receives a named regression and byte-exact red drill
+    in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
+
 ---
 
 ### D97 — The capacity estimator (M117, 2026-10-06)

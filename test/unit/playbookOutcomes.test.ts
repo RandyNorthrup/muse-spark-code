@@ -10,7 +10,7 @@ import {
 } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { beforeAll, afterAll, describe, expect, it } from 'vitest'
+import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest'
 import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import { OrchestratorPlaybook } from '../../src/core/orchestration/playbook/policy'
 import { moduleStates } from '../../src/core/orchestration/playbook/modules'
@@ -52,6 +52,8 @@ function repository(workspace: string) {
     writeFileSync(file, `#!/bin/sh\n${body}\n`)
     chmodSync(file, 0o755)
   }
+  // A configured hook set must contain every hook the verifier requires.
+  for (const name of ['pre-commit', 'commit-msg', 'pre-push']) hook(name, 'exit 0')
   const range = () => ({
     remote: 'origin',
     url: path.join(workspace, 'destination'),
@@ -343,6 +345,13 @@ scenario(
     mkdirSync(path.join(fixture.workspace, '.husky', '_'), { recursive: true })
     const wrapper = path.join(fixture.workspace, '.husky', '_', 'pre-commit')
     writeFileSync(wrapper, '#!/bin/sh\nsh .husky/pre-commit\n')
+    writeFileSync(path.join(fixture.workspace, '.husky', '_', 'h'), 'exit 0\n')
+    for (const name of ['commit-msg', 'pre-push']) {
+      const file = path.join(fixture.workspace, '.husky', '_', name)
+      writeFileSync(file, '#!/bin/sh\nexit 0\n')
+      chmodSync(file, 0o755)
+      writeFileSync(path.join(fixture.workspace, '.husky', name), 'exit 0\n')
+    }
     chmodSync(wrapper, 0o755)
     writeFileSync(
       path.join(fixture.workspace, '.husky', 'pre-commit'),
@@ -361,3 +370,183 @@ scenario(
     expect(readFileSync(fixture.wrapper, 'utf8')).toBe('#!/bin/sh\nsh .husky/pre-commit\n')
   },
 )
+
+for (const target of ['branch', 'tag', 'notes', 'detached HEAD', 'worktree HEAD'] as const)
+  scenario(
+    `discovers unregistered ${target} commits before completion`,
+    (fixture) => {
+      fixture.hook('pre-commit', 'echo unregistered-hook-failure >&2; exit 1')
+      const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+      const commit = fixture.git(['commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'unregistered'])
+      if (target === 'detached HEAD') fixture.git(['checkout', '--detach', commit])
+      else if (target === 'worktree HEAD') {
+        const extra = path.join(fixture.workspace, 'extra')
+        fixture.git(['worktree', 'add', '--detach', extra, commit])
+      } else {
+        const namespaces = { branch: 'heads', tag: 'tags', notes: 'notes' }
+        fixture.git(['update-ref', `refs/${namespaces[target]}/unregistered`, commit])
+      }
+      const before = fixture.policy.finishWork(work)
+      const checked = fixture.policy.verifyWork(work)
+      if (target === 'worktree HEAD')
+        fixture.git(['worktree', 'remove', '--force', path.join(fixture.workspace, 'extra')])
+      return { ...fixture, work, commit, before, checked }
+    },
+    (fixture) => {
+      expect(fixture.before.note.code).toBe('unverifiedCommit')
+      expect(fixture.checked.decision.kind).toBe('refuse')
+      expect(fixture.checked.output).toContain('unregistered-hook-failure')
+      expect(fixture.policy.finishWork(fixture.work).kind).toBe('refuse')
+      expect(fixture.policy.getRecord()).toContainEqual(
+        expect.objectContaining({
+          kind: 'verification',
+          value: expect.objectContaining({ commit: fixture.commit, result: 'fail' }),
+        }),
+      )
+    },
+  )
+
+for (const cause of [
+  'HUSKY=0',
+  'startup script',
+  'missing dispatcher',
+  'missing body',
+  'missing hook',
+])
+  scenario(
+    `fails closed with real Husky wrappers: ${cause}`,
+    (fixture) => {
+      const hooks = path.join(fixture.workspace, '.husky', '_')
+      mkdirSync(hooks, { recursive: true })
+      writeFileSync(path.join(hooks, 'h'), readFileSync(path.resolve('.husky/_/h')))
+      for (const name of ['pre-commit', 'commit-msg', 'pre-push']) {
+        writeFileSync(path.join(hooks, name), '#!/usr/bin/env sh\n. "$(dirname "$0")/h"\n')
+        chmodSync(path.join(hooks, name), 0o755)
+        writeFileSync(
+          path.join(fixture.workspace, '.husky', name),
+          name === 'pre-commit' ? 'echo husky-body-failure >&2; exit 1\n' : 'exit 0\n',
+        )
+      }
+      fixture.git(['config', 'core.hooksPath', '.husky/_'])
+      const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+      const commit = fixture.git(['commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'bypass'])
+      fixture.git(['update-ref', 'refs/heads/main', commit])
+      if (cause.startsWith('missing')) {
+        const file =
+          cause === 'missing body'
+            ? path.join(fixture.workspace, '.husky/pre-commit')
+            : path.join(hooks, cause === 'missing hook' ? 'pre-commit' : 'h')
+        rmSync(file)
+        // Capture the missing layout at work start as well: no digest-change
+        // rejection may stand in for the missing-file guard under test.
+        const nextWork = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+        const next = fixture.git(['commit-tree', 'HEAD^{tree}', '-p', 'HEAD', '-m', 'bypass again'])
+        fixture.git(['update-ref', 'refs/heads/main', next])
+        return { ...fixture, checked: fixture.policy.verifyWork(nextWork) }
+      }
+      try {
+        if (cause === 'HUSKY=0') vi.stubEnv('HUSKY', '0')
+        else {
+          const config = path.join(fixture.workspace, 'profile')
+          mkdirSync(path.join(config, 'husky'), { recursive: true })
+          writeFileSync(path.join(config, 'husky/init.sh'), 'export HUSKY=0\n')
+          vi.stubEnv('XDG_CONFIG_HOME', config)
+        }
+        return { ...fixture, checked: fixture.policy.verifyWork(work) }
+      } finally {
+        vi.unstubAllEnvs()
+      }
+    },
+    (fixture) => {
+      expect(fixture.checked.decision.kind).toBe('refuse')
+      if (cause === 'HUSKY=0') expect(fixture.checked.output).toContain('husky-body-failure')
+    },
+  )
+
+scenario(
+  'second-scrubs outer verification admission errors',
+  (fixture) => {
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.options.hookAdmission.admit.mockImplementation(() => {
+      throw new Error('https://fixture-user:fixture-password@example.invalid/path')
+    })
+    const checked = fixture.policy.verifyWork(work)
+    fixture.options.hookAdmission.admit.mockReturnValue(true)
+    return { ...fixture, checked }
+  },
+  (fixture) => {
+    expect(fixture.checked.decision.kind).toBe('refuse')
+    expect(fixture.checked.output).not.toContain('fixture-password')
+    expect(fixture.checked.output).toContain('[redacted]')
+  },
+)
+
+scenario(
+  'removes and prunes a worktree registered before post-checkout failure',
+  (fixture) => {
+    fixture.hook('post-checkout', 'echo partial-add-failure >&2; exit 1')
+    const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+    fixture.git(['commit', '--allow-empty', '-m', 'approved'])
+    const checked = fixture.policy.verifyWork(work)
+    return {
+      ...fixture,
+      checked,
+      cleanupCommands: fixture.options.hookAdmission.admit.mock.calls.map(([effect]) =>
+        effect.args.join(' '),
+      ),
+    }
+  },
+  (fixture) => {
+    expect(fixture.checked.decision.kind).toBe('refuse')
+    expect(fixture.checked.output).toContain('partial-add-failure')
+    const args = fixture.cleanupCommands
+    expect(args.some((command) => command.startsWith('worktree remove --force '))).toBe(true)
+    expect(args).toContain('worktree prune')
+  },
+)
+
+for (const target of ['annotated tag', 'deletion', 'mixed deletion and tag'] as const)
+  scenario(
+    `admits valid ${target} push ranges`,
+    (fixture) => {
+      fixture.hook('pre-push', 'echo native-pre-push; cat')
+      const work = fixture.policy.beginWork(MODULE, ['refs/heads/main'])
+      fixture.git(['tag', '-a', 'approved', '-m', 'approved'])
+      const tag = {
+        ...fixture.range().updates[0]!,
+        localRef: 'refs/tags/approved',
+        remoteRef: 'refs/tags/approved',
+        localOid: fixture.git(['rev-parse', 'refs/tags/approved']),
+      }
+      const deletion = {
+        ...fixture.range().updates[0]!,
+        localRef: '(delete)',
+        localOid: '0'.repeat(40),
+        remoteOid: fixture.git(['rev-parse', 'HEAD']),
+      }
+      const updatesByTarget = {
+        'annotated tag': [tag],
+        deletion: [deletion],
+        'mixed deletion and tag': [deletion, tag],
+      }
+      const range = { ...fixture.range(), updates: updatesByTarget[target] }
+      return {
+        ...fixture,
+        work,
+        rangeValue: range,
+        checked: fixture.policy.verifyWork(work, range),
+      }
+    },
+    (fixture) => {
+      expect(fixture.checked.decision.kind).toBe('allow')
+      expect(fixture.policy.beforePush(fixture.work, fixture.rangeValue).kind).toBe('allow')
+      const push = fixture.policy
+        .getRecord()
+        .filter((record) => record.kind === 'verification' && record.value.scope === 'push')
+      expect(push).toHaveLength(target === 'deletion' ? 0 : 1)
+      if (target !== 'deletion')
+        expect(push[0]).toMatchObject({
+          value: { commit: fixture.git(['rev-parse', 'HEAD']), result: 'pass' },
+        })
+    },
+  )
