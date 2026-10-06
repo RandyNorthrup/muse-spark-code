@@ -2,10 +2,11 @@
 import { createHash } from 'node:crypto'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { MAKER_REVIEW_SEGMENT_CHARS, UI_TEXT } from '../../src/shared/constants'
+import { MAKER_REVIEW_SMALL_ROWS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { MachineWizard } from '../../src/webview/maker/MachineWizard'
+import { canonicalPayload, outgoingPayloadBytes } from '../../src/core/maker/canonicalPayload'
+import { summarizePayload } from '../../src/core/maker/payloadSummary'
 import { ApprovalDialog } from '../../src/webview/maker/ApprovalDialog'
 import { PayloadReview } from '../../src/webview/maker/PayloadReview'
 import { MakerSurface } from '../../src/webview/maker/MakerSurface'
@@ -15,11 +16,10 @@ import {
   uiBridge,
   MAKER_UI_STATE,
   MAKER_UI_ID,
+  MAKER_UI_MACHINE,
 } from './helpers/makerUi'
 
-const browser: { visible: ReturnType<typeof installMakerBrowser> } = {
-  visible: installMakerBrowser(),
-}
+const browser = { visible: installMakerBrowser() }
 beforeEach(() => {
   browser.visible = installMakerBrowser()
 })
@@ -29,157 +29,287 @@ afterEach(() => {
   vi.unstubAllGlobals()
   setUiText(EN, 'en')
 })
-const hash = (content: string) => createHash('sha256').update(content).digest('hex')
+const hash = (content: string | Uint8Array) => createHash('sha256').update(content).digest('hex')
+const prepare = (content: string, encoding: 'text' | 'hex' = 'text', width = 240) =>
+  canonicalPayload(
+    outgoingPayloadBytes(content, encoding),
+    width,
+    () => 8,
+    new AbortController().signal,
+  )
 
-it('segment limits preserve complete Unicode graphemes or explicitly refuse them', () => {
-  const content = '👨‍👩‍👧‍👦'.repeat(5)
-  const view = render(<PayloadReview content={content} />)
-  const segments = [...document.querySelectorAll('.maker-payload > span')]
-  expect(segments.map((segment) => segment.textContent).join('')).toBe(content)
-  expect(
-    segments.every((segment) => segment.textContent.length <= MAKER_REVIEW_SEGMENT_CHARS),
-  ).toBe(true)
-  expect(segments.every((segment) => !segment.textContent.includes('\u{FFFD}'))).toBe(true)
-  view.unmount()
-  vi.spyOn(console, 'error').mockImplementation(() => undefined)
-  expect(() =>
-    render(<PayloadReview content={'a' + '\u{0301}'.repeat(MAKER_REVIEW_SEGMENT_CHARS)} />),
-  ).toThrow('makerPayloadSegment')
+it('CR, LF, TAB, NUL and ESC are visible, and the digest covers exact outgoing bytes', async () => {
+  const content = 'G1 X1\r\n\t\0\u{1B}'
+  const payload = await prepare(content)
+  expect(payload.rows.map((row) => row.text).join('')).toBe('G1 X1␍␊␉␀␛')
+  expect(payload.digest).toBe(hash(content))
+  expect(payload.digest).not.toBe(hash(content.replaceAll('\r', '')))
 })
-
-it('a long wrapped hex line stays unapproved when focused or selected', () => {
-  const content = '00ff'.repeat(1000)
-  const onReviewed = vi.fn()
-  render(<PayloadReview content={content} encoding="hex" onReviewed={onReviewed} />)
-  const segments = document.querySelectorAll<HTMLElement>('.maker-payload > span')
-  expect(segments.length).toBe(Math.ceil(content.length / MAKER_REVIEW_SEGMENT_CHARS))
+it('invalid UTF-8, bidi, zero-width and combining marks cannot hide bytes', async () => {
+  const payload = await prepare('ff7f61e2808be280aecc8109', 'hex')
+  expect(payload.rows.map((row) => row.text).join('')).toBe(
+    String.raw`\xff\x7fa\xe2\x80\x8b\xe2\x80\xae\xcc\x81␉`,
+  )
+  const literal = await prepare(String.raw`\xFF␍`)
+  expect(literal.rows.map((row) => row.text).join('')).toBe(String.raw`\\xFF\xe2\x90\x8d`)
+})
+it('long unbroken and wide Unicode tokens wrap to the measured width', async () => {
+  const bytes = outgoingPayloadBytes('界'.repeat(80) + 'W'.repeat(1000), 'text')
+  const payload = await canonicalPayload(
+    bytes,
+    64,
+    (character) => (character === '界' ? 16 : 8),
+    new AbortController().signal,
+  )
   expect(
-    [...segments].every((segment) => segment.textContent.length <= MAKER_REVIEW_SEGMENT_CHARS),
+    payload.rows.every(
+      (row) =>
+        (row.text.match(/./gu) ?? []).reduce((size, c) => size + (c === '界' ? 16 : 8), 0) <= 64,
+    ),
   ).toBe(true)
-  expect(
-    [...segments].slice(0, -1).every((segment) => segment.dataset['continuation'] === 'true'),
-  ).toBe(true)
-  for (const segment of segments) fireEvent.focus(segment)
-  document.getSelection()?.selectAllChildren(screen.getByRole('region'))
-  expect(onReviewed).not.toHaveBeenCalledWith(true)
-  act(() => {
-    browser.visible([0])
+  expect(payload.rows.map((row) => row.text).join('')).toBe('界'.repeat(80) + 'W'.repeat(1000))
+  await expect(prepare('W', 'text', 1)).rejects.toThrow('makerPayloadWidth')
+  const empty = await prepare('')
+  expect(empty.lineCount).toBe(0)
+})
+async function approval(content = 'M104 S190') {
+  const request = {
+    ...uiApproval(),
+    expiresAt: Date.now() + 60_000,
+    payload: content,
+    digest: hash(content),
+  }
+  const answer = vi.fn()
+  const review = vi.fn()
+  const rendered = vi.fn()
+  render(
+    <ApprovalDialog
+      request={request}
+      limits={MAKER_UI_MACHINE.limits}
+      onAnswer={answer}
+      onReview={review}
+      onRendered={rendered}
+      stop={null}
+    />,
+  )
+  await waitFor(() => {
+    expect(rendered).toHaveBeenCalledWith(request.digest)
   })
-  expect(onReviewed).not.toHaveBeenCalledWith(true)
+  return {
+    request,
+    answer,
+    review,
+    send: screen.getByRole('button', { name: UI_TEXT.makerSendOnce }),
+  }
+}
+it('a clipped initial view completes after the real outer scroll reveals the payload end', async () => {
+  const { send, review, request } = await approval()
+  expect(send).toBeDisabled()
+  fireEvent.focus(screen.getByRole('region', { name: UI_TEXT.makerReadPayload }))
+  expect(send).toBeDisabled()
   act(() => {
     browser.visible()
   })
-  expect(onReviewed).toHaveBeenLastCalledWith(true)
+  expect(send).toBeEnabled()
+  expect(review).toHaveBeenLastCalledWith(request.digest)
 })
-it('a resize after partial review discards visibility evidence', () => {
-  const onReviewed = vi.fn()
-  render(<PayloadReview content={'G1 X1\nG1 X2'} onReviewed={onReviewed} />)
+it('small payloads require the real payload container to reach its end', async () => {
+  const { send } = await approval(Array.from({ length: 100 }, () => 'M104 S190').join('\n'))
+  const node = screen.getByRole('region', { name: UI_TEXT.makerReadPayload })
+  node.scrollTop = 0
+  fireEvent.scroll(node)
+  expect(send).toBeDisabled()
   act(() => {
-    browser.visible([0])
+    browser.visible()
   })
-  act(() => {
-    browser.visible.resize()
-  })
-  act(() => {
-    browser.visible([1])
-  })
-  expect(onReviewed).not.toHaveBeenCalledWith(true)
-  act(() => {
-    browser.visible([0])
-  })
-  expect(onReviewed).toHaveBeenLastCalledWith(true)
+  expect(send).toBeEnabled()
 })
-
-it.each([30, 6000])(
-  'keyboard focus wrap cannot approve unseen lines (%s lines)',
-  async (length) => {
-    const payload = Array.from({ length }, () => 'G1 X1').join('\n')
-    const answer = vi.fn()
-    const rendered = vi.fn()
-    const request = { ...uiApproval(), payload, digest: hash(payload) }
-    render(<ApprovalDialog request={request} onAnswer={answer} onRendered={rendered} stop={null} />)
-    const send = screen.getByRole('button', { name: UI_TEXT.makerSendOnce })
-    await waitFor(() => {
-      expect(rendered).toHaveBeenCalledWith(request.digest)
-    })
-    const close = screen.getByRole('button', { name: UI_TEXT.usageClose })
-    close.focus()
-    fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })
-    expect(send).toBeDisabled()
-    fireEvent.focus(screen.getByRole('region').firstElementChild ?? close)
-    fireEvent.click(send)
-    expect(answer).not.toHaveBeenCalledWith('allow_once')
-    act(() => {
-      browser.visible([0, length - 1])
-    })
-    expect(send).toBeDisabled()
-    act(() => {
-      browser.visible()
-    })
-    expect(send).toBeEnabled()
-    fireEvent.click(send)
-    expect(answer).toHaveBeenCalledExactlyOnceWith('allow_once')
-  },
-)
-it('screen-reader traversal and Next page never count unseen segments', async () => {
-  const payload = Array.from({ length: 30 }, () => 'G1 X1').join('\n')
-  const request = { ...uiApproval(), payload, digest: hash(payload) }
-  render(<ApprovalDialog request={request} onAnswer={vi.fn()} onRendered={vi.fn()} stop={null} />)
+it('a width change revokes review until the newly wrapped payload reaches its end', async () => {
+  const { send } = await approval('M104 S190\n'.repeat(20))
+  act(() => {
+    browser.visible()
+  })
+  expect(send).toBeEnabled()
+  act(() => {
+    browser.visible.resize(120)
+  })
+  expect(send).toBeDisabled()
+  await waitFor(() =>
+    expect(document.querySelector('.maker-payload-rows')).not.toHaveStyle({ height: '0px' }),
+  )
+  expect(send).toBeDisabled()
+})
+it('large payloads require summary and digest confirmation without per-byte visibility proof', async () => {
+  const { send, answer } = await approval(
+    Array.from({ length: MAKER_REVIEW_SMALL_ROWS + 1 }, () => 'M104 S190').join('\n'),
+  )
+  act(() => {
+    browser.visible()
+  })
+  expect(send).toBeDisabled()
+  fireEvent.click(screen.getByLabelText(UI_TEXT.makerConfirmSummaryDigest))
+  expect(send).toBeEnabled()
+  fireEvent.click(send)
+  expect(answer).toHaveBeenCalledExactlyOnceWith('allow_once')
+  expect(document.querySelectorAll('.maker-payload-rows > span').length).toBeLessThan(20)
+})
+it('dangerous temperature, bounds and disabled safety need extra acknowledgement and have jumps', async () => {
+  const payload = 'M104 S250\nG1 X900 F1200\nM211 S0\nM121\nTHERMAL_RUNAWAY OFF'
+  const request = {
+    ...uiApproval(),
+    payload,
+    digest: hash(payload),
+    analysis: {
+      ...uiApproval().analysis,
+      bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 900, y: 0, z: 0 } },
+    },
+  }
+  render(
+    <ApprovalDialog
+      request={request}
+      limits={{
+        extruder: 200,
+        travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 100 } },
+      }}
+      onAnswer={vi.fn()}
+      onRendered={vi.fn()}
+      stop={null}
+    />,
+  )
+  await screen.findByLabelText(UI_TEXT.makerAcknowledgeDangers)
+  expect(screen.getByText(UI_TEXT.makerDangerTemperature)).toBeInTheDocument()
+  expect(screen.getByText(UI_TEXT.makerDangerTravel)).toBeInTheDocument()
+  expect(screen.getByText(UI_TEXT.makerDangerSafety)).toBeInTheDocument()
+  act(() => {
+    browser.visible()
+  })
   const send = screen.getByRole('button', { name: UI_TEXT.makerSendOnce })
-  const lines = document.querySelectorAll<HTMLElement>('.maker-payload > span')
-  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerNextPage }))
-  const focus = document.activeElement
-  expect(
-    focus instanceof HTMLElement && focus.parentElement?.classList.contains('maker-payload'),
-  ).toBe(true)
   expect(send).toBeDisabled()
-  for (const line of lines) fireEvent.focus(line)
-  expect(send).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerNextHighlight }))
+  expect(document.activeElement).toBe(
+    screen.getByRole('region', { name: UI_TEXT.makerReadPayload }),
+  )
+  fireEvent.click(screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers))
+  expect(send).toBeEnabled()
+})
+it('summary reports chamber, bed, fan, maximum feed and a supplied time estimate', async () => {
+  const summary = await summarizePayload(
+    outgoingPayloadBytes(
+      ';TIME:120\nM104 S180\nM104 S190\nM104 S180\nM140 S60\nM141 S40\nM106 S255\nG1 X1 F1200',
+      'text',
+    ),
+    uiApproval(),
+    { extruder: 200, bed: 70 },
+    new AbortController().signal,
+  )
+  expect(summary).toMatchObject({
+    temperatures: { extruder: 190, bed: 60, chamber: 40 },
+    temperatureSettings: { extruder: [180, 190], bed: [60], chamber: [40] },
+    fan: 255,
+    feed: 1200,
+    seconds: 120,
+  })
+})
+it('firmware summary reads a known ELF entry point and its exact size', async () => {
+  const bytes = new Uint8Array(32)
+  bytes.set([127, 69, 76, 70, 1, 1])
+  new DataView(bytes.buffer).setUint32(24, 0x8_00_01_00, true)
+  const summary = await summarizePayload(bytes, undefined, undefined, new AbortController().signal)
+  expect(summary.entryPoint).toBe('0x8000100')
+  const payload = await canonicalPayload(bytes, 240, () => 8, new AbortController().signal)
+  expect(payload.byteLength).toBe(32)
+})
+it('MicroPython flash review shows its frozen target and explicitly unknown file metadata', async () => {
+  const payload = 'mpremote run application.py'
+  const request = {
+    id: MAKER_UI_ID,
+    kind: 'command' as const,
+    action: 'program' as const,
+    target: { kind: 'workspace' as const, workspace: 'simulator-workspace' },
+    payload,
+    digest: hash(payload),
+    expiresAt: Date.now() + 60_000,
+  }
+  const rendered = vi.fn()
+  render(<ApprovalDialog request={request} onAnswer={vi.fn()} onRendered={rendered} stop={null} />)
+  await waitFor(() => {
+    expect(rendered).toHaveBeenCalledWith(request.digest)
+  })
+  expect(screen.getByText(UI_TEXT.makerFirmwareSizeNotice)).toBeInTheDocument()
+  expect(screen.getByRole('dialog')).toHaveTextContent(
+    `${UI_TEXT.makerEntryPoint}: ${UI_TEXT.makerSummaryUnknown}`,
+  )
+  expect(screen.getByRole('dialog')).toHaveTextContent('simulator-workspace')
+})
+it('replacement payload resets consent and recomputes its digest', async () => {
+  const receipt = vi.fn()
+  const reviewed = vi.fn()
+  const view = render(<PayloadReview content="hello" onRendered={receipt} onReviewed={reviewed} />)
+  await waitFor(() => {
+    expect(receipt).toHaveBeenLastCalledWith(hash('hello'))
+  })
   act(() => {
     browser.visible()
   })
-  await waitFor(() => expect(send).toBeEnabled())
-  expect(screen.getByRole('status')).toHaveTextContent('30 of 30 segments reviewed')
+  expect(reviewed).toHaveBeenLastCalledWith(true)
+  view.rerender(<PayloadReview content={'hello\r'} onRendered={receipt} onReviewed={reviewed} />)
+  await waitFor(() => {
+    expect(receipt).toHaveBeenLastCalledWith(hash('hello\r'))
+  })
+  expect(screen.getByRole('region', { name: UI_TEXT.makerReadPayload })).toHaveTextContent('hello␍')
 })
-it('receipts bind DOM bytes on paint, replacement, appearance and visibility return', async () => {
-  const receipt = vi.fn()
-  const { rerender } = render(<PayloadReview content={'G1 X1\n\nG1 X2\n'} onRendered={receipt} />)
-  await waitFor(() => {
-    expect(receipt).toHaveBeenLastCalledWith(hash('G1 X1\n\nG1 X2\n'))
-  })
-  rerender(<PayloadReview content="G1 X200" onRendered={receipt} />)
-  await waitFor(() => {
-    expect(receipt).toHaveBeenLastCalledWith(hash('G1 X200'))
-  })
-  receipt.mockClear()
-  document.documentElement.setAttribute('lang', 'de')
-  await waitFor(() => {
-    expect(receipt).toHaveBeenCalledOnce()
-  })
-  receipt.mockClear()
-  document.body.className = 'vscode-light'
-  await waitFor(() => {
-    expect(receipt).toHaveBeenCalledOnce()
-  })
-  receipt.mockClear()
-  document.dispatchEvent(new Event('visibilitychange'))
-  await waitFor(() => {
-    expect(receipt).toHaveBeenCalledOnce()
-  })
-  const pre = screen.getByRole('region')
-  pre.textContent = 'G1 X999'
-  await waitFor(() => {
-    expect(receipt).toHaveBeenLastCalledWith(hash('G1 X999'))
-  })
-})
-it('the A to B receipt sequence irrevocably rejects a pending approval', () => {
+it('a 100,000-line rendering stays virtual and Stop responds below 100 ms during preparation', async () => {
   const { store, post } = uiBridge()
   store.receive(MAKER_UI_STATE)
-  const payload = Array.from({ length: 34 }, () => 'G1 X1').join('\n')
-  const request = { ...uiApproval(), payload, digest: hash(payload) }
+  render(<MakerSurface store={store} />)
+  const stop = screen.getByRole('button', { name: UI_TEXT.makerStopAll })
+  const started = performance.now()
+  const responded = new Promise<number>((resolve) =>
+    setTimeout(() => {
+      fireEvent.click(stop)
+      resolve(performance.now() - started)
+    }, 0),
+  )
+  act(() => {
+    store.receive({
+      v: 1,
+      type: 'makerPreview',
+      preview: {
+        kind: 'payload',
+        title: 'Large simulator payload',
+        content: 'G1 X1\n'.repeat(100_000),
+      },
+    })
+  })
+  expect(await responded).toBeLessThan(100)
+  expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  await waitFor(
+    () => expect(screen.getByText(UI_TEXT.makerConfirmSummaryDigest)).toBeInTheDocument(),
+    { timeout: 4000 },
+  )
+  expect(document.querySelectorAll('.maker-payload-rows > span').length).toBeLessThan(20)
+  expect(document.querySelectorAll('.maker-payload-rows > span').length).toBeGreaterThan(0)
+  store.dispose()
+})
+it('search reaches an unmounted row in the complete canonical rendering', async () => {
+  await approval('M104 S190\n'.repeat(250) + 'needle')
+  fireEvent.change(screen.getByLabelText(UI_TEXT.makerPayloadSearch), {
+    target: { value: 'needle' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerFindNext }))
+  await waitFor(() =>
+    expect(screen.getByRole('region', { name: UI_TEXT.makerReadPayload })).toHaveTextContent(
+      'needle',
+    ),
+  )
+})
+it('a changed reviewed digest irrevocably rejects a pending approval', () => {
+  const { store, post } = uiBridge()
+  store.receive(MAKER_UI_STATE)
+  const request = uiApproval()
   store.receive({ v: 1, type: 'makerApproval', request })
   store.previewRendered(request.id, request.digest)
-  store.previewRendered(request.id, hash(payload.replaceAll('X1', 'X200')))
+  store.previewRendered(request.id, hash('different'))
   store.previewRendered(request.id, request.digest)
   expect(store.answer(request.id, 'allow_once')).toBe(false)
   expect(post).toHaveBeenCalledWith(
@@ -190,76 +320,19 @@ it('the A to B receipt sequence irrevocably rejects a pending approval', () => {
   )
   store.dispose()
 })
-it('native preview first paint and complete traversal supply no approval authority', async () => {
+it('read-only native preview rendering supplies no approval authority', async () => {
   const { store, post } = uiBridge()
   store.receive(MAKER_UI_STATE)
   store.receive({
     v: 1,
     type: 'makerPreview',
-    preview: { kind: 'payload', id: MAKER_UI_ID, title: 'Payload', content: 'G1 X200' },
+    preview: { kind: 'payload', id: MAKER_UI_ID, title: 'Payload', content: 'hello' },
   })
   render(<MakerSurface store={store} />)
-  await screen.findByRole('region')
-  await act(async () => {
+  await screen.findByText(UI_TEXT.makerDigestLabel, { exact: false })
+  act(() => {
     browser.visible()
-    await Promise.resolve()
   })
   expect(post).not.toHaveBeenCalled()
   store.dispose()
-})
-
-it('serial hex receipts bind decoded bytes, including non-printable bytes', async () => {
-  const receipt = vi.fn()
-  render(<PayloadReview content="00ff" encoding="hex" onRendered={receipt} />)
-  await waitFor(() => {
-    expect(receipt).toHaveBeenCalledWith(
-      createHash('sha256')
-        .update(Uint8Array.from([0, 255]))
-        .digest('hex'),
-    )
-  })
-})
-it('translated categories keep their original wire values', () => {
-  setUiText({ ...EN, makerCategoryPrinter: '3D-Drucker', makerCategoryRobot: 'Roboter' }, 'de')
-  render(<MachineWizard stop={null} send={vi.fn()} onClose={vi.fn()} />)
-  expect(screen.getByRole('option', { name: '3D-Drucker' })).toHaveValue('printer')
-  expect(screen.getByRole('option', { name: 'Roboter' })).toHaveValue('robot')
-})
-
-async function renderReceiptedApproval() {
-  const request = uiApproval()
-  const rendered = vi.fn()
-  render(<ApprovalDialog request={request} onAnswer={vi.fn()} onRendered={rendered} stop={null} />)
-  await waitFor(() => {
-    expect(rendered).toHaveBeenCalledWith(request.digest)
-  })
-}
-
-it('covered payload lines do not count as reviewed', async () => {
-  await renderReceiptedApproval()
-  const send = screen.getByRole('button', { name: UI_TEXT.makerSendOnce })
-  const point = vi.spyOn(document, 'elementFromPoint').mockReturnValue(document.body)
-  act(() => {
-    browser.visible()
-  })
-  expect(send).toBeDisabled()
-  point.mockRestore()
-  act(() => {
-    browser.visible()
-  })
-  await waitFor(() => expect(send).toBeEnabled())
-})
-
-it('a segment clipped below its top corner never counts as fully visible', async () => {
-  await renderReceiptedApproval()
-  const line = screen.getByRole('region').firstElementChild
-  if (line === null) throw new Error('missing payload segment')
-  vi.spyOn(line, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 100, 20))
-  vi.spyOn(document, 'elementFromPoint').mockImplementation((_x, y) =>
-    y < 10 ? line : document.body,
-  )
-  act(() => {
-    browser.visible()
-  })
-  expect(screen.getByRole('button', { name: UI_TEXT.makerSendOnce })).toBeDisabled()
 })

@@ -266,6 +266,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
 | `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
+| Webview maker surfaces import closure | ≤ 25 KiB (unchanged; REDM103U moves review, fallback and validation into their own second closure)                                                                                                                                                                                                                                                                                                     |
+| Webview maker review import closure   | ≤ 75 KiB (REDM103U: measured 53.9 KiB plus 15 percent, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                                           |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
@@ -381,8 +383,12 @@ emits `src/shared/l10n/en.ts` once as `dist/uiText.js`. Activation,
 the Model API backend, the review, the checkpoint store, the import bundle,
 the board, the reviewer and the ACP agent require it
 beside their bundles; each still owns its mutable installed-language state.
-The browser and integration-test bundles retain their inline fallback. The
-development build writes the table beside the extension, so the integration
+The browser and integration-test bundles retain their inline fallback. REDM103U
+keeps the browser's maker fallback in the second maker closure, completing the
+English table and validating every deferred key before maker UI reads it.
+The eager bootstrap retains Stop all, Retry and the load-failure label; normal
+chat validation remains synchronous. Node and integration fallback stay whole.
+The development build writes the table beside the extension, so the integration
 host needs no additional `.vscode-test.mjs` launch option. The VSIX allowlist,
 ACP packager and both CI member lists include it. Existing bundle caps stay
 unchanged; the table has its own 100 KiB cap and split checks. Runtime proof
@@ -6515,10 +6521,18 @@ exactly what will be sent.
    shared dialog. So it asks under any backend mode, Muse Code's Bypass
    included. The approval names the target (port, VID:PID and USB serial, or
    the machine's name and address and what it reports itself as), shows the
-   exact payload (bytes as hex where not printable; up to
-   `MACHINE_SEND_MAX_LINES` lines, more opens the payload read-only before
-   asking again), the analysis (bounds, maximum temperature and feed against
-   the limits, unknown commands), and warns that opening a port may reset the
+   exact outgoing bytes through a faithful canonical rendering (control
+   pictures and byte escapes), their SHA-256 digest and a structured summary.
+   The person approves this exact payload by its digest; proving that they
+   looked at every byte is neither possible nor required. At most 200 rendered
+   rows require scrolling the real rendering container to its end once.
+   Larger payloads require explicit confirmation of the summary and digest;
+   search and jumps to every highlighted danger remain available. Dangerous
+   constructs require an additional acknowledgement. Rendering is virtualised
+   and prepared in bounded, yielding batches so Stop can respond immediately.
+   The host independently rehashes the bytes it will send and refuses a
+   mismatch. The summary compares bounds, temperatures and feed with known
+   machine limits, and warns that opening a port may reset the
    board. It offers **Send once** and **Reject** only (closing it rejects).
    No session rule, allow rule, "always", Auto reviewer or hook answers it.
    **Approval comes only from the host's own UI:** a token, a `confirm`
@@ -18921,6 +18935,32 @@ Current receipts: `docs/certification/star-line.md`.
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
+**REDM103U (2026-10-06, Win11).** Replace the per-segment visibility proof
+with the lead's canonical-rendering, summary and digest approval rule. Add
+bounded async preparation and virtual rows measured against the container,
+small-payload end scrolling, large-payload confirmation, danger acknowledgement,
+search and highlight jumps. Preserve the portable host's exact-byte rehash.
+Bound shared and standalone Stop controls with a compact Stop all plus an
+internally scrolling machine list. Retry reloads the panel after saving state,
+so failed static dependencies are refetched; dismissal restores chat. Extract
+review into a second lazy closure with the lead-authorized measured-size budget
+(15 percent headroom, rounded to 25 KiB), and move maker-induced English and
+validation work off startup. DIET1's loader helper is absent on this base;
+record the matching reload/state handoff for integration. Use fake/simulator
+receipts only, default test deadlines, scoped rig checks and hooks-on commits;
+no merge, paid/model call or physical operation. Certification follows in
+`docs/certification/m103-u.md`.
+
+Final redesign measurement: maker review **55,201 B / 75 KiB**. Its measured
+53.9 KiB plus 15 percent is 62.0 KiB, rounded up to 75 KiB. The existing
+maker-surface cap remains 25 KiB (10,612 B used); preview remains 25 KiB
+(23,466 B used). Startup is **814,419 B**, **+817 B (0.10 percent)** over
+the 813,602 B integration baseline: the lead's revised about-zero target,
+without claiming literal zero or raising an existing cap. The full static
+closure, not just main.js, is counted. DIET1's shared loader and the help
+reference catalogue/generator are absent on this base; this lane supplies
+the minimal reload helper and maker reference entry for integration to join.
+
 **FIXM103U2 (2026-10-06, Win11).** Fix all seven RVM103U2 findings by
 construction: hard-split payloads into fixed-width segments, count only
 fully visible segments inside their scrollport and reset on resize. Focus
@@ -19453,11 +19493,13 @@ logged.
       permission prompt offers only allow once and reject once.
   16. **Installer.** Install for Muse Code copies and marks the first-party
       skills; Remove deletes only what it marked.
-  17. **Budgets.** `dist/extension.js` and the webview's startup bundle do
-      not grow over the base (D6). `dist/maker.js`, the preview page and the
+  17. **Budgets.** `dist/extension.js` does not grow over the base (D6).
+      The webview's startup growth is about zero under REDM103U's lead rule;
+      report its exact full-closure delta rather than claiming literal zero.
+      `dist/maker.js`, the preview page and the
       webview's maker chunks are lazy and under their new budgets (measured
-      - 15 %, rounded up to 25 KiB). The VSIX and the ACP tarball are within
-        their budgets.
+      size plus 15 percent, rounded up to 25 KiB). The VSIX and the ACP tarball are within
+      their budgets.
   18. **Portable engine.** `src/core/maker/**` is on M60's portable list and
       the gate fails a `vscode` import there, red-drilled. The same
       `dist/maker.js` loads in the extension host and in the ACP agent's
@@ -20774,6 +20816,15 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+REDM103U (2026-10-06, Win11) follows the rig brief's scoped verification and
+hooks-on local commit. That explicit brief forbids the aggregate quality run,
+full test suite, merging and pushing; the release lead owns those integration
+gates. Typecheck, changed-file lint/format, dead code, duplication, localization,
+host API, production build, help reference, maker schemas and complete owning
+test files run here. No threshold, rule, ignore, dependency or test deadline is
+weakened. Simulator receipts and byte-exact removal drills are in
+`docs/certification/m103-u.md`.
+
 ## 8. Escape hatches register
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
@@ -20917,25 +20968,16 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
-- **M103U-STARTUP-SPLIT (RVM103U P3-8, 2026-10-06):** zero browser startup
-  growth remains open. U's new controls fit their unchanged 25 KiB cap and
-  remain deferred, but English fallback and the shared Zod closure plus the
-  loader still grow startup. Deferring the English region and validation
-  helpers needs a localization/build split beyond this repair lane. Safe for
-  now: no maker implementation runs at activation and all numeric caps stay
-  unchanged. Lead/W follow-up: split the fallback/validation closure, measure
-  exact production startup and close D83 acceptance 17; no waiver is claimed.
-  RVM103U2 round-2 repair: still unresolved. A compressed lazy maker-English
-  prototype with eager slot/form metadata failed the unchanged maker cap
-  (27.1 / 25 KiB), while startup still grew about 4 KiB. It was removed.
-  This is a performance/acceptance residual, not approval authority: all maker
-  implementation remains lazy and all final numeric caps pass unchanged.
-  The shared brief ends this failed path; follow-up is a coordinated fallback
-  and Zod chunk redesign, preserving full boundary checks and the existing caps.
-  Final FIXM103U2 production measurement: 818,889 B startup versus the
-  integration base's 813,602 B, **+5,287 B**. Maker surfaces: 25,500 / 25,600 B;
-  standalone preview: 23,303 / 25,600 B. Exact closure receipt is in
-  `docs/certification/m103-u/round2/sizes.json`.
+- **M103U-STARTUP-SPLIT (RVM103U P3-8, 2026-10-06):** resolved against the
+  lead's REDM103U about-zero target. A second lazy review closure carries
+  maker English and isolated maker validation, preserving complete boundary
+  checks before use. Startup is 814,419 B versus the integration baseline's
+  813,602 B, **+817 B (0.10 percent)**; literal zero is not claimed. Review's
+  new 75 KiB budget follows measured size plus 15 percent, rounded to 25 KiB;
+  every existing cap is unchanged. The earlier 5,287 B residual and failed
+  round-2 single-closure prototype remain historical receipts. Final closure:
+  `docs/certification/m103-u/redesign/sizes.json`. Lead integration still joins
+  DIET1's reload helper/reference catalogue and qualifies installed adapters.
 - **M103U-ADAPTER-QUALIFICATION (2026-10-06):** this rig has no m103/v objects.
   Render receipts follow REDM103V's terminal-latch contract and the new shared
   protocol; V/R/W must deliver payload id/encoding and verify native and

@@ -1,7 +1,7 @@
 import { type ReactNode, useLayoutEffect, useState } from 'react'
-import { MILLIMETERS_PER_METER, MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
-import { fill, formatNumber, formatUnit } from '../../shared/l10n/text'
-import type { ApprovalRequest } from '../../shared/makerProtocol'
+import { MILLISECONDS_PER_SECOND, UI_TEXT } from '../../shared/constants'
+import { formatNumber, formatUnit } from '../../shared/l10n/text'
+import type { ApprovalRequest, MakerMachineSummary } from '../../shared/makerProtocol'
 import { Modal } from '../components/Modal'
 import { PayloadReview } from './PayloadReview'
 
@@ -11,12 +11,14 @@ export function ApprovalDialog({
   stop,
   onRendered,
   onReview,
+  limits,
 }: {
   readonly stop: ReactNode
   readonly request: ApprovalRequest
   readonly onAnswer: (decision: 'allow_once' | 'reject_once') => void
   readonly onRendered: (digest: string) => void
   readonly onReview?: (digest: string | undefined) => void
+  readonly limits?: MakerMachineSummary['limits'] | undefined
 }) {
   const [reviewed, setReviewed] = useState(false)
   const [digest, setDigest] = useState<string>()
@@ -67,36 +69,14 @@ export function ApprovalDialog({
       <PayloadReview
         content={request.kind === 'serial' ? request.payload.value : request.payload}
         encoding={request.kind === 'serial' ? request.payload.encoding : 'text'}
+        request={request}
+        limits={limits}
         onReviewed={setReviewed}
         onRendered={(value) => {
           setDigest(value)
           onRendered(value)
         }}
       />
-      {request.kind === 'machine' && (
-        <>
-          <h3>{UI_TEXT.makerAnalysisLabel}</h3>
-          {json(request.analysis)}
-          <p>
-            {fill(UI_TEXT.makerMaximumFeed, {
-              feed: formatUnit(
-                request.analysis.maxFeedMmMin / MILLIMETERS_PER_METER,
-                'meter-per-minute',
-              ),
-            })}
-          </p>
-          {Object.entries(request.analysis.temperatures).map(([heater, temperature]) =>
-            temperature === undefined ? null : (
-              <p key={heater}>
-                {heater}:{' '}
-                {fill(UI_TEXT.makerMaximumTemperature, {
-                  temperature: formatUnit(temperature, 'celsius'),
-                })}
-              </p>
-            ),
-          )}
-        </>
-      )}
       <details>
         <summary>{UI_TEXT.makerAnalysisLabel}</summary>
         <code>{request.digest}</code>

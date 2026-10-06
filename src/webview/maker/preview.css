@@ -12,9 +12,24 @@ body {
   right: 8px;
   z-index: 1;
   max-width: calc(100vw - 16px);
-  display: grid;
+  display: flex;
+  flex-flow: column nowrap;
   gap: 4px;
   background: var(--vscode-editorWidget-background);
+  max-height: min(120px, 40dvh);
+  overflow: hidden;
+  min-height: 28px;
+}
+
+.maker-stop-stack > [data-maker-stop] {
+  flex-shrink: 0;
+}
+
+.maker-stop-stack .maker-stop-list {
+  display: grid;
+  gap: 2px;
+  overflow: auto;
+  min-height: 0;
 }
 
 .maker-stop-stack [data-maker-stop] {

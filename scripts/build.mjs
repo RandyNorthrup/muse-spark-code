@@ -57,8 +57,8 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserEnglish,
-  retryMakerImports,
 } from './lib/uiTextRegions.mjs'
+import { isolateMakerValidation } from './lib/makerValidation.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { buildProfile } from './lib/arduinoBuild.mjs'
@@ -517,7 +517,9 @@ const pageWorkerOptions = {
 const webviewOptions = {
   ...common,
   metafile: true,
-  plugins: isProduction ? [compactBrowserEnglish, retryMakerImports] : [retryMakerImports],
+  plugins: isProduction
+    ? [compactBrowserEnglish, isolateMakerValidation]
+    : [isolateMakerValidation],
   charset: 'utf8',
   entryPoints: [WEBVIEW_ENTRY],
   outdir: WEBVIEW_OUTDIR,

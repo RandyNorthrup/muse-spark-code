@@ -26,13 +26,17 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     name: 'maker surfaces',
     entries: [
       'src/webview/maker/MakerSurface.tsx',
-      'src/webview/maker/ApprovalDialog.tsx',
       'src/webview/maker/StopChip.tsx',
       'src/webview/maker/DevicePanel.tsx',
-      'src/webview/maker/MachineWizard.tsx',
       'src/webview/maker/DeviceLog.tsx',
     ],
     budgetKiB: 25,
+  },
+  {
+    name: 'maker review',
+    entries: ['src/webview/maker/reviewEntry.ts'],
+    // REDM103U: separate review closure; measure plus 15%, rounded up to 25 KiB.
+    budgetKiB: 75,
   },
   {
     name: 'code highlighting',
@@ -60,7 +64,7 @@ export function webviewDeferredBudgetGroups(meta) {
   const eager = new Set(webviewStartupOutputs(meta))
   const entries = (sources) =>
     Object.entries(meta.outputs)
-      .filter(([, output]) => sources.includes(output.entryPoint))
+      .filter(([, output]) => sources.includes(output.entryPoint?.replaceAll('\\', '/')))
       .map(([file]) => file)
   const legacy = new Set(
     staticOutputs(

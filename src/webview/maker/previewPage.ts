@@ -22,7 +22,13 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
   const artifactId = artifact.data
   const stops = document.createElement('div')
   stops.className = 'maker-stop-stack maker-preview-controls'
-  stops.append(...document.querySelectorAll('[data-maker-stop]'))
+  const stopButtons = [...document.querySelectorAll<HTMLElement>('[data-maker-stop]')]
+  const stopAll = stopButtons.find((button) => !button.dataset['makerStop'])
+  const list = document.createElement('div')
+  list.className = 'maker-stop-list'
+  list.append(...stopButtons.filter((button) => button !== stopAll))
+  if (stopAll !== undefined) stops.append(stopAll)
+  stops.append(list)
   document.body.append(stops)
   let renderer: ReturnType<typeof createMeshRenderer> | undefined
   let isDisposed = false

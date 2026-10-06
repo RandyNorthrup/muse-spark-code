@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, within, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createHash } from 'node:crypto'
 import { UI_TEXT } from '../../src/shared/constants'
 import { MakerSurface } from '../../src/webview/maker/MakerSurface'
 import { MachineWizard } from '../../src/webview/maker/MachineWizard'
@@ -55,7 +56,7 @@ describe('shared maker views', () => {
       store.receive({ v: 1, type: 'makerApproval', request })
     })
     const dialog = await screen.findByRole('dialog', { name: UI_TEXT.makerApprovalTitle })
-    expect(dialog).toHaveTextContent('M104 S190')
+    await waitFor(() => expect(dialog).toHaveTextContent('M104 S190'))
     expect(dialog).toHaveTextContent(request.digest)
     expect(dialog).toHaveTextContent(MAKER_UI_MACHINE.registrationId)
     expect(dialog).toHaveTextContent('Klipper')
@@ -149,7 +150,9 @@ describe('shared maker views', () => {
         request: {
           kind: 'serial',
           id: common.id,
-          digest: common.digest,
+          digest: createHash('sha256')
+            .update(Uint8Array.from([0, 255]))
+            .digest('hex'),
           expiresAt: common.expiresAt,
           target: {
             kind: 'serial',
@@ -173,7 +176,7 @@ describe('shared maker views', () => {
     const dialog = await screen.findByRole('dialog', { name: UI_TEXT.makerApprovalTitle })
     expect(dialog).toHaveTextContent(UI_TEXT.makerResetWarning)
     expect(dialog).toHaveTextContent(UI_TEXT.makerIdentityUnknown)
-    expect(dialog).toHaveTextContent('00ff')
+    await waitFor(() => expect(dialog).toHaveTextContent(String.raw`␀\xff`))
     expect(dialog).toHaveTextContent('board-one')
     expect(dialog).toHaveTextContent('esp32')
     store.dispose()

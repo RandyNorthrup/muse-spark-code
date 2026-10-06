@@ -135,6 +135,7 @@ describe('the production webview chunks (FIX78W)', () => {
   it.each([
     'MakerSurface',
     'ApprovalDialog',
+    'PayloadReview',
     'StopChip',
     'DevicePanel',
     'MachineWizard',
@@ -146,7 +147,13 @@ describe('the production webview chunks (FIX78W)', () => {
     )
     expect(owners).toHaveLength(1)
     expect(initialOutputs().has(owners[0][0])).toBe(false)
-    expect(built.outputs[owners[0][0]].entryPoint).toBe(source)
+    const surfaceEntry = ['StopChip', 'DeviceLog'].includes(name)
+      ? 'src/webview/maker/MakerSurface.tsx'
+      : source
+    const entry = ['ApprovalDialog', 'PayloadReview', 'MachineWizard'].includes(name)
+      ? 'src/webview/maker/reviewEntry.ts'
+      : surfaceEntry
+    expect(built.outputs[owners[0][0]].entryPoint).toBe(entry)
   })
   it('builds a separate STL page without React, English or Node inputs', () => {
     const preview = JSON.parse(readFileSync('dist/meta/makerPreview.json', 'utf8'))

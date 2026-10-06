@@ -1,6 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { Buffer } from 'node:buffer'
-import { retryMakerImports } from '../../scripts/lib/uiTextRegions.mjs'
 import {
   webviewDeferredBudgetGroups,
   webviewStartupOutputs,
@@ -38,33 +36,6 @@ function metafile() {
 }
 
 describe('webview import budgets', () => {
-  it('retry re-requests rejected maker chunk URLs, including Windows source paths', () => {
-    let finish
-    retryMakerImports.setup({
-      onEnd: (callback) => {
-        finish = callback
-      },
-    })
-    const file = {
-      path: MAIN,
-      contents: Buffer.from('import("./chunks/maker.js");import("./chunks/history.js")'),
-    }
-    Object.defineProperty(file, 'text', { get: () => file.contents.toString() })
-    const meta = {
-      outputs: {
-        [MAIN]: { inputs: { 'src\\webview\\makerEntry.ts': {} } },
-        'dist/webview/chunks/maker.js': {
-          entryPoint: 'src/webview/maker/MakerSurface.tsx',
-          inputs: {},
-        },
-      },
-    }
-    finish({ errors: [], metafile: meta, outputFiles: [file] })
-    expect(file.text).toContain('?makerRetry=')
-    expect(file.text).toContain('++__makerImportAttempt')
-    expect(file.text).toContain('import("./chunks/history.js")')
-    expect(meta.outputs[MAIN].bytes).toBe(file.contents.length)
-  })
   it('counts the whole static closure exactly once, excluding dynamic and external imports', () => {
     expect(webviewStartupOutputs(metafile())).toEqual([MAIN, CORE])
   })
@@ -95,5 +66,18 @@ describe('webview import budgets', () => {
     const meta = metafile()
     Reflect.deleteProperty(meta.outputs, CORE)
     expect(() => webviewStartupOutputs(meta)).toThrow(`Missing webview output: ${CORE}`)
+  })
+  it('counts the complete maker review closure with Windows source separators', () => {
+    const meta = metafile()
+    const review = 'dist/webview/chunks/maker-review.js'
+    const validation = 'dist/webview/chunks/maker-validation.js'
+    meta.outputs[review] = output([edge(validation)], String.raw`src\webview\maker\reviewEntry.ts`)
+    meta.outputs[validation] = output()
+    expect(
+      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'maker review'),
+    ).toMatchObject({
+      budgetKiB: 75,
+      outputs: [review, validation],
+    })
   })
 })

@@ -884,7 +884,12 @@ const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 for (const [file, output] of Object.entries(webviewMeta.outputs)) {
   if (eagerWebview.has(file)) {
     for (const source of Object.keys(output.inputs)) {
-      if (source.startsWith('src/webview/maker/'))
+      if (
+        source.replaceAll('\\', '/').startsWith('src/webview/maker/') ||
+        source.replaceAll('\\', '/').startsWith('src/core/maker/') ||
+        source.includes('maker-validation:') ||
+        source.replaceAll('\\', '/').endsWith('l10n/makerEnglish.ts')
+      )
         problems.push(`Maker UI must stay deferred: ${source}`)
     }
   }

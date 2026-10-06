@@ -4153,20 +4153,30 @@ prompt; clients without one and native plugins use the same shared dialog
 through the companion page or their HostBridge. All use the same engine's
 single-use target binding.
 
-Send once stays disabled until every payload segment has been fully visible
-in the Read payload scrollport. Each monospace segment holds at most 24
-characters, with a visible continuation mark on hard-split lines. Focus,
-selection and Next page never count as review; resizing resets progress.
-Reject remains available throughout. Completed approval review posts
-`makerPayloadReviewed {id, digest, isComplete}`. The portable host owns readiness,
-recomputes the frozen outgoing bytes' digest and refuses an answer before review
-or after a mismatch. `MakerHost.confirm` receives its host-only review callback;
-adapters must route completed shared approval review to it. Hex review hashes
-the decoded displayed bytes. Native and read-only previews send no digest or
-readiness and cannot authorize Send once. V/R still own installed-editor routing.
-Failed views retain Stop, retry their chunk at a fresh URL and offer Close to
-restore chat; Stop also remains available for serial-only targets. Dialog Stop
-controls sit outside the scrolling body and remain usable in a 120 px pane.
+The person approves this exact outgoing payload by its SHA-256 digest, after
+seeing a faithful canonical rendering and structured summary. Control pictures
+expose CR, LF, TAB, NUL and ESC; byte escapes expose invalid or hidden text.
+The fixed-width rendering wraps to the measured container and mounts only
+visible rows. At most 200 rendered rows require scrolling the real payload
+container to its end once. Larger payloads require summary/digest confirmation;
+highlighted dangers always need an additional acknowledgement. Search and
+Next highlight reach unmounted material. Approval does not prove that the person
+looked at every byte. Reject and Send once have equal styling and sizing.
+
+Completed review posts `makerPayloadReviewed {id, digest, isComplete}`. The
+portable host independently rehashes the exact frozen outgoing bytes and
+refuses a mismatch. Read-only/native preview paint cannot authorize a send;
+V/R still own installed-editor routing. Stop all occupies a bounded viewport
+region with an internally scrolling per-machine list, including short panes
+and serial-only sessions. Stop never waits for payload preparation. Retry saves
+panel state and reloads the document, refetching static dependencies too; Close
+restores chat. Review confirmations are never persisted. The review, English
+fallback and validation load in their own second maker chunk.
+
+The [maker review Help reference](docs/reference.md) describes summaries,
+unknown firmware metadata and adapter qualification. Its source entry is in
+`src/shared/featureCatalog.ts`; `node scripts/gen-reference.mjs` regenerates
+it and `npm run check:reference` verifies it.
 
 The separate `dist/webview/makerPreview.js` / `.css` page has a 25 KiB script
 cap. Its host-rendered HTML supplies localized buttons with `data-maker-view`
@@ -4180,8 +4190,8 @@ viewer. Runtime/native hosts can supply their own HostBridge to
 While machines are registered, the host also renders Stop buttons with
 `data-maker-stop="<machine id>"` (an empty value stops all). These work before
 geometry arrives and after a WebGL failure, without approval or admission.
-The Stop buttons form a fixed viewport stack with separate hit areas for Stop
-all and each machine. Stop all posts the intent for every registered machine.
+Stop all stays in a bounded fixed viewport region; individual Stop buttons
+scroll inside that region with separate hit areas. Stop all posts the intent for every registered machine.
 Invalid matching geometry clears
 the old view and shows the unavailable alert. Array size is checked before
 validation; accepted geometry is validated in bounded chunks with a deadline,

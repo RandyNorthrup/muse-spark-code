@@ -9,6 +9,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker approval now binds the exact outgoing-byte digest to a canonical,
+  virtualised rendering and structured summary. Control bytes are visible;
+  small payloads require reaching the scroll end, and large ones require
+  summary/digest confirmation. Highlighted dangers need acknowledgement.
+  Bounded Stop all and scrollable machine lists remain usable during long
+  rendering and failures. Retry reloads the panel to recover failed static
+  dependencies, preserving state and clearing review confirmations. Maker
+  review, fallback and validation have their own lazy budget.
+
 - Hardware approval now counts only fully visible hard-split segments, resets
   progress on resize and requires host-owned completed review against the exact
   outgoing bytes. Read-only/native preview paint cannot authorize a send.

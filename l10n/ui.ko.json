@@ -40,7 +40,6 @@
   "makerAuditUnrecorded": "작업은 완료되었지만 장치 로그를 저장하지 못했습니다.",
   "makerSentOutcomeUnknown": "기계가 작동했을 수 있습니다. 다시 보내기 전에 상태를 확인하세요.",
   "makerPreviewTitle": "하드웨어 제작 미리 보기",
-  "makerMaximumTemperature": "최대 온도: {temperature}",
   "makerMaximumFeed": "최대 이송 속도: {feed}",
   "makerHardwareEnabled": "하드웨어 활성화됨",
   "makerHardwareDisabled": "하드웨어 비활성화됨",
@@ -2411,14 +2410,35 @@
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
   "makerReadPayload": "전송 내용 읽기",
-  "makerNextPage": "다음 페이지",
-  "makerReviewProgress": {
-    "other": "{count}개 세그먼트 중 {reviewed}개 검토 완료"
-  },
   "makerLoadFailed": "장치 화면을 불러오지 못했습니다. 중지는 계속 사용할 수 있습니다.",
   "makerRetry": "다시 시도",
   "makerCategoryPrinter": "3D 프린터",
   "makerCategoryCnc": "CNC 기계",
   "makerCategoryLaser": "레이저 기계",
-  "makerCategoryRobot": "로봇"
+  "makerCategoryRobot": "로봇",
+  "makerCanonicalLegend": "제어 기호는 제어 바이트를 표시합니다. \\xNN은 이스케이프된 바이트, \\\\는 문자 그대로의 역슬래시입니다.",
+  "makerPayloadSearch": "정규 페이로드 검색",
+  "makerFindNext": "다음 찾기",
+  "makerHighlightPosition": "강조 표시 {current}/{count}",
+  "makerHighlightLine": "{line}행",
+  "makerAcknowledgeDangers": "강조 표시된 모든 위험을 확인합니다.",
+  "makerConfirmSummaryDigest": "요약과 이 정확한 페이로드의 다이제스트를 확인합니다.",
+  "makerPayloadEndReached": "페이로드 끝에 도달했습니다.",
+  "makerScrollPayloadEnd": "승인하기 전에 페이로드 끝까지 스크롤하세요.",
+  "makerSummaryUnknown": "알 수 없음",
+  "makerDangerTemperature": "온도가 안전 한도를 초과하거나 한도를 알 수 없습니다.",
+  "makerDangerTravel": "이동이 이동 한도를 초과하거나 범위를 알 수 없습니다.",
+  "makerDangerSafety": "명령이 안전 검사를 비활성화합니다.",
+  "makerDangerUnknown": "명령 또는 그 영향을 완전히 분석하지 못했습니다.",
+  "makerPayloadSize": "전송 크기: {size}; 행: {lines}",
+  "makerDigestLabel": "페이로드 SHA-256",
+  "makerEntryPoint": "진입점",
+  "makerFirmwareSizeNotice": "이 크기는 전송 바이트를 나타냅니다. 펌웨어 파일을 참조하는 명령으로는 파일 크기나 진입점을 알 수 없습니다.",
+  "makerFan": "최대 팬 설정",
+  "makerEstimatedTime": "예상 시간",
+  "makerTravelSummary": "이동 범위 (mm)",
+  "makerNextHighlight": "다음 강조 표시",
+  "makerTemperatureSettings": {
+    "other": "설정 온도(서로 다른 {count}개 중 처음 {shown}개): {temperatures}. 최대: {maximum}."
+  }
 }

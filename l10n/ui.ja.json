@@ -40,7 +40,6 @@
   "makerAuditUnrecorded": "操作は完了しましたが、デバイスログを保存できませんでした。",
   "makerSentOutcomeUnknown": "機械が動作した可能性があります。再送信する前に状態を取得してください。",
   "makerPreviewTitle": "ものづくりプレビュー",
-  "makerMaximumTemperature": "最高温度: {temperature}",
   "makerMaximumFeed": "最大送り速度: {feed}",
   "makerHardwareEnabled": "ハードウェアが有効",
   "makerHardwareDisabled": "ハードウェアが無効",
@@ -2411,14 +2410,35 @@
   "judgeStatusSubscription": "サブスクリプション",
   "judgeStatusPaid": "有料",
   "makerReadPayload": "送信内容を読む",
-  "makerNextPage": "次のページ",
-  "makerReviewProgress": {
-    "other": "{count} セグメント中 {reviewed} セグメントを確認済み"
-  },
   "makerLoadFailed": "デバイス画面を読み込めませんでした。停止は引き続き使用できます。",
   "makerRetry": "再試行",
   "makerCategoryPrinter": "3Dプリンター",
   "makerCategoryCnc": "CNC工作機械",
   "makerCategoryLaser": "レーザー加工機",
-  "makerCategoryRobot": "ロボット"
+  "makerCategoryRobot": "ロボット",
+  "makerCanonicalLegend": "制御文字の記号は制御バイトを示します。\\xNN はエスケープされたバイト、\\\\ は文字としてのバックスラッシュです。",
+  "makerPayloadSearch": "正規化されたペイロードを検索",
+  "makerFindNext": "次を検索",
+  "makerHighlightPosition": "強調表示 {current} / {count}",
+  "makerHighlightLine": "行 {line}",
+  "makerAcknowledgeDangers": "強調表示されたすべての危険を確認しました。",
+  "makerConfirmSummaryDigest": "要約とこの正確なペイロードのダイジェストを確認しました。",
+  "makerPayloadEndReached": "ペイロードの末尾に到達しました。",
+  "makerScrollPayloadEnd": "承認前にペイロードの末尾までスクロールしてください。",
+  "makerSummaryUnknown": "不明",
+  "makerDangerTemperature": "温度が安全な上限を超えているか、上限が不明です。",
+  "makerDangerTravel": "移動が可動範囲を超えているか、移動範囲が不明です。",
+  "makerDangerSafety": "コマンドが安全確認を無効にします。",
+  "makerDangerUnknown": "コマンドまたはその影響を完全に解析できませんでした。",
+  "makerPayloadSize": "送信サイズ: {size}、行数: {lines}",
+  "makerDigestLabel": "ペイロードの SHA-256",
+  "makerEntryPoint": "エントリポイント",
+  "makerFirmwareSizeNotice": "このサイズは送信バイトを表します。ファームウェアファイルを参照するコマンドでは、ファイルのサイズやエントリポイントはわかりません。",
+  "makerFan": "ファンの最大設定",
+  "makerEstimatedTime": "推定時間",
+  "makerTravelSummary": "移動範囲 (mm)",
+  "makerNextHighlight": "次の強調表示",
+  "makerTemperatureSettings": {
+    "other": "設定温度（異なる {count} 件のうち最初の {shown} 件）：{temperatures}。最高：{maximum}。"
+  }
 }

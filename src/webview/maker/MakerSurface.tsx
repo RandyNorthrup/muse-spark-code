@@ -7,18 +7,21 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { MAKER_PROTOCOL_VERSION, UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
+import {
+  MAKER_PROTOCOL_VERSION,
+  PANEL_RELOAD_EVENT,
+  UI_TEXT,
+  WEBVIEW_ROOT_ELEMENT_ID,
+} from '../../shared/constants'
 import type { MakerSurfaceMessage } from '../../shared/makerProtocol'
 import type { HostBridge } from '../hostBridge'
 import { Modal } from '../components/Modal'
-import { createMakerStore } from './store'
+import type { createMakerStore } from './store'
 import { makerWarningText } from './presentation'
 import { StopChip } from './StopChip'
-import { PayloadReview } from './PayloadReview'
 import { MakerBoundary } from './MakerBoundary'
-import { ApprovalDialog } from './ApprovalDialog'
-import { MachineWizard } from './MachineWizard'
 import { DeviceLog } from './DeviceLog'
+import { reloadPanelSurface } from '../reloadPanelSurface'
 import './maker.css'
 
 const loadDevices = async () => {
@@ -26,12 +29,24 @@ const loadDevices = async () => {
   return { default: DevicePanel }
 }
 const createViews = () => ({ DevicePanel: lazy(loadDevices) })
+const ApprovalDialog = lazy(async () => {
+  const module = await import('./reviewEntry')
+  return { default: module.ApprovalDialog }
+})
+const PayloadReview = lazy(async () => {
+  const module = await import('./reviewEntry')
+  return { default: module.PayloadReview }
+})
+const MachineWizard = lazy(async () => {
+  const module = await import('./reviewEntry')
+  return { default: module.MachineWizard }
+})
 
 export function MakerSurface({ store }: { readonly store: ReturnType<typeof createMakerStore> }) {
   const state = useSyncExternalStore(store.subscribe, store.getState)
   const [view, setView] = useState<'devices' | 'wizard' | 'log' | undefined>()
   const [closedPreview, setClosedPreview] = useState<unknown>()
-  const [views, setViews] = useState(createViews)
+  const [views] = useState(createViews)
   const { DevicePanel } = views
   const approval = state.approvals[0]
   const close = () => {
@@ -61,6 +76,13 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
         <ApprovalDialog
           key={approval.id}
           request={approval}
+          limits={
+            state.admission?.machines.find(
+              (machine) =>
+                approval.target.kind === 'machine' &&
+                machine.registrationId === approval.target.registrationId,
+            )?.limits
+          }
           stop={stop}
           onRendered={(digest) => {
             store.previewRendered(approval.id, digest)
@@ -104,6 +126,7 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
   return (
     <div className="maker-surface">
       <div className="maker-toolbar" inert={isModalOpen}>
+        {stop}
         <button
           type="button"
           onClick={() => {
@@ -121,7 +144,6 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
         >
           {UI_TEXT.makerOpenDeviceLog}
         </button>
-        {stop}
       </div>
       {state.notice !== undefined && <p role="status">{notice}</p>}
       {state.result !== undefined && (
@@ -141,7 +163,7 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
           if (approval !== undefined) store.answer(approval.id, 'reject_once')
         }}
         onRetry={() => {
-          setViews(createViews())
+          reloadPanelSurface(store.reloadMessages())
         }}
       >
         <Suspense
@@ -165,57 +187,65 @@ export function MakerSurface({ store }: { readonly store: ReturnType<typeof crea
           }
         >
           {overlay}
+          {state.preview !== undefined && isPreviewOpen && (
+            <Modal
+              title={state.preview.preview.title}
+              titleId="maker-preview-title"
+              onClose={() => {
+                setClosedPreview(state.preview)
+              }}
+              fixedControls={stop}
+            >
+              {state.preview.preview.kind === 'payload' ? (
+                <PayloadReview
+                  content={state.preview.preview.content}
+                  encoding={state.preview.preview.encoding}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (state.preview?.preview.kind === 'stl')
+                      store.send({
+                        v: MAKER_PROTOCOL_VERSION,
+                        type: 'makerOpenPreview',
+                        artifactId: state.preview.preview.artifactId,
+                      })
+                  }}
+                >
+                  {UI_TEXT.makerPreviewTitle}
+                </button>
+              )}
+            </Modal>
+          )}
         </Suspense>
-        {state.preview !== undefined && isPreviewOpen && (
-          <Modal
-            title={state.preview.preview.title}
-            titleId="maker-preview-title"
-            onClose={() => {
-              setClosedPreview(state.preview)
-            }}
-            fixedControls={stop}
-          >
-            {state.preview.preview.kind === 'payload' ? (
-              <PayloadReview
-                content={state.preview.preview.content}
-                encoding={state.preview.preview.encoding}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  if (state.preview?.preview.kind === 'stl')
-                    store.send({
-                      v: MAKER_PROTOCOL_VERSION,
-                      type: 'makerOpenPreview',
-                      artifactId: state.preview.preview.artifactId,
-                    })
-                }}
-              >
-                {UI_TEXT.makerPreviewTitle}
-              </button>
-            )}
-          </Modal>
-        )}
       </MakerBoundary>
     </div>
   )
 }
 
 /** V/R/companion use the same bridge. No surface persists grants or log data. */
-export function mountMaker(
+export async function mountMaker(
   element: Element,
   host: HostBridge<MakerSurfaceMessage>,
   pending: readonly unknown[] = [],
 ) {
+  const { createMakerStore, installMakerTable } = await import('./reviewEntry')
+  installMakerTable()
   const store = createMakerStore(host)
+  let isReloading = false
+  const reloading = () => {
+    isReloading = true
+  }
+  window.addEventListener(PANEL_RELOAD_EVENT, reloading)
   for (const message of pending) store.receive(message)
   const root = createRoot(element)
   root.render(<MakerSurface store={store} />)
   return {
     receive: store.receive,
     dispose: () => {
-      store.dispose()
+      window.removeEventListener(PANEL_RELOAD_EVENT, reloading)
+      store.dispose(!isReloading)
       root.unmount()
       element.remove()
     },

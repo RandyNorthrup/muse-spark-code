@@ -40,7 +40,6 @@
   "makerAuditUnrecorded": "操作已完成，但无法保存设备日志。",
   "makerSentOutcomeUnknown": "机器可能已执行操作。再次发送前，请读取其状态。",
   "makerPreviewTitle": "创客预览",
-  "makerMaximumTemperature": "最高温度：{temperature}",
   "makerMaximumFeed": "最大进给速度：{feed}",
   "makerHardwareEnabled": "硬件已启用",
   "makerHardwareDisabled": "硬件已禁用",
@@ -2411,14 +2410,35 @@
   "judgeStatusSubscription": "订阅",
   "judgeStatusPaid": "付费",
   "makerReadPayload": "阅读发送内容",
-  "makerNextPage": "下一页",
-  "makerReviewProgress": {
-    "other": "已查看 {reviewed} / {count} 个片段"
-  },
   "makerLoadFailed": "无法加载设备视图。停止功能仍可使用。",
   "makerRetry": "重试",
   "makerCategoryPrinter": "3D打印机",
   "makerCategoryCnc": "数控机床",
   "makerCategoryLaser": "激光加工机",
-  "makerCategoryRobot": "机器人"
+  "makerCategoryRobot": "机器人",
+  "makerCanonicalLegend": "控制符号显示控制字节；\\xNN 表示转义字节，\\\\ 表示字面的反斜杠。",
+  "makerPayloadSearch": "搜索规范化载荷",
+  "makerFindNext": "查找下一个",
+  "makerHighlightPosition": "高亮 {current}/{count}",
+  "makerHighlightLine": "第 {line} 行",
+  "makerAcknowledgeDangers": "我确认所有高亮的危险。",
+  "makerConfirmSummaryDigest": "我确认摘要和此精确载荷的摘要值。",
+  "makerPayloadEndReached": "已到达载荷末尾。",
+  "makerScrollPayloadEnd": "批准前请滚动到载荷末尾。",
+  "makerSummaryUnknown": "未知",
+  "makerDangerTemperature": "温度超过安全上限，或上限未知。",
+  "makerDangerTravel": "移动超出行程限制，或范围未知。",
+  "makerDangerSafety": "命令会禁用安全检查。",
+  "makerDangerUnknown": "无法完整分析命令或其影响。",
+  "makerPayloadSize": "发送大小：{size}；行数：{lines}",
+  "makerDigestLabel": "载荷 SHA-256",
+  "makerEntryPoint": "入口点",
+  "makerFirmwareSizeNotice": "此大小涵盖发送的字节。引用固件文件的命令不会显示该文件的大小或入口点。",
+  "makerFan": "最大风扇设置",
+  "makerEstimatedTime": "预计时间",
+  "makerTravelSummary": "行程范围 (mm)",
+  "makerNextHighlight": "下一个高亮",
+  "makerTemperatureSettings": {
+    "other": "温度设置（{count} 个不同值中的前 {shown} 个）：{temperatures}。最高：{maximum}。"
+  }
 }

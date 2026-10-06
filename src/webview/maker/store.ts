@@ -155,6 +155,15 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
   }
   return {
     getState: () => state,
+    reloadMessages: () => [
+      ...(state.admission === undefined ? [] : [state.admission]),
+      ...(state.preview === undefined ? [] : [state.preview]),
+      ...state.approvals.map((request) => ({
+        v: MAKER_PROTOCOL_VERSION,
+        type: 'makerApproval',
+        request,
+      })),
+    ],
     receive,
     send: didSend,
     answer: didAnswer,
@@ -185,8 +194,9 @@ export function createMakerStore(host: HostBridge<MakerSurfaceMessage>, now = Da
         listeners.delete(listener)
       }
     },
-    dispose: () => {
-      for (const request of state.approvals) didAnswer(request.id, 'reject_once')
+    dispose: (shouldReject = true) => {
+      if (shouldReject) for (const request of state.approvals) didAnswer(request.id, 'reject_once')
+      for (const timer of timers.values()) clearTimeout(timer)
       isDisposed = true
       listeners.clear()
     },

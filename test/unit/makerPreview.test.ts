@@ -48,9 +48,10 @@ describe('bounded host-owned STL preview', () => {
     const { host, post } = uiBridge()
     lifetime.dispose = wireMakerPreview(document, host)
     const stack = document.querySelector('.maker-stop-stack')
-    expect(stack?.children).toHaveLength(4)
+    expect(stack?.querySelectorAll('[data-maker-stop]')).toHaveLength(4)
+    expect(stack?.children).toHaveLength(2)
     for (const [index, button] of buttons.entries()) {
-      expect(button.parentElement).toBe(stack)
+      expect(button.closest('.maker-stop-stack')).toBe(stack)
       button.click()
       expect(post).toHaveBeenLastCalledWith({
         v: 1,

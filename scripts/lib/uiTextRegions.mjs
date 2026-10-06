@@ -133,7 +133,7 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser still carries all English; repeated fragments share a dictionary. */
+/** Maker fallback and its complete validation wait for the second maker closure. */
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
@@ -141,53 +141,27 @@ export const compactBrowserEnglish = {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       const { EN, compactEnglishSource } = await loadL10n(process.cwd())
       return {
-        contents: compactEnglishSource(EN),
+        contents: compactEnglishSource(
+          Object.fromEntries(
+            Object.entries(EN).filter(
+              ([key]) =>
+                !key.startsWith('maker') ||
+                ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
+            ),
+          ),
+        ),
         loader: 'js',
         watchFiles: [args.path, 'src/shared/l10n/compactEnglish.ts', 'src/shared/constants.ts'],
       }
     })
-  },
-}
-
-/** A fresh URL retries a rejected browser module fetch; React also replaces its rejected lazy promise. */
-export const retryMakerImports = {
-  name: 'retry-maker-imports',
-  setup(build) {
-    build.onEnd((result) => {
-      if (result.errors.length > 0) return
-      const outputs = Object.entries(result.metafile?.outputs ?? {})
-      for (const [file, output] of outputs) {
-        if (
-          !file.endsWith('.js') ||
-          Object.keys(output.inputs).every(
-            (input) =>
-              !/src\/webview\/(?:makerEntry\.ts|maker\/MakerSurface\.tsx)$/.test(
-                input.replaceAll('\\', '/'),
-              ),
-          )
-        )
-          continue
-        const memory = result.outputFiles?.find(
-          (entry) => path.resolve(entry.path) === path.resolve(file),
-        )
-        const original = memory?.text ?? readFileSync(file, 'utf8')
-        const rewritten = original.replaceAll(
-          /import\(("[^"\n]+"|'[^'\n]+')\)/g,
-          (match, specifier) => {
-            const target = path.posix.join(
-              path.posix.dirname(file.replaceAll('\\', '/')),
-              specifier.slice(1, -1),
-            )
-            const entry = result.metafile.outputs[target]?.entryPoint?.replaceAll('\\', '/')
-            return entry?.startsWith('src/webview/maker/')
-              ? `import(${specifier}+"?makerRetry="+(++__makerImportAttempt))`
-              : match
-          },
-        )
-        const code = rewritten === original ? original : `let __makerImportAttempt=0;\n${rewritten}`
-        if (memory === undefined) writeFileSync(file, code)
-        else memory.contents = Buffer.from(code)
-        output.bytes = Buffer.byteLength(code)
+    build.onLoad({ filter: /[/\\]l10n[/\\]makerEnglish\.ts$/ }, async (args) => {
+      const { EN, compactEnglishSource } = await loadL10n(process.cwd())
+      return {
+        contents: compactEnglishSource(
+          Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+        ).replace('export const EN=', 'export const MAKER_EN='),
+        loader: 'js',
+        watchFiles: [args.path, TABLE],
       }
     })
   },

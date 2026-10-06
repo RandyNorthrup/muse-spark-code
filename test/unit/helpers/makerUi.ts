@@ -55,14 +55,63 @@ export function uiApproval(now = Date.now()): Extract<ApprovalRequest, { kind: '
 }
 
 export function installMakerBrowser() {
-  let pointed: Element | null = null
-  document.elementFromPoint = () => pointed
-  HTMLElement.prototype.scrollIntoView = vi.fn()
-  const observers: {
+  let isVisible = false
+  let width = 240
+  const resizes: { callback: () => void; active: boolean }[] = []
+  const ends: {
     callback: (entries: IntersectionObserverEntry[]) => void
     targets: Set<Element>
   }[] = []
-  const resizes: { callback: () => void; active: boolean }[] = []
+  HTMLElement.prototype.scrollIntoView = vi.fn()
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => null)
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.classList.contains('maker-payload')
+      ? new DOMRect(0, isVisible ? 0 : 900, width, 160)
+      : new DOMRect(0, 0, width, 760)
+  })
+  Object.defineProperties(HTMLElement.prototype, {
+    clientWidth: {
+      configurable: true,
+      get() {
+        return width
+      },
+    },
+    clientHeight: {
+      configurable: true,
+      get() {
+        return 160
+      },
+    },
+    scrollHeight: {
+      configurable: true,
+      get() {
+        return Number(
+          document
+            .querySelector<HTMLElement>('.maker-payload-rows')
+            ?.style.height.replace('px', '') ?? '160',
+        )
+      },
+    },
+  })
+  vi.stubGlobal('crypto', webcrypto)
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      private readonly record
+      public constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
+        this.record = { callback, targets: new Set<Element>() }
+        ends.push(this.record)
+      }
+      public observe(target: Element) {
+        this.record.targets.add(target)
+      }
+      public disconnect() {
+        this.record.targets.clear()
+      }
+    },
+  )
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -79,43 +128,28 @@ export function installMakerBrowser() {
       }
     },
   )
-  vi.stubGlobal('crypto', webcrypto)
-  vi.stubGlobal(
-    'IntersectionObserver',
-    class {
-      public readonly targets = new Set<Element>()
-      public constructor(callback: (entries: IntersectionObserverEntry[]) => void) {
-        observers.push({ callback, targets: this.targets })
-      }
-      public observe(target: Element) {
-        this.targets.add(target)
-      }
-      public disconnect() {
-        this.targets.clear()
-      }
-    },
-  )
-  const visible = (indexes?: readonly number[]) => {
-    for (const observer of observers)
-      observer.callback(
-        [...observer.targets]
-          .filter((_target, index) => indexes === undefined || indexes.includes(index))
-          .map((target) => ({
-            target,
-            isIntersecting: true,
-            intersectionRatio: 1,
-            time: 0,
-            get boundingClientRect() {
-              pointed = target
-              return target.getBoundingClientRect()
-            },
-            intersectionRect: target.getBoundingClientRect(),
-            rootBounds: null,
-          })),
+  const visible = () => {
+    isVisible = true
+    for (const node of document.querySelectorAll<HTMLElement>('.maker-payload')) {
+      node.scrollTop = Math.max(0, node.scrollHeight - node.clientHeight)
+      node.dispatchEvent(new Event('scroll', { bubbles: true }))
+    }
+    for (const end of ends)
+      end.callback(
+        [...end.targets].map((target) => ({
+          target,
+          intersectionRatio: 1,
+          isIntersecting: true,
+          time: 0,
+          rootBounds: null,
+          boundingClientRect: target.getBoundingClientRect(),
+          intersectionRect: target.getBoundingClientRect(),
+        })),
       )
   }
   return Object.assign(visible, {
-    resize: () => {
+    resize: (nextWidth = width) => {
+      width = nextWidth
       for (const resize of resizes) if (resize.active) resize.callback()
     },
   })

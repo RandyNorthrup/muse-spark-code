@@ -6,6 +6,8 @@ import { MakerSurface } from '../../src/webview/maker/MakerSurface'
 import { uiBridge, MAKER_UI_STATE } from './helpers/makerUi'
 
 const view = vi.hoisted(() => ({ fails: true }))
+const reload = vi.hoisted(() => vi.fn())
+vi.mock('../../src/webview/reloadPanelSurface', () => ({ reloadPanelSurface: reload }))
 vi.mock('../../src/webview/maker/DevicePanel', () => ({
   DevicePanel: () => {
     if (view.fails) throw new Error('chunk unavailable')
@@ -16,7 +18,7 @@ afterEach(() => {
   cleanup()
   vi.restoreAllMocks()
 })
-it('a failed optional view preserves Stop and Retry remounts it', async () => {
+it('a failed optional view preserves Stop and Retry reloads its whole module graph', async () => {
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
   const { store, post } = uiBridge()
   store.receive({ ...MAKER_UI_STATE, machines: [] })
@@ -28,9 +30,8 @@ it('a failed optional view preserves Stop and Retry remounts it', async () => {
     screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-1) ?? document.body,
   )
   expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
-  view.fails = false
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerRetry }))
-  expect(await screen.findByText('Devices recovered')).toBeInTheDocument()
+  expect(reload).toHaveBeenCalledExactlyOnceWith([expect.objectContaining({ type: 'makerState' })])
   store.dispose()
 })
 

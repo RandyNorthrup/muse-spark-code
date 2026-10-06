@@ -1,176 +1,320 @@
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  MAKER_DIGEST_RADIX,
-  MAKER_REVIEW_PAGE_LINES,
-  MAKER_REVIEW_SEGMENT_CHARS,
+  MAKER_REVIEW_DEFAULT_CHAR_WIDTH,
+  MAKER_REVIEW_DEFAULT_WIDTH,
+  MAKER_REVIEW_OVERSCAN_ROWS,
+  MAKER_REVIEW_ROW_HEIGHT,
+  MAKER_REVIEW_SMALL_ROWS,
+  MAKER_REVIEW_YIELD_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { plural, formatNumber, uiLocale } from '../../shared/l10n/text'
+import { fill, formatNumber } from '../../shared/l10n/text'
+import type { ApprovalRequest, MakerMachineSummary } from '../../shared/makerProtocol'
+import {
+  canonicalPayload,
+  outgoingPayloadBytes,
+  type CanonicalPayload,
+} from '../../core/maker/canonicalPayload'
+import { summarizePayload, type PayloadSummary } from '../../core/maker/payloadSummary'
+import { PayloadSummaryView } from './PayloadSummaryView'
 
-/** Only full segment visibility counts; navigation never confers review authority. */
+/** First row/highlight at or after a logical line. */
+function lowerBound(values: readonly { readonly line: number }[], line: number): number {
+  let low = 0
+  let high = values.length
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2)
+    if ((values[mid]?.line ?? 0) < line) low = mid + 1
+    else high = mid
+  }
+  return low
+}
+
 export function PayloadReview({
   content,
   onRendered,
   onReviewed,
   encoding = 'text',
+  request,
+  limits,
 }: {
   readonly content: string
   readonly onRendered?: (digest: string) => void
   readonly onReviewed?: (isComplete: boolean) => void
   readonly encoding?: 'text' | 'hex' | undefined
+  readonly request?: ApprovalRequest | undefined
+  readonly limits?: MakerMachineSummary['limits'] | undefined
 }) {
-  const payload = useRef<HTMLPreElement>(null)
+  const viewport = useRef<HTMLDivElement>(null)
   const callbacks = useRef({ onRendered, onReviewed })
-  const refresh = useRef<(() => void) | undefined>(undefined)
   useLayoutEffect(() => {
     callbacks.current = { onRendered, onReviewed }
-    refresh.current?.()
   })
-  const [count, setCount] = useState(0)
-  const [page, setPage] = useState(0)
-  const segmenter = new Intl.Segmenter(uiLocale(), { granularity: 'grapheme' })
-  const lines = content.split('\n').flatMap((line, lineIndex, logicalLines) => {
-    const segments: string[] = []
-    let text = ''
-    const characters = segmenter.segment(line + (lineIndex < logicalLines.length - 1 ? '\n' : ''))
-    for (const { segment } of characters) {
-      if (segment.length > MAKER_REVIEW_SEGMENT_CHARS) throw new Error('makerPayloadSegment')
-      if (text.length + segment.length > MAKER_REVIEW_SEGMENT_CHARS) {
-        segments.push(text)
-        text = ''
-      }
-      text += segment
-    }
-    segments.push(text)
-    return segments.map((value, index) => ({
-      text: value,
-      isContinuation: index < segments.length - 1,
-    }))
-  })
-  const seen = useRef(new Set<Element>())
-  const progress = useCallback(() => {
-    setCount(seen.current.size)
-    callbacks.current.onReviewed?.(seen.current.size === lines.length)
-  }, [lines.length])
+  const [result, setPrepared] = useState<{
+    content: string
+    encoding: string
+    width: number
+    request: ApprovalRequest | undefined
+    limits: MakerMachineSummary['limits'] | undefined
+    payload: CanonicalPayload
+    summary: PayloadSummary
+  }>()
+  const [failed, setFailed] = useState(false)
+  const [width, setWidth] = useState(MAKER_REVIEW_DEFAULT_WIDTH)
+  const [start, setStart] = useState(0)
+  const [visibleRows, setVisibleRows] = useState(MAKER_REVIEW_OVERSCAN_ROWS)
+  const [reachedEnd, setReachedEnd] = useState(false)
+  const [confirmed, setConfirmed] = useState(false)
+  const [acknowledged, setAcknowledged] = useState(false)
+  const [query, setQuery] = useState('')
+  const [match, setMatch] = useState(-1)
+  const [highlightIndex, setHighlightIndex] = useState(0)
+  const searchGeneration = useRef(0)
+  const prepared =
+    result?.content === content &&
+    result.encoding === encoding &&
+    result.width === width &&
+    result.request === request &&
+    result.limits === limits
+      ? result
+      : undefined
+  const isLarge = (prepared?.payload.rows.length ?? 0) > MAKER_REVIEW_SMALL_ROWS
+  const isComplete =
+    prepared !== undefined &&
+    (isLarge ? confirmed : reachedEnd) &&
+    (prepared.summary.highlights.length === 0 || acknowledged)
   useLayoutEffect(() => {
-    const node = payload.current
+    callbacks.current.onReviewed?.(isComplete)
+  }, [isComplete])
+  useLayoutEffect(() => {
+    const node = viewport.current
     if (node === null) return
-    seen.current.clear()
-    progress()
-    setPage(0)
-    let generation = 0
-    const receipt = () => {
-      if (callbacks.current.onRendered === undefined) return
-      const current = ++generation
-      const text = node.textContent
-      const bytes =
-        encoding === 'hex' && /^(?:[a-f0-9]{2})*$/.test(text)
-          ? Uint8Array.from(text.match(/../g) ?? [], (hex) =>
-              Number.parseInt(hex, MAKER_DIGEST_RADIX),
-            )
-          : new TextEncoder().encode(text)
-      void crypto.subtle
-        .digest('SHA-256', bytes)
-        .then((result) => {
-          if (current !== generation || document.visibilityState === 'hidden') return
-          const digest = [...new Uint8Array(result)]
-            .map((byte) => byte.toString(MAKER_DIGEST_RADIX).padStart(2, '0'))
-            .join('')
-          callbacks.current.onRendered?.(digest)
-        })
-        .catch(() => {
-          callbacks.current.onReviewed?.(false)
-        })
+    const measure = () => {
+      if (node.clientWidth > 0) setWidth(node.clientWidth)
+      setVisibleRows(
+        Math.ceil(node.clientHeight / MAKER_REVIEW_ROW_HEIGHT) + MAKER_REVIEW_OVERSCAN_ROWS,
+      )
     }
-    const changed = (records: MutationRecord[]) => {
-      if (records.some((record) => node.contains(record.target))) {
-        seen.current.clear()
-        progress()
+    measure()
+    const resize = new ResizeObserver(measure)
+    resize.observe(node)
+    return () => {
+      resize.disconnect()
+    }
+  }, [])
+  useEffect(() => {
+    const controller = new AbortController()
+    searchGeneration.current += 1
+    if (viewport.current !== null) viewport.current.scrollTop = 0
+    const context = document.createElement('canvas').getContext('2d')
+    if (context !== null && viewport.current !== null)
+      context.font = getComputedStyle(viewport.current).font
+    const sizes = new Map<string, number>()
+    const measure = (character: string) => {
+      let size = sizes.get(character)
+      if (size === undefined) {
+        const measured = context?.measureText(character).width
+        size = measured === undefined || measured === 0 ? MAKER_REVIEW_DEFAULT_CHAR_WIDTH : measured
+        sizes.set(character, size)
       }
-      receipt()
+      return size
     }
-    refresh.current = receipt
-    const mutation = new MutationObserver(changed)
-    mutation.observe(node, { childList: true, characterData: true, subtree: true })
-    mutation.observe(document.documentElement, { attributes: true })
-    mutation.observe(document.body, { attributes: true })
-    document.addEventListener('visibilitychange', receipt)
+    void (async () => {
+      const bytes = outgoingPayloadBytes(content, encoding)
+      const payload = await canonicalPayload(bytes, width, measure, controller.signal)
+      const summary = await summarizePayload(bytes, request, limits, controller.signal)
+      controller.signal.throwIfAborted()
+      setFailed(false)
+      setReachedEnd(false)
+      setConfirmed(false)
+      setAcknowledged(false)
+      setStart(0)
+      setMatch(-1)
+      setHighlightIndex(0)
+      setPrepared({ content, encoding, width, request, limits, payload, summary })
+      callbacks.current.onRendered?.(payload.digest)
+    })().catch(() => {
+      if (!controller.signal.aborted) setFailed(true)
+    })
+    return () => {
+      controller.abort()
+    }
+  }, [content, encoding, width, request, limits])
+  useEffect(() => {
+    if (prepared === undefined || isLarge) return
+    const node = viewport.current
+    if (node === null) return
+    const endpoint = node.querySelector('.maker-payload-end')
+    if (endpoint === null) return
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.intersectionRatio !== 1 || document.visibilityState === 'hidden') continue
-          const { x, y, width, height } = entry.boundingClientRect
-          const inset = Math.min(1, width / 2, height / 2)
-          if (
-            [x + inset, x + width - inset].some((left) =>
-              [y + inset, y + height - inset].some(
-                (top) => !entry.target.contains(document.elementFromPoint(left, top)),
-              ),
-            )
-          )
-            continue
-          seen.current.add(entry.target)
-        }
-        progress()
+        if (
+          entries.some((entry) => entry.intersectionRatio === 1) &&
+          node.clientHeight > 0 &&
+          node.scrollTop + node.clientHeight >= node.scrollHeight - 1
+        )
+          setReachedEnd(true)
       },
-      { root: node, threshold: 1 },
+      { threshold: 1 },
     )
-    for (const line of node.children) observer.observe(line)
-    const resize = new ResizeObserver(() => {
-      seen.current.clear()
-      progress()
-      observer.disconnect()
-      for (const line of node.children) observer.observe(line)
-    })
-    resize.observe(node)
-    // The complete read-only document is mounted; scrolling/paging never changes its bytes.
-    const paint = requestAnimationFrame(receipt)
+    observer.observe(endpoint)
     return () => {
-      generation += 1
-      refresh.current = undefined
-      cancelAnimationFrame(paint)
       observer.disconnect()
-      resize.disconnect()
-      mutation.disconnect()
-      document.removeEventListener('visibilitychange', receipt)
     }
-  }, [content, encoding, lines.length, progress])
+  }, [prepared, isLarge])
+  const jump = (row: number) => {
+    const node = viewport.current
+    if (node === null) return
+    node.scrollTop = row * MAKER_REVIEW_ROW_HEIGHT
+    setStart(row)
+    node.focus()
+  }
+  const search = async () => {
+    if (prepared === undefined || query === '') return
+    const current = ++searchGeneration.current
+    const rows = prepared.payload.rows
+    let carry = ''
+    let carryRow = 0
+    for (const [index, row] of rows.entries()) {
+      if (current !== searchGeneration.current) return
+      const value = carry + row.text
+      const found = value.indexOf(query)
+      if (found !== -1 && index > match) {
+        setMatch(index)
+        jump(found < carry.length ? carryRow : index)
+        return
+      }
+      carry = query.length > 1 ? value.slice(-(query.length - 1)) : ''
+      carryRow = index
+      if (index % MAKER_REVIEW_YIELD_BYTES === 0)
+        await new Promise<void>((resolve) => setTimeout(resolve, 0))
+    }
+    setMatch(-1)
+  }
+  const rows = prepared?.payload.rows ?? []
+  const summary = prepared?.summary
   return (
     <>
-      <p role="status">
-        {plural(UI_TEXT.makerReviewProgress, lines.length, {
-          reviewed: formatNumber(count),
-        })}
-      </p>
-      <pre
-        ref={payload}
+      {failed && <p role="alert">{UI_TEXT.makerLoadFailed}</p>}
+      {prepared === undefined && !failed && <p role="status">{UI_TEXT.loadingOutput}</p>}
+      {prepared !== undefined && (
+        <PayloadSummaryView
+          payload={prepared.payload}
+          summary={prepared.summary}
+          request={request}
+          limits={limits}
+        />
+      )}
+      <p>{UI_TEXT.makerCanonicalLegend}</p>
+      <label>
+        {UI_TEXT.makerPayloadSearch}
+        <input
+          value={query}
+          onChange={(event) => {
+            setQuery(event.currentTarget.value)
+            setMatch(-1)
+            searchGeneration.current += 1
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        disabled={prepared === undefined || query === ''}
+        onClick={() => {
+          void search()
+        }}
+      >
+        {UI_TEXT.makerFindNext}
+      </button>
+      {summary !== undefined && summary.highlights.length > 0 && (
+        <>
+          <p role="status">
+            {fill(UI_TEXT.makerHighlightPosition, {
+              current: formatNumber(highlightIndex + 1),
+              count: formatNumber(summary.highlights.length),
+            })}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              const next = (highlightIndex + 1) % summary.highlights.length
+              setHighlightIndex(next)
+              jump(lowerBound(rows, summary.highlights[next]?.line ?? 1))
+            }}
+          >
+            {UI_TEXT.makerNextHighlight}
+          </button>
+          <p>
+            {fill(UI_TEXT.makerHighlightLine, {
+              line: formatNumber(summary.highlights[highlightIndex]?.line ?? 1),
+            })}
+            : {summary.highlights[highlightIndex]?.detail}
+          </p>
+          <label>
+            <input
+              type="checkbox"
+              checked={acknowledged}
+              onChange={(event) => {
+                setAcknowledged(event.currentTarget.checked)
+              }}
+            />
+            {UI_TEXT.makerAcknowledgeDangers}
+          </label>
+        </>
+      )}
+      <div
+        ref={viewport}
         className="maker-payload"
         role="region"
         aria-label={UI_TEXT.makerReadPayload}
         tabIndex={0}
+        onScroll={(event) => {
+          setStart(Math.floor(event.currentTarget.scrollTop / MAKER_REVIEW_ROW_HEIGHT))
+        }}
       >
-        {lines.map((line, index) => (
-          <span key={index} tabIndex={0} data-continuation={line.isContinuation || undefined}>
-            {line.text}
-          </span>
-        ))}
-      </pre>
-      {lines.length > MAKER_REVIEW_PAGE_LINES && (
-        <button
-          type="button"
-          disabled={(page + 1) * MAKER_REVIEW_PAGE_LINES >= lines.length}
-          onClick={() => {
-            const next = page + 1
-            setPage(next)
-            const line =
-              payload.current?.querySelectorAll<HTMLElement>('span')[next * MAKER_REVIEW_PAGE_LINES]
-            line?.focus()
-            line?.scrollIntoView({ block: 'start' })
-          }}
+        <div
+          className="maker-payload-rows"
+          style={{ height: rows.length * MAKER_REVIEW_ROW_HEIGHT }}
         >
-          {UI_TEXT.makerNextPage}
-        </button>
-      )}
+          {rows
+            .slice(Math.max(0, start - MAKER_REVIEW_OVERSCAN_ROWS), start + visibleRows)
+            .map((row, index) => {
+              const at = Math.max(0, start - MAKER_REVIEW_OVERSCAN_ROWS) + index
+              const danger = summary?.highlights[lowerBound(summary.highlights, row.line)]
+              return (
+                <span
+                  key={at}
+                  data-highlight={danger?.line === row.line || undefined}
+                  style={{ top: at * MAKER_REVIEW_ROW_HEIGHT, height: MAKER_REVIEW_ROW_HEIGHT }}
+                >
+                  {row.text}
+                </span>
+              )
+            })}
+          <span
+            className="maker-payload-end"
+            aria-hidden="true"
+            style={{ top: Math.max(0, rows.length * MAKER_REVIEW_ROW_HEIGHT - 1), height: 1 }}
+          />
+        </div>
+      </div>
+      {prepared !== undefined &&
+        (isLarge ? (
+          <label>
+            <input
+              type="checkbox"
+              checked={confirmed}
+              onChange={(event) => {
+                setConfirmed(event.currentTarget.checked)
+              }}
+            />
+            {UI_TEXT.makerConfirmSummaryDigest}
+          </label>
+        ) : (
+          <p role="status">
+            {reachedEnd ? UI_TEXT.makerPayloadEndReached : UI_TEXT.makerScrollPayloadEnd}
+          </p>
+        ))}
     </>
   )
 }

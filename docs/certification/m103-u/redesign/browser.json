@@ -1,0 +1,100 @@
+[
+  {
+    "probe": "long-token",
+    "client": 121,
+    "scroll": 121,
+    "fits": true
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 400,
+    "visible": true,
+    "top": 132.5,
+    "bottom": 161.5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 760,
+    "visible": true,
+    "top": 312.5,
+    "bottom": 341.5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 132.5,
+    "bottom": 161.5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 760,
+    "visible": true,
+    "top": 312.5,
+    "bottom": 341.5
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 64,
+    "bottom": 92
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 272,
+    "bottom": 300
+  },
+  {
+    "probe": "large-payload",
+    "latency": 19.200000047683716,
+    "rows": 19,
+    "height": 2000000,
+    "stops": 122
+  },
+  {
+    "probe": "static-dependency-reload",
+    "refetches": 2,
+    "restoredMachines": 10
+  }
+]

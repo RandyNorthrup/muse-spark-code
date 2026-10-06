@@ -8,7 +8,7 @@
 
 import { createRoot } from 'react-dom/client'
 import { lazy, Suspense, useSyncExternalStore } from 'react'
-import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID, PANEL_RELOAD_EVENT } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import type { MakerSurfaceMessage } from '../shared/makerProtocol'
 import { App } from './App'
@@ -134,6 +134,9 @@ function mountChat(element: Element): void {
   })
   // The document goes away (a reload, the panel closing): save what is shown.
   window.addEventListener('pagehide', () => {
+    persister.flush(store.hasRendered())
+  })
+  window.addEventListener(PANEL_RELOAD_EVENT, () => {
     persister.flush(store.hasRendered())
   })
   const postMessage = (message: WebviewToHostMessage) => {

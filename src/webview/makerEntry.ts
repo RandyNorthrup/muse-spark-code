@@ -3,19 +3,21 @@
 import type { MakerSurfaceMessage } from '../shared/makerProtocol'
 import { MAKER_PROTOCOL_MAX_ITEMS, MAKER_PROTOCOL_VERSION, UI_TEXT } from '../shared/constants'
 import type { HostBridge } from './hostBridge'
+import { makerReloadMessages, reloadPanelSurface } from './reloadPanelSurface'
 
 export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
-  const pending: unknown[] = []
+  const pending: unknown[] = [...makerReloadMessages()].slice(0, MAKER_PROTOCOL_MAX_ITEMS)
   let receive: ((raw: unknown) => void) | undefined
   let isLoading = false
   let isDisposed = false
+  const isGone = () => isDisposed
   let dispose: (() => void) | undefined
   let fallback: HTMLDivElement | undefined
   const load = () => {
     if (isLoading || isDisposed) return
     isLoading = true
     fallback ??= document.createElement('div')
-    fallback.className = 'maker-toolbar'
+    fallback.className = 'maker-toolbar maker-loading-toolbar'
     const status = document.createElement('p')
     status.textContent = UI_TEXT.loadingOutput
     const stop = document.createElement('button')
@@ -23,16 +25,27 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
     stop.addEventListener('click', () => {
       host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerStop' })
     })
-    fallback.replaceChildren(status, stop)
+    fallback.replaceChildren(stop, status)
     document.body.append(fallback)
     void import('./maker/MakerSurface')
-      .then(({ mountMaker }) => {
-        if (isDisposed) return
+      .then(async ({ mountMaker }) => {
+        if (isGone()) return
         const element = document.createElement('div')
         document.body.append(element)
-        const surface = mountMaker(element, host, pending)
+        let surface: Awaited<ReturnType<typeof mountMaker>>
+        try {
+          surface = await mountMaker(element, host)
+        } catch (error: unknown) {
+          element.remove()
+          throw error
+        }
+        if (isGone()) {
+          surface.dispose()
+          return
+        }
         receive = surface.receive
         dispose = surface.dispose
+        for (const message of pending) receive(message)
         pending.length = 0
         fallback?.remove()
         host.post({ v: MAKER_PROTOCOL_VERSION, type: 'makerReady' })
@@ -44,8 +57,16 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         status.setAttribute('role', 'alert')
         const retry = document.createElement('button')
         retry.textContent = UI_TEXT.makerRetry
-        retry.addEventListener('click', load)
-        fallback?.append(retry)
+        retry.addEventListener('click', () => {
+          reloadPanelSurface(pending)
+        })
+        const dismiss = document.createElement('button')
+        dismiss.textContent = UI_TEXT.usageClose
+        dismiss.addEventListener('click', () => {
+          fallback?.remove()
+          pending.length = 0
+        })
+        fallback?.append(retry, dismiss)
       })
   }
   const listener = (event: MessageEvent<unknown>) => {
@@ -67,6 +88,7 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
     load()
   }
   host.messages.addEventListener('message', listener)
+  if (pending.length > 0) load()
   window.addEventListener(
     'pagehide',
     () => {

@@ -17,16 +17,25 @@ import {
 
 import { removeFolder } from './helpers/temporaryFolders'
 
-const built = { textSource: '', folder: '', browserSource: '' }
+const built = { textSource: '', folder: '', browserSource: '', makerSource: '' }
 beforeAll(async () => {
   built.folder = mkdtempSync(path.join(tmpdir(), 'muse-regional-english-'))
   // One parallel batch: these builds are independent, and running them one
   // after another made the suite slow enough to time out under a loaded
   // full run. The browser build feeds the inline round-trip test below.
   const regions = [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]
-  const [browser] = await Promise.all([
+  const [browser, maker] = await Promise.all([
     build({
       entryPoints: ['src/shared/l10n/en.ts'],
+      bundle: true,
+      write: false,
+      minify: true,
+      platform: 'browser',
+      format: 'cjs',
+      plugins: [compactBrowserEnglish],
+    }),
+    build({
+      entryPoints: ['src/shared/l10n/makerEnglish.ts'],
       bundle: true,
       write: false,
       minify: true,
@@ -48,6 +57,7 @@ beforeAll(async () => {
     ),
   ])
   built.browserSource = browser.outputFiles[0].text
+  built.makerSource = maker.outputFiles[0].text
   const result = await build({
     entryPoints: ['src/shared/l10n/text.ts'],
     bundle: true,
@@ -165,11 +175,29 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', () => {
+it('keeps bootstrap inline and completes every maker English key, value and plural losslessly', () => {
   const module = { exports: {} }
   vm.runInNewContext(built.browserSource, { module, exports: module.exports })
+  const bootstrap = Object.fromEntries(
+    Object.entries(EN).filter(
+      ([key]) =>
+        !key.startsWith('maker') || ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
+    ),
+  )
+  expect(module.exports.EN).toEqual(bootstrap)
+  expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(bootstrap))
+  const maker = { exports: {} }
+  vm.runInNewContext(built.makerSource, { module: maker, exports: maker.exports })
+  expect(maker.exports.MAKER_EN).toEqual(
+    Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+  )
+  Object.defineProperties(
+    module.exports.EN,
+    Object.getOwnPropertyDescriptors(maker.exports.MAKER_EN),
+  )
   expect(module.exports.EN).toEqual(EN)
-  expect(JSON.stringify(module.exports.EN)).toBe(JSON.stringify(EN))
+  const serialized = JSON.stringify(module.exports.EN)
+  expect(JSON.parse(serialized)).toEqual(EN)
 })
 
 it('refuses an English value that collides with reserved dictionary tokens', () => {

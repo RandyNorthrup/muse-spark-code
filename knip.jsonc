@@ -19,6 +19,8 @@
     "src/host/editor/verifyEditor.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",
+    // Build-only Help catalogue read by scripts/gen-reference.mjs through esbuild.
+    "src/shared/featureCatalog.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.

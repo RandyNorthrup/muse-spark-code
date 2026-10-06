@@ -6,21 +6,50 @@
 
 .maker-toolbar {
   position: fixed;
-  top: 48px;
+  top: 8px;
   right: 8px;
   max-width: calc(100% - 16px);
   z-index: 30;
   padding: 6px;
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--vscode-editorWidget-border);
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
 }
 
 .maker-toolbar,
-.maker-stop,
 .maker-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.maker-stop {
+  display: flex;
+  flex-direction: column;
+  max-height: min(120px, 40dvh);
+  overflow: hidden;
+  gap: 2px;
+  min-height: 28px;
+}
+
+.maker-stop > button {
+  flex-shrink: 0;
+}
+
+.maker-stop-list {
+  display: grid;
+  overflow: auto;
+  min-height: 0;
+  gap: 2px;
+}
+
+.maker-toolbar > .maker-stop {
+  flex-basis: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--vscode-editorWidget-background);
 }
 
 .maker-surface button {
@@ -43,6 +72,15 @@
   background: var(--vscode-button-secondaryBackground);
 }
 
+.maker-loading-toolbar {
+  display: block;
+}
+
+.maker-loading-toolbar > button:first-child {
+  position: sticky;
+  top: 0;
+}
+
 .maker-surface button:not([class]):hover:enabled,
 .maker-toolbar button:not([class]):hover:enabled {
   background: var(--vscode-button-secondaryHoverBackground);
@@ -54,6 +92,7 @@
 
 .maker-surface .modal {
   max-height: calc(100dvh - 16px);
+  min-height: 0;
 }
 
 .maker-surface .modal-header,
@@ -80,24 +119,34 @@
   white-space: pre;
   overflow-wrap: normal;
   flex-shrink: 0;
-  max-height: 40vh;
+  height: min(40vh, 400px);
   overflow: auto;
   scroll-margin-top: 64px;
   border: 1px solid var(--vscode-panel-border);
-  padding: 8px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 20px;
 }
 
-.maker-payload > span {
+.maker-payload-rows {
+  position: relative;
+}
+
+.maker-payload-rows > span {
+  position: absolute;
+  inset-inline: 0;
   display: block;
-  min-height: 1em;
-  min-width: 1px;
-  scroll-margin-top: 64px;
-  width: max-content;
   white-space: pre;
 }
 
-.maker-payload > span[data-continuation]::after {
-  content: ' ↪';
+.maker-payload [data-highlight],
+.maker-danger {
+  color: var(--vscode-editorWarning-foreground);
+  text-decoration: underline;
+}
+
+.maker-digest {
+  overflow-wrap: anywhere;
 }
 
 @media (height <= 160px) {

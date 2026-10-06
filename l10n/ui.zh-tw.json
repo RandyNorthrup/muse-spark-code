@@ -40,7 +40,6 @@
   "makerAuditUnrecorded": "操作已完成，但無法儲存裝置記錄。",
   "makerSentOutcomeUnknown": "機器可能已執行操作。再次傳送前，請讀取其狀態。",
   "makerPreviewTitle": "自造者預覽",
-  "makerMaximumTemperature": "最高溫度：{temperature}",
   "makerMaximumFeed": "最大進給速度：{feed}",
   "makerHardwareEnabled": "硬體已啟用",
   "makerHardwareDisabled": "硬體已停用",
@@ -2411,14 +2410,35 @@
   "judgeStatusSubscription": "訂閱",
   "judgeStatusPaid": "付費",
   "makerReadPayload": "閱讀傳送內容",
-  "makerNextPage": "下一頁",
-  "makerReviewProgress": {
-    "other": "已檢閱 {reviewed} / {count} 個片段"
-  },
   "makerLoadFailed": "無法載入裝置檢視。停止功能仍可使用。",
   "makerRetry": "重試",
   "makerCategoryPrinter": "3D印表機",
   "makerCategoryCnc": "數控機床",
   "makerCategoryLaser": "雷射加工機",
-  "makerCategoryRobot": "機器人"
+  "makerCategoryRobot": "機器人",
+  "makerCanonicalLegend": "控制符號顯示控制位元組；\\xNN 表示跳脫位元組，\\\\ 表示字面的反斜線。",
+  "makerPayloadSearch": "搜尋正規化負載",
+  "makerFindNext": "尋找下一個",
+  "makerHighlightPosition": "醒目標示 {current}/{count}",
+  "makerHighlightLine": "第 {line} 行",
+  "makerAcknowledgeDangers": "我確認所有醒目標示的危險。",
+  "makerConfirmSummaryDigest": "我確認摘要與此精確負載的摘要值。",
+  "makerPayloadEndReached": "已到達負載結尾。",
+  "makerScrollPayloadEnd": "核准前請捲動至負載結尾。",
+  "makerSummaryUnknown": "未知",
+  "makerDangerTemperature": "溫度超過安全上限，或上限未知。",
+  "makerDangerTravel": "移動超出行程限制，或範圍未知。",
+  "makerDangerSafety": "命令會停用安全檢查。",
+  "makerDangerUnknown": "無法完整分析命令或其影響。",
+  "makerPayloadSize": "傳送大小：{size}；行數：{lines}",
+  "makerDigestLabel": "負載 SHA-256",
+  "makerEntryPoint": "進入點",
+  "makerFirmwareSizeNotice": "此大小涵蓋傳送的位元組。參照韌體檔案的命令不會顯示該檔案的大小或進入點。",
+  "makerFan": "最大風扇設定",
+  "makerEstimatedTime": "預估時間",
+  "makerTravelSummary": "行程範圍 (mm)",
+  "makerNextHighlight": "下一個醒目標示",
+  "makerTemperatureSettings": {
+    "other": "溫度設定（{count} 個不同值中的前 {shown} 個）：{temperatures}。最高：{maximum}。"
+  }
 }
