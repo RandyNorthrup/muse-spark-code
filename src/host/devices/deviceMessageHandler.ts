@@ -23,12 +23,17 @@ export async function handleDeviceRequest(
   if (
     !response.ok ||
     (response.message.setup !== undefined &&
-      response.message.setup.requestId !== request.message.requestId)
+      (response.message.setup.requestId !== request.message.requestId ||
+        response.message.setup.viewId !== request.message.viewId))
   ) {
     throw new Error('invalid-device-message')
   }
   return {
     ...response.message,
-    setup: { ...response.message.setup, requestId: request.message.requestId },
+    setup: {
+      ...response.message.setup,
+      viewId: request.message.viewId,
+      requestId: request.message.requestId,
+    },
   }
 }

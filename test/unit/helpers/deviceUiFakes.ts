@@ -1,4 +1,6 @@
-import { vi } from 'vitest'
+import { expect, vi } from 'vitest'
+import { screen, waitFor } from '@testing-library/react'
+import { EN } from '../../../src/shared/l10n/en'
 import { DEVICE_LIMITS } from '../../../src/shared/constants'
 import type {
   DeviceHostMessage,
@@ -102,7 +104,7 @@ export function uiPort(response: DeviceHostMessage = uiMessage()) {
       Promise.resolve({
         ...response,
         revision: ++revision,
-        setup: { ...response.setup, requestId: request.requestId },
+        setup: { ...response.setup, viewId: request.viewId, requestId: request.requestId },
       }),
     ),
   }
@@ -130,6 +132,29 @@ export async function resolveDeviceUiReply(
   response: DeviceHostMessage,
 ): Promise<void> {
   if (request === undefined) throw new Error('missing local UI request')
-  held.resolve({ ...response, setup: { ...response.setup, requestId: request.requestId } })
+  held.resolve({
+    ...response,
+    setup: { ...response.setup, viewId: request.viewId, requestId: request.requestId },
+  })
   await held.promise
+}
+
+export function uiUncertainMessage(revision = 3): DeviceHostMessage {
+  return {
+    ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
+    revision,
+  }
+}
+
+export async function expectRejectedDeviceInvitation(): Promise<void> {
+  await waitFor(() => {
+    expect(screen.getByRole<HTMLButtonElement>('button', { name: EN.devices.pair }).disabled).toBe(
+      false,
+    )
+  })
+  expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
+  expect(screen.queryByRole('heading', { name: EN.devices.peerFingerprint })).toBeNull()
+  expect(screen.queryByRole('button', { name: EN.devices.confirmFingerprint })).toBeNull()
+  expect(screen.getByRole('alert').textContent).toContain(EN.devices.invalidMessage)
+  expect(screen.getByText('Retained spending liability: $3.00')).not.toBeNull()
 }

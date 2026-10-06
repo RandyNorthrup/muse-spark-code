@@ -6,12 +6,21 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { EN } from '../../src/shared/l10n/en'
+import type { DeviceWebviewRequest } from '../../src/shared/modelsPanel'
 import { DevicesApp } from '../../src/webview/models/sections/agents/DevicesApp'
-import { expireDeviceUiWait, UI_PAIR_ID, uiMessage } from './helpers/deviceUiFakes'
+import {
+  expectRejectedDeviceInvitation,
+  uiUncertainMessage,
+  expireDeviceUiWait,
+  UI_PAIR_ID,
+  uiMessage,
+  uiInvitation,
+} from './helpers/deviceUiFakes'
 
 const seen = vi.hoisted(() => {
   const messages: unknown[] = []
-  return { messages, crash: false }
+  const props: ComponentProps<typeof devicesViewModule.DevicesView>[] = []
+  return { messages, props, crash: false }
 })
 vi.mock('../../src/webview/models/sections/agents/DevicesView', async (original) => {
   const actual = await original<typeof devicesViewModule>()
@@ -19,6 +28,7 @@ vi.mock('../../src/webview/models/sections/agents/DevicesView', async (original)
     ...actual,
     DevicesView: (props: ComponentProps<typeof actual.DevicesView>) => {
       seen.messages.push(props.message)
+      seen.props.push(props)
       if (seen.crash) throw new Error('private-render-sentinel')
       return <actual.DevicesView {...props} />
     },
@@ -35,28 +45,164 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M100 U explicit webview bridge', () => {
-  it('ignores an older action snapshot even when its request id matches the current wait', async () => {
-    const postMessage = vi.fn<(message: { readonly requestId: string }) => void>()
+  it('rejects pairing data when a newer parent observation precedes the child commit', async () => {
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
-    deliver({
-      ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
-      revision: 3,
+    fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+      target: { value: JSON.stringify(uiInvitation) },
     })
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.importInvitation }))
+    const request = postMessage.mock.calls[0]![0]
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            ...uiMessage(),
+            revision: 2,
+            setup: {
+              viewId: request.viewId,
+              requestId: request.requestId,
+              invitation: uiInvitation,
+            },
+          },
+        }),
+      )
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
+            revision: 3,
+          },
+        }),
+      )
+      await Promise.resolve()
+    })
+    expect(screen.queryByRole('button', { name: EN.devices.confirmFingerprint })).toBeNull()
+    expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+    expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
+  })
+
+  it.each(['unregistered', 'aborted', 'wrong address', 'wrong signal'])(
+    'rejects parent publication from a %s view source',
+    async (kind) => {
+      const postMessage = vi.fn()
+      render(<DevicesApp messages={window} postMessage={postMessage} />)
+      deliver(uiUncertainMessage())
+      const props = seen.props.at(-1)!
+      const controller = new AbortController()
+      const request: DeviceWebviewRequest = {
+        type: 'deviceRequest',
+        viewId: UI_PAIR_ID,
+        requestId: UI_PAIR_ID,
+        revision: 3,
+        action: { kind: 'pair' },
+      }
+      const observeRequest = async () => {
+        try {
+          await props.port.request(request, controller.signal)
+        } catch {
+          return
+        }
+      }
+      const pending = kind === 'unregistered' ? undefined : observeRequest()
+      if (kind === 'aborted') controller.abort()
+      act(() => {
+        props.onState(
+          {
+            ...uiMessage(),
+            revision: 4,
+            setup: {
+              viewId: kind === 'wrong address' ? 'a'.repeat(32) : UI_PAIR_ID,
+              requestId: UI_PAIR_ID,
+              invitation: uiInvitation,
+            },
+          },
+          {
+            viewId: UI_PAIR_ID,
+            signal: kind === 'wrong signal' ? new AbortController().signal : controller.signal,
+          },
+        )
+      })
+      expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+      expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
+      controller.abort()
+      await pending
+    },
+  )
+  it.each([false, true])(
+    'ignores a foreign view reply (malformed=%s) without releasing the live request',
+    async (malformed) => {
+      const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+      render(<DevicesApp messages={window} postMessage={postMessage} />)
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      const request = postMessage.mock.calls[0]![0]
+      deliver({
+        ...uiMessage(),
+        revision: 2,
+        setup: { viewId: UI_PAIR_ID, requestId: request.requestId, invitation: uiInvitation },
+        ...(malformed && { unknown: true }),
+      })
+      expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
+      expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
+      deliver({
+        ...uiMessage(),
+        revision: 3,
+        setup: { viewId: request.viewId, requestId: request.requestId, invitation: uiInvitation },
+      })
+      await screen.findByLabelText(EN.devices.copyInvitation)
+      expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
+    },
+  )
+
+  it.each(['pair', 'importInvitation'] as const)(
+    'rejects a correlated stale %s invitation at the dedicated surface',
+    async (kind) => {
+      const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+      render(<DevicesApp messages={window} postMessage={postMessage} />)
+      deliver(uiUncertainMessage())
+      if (kind === 'pair') fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      else {
+        fireEvent.change(screen.getByLabelText(EN.devices.scan), {
+          target: { value: JSON.stringify(uiInvitation) },
+        })
+        fireEvent.click(screen.getByRole('button', { name: EN.devices.importInvitation }))
+      }
+      deliver({
+        ...uiMessage(),
+        revision: 2,
+        setup: {
+          viewId: postMessage.mock.calls[0]?.[0].viewId,
+          requestId: postMessage.mock.calls[0]?.[0].requestId,
+          invitation: uiInvitation,
+        },
+      })
+      await expectRejectedDeviceInvitation()
+      expect(postMessage).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('ignores an older action snapshot even when its request id matches the current wait', async () => {
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
+    render(<DevicesApp messages={window} postMessage={postMessage} />)
+    deliver(uiUncertainMessage())
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     deliver({
       ...uiMessage(),
       revision: 2,
-      setup: { requestId: postMessage.mock.calls[0]?.[0].requestId },
+      setup: {
+        viewId: postMessage.mock.calls[0]?.[0].viewId,
+        requestId: postMessage.mock.calls[0]?.[0].requestId,
+      },
     })
     await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
     expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
     expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
   })
   it('keeps newer Uncertain/$3 when an older correlated Pair reply arrives', async () => {
-    const postMessage = vi.fn<(message: { readonly requestId: string }) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const requestId = postMessage.mock.calls[0]?.[0].requestId
+    const { requestId, viewId } = postMessage.mock.calls[0]![0]
     deliver({
       ...uiMessage({
         status: 'uncertain',
@@ -66,7 +212,7 @@ describe('M100 U explicit webview bridge', () => {
       }),
       revision: 3,
     })
-    deliver({ ...uiMessage({ lastObservedAt: 1000 }), revision: 2, setup: { requestId } })
+    deliver({ ...uiMessage({ lastObservedAt: 1000 }), revision: 2, setup: { viewId, requestId } })
     await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
     expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
     expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
@@ -85,20 +231,17 @@ describe('M100 U explicit webview bridge', () => {
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
     deliver({ ...uiMessage({ pairId: '7'.repeat(32) }), revision: 2 })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
-    deliver({
-      ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
-      revision: 3,
-    })
+    deliver(uiUncertainMessage())
     await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
     expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
   })
   it('rejects a malformed matching reply, shows Retry and recovers on a newer observation', async () => {
-    const postMessage = vi.fn<(message: { readonly requestId: string }) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     deliver(uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }))
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
-    const requestId = postMessage.mock.calls[0]?.[0].requestId
-    deliver({ ...uiMessage(), revision: 2, setup: { requestId }, unknown: true })
+    const { requestId, viewId } = postMessage.mock.calls[0]![0]
+    deliver({ ...uiMessage(), revision: 2, setup: { viewId, requestId }, unknown: true })
     await screen.findByText(EN.devices.invalidMessage)
     const retry = screen.getByRole('button', { name: EN.devices.retry })
     expect(retry).toBeEnabled()
@@ -116,19 +259,19 @@ describe('M100 U explicit webview bridge', () => {
   })
   it('bounds a lost reply and removes the bridge wait before accepting Retry', async () => {
     vi.useFakeTimers()
-    const postMessage = vi.fn<(message: { readonly requestId: string }) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     const { unmount } = render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const oldId = postMessage.mock.calls[0]?.[0].requestId
+    const { requestId: oldId, viewId } = postMessage.mock.calls[0]![0]
     await act(expireDeviceUiWait)
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.retry }))
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    deliver({ ...uiMessage(), revision: 2, setup: { requestId: oldId } })
+    deliver({ ...uiMessage(), revision: 2, setup: { viewId, requestId: oldId } })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeDisabled()
     const newId = postMessage.mock.calls[1]?.[0].requestId
     await act(async () => {
-      deliver({ ...uiMessage(), revision: 3, setup: { requestId: newId } })
+      deliver({ ...uiMessage(), revision: 3, setup: { viewId, requestId: newId } })
       await Promise.resolve()
     })
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
@@ -169,13 +312,13 @@ describe('M100 U explicit webview bridge', () => {
     expect(postMessage).not.toHaveBeenCalled()
   })
   it('ignores foreign correlated replies until the matching request returns', async () => {
-    const postMessage = vi.fn<(message: { readonly requestId: string }) => void>()
+    const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const id = postMessage.mock.calls[0]?.[0].requestId
-    deliver({ ...uiMessage(), setup: { requestId: UI_PAIR_ID } })
+    const { requestId: id, viewId } = postMessage.mock.calls[0]![0]
+    deliver({ ...uiMessage(), setup: { viewId, requestId: UI_PAIR_ID } })
     expect(screen.queryByText('Mac receiver')).toBeNull()
-    deliver({ ...uiMessage(), setup: { requestId: id } })
+    deliver({ ...uiMessage(), setup: { viewId, requestId: id } })
     await screen.findByText('Mac receiver')
     expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled()
   })

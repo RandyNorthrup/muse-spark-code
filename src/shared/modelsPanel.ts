@@ -86,7 +86,9 @@ const action = z.discriminatedUnion('kind', [
 ])
 export const deviceWebviewRequestSchema = z.strictObject({
   type: z.literal('deviceRequest'),
+  viewId: id,
   requestId: id,
+  revision: z.int().check(z.gte(0)),
   action,
 })
 export type DeviceWebviewRequest = z.infer<typeof deviceWebviewRequestSchema>
@@ -98,6 +100,7 @@ export const deviceHostMessageSchema = z.strictObject({
   state: devicesPanelStateSchema,
   setup: z.optional(
     z.strictObject({
+      viewId: id,
       requestId: id,
       invitation: z.optional(deviceInvitationSchema),
       confirmation: z.optional(devicePairingConfirmationSchema),
@@ -134,15 +137,26 @@ export function parseDeviceHostMessage(input: unknown): DeviceParseResult<Device
 // Deliberately parse only the correlation envelope before discarding it.
 const replyCorrelation = z.object({
   type: z.literal('deviceState'),
-  setup: z.object({ requestId: id }),
+  setup: z.object({ viewId: id, requestId: id }),
 })
-export function parseDeviceReplyRequestId(input: unknown): string | undefined {
+export function parseDeviceReplyCorrelation(
+  input: unknown,
+): Pick<DeviceWebviewRequest, 'viewId' | 'requestId'> | undefined {
   const result = replyCorrelation.safeParse(input)
-  return result.success ? result.data.setup.requestId : undefined
+  return result.success ? result.data.setup : undefined
+}
+
+export type DeviceActionResult =
+  | { readonly ok: true; readonly message: DeviceHostMessage }
+  | { readonly ok: false; readonly reason: 'stale' | 'failed' | 'aborted' | 'busy' }
+
+export interface DeviceViewSource {
+  readonly viewId: string
+  readonly signal: AbortSignal
 }
 
 // U/I binds this to a lazy handler only after explicit setup/enabled offers.
 // It must revalidate requests; this interface never supplies an implementation.
 export interface DevicesPanelPort {
-  request(message: DeviceWebviewRequest): Promise<DeviceHostMessage>
+  request(message: DeviceWebviewRequest, signal?: AbortSignal): Promise<DeviceHostMessage>
 }

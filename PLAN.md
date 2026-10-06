@@ -17752,6 +17752,22 @@ regression and byte-exact red/restored drill in `docs/certification/m100-u.md`.
 I retains bundle registration; P/I must issue revisions monotonically for
 the lifetime of the Devices document, including enabled/off snapshots.
 
+**FIXM100U2 second review repair (2026-10-06).** Close both RVM100U2
+P2s through the shared Devices request helper: carry the live view instance
+id, request id and initiating snapshot revision on every local request;
+correlate replies to that view and request, and return a typed stale result
+without action data when freshness fails. Pairing consumes only successful,
+fresh replies without a host failure. The parent explicitly acknowledges
+snapshot acceptance before the helper publishes or returns action data,
+closing newer-parent-observation/child-commit batching. Abort and invalidate every pending
+request and its deadline on shared-view unmount, including injected ports
+that ignore cancellation; the dedicated parent accepts replies only for a
+registered live view instance. Regressions exercise stale Pair/import data
+and a pending embedded request with a surviving parent. Record each red
+mutation and byte-exact restoration in `docs/certification/m100-u.md`.
+Physical execution/Stop (D83) is unchanged; this lane supplies no physical
+adapter. No dependency, guard waiver or integration-owned registration.
+
 **FIXM100L0 review repair (2026-10-06).** RVM100L0 identified three P2s:
 historical durable attempts must reconcile through a new authenticated
 channel incarnation without changing the attempt owner; the TLS probe must
@@ -19003,6 +19019,20 @@ aggregate certification record.
 
 ## 7. Gates
 
+**FIXM100U2 scoped gate record (2026-10-06).** Both second-review P2s
+are repaired with 122 restored owning tests, repository-default timeouts and
+13 named red/byte-exact-restored drills. All five compiler projects, plain
+knip, zero-duplication and localization pass. The brief still delegates full
+quality/coverage and integration-owned registrations to the lead. Production
+assets emit; the unchanged deferred pool fails at **77.327/50 KiB**, including
+**27.630 KiB** for the exact DevicesApp entry. Excluding that closure leaves
+**49.697/50 KiB**. The two split findings (Devices surface and lane-0 model
+text) and generated CSS source-list update are unchanged I obligations, not
+gate waivers. Every other existing size cap passes. I retains the joined
+README/CHANGELOG/reference updates; this repair adds no command or setting
+and does not advertise the planned feature as shipped. Final native/scoped
+checks and the physical qualification limit are in `docs/certification/m100-u.md`.
+
 **FIXM100U scoped gate record (2026-10-06).** The rig brief prohibits full
 quality/coverage and reserves integration-owned registrations for I. Run the
 four owning UI/bridge/contract suites with repository-default timeouts,
@@ -19627,6 +19657,30 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-U2-INTEGRATION (FIXM100U2).** Both RVM100U2 P2s are repaired;
+  no P1/P2/P3 review finding is deferred. P/I must carry the local request
+  envelope (`viewId`, `requestId`, initiating `revision`) through its adapter,
+  echo view/request ids on correlated replies, preserve its host-owned
+  monotonic revision, and respect the shared view's abort signal. An embedded
+  parent returns explicit snapshot acceptance and refuses sources outside its
+  live view instance; refusal returns a typed stale result without pairing
+  data. The shared helper invalidates UI waits even when a port ignores abort.
+  No UI cancellation retires work or releases liability. Safe for the current
+  unshipped, explicitly opened view; no receiver or physical executor is
+  added. Follow-up: I binds this contract for installed hosts, registers the
+  measured Devices closure and existing lane-0 model text, refreshes the host
+  API record and README/CHANGELOG/help reference, and runs joined quality.
+  Evidence and per-guard red/restored receipts: `docs/certification/m100-u.md`.
+
+- **M100-U-PHYSICAL-QUALIFICATION (RVM100U2).** The review cannot certify
+  D83's always-visible, ungated physical Stop or exact-payload approvals:
+  this base has no D83 decision, physical action, Stop request or execution
+  adapter. No demonstrated execution bypass was found and this repair adds
+  no physical execution or permission. Safe only for this UI-only unshipped
+  slice; Pause offers is not a physical Stop. Follow-up: the owning physical
+  integration must supply and drill those controls before claiming physical
+  safety support. This lane changes no D83 policy or Stop gate.
 
 - **M100-U-INTEGRATION (FIXM100U).** All five RVM100U P2s and its P3 are
   repaired; none is silently deferred. The remaining shipment obligations

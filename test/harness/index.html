@@ -459,6 +459,7 @@
       const deviceReply = (message) => {
         const response = deviceFixture(scenarioName)
         response.setup = {
+          viewId: message.viewId,
           requestId: message.requestId,
           listenerApplication: 'Editor host',
           interfaceLabel: 'LAN en0',

@@ -1,11 +1,12 @@
 // An explicit Devices document has its own validated message channel, without
 // the chat store, chat ready request, credential read or model probe.
 import { Component, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
+import { UI_TEXT } from '../../../../shared/constants'
 import {
   parseDeviceHostMessage,
-  parseDeviceReplyRequestId,
+  parseDeviceReplyCorrelation,
   type DeviceHostMessage,
+  type DeviceViewSource,
   type DevicesPanelPort,
   type DeviceWebviewRequest,
 } from '../../../../shared/modelsPanel'
@@ -57,38 +58,36 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
     state: { enabled: false },
   })
   const latestRevision = useRef(0)
-  const accept = (response: DeviceHostMessage) => {
-    if (response.revision <= latestRevision.current) return
-    latestRevision.current = response.revision
-    setMessage(response)
-  }
   const bridge = useMemo(() => {
+    const views = new Map<string, AbortSignal>()
     const pending = new Map<
       string,
       {
         resolve: (message: DeviceHostMessage) => void
         reject: (error: Error) => void
-        action: DeviceWebviewRequest['action']
-        revision: number
+        viewId: string
       }
     >()
     const port: DevicesPanelPort = {
-      request: (request) =>
+      request: (request, signal) =>
         new Promise((resolve, reject) => {
-          const timeout = window.setTimeout(() => {
-            pending.delete(request.requestId)
+          if (signal === undefined || signal.aborted) {
             reject(new Error('invalid-device-message'))
-          }, DEVICE_LIMITS.uiRequestTimeoutMs)
+            return
+          }
+          views.set(request.viewId, signal)
+          const abort = () => {
+            if (views.get(request.viewId) === signal) views.delete(request.viewId)
+            pending.get(request.requestId)?.reject(new Error('invalid-device-message'))
+          }
+          signal.addEventListener('abort', abort, { once: true })
           pending.set(request.requestId, {
-            action: request.action,
-            revision: latestRevision.current,
+            viewId: request.viewId,
             resolve: (response) => {
-              window.clearTimeout(timeout)
               pending.delete(request.requestId)
               resolve(response)
             },
             reject: (error) => {
-              window.clearTimeout(timeout)
               pending.delete(request.requestId)
               reject(error)
             },
@@ -100,35 +99,43 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
           }
         }),
     }
-    return { port, pending }
+    return { port, pending, views }
   }, [postMessage])
+  const accept = (response: DeviceHostMessage, source: DeviceViewSource) => {
+    if (
+      source.signal.aborted ||
+      response.setup?.viewId !== source.viewId ||
+      bridge.views.get(source.viewId) !== source.signal ||
+      response.revision <= latestRevision.current
+    )
+      return false
+    latestRevision.current = response.revision
+    setMessage(response)
+    return true
+  }
   // Subscribe during commit, before an external host can observe the painted view.
   useLayoutEffect(() => {
     const receive = (event: MessageEvent<unknown>) => {
       const result = parseDeviceHostMessage(event.data)
       if (!result.ok) {
-        const id = parseDeviceReplyRequestId(event.data)
-        if (id !== undefined) bridge.pending.get(id)?.reject(new Error('invalid-device-message'))
+        const correlation = parseDeviceReplyCorrelation(event.data)
+        const waiting =
+          correlation === undefined ? undefined : bridge.pending.get(correlation.requestId)
+        if (waiting !== undefined && waiting.viewId === correlation?.viewId)
+          waiting.reject(new Error('invalid-device-message'))
         return
       }
       const response = result.message
       const requestId = response.setup?.requestId
       if (requestId !== undefined) {
-        bridge.pending.get(requestId)?.resolve(response)
+        const waiting = bridge.pending.get(requestId)
+        const signal =
+          response.setup === undefined ? undefined : bridge.views.get(response.setup.viewId)
+        if (signal !== undefined && !signal.aborted && waiting?.viewId === response.setup?.viewId)
+          waiting?.resolve(response)
       } else if (response.revision > latestRevision.current) {
         latestRevision.current = response.revision
         setMessage(response)
-        for (const waiting of bridge.pending.values()) {
-          if (response.revision <= waiting.revision) continue
-          const pairId = 'pairId' in waiting.action ? waiting.action.pairId : undefined
-          if (
-            pairId !== undefined &&
-            (!response.state.enabled ||
-              response.state.devices.every((device) => device.pairId !== pairId))
-          )
-            continue
-          waiting.reject(new Error('invalid-device-message'))
-        }
       }
     }
     messages.addEventListener('message', receive)
@@ -137,6 +144,7 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
       for (const waiting of bridge.pending.values())
         waiting.reject(new Error('invalid-device-message'))
       bridge.pending.clear()
+      bridge.views.clear()
     }
   }, [bridge, messages])
   return (

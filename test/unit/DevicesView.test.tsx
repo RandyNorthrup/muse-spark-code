@@ -22,6 +22,8 @@ import {
   type DeviceTaskView,
 } from '../../src/webview/models/sections/agents/DeviceTaskDetails'
 import {
+  expectRejectedDeviceInvitation,
+  uiUncertainMessage,
   expireDeviceUiWait,
   resolveDeviceUiReply,
   uiDeferredPort,
@@ -71,7 +73,10 @@ function LiveView({
   return (
     <DevicesView
       message={message}
-      onState={setMessage}
+      onState={(reply) => {
+        setMessage(reply)
+        return true
+      }}
       port={port}
       explicitSetup
       boards={[{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: true }]}
@@ -100,6 +105,154 @@ afterEach(() => {
 })
 
 describe('M100 U shared Devices view', () => {
+  it('returns no pairing data when the surviving parent refuses snapshot acceptance', async () => {
+    const onState = vi.fn(() => false)
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation: uiInvitation },
+    })
+    render(<DevicesView message={uiMessage()} port={port} onState={onState} explicitSetup />)
+    importInvitationText(JSON.stringify(uiInvitation))
+    await screen.findByText(EN.devices.invalidMessage)
+    expect(onState).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: EN.devices.confirmFingerprint })).toBeNull()
+  })
+
+  it('carries the live view, distinct request id and current revision on every action', async () => {
+    const port = uiPort()
+    const { unmount } = render(<LiveView port={port} />)
+    for (const count of [1, 2]) {
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled(),
+      )
+      expect(port.request).toHaveBeenCalledTimes(count)
+    }
+    const first = port.request.mock.calls[0]![0]
+    const second = port.request.mock.calls[1]![0]
+    expect(first.viewId).toMatch(/^[a-f0-9]{32}$/)
+    expect(second.viewId).toBe(first.viewId)
+    expect(second.requestId).not.toBe(first.requestId)
+    expect(first.revision).toBe(1)
+    expect(second.revision).toBe(2)
+    unmount()
+    render(<LiveView port={port} />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
+    expect(port.request.mock.calls[2]![0].viewId).not.toBe(first.viewId)
+  })
+  it('rejects a reply for a foreign view before exposing its pairing data', async () => {
+    const port = uiPort()
+    port.request.mockImplementation((request) =>
+      Promise.resolve({
+        ...uiMessage(),
+        revision: 2,
+        setup: { viewId: UI_PAIR_ID, requestId: request.requestId, invitation: uiInvitation },
+      }),
+    )
+    const onState = vi.fn(() => true)
+    render(<DevicesView message={uiMessage()} port={port} onState={onState} explicitSetup />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    await screen.findByText(EN.devices.invalidMessage)
+    expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
+    expect(onState).not.toHaveBeenCalled()
+  })
+
+  it.each(['pair', 'importInvitation'] as const)(
+    'rejects stale %s invitation data before pairing can consume it',
+    async (kind) => {
+      const onState = vi.fn(() => true)
+      const port = uiPort({
+        ...uiMessage(),
+        setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation: uiInvitation },
+      })
+      render(
+        <DevicesView
+          message={{
+            ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
+            revision: 3,
+          }}
+          port={port}
+          onState={onState}
+          explicitSetup
+        />,
+      )
+      if (kind === 'pair') fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+      else importInvitationText(JSON.stringify(uiInvitation))
+      await expectRejectedDeviceInvitation()
+      expect(onState).not.toHaveBeenCalled()
+      expect(port.request).toHaveBeenCalledOnce()
+    },
+  )
+  it('aborts an unmounted embedded view and drops its late reply into a surviving parent', async () => {
+    vi.useFakeTimers()
+    const held = Promise.withResolvers<DeviceHostMessage>()
+    const port = {
+      request: vi.fn((_request: DeviceWebviewRequest, _signal?: AbortSignal) => held.promise),
+    }
+    const published = vi.fn()
+    function Parent() {
+      const [open, setOpen] = useState(true)
+      const [message, setMessage] = useState(uiMessage())
+      return (
+        <>
+          <button
+            onClick={() => {
+              setOpen(!open)
+            }}
+          >
+            Toggle Devices
+          </button>
+          <button
+            onClick={() => {
+              setMessage({
+                ...uiMessage({
+                  status: 'uncertain',
+                  unresolvedAttempts: 1,
+                  retainedLiabilityUsd: 3,
+                }),
+                revision: 3,
+              })
+            }}
+          >
+            Observe uncertainty
+          </button>
+          {open && (
+            <DevicesView
+              message={message}
+              port={port}
+              explicitSetup
+              onState={(reply) => {
+                published(reply)
+                setMessage(reply)
+                return true
+              }}
+            />
+          )}
+        </>
+      )
+    }
+    const { unmount } = render(<Parent />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
+    const request = port.request.mock.calls[0]?.[0]
+    const signal = port.request.mock.calls[0]?.[1]
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle Devices' }))
+    const wasAborted = signal?.aborted
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    const remainingTimers = vi.getTimerCount()
+    fireEvent.click(screen.getByRole('button', { name: 'Observe uncertainty' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle Devices' }))
+    await act(() => resolveDeviceUiReply(held, request, { ...uiMessage(), revision: 2 }))
+    expect(published).not.toHaveBeenCalled()
+    expect(wasAborted).toBe(true)
+    expect(remainingTimers).toBe(0)
+    expect(screen.getByText(EN.devices.uncertain, { exact: true })).toBeVisible()
+    expect(screen.getByText('Retained spending liability: $3.00')).toBeVisible()
+    unmount()
+  })
+
   it('Retry restores action focus and requires a fresh guarded choice', async () => {
     const port = uiPort()
     port.request.mockRejectedValue(new Error('fixture failure'))
@@ -119,7 +272,7 @@ describe('M100 U shared Devices view', () => {
     port.request.mockRejectedValue(new Error('fixture failure'))
     const props = {
       port,
-      onState: vi.fn(),
+      onState: vi.fn(() => true),
       explicitSetup: true,
       boards: [{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: true }],
     }
@@ -161,7 +314,7 @@ describe('M100 U shared Devices view', () => {
   it('Retry never replays fingerprint confirmation after comparison is unchecked', async () => {
     const port = uiPort({
       ...uiMessage(),
-      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation: uiInvitation },
     })
     render(<LiveView port={port} />)
     importInvitationText(JSON.stringify(uiInvitation))
@@ -178,11 +331,8 @@ describe('M100 U shared Devices view', () => {
     expect(port.request).toHaveBeenCalledTimes(2)
   })
   it('does not publish an older correlated action snapshot from an embedded view', async () => {
-    const message = {
-      ...uiMessage({ status: 'uncertain', unresolvedAttempts: 1, retainedLiabilityUsd: 3 }),
-      revision: 3,
-    }
-    const onState = vi.fn()
+    const message = uiUncertainMessage()
+    const onState = vi.fn(() => true)
     render(<DevicesView message={message} onState={onState} port={uiPort()} explicitSetup />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     await waitFor(() => expect(screen.getByRole('button', { name: EN.devices.pair })).toBeEnabled())
@@ -192,10 +342,10 @@ describe('M100 U shared Devices view', () => {
   it('orders embedded snapshots and late action replies by revision, preserving Uncertain/$3', async () => {
     const held = Promise.withResolvers<DeviceHostMessage>()
     const port = { request: vi.fn((_request: DeviceWebviewRequest) => held.promise) }
-    const props = { port, onState: vi.fn(), explicitSetup: true }
+    const props = { port, onState: vi.fn(() => true), explicitSetup: true }
     const { rerender } = render(<DevicesView {...props} message={uiMessage()} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
-    const requestId = port.request.mock.calls[0]![0].requestId
+    const { requestId, viewId } = port.request.mock.calls[0]![0]
     const newer = {
       ...uiMessage({
         status: 'uncertain',
@@ -207,7 +357,11 @@ describe('M100 U shared Devices view', () => {
     }
     rerender(<DevicesView {...props} message={newer} />)
     await act(async () => {
-      held.resolve({ ...uiMessage({ lastObservedAt: 1000 }), revision: 2, setup: { requestId } })
+      held.resolve({
+        ...uiMessage({ lastObservedAt: 1000 }),
+        revision: 2,
+        setup: { viewId, requestId },
+      })
       await held.promise
     })
     rerender(<DevicesView {...props} message={uiMessage()} />)
@@ -225,7 +379,7 @@ describe('M100 U shared Devices view', () => {
         unresolvedAttempts: 1,
         retainedLiabilityUsd: 3,
       })
-      const props = { port, onState: vi.fn(), explicitSetup: true }
+      const props = { port, onState: vi.fn(() => true), explicitSetup: true }
       const { rerender } = render(<DevicesView {...props} message={initial} />)
       fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
       if (trigger === 'deadline') await act(expireDeviceUiWait)
@@ -255,7 +409,10 @@ describe('M100 U shared Devices view', () => {
   it('groups both fingerprints and announces the full peer value on heading focus', async () => {
     const fingerprint = '0123456789abcdef'.repeat(4)
     const invitation = { ...uiInvitation, fingerprint }
-    const port = uiPort({ ...uiMessage(), setup: { requestId: UI_PAIR_ID, invitation } })
+    const port = uiPort({
+      ...uiMessage(),
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation },
+    })
     render(<LiveView initial={uiMessage({ offers: [] })} port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     await screen.findByLabelText(EN.devices.copyInvitation)
@@ -302,14 +459,16 @@ describe('M100 U shared Devices view', () => {
   ])('keeps ordinary chat empty without an approved offer: %j', (state) => {
     const port = uiPort()
     const message: DeviceHostMessage = { type: 'deviceState', revision: 1, state }
-    const { container } = render(<DevicesView message={message} port={port} onState={vi.fn()} />)
+    const { container } = render(
+      <DevicesView message={message} port={port} onState={vi.fn(() => true)} />,
+    )
     expect(container).toBeEmptyDOMElement()
     expect(port.request).not.toHaveBeenCalled()
   })
   it('hides a paired but unoffered device and its discovery control', () => {
     const port = uiPort()
     const { container } = render(
-      <DevicesView message={uiMessage({ offers: [] })} port={port} onState={vi.fn()} />,
+      <DevicesView message={uiMessage({ offers: [] })} port={port} onState={vi.fn(() => true)} />,
     )
     expect(container).toBeEmptyDOMElement()
     expect(port.request).not.toHaveBeenCalled()
@@ -317,7 +476,9 @@ describe('M100 U shared Devices view', () => {
   it('rejects malformed observations before rendering controls or invoking a port', () => {
     const malformed = { ...uiMessage(), privatePath: 'peer-sentinel' }
     const port = uiPort()
-    render(<DevicesView message={malformed} port={port} onState={vi.fn()} explicitSetup />)
+    render(
+      <DevicesView message={malformed} port={port} onState={vi.fn(() => true)} explicitSetup />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
     expect(screen.queryByText('Mac receiver')).toBeNull()
     expect(port.request).not.toHaveBeenCalled()
@@ -344,7 +505,10 @@ describe('M100 U shared Devices view', () => {
     const port = uiPort()
     let revision = 1
     port.request.mockImplementation((request) => {
-      const setup: NonNullable<DeviceHostMessage['setup']> = { requestId: request.requestId }
+      const setup: NonNullable<DeviceHostMessage['setup']> = {
+        viewId: request.viewId,
+        requestId: request.requestId,
+      }
       if (request.action.kind === 'pair') setup.invitation = uiInvitation
       else if (request.action.kind === 'importInvitation') setup.invitation = peer
       else setup.confirmation = uiConfirmation
@@ -377,11 +541,18 @@ describe('M100 U shared Devices view', () => {
   it('does not advance pairing when the local host reports a failure', async () => {
     const port = uiPort({
       ...uiMessage(),
-      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation, failure: 'storage' },
+      setup: {
+        viewId: UI_PAIR_ID,
+        requestId: UI_PAIR_ID,
+        invitation: uiInvitation,
+        confirmation: uiConfirmation,
+        failure: 'storage',
+      },
     })
     render(<LiveView port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     await screen.findByText(EN.devices.storageUnavailable)
+    expect(screen.queryByLabelText(EN.devices.copyConfirmation)).toBeNull()
     expect(screen.queryByLabelText(EN.devices.copyInvitation)).toBeNull()
   })
   it('keeps the invitation input label independent of pasted public bytes', () => {
@@ -394,7 +565,7 @@ describe('M100 U shared Devices view', () => {
   it('selects public text when copying is unavailable and sends validated confirmation only', async () => {
     const port = uiPort({
       ...uiMessage(),
-      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation: uiInvitation },
     })
     render(<LiveView port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
@@ -434,7 +605,11 @@ describe('M100 U shared Devices view', () => {
     expect(screen.getByRole('button', { name: /Resume queue/ })).toBeDisabled()
   })
   it.each(DEVICE_FAILURES)('maps %s to fixed local recovery text', (failure) => {
-    render(<LiveView initial={{ ...uiMessage(), setup: { requestId: UI_PAIR_ID, failure } }} />)
+    render(
+      <LiveView
+        initial={{ ...uiMessage(), setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, failure } }}
+      />,
+    )
     expect(screen.getByRole('alert')).toHaveTextContent(expectedFailures[failure])
   })
   it('shows the actual listener, interface and endpoint from the correlated setup reply with usable OS/admin recovery', async () => {
@@ -446,6 +621,7 @@ describe('M100 U shared Devices view', () => {
     const port = uiPort({
       ...message,
       setup: {
+        viewId: UI_PAIR_ID,
         requestId: UI_PAIR_ID,
         listenerApplication: 'Editor host',
         interfaceLabel: 'LAN en0',
@@ -483,6 +659,7 @@ describe('M100 U shared Devices view', () => {
     const port = uiPort({
       ...message,
       setup: {
+        viewId: UI_PAIR_ID,
         requestId: UI_PAIR_ID,
         listenerApplication: 'Editor host',
         interfaceLabel: 'LAN en0',
@@ -502,9 +679,13 @@ describe('M100 U shared Devices view', () => {
     const initial = uiMessage({ status: 'blocked-or-unreachable' })
     const port = uiPort({
       ...initial,
-      setup: { requestId: UI_PAIR_ID, listenerApplication: 'Verified listener' },
+      setup: {
+        viewId: UI_PAIR_ID,
+        requestId: UI_PAIR_ID,
+        listenerApplication: 'Verified listener',
+      },
     })
-    const onState = vi.fn<(message: DeviceHostMessage) => void>()
+    const onState = vi.fn<(message: DeviceHostMessage) => boolean>(() => true)
     const props = { port, onState, explicitSetup: true }
     const { rerender } = render(<DevicesView {...props} message={initial} />)
     fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
@@ -521,7 +702,11 @@ describe('M100 U shared Devices view', () => {
         message={{
           ...response,
           revision: response.revision + 1,
-          setup: { requestId: '8'.repeat(32), listenerApplication: 'Foreign listener' },
+          setup: {
+            viewId: UI_PAIR_ID,
+            requestId: '8'.repeat(32),
+            listenerApplication: 'Foreign listener',
+          },
         }}
       />,
     )
@@ -536,7 +721,7 @@ describe('M100 U shared Devices view', () => {
     })
     const port = uiPort({
       ...message,
-      setup: { requestId: UI_PAIR_ID, failure: 'blocked-or-unreachable' },
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, failure: 'blocked-or-unreachable' },
     })
     render(<LiveView initial={message} port={port} />)
     fireEvent.change(screen.getByLabelText(EN.devices.address), { target: { value: '8.8.8.8' } })
@@ -604,7 +789,10 @@ describe('M100 U shared Devices view', () => {
   it('refuses Offer lanes on an unsupported host', () => {
     render(
       <LiveView
-        initial={{ ...uiMessage(), setup: { requestId: UI_PAIR_ID, failure: 'unsupported-host' } }}
+        initial={{
+          ...uiMessage(),
+          setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, failure: 'unsupported-host' },
+        }}
       />,
     )
     expect(screen.getByLabelText(EN.devices.offer)).toBeDisabled()
@@ -613,7 +801,7 @@ describe('M100 U shared Devices view', () => {
   })
   it('requires the saved reconciled board and never resumes offline or uncertain work', async () => {
     const port = uiPort()
-    const props = { message: uiMessage(), port, onState: vi.fn(), explicitSetup: true }
+    const props = { message: uiMessage(), port, onState: vi.fn(() => true), explicitSetup: true }
     const { rerender } = render(<DevicesView {...props} />)
     expect(screen.queryByRole('button', { name: /Resume queue/ })).toBeNull()
     const boards = [{ pairId: UI_PAIR_ID, boardId: UI_BOARD_ID, canResume: false }]
@@ -647,10 +835,13 @@ describe('M100 U shared Devices view', () => {
     const forged = {
       ...uiMessage({ offers: [] }),
       privatePath: 'peer-sentinel',
-      setup: { requestId: UI_PAIR_ID },
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID },
     }
     port.request.mockImplementation((request) =>
-      Promise.resolve({ ...forged, setup: { requestId: request.requestId } }),
+      Promise.resolve({
+        ...forged,
+        setup: { viewId: request.viewId, requestId: request.requestId },
+      }),
     )
     render(<LiveView port={port} />)
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
@@ -677,7 +868,7 @@ describe('M100 U shared Devices view', () => {
       <DevicesView
         message={uiMessage()}
         port={port}
-        onState={vi.fn()}
+        onState={vi.fn(() => true)}
         explicitSetup
         boards={[{ pairId: UI_PAIR_ID, boardId: 'invalid', canResume: true }]}
       />,
@@ -710,7 +901,10 @@ describe('M100 U shared Devices view', () => {
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pair }))
     fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
     expect(port.request).toHaveBeenCalledOnce()
-    held.resolve({ ...uiMessage({ offers: [] }), setup: { requestId: UI_PAIR_ID } })
+    held.resolve({
+      ...uiMessage({ offers: [] }),
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID },
+    })
     await screen.findByText(EN.devices.invalidMessage)
     expect(screen.getByText(uiOffer.entries[0]!.model.modelId, { exact: false })).toBeVisible()
   })
@@ -726,13 +920,13 @@ describe('M100 U shared Devices view', () => {
       screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
     )
     expect(port.request).toHaveBeenCalledOnce()
-    held.resolve({ ...uiMessage(), setup: { requestId: UI_PAIR_ID } })
+    held.resolve({ ...uiMessage(), setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID } })
     await screen.findByText(EN.devices.invalidMessage)
   })
   it.each([{ workers: 33 }, { processes: 1.5 }, { spendUsd: 501 }, { artifactBytes: 67_108_865 }])(
     'validates editable caps at the component boundary before sending: %j',
     (change) => {
-      const send = vi.fn(() => Promise.resolve(undefined))
+      const send = vi.fn(() => Promise.resolve({ ok: false, reason: 'failed' } as const))
       render(
         <DeviceCard device={uiDevice} setup={undefined} boards={[]} busy={false} send={send} />,
       )
@@ -748,21 +942,21 @@ describe('M100 U shared Devices view', () => {
     },
   )
   it('validates private addresses at the component boundary before sending', () => {
-    const send = vi.fn(() => Promise.resolve(undefined))
+    const send = vi.fn(() => Promise.resolve({ ok: false, reason: 'failed' } as const))
     render(<DeviceCard device={uiDevice} setup={undefined} boards={[]} busy={false} send={send} />)
     fireEvent.change(screen.getByLabelText(EN.devices.address), { target: { value: '8.8.8.8' } })
     fireEvent.submit(screen.getByRole('button', { name: EN.devices.retryAddress }).closest('form')!)
     expect(send).not.toHaveBeenCalled()
   })
   it('validates a pasted confirmation before calling the local action boundary', () => {
-    const send = vi.fn(() => Promise.resolve(undefined))
+    const send = vi.fn(() => Promise.resolve({ ok: false, reason: 'failed' } as const))
     render(<DevicePairing setup={undefined} busy={false} send={send} />)
     importConfirmationText(JSON.stringify({ ...uiConfirmation, paidConsent: true }))
     expect(send).not.toHaveBeenCalled()
     expect(screen.getByRole('alert')).toHaveTextContent(EN.devices.invalidMessage)
   })
   it('refuses a blank invitation at the component boundary', () => {
-    const send = vi.fn(() => Promise.resolve(undefined))
+    const send = vi.fn(() => Promise.resolve({ ok: false, reason: 'failed' } as const))
     render(<DevicePairing setup={undefined} busy={false} send={send} />)
     fireEvent.submit(
       screen.getByRole('button', { name: EN.devices.importInvitation }).closest('form')!,
@@ -770,7 +964,7 @@ describe('M100 U shared Devices view', () => {
     expect(send).not.toHaveBeenCalled()
   })
   it('handles malformed pasted JSON as a local error without a request', () => {
-    const send = vi.fn(() => Promise.resolve(undefined))
+    const send = vi.fn(() => Promise.resolve({ ok: false, reason: 'failed' } as const))
     render(<DevicePairing setup={undefined} busy={false} send={send} />)
     importConfirmationText('{')
     expect(send).not.toHaveBeenCalled()
@@ -799,7 +993,7 @@ describe('M100 U shared Devices view', () => {
       <DevicesView
         message={uiMessage()}
         port={uiPort()}
-        onState={vi.fn()}
+        onState={vi.fn(() => true)}
         explicitSetup
         paid={{ price: '€0.10', budgetUsd: 5 }}
       />,
@@ -844,7 +1038,12 @@ describe('M100 U shared Devices view', () => {
       },
       usage: { kind: 'known', amountUsd: 1 },
     }
-    const props = { message: uiMessage(), port: uiPort(), onState: vi.fn(), explicitSetup: true }
+    const props = {
+      message: uiMessage(),
+      port: uiPort(),
+      onState: vi.fn(() => true),
+      explicitSetup: true,
+    }
     const { rerender } = render(<DevicesView {...props} tasks={[task]} />)
     expect(screen.getByRole('article', { name: 'Bound task' })).toBeVisible()
     rerender(
@@ -876,9 +1075,9 @@ describe('M100 U shared Devices view', () => {
     const qr = vi.fn((text: string) => <output aria-label="Test QR">{text}</output>)
     const port = uiPort({
       ...uiMessage(),
-      setup: { requestId: UI_PAIR_ID, invitation: uiInvitation },
+      setup: { viewId: UI_PAIR_ID, requestId: UI_PAIR_ID, invitation: uiInvitation },
     })
-    const onState = vi.fn()
+    const onState = vi.fn(() => true)
     render(
       <DevicesView
         message={uiMessage()}

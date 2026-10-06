@@ -2,7 +2,11 @@ import { useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceCapsSchema, deviceEndpointSchema, type DeviceCaps } from '../../../../shared/devices'
 import { fill, formatBytes, formatNumber, formatUsd, plural } from '../../../../shared/l10n/text'
-import type { DeviceHostMessage, DevicesPanelState } from '../../../../shared/modelsPanel'
+import type {
+  DeviceActionResult,
+  DeviceHostMessage,
+  DevicesPanelState,
+} from '../../../../shared/modelsPanel'
 import type { DeviceAction } from './DevicePairing'
 import { deviceObservationText, deviceStatusText } from './devicePresentation'
 import { DeviceFingerprint } from './DeviceFingerprint'
@@ -30,7 +34,7 @@ export function DeviceCard({
   readonly isUnsupportedHost?: boolean
   readonly boards: readonly DeviceBoardBinding[]
   readonly busy: boolean
-  readonly send: (action: DeviceAction) => Promise<DeviceHostMessage | undefined>
+  readonly send: (action: DeviceAction) => Promise<DeviceActionResult>
 }) {
   const titleId = useId()
   const unlinkButton = useRef<HTMLButtonElement>(null)

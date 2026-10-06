@@ -1,7 +1,11 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from 'react'
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { devicePairingConfirmationSchema, type DeviceInvitation } from '../../../../shared/devices'
-import { type DeviceHostMessage, type DeviceWebviewRequest } from '../../../../shared/modelsPanel'
+import {
+  type DeviceActionResult,
+  type DeviceHostMessage,
+  type DeviceWebviewRequest,
+} from '../../../../shared/modelsPanel'
 import { DeviceFingerprint } from './DeviceFingerprint'
 
 export type DeviceAction = DeviceWebviewRequest['action']
@@ -14,7 +18,7 @@ export function DevicePairing({
 }: {
   readonly setup: DeviceHostMessage['setup']
   readonly busy: boolean
-  readonly send: (action: DeviceAction) => Promise<DeviceHostMessage | undefined>
+  readonly send: (action: DeviceAction) => Promise<DeviceActionResult>
   /** Qualified local QR encoder supplied by P/I; the text path is always present. */
   readonly renderQr?: ((publicText: string) => ReactNode) | undefined
 }) {
@@ -28,14 +32,15 @@ export function DevicePairing({
   const importButton = useRef<HTMLButtonElement>(null)
   const request = (action: DeviceAction) => {
     setError(false)
-    void send(action).then((response) => {
-      if (response?.setup?.failure !== undefined) return
-      if (action.kind === 'pair' && response?.setup?.invitation !== undefined) {
+    void send(action).then((result) => {
+      if (!result.ok || result.message.setup?.failure !== undefined) return
+      const response = result.message
+      if (action.kind === 'pair' && response.setup?.invitation !== undefined) {
         setLocal(response.setup.invitation)
         setPeer(undefined)
         setCompared(false)
       }
-      if (action.kind !== 'importInvitation' || response?.setup?.invitation === undefined) {
+      if (action.kind !== 'importInvitation' || response.setup?.invitation === undefined) {
         return
       }
 
@@ -46,7 +51,7 @@ export function DevicePairing({
   useEffect(() => {
     peerHeading.current?.focus()
   }, [peer])
-  const confirmation = setup?.confirmation
+  const confirmation = setup?.failure === undefined ? setup?.confirmation : undefined
   const publicText = local === undefined ? undefined : JSON.stringify(local)
   return (
     <section className="device-pairing" aria-label={UI_TEXT.devices.pair}>
