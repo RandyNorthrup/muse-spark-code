@@ -7843,7 +7843,1545 @@ It builds on:
     | V15 | sudo swapped between card and run                                                        | The feeder runs the exact approved argv through sudo's absolute path; `-k`; askpass labelled, capped and followed by `sudo -K`                                                                          | `NOPASSWD` sudoers, which the panel names                                                                   |
     | V16 | The vault as one target holding everything                                               | Per-item keys, presence items, lock on idle and screen lock, the break glass, the recovery code                                                                                                         | A silently unlocked vault is as exposed to same-user code as today's stores                                 |
 
+---
+
+### D90 — Muse Node: a headless node that works for an orchestrator, or is one (M110, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "as a side quest i would like to have a headless version of this that can
+  be installed in/as a container and is only a node for the orchestrator to
+  use to code or whatever, if that makes sense. i feel like im not explaining
+  it very good like a mini OS or something i guess. this should be planned but
+  not yet implimented that will be a future addition but i do want it fully
+  planned and roadmapped out"
+- "and the headless version i guess we should also be able to be an
+  orchestrator host as well with a web ui and terminal tui to access"
+- "the web ui can likely just be what we have currently but with a file
+  explorer and some other suff in there"
+- "plan it out better than i describe and suggest things i may be missing or
+  overlooking"
+- Later the same day: "we should also plan this to expand on our current multi
+  device setup to expand it remotely so you can have local talk to remote and
+  install on a rented server etc we need the secure password and user stuff
+  and all of the other stuff to all be fully secure e2e"
+- And: "is there a way for us to leverage web rtp or something so in the
+  agents map or tui we can view the chat and what the agent is outputting if
+  that makes sense? it should be like a link or command for each separate
+  agent to basically peek at the pipe read only" (decision 22)
+- And: "not gonna lie im so excited for the os i want to start that asap as
+  well i have some pcs around my house i would like to install it on"
+  (decision 23), and "i will be able to install this on bare bones x86 and
+  arm?" (decision 24)
+- And, after a rig's DHCP address changed and the orchestrator lost it: "our
+  os needs to make sure this cant happen between nodes and the host"
+  (decision 25), and "our os need chrome as the default browser for the host
+  version" (decision 26)
+
+This is a plan, not a shipped capability: nothing here is implemented. The
+research, with a source and date for every fact, is
+`docs/research/muse-node-2026-10-05.md`; its §5 has the flowchart of roles and
+data flow. "Muse Node" is the working name; what ships keeps the unofficial
+name (decision 18).
+
+**What it is.** The owner's "mini OS" is a service appliance. The ACP runtime
+(`muse-spark-code-acp`) with M104's panel controller runs as a long-lived
+service with no editor: in a container, on any Linux machine, or as its own
+bootable image, Muse Node OS, on bare x86-64 and ARM64 hardware. People
+reach it through the shared web panel (M104's companion page, grown into a
+workspace UI) and a terminal UI; editors attach to it; other nodes link to it.
+It works on workspaces it owns, each in its own sandbox. It can be a worker an
+orchestrator sends work to, the orchestrator that runs the team, or both.
+
+**Builds on:** D62 and D84 (the runtime, MHP, the companion page), D65 (the
+headless floor), D74/M95 (providers), D75/M96/M96c (roles, the team, the
+board, the merge queue, runners), D80/M100 (pairing, the pinned transport,
+dispatch, quarantine), D82/M102 (the journal), D83 (makers), D86 (loop
+guarantees), D87/M107 (the governor), D88/M108 (accounts) and D89/M109 (the
+vault, the broker and its modes). **It amends D80** in two places: D80's
+"Supported first" paragraph left standalone and headless receivers for a
+separate qualification, which M110 is; and D80's "no daemon" gives way to one
+opt-in service, the node. There is still no cloud control plane, no VPN
+installer and no relay run by this project. **It amends D89.13** for the
+user's own nodes only (decision 10), and adds one D89.2 keyslot kind
+(decision 9).
+
+1. **One runtime, one new mode: `node`.**
+   - `muse-spark-code-acp node` with `init`, `serve`, `status`, `pair`,
+     `unpair`, `revoke`, `lock`, `unlock`, `stop`, `backup`, `restore`,
+     `upgrade`, `wipe` and `relay`. It is built from the same source and
+     bundles as the ACP agent (D62) and M104's `panel` mode. The
+     `ConversationController` (D84) runs in it unchanged; the node adds a
+     supervisor, a state store, the workspace manager, the listeners and the
+     sign-in layer.
+   - **Three ways to ship it,** from one tag in one release train: the npm
+     package (bare Linux, macOS, WSL2), an OCI image built from it, and Muse
+     Node OS images built around it (decision 24).
+   - **The extension does not change.** Nothing of the node loads in VS Code.
+     The extension can orchestrate nodes through M100, but never becomes one.
+   - **One data root:** `/var/lib/muse-spark-code-node` in the image (a
+     volume), `$XDG_DATA_HOME/muse-spark-code/node` natively. It holds the
+     configuration, M109's vault file, pair records, the journals (M102, M107,
+     D80.7), the audit log and, on a second volume that can be sized and
+     backed up apart, the workspaces.
+
+2. **Three roles, chosen at `node init` and changeable later.**
+   - **Worker.** It offers lanes and checks to the orchestrators it is paired
+     with (D80.4): M96 team-worker attempts, M96c checks, best-of-N candidates
+     and scheduled runs sent as M96 tasks, and M107's relocations. M77 and M52
+     still never relocate on their own (D87.7); on a node they arrive only as
+     tasks an orchestrator sent. Its own approvals, paid gate and accounts
+     decide (D80.8).
+   - **Orchestrator host.** It runs the conversations and the team: M96's main
+     agent and roles, M96c's board, scheduler and merge queue, M107 across its
+     pools (each node governs itself; the host sees headroom buckets, D87.7),
+     M108's pools and M109's vault and broker. People drive it from the web
+     UI, the TUI or an editor.
+   - **Both.** An orchestrator whose own machine is one of its pools: the
+     default for a single rented server or a Pi.
+   - **A role changes only** what the node listens for and offers. Every
+     safety rule holds in every role.
+
+3. **Nobody may be watching, so the node says so and keeps D65's floor.**
+   - **Approvals go to people, never to timers.** Every ask (a tool approval,
+     D48's paid popup, a D89 secret use, a D83 maker ask) shows on the
+     surfaces attached to the node: the web UI, the TUI, an attached editor.
+     For work an orchestrator sent, it shows on the orchestrator's surfaces
+     through approval forwarding (decision 10). With nobody attached, the ask
+     waits, then expires as a refusal. It never answers itself.
+   - **Unattended runs** (schedules and queued tasks while nobody is attached)
+     take D65's headless rules: Plan or acceptEdits, no Bypass, a hard USD
+     budget for any paid use, protected paths and `requiresAsking` refused.
+     D89's unattended flag decides which secrets they may use, and D83.8
+     refuses connect, program and actuate.
+   - **The status names the state:** attended (with who is attached) or
+     unattended.
+
+4. **One image, several wrappers** (research §1).
+   - **The OCI image** is multi-arch (`linux/amd64` and `linux/arm64`, one
+     image index) on GHCR, built on native arm64 runners rather than under
+     QEMU. Raspberry Pi 4 and 5 on a 64-bit OS are covered; 32-bit Raspberry
+     Pi OS is not.
+   - **Debian slim, not distroless.** Agents need a shell, git, coreutils, an
+     SSH client, CA certificates and toolchains. Distroless has no shell, and
+     Alpine's musl does not run glibc binaries: Muse Code needs "a non-musl
+     build" (research §4.1), and Node's own musl builds are experimental. The
+     base holds the runtime's pinned Node, the runtime, git, bash,
+     openssh-client, ca-certificates, tini and rootless Podman for nested
+     sandboxes, and nothing else. Node's own `24-trixie-slim` image is about
+     83 MB compressed (research §1.9). Planning target: at most 200 MB
+     compressed per architecture, measured in M110a0.
+   - **Toolchain packs** are tagged variants built `FROM` the base:
+     - `node` (Corepack), `python` (python3, uv), `build` (build-essential,
+       cmake, pkg-config), `go`, `rust`, `jvm`, `dotnet`;
+     - `maker` (PlatformIO, arduino-cli, esptool: D83's offline and observe
+       tools only);
+     - `full`.
+
+     A workspace's own `devcontainer.json` overrides any pack (decision 6),
+     so a pack only shapes the node's default sandbox.
+
+   - **Rootless Podman first,** with a Quadlet `.container` unit for systemd.
+     Rootless Docker and a Compose file sit beside it. Rootful Docker works and
+     is documented as weaker. A node never mounts a host's Docker socket,
+     which is root on that host. Rootless limits need cgroup v2 with systemd
+     delegating `cpu`, `io`, `memory` and `pids` (the installer writes
+     `user@.service.d/delegate.conf`); Ubuntu 24.04 and later restrict
+     unprivileged user namespaces unless an AppArmor profile allows them; and
+     rootless Docker supports no AppArmor at all (research §1.3, §1.5).
+   - **Kubernetes:** a Helm chart with a single-replica StatefulSet per node
+     identity (an identity and its journals are never shared between
+     replicas), one PersistentVolumeClaim for state and one for workspaces,
+     the restricted Pod Security profile, a NetworkPolicy, and a RuntimeClass
+     for gVisor or Kata where the cluster has one.
+   - **Proxmox VE:** an unprivileged LXC template with `nesting` and `keyctl`
+     on, for the nested sandboxes. Proxmox VE 9.1 can also create a container
+     from our OCI image directly (application containers are a technology
+     preview there, research §1.7). Proxmox itself recommends a VM where
+     isolation matters most, so the appliance image (below) is the stronger
+     choice on Proxmox.
+   - **A VM appliance:** Muse Node OS's raw and qcow2 images (decision 24),
+     or a stock Debian 13 cloud image with the node installed by cloud-init.
+   - **Bare metal:** Muse Node OS (decision 24), for x86-64 and ARM64,
+     Raspberry Pi 4 and 5 included.
+   - **Bare Linux:** the installer of decision 20 puts in the npm package or
+     the container and a hardened systemd unit.
+   - **macOS and Windows** run the node natively from the npm package (launchd;
+     on Windows, under WSL2 first). On a Mac that is the only way a node gets
+     Apple's GPU (decision 7).
+   - **Minimums** (planning figures, measured in M110f): a worker that runs
+     checks, 2 cores and 4 GB; an orchestrator with a team, 4 cores and 8 GB;
+     a Pi 5 with 8 GB and an SSD for workspaces, not the SD card, which
+     journals and builds wear out.
+
+5. **The node is not the sandbox: each workspace gets its own.**
+   - **The node's own container** is rootless and runs as a non-root user, with
+     a read-only root file system, `no-new-privileges`, every capability
+     dropped but those nested user namespaces need, the default seccomp
+     profile, and AppArmor or SELinux where the host has them.
+   - **Workspace sandboxes.** A workspace's tools, checks, terminals,
+     devcontainer hooks and external agent CLIs run in its own sandbox
+     container, started through the engine's API: rootless Podman nested in
+     the node by default; gVisor's `runsc` or Kata Containers where the host
+     offers them; on Kubernetes, a sibling pod with its RuntimeClass. The agent
+     engine, the vault and broker, the listeners and the journals stay in the
+     node's process, outside every sandbox.
+   - **Single-workspace mode** for small hosts (a Pi, an LXC without
+     nesting): the node's own container is the sandbox, and the dashboard says
+     so.
+   - **Limits through cgroup v2** per sandbox. M107's governor samples and
+     throttles them (D87.6). A hard memory ceiling is the container size the
+     user chose, off by default. D87.9's "never kill" binds the governor; if
+     the kernel kills a sandbox for memory, the node reports exactly that.
+   - **Egress per workspace, denied by default.** A sandbox reaches only the
+     hosts its policy names: its git remotes and the package registries the
+     user picks. Names are enforced by the node's own egress proxy (HTTP
+     CONNECT and TLS SNI checked against the policy, with D74's address
+     checks on every answer, as M81's check proxy does), and the network
+     layer drops everything that does not go through it: Kubernetes'
+     NetworkPolicy, for one, filters by address and port, never by name
+     (research §1.6). The cloud metadata addresses (`169.254.169.254`,
+     `fd00:ec2::254`) are blocked in every sandbox on every host, because on a
+     rented server they hand out the instance's credentials. Model requests
+     never come from a sandbox; the node makes them. DNS answers are logged
+     per workspace for the audit page. New outbound connections are rate
+     limited per sandbox, because hosting providers forbid scanning other
+     networks (Hetzner, DigitalOcean; research §4.9) and an agent's `nmap`
+     could get the user's server locked.
+   - **Quotas and cleanup.** Each workspace has a disk quota and a retention
+     period after its last use; caches and stale sandboxes are cleaned; below
+     the disk-free floor the node takes no new work (decision 19).
+
+6. **Workspaces come from git, with brokered credentials.**
+   - **Clone and pull** go through M109's broker. SSH remotes use the broker's
+     own agent socket with D89's host binding, which is preferred; HTTPS uses
+     its scoped, ephemeral git helper. Neither key nor token is written in the
+     workspace or the sandbox.
+   - **Workers never push or merge** (D80.6). The orchestrator host's merge
+     queue lands work; a pushed ref needs an exact remote and ref grant.
+   - **`devcontainer.json`** is honoured through the reference Dev Containers
+     CLI, pinned, against the node's engine (research §1.1). Its lifecycle
+     commands (`onCreateCommand`, `postCreateCommand` and the rest) are
+     repository code. They run only inside the sandbox, only after the user
+     trusts the workspace (D13), under its egress policy. Features and images
+     resolve to digests, which are recorded.
+   - **Snapshots.** M72's turn checkpoints keep working inside a workspace. A
+     workspace snapshot (a git bundle plus an archive of untracked, non-ignored
+     files, or a file-system snapshot where btrfs or ZFS backs the volume) is
+     taken before an upgrade, a restore and any destructive cleanup.
+
+7. **Every model path, with each credential where it belongs.**
+   - **Engine providers** (the Model API and every M95 provider) hold their
+     key in one of two ways, chosen per provider:
+     - the node's own vault (a node that stands alone, or a key the user chose
+       to **Store on this node**, decision 10);
+     - **relayed by the orchestrator**, the default for a remote node paired
+       with an orchestrator: the node sends the request body over the E2E
+       channel, the orchestrator's broker adds the key and calls the vendor,
+       so the key never leaves home. Latency and bandwidth go through home;
+       usage is journaled for the payer (M102) and admitted by the payer's
+       budgets (D78, M82). Nothing about the request's origin is disguised
+       (D88.6): it leaves from the user's own machine. The relay serves one
+       person's own nodes only, never another person: Meta's terms forbid
+       providing access to the Services "through any model aggregator, API
+       gateway, proxy, or similar offering" (§10.1(i), research §4.1), and
+       the relay is checked against that clause before release.
+
+     No key is ever disclosed across the pair: D89.13's rule that values
+     never travel holds.
+
+   - **Muse Code in a node** is installed at first use by Meta's own installer,
+     with consent and a pinned checksum (D84), into the state volume. It is not
+     baked into the image: Meta's terms forbid redistributing its
+     "Downloadable Materials" (§10.1(xiv)), and Meta publishes no licence for
+     the CLI (decision 17). Its installer serves Linux on x86_64 and arm64
+     only (research §4.1).
+     - **Sign-in** is one per node and per person, in an owner-only config
+       home (D88.8's `XDG_CONFIG_HOME`). Meta's auth page documents a browser
+       sign-in, `/login` in a session and an API key, and no device-code flow;
+       the owner's rigs were signed in by approving in his browser
+       (2026-09-27). How a subscription signs in on a node with no browser
+       (the local gateway forwarding the sign-in's loopback callback, or
+       `ssh -L`) is a capture before anything says "use your subscription"
+       (Q-M110). A `META_API_KEY` made for a node bills pay-as-you-go, never
+       the subscription, and enters only through the vault (rule 8).
+     - **The subscription is personal:** in team mode each person signs in
+       their own home.
+     - **Its sandbox.** Muse Code's Linux sandbox needs a working bubblewrap
+       and a glibc build; without it "every sandboxed shell command aborts as
+       an environment failure" (research §4.1). The node's container must
+       therefore allow unprivileged user namespaces for nested sandboxes; lane
+       0 captures the seccomp, AppArmor and Podman settings that make
+       bubblewrap work in a rootless container. Muse Code's `--yolo` (no
+       sandbox, no approvals) is never used: it is Bypass, which D65 refuses.
+   - **External agents** (Claude Code, Codex, Gemini CLI and the rest, D75) are
+     installed by the user into the sandbox images, unmodified, and each signs
+     in for itself. The node never reads, stores, brokers or relays their
+     sign-in tokens: Anthropic forbids third parties to "collect, store, or
+     intermediate Claude.ai credentials or session tokens", Google calls
+     reusing Gemini CLI's OAuth with other software a violation, and Codex
+     says to treat `auth.json` "like a password" (research §4.2–§4.4). Their
+     API keys may live in the vault like any other.
+   - **Local models.** Ollama or llama.cpp's server runs as a sidecar in the
+     node's network namespace (one pod, or Compose's `network_mode:
+service:`), so it is on loopback and D74's plain-HTTP-only-on-loopback
+     rule holds unchanged. GPUs: NVIDIA through the Container Toolkit (CDI),
+     AMD through ROCm's `/dev/kfd` and `/dev/dri`, Intel through `/dev/dri`.
+     **Apple's GPU is not passed through to Linux containers on a Mac**:
+     Docker Desktop's GPU support is Windows-only and Ollama documents no GPU
+     in Docker on macOS (research §1.10). Podman's libkrun machine offers a
+     virtual GPU that translates Vulkan to Metal, which llama.cpp's Vulkan
+     build can use with a patched Mesa; lane L measures it. The dependable
+     route is the node run natively on macOS, or Ollama run natively and
+     reached through an SSH tunnel to loopback or over HTTPS (D74). A Pi runs
+     small models on its CPU.
+
+8. **Links reach past the LAN over one channel and four routes.**
+   - **One session protocol:** D80.3's bounded, versioned protocol over pinned
+     mutual TLS 1.3 (Node's TLS; no early data, no resumption; revocation
+     checked on every request).
+     - Noise IK was weighed (research §2.1). It is WireGuard's handshake and
+       would fit, but Node has no built-in Noise, so it would be a second
+       handshake stack to audit. TLS 1.3 with exact pins gives the same mutual
+       authentication and forward secrecy with what M100 already reviews.
+     - QUIC waits: Node's `node:quic` is "early development" behind a
+       compile-time flag that official binaries do not set (research §2.2).
+   - **Route 1, direct (the default).** One side dials the other: on the LAN
+     (D80), or a public port on a rented server. The side behind NAT dials
+     out, so a laptop reaching a VPS listens on nothing. The listening port
+     completes no handshake without a pinned client certificate, admits no
+     application byte before mutual authentication, and limits handshakes per
+     source before TLS (decision 14). _Reason for the default:_ it covers the
+     commonest case (a laptop and a rented server) with no third party and no
+     extra software, and it is the transport M100 already plans.
+   - **Route 2, a blind relay,** when neither side can reach the other (two
+     NATs; a home node from a phone's network). `node relay` is our relay, and
+     any node with a public address can run it for its user's other nodes (a
+     rented server relaying for home). Both sides dial out, the relay splices
+     the two byte streams, and the inner mutual TLS runs end to end: the relay
+     sees ciphertext, sizes, timing and addresses only. A per-pair rendezvous
+     token admits each side. A relay never serves a page or a script
+     (decision 12 says why).
+   - **Route 3, an overlay the user already runs:** WireGuard, Tailscale or
+     Headscale. The node binds the overlay's address. D80's private ranges gain
+     `100.64.0.0/10`, the shared address space overlays use; public addresses
+     stay refused. The overlay is the network; our pins still authenticate.
+     That matters: Tailscale's own documentation says a malicious control
+     server could insert nodes into a tailnet (its answer is Tailnet Lock),
+     and such a node still could not pass our pinned handshake.
+   - **Route 4, an SSH tunnel** (`ssh -L`), as M103's companion page on a Pi:
+     the fallback that needs nothing new.
+   - **Tunnels that decrypt are not routes.** Cloudflare Tunnel terminates TLS
+     at Cloudflare's edge, which "must decrypt traffic" (research §2.4), so it
+     is never end to end. It may front the web UI only as the reverse-proxy
+     sign-in of decision 11, documented the same way. Tailscale Funnel and
+     ngrok's TLS passthrough terminate TLS on the node, and stay end to end.
+   - **Never an unauthenticated port.** No route exposes a service that
+     answers before mutual authentication, except the web UI's sign-in page
+     (decision 11), which is TLS only, rate limited, and serves nothing but
+     sign-in until a session exists.
+
+9. **Every link is end to end, from keys born on the device.**
+   - **Keys.** Each node generates its keys on the device, and they never
+     leave it. Two tiers:
+     - **Link keys** (the identity key, per-pair keys, the web UI's TLS key)
+       must be usable at boot, before anyone unlocks anything, or a node could
+       not even ask to be unsealed. They live in D89's internal items under a
+       boot slot: sealed to a TPM 2.0 where the machine has one (many rented
+       servers do not; some clouds offer a vTPM, research §2.6), otherwise an
+       owner-only file of the node's user.
+     - **Everything else** (provider keys, SSH keys, passwords) lives in the
+       vault, which may stay sealed at boot (below).
+
+     **The honest limit:** Node's TLS uses the private key from memory, so
+     "hardware backed" means the slot's key, not the TLS key, until an
+     OpenSSL TPM provider is qualified (Q-M110). Without a TPM, whoever reads
+     the disk can take the link keys and act as that node until it is revoked
+     (decision 14).
+
+   - **Per-pair keys stay D80's:** each pair has its own certificate, so
+     revoking one pair leaves the others alone. A node identity key (P-256,
+     what TPMs and the Secure Enclave hold) signs that node's rotations and
+     revocations.
+   - **Pairing is out of band.** D80.1's public invitation (a QR on the web
+     UI or the TUI, or its text) carries the full fingerprint, and both sides
+     confirm before any listener opens.
+     - A **short authentication string** (for when a QR cannot be scanned)
+       comes only from a commitment-based protocol, in which the initiator
+       commits to its key before it sees the other's, as Matrix's `m.sas.v1`
+       does: an attacker then gets one guess, a 1 in 2^n chance for n
+       compared bits. Without the commitment, a man in the middle could try
+       keys until two short strings matched. It is shown as three four-digit
+       numbers (Matrix's decimal form, about 39 bits; Matrix proposes retiring
+       its emoji form over translation and remote-reading problems), read in
+       the user's language.
+     - A short typed code (a PAKE) stays behind D80.1's reviewed-implementation
+       rule: no audited JavaScript SPAKE2 or CPace exists today, and CPace is
+       still a draft at the RFC Editor (research §2.3).
+     - **Invitations are single use** and expire after `NODE_INVITE_TTL_MS`
+       (10 minutes). A stolen invitation cannot complete a pair: it holds no
+       private key, and both sides must confirm.
+   - **Replay protection per message.** TLS 1.3's record sequence protects
+     one connection. Across connections, each message carries the pair, the
+     connection's incarnation and a strictly increasing sequence number kept
+     durably, and each dispatch keeps D80.7's idempotent identity. A replayed
+     or reordered frame is refused; a replayed dispatch gets the recorded
+     outcome, never a second launch.
+   - **Rotation.** Per-pair certificates rotate every `NODE_PAIR_ROTATE_DAYS`
+     (90) inside the channel. The new pin is signed by the old key and by the
+     identity key; both sides hold both pins for an overlap, then drop the old
+     one. A failed rotation keeps the old pin until it expires, then needs
+     pairing again.
+   - **Revocation subtracts, and can come from anywhere.** Any of the user's
+     paired devices can revoke any other. A signed revocation is accepted from
+     any current pair and passed on to every pair, because a revocation can
+     only remove trust: a compromised device can at worst revoke, which
+     pairing again repairs, while adding trust always needs both sides. Each
+     node keeps a revocation list, checked on every request. A revoked
+     device's pairs, relay tokens and remote sessions end everywhere the
+     revocation reaches.
+   - **A lost device:** **Revoke {device}** on any other device. The lost
+     device's vault stays sealed at rest, and whatever it was using through
+     the orchestrator's broker stops, since a brokered use needs a live pair.
+     A revoked node that comes back is told only "not paired".
+   - **Sealed at boot.** A remote node can be set to start with its vault
+     sealed (its link keys stay usable, above): the vault key is never on its
+     disk in usable form. It has a passphrase slot and a
+     new D89.2 slot kind, the **paired slot**: the vault key wrapped under a
+     key that lives only as an internal item in the orchestrator's vault. At
+     start the node asks over the pair; the orchestrator's user approves (or
+     an Unattended allowed grant scoped to that node's unseal answers), and
+     the unwrap key crosses only inside the channel. M109's lane 0 is asked to
+     leave room for this slot. A provider that reboots or snapshots the server
+     gets a sealed vault.
+
+10. **Secrets never travel in plaintext, and mostly do not travel at all.**
+    - **Two homes per secret,** each shown in the vault: the node's own vault,
+      or the orchestrator's, used over the E2E channel. A rented server
+      defaults to the orchestrator's: nothing secret is stored there unless the
+      user chooses **Store on this node** for that item, with decision 14's
+      warning. Storing is the user's own act (the value is typed into the
+      node's vault in its web UI or TUI, or copied vault to vault after a
+      presence check on the source), never an agent's use.
+    - **Values never travel for a use** (D89.13 holds). Over the channel the
+      orchestrator's broker performs the use at home and returns only its
+      result: an SSH signature (D89.13), a TOTP code (D89.13), and, added
+      here, a relayed model request (decision 7). Anything that would send the
+      value (an HTTPS git token, an injected variable, a fill) is refused for
+      a remote node: it uses an SSH remote, or the user stores that item on
+      the node.
+    - **The owner's modes over the channel** (the owner's addition: "the same
+      modes"). **D90 amends D89.13** for a pair both of whose ends belong to
+      the same person and that the user marks **My node**: the owning vault's
+      own modes apply to that node's requests (Ask every time, Ask once per
+      session, Always allow, Never, and the Unattended allowed flag), with
+      grants scoped to that node by name. New grants start at Ask every time,
+      presence items always ask, and a tainted request always asks (D89.7).
+      Any other pair keeps D89.13 exactly: ask every time, never unattended.
+    - **Bound answers.** The ask shows on the orchestrator's surfaces and
+      names the node, workspace and task asking. The answer is bound to the
+      request's id, digest and expiry (D89.7, D83.16), so no surface can widen
+      or reuse it.
+    - **Approval forwarding for tools,** which D80.8 deferred and D89.13 left
+      to secret uses, is designed here because a node with nobody at it needs
+      it. The node's user grants "work from pair P may be approved by
+      {person} on {orchestrator}". The node mints each approval request (id,
+      the exact action's digest, expiry), and accepts only an answer that
+      echoes them, signed in the forwarding pair's channel. Paid consent (D48)
+      stays priced and bound on the node that pays. A forwarded Bypass is
+      never accepted, and each grant is revocable and audited.
+
+11. **People sign in with passkeys, and nothing is stored in plaintext.**
+    - **Single user first.** `node init` creates the owner; team mode
+      (decision 16) comes later.
+    - **First run.** `node init` prints a one-time setup code to the console
+      or the container log (and the TUI). The first passkey is enrolled with
+      it on the node's own page, once, within `NODE_SETUP_TTL_MS` (15
+      minutes).
+    - **Passkeys first** (WebAuthn Level 3, research §2.5).
+    - **A password is optional.** If a node has one, it is hashed with
+      Argon2id at RFC 9106's second recommended option where the runtime's
+      Node has `crypto.argon2`, and otherwise with scrypt at OWASP's
+      parameters, as D89's passphrase slot does. A password sign-in always
+      needs a **TOTP** second factor (RFC 6238, its seed in the vault).
+    - **Recovery codes:** ten, one-time, stored hashed, shown once.
+    - **OIDC** (the user's own identity provider, authorization code with
+      PKCE) is offered beside passkeys.
+    - **Reverse-proxy sign-in** (a trusted header from a configured proxy on
+      loopback or a Unix socket) serves people who already run Authelia,
+      Authentik or oauth2-proxy. It is documented as not end to end: the proxy
+      sees the traffic.
+    - **Sessions without cookies,** M104 lane C's model carried to remote
+      use. A sign-in mints a short-lived bearer held only in page memory:
+      never a cookie, URL parameter, persistent storage or asset. Every
+      privileged request carries it, with exact Host, Origin and
+      Fetch-Metadata checks and no CORS. A reload signs in again (a passkey's
+      conditional sign-in makes that one touch). Idle timeout
+      `NODE_SESSION_IDLE_MS` (30 minutes); absolute `NODE_SESSION_MAX_MS` (12
+      hours).
+    - **Step-up** for the actions that matter: opening a terminal, a vault use
+      or disclosure, pairing, revoking, adding people, upgrades, backups,
+      restore and wipe each ask for fresh user verification.
+    - **Limits.** Sign-in attempts are throttled per source and per account,
+      with exponential backoff, and an authenticator is disabled after
+      `NODE_SIGNIN_MAX_FAILURES` consecutive failures, at most NIST SP
+      800-63B-4's 100 (research §2.5); the owner re-enables it with a recovery
+      code. Passkeys resist credential stuffing; password sign-in can be
+      turned off. Every sign-in, failure and lockout is audited.
+    - **Passkeys need a domain name.** WebAuthn's relying party id is "a valid
+      domain string", in a secure context; an IP address is refused "in
+      recognition of various issues with using direct IP address
+      identification" (research §2.5). TLS alone can now use a bare address
+      (Let's Encrypt has issued short-lived IP certificates since January
+      2026), but passkeys cannot. So a node is signed in to at the user's own
+      domain with an ACME certificate, at the overlay's name with its
+      certificate, or at `localhost` through the local gateway (decision 12).
+      A node reached only by IP offers the gateway, and says why.
+    - **Passkeys need a certificate the browser trusts.** Chrome has refused
+      WebAuthn on pages with certificate errors since M110, and Firefox since
+      140 (the specification requires "a secure transport established without
+      errors"; research §2.5). Clicking through a warning is not enough, so a
+      LAN node's own certificate is installed as trusted on each PC at first
+      pairing (decision 23).
+
+12. **The web UI: today's panel, plus a workspace.**
+    - **The node serves it:** M104 lane C's companion server grown into the
+      node's web UI, with the same React panel and every registry feature
+      (D84). New lazy pages:
+      - **Files:** a workspace file explorer (a virtualized, keyboard-driven
+        tree on an MIT headless tree library such as `@headless-tree/react`,
+        chosen in lane 0 for its accessibility; search; upload and download
+        within caps).
+      - **Editor:** CodeMirror 6 rather than Monaco (research §3.2).
+        CodeMirror is MIT, modular (its basic setup is about 373 KB minified,
+        119 KB gzipped), "works well with screen readers and keyboard-only
+        users" and uses the phone's native editing. Monaco is MIT too, but its
+        main chunk alone is about 4.2 MB minified, it needs workers, and its
+        FAQ answers "No" to mobile browsers; Sourcegraph and Replit both moved
+        to CodeMirror for those reasons. `@codemirror/merge` shows diffs, and
+        `@codemirror/lsp-client` can give the page code intelligence from the
+        runtime's LSP broker (M104e) in M110g.
+      - **Diff and review:** M70's review and M77's board diffs, hunk by hunk.
+      - **Terminal:** xterm.js 6 (MIT, with its `screenReaderMode` for NVDA
+        and VoiceOver) attached to a PTY in the workspace's sandbox: one the
+        container engine allocates (M110b), so the node process loads no
+        native PTY module, or, on a home node and in single-workspace mode,
+        one the tool host opens as the tools' user (decision 23). node-pty
+        lives only in the tool host: it has no Linux prebuilds, so it is
+        compiled into the image, and its own README says to run its children
+        inside a container. Keystrokes need a two-way stream, so the
+        terminal alone uses a WebSocket: its Origin is checked against the
+        exact origin, the bearer is the first frame within
+        `NODE_WS_AUTH_MS` or the socket closes, frames are size- and
+        rate-limited, and there is no cookie for a cross-site page to ride
+        (OWASP's WebSocket guidance, research §3.6). What the person types
+        is theirs, like M46's `!` shell: no approval, but a step-up to open
+        it. The audit records each session's start, end and size, never its
+        keystrokes. The model's commands keep their approvals and modes, and
+        one shown in a terminal tab is marked as the model's.
+      - **Git:** status, stage, commit, branches, push through the broker (on
+        a home node, with its deploy key, decision 23), and pull requests
+        through M71.
+      - **Tasks and team:** M96c's board and Traffic view.
+      - **Nodes:** M100's Devices section, with this node's pairs, offers,
+        routes, rotations and revocations.
+      - **Node dashboard:** M107's readings, levels and GPU; disk, quotas,
+        sandboxes, uptime, version and update state.
+      - **Usage** (M102), **logs**, **audit**, **settings**, **vault** (M109),
+        **accounts** (M108), **help** (`/help`'s reference) and **What's New**
+        (M99). On a node with devices, D83's device panel and Stop.
+    - **Installable on a phone** as a PWA: a manifest and a service worker that
+      caches only the app's own files, never an API answer or a secret.
+    - **Accessible:** the axe gate, four themes, 320 px, keyboard only and the
+      pseudo-locale, on every page.
+    - **The local gateway** (the default on a desktop once the node is paired,
+      M110d; a standalone home node is reached directly, decision 23). Where
+      the user already runs the runtime or the extension, **Open {node}** serves that node's
+      web UI on the user's own loopback, with M104's launch code and bearer,
+      and carries it over the pair's E2E channel. The browser talks only to
+      `127.0.0.1`; the remote node opens no web port and needs no domain or
+      certificate; the person is the local OS user. Phones use the overlay or
+      a domain. **Why a relay never serves the page:** whoever serves the
+      page's script can read everything the page shows, so the UI comes only
+      from the node itself or from the user's own loopback.
+
+13. **The terminal UI.**
+    - `muse-spark-code-acp tui [--node <name>]` speaks the web UI's MHP
+      protocol: locally over an owner-only socket; to a remote node through
+      the local gateway's pair; or over SSH (`ssh -t host
+muse-spark-code-acp tui` attaches to that machine's node socket).
+    - **What it has:** streaming chat; approvals with equal buttons and no
+      default emphasis (the owner's ruling); diffs in colour, with a
+      no-colour mode marked `+` and `-`; the task board; **Stop** on one key at
+      all times; node status and resources; the vault's asks; pairing with a
+      QR drawn in the terminal and the SAS.
+    - **Accessibility:** a `--screen-reader` line mode (no redraws, spinners
+      or cursor movement; each event one line; choices as numbered items);
+      `NO_COLOR` honoured; usable at 80×24; every action on the keyboard;
+      every string through `UI_TEXT` in the installed language.
+    - **Built with Ink** (React for terminals, MIT), so view logic is shared
+      with the web panel's non-DOM state (research §3.5). Ink 8 needs React
+      19.3 or later and Node 22 or later, which the repository already pins;
+      Claude Code, Gemini CLI and GitHub Copilot CLI use it. It is a new pinned
+      dependency under rule 9. Ink's own screen-reader support is basic, so
+      the line mode is ours, modelled on Claude Code's `--ax-screen-reader`
+      (plain linear text with `you:` and `agent:` labels, numbered menus,
+      OSC 133 turn marks) and Gemini CLI's `--screen-reader`.
+
+14. **The threat model, written down.** Lane 0 writes the full table in
+    `docs/certification/m110-threat-model.md`; research §2 has the sources.
+    - **The internet.** Scans and DoS against a public port meet per-source
+      limits before TLS, connection caps, and no answer before mutual TLS;
+      only the sign-in page answers, on TLS, throttled. Credential stuffing
+      meets passkeys, passwords that need TOTP or are off, and throttling.
+    - **A stolen pairing code** holds no private key and needs both sides'
+      confirmation; it is single use and lasts ten minutes.
+    - **A man in the middle at first pairing** meets full fingerprints in the
+      QR or text, or a committed SAS; nothing is trusted on first use.
+    - **A compromised relay** sees ciphertext and metadata. It can drop or
+      delay (ownership pauses, D80.7); it cannot read, forge or replay.
+    - **A compromised rented server, or its provider,** is assumed to read
+      the disk and the memory.
+      - **Exposed:** the workspaces on that node and their model traffic;
+        anything the user stored on it; its own Muse Code sign-in;
+        and its own pair keys, so an attacker can act as that node until it is
+        revoked, within what its pairs offer, while the orchestrator still
+        quarantines its results (D80.6).
+      - **Safe:** the orchestrator's vault items that were brokered (uses, not
+        values); keys behind relayed model requests; passkeys (the node keeps
+        public keys only); other nodes' keys; and anything sealed that it
+        never unsealed.
+      - Confidential VMs (AMD SEV-SNP, Intel TDX) narrow this where a
+        provider sells them (research §2.9). M110 notes them and does not need
+        them.
+    - **A malicious repository:** devcontainer hooks and builds run sandboxed,
+      under the workspace's egress policy, with no secrets.
+    - **Prompt injection steering exfiltration:** egress allowlists, D89's
+      taint rule and the metadata block.
+    - **A malicious peer:** a worker cannot write the orchestrator's checkout
+      (D80.6), and an orchestrator cannot widen a worker's grants (D80.8).
+    - **The supply chain:** signed images, SBOMs and provenance (decision 15).
+    - **Same-user processes** on a node stay inside the boundary D89 §5
+      describes; the node's service user runs nothing else.
+    - **Physical machines on a node** (a Pi with GPIO, D83): D83.8 still
+      refuses connect, program and actuate in remote lanes and unattended
+      runs. An attached person may answer D83.3's ask only from a surface they
+      have marked as within sight of the machine; any other remote surface
+      refuses actuation, and Stop works from every surface.
+
+15. **Images and updates are signed, and installers verify.**
+    - **Every image** is signed with Sigstore cosign, keyless, from the release
+      workflow's GitHub OIDC identity, with an SPDX SBOM and SLSA provenance
+      attached as attestations (research §2.8). No secret, sign-in, key or user
+      data is in any layer: a secret scan over every layer gates the release.
+    - **The installer** is small, fetched over HTTPS from the GitHub Release,
+      and verifies the package or image digest and its cosign signature
+      against the release identity before it installs anything. People will
+      pipe it to `sh`, so the docs also give the download, verify, then run
+      form. A cloud-init snippet does the same at a server's first boot.
+    - **Channels** (stable and preview). `node upgrade` checks the signature
+      identity and digest, backs up state, snapshots workspaces, migrates and
+      switches. If readiness fails after the switch, it rolls back to the
+      previous digest and the pre-migration backup by itself. Automatic
+      updates of the node are off by default, since a node may be mid-task;
+      the dashboard shows an available update. Muse Node OS's security updates
+      are the exception, applied when no task runs (decision 24).
+    - **The kill switch.** **Stop everything** (the web UI, a TUI key,
+      `node stop --all`, `SIGTERM`, or a signed stop from any paired device,
+      which like a revocation can only subtract) ends every turn, sandbox,
+      model request and stream, and sends D83.5's machine stop where devices
+      are registered. **Lock node** also ends every session and seals the
+      vault.
+    - **The audit log** is append-only and hash-chained: sign-ins, step-ups,
+      pairing, rotations, revocations, approvals, vault uses, terminal
+      sessions, upgrades, backups and stops. It is capped and retained like
+      M93's journal (sizes from lane 0), exportable, and never sent to a
+      model.
+
+16. **Team mode is planned, not first.** Several people on one orchestrator
+    node, each with:
+    - a role (owner, admin, member, viewer), mapped from OIDC groups where the
+      user has an identity provider;
+    - their own sandboxes, vault namespace, budgets and audit trail;
+    - their own sign-ins with Muse Code and every vendor: one person's
+      subscription or key never serves another (decision 17).
+
+    It is its own phase (M110h), after the single-user node is certified and
+    the terms are read again.
+
+17. **Licences and terms decide what may ship** (research §4, read again
+    before each release).
+    - **Meta, one person.** The Muse Code subscription "works only through the
+      Muse Code CLI while signed in with your Meta Model API account"; a key
+      may not be shared "with any third party without our prior written
+      permission" (§3.1); and nobody may "access or use the Services on
+      behalf of any third party" (§10.1(i)). A node runs Muse Code and Meta's
+      API under one person's own sign-in and keys, never for another; team
+      mode needs each person's own, or Meta's written permission.
+    - **Meta's CLI is not ours to ship.** §10.1(xiv) forbids redistributing
+      "Downloadable Materials", and the CLI has no published licence. The image
+      ships without it; the user's node runs Meta's installer at first use.
+    - **Oversight.** Meta's Acceptable Use Policy forbids agents that
+      "circumvent, disable, or evade human review, monitoring, or other
+      oversight controls", and asks for human confirmation of consequential
+      actions: decision 3's approvals-to-people rule and the audit log answer
+      it, and nothing in a node runs `--yolo`.
+    - **Sign in with ChatGPT** is eligible because the harness is free, local
+      and run by the user (D74). A self-hosted node fits; a node serving a team
+      may not, and is checked again.
+    - **Other agent CLIs** are installed by the user, unmodified, and sign in
+      for themselves (decision 7). Hosting Claude Code "in hosted sandboxes or
+      other agent infrastructure" needs Anthropic's Commercial Terms, which is
+      the user's agreement, not ours; GitHub's Copilot CLI licence allows
+      redistributing unmodified copies inside a larger application, but the
+      node still leaves it to the user. Claude's and Google's consumer plans
+      stay not offered (D74).
+    - **VS Code's server** may not be hosted as a service and serves one user
+      (its licence and FAQ, research §4.7), so the node neither ships nor
+      drives it. The editor is CodeMirror. A user who wants a full VS Code in
+      the browser can add code-server (MIT) as a pack, with our extension from
+      Open VSX; Marketplace extensions may not be installed there (the
+      Marketplace terms limit them to Microsoft's products).
+    - **Registries.** Images are published to GHCR; Docker Hub's anonymous
+      limit (100 pulls per 6 hours per address) would stall a fleet.
+    - **Our image's notices:** the notices gate extends to every layer,
+      Debian's packages included.
+    - **Local model weights** carry their own licences; the node pulls none by
+      default. Llama's community licences need the licence, the notice and
+      "Built with Llama" when weights are distributed, and Llama 4's
+      multimodal rights exclude the EU (research §4.6).
+    - **What must be checked before release** is research §4.10's list.
+
+18. **Name and defaults.** The public name is "Muse Spark Code Node
+    (Unofficial)" and the image `ghcr.io/randynorthrup/muse-spark-code-node`
+    (rule 11). The node is a separate artifact a person installs on purpose.
+    It listens on no network until `node init` chooses one, D80's security
+    exception to the enhancements-on ruling. An editor user who never runs a
+    node sees nothing new.
+
+19. **Operations** (M110f).
+    - **Health.** `/livez` and `/readyz` on their own port, bound to loopback
+      or the pod network, answer status words only. Ready means: state
+      writable, migrations current, journals readable, and the vault unsealed
+      or not needed.
+    - **Telemetry stays the user's.** Nothing leaves a node by default (the
+      project has no telemetry). OpenTelemetry traces, metrics and logs export
+      only to an OTLP endpoint the user configures, scrubbed like M93's
+      journal; a local Prometheus text endpoint is optional.
+    - **Backup and restore.** `node backup` writes one archive: configuration,
+      pair records, journals, the audit log, the vault file (still encrypted)
+      and, if chosen, the workspaces. It is encrypted under a key derived with
+      Argon2id from a backup passphrase, or under a recovery code. `node
+restore` checks versions and replays migrations. A schedule writes to a
+      local path or the user's own storage.
+    - **Upgrades and migrations.** State is versioned; each forward migration
+      runs after a backup; an older node refuses newer state.
+    - **Offline.** A node keeps working with local models and queued work.
+      Links pause ownership (D80.7) and reconcile when they return.
+    - **Time.** Certificates, TOTP and journals need a correct clock. Peers
+      compare clocks at each handshake, the dashboard warns past
+      `NODE_CLOCK_SKEW_WARN_MS` (2 seconds), and TOTP refuses past one step.
+      The appliance runs systemd-timesyncd.
+    - **Crash recovery.** The service restarts with backoff. At start the node
+      reconciles sandboxes and attempts from its journals; an uncertain
+      attempt stays blocked and is never relaunched (D80.7).
+    - **Retention and quotas,** the lesson of the GitHub Actions storage
+      incident. Every log, journal, audit file, artifact, cache and workspace
+      has a cap and a retention period, shown on the dashboard. Below
+      `NODE_DISK_MIN_FREE_GIB` the node takes no new work, and M107's levels
+      gain disk free. Image builds set artifact retention, and the registry
+      keeps a bounded number of tags.
+    - **Teardown and wipe.** `node wipe` crypto-erases first: it destroys the
+      vault's key slots and the pair keys, so data left on a provider's disk
+      cannot be read even where the provider cannot truly erase blocks. It
+      then revokes its pairs at every peer it can reach and removes the
+      volumes and the service. The rented-server guide adds the provider's own
+      destroy step.
+
+20. **Rented servers** (M110f, the owner's addition).
+    - **A guided installer** for Debian and Ubuntu servers. It:
+      - verifies itself and the artifact (decision 15);
+      - creates a non-root service user;
+      - installs rootless Podman and the node's Quadlet unit;
+      - turns on unattended security upgrades;
+      - sets the firewall (nftables, or ufw where present) to SSH and the
+        node's chosen port only;
+      - rate-limits SSH and that port (fail2ban, or CrowdSec if the user
+        prefers);
+      - checks that SSH is key-only, and offers to make it so;
+      - prints the pairing invitation for the user's orchestrator;
+      - sets a backup schedule;
+      - ends with a hardening report: `systemd-analyze security` for the unit,
+        open ports, update state.
+    - **A cloud-init snippet** does the same at first boot and prints the
+      invitation to the provider's console.
+    - **It never** opens an unauthenticated port, turns off SSH access the
+      user relies on without asking, or stores a provider's API token.
+      Creating servers through a provider's API is a later suggestion, not
+      this plan.
+    - **Teardown** is decision 19's wipe, then the provider's destroy.
+
+21. **Every editor reaches a node** (D84). ACP is stdio today, and "full
+    support for remote agents is a work in progress": its remote transport
+    (Streamable HTTP and WebSocket) is an active RFD whose Origin checks wait
+    for a later hardening phase, though the TypeScript SDK already ships
+    experimental clients (research §3.9). So `acp --node` is a local stdio
+    bridge that carries ACP inside the pair's channel, and adopts the RFD's
+    transport inside that channel once it is stable. An ACP endpoint is never
+    exposed on a network by itself.
+
+    | Surface                                     | Reaches a node by                                                                                                                 | Approvals shown in             | Files are edited in                                                        |
+    | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------------------- |
+    | A desktop browser                           | the local gateway (default); or the node's domain or overlay name                                                                 | the node's web UI              | the web UI's editor page                                                   |
+    | A phone                                     | the overlay or the node's domain; the PWA                                                                                         | the web UI                     | the editor page                                                            |
+    | VS Code family                              | M100's Devices (the node as a pool) and **Open {node}** through the gateway; or Remote-SSH or Dev Containers into the node's host | the panel                      | the editor's own remote features, or results as branches (D80.6)           |
+    | JetBrains, Visual Studio, Eclipse (M104b–d) | the embedded panel through the gateway                                                                                            | the panel                      | the IDE's own remote development, or results as branches                   |
+    | ACP clients (Zed, Neovim, Emacs and others) | `muse-spark-code-acp acp --node <name>`, a local bridge that carries ACP over the pair; the session runs on the node's workspace  | the client's permission prompt | the node's workspace; ACP's `fs/*` is not used for it, results as branches |
+    | Any terminal                                | `tui --node <name>`, or `ssh -t` and `tui`                                                                                        | the TUI                        | the web UI's editor, or the editor of the user's choice over SSH           |
+    | LSP clients                                 | the runtime's LSP broker (M104e) carried over the pair, with path mapping                                                         | not applicable                 | not applicable                                                             |
+    | Headless `exec`                             | `exec --node <name>`: one turn on the node under D65's rules                                                                      | none (D65)                     | the node's workspace                                                       |
+
+22. **Live peek: a read-only window onto any agent's stream** (the owner,
+    2026-10-05: "is there a way for us to leverage web rtp or something so in
+    the agents map or tui we can view the chat and what the agent is
+    outputting if that makes sense? it should be like a link or command for
+    each separate agent to basically peek at the pipe read only").
+    - **What it shows.** For every agent the harness runs: the main
+      conversation, subagents (M48), M96's team workers, best-of-N candidates
+      (M77), scheduled runs (M52) and a remote node's jobs. Live: its
+      messages as they stream, its tool calls (name and redacted arguments),
+      command output (capped), file changes (path, kind and line counts, the
+      diff on request), and the approvals it is waiting on. An approval is
+      shown with a link to where it can be answered; peek itself never answers
+      one.
+    - **Where.**
+      - The Agent map (M96) and M96c's board, in VS Code, the companion page
+        and the node's web UI: a **Peek** link on every agent's row, opening a
+        read-only tab, as M87's tasks tab is a read-only document. **M96's
+        hook:** M96's map and M96c's board each leave a row-action slot, and
+        the team host one stream subscription per attempt, for this (proposed
+        to M96's and M96c's lane 0; M110's lane K fills them).
+      - The TUI: a peek view from any agent row.
+      - `muse-spark-code-acp peek <agent-id>` (`--list` names the agents;
+        `--json` prints the versioned event stream as JSONL), in any
+        terminal, local or `--node <name>`.
+      - ACP clients: `/peek <agent-id>` prints a link to the read-only page.
+    - **Transport: the fetch-based stream M104 lane C already uses,** with
+      its bearer, on loopback; for a node's agents, the same events over the
+      pair's E2E channel to the orchestrator, which fans them out to its own
+      viewers. Viewers never connect to a worker node. (EventSource cannot
+      send an Authorization header, which is why M104 chose a fetch stream
+      over plain SSE.)
+    - **Why not WebRTC.** There is no audio or video, and no need for
+      peer-to-peer: every viewer already has an authenticated path to the
+      orchestrator, and the orchestrator to its nodes. WebRTC would add
+      signalling, STUN and TURN servers (a TURN relay is the relay of decision
+      8, with a second trust model), DTLS keys whose trust rests on the
+      signalling path, and a native module in Node, which has no built-in
+      WebRTC. A text stream over the channels we already authenticate costs
+      none of that.
+    - **Read-only by construction.** The peek route accepts one request,
+      subscribe, and has no method that sends to the agent. Its bearer is a
+      read-only scope that the guard refuses on every other route. A viewer
+      never slows the agent: each agent has a bounded ring buffer
+      (`PEEK_BUFFER_EVENTS`, `PEEK_BUFFER_BYTES`), each viewer a bounded send
+      queue, and a slow viewer gets a "skipped N events" marker, never
+      backpressure. Updates are coalesced to `PEEK_MAX_UPDATES_PER_S` per
+      viewer, and each agent takes at most `PEEK_MAX_VIEWERS` viewers.
+    - **Scrubbed like the vault's boundaries.** Every event passes M109's
+      scrub service before it leaves the process (D89.8), and the redactor
+      after it; no secret value, key or token is ever streamed. Command output
+      and diffs keep their D80.9 caps.
+    - **Owner-only by default; shareable per agent.** The owner can make a
+      share link for one agent: read-only, expiring (`PEEK_SHARE_TTL_MS`, one
+      hour by default, at most a day), revocable, and audited. It is a
+      one-use launch code in the URL's fragment exchanged for a read-only
+      bearer, M104 lane C's pattern, so no credential sits in a cookie or a
+      server log. Someone else can open a link only where the node's web UI is
+      reachable at its domain (decision 11); through the local gateway, a link
+      works for the owner alone. Sharing warns that the viewer sees the
+      repository's code and the model's output.
+    - **The owner sees who is watching:** a viewer count on the agent's row
+      and in the peek view ("2 watching: you, link 'review'"), with **Revoke
+      link** beside it.
+    - **No model call and no cost.** Peek reads events the harness already
+      has.
+
+23. **The first deliverable stands alone: a home node (M110a0).** The owner,
+    2026-10-05: "not gonna lie im so excited for the os i want to start that
+    asap as well i have some pcs around my house i would like to install it
+    on". So the first phase is usable by itself on one machine, with no
+    orchestrator, pairing (M100), governor (M107), account pools (M108) or
+    vault (M109). It needs only the runtime, M104's companion server and the
+    web panel.
+    - **Install.** Docker: Docker Desktop on Windows (the WSL 2 backend) and
+      macOS, Docker Engine or Podman on Linux, from one Compose file or one
+      `docker run` line. Or the native Linux installer (decision 20's, in a
+      LAN profile: it opens only the node's port and leaves SSH alone).
+    - **What another PC on the LAN gets:** the full panel (M104's controller
+      and React UI through the companion server), files, editor, terminal,
+      git, the node dashboard (CPU and memory readings; M107's levels come
+      later), settings, help and What's New. On the machine itself, the TUI
+      (`docker exec -it <container> muse-spark-code-acp tui`, or natively).
+    - **One container, two users.** Until per-workspace sandboxes arrive
+      (M110b), the node and its tools run as two users in one container (two
+      systemd units natively). The node service runs as `muse-node`; every
+      tool, check, terminal and agent CLI runs as `muse-tools`, started by a
+      small tool host that the node drives over an owner-only socket. The
+      tools' user cannot read the node's state (sessions, key store, audit)
+      or its memory, and gets no credential in its environment. The
+      entrypoint drops root before anything else runs. The dashboard says
+      plainly that the workspaces share one sandbox.
+    - **TLS pinned at first pairing.** `node init` makes the node's own
+      self-signed server certificate for the names the user chooses. It is
+      not a CA, so it can vouch for nothing but this node. Because browsers
+      refuse passkeys on a page with a certificate error (decision 11), the
+      first time each PC connects, the user installs that certificate as
+      trusted on the PC after comparing its fingerprint with the one the
+      node's console and TUI show: that is the pairing for a browser. The TUI
+      and the CLI pin the key directly. A changed certificate is refused until
+      it is installed again. Lane 0 captures whether each browser on Windows,
+      macOS and Linux accepts a self-signed, non-CA certificate as its own
+      trust anchor; where one does not, a one-time root signs an intermediate
+      name-constrained to the node's names, and the root's key is destroyed at
+      once.
+    - **A name, not an address.** Passkeys need a domain name, so the node is
+      reached by a name every PC resolves: the host's own `.local` name, the
+      router's DNS, or a hosts-file entry. `node init` checks the name
+      resolves on the node and tells the user how to make it resolve on the
+      other PCs.
+    - **Passkey sign-in:** the setup code, cookie-free sessions, step-up,
+      throttling and the sign-in audit (decision 11's first part). Passwords,
+      TOTP, OIDC and ACME arrive with M110e.
+    - **Keys without the vault.** Until M109 merges, the node keeps the Model
+      API key and its SSH deploy key in an interim key store: AES-256-GCM
+      under a key from a passphrase slot in exactly the record format of
+      D89.2's passphrase slot (Argon2id at RFC 9106's second option, on the
+      image's Node 24), so M109's migration copies, verifies and retains it
+      (D89.14). A key comes in only through the web UI's password field, on
+      the pinned session after a step-up, or `auth set` on standard input in
+      the TUI (rule 8; Q-M110). After a restart the store stays sealed until
+      the owner unlocks it. Muse Code (decision 7) and local models need no
+      key. What sign-in itself needs at boot (the TLS key, the passkeys'
+      public keys, the session-signing key) is in owner-only files of the
+      node's user, outside the sealed store, as decision 9's link keys are.
+    - **Git without a broker.** The node generates an SSH deploy key, shows
+      its public half for the user to add to the git host, and runs the git
+      page's fetch, pull and push through an agent socket only its own user
+      can open. Agents' git commands get no credential (M96's fence), so they
+      work on local branches, and the person pushes from the git page.
+    - **Listening.** One TLS port on the interface the user chooses (with
+      Docker, the published host address). Before sign-in it serves only the
+      sign-in page. D80.2's firewall guidance applies, including Windows
+      Firewall's prompt for Docker Desktop's backend.
+    - **What it is not.** No pairing with other nodes, no worker or
+      orchestrator role, no internet exposure, no relay, no rented-server
+      hardening, and no peek (which needs M109's scrub service). Each arrives
+      in its phase, and the interim pieces give way: the key store to M109's
+      vault, the two-user split to per-workspace sandboxes (M110b); the pinned
+      certificate stays for the LAN, beside ACME (M110e).
+
+24. **Muse Node OS: bootable images for bare x86-64 and ARM64 (M110os).** The
+    owner, 2026-10-05: "i will be able to install this on bare bones x86 and
+    arm?" Yes. This is the "mini OS" he first described. Research §8 has the
+    sources.
+    - **What it is.** A minimal, image-based Linux built from Debian 13's own
+      packages, with the node preinstalled and nothing else to manage. It is
+      not a new distribution: Debian supplies the packages and the security
+      fixes, and we compose, sign and update the image. It runs the same node
+      as the container (decision 4), so every later phase reaches it too.
+      Debian 13 ships Node 20, which is past its end of life, so the image
+      carries the runtime's own pinned Node 24 (checked by SHA-256), as the
+      container does.
+    - **Built with mkosi** (systemd's image builder, LGPL-2.1, v27.1 of
+      2026-09-28), compared in research §8.1:
+      - **mkosi** builds from Debian's packages, so Debian's security updates,
+        firmware and drivers come with no toolchain of our own to maintain. It
+        makes UKIs, signs for Secure Boot, adds dm-verity partitions, lays out
+        disks with systemd-repart, signs TPM policies, and pins packages to a
+        snapshot.debian.org date with a fixed `SourceDateEpoch`. It builds
+        arm64 on x86-64 through qemu-user.
+      - **Buildroot** (GPL-2.0, three-year LTS) makes far smaller images from
+        source and has Raspberry Pi configurations and RAUC, but no package
+        manager: we would rebuild and re-qualify for every security fix.
+      - **Yocto** (four-year LTS) needs about 32 GB of RAM and 140 GB of disk
+        to build, and "has a steep learning curve".
+      - **bootc** (OCI images as the OS, a stable CLI) fits a project that
+        already ships an OCI image, but its Raspberry Pi image support is still
+        pending at Fedora. **Ubuntu Core** is built from snaps and a store we
+        do not control.
+      - **mkosi's limits, planned for:** it has no Raspberry Pi boot support,
+        and its byte-for-byte reproducibility on Debian is unproven (below).
+    - **Targets:**
+      - **x86-64:** a UEFI installer ISO (it boots, asks for the target disk
+        in the browser, and writes the image) and a raw disk image (for VMs,
+        Proxmox and writing straight to a disk).
+      - **ARM64 UEFI:** a generic ISO and raw image for machines that boot
+        standard UEFI: Arm SystemReady servers and boards, such as Ampere
+        machines, which install stock distributions unmodified.
+      - **Raspberry Pi 4 and 5:** an image for an SD card or a USB or NVMe
+        SSD. Neither Pi boots UEFI natively. The Pi 4 has a third-party UEFI
+        firmware that limits RAM to 3 GB by default, and the Pi 5's port is
+        unmaintained, so the Pi images use the Pi's own bootloader: the
+        EEPROM, `config.txt` and a FAT boot partition. The root file system
+        is the same mkosi build, and the boot partition carries Raspberry
+        Pi's firmware and kernel from its trixie repository, because the
+        Pi 5 still needs the Raspberry Pi kernel (Debian supports it only in
+        testing, and its fan, thermal and RP1 support is incomplete in the
+        generic kernel).
+      - **The Raspberry Pi 3 is not a target.** It runs 64-bit, but with 1 GB
+        of RAM (512 MB on the 3A+) it is below the node's floor (decision 4).
+        It may run as a check-only worker later, if measured.
+    - **First boot, in the browser.** The machine shows on its console (HDMI
+      or serial) its address, its name, its certificate's fingerprint and a
+      one-time setup code, also as a QR. From another PC on the LAN:
+      - **network:** Ethernet by DHCP first. For Wi-Fi, the image reads the
+        cloud-init seed on its boot partition: the same `network-config` and
+        `user-data` files Raspberry Pi Imager writes for Raspberry Pi OS on
+        trixie, read once and then deleted. Otherwise the network is typed at
+        the console, since a Wi-Fi-only machine has no network on which to
+        show a setup page.
+      - **disk:** the installer's target disk and its encryption (below);
+      - **pairing:** the browser pairing and the first passkey (decision 23),
+        and, once M110a exists, pairing with an orchestrator by QR or code;
+      - **Google Chrome:** offered, with Google's terms (decision 26);
+      - **SSH:** off until the user adds a public key (on that page, or in
+        the seed); never a password.
+
+      Nothing but the setup page is served before the code, and the code is
+      single use and expires (decision 11). This is stricter than the
+      appliances we looked at: Home Assistant and Umbrel let the first
+      visitor on the LAN create the owner, and Talos's maintenance API is
+      "unauthenticated by design".
+
+    - **Updates: A/B with RAUC, rolling back by itself** (research §8.2).
+      - **RAUC** (LGPL-2.1, in Debian 13) installs signed bundles into the
+        inactive slot. It works with EFI, GRUB, U-Boot and custom bootloader
+        backends, streams over HTTPS, and supports adaptive updates.
+        systemd-sysupdate was weighed and set aside: v262 marks it
+        "experimental and subject to change", and its rollback relies on
+        systemd-boot's boot counting, which the Pi does not have.
+      - **On the Pi,** RAUC drives Raspberry Pi's own A/B mechanism:
+        `autoboot.txt` with `tryboot_a_b=1`, where "a crash or reset will
+        cause the original config.txt file to be loaded". Upstream RAUC has
+        no tryboot backend yet (pull request #1599 is open), so lane OS2
+        maintains a small custom backend, modelled on Bootlin's Pi 5 design
+        and the community backend. Pi 4 boards of revisions 1.0 and 1.1 need
+        their EEPROM writable, and Pi 5 boards need the bootloader of
+        2025-03-10 or later; first boot checks both and says what to do.
+      - **The trial boot.** The new slot is booted once on trial and marked
+        good only when the node's `/readyz` passes after boot. Otherwise the
+        machine falls back to the slot that worked, by itself, and the
+        dashboard says why.
+      - **Signed bundles and a strict channel.** RAUC checks each bundle's
+        X.509 signature before writing. The channel refuses a lower version
+        and stale metadata (TUF's rules, research §2.8), and release assets
+        also carry cosign signatures (decision 15). The bundle-signing key is
+        a credential, so it is the owner's (Q-M110). He makes an offline root
+        and a signing certificate for the release job, held in an HSM or the
+        `marketplace` environment, never in a file in the repository.
+      - **Security updates are automatic** (the owner's hardening ask). A new
+        image with Debian's security fixes is built as soon as they appear,
+        downloaded and staged at once, and applied by a reboot only when no
+        task runs, or in the user's maintenance window. Feature updates
+        follow decision 15's channels.
+    - **The add-on layer,** for what cannot be in the signed image: Google
+      Chrome (decision 26) and NVIDIA's driver.
+      - Add-ons are system extension images (systemd-sysext), merged
+        read-only over `/usr` (and `/opt`, which Chrome needs: lane OS5
+        confirms that the image's systemd merges it), and matched to the OS
+        version.
+      - Where a licence allows it, an add-on is built in CI and signed. Where
+        it does not (Chrome), it is built on the device from the vendor's own
+        signed packages, after the user accepts the vendor's terms.
+      - Each add-on is updated with its source, and removed when it no longer
+        matches the OS version.
+    - **Secure Boot is a later, owner-only step** (research §8.6).
+      - **No Microsoft-signed shim.** Shim's review is open only to
+        organisations, with legal and tax registration, an EV certificate,
+        HSM-held keys and reproducible builds. Secure Boot therefore means the
+        user's machine trusts our keys.
+      - **The key ceremony is the owner's.** The keys are made offline, by
+        him alone (Q-M110), and CI never holds the platform keys.
+      - **Our keys sign the boot chain:** the UKIs (with ukify) and a signed
+        TPM policy (systemd-measure).
+      - **Enrolling them on a machine** (systemd-boot's `secure-boot-enroll`,
+        which itself warns it "might soft-brick your device") is a step the
+        user chooses on that machine. It keeps Microsoft's UEFI CA for
+        option ROMs on real hardware.
+      - **Until then** images boot with Secure Boot off.
+      - **Raspberry Pi secure boot** burns a key into one-time-programmable
+        fuses, and "cannot be disabled". Muse Node OS never does it; the docs
+        name it as a decision for the owner of each board.
+    - **Hardening.**
+      - A read-only root: `/usr` is integrity-checked (dm-verity) and
+        replaced only by updates; state and workspaces live in `/var`.
+      - A minimal set: no compiler or package manager on the host;
+        toolchains live in the sandboxes (decision 5).
+      - The firewall allows only the node's port, and SSH when a key was
+        added.
+      - Every unit passes the `systemd-analyze security` threshold (M110's
+        gates); journald and every log are capped (decision 19).
+    - **Disk encryption** for `/var` (state and workspaces), with LUKS2 and
+      systemd-cryptenroll:
+      - **With a TPM 2.0:** sealed to it, so the machine unlocks by itself.
+        It is bound to a policy signed with our boot-chain key (systemd-measure)
+        and PCR 7, never to bare PCR values. A changed boot chain cannot
+        unseal it, while our signed updates can. systemd-cryptenroll binds no
+        PCRs by default, which would seal to nothing, so the binding is set
+        explicitly. A TPM PIN (hardened with Argon2id) is offered for machines
+        with a screen. A recovery key is shown once at setup.
+      - **Without a TPM, headless:** a network unlock from another of the
+        user's machines. Clevis and Tang (both GPL-3.0) do this: Tang is
+        stateless and "never sees a single client key", and the orchestrator
+        host can run it. Clevis's threshold pin can require Tang and the TPM
+        together.
+      - **Or a passphrase at each boot,** typed at the console or over serial.
+        A headless machine with neither waits at boot, and after the token
+        timeout asks for the passphrase. The setup page says so before the
+        user chooses.
+      - **Or no disk encryption,** by the user's choice: the node's secrets
+        still sit in the sealed store (decision 23, then M109's vault), and
+        the dashboard says the workspaces are not encrypted at rest.
+    - **Hardware** (research §8.7).
+      - **GPUs.** AMD and Intel use the kernel's own drivers, with Debian's
+        `firmware-amd-graphics` and `firmware-intel-graphics`, in the base
+        image.
+      - **NVIDIA is an optional add-on on x86-64.** Its licence permits
+        distributing the unmodified driver with an OSI-licensed kernel, with
+        the agreement attached. Its GeForce clause says that software "is not
+        licensed for datacenter deployment", and the add-on's terms page says
+        so for rented servers.
+        - Turing and newer cards use the open kernel modules (MIT or GPLv2),
+          which still need NVIDIA's own firmware and user-space parts.
+        - Pascal and older, including the owner's GTX 1080 Ti, need the
+          proprietary kernel module.
+        - Debian 13's 550 series does not support Blackwell, so the add-on
+          tracks NVIDIA's own packages where Debian's are too old.
+        - Under Secure Boot, the modules are signed with the machine's own key
+          (MOK).
+      - **Wi-Fi and other firmware** come from Debian's `non-free-firmware`
+        component, which Debian's official images have included since
+        bookworm, for example `firmware-iwlwifi`. linux-firmware's files are
+        redistributable by its own rule, so they are in the base image, each
+        file's licence listed by the notices gate.
+      - **The test matrix:** an x86-64 mini PC, an old desktop, a Pi 4, a
+        Pi 5 and an ARM64 UEFI server (Q-M110), each qualified or named as
+        waiting.
+    - **CI** (research §8.4, §8.8).
+      - **Builds.** Every image for both architectures, on every change to
+        `os/**` or the node, on native runners.
+      - **Boot tests in QEMU** that reach the setup page and pass `/readyz`:
+        - x86-64 with KVM, which GitHub's x86-64 Linux runners provide;
+        - aarch64 `virt` with Debian's AAVMF UEFI firmware. GitHub's arm64
+          runners have no KVM ("closed as not planned"), so this test runs
+          emulated, with a longer bounded timeout, and real arm64 and Pi
+          hardware are covered by the rigs and the matrix.
+      - **Reproducibility.** Two builds are compared. Byte-for-byte
+        reproducible Debian images are not yet proven with mkosi, and
+        Debian's own 13.2 live images are not reproducible. So the comparison
+        starts by recording the differences in each build, and the release
+        says "not yet reproducible". The check becomes blocking once lane OS6
+        shows two builds matching; it is never loosened afterwards.
+      - **Release assets** carry checksums and signatures, and every artifact
+        has a retention limit (decision 19).
+    - **Licences.** The images carry GPL software, so each release publishes
+      the exact Debian source packages it was built from beside the images,
+      and the notices gate lists every package's licence. Software that is
+      not free (NVIDIA's driver, Chrome) is an add-on the user chooses, under
+      its own terms.
+
+25. **Network resilience: an address change or a dropped connection never
+    loses a node, a job or a turn (M110r).** The owner, 2026-10-05: "our os
+    needs to make sure this cant happen between nodes and the host". That
+    night a rig's DHCP address changed from .154 to .191; the orchestrator
+    lost a machine that was up for 25 minutes, and one agent's model
+    connection dropped during the change, so its turn failed ("Error running
+    remote compact task: Connection failed") and the work stopped.
+    - **Nodes are known by identity, never by address.**
+      - A node's id is the SHA-256 fingerprint of its identity public key
+        (decision 9). Pairs, routes, tasks, leases, journals and every UI name
+        a node by its id and its label; an IP address or host name is only a
+        hint where to look.
+      - **Finding a node** tries, at once and in parallel: its last-known
+        addresses (several are kept, newest first); DNS-SD over mDNS on the
+        LAN; its overlay name (route 3); then the relay (route 2). The first
+        handshake that proves the pinned identity wins, and the others are
+        dropped. An answer from any address that fails the pin is ignored, so
+        whoever holds the old address cannot pose as the node.
+      - **Discovery leaks nothing.** On the LAN a paired node advertises,
+        instead of a stable id, a token each pair can recognise: an HMAC
+        under that pair's key of the current hour. A stranger sees a changing
+        opaque value, and D80.2's privacy rule holds. Advertising starts only
+        once a node is paired; the extension's own mDNS switch stays D80's
+        (off by default), and the extension still finds its nodes because
+        they dial it.
+      - **The node dials home.** When a node sees its own addresses change
+        (the OS's change notices, or a poll of its interfaces every
+        `NODE_ADDRESS_POLL_MS`), it reconnects outbound to every pair at once
+        and tells each one its new addresses inside the channel. Either side
+        may dial; a duplicate connection for the same pair and incarnation is
+        closed. Nobody has to act when an address changes. The target is
+        reconnection within `NODE_REDISCOVER_MAX_MS` (15 seconds) of the new
+        address working, on the LAN.
+      - **Re-resolution runs by itself** on any failure, with jittered,
+        capped backoff (`NODE_RECONNECT_MAX_MS`, 30 seconds), and at once on
+        a network-change notice on either side.
+      - **The docs recommend a DHCP reservation** for each node and explain
+        how on common routers, and nothing depends on one. On a home node
+        browsers use the node's name, which its certificate names (decision
+        23), so a new address needs no new pairing there either.
+    - **Liveness and reachability are kept apart.**
+      - **Heartbeats** go over the E2E channel every `NODE_HEARTBEAT_MS` (5
+        seconds, with jitter), each with a sequence number. They are the
+        application's own, not TCP keep-alive, which can take minutes to
+        notice a dead path.
+      - **Three states, from each side's own view:**
+        - **Online:** a heartbeat within `NODE_HEARTBEAT_MISS` (3)
+          intervals;
+        - **Unreachable since {time}, retrying:** heartbeats missed; the row
+          shows every path tried, when the node was last seen on each, the
+          attempt number and the next try;
+        - **Offline:** only after the node's own signed shutdown notice
+          (reboot, upgrade, stop, wipe, sent before it goes) or after the
+          user's `NODE_OFFLINE_AFTER_MS` (24 hours by default). Unreachable
+          never turns into offline by itself before then.
+      - **Shown everywhere:** the Devices section and task rows in every
+        editor, the node page and board in the web UI, the TUI's status line,
+        `node status`, ACP's `/nodes`, exec events and Live peek. **No silent
+        stalls:** every task waiting on a node says so ("Waiting: build-pi
+        unreachable since 21:04, retrying, attempt 7, next in 12 s"), with
+        **Retry now** and the task's own controls.
+    - **Durable jobs: leases, checkpoints and a result queue, and no duplicate
+      side effects.** This builds on D80.7 and keeps its rule that a timer
+      alone never releases ownership.
+      - **A lease per attempt.** The orchestrator grants each dispatched
+        attempt a lease with an epoch number and a duration
+        (`NODE_LEASE_MS`), renewed by the heartbeats. Each side measures the
+        lease on its own monotonic clock, so wall-clock skew cannot shorten
+        or stretch it.
+      - **Checkpoints.** At each step boundary the node commits its working
+        state (M72's checkpoint, or a commit on the task's branch) and sends
+        it; the orchestrator acknowledges it, and both journal the
+        acknowledgement.
+      - **While unreachable, the node keeps working where it is safe:** edits,
+        builds, tests and checks inside its sandbox, and model turns it pays
+        for itself. Steps that need the orchestrator wait: a merge, a push, a
+        brokered secret use, a relayed model request, a forwarded approval.
+        Results and checkpoints queue in its journal until each is
+        acknowledged, and are re-sent with their keys after reconnecting.
+      - **The node stops itself at its lease's end.** If it cannot renew, it
+        pauses at the next controlled boundary before `NODE_LEASE_MS` less
+        `NODE_LEASE_GUARD_MS` has passed on its clock, and starts no new step
+        until a renewal arrives.
+      - **The orchestrator never re-dispatches before the lease has expired**
+        on its own clock, plus `NODE_LEASE_GUARD_MS`. After that, it may
+        start a new attempt from the last acknowledged checkpoint, under a new
+        epoch, only when everything the old attempt could have done since that
+        checkpoint is fenced. Every effect that leaves the node's sandbox goes
+        through a gate that checks the epoch: the merge queue, pushes,
+        brokered uses, the model relay, paid admission and result intake. An
+        old epoch is refused at every gate, so a node that returns after a
+        re-dispatch cannot land, push, spend or use a secret. Its queued
+        results after the checkpoint are kept as a quarantined branch for the
+        user to read, never landed.
+      - **When the old attempt is uncertain,** for example a step that
+        reached a host directly from the sandbox (an allowed egress
+        destination other than the git remotes and package registries), or a
+        node whose shutdown cannot be proved, D80.7 holds: no automatic
+        re-dispatch. The row says why, and the user may choose to re-dispatch
+        with that warning.
+      - **Idempotency keys on every step.** Each step (a tool call, a check
+        run, a checkpoint, a result upload, a merge admission, a brokered use,
+        a relayed request) carries a key: pair, task, attempt, epoch, step
+        number and the digest of its input. Whoever performs a step keeps a
+        table of keys and outcomes; a repeat gets the recorded outcome and is
+        never performed twice. Where a provider accepts an idempotency header,
+        the relay sends one, after a capture shows it (rule 13).
+    - **Turns survive a dropped model connection, compaction included.** This
+      is harness-wide: every editor, the ACP agent, headless runs and nodes.
+      It extends M106 lane R's retry table (429, 5xx, 504) and M101 lanes C1
+      and C2's compaction path rather than adding a second retry layer, and
+      their owners review it.
+      - **A network failure pauses a turn; it never fails it.** A refused,
+        reset or timed-out connection, a DNS or TLS failure, or a stream cut
+        short is classified as a network failure. The turn shows "Paused:
+        connection to api.meta.ai lost at 21:04, retrying (2 of 6)", with
+        **Resume now** and **Stop**.
+      - **Bounded retries, then waiting.** Up to `MODEL_RESUME_ATTEMPTS`
+        retries with jittered backoff, sooner when the OS reports the network
+        back or a free probe answers (Meta's `GET /v1/status`, D86.6). After
+        them the turn stays paused, resumable, never failed, until the network
+        returns or the user acts. A headless run keeps D65's deadline and then
+        exits as incomplete (8) with its session to resume, never as failed.
+      - **Resume from the last consistent point.** That is the last complete,
+        validated item of the stream: a finished message part or a complete
+        tool call. Text after it is discarded, never shown as final, and a
+        tool call whose arguments arrived only in part is never run (D86).
+        Tool calls that already ran are never run again: their results stay
+        in the history the next request carries. Where a provider can resume
+        a stream from a cursor (a capability in M95's record, set only after a
+        capture), the harness resumes; otherwise it sends the request again
+        from that point.
+      - **The same accounting, nothing counted twice.** The cut attempt is
+        settled once, from whatever usage it reported; with none, it stays an
+        uncertain liability reserved at its worst case (M82). The retry is its
+        own attempt with its own reservation inside D78's daily budget and
+        M82's conversation cap, and the journal links the two (M102). The
+        vendor may still bill a cut attempt; the reservation covers that, and
+        the usage page shows both attempts. A D48 paid feature retried after a
+        connection failure asks again, unless the failure is proved to have
+        happened before the request was sent (DNS, connect or TLS).
+      - **Compaction is atomic.** A compaction whose request fails is retried
+        as compaction; the conversation is not changed until a validated
+        summary replaces the compacted range in one step, so a cut never loses
+        or half-applies history. If compaction keeps failing and the next
+        request would overflow the context, the turn pauses instead of sending
+        it.
+      - **On Muse Code** the CLI owns its model connection. The harness
+        recognises a turn that ended in a network-class error (from the MSP
+        error frame, captured under rule 13), waits for the network and
+        continues the same session, at most `MODEL_RESUME_ATTEMPTS` times, and
+        asks Meta upstream for retries inside the CLI. **External agents** over
+        ACP get the same continuation in their own session; each is billed as
+        that agent bills.
+    - **Fault injection proves it** (M110r lane Y4): an address change, a
+      link flap, a partition in one or both directions, a long outage, relay
+      loss and clock skew, each across a running job and a streaming turn,
+      and a model stream cut mid-response and mid-compaction. Each run proves
+      no lost work, no duplicate side effects and the correct state in every
+      UI.
+
+26. **Google Chrome is the host's browser** (the owner, 2026-10-05: "our os
+    need chrome as the default browser for the host version"). This covers
+    Muse Node OS (decision 24) and the native host install (decision 4).
+    Research §4.11 has the sources.
+    - **Not in our image.** Google's Terms of Service (effective 30 July 2026)
+      forbid users to "copy, modify, distribute, sell, or lease any part of
+      our services or software", and its licence is "personal". So no image,
+      container or installer of ours carries Chrome.
+    - **Installed at first boot, by the user's own click.** The first-boot
+      setup (decision 24) and the host dashboard offer **Install Google
+      Chrome**, with links to Google's Terms of Service and Chrome's
+      Additional Terms. Accepting them is the user's click; no flag, seed
+      file, cloud-init key or script accepts for them.
+      - The node then adds Google's APT repository. It checks the signing key
+        `https://dl.google.com/linux/linux_signing_key.pub` against the
+        fingerprint Google publishes (`EB4C 1BFD 4F04 2F6D DDCC EC91 7721 F63B
+D38B 4796`, "Google, Inc. (Linux Package Signing Authority)"), and
+        refuses on any difference.
+      - It installs `google-chrome-stable` and makes it the system's default
+        browser, the handler for every link the host opens.
+    - **ARM64 too.** Google now ships stable Chrome for Linux arm64 through
+      the same Debian and RPM repositories, tested on a Raspberry Pi 5 (it
+      reached the stable channel in July and August 2026). Chrome for Testing
+      has published linux-arm64 builds since 153.0.8001.0, and its stable
+      channel (154.0.8037.92 on 6 October 2026) lists them.
+      - **Chromium as the fallback.** It is used only where Google's package
+        does not install, for example a 32-bit system, which Muse Node OS
+        never is, or when the user declines Google's terms. It comes from
+        Debian's own `chromium` package and is still set as the default.
+      - **The UI says so:** "Chromium (Google Chrome is not available here)",
+        or "(you declined Google's terms)".
+    - **Updated through Google's repository.** Chrome's updates are security
+      updates: they install automatically like Debian's, by decision 24's
+      update rules (staged at once, the browser restarted when idle). On Muse
+      Node OS's read-only system, Chrome lives in decision 24's add-on layer,
+      not in the signed image.
+    - **Agents never drive the user's Chrome.** Automation (M81's browser
+      check, over CDP) runs Google's Chrome for Testing: Google's own Chrome,
+      built for automation, pinned per release, verified against its recorded
+      digest and downloaded after consent (M81), on amd64 and now arm64. It
+      gets a fresh private profile for every check and runs behind its own
+      proxy. An auto-updating installed Chrome would change under M81's pin,
+      and its profile holds the user's sign-ins, so the system Chrome is never
+      automated: M81's rule stands.
+    - **Two profiles, two policy sets, kept apart by the file system.**
+      - **Automation:** the browser check runs inside the workspace's sandbox
+        (decision 5) as the tools' user, with its own `/etc`. There, a managed
+        policy file (`/etc/opt/chrome/policies/managed/`, Chrome's documented
+        Linux location) turns off what automation never needs: sign-in, sync,
+        the password manager, autofill, extensions, downloads and background
+        mode.
+        - It never sets a `Proxy…` policy or a cloud enrolment token, under
+          which M81's check refuses to start.
+        - Lane 0 captures which policy folder Chrome for Testing reads, and
+          that its CDP pipe works under this policy.
+      - **The user's Chrome** reads the host's own `/etc`. There the node
+        writes only recommended policies, which the user can change: the
+        start page is the node's web UI, and Chrome is the default browser.
+        It writes no mandatory policy, so the browser stays the user's.
+    - **A local screen, if the machine has one.** The host edition can start
+      a kiosk session: a minimal Wayland compositor, `cage` (in Debian),
+      running Chrome full-screen on the node's web UI at `https://localhost`.
+      There, the node's certificate is trusted and passkeys work. A sign-in
+      that opens a browser (Muse Code's browser sign-in, decision 7, or an
+      OAuth flow) opens in that Chrome, which removes the headless sign-in
+      problem on such machines.
+    - **The container and rented-server editions** do not install Chrome:
+      people reach them from their own browsers, and automation uses Chrome
+      for Testing in the sandbox.
+
+**Suggested additions** (not in the owner's words; each with its reason):
+
+- **The local gateway** (decision 12): the remote web UI on the user's own
+  loopback. _Reason:_ no public web port, no domain, no certificate, and the
+  browser never talks to a third party.
+- **A node can be its owner's blind relay** (decision 8). _Reason:_ two NATs
+  need a meeting point, and the user's own rented server is one that sees
+  only ciphertext, with no service of ours.
+- **Model requests relayed through the orchestrator** (decision 7). _Reason:_
+  API keys never reach a rented server, and D89.13's "values never travel"
+  still holds.
+- **Approval forwarding with per-action binding** (decision 10). _Reason:_
+  D80.8 deferred it, and a node with nobody at it cannot work without it.
+- **A commitment-based SAS, not a bare short code** (decision 9). _Reason:_
+  without a commitment, a man in the middle can try keys until two short
+  strings match.
+- **Revocation and stop from any device, subtract-only** (decisions 9 and
+  15). _Reason:_ a lost laptop has to be cut off from the phone in your hand;
+  subtract-only commands are safe to accept from any pair.
+- **Sealed at boot, unsealed from a paired device** (decision 9). _Reason:_
+  a provider that snapshots or reboots the server gets nothing usable.
+- **The metadata address blocked in every sandbox** (decision 5). _Reason:_
+  on most clouds it hands out the instance's credentials to any process.
+- **Per-workspace egress allowlists and DNS logs** (decision 5). _Reason:_
+  the cheapest limit on what a prompt injection can send out.
+- **Crypto-erase on wipe** (decision 19). _Reason:_ a provider's disk cannot
+  be trusted to erase; destroying the keys first can be.
+- **Clock checks** (decision 19). _Reason:_ certificates, TOTP and journal
+  ordering all fail quietly with a wrong clock.
+- **Caps and retention on everything** (decision 19). _Reason:_ the GitHub
+  Actions storage incident; a node that fills its disk stops working.
+- **A native node on macOS** (decision 4). _Reason:_ Apple's GPU cannot reach
+  a Linux container.
+- **Remote actuation only from a surface within sight** (decision 14).
+  _Reason:_ a person approving motion from another city cannot see who is
+  standing next to the machine.
+- **Pi realism: 64-bit OS, 8 GB, an SSD** (decision 4). _Reason:_ SD cards
+  wear out under journals and builds, and 32-bit images cannot run the CLIs.
+- **Team mode as its own phase** (decision 16). _Reason:_ vendors' terms bind
+  subscriptions and keys to one person; sharing a node is a terms question
+  before it is a code question.
+- **Workers dial out** (decision 8). _Reason:_ the commonest setup (a laptop
+  and a rented server) then needs no listener on the laptop and no relay.
+- **Signed, reversible upgrades** (decision 15). _Reason:_ a node far away
+  that fails an upgrade must come back by itself.
+- **An optional code-server pack** (decision 17). _Reason:_ some people want a
+  full VS Code in the browser; code-server is MIT and takes our extension from
+  Open VSX, where VS Code's own server may not be hosted.
+- **Other agents' sign-in tokens never enter the vault** (decision 7).
+  _Reason:_ Anthropic, Google and OpenAI each forbid or warn against a third
+  party holding them; only API keys are brokered.
+- **Outbound connection limits per sandbox** (decision 5). _Reason:_ rented
+  servers' providers lock servers that scan other networks.
+- **The browser pairing installs the node's own certificate** (decision 23).
+  _Reason:_ browsers refuse passkeys behind a clicked-through warning, and a
+  self-signed, non-CA certificate can vouch for nothing but the node.
+- **Two users in one container for the first phase** (decision 23).
+  _Reason:_ it keeps the node's keys and sessions out of the tools' reach on
+  Docker Desktop, where nested sandboxes are not available.
+- **Chrome for Testing for agents, installed Chrome for people** (decision
+  26). _Reason:_ automation needs a pinned, verified build and a throwaway
+  profile; the user's Chrome holds their sign-ins and updates itself.
+- **A kiosk session on the host's own screen** (decision 26). _Reason:_ it
+  gives a machine with a monitor a trusted local browser, which also solves
+  browser sign-ins on a node.
+- **Per-pair rotating discovery tokens** (decision 25). _Reason:_
+  broadcasting a node's id on the LAN would let anyone there track it.
+- **The node dials home on an address change** (decision 25). _Reason:_ the
+  side whose address changed knows first; waiting for the other side to
+  rediscover it is what cost 25 minutes.
+- **Epoch-fenced gates for every effect that leaves a sandbox** (decision
+  25). _Reason:_ a lease alone cannot stop a node that comes back late; the
+  gates refuse its old epoch, so re-dispatch never runs an effect twice.
+- **Turn resilience is harness-wide, not node-only** (decision 25).
+  _Reason:_ the turn that failed that night was an ordinary agent's; every
+  editor needs the pause-and-resume.
+- **Raspberry Pi Imager's cloud-init seed for first-boot Wi-Fi** (decision
+  24). _Reason:_ a Wi-Fi-only machine has no network on which to show a setup
+  page, and people already know Imager's settings dialog.
+- **A setup code on the console, not first-come setup** (decision 24).
+  _Reason:_ the appliances we looked at let whoever reaches the page first
+  become the owner.
+- **An add-on layer of system extensions** (decision 24). _Reason:_ Chrome
+  and NVIDIA's driver cannot be in a signed, read-only image, but must still
+  update and roll back cleanly.
+- **Network-bound disk unlock from the user's own orchestrator** (decision
+  24). _Reason:_ a headless machine without a TPM otherwise waits at boot for
+  someone to type a passphrase.
+- **OS security updates staged at once, applied only when idle** (decision
+  24). _Reason:_ unattended updates must never reboot a node in the middle of
+  a task.
+- **The exact source packages published with each OS image** (decision 24).
+  _Reason:_ the images carry GPL software, and distributing binaries carries
+  the duty to offer their source.
+- **Peek's local part ships before the node** (decision 22). _Reason:_ the
+  Agent map and the TUI already run subagents and team workers on one
+  machine; nothing in a local peek needs a node.
+- **"Values never travel" amended only for "My node" pairs** (decision 10).
+  _Reason:_ the owner wants D89's modes over the channel for his own nodes,
+  and a pair with another person's device should keep D89.13's stricter
+  rule.
+
 ## 3. Open questions (need the owner)
+
+- **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
+  and certifies on fakes and the rigs meanwhile; nothing here blocks M110a0's
+  lane 0.
+  1. **Rule 8 on a node.** The runtime's Linux key store is the Secret
+     Service (D61), which a container or a server without a desktop session
+     does not have. **Default:** until M109 merges, M110a0's interim key
+     store (D90.23: a passphrase slot in D89.2's format, sealed at each
+     restart); after it, D89's vault (a passphrase or TPM slot, or D90.9's
+     paired slot). A key enters only through the node's web UI password field
+     on the pinned session after a step-up, or `auth set` on standard input;
+     never an environment variable, an argument or a file, Docker and
+     Kubernetes secret files included. Muse Code's own `META_API_KEY` path is
+     not offered on a node.
+  2. **The home PCs.** Which machines and operating systems M110a0 and Muse
+     Node OS are first installed on ("some pcs around my house"). **Default:**
+     the Windows PC with Docker Desktop, the Kubuntu VM, the Mac mini with
+     Docker Desktop and the Win11 VM, plus whatever he names.
+  3. **A test server and a domain.** Certifying M110d–f on the internet needs
+     a small rented server and a domain name (for ACME and passkeys); both
+     are payments and accounts, so they are his. **Default:** the rigs only (a
+     Kubuntu VM as the "server", the overlay and the relay on the LAN), and
+     internet reach stays Preview until a real server passes.
+  4. **Meta's terms, in writing.** Three readings need Meta's answer or the
+     owner's ruling: the CLI on servers and in containers the user builds; a
+     node relaying one person's own Model API requests (§10.1(i)'s "proxy");
+     and a team node (§3.1, §10.1(i)). **Default:** D90.17: no CLI in images,
+     the relay for one person only, team mode waits.
+  5. **Hardware for the OS matrix.** A Raspberry Pi 4 and a Pi 5 (8 GB, with
+     an SSD), an x86-64 mini PC, an old desktop and an ARM64 UEFI server (or
+     rented ARM64 metal), plus the GTX 1080 Ti VM for NVIDIA. **Default:**
+     QEMU for both architectures on every change, and each missing machine
+     named as waiting. The rig that changed address on 2026-10-05 is the
+     first network-resilience test host (D90.25).
+  6. **Signing keys for Muse Node OS** (D90.24). Two are credentials, so
+     they are his:
+     - **The update-bundle key.** An offline root, and a signing certificate
+       for the release job (an HSM, or the `marketplace` environment).
+       **Default:** until it exists, OS images are published for manual
+       install only, with cosign signatures and checksums, and no
+       over-the-air updates are offered.
+     - **The Secure Boot keys.** Platform keys made offline in a key ceremony
+       only he performs. **Default:** images boot with Secure Boot off; never
+       a platform key in CI.
+  7. **The captures** (no model call; the sign-in is a sign-in, not a turn):
+     bubblewrap inside a rootless container on the Kubuntu VM and on arm64;
+     how a Muse Code subscription signs in on a node with no browser (Meta
+     documents no device-code flow); TPM 2.0 on each rig and an OpenSSL TPM
+     provider under Node's TLS. One capture is a model call: the error frame
+     Muse Code sends when its connection drops mid-turn (D90.25), one short
+     turn on the contributor model in an empty workspace, about one model
+     attempt, counted from the trace log. **Default:** until captured, a
+     node's Muse Code backend is off and says why, and Muse Code turns are not
+     continued automatically.
+  8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
+     "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
+     the images.
 
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
@@ -20924,6 +22462,438 @@ Each joins when its dependency merges, and none blocks the others.
         drill
   - [ ] The adversarial suite green; editor rows recorded; strings in all
         14 tables; budgets measured; full gate green
+
+---
+
+### M110 — Muse Node: headless worker and orchestrator host (D90)
+
+**Status 2026-10-05: planned, documentation only.** Nothing is implemented,
+and no lane is launched by this record. The research is
+`docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
+model is reviewed and accepted before that phase's listener, relay or sign-in
+code is written. Listening on a network stays off until `node init` chooses
+it: D80's security exception to the enhancements-on ruling, applied again.
+
+- **Goal.** A person installs a node on a PC at home, in a container, a VM, a
+  Proxmox LXC, a Kubernetes cluster, a rented server or a Pi, or boots Muse
+  Node OS on bare x86-64 or ARM64. It works alone, as a worker for their
+  orchestrator, as their orchestrator, or both. They reach it from a browser,
+  a phone, a terminal or any editor, over the LAN or the internet, with every
+  link mutually authenticated and encrypted end to end, secrets that stay
+  home unless they choose otherwise, and passkey sign-in. Any agent's live
+  stream, on any machine, can be watched read-only from a **Peek** link or
+  `peek`.
+- **Depends on** (each phase's row in the roadmap names its own):
+  - **M104a:** lane B (the runtime's `panel` mode and controller registry),
+    lane C (the companion server: launch code, per-window bearer, the guard)
+    and lane D (the companion bridge). The node's web UI is that server grown.
+    **M110a0 needs only these, the ACP runtime (M63) and the web panel.** If
+    lane B or D has not merged when M110a0 starts, M110a0 builds on M104's
+    integration branch, as M104 does with M98's `tokenFile.ts`.
+  - **M100 (D80):** every lane, from M110a on. **Amendment proposed to M100's
+    lane 0:** the pairing, transport and receiver logic M100 places under
+    `src/host/devices/` moves behind ports in `src/core/devices/**`, with thin
+    VS Code adapters, so the runtime can host the same code. M110a starts
+    only on that split.
+  - **M109 (D89):** the vault, its key slots, the broker, its modes and the
+    scrub service, from M110b on. M110d needs the broker's remote requester
+    and D90.9's paired slot, which M109's lane 0 is asked to leave room for.
+    M110a0's interim key store uses D89.2's passphrase-slot format so that
+    M109 migrates it.
+  - **M96, M96b, M96c (D75):** the team host, the board, the scheduler, the
+    merge queue, the team in the runtime and headless runs. **Hook proposed
+    to M96's and M96c's lane 0** (D90.22): a row-action slot on the Agent
+    map's and the board's agent rows, and one read-only stream subscription
+    per attempt in the team host, for Live peek.
+  - **M107 (D87):** the sampler and cgroup scopes (lane G, for M110b), and
+    relocation (lane R, for M110c). **M108 (D88):** the account pools and their
+    device lane D (M110c).
+  - **M48, M77, M52:** subagents, best-of-N candidates and schedules, whose
+    streams Live peek reads.
+  - **M102 (D82)** and **M99**; **M80 (D65)**, the headless floor; **M70, M71,
+    M72, M77**; **M95**, providers and the local presets; **M103 (D83)**, the
+    maker guard on a Pi node; **M104e**, the LSP broker (M110g).
+- **Scope.** D90 entire, in eleven phases (the roadmap below); strings in all 14
+  tables; README ("Muse Node"), the operator guide under `docs/node/`,
+  SECURITY, PRIVACY, CHANGELOG, `docs/acp.md`, `docs/ci.md`,
+  `docs/ide-compatibility/**` rows, registry rows, certification.
+- **Configuration.** `node.json` in the data root: owner-only, zod-validated,
+  written only by `node` commands and the settings page, never holding a
+  secret. The runtime's settings store (M104 lane B) holds the shared
+  settings; headless runs take flags as D65 does.
+
+**Roadmap.** Each phase lands on its own integration branch and ships in the
+train named. Estimates are lane-hours of implementation, review and
+certification at the fleet's usual split (Muse implements, Codex reviews by
+class, the lead integrates; the security lanes A, F and X go to Codex or
+Claude). The **Needs** column names which of M100, M107, M108 and M109 a phase
+waits for.
+
+| Phase                                            | Delivers                                                                                                                                                                                                                                                                                                   | Lanes                                   | Depends on                                                                 | Needs                                                                                          | Estimate                | Train     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------- | --------- |
+| **M110a0** Standalone home node                  | One machine, by Docker (Docker Desktop on Windows and macOS, Docker or Podman on Linux) or the native Linux installer. From another PC on the LAN: the full panel, files, editor, terminal, git; passkey sign-in; TLS pinned at first pairing; the TUI on the machine; the interim key store               | 0, N, C, U1, U2, T, A1, S0, J           | M104a lanes B, C and D; the ACP runtime (M63); M80 (D65)                   | none                                                                                           | 8 × 36 h ≈ 290 h        | 1         |
+| **M110r** Network resilience                     | Turns that pause and resume across a dropped model connection, compaction included, in every editor (Y1, any time); nodes addressed by identity, rediscovered by themselves, with liveness states in every UI (Y2); leased, checkpointed, idempotent jobs (Y3); fault injection (Y4)                       | Y1, Y2, Y3, Y4                          | Y1: M106 lane R, M101 lanes C1 and C2 (their owners review); Y2–Y4: M110a0 | Y1 none; Y2 and Y3 need M100 (lanes T and E) and land inside M110a, which ships only with them | 4 × 38 h ≈ 150 h        | 1 (Y1), 2 |
+| **M110os** Muse Node OS                          | Bootable images with the node preinstalled: x86-64 installer ISO and raw image, ARM64 UEFI ISO, Raspberry Pi 4 and 5 images; first-boot setup in the browser; A/B updates with rollback; hardening and disk encryption; driver add-ons; Google Chrome as the host's browser; CI builds and QEMU boot tests | OS1–OS7, Q                              | M110a0 (the node, its image pipeline, A1's pairing and sign-in)            | none (pairing with an orchestrator at first boot waits for M110a)                              | 7 × 40 h + 25 h ≈ 305 h | 2         |
+| **M110a** Worker                                 | Joins an orchestrator on the LAN: the worker's receiver in the runtime, pairing from the web UI and TUI (QR and text), approval forwarding                                                                                                                                                                 | R1, F1, P, J                            | M110a0; M96, M96c                                                          | M100 (M107 and M108 optional: headroom buckets appear once merged)                             | 3 × 36 h ≈ 110 h        | 2         |
+| **M110b** Workspaces, sandboxes, Live peek       | Per-workspace sandboxes, egress proxy, quotas, devcontainers, snapshots, brokered git; **Live peek, local** (every agent on a machine, in VS Code, the companion page, the web UI, the TUI and `peek`)                                                                                                     | W1, W2, K                               | M110a0; M96's peek hook, M48, M52, M77                                     | M107 (lane G), M109 (broker, scrub service)                                                    | 3 × 40 h = 120 h        | 2         |
+| **M110c** Orchestrator host                      | The team, board and merge queue on a node; relocation across nodes; account pools; the vault on a node; the model-request relay; the team pages in the web UI and TUI                                                                                                                                      | R2, F2, U3                              | M110a, M110b; M96, M96b, M96c                                              | M100, M107 (lane R), M108 (lane D), M109                                                       | 3 × 30 h = 90 h         | 3         |
+| **M110d** Remote reach, end to end               | The four routes and `node relay`; identity keys; the committed SAS; rotation; revocation and stop from any device; per-message replay protection; sealed at boot; brokered uses over the channel; the local gateway; `acp`, `exec` and `tui --node`; Live peek for node jobs                               | X1, X2, F3, G, K, an independent review | M110a, M110c                                                               | M100 (lane T), M109 (remote broker, paired slot)                                               | 6 × 32 h ≈ 190 h        | 4         |
+| **M110e** Full sign-in and direct browser access | Passwords with TOTP, recovery codes, OIDC, reverse-proxy sign-in, ACME certificates, the PWA; Live peek share links                                                                                                                                                                                        | A2, A3, K                               | M110a0                                                                     | M109 (TOTP seeds and recovery codes as vault items)                                            | 3 × 30 h = 90 h         | 3         |
+| **M110f** Rented servers, appliances, operations | The rented-server installer, hardening, cloud-init, teardown and wipe; the Helm chart, the Proxmox LXC template; backup and restore, upgrades and rollback, OpenTelemetry, retention, quotas, clocks; Pi and rented-server qualification                                                                   | S, O, Q, J                              | M110d, M110e                                                               | M107 (the disk-free level), M109 (paired slot)                                                 | 4 × 34 h ≈ 135 h        | 4         |
+| **M110g** Local models, GPUs, remote LSP         | Model sidecars on loopback; NVIDIA CDI, AMD ROCm, Intel; the native macOS node; the LSP broker over the pair and in the editor page                                                                                                                                                                        | L, G                                    | M110a0, M110b; M95; M104e                                                  | none (the remote LSP waits for M110d)                                                          | 2 × 30 h = 60 h         | 3         |
+| **M110h** Team mode                              | People, roles and OIDC groups; per-person sandboxes, vault namespaces, sign-in homes, budgets and audit                                                                                                                                                                                                    | M                                       | M110e, M110f; the owner's terms decision (Q-M110)                          | M108, M109                                                                                     | 3 × 40 h = 120 h        | 5         |
+
+- **Total:** about 1,660 lane-hours. **Critical path:** M104a's lanes B, C and
+  D → M110a0 → (M100) M110a with M110r's Y2 and Y3 → M110c → M110d → M110f.
+  **In parallel:** M110r's Y1 from now on (it needs no node); M110os after
+  M110a0, beside M110a–c; M110b once M107 and M109 merge; M110e after M110a0;
+  M110g after M110b. **Live peek's local part** (lane K in M110b) needs no
+  node, and can ship for every editor as soon as M96's hook and M109's scrub
+  service merge.
+- **Release sequence** (versions stay below 1.0; each train is a minor
+  release; each phase enters D60's ladder at Preview and moves only on
+  evidence):
+  1. **Train 1 (M110a0, M110r's Y1): the home node, and turns that survive a
+     dropped connection.** Install on a PC by Docker or the Linux installer,
+     browse to it from the others. It listens only on the LAN interface
+     chosen at `node init`. Y1 ships in every editor.
+  2. **Train 2 (M110os, M110a with M110r's Y2–Y4, M110b): bare metal,
+     workers, sandboxes.** Muse Node OS images for x86-64, ARM64 and the Pi,
+     with Chrome; joining an orchestrator, by identity, with durable jobs;
+     per-workspace sandboxes and local peek.
+  3. **Train 3 (M110c, M110e, M110g): the orchestrator host and full sign-in;**
+     local models and GPUs.
+  4. **Train 4 (M110d, M110f): the internet.** The public port and the relay,
+     the rented-server installer, backups and upgrades. It ships only after
+     the threat model's red-team drills pass, an independent review of lanes
+     X, A and F finds no P1, and research §4.10's terms checks are done.
+  5. **Train 5 (M110h): team mode,** after the owner's terms decision.
+
+- **Lanes and file ownership.** One integration branch per phase,
+  `feature/m110<phase>`, under M87's region rules. Lane 0 (and its
+  threat-model review) comes first in each phase that extends it.
+
+**M110a0's lanes** (the first build; nothing here waits for M100, M107, M108
+or M109):
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Files it owns                                                                                                                                                             | Its regions in shared files                                                                                                                                                                                                                                               | Starts                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| 0 Contracts, threat model, strings (lead) | The node's config, state, session, audit and event schemas; MHP's node methods for files, terminal, git, dashboard and sign-in; the home-node threat model (one machine, the LAN), reviewed before any listener; the A0 captures (§7 of the research: a self-signed, non-CA certificate as each browser's trust anchor on Windows, macOS and Linux; `.local` resolution on each OS; Docker Desktop's LAN publishing and firewall prompt; Muse Code's bubblewrap in the container; a PTY under the tool host); every string; the fakes (a virtual WebAuthn authenticator, a tool host, a clock) | new `src/shared/node.ts`, `src/shared/nodeAuth.ts`, `test/unit/helpers/node/**`, `docs/certification/m110-threat-model.md`, `docs/certification/m110-captures.md`         | `constants.ts` (`NODE_*`); `en.ts` and the 14 `l10n/ui.*.json`; `src/shared/hostApi/**` (node methods, with M104 lane 0); `docs/schemas/**` (node events, with M80's versioning)                                                                                          | day 0, on M104's frozen MHP v1       |
+| N Node service                            | D90.1, 3, 18 and 23: `node init`, `serve`, `status`, `stop`, `lock`, `unlock`, `wipe`; the supervisor; the state store and migrations; health; the attended state; the tool host and the two-user split; the interim key store (D89.2's passphrase-slot format); the LAN listener on the chosen interface; the kill switch                                                                                                                                                                                                                                                                     | new `src/runtime/node/{main,supervisor,state,migrations,health,killSwitch,toolHost,keyStore}.ts`                                                                          | `src/runtime/cliArgs.ts` and `main.ts` (`node`); `src/runtime/companion/server.ts` (the route table and bind, with M104 lane C's owner); `src/runtime/dataFolder.ts` (the node root); `src/runtime/keyStore.ts` (the interim store as a `SecretStore`, with M109's owner) | after 0                              |
+| C Image and packaging                     | D90.4, 15 and 23: the base image for amd64 and arm64 with its two users and the tool host; the Compose file and `docker run` line for Docker Desktop (Windows on WSL 2, macOS) and Linux; the Quadlet unit; cosign signing, SBOM and provenance; the layer secret scan; artifact and registry retention; notices for every layer                                                                                                                                                                                                                                                               | new `deploy/container/**`, `deploy/compose/**`, `deploy/quadlet/**`, `.github/workflows/node-image.yml`, `scripts/package-node-image.mjs`, `scripts/check-node-image.mjs` | `.github/workflows/release.yml` (node jobs after `npm`); the notices script (image layers); `package.json` scripts                                                                                                                                                        | after 0                              |
+| U1 Files, editor, git                     | D90.12 and 23: the file explorer, the CodeMirror editor, diffs with `@codemirror/merge`; the git page (status, stage, commit, branches; fetch, pull and push with the deploy key)                                                                                                                                                                                                                                                                                                                                                                                                              | new `src/webview/node/{files,editor,git}/**`, `src/runtime/node/web/{files,git}.ts`                                                                                       | `src/webview/bridges/` (the companion bridge, with M104 lane D); `src/webview/main.tsx` (surfaces); `src/webview/styles.css` (variables only); `test/harness` scenes; `scripts/a11y.mjs` cases                                                                            | after 0 against fakes; wired after N |
+| U2 Terminal, dashboard, audit             | D90.12 and 23: the terminal (xterm.js over the tool host's PTY, the WebSocket rules); the node dashboard (readings); logs; the sign-in audit; settings, help and What's New on the node                                                                                                                                                                                                                                                                                                                                                                                                        | new `src/webview/node/{terminal,dashboard,audit}/**`, `src/runtime/node/web/{terminal,dashboard}.ts`                                                                      | as U1's, serialized by the lead                                                                                                                                                                                                                                           | after 0 against fakes; wired after N |
+| T Terminal UI                             | D90.13: `tui` on the local socket; Ink views; the screen-reader line mode; Stop on one key; the certificate fingerprint and setup code shown for pairing                                                                                                                                                                                                                                                                                                                                                                                                                                       | new `src/runtime/tui/**`                                                                                                                                                  | `cliArgs.ts` (`tui`); shared non-DOM view state under `src/shared/` (with U1's owner)                                                                                                                                                                                     | after 0                              |
+| A1 Passkeys and the pinned certificate    | D90.11's first part and 23: the setup code; passkeys with a pinned WebAuthn library (SimpleWebAuthn, MIT); cookie-free sessions and bearers; step-up; throttling and lockout; the sign-in audit; the node's self-signed certificate and its fingerprint; the browser-pairing page with steps for each OS; the name checks                                                                                                                                                                                                                                                                      | new `src/runtime/node/auth/**`, `src/runtime/node/tls/**`, `src/webview/node/auth/**`                                                                                     | `src/runtime/companion/guard.ts` (a bearer issued from a sign-in; the WebSocket first-frame rule; with M104 lane C's owner)                                                                                                                                               | after N                              |
+| S0 Install on a home PC                   | D90.23: the native Linux installer's LAN profile (signature check, two systemd units, the node's port only); the Docker Desktop guides for Windows and macOS (published address, firewall prompt); `node wipe` for a home node; qualification on the owner's PCs                                                                                                                                                                                                                                                                                                                               | new `deploy/install/**` (LAN profile), `docs/node/home.md`, `docs/certification/m110a0-hosts.md`                                                                          | —                                                                                                                                                                                                                                                                         | after C                              |
+| J Docs and certification                  | README's "Muse Node" section for the home node; the operator guide's home pages; SECURITY, PRIVACY, CHANGELOG; AGENTS.md (layout, rule 8's node row); the editor matrix rows; certification                                                                                                                                                                                                                                                                                                                                                                                                    | new `docs/node/**`, `docs/certification/m110a0*.md`                                                                                                                       | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/ide-compatibility/**`; PLAN (D90 and M110 only)                                                                                                                                                                    | throughout                           |
+
+**The later phases' lanes:**
+
+| Lane                                             | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                      | Starts                                                               |
+| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| OS1 Image build (os)                             | D90.24: mkosi recipes on Debian 13 (pinned to a snapshot.debian.org date, a fixed `SourceDateEpoch`) for x86-64 (installer ISO, raw image) and ARM64 (UEFI ISO and raw image; Raspberry Pi 4 and 5 images with Raspberry Pi's firmware and kernel); the runtime's pinned Node 24; dm-verity `/usr`; systemd-repart layouts                                                                                                                                                                                                        | new `os/**` (the recipes, partition layouts, the Pi boot files' manifest)                                                                                                                        | —                                                                                                                                                                                                                                                                                                                                                                                                | after M110a0's lane C                                                |
+| OS2 Updates and rollback (os)                    | D90.24: RAUC slots and signed bundles; the EFI backend and the custom Pi tryboot backend (`autoboot.txt`, `tryboot_a_b=1`); the trial boot marked good on `/readyz`; the update channel (TUF's no-downgrade and expiry rules); staged security updates applied when idle; the Pi EEPROM checks                                                                                                                                                                                                                                    | new `os/update/**`, `src/runtime/node/osUpdate.ts`                                                                                                                                               | the dashboard's update panel (with U2's owner)                                                                                                                                                                                                                                                                                                                                                   | after OS1                                                            |
+| OS3 First-boot setup (os)                        | D90.24: the browser setup over the LAN (network, disk, the setup code, passkey, the browser pairing, an optional SSH key, an optional orchestrator pairing once M110a exists)                                                                                                                                                                                                                                                                                                                                                     | new `src/runtime/node/firstBoot/**`, `src/webview/node/setup/**`                                                                                                                                 | A1's sign-in and pairing pages (with A1's owner)                                                                                                                                                                                                                                                                                                                                                 | after OS1 and A1                                                     |
+| OS4 Hardening and disk encryption (os)           | D90.24: read-only root, the firewall defaults, the `systemd-analyze security` threshold; LUKS2 `/var` with systemd-cryptenroll (TPM bound to the signed policy and PCR 7, the optional TPM PIN, the recovery key), Clevis and Tang for headless machines, the console passphrase; the boot-chain signing hooks for the owner's later Secure Boot keys                                                                                                                                                                             | new `os/hardening/**`, `os/crypt/**`                                                                                                                                                             | —                                                                                                                                                                                                                                                                                                                                                                                                | after OS1                                                            |
+| OS5 Add-on layer and hardware (os)               | D90.24: system-extension add-ons matched to the OS version (built in CI where the licence allows, on the device from the vendor's signed packages where it does not); the NVIDIA add-on (open modules for Turing and newer, the proprietary module for Pascal and older, MOK signing, its terms page); AMD, Intel and Wi-Fi firmware in the base; the hardware matrix                                                                                                                                                             | new `os/addons/**`                                                                                                                                                                               | L's GPU detection (with L's owner)                                                                                                                                                                                                                                                                                                                                                               | after OS1                                                            |
+| OS6 OS CI and publishing (os)                    | D90.24: every image for both architectures on each change; QEMU boot tests (x86-64 with KVM; aarch64 `virt` with AAVMF, emulated); the reproducibility comparison (recorded, then blocking once two builds match); release assets with checksums, signatures and the exact Debian source packages; retention                                                                                                                                                                                                                      | new `.github/workflows/node-os.yml`, `scripts/os-boot-test.mjs`, `scripts/os-repro-check.mjs`                                                                                                    | `.github/workflows/release.yml` (OS assets after the image jobs)                                                                                                                                                                                                                                                                                                                                 | after OS1                                                            |
+| OS7 Chrome on the host (os)                      | D90.26: the first-boot and dashboard **Install Google Chrome** step, with Google's terms and the user's click; Google's repository with its key checked by fingerprint; the default-browser setting; Chromium as the fallback, said in the UI; updates through the add-on layer; the user's recommended policies; the kiosk session                                                                                                                                                                                               | new `os/addons/chrome/**`, `src/runtime/node/browser/**`, `src/webview/node/setup/chrome/**`                                                                                                     | OS3's setup pages (with OS3's owner); OS2's add-on updates (with OS2's owner)                                                                                                                                                                                                                                                                                                                    | after OS1 and OS3                                                    |
+| Y1 Turn resilience (r, any time)                 | D90.25's turn part, in every editor: network-failure classification; pause, bounded retries and waiting; resume from the last consistent point (stream resume where M95's record has a captured cursor); atomic compaction retry; one settlement per attempt, linked attempts in the journal; D48's re-ask rule; continuation on Muse Code and ACP agents after the error-frame capture                                                                                                                                           | new `src/core/agent/turnResilience.ts`, `src/core/backends/modelapi/resume.ts`                                                                                                                   | `presets.ts` (`FormatQuirks`' retry table, with M106 lane R's owner); `pacing.ts` (the free status probe, with M106 lane R); the compaction path in `ModelApiHost.ts` (`compactNow`, with M101 lanes C1 and C2's owner); `src/core/usage/**` (attempt links, with M102's owner); `MuseCodeHost.ts` (the error frame); the team host's ACP sessions (with M96b's owner); the paused row's strings | now, on main; after M106 lane R and M101 lane C2 if they merge first |
+| Y2 Identity addressing and liveness (r, with a)  | D90.25's addressing and liveness: node ids; the address book (last-known addresses, newest first); parallel discovery (addresses, DNS-SD with per-pair rotating tokens, overlay names, the relay once M110d exists); the node dialling home on an address change; jittered re-resolution; heartbeats; the online, unreachable and offline states and the signed shutdown notice; the waiting rows in every UI                                                                                                                     | new `src/core/devices/addressBook.ts`, `src/core/devices/liveness.ts`, `src/runtime/node/netWatch.ts`                                                                                            | M100 lane T's transport and lane T's discovery (through their ports, with M100's owner); M100 lane U's Devices rows and M96c's task rows (the states, with their owners); U3's node pages and T's status line                                                                                                                                                                                    | after M100 lane T, with R1                                           |
+| Y3 Durable jobs (r, with a; extended in c and d) | D90.25's jobs: leases with epochs on monotonic clocks; checkpoints and their acknowledgements; the node's local result queue and resend; self-fencing at the lease's end; re-dispatch only after expiry plus the guard, from the last acknowledged checkpoint, under a new epoch; the epoch check at every gate (merge, push, broker, relay, paid admission, result intake); the uncertain case kept under D80.7; idempotency keys and outcome tables                                                                             | new `src/core/devices/lease.ts`, `src/core/devices/stepKeys.ts`, `src/core/devices/resultQueue.ts`                                                                                               | `src/core/devices/attemptJournal.ts` (with M100 lane E's owner); M96c's merge queue admission (the epoch check, with its owner); F's relay and brokered uses; M109's broker admission (the epoch, with M109's owner)                                                                                                                                                                             | after M100 lane E, with R1; F2 and F3 add their gates                |
+| Y4 Fault injection (r, throughout)               | D90.25's proofs: a Linux network-namespace rig (veth pairs, a DHCP server that renumbers, `tc netem` for loss and delay, nftables for one-way partitions, a relay to kill, a fake clock and a skewed clock); a fake Model API that cuts a stream at a chosen byte, during a turn and during compaction; counters on every side-effect sink (fake git remote, broker, paid gate, tool sink); UI-state assertions                                                                                                                   | new `test/faults/**` (the namespace rig, scenarios and assertions), `scripts/fault-rig.mjs`                                                                                                      | the fake Model API in `test/unit/helpers/**` (the cut points, with M106 lane 0's owner); `.github/workflows/ci.yml` (a fault job on Linux runners, with the workflow owner)                                                                                                                                                                                                                      | with Y1 (the model faults); with Y2 (the network faults)             |
+| P Pairing on a node (a)                          | D90.9's invitation on a node: the QR in the web UI and the TUI, its text, the fingerprint confirmation, unpair                                                                                                                                                                                                                                                                                                                                                                                                                    | new `src/webview/node/pairing/**`, `src/runtime/tui/pairing.ts`                                                                                                                                  | M100 lane P's pairing core (through its port, with M100's owner)                                                                                                                                                                                                                                                                                                                                 | after M100 lane P                                                    |
+| R Roles (a, c)                                   | D90.2. R1 (a): the worker's receiver in the runtime (M100's lanes E, S and G through their ports). R2 (c): the orchestrator host (M96's team host, M96c's board, scheduler and merge queue, M107's relocation across nodes, M108's pools) and both roles at once                                                                                                                                                                                                                                                                  | new `src/runtime/node/roles/**`, `src/runtime/devices/**` (the runtime's adapters for M100's ports)                                                                                              | `src/core/devices/**` (the ports, with M100's owner); `src/core/team/remotePool.ts` (with M100 lane S); the runtime's team host (with M96b's owner)                                                                                                                                                                                                                                              | R1 after M100 lanes E, S and G and M96c merge; R2 after R1 and M110b |
+| F Forwarding, relay, brokered uses (a, c, d)     | D90.7 and 10. F1 (a): approval forwarding with per-action binding. F2 (c): the model-request relay. F3 (d): brokered secret uses over the channel with D89's modes for "My node" pairs                                                                                                                                                                                                                                                                                                                                            | new `src/core/devices/forwarding.ts`, `src/runtime/node/modelRelay.ts`, `src/core/devices/brokeredUse.ts`                                                                                        | M109's broker (the remote requester, with M109's owner); `src/core/paid/paidConsent.ts` (consent bound to the paying node); the provider registry and `ModelApiHost.ts` (the relay client, with M95's owner)                                                                                                                                                                                     | F1 after R1; F2 after R2; F3 after X                                 |
+| U3 Team pages (c)                                | D90.12's tasks, team and nodes pages, and their TUI views                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | new `src/webview/node/{team,nodes}/**`                                                                                                                                                           | M96c's board components (with their owner)                                                                                                                                                                                                                                                                                                                                                       | after R2                                                             |
+| W Workspaces and sandboxes (b; two lanes)        | D90.5–6. W1: the engine adapter (Podman's REST API on its socket; gVisor or Kata selection), the egress proxy (allowlists, the metadata block, DNS log, connection rate), cgroup scopes, quotas, cleanup; it replaces A0's two-user split. W2: git through M109's broker, devcontainers through the pinned CLI, snapshots                                                                                                                                                                                                         | new `src/runtime/node/sandbox/**`, `src/runtime/node/egress/**` (W1); `src/runtime/node/workspaces/**` (W2)                                                                                      | `src/core/resources/**` (sandbox scopes, with M107's owner); M109's broker adapters (the git helper and agent socket inside a sandbox, with M109's owner); N's tool host (with N's owner)                                                                                                                                                                                                        | after M110a0, with M107 lane G and M109 merged                       |
+| K Live peek (b, d, e)                            | D90.22. In b: the peek tap on every agent's event stream (main conversation, subagents, team workers, best-of-N candidates, schedules) with ring buffers, coalescing, gap markers and viewer caps; the read-only route and scope; the **Peek** links in the Agent map and board (VS Code, the companion page, the web UI); the TUI view; `peek` and `/peek`. In d: node jobs' streams over the pair, fanned out by the orchestrator. In e: share links (launch code to read-only bearer), expiry, revocation, viewer count, audit | new `src/core/peek/**` (tap, buffers, scrub hook), `src/shared/peek.ts` (the versioned event schema), `src/runtime/peek/**` (route, `peek` command), `src/webview/peek/**` (lazy read-only page) | M96's map and M96c's board row-action slot and the team host's attempt subscription (the hook, with their owners); `src/host/views/` (a read-only peek tab beside M87's tasks tab); `src/runtime/companion/guard.ts` (the read-only scope, with M104 lane C's owner); M109's scrub service (with its owner); `src/acp/agent.ts` (`/peek`)                                                        | after 0, with M96's hook and M109's scrub service merged             |
+| X Routes and end-to-end security (d; two lanes)  | D90.8–9. X1: the direct public listener with pre-TLS limits; `node relay`, server and client; the overlay range; the SSH route. X2: identity keys; the committed SAS; the invitation lifecycle; per-message sequence numbers; rotation; subtract-only revocation and stop; sealed at boot and the remote unseal                                                                                                                                                                                                                   | new `src/core/devices/routes/**`, `src/runtime/node/relay/**` (X1); `src/core/devices/{sas,rotation,revocation,sequence}.ts`, `src/runtime/node/seal.ts` (X2)                                    | M100 lane T's transport, once portable; D80's address classifier (`100.64.0.0/10`); M109's slot code (sealed at boot and the remote unseal, with M109's owner)                                                                                                                                                                                                                                   | after R1, on M100 lane T                                             |
+| G Gateway and editors (d, g)                     | D90.12's gateway and D90.21: **Open {node}**; `acp --node` (no `fs/*` for a node's workspace); `exec --node`; `tui --node`; the LSP broker over the pair and `@codemirror/lsp-client` in the editor page (M110g)                                                                                                                                                                                                                                                                                                                  | new `src/runtime/node/gateway/**`, `src/runtime/node/attach/**`                                                                                                                                  | `src/acp/agent.ts` (the remote session mode); `src/runtime/lsp/**` (with M104 lane H); the extension's Devices section (the **Open** action, with M100 lane U)                                                                                                                                                                                                                                   | after X's first route; the editor's LSP after M104e                  |
+| A Sign-in, the rest (e; two lanes)               | D90.11. A2: passwords (Argon2id or scrypt), TOTP, recovery codes, OIDC with PKCE, reverse-proxy sign-in. A3: ACME certificates, the PWA, the secure-context and domain checks                                                                                                                                                                                                                                                                                                                                                     | `src/runtime/node/auth/**` (with A1's owner), new `src/runtime/node/acme/**`                                                                                                                     | `src/runtime/companion/guard.ts` (with M104 lane C's owner); M109 (TOTP seeds and recovery codes as vault items, with M109's owner)                                                                                                                                                                                                                                                              | after M110a0                                                         |
+| S Rented servers and appliances (f)              | D90.4 and 20: the rented-server installer profile and its verifier, hardening, cloud-init, teardown; the Helm chart; the Proxmox LXC template                                                                                                                                                                                                                                                                                                                                                                                     | `deploy/install/**` (with S0's owner), new `deploy/cloud-init/**`, `deploy/helm/**`, `deploy/proxmox/**`                                                                                         | `.github/workflows/node-image.yml` (chart jobs, with C)                                                                                                                                                                                                                                                                                                                                          | after C and X                                                        |
+| O Operations (f)                                 | D90.19: backup and restore; upgrades, channels and rollback for containers and native installs; OpenTelemetry export (off by default) and the Prometheus text endpoint; retention and quotas; clock checks; crash reconcile; wipe with crypto-erase                                                                                                                                                                                                                                                                               | new `src/runtime/node/ops/**`                                                                                                                                                                    | M102's retention (node caps); M93's recorder policy (the node's journal); M107's levels (disk free, with its owner)                                                                                                                                                                                                                                                                              | after N                                                              |
+| Q Qualification (os, f)                          | The hardware matrix for Muse Node OS; the Pi, the rented server, Kubernetes and Proxmox, each on real hosts or recorded as waiting                                                                                                                                                                                                                                                                                                                                                                                                | `docs/certification/m110-hosts.md`                                                                                                                                                               | —                                                                                                                                                                                                                                                                                                                                                                                                | after OS1; again after S and O                                       |
+| L Local models and GPUs (g)                      | D90.7's local models: sidecar recipes on loopback; CDI, ROCm and Intel; the native macOS node; detection on the dashboard                                                                                                                                                                                                                                                                                                                                                                                                         | new `deploy/compose/models/**`, `src/runtime/node/models/**`                                                                                                                                     | `deploy/helm/**` values (with S); M95's local presets (loopback sidecar detection, with M95's owner)                                                                                                                                                                                                                                                                                             | after W                                                              |
+| M Team mode (h; three lanes)                     | D90.16: people, roles, OIDC groups; per-person sandboxes, vault namespaces and sign-in homes; budgets and audit per person                                                                                                                                                                                                                                                                                                                                                                                                        | new `src/runtime/node/team/**`                                                                                                                                                                   | A's sign-in; W's sandboxes; M109's namespaces; M108's accounts (per person)                                                                                                                                                                                                                                                                                                                      | after A, S and the owner's terms decision                            |
+| J Docs and certification (throughout)            | Each phase's README, operator guide, SECURITY, PRIVACY, CHANGELOG, AGENTS.md, PLAN and editor-matrix updates, and its certification                                                                                                                                                                                                                                                                                                                                                                                               | `docs/node/**`, `docs/certification/m110*.md`                                                                                                                                                    | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN (D90 and M110 only)                                                                                                                                                                                                                                                              | throughout                                                           |
+
+- **Steps.**
+  1. **M110a0.** Lane 0 and its review (no listener code before it is
+     accepted); the A0 captures, with no model call; then N and C, with U1,
+     U2, T and A1 against fakes from day one, wired as N lands; S0 last, on
+     the owner's PCs.
+  2. **In parallel once M110a0 merges:** M110os (OS1 first, then OS2–OS7 and
+     Q); M110e (A2, A3); M110b as soon as M107 lane G and M109 merge.
+  3. **M110r's Y1** from now on, beside everything else: it needs no node and
+     ships in every editor. Its owners' reviews come from M106 lane R and
+     M101 lanes C1 and C2.
+  4. **M110a** once M100's portable split and lanes E, S and G, and M96c, are
+     merged: P, R1, then F1, with Y2, Y3 and Y4's network scenarios. M110a
+     does not ship without them.
+  5. **M110c** (R2, F2, U3) after M110a and M110b.
+  6. **M110d** (X, F3, G, K's remote part), then the independent review and
+     the red-team drills.
+  7. **M110f** (S, O, Q). **M110g** (L, G's LSP) any time after M110b.
+  8. **M110h** after the owner's terms decision.
+  - **The Muse Code capture.** The sign-in on a node with no browser is a
+    sign-in, not a turn, under the owner's sign-in authorization; it is
+    captured once, in an empty workspace, during M110a0's lane 0.
+- **Acceptance** (fakes unless a host is named; every row has a red drill):
+  1. **The home node (a0).**
+     - **Install.** The Compose file and the `docker run` line work on Docker
+       Desktop on Windows 11 (WSL 2) and macOS, and on Docker Engine and
+       Podman on Linux; the native installer works on Debian 13 and Ubuntu
+       24.04; amd64 and arm64.
+     - **Reach.** From another PC on the LAN, the browser pairing shows the
+       fingerprint the node's console and TUI show; after the certificate is
+       installed, sign-in works. A changed certificate is refused. Without the
+       certificate installed, the browser refuses the passkey, and our page
+       explains what to do (drilled in Chrome, Edge, Firefox and Safari).
+     - **Sign-in.** The setup code enrolls one passkey, once, in its window;
+       a reload asks again; Playwright finds no bearer in a cookie, URL,
+       storage or asset; a cross-origin form, fetch, EventSource and WebSocket
+       are refused; throttling holds at its numbers; opening a terminal asks
+       for step-up.
+     - **The panel.** M104's conformance scenarios pass through the node's
+       companion route: a conversation, approvals allowed, denied and
+       cancelled, a diff reviewed, settings changed, a session resumed after a
+       restart.
+     - **Files, editor, git.** Browse, edit, diff and commit; push with the
+       deploy key from the git page; an agent's `git push` gets no credential.
+     - **Two users.** A terminal and every tool run as `muse-tools`: reading
+       the node's state folder fails, attaching to the node's process fails,
+       and no credential is in their environment.
+     - **The interim key store.** The key is AES-GCM under the passphrase
+       slot; the store is sealed after a restart; a planted canary key never
+       appears in an environment, argument, file, log or frame; its records
+       parse with M109's reader once M109's lane 0 publishes the schema.
+     - **Listening.** Nothing listens until `node init` chooses an interface;
+       only the TLS port answers; before sign-in it serves only the sign-in
+       page; **Stop everything** and **Lock node** work.
+     - **The image.** Signed and verified with the release identity (a
+       tampered digest fails); SBOM and provenance attached; the layer scan's
+       canary drill; the size within the budget lane C records.
+     - **The TUI** works on the machine, including its screen-reader mode.
+  2. **Muse Node OS (os).**
+     - **Boot.** Every image boots in QEMU (x86-64, and aarch64 `virt` with
+       UEFI) on every change and reaches the first-boot page.
+     - **First boot.** The setup sets the network (including a Wi-Fi seed
+       read once and deleted), the disk, the passkey, the browser pairing and
+       an optional SSH key, and refuses anything before the setup code.
+     - **Updates.** An update that fails its trial boot rolls back by itself,
+       on EFI and on the Pi's tryboot. A tampered or downgraded bundle is
+       refused.
+     - **The system.** The root is read-only. Only the node's port (and SSH
+       when enabled) is open. Disk encryption seals to the TPM where there is
+       one, and a changed boot chain cannot unseal it.
+     - **Releases.** Assets carry checksums, signatures and their source
+       packages.
+     - **Chrome.**
+       - The Install Google Chrome step adds nothing before the user's click.
+       - A signing key whose fingerprint differs is refused.
+       - Chrome becomes the default browser on amd64 and arm64.
+       - Declining installs Chromium, and the UI says so.
+       - Chrome updates through the add-on layer.
+       - The browser check never starts the installed Chrome or opens its
+         profile (a process and file spy), and its sandboxed policy file
+         holds no `Proxy…` policy.
+     - **On hardware:** an x86-64 mini PC, an old desktop, a Pi 4, a Pi 5
+       and an ARM64 UEFI server, or each named as waiting.
+  3. **Worker (a).** M100's acceptance A–K passes again with the runtime as
+     the receiver. Approval forwarding refuses a forged, altered, expired or
+     replayed answer, and any forwarded Bypass. Paid consent binds on the
+     paying node.
+  4. **Network resilience (r), by fault injection** (lane Y4), each scenario
+     run across a running job and a streaming turn:
+     - **Address change.** The node's DHCP lease moves it to a new address
+       mid-task, the rig's own .154 to .191 case. It is back online within
+       `NODE_REDISCOVER_MAX_MS`, with no human, and the job continues.
+     - **Link flap, partition and long outage.** The link goes down and up
+       every few seconds; one direction or both are partitioned; the outage
+       lasts hours, with a fake clock beside a real short outage. Throughout,
+       the state is "unreachable since {time}, retrying" in every UI, never
+       offline before the notice or the user's timeout. The node keeps safe
+       work going, queues results, stops at its lease's end, and resends
+       after reconnecting.
+     - **Relay loss and clock skew.** The relay is killed mid-stream, and the
+       node's clock is skewed by minutes. The route and the leases (which use
+       monotonic clocks) still hold.
+     - **Re-dispatch.** After a lease expires, re-dispatch starts from the
+       last acknowledged checkpoint under a new epoch. The old node, returning
+       late, is refused at every gate, and its results land only in
+       quarantine.
+     - **What is proved each time:**
+       - every acknowledged checkpoint and queued result arrives once (no
+         lost work);
+       - the counters on the fake git remote, broker, paid gate, relay and
+         tool sink show each step once (no duplicate side effects);
+       - the recorded UI states match the expected sequence.
+     - **Turns.** A fake Model API cuts the stream mid-message, mid-tool-call
+       and mid-compaction. The turn pauses and resumes from the last
+       consistent point; no tool runs twice; the compaction is applied once or
+       not at all; the journal shows each attempt settled once. The same holds
+       on Muse Code and an ACP agent, by continuation, once their error frames
+       are captured.
+  5. **Sandboxes (b).** Each workspace has its own. A request to a host
+     outside the policy fails; `169.254.169.254` fails (a fake metadata
+     server in a test network namespace); a burst of new connections is
+     limited. Devcontainer lifecycle commands run only after trust, only in
+     the sandbox. A quota refuses; cleanup removes stale sandboxes. A git
+     token never reaches a workspace's disk or a sandbox's environment (a
+     canary grep). The governor throttles a sandbox's cgroup and never kills
+     it.
+  6. **Orchestrator host (c).** M100's acceptance with the runtime as the
+     orchestrator; M96c's board and merge queue on a node; relocation and
+     account pools across nodes. The model relay keeps the key out of every
+     frame, disk and environment on the node (canaries), and the usage is
+     journaled for the payer.
+  7. **Remote reach (d).** A raw TCP client and a TLS client without a
+     pinned certificate get no application byte from the public listener; the
+     pre-TLS limits hold under a flood. A relay's memory dump and logs hold no
+     plaintext canary; a replayed or reordered frame through it is refused. A
+     SAS run that reveals a key before its commitment fails the test (the
+     drill breaks the order). An invitation works once and expires. Rotation
+     keeps both pins through its overlap. A revocation and a stop sent from a
+     third device end the target's sessions everywhere. A node set to start
+     sealed restarts sealed and opens only by a paired unseal. The lost-device
+     drill revokes from the phone's session.
+  8. **Full sign-in (e).** A password sign-in without TOTP is refused. The
+     KDF and its parameters are recorded. OIDC with PKCE passes against the
+     fake provider. Reverse-proxy sign-in is accepted only from the configured
+     socket. A bare IP address is refused for passkeys, with the reason. ACME
+     issues against the fake ACME server.
+  9. **Servers and operations (f).** The installer on fresh Debian 13 and
+     Ubuntu 24.04 VMs refuses a tampered artifact; afterwards only SSH and the
+     node's port are open, unattended upgrades are on, and the unit's
+     `systemd-analyze security` exposure is within lane 0's threshold. A
+     backup, wipe and restore round trip returns the same state. After a
+     wipe, a saved copy of the old volume cannot be decrypted. An upgrade
+     whose readiness fails rolls back by itself. Below the disk-free floor no
+     new work starts. A skewed clock warns and refuses TOTP. The Helm chart
+     installs under the restricted Pod Security profile on a local cluster.
+  10. **Local models (g).** A loopback sidecar serves; plain HTTP to a
+      non-loopback sidecar is refused. NVIDIA through CDI on the owner's GTX
+      1080 Ti VM; the native macOS node with Ollama on the Mac mini.
+  11. **Live peek (b, d, e).** Every kind of agent has a **Peek** link in the
+      Agent map and board (VS Code, the companion page, the web UI), a TUI
+      view and a `peek <agent-id>` stream, local and `--node`. The route
+      accepts only subscribe: a write, a steer, an approval answer or a stop
+      sent on a peek bearer is refused (each tried). A planted vault canary
+      never appears in any peek event. A stalled viewer gets a gap marker
+      while the agent's own timing is unchanged (the fake clock measures it).
+      The viewer cap holds. A share link works once to mint its bearer,
+      expires, is revoked at once, and shows in the owner's viewer count and
+      the audit.
+  12. **Team mode (h).** The role matrix holds; one person's sign-in, key or
+      vault item is never used for another (a frame test).
+  13. **Editors.** **Open {node}** from VS Code's Devices section; an ACP
+      bridge session with no `fs/*`; `tui --node`; `exec --node` under D65.
+  14. **Nothing changes for anyone else.** `dist/extension.js`, the ACP stdio
+      path and the webview's main bundle carry no node code (the split gate);
+      peek's code loads only when a **Peek** link is used; and single-device
+      request goldens are byte-identical.
+- **Tests.** Unit tests per lane with a red drill each, recorded in
+  `docs/certification/m110<phase>-<lane>.md`; e2e suites that run the node
+  against the fake CLI, the fake Model API, the fake engine and a fake relay;
+  container tests in CI on Linux (amd64 and arm64 runners) with real rootless
+  Podman and Docker; Playwright for the web UI with the virtual authenticator;
+  TUI goldens; QEMU boot tests for every OS image; a frame fuzzer for the node
+  protocol and the relay; partition, relay-loss, reboot-sealed and clock-skew
+  drills. **Red drills, at least:** a page served before sign-in other than
+  the sign-in page; a tool reading the node's state as `muse-tools`; a
+  passkey accepted on a page with a certificate error; an application byte
+  before mutual TLS; a relay that logs plaintext; a SAS without its
+  commitment; a revocation from a non-pair accepted; a replayed frame
+  accepted; a bearer in a cookie; the metadata address reachable from a
+  sandbox; a git token on a sandbox's disk; an unsigned image or OS update
+  accepted; an OS update that fails its boot check and stays; a forwarded
+  Bypass accepted; the relay used for a second person; a peek bearer that can
+  send to its agent; a peek event carrying a vault value; a slow viewer that
+  slows its agent; a node addressed by its IP so that a renumbered node is
+  lost; a re-dispatch before the lease and guard have passed; an old epoch
+  accepted at a gate; a repeated step key performed twice; a turn that fails
+  on a cut stream instead of pausing; a tool re-run on resume; a compaction
+  half applied; a cut attempt settled twice; Chrome installed or its terms
+  accepted without the user's click; a Google signing key with another
+  fingerprint accepted; the browser check started on the installed Chrome.
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  `check:editor-matrix`, D6's budgets and the split gate, the exec schema
+  check, `test:a11y` (every new page, four themes, 320 px). New, each with a
+  red drill and a rule 9 record: `check:node-image` (size, non-root, no
+  secrets in layers, SBOM and signature present); a Containerfile linter; a
+  shell linter for `deploy/install/**`; `helm lint` with a schema validator;
+  `actionlint` for the new workflows (shared with M104); a vulnerability scan
+  of each image (a fixable critical fails); the units' `systemd-analyze
+security` threshold; the OS images' QEMU boot test and their reproducibility
+  check (two builds, one digest). Tools run pinned, by digest or SHA-256, in
+  CI, and CI artifacts carry a retention period (D90.19).
+- **Security.** D90.14's threat model, reviewed per phase before code and
+  again before train 4. Rule 8 as D89 amends it, with the node's row and
+  M110a0's interim key store (Q-M110). PLAN §9 records the residuals: a
+  compromised node can act as itself until revoked; a person can choose
+  **Store on this node**; same-user processes on a node; the home node's two
+  users share one kernel and one container until M110b; "hardware backed"
+  covers the vault key only, until a TPM provider for Node's TLS is
+  qualified; Muse Node OS without a TPM needs a passphrase at boot.
+- **Docs.** README's "Muse Node" section with tested commands only; the
+  operator guide (`docs/node/`): the home node first (Docker Desktop on
+  Windows and macOS, Linux, the browser pairing on each OS), then Muse Node
+  OS (writing an image, first boot, updates, Chrome, disk encryption, the
+  owner-only Secure Boot steps), DHCP reservations as a recommendation and
+  what the node does without them, every other form factor, rented
+  servers and hardening, pairing and routes, sign-in, backups, upgrades,
+  teardown and wipe, and the threat model's summary; SECURITY (the boundary,
+  revocation, the relay's view, a compromised server); PRIVACY (what a node
+  holds, what a relay sees, what the audit records); CHANGELOG per train;
+  `docs/acp.md` (`--node`); `docs/ci.md` (`exec --node`); the editor matrix.
+  None describes a later phase as supported.
+- **Performance and size** (planning targets; lanes C, U1, U2, OS1 and J
+  measure them and record the D6 budgets before shipping):
+  - the base image at most 200 MB compressed per architecture; packs
+    reported separately; Muse Node OS images reported per target;
+  - an idle node at most 1% of one core and 200 MiB resident on a Pi 5,
+    sandboxes excluded;
+  - the web UI's first load at most 2 s on the LAN from a Pi 5;
+  - terminal echo at most 50 ms on the LAN and 150 ms through a relay on the
+    same continent;
+  - the node's web chunks lazy: CodeMirror's at most 600 KiB, xterm.js's at
+    most 400 KiB; the webview's main bundle (900 KiB) and every existing D6
+    cap unchanged;
+  - the runtime's `node` entry measured, plus 15%, as M104 sets for `panel`;
+  - Live peek: the peek page a lazy chunk; the tap is off until the first
+    subscribe, and under `PEEK_MAX_VIEWERS` viewers adds at most 1% CPU to
+    the host.
+- **Size.** XL: about 1,660 lane-hours over eleven phases, M110a0 about 290.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Each phase's threat model accepted by Codex and Claude before its
+        code, and the whole again before train 4
+  - [ ] The captures recorded in `docs/certification/m110-captures.md`, or
+        named as waiting (Q-M110)
+  - [ ] M110a0 installed on the owner's PCs (Docker Desktop on Windows, and
+        Linux) and reached from another PC with a passkey
+  - [ ] Every lane's red drills, with byte-exact restored sources
+  - [ ] Images signed and verified; SBOM and provenance attached; the layer
+        secret scan's canary drill
+  - [ ] Muse Node OS images boot-tested in QEMU for both architectures, and
+        on the hardware matrix or named as waiting; Chrome installed by the
+        user's click on amd64 and arm64
+  - [ ] Every fault-injection scenario green, with no lost work, no
+        duplicate side effects and the recorded UI states; Y1's turn
+        resilience reviewed by M106 lane R's and M101 lane C's owners
+  - [ ] Every new page and the TUI's screen-reader mode under the
+        accessibility gate; strings in all 14 tables
+  - [ ] M100's acceptance re-run with the runtime on both sides
+  - [ ] Live peek read-only, scrubbed and bounded in every editor and the
+        TUI, with its share-link drills
+  - [ ] The internet drills (public listener, relay, SAS, revocation, seal)
+        before train 4
+  - [ ] The installer and teardown on fresh Debian and Ubuntu VMs; the Pi
+        and a rented server qualified, or named as waiting
+  - [ ] Research §4.10's terms checks done and dated before each train
+  - [ ] Editor rows recorded; budgets measured; the full gate green; no
+        live or paid call without CLAUDE.md's count first
 
 ## 7. Gates
 
