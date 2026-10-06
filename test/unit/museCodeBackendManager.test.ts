@@ -38,6 +38,11 @@ const PROXY_NAMES = [
   'no_proxy',
 ]
 
+/** Even a deliberately broken admission guard cannot start a real CLI. */
+function unexpectedNativeSpawn(): never {
+  throw new Error('unexpected native spawn')
+}
+
 /** A manager with test-owned settings and startup dependencies. */
 function managerWith(
   configured: readonly EnvironmentVariable[],
@@ -203,9 +208,7 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
     accountHome.assertCurrent.mockImplementation(() => {
       throw new Error('account revoked')
     })
-    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
-      throw new Error('unexpected native spawn')
-    })
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(unexpectedNativeSpawn)
     const manager = managerWith([], '', new FakeLogOutputChannel(), {
       accountHome,
       getConfiguredBinaryPath: () => process.execPath,
@@ -217,9 +220,7 @@ describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
 
   it('rechecks the account after the workspace startup fence before spawning', async () => {
     const accountHome = fakeAccountHome()
-    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(() => {
-      throw new Error('unexpected native spawn')
-    })
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(unexpectedNativeSpawn)
     const manager = managerWith([], '', new FakeLogOutputChannel(), {
       accountHome,
       getConfiguredBinaryPath: () => process.execPath,

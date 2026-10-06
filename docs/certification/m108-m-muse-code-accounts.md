@@ -234,3 +234,53 @@ Remaining required bounded-lane static/build receipts are recorded below when
 complete. The explicit rig brief forbids the full quality/unit suite here;
 the lead owns that gate. Existing thresholds, rules, hooks and budgets stay
 unchanged. `.husky/_/pre-commit` existed before this first local commit.
+
+## Final bounded-lane checks and build
+
+All commands ran directly on macmini; every test run used the repository's
+default timeout, at most three complete files, and no test-name filter.
+
+| Check                                                 | Result                                                                                                                                                                        |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Four owning test files                                | Exit 0, **196 tests** (50 home/recovery, 26 launch, 22 manager, 98 host).                                                                                                     |
+| `npm run typecheck`                                   | Exit 0, all five projects.                                                                                                                                                    |
+| Changed-source ESLint / Prettier / `git diff --check` | Exit 0, no new escape hatch.                                                                                                                                                  |
+| `npm run deadcode`                                    | Exit 0; only existing vendor/axe-core configuration hints.                                                                                                                    |
+| `npx jscpd`                                           | Exit 0, **1,191 files, zero clones**, unchanged zero threshold. The first run caught duplicated native-refusal test setup; one shared test-only throwing function removes it. |
+| `node scripts/check-l10n.mjs`                         | Exit 0; **14 tables, 164 manifest strings, 607 source files, zero problems**. No new strings.                                                                                 |
+| `npm run check:host-api`                              | Exit 1: record-only count drift, no boundary violations. See the W-owned handoff below.                                                                                       |
+| `npm run build`                                       | Exit 0: all budgets, split guards, host-global checks and **83-package notices** pass.                                                                                        |
+| Guard drills                                          | **62 distinct named red drills**, exact-byte/SHA-256 restoration. Four manager drills repeated after removing duplicated test setup, then all 22 manager tests pass again.    |
+| Implementation commit                                 | `c578d50b`, hooks on: nine TS files pass lint-staged ESLint/Prettier, staged gitleaks reports **zero leaks**.                                                                 |
+
+Production sizes: activation **441.0/600 KiB**, Model API **450.1/475 KiB**,
+ACP **819.3/850 KiB**, checkpoint **76.9/225 KiB**, webview startup including
+static imports **897.3/900 KiB**, deferred webview JS **49.7/50 KiB**.
+No cap changes. Metafile inspection confirms **zero production bundles**
+include `accountHomes.ts`: existing modules import its port only as a type.
+W must bind the owner/recovery into M95's lazy providers factory, install the
+caller's language table before use, measure that bundle and retain its split
+guard. This core is not falsely advertised as an installed feature.
+
+### M-W-HOST-API — record-only integration handoff
+
+`docs/ide-compatibility/host-api.md` belongs to W, and the lane brief forbids
+editing another lane's files. The exact required record changes are:
+
+- `node:crypto`: **46 → 47** importers. This is inherited: a read-only AST
+  import inventory of base `291fc547a` using the gate's import-node rules
+  confirms 47 crypto importers and 84 path importers.
+- `node:path`: **84 → 85** importers, from the new account-home path builder.
+
+The check reports **332 VS Code APIs, 31 vscode importers, 25 Node built-ins
+and 61 theme variables**, with one record-drift problem. There is no new
+VS Code API or forbidden portable import. W's concrete resume action is
+`npm run check:host-api -- --write`, review those two count rows, then run
+`npm run check:host-api`. W must record this bounded-lane deferral in PLAN §7
+when integrating its owned documentation; this lane does not weaken the gate
+or edit the record to conceal the drift.
+
+Q-M108 capture and W's bindings remain required before enabling the feature.
+There was no install, live/paid call, merge, rebase or push. Temporary drill
+logs, runners and receipts are removed inside this worktree at final cleanup.
+The normal commit hook's own backup stash was automatic; no manual stash ran.
