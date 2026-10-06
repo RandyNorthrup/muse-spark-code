@@ -3455,6 +3455,14 @@ results and what is still open.
 
 ## Development
 
+**Local maker emulators (M103 X).** The Linux rig's
+[`scripts/emulators/supervisor.py`](scripts/emulators/supervisor.py) owns
+private socat UART pairs and emulator processes, bounds their lifetime to
+ten minutes, and provides idempotent start/stop with process identity checks.
+It passes a minimal environment to children. Emulator qualification and
+remaining hardware checks are recorded in
+[`docs/certification/m103-x.md`](docs/certification/m103-x.md).
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code

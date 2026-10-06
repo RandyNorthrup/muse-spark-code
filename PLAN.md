@@ -15217,6 +15217,24 @@ import, and it goes on M60's portable list. The only VS Code code is lane V.
 | E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 **Lane G's table (initial; each row and each near-miss is a fixture).**
+**Lane X emulator qualification (owner, 2026-10-05).** Add local, bounded,
+idempotent launch/stop scripts under `scripts/emulators/` for QEMU Pi 3B,
+Pi 4B and aarch64 virt with Raspberry Pi OS Lite; Espressif QEMU ESP32,
+S3 and C3; simavr Uno/Mega; rp2040js Pico; Renode STM32/nRF52. UARTs
+use private socat PTYs with stable device-style aliases. Synthetic USB
+metadata stays in `test/` and uses P's discovery seam without changing
+the production OS discovery. An opt-in `MUSE_MAKER_EMULATORS=1` e2e suite
+exercises available P flows, host-only per-action approvals, cancellation
+and real cross-process leases. Real tool flashing is qualified separately
+until G/W's guarded dispatcher exists on this base; no test classifier
+is presented as G's physical-safety guard. GPIO uses guest gpio-sim or
+gpio-mockup where supported. No model or paid calls. Emulator receipts,
+versions, every blocked/unavailable flow and remaining electrical/RF/timing
+hardware checks go in `docs/certification/m103-x.md`. Installation is
+authorized on the Kubuntu rig; no emulator dependency ships in the product.
+The lane brief reserves full quality for the lead and forbids merges/pushes;
+X runs focused suites and the individual static/build gates with hooks on.
+
 esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
 (`write_flash`) with a warning; both spellings are rows.
 

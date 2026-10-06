@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Local Linux maker emulator lifecycle harness: private socat UART pairs,
+  bounded process ownership, idempotent Stop, and focused cleanup tests.
+  These rig tools are development assets and do not change hardware approvals.
+
 ### Fixed
 
 - **The README's "What's new" section matches the release again.** 0.12.1 and
