@@ -130,6 +130,13 @@ async function host(
   return { ...t, engine, session, store, consent, paidUses, turn, events: watched.events }
 }
 
+async function expectSearchUnavailable(t: Awaited<ReturnType<typeof host>>): Promise<void> {
+  await t.turn()
+  expect(t.consent).not.toHaveBeenCalled()
+  expect(t.api.responseBodies()[0]?.['tools']).not.toContainEqual({ type: 'web_search' })
+  expect(t.api.responseBodies()[0]).not.toHaveProperty('max_tool_calls')
+}
+
 describe('M106 hosted-search bounds', () => {
   it('reserves tokens plus the bound, then settles the captured U8 search call exactly', async () => {
     const c = claims()
@@ -258,8 +265,7 @@ describe('M106 hosted-search bounds', () => {
     expect(t.api.responseBodies()[0]?.['max_tool_calls']).toBe(1)
     expect(reserved.mock.calls[0]?.[2]).toBeLessThanOrEqual(0.1)
     expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
-      estimateCostUsd({ inputTokens: 10, outputTokens: 5, cachedTokens: 0 }, 'muse-spark-1.3') +
-        2 * PRICE,
+      0.00003375 + 2 * PRICE,
       12,
     )
     expect(t.log.warn).toHaveBeenCalledWith(expect.stringContaining('2 calls above its bound of 1'))
@@ -277,8 +283,7 @@ describe('M106 hosted-search bounds', () => {
       await t.turn()
       await t.engine.close()
       expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBeCloseTo(
-        estimateCostUsd({ inputTokens: 10, outputTokens: 5, cachedTokens: 0 }, 'muse-spark-1.3') +
-          2 * PRICE,
+        0.00003375 + 2 * PRICE,
         12,
       )
       expect(t.paidUses.mock.calls.reduce((total, [, units]) => total + units, 0)).toBe(2)
@@ -316,10 +321,7 @@ describe('M106 hosted-search bounds', () => {
           },
         }),
       })
-      await t.turn()
-      expect(t.consent).not.toHaveBeenCalled()
-      expect(t.api.responseBodies()[0]?.['tools']).not.toContainEqual({ type: 'web_search' })
-      expect(t.api.responseBodies()[0]).not.toHaveProperty('max_tool_calls')
+      await expectSearchUnavailable(t)
     },
   )
 
@@ -335,9 +337,7 @@ describe('M106 hosted-search bounds', () => {
           },
         }),
       })
-      await t.turn()
-      expect(t.consent).not.toHaveBeenCalled()
-      expect(t.api.responseBodies()[0]?.['tools']).not.toContainEqual({ type: 'web_search' })
+      await expectSearchUnavailable(t)
     },
   )
 
@@ -345,9 +345,7 @@ describe('M106 hosted-search bounds', () => {
     'does not offer search with an invalid configured bound of %s',
     async (bound) => {
       const t = await host({ capUsd: 1, capabilities: () => CAPABILITIES, maxCalls: () => bound })
-      await t.turn()
-      expect(t.consent).not.toHaveBeenCalled()
-      expect(t.api.responseBodies()[0]?.['tools']).not.toContainEqual({ type: 'web_search' })
+      await expectSearchUnavailable(t)
     },
   )
 
@@ -472,7 +470,7 @@ describe('M106 hosted-search bounds', () => {
     await expect(
       Array.fromAsync(instance.streamResponse(BODY, new AbortController().signal)),
     ).rejects.toThrow(
-      fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(0.02 + 3 * PRICE) }),
+      fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(0.02 + 3 * PRICE, 2) }),
     )
     expect(c.settled).toEqual([(c.amounts[0] ?? 0) + 2 * PRICE])
   })

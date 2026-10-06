@@ -500,7 +500,7 @@ export class ModelApiClient {
       throw new Error(
         unknownChargeUsd === undefined
           ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
-          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd, 2) }),
       )
     }
     return cost
