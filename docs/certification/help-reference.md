@@ -275,3 +275,87 @@ No native/phone adapter, physical microphone, live model or paid transport was
 exercised. Aggregate quality, merging, rebasing and pushing are forbidden by the
 rig brief; the lead retains full integrated quality and the second truth audit.
 No dependency, paid/live call, credential access or gate/cap weakening occurred.
+
+## REDHELPREF — Runtime-owned reference redesign (2026-10-05)
+
+Rig: Kubuntu, Node 24.18.0; base `94a1e7d3b`, branch `feat/help-reference-fix`.
+This record supersedes the previous claim that the heuristic inventory was
+sufficient. Both audits' 39 findings have owning regressions. The page contains
+52 features, 44 commands, 58 settings, 26 static slash selectors, 116 CLI rows
+and 29 keyboard rows (eight contributed shortcuts and 21 webview contexts).
+Installed skills remain dynamic. Native/phone implementations, live models,
+physical microphones and paid transports are outside this certification.
+
+### Sources of truth
+
+| Fact kind          | Runtime source and resolver                                                                                          | Independent check                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Settings           | `package.json` contributed schema; `resolveSettingDefault`; complete schema/NLS annotations                          | Actual defaults, scalar endpoints and `readSettings` refinements                      |
+| Commands           | Contributed command IDs and palette menus; `resolveCommandCondition`                                                 | Every menu condition, alternate paths and enablement grouping                         |
+| Keyboard           | Contributed keybindings and `WEBVIEW_KEYBINDINGS`; every handler calls `webviewKey`                                  | Recursive webview source inventory plus real callback/focus/send tests                |
+| Slash              | Runtime `SLASH_REFERENCE` carried by `slashCommandsOf`                                                               | Existing goal/review/loop parsers, code-quoted Markdown grammar                       |
+| CLI/ACP            | `CLI_OPTION_REGISTRY` passed directly to runtime `parseArgs`                                                         | Every route/option/alias accepted or deliberately refused by actual parser            |
+| Paid               | `PAID_USE_REGISTRY` used by `PaidUsage.add` and popup window grants; `isPaidSettingOn` uses Judge's actual predicate | Identity checked independently of feature setting relationships; tally/consent suites |
+| Descriptions       | Own catalogue/NLS fields in English and all 14 locales                                                               | Conditional-state, failure-reference and untranslated-fact lint                       |
+| Surfaces/admission | Existing runtime registrations, pure helper selectors and reviewed host wiring witnesses                             | Independent capability/action/tool inventory and existing audit regressions           |
+
+Enum defaults are values with meanings, never an inferred enabled boolean.
+Send gestures carry their setting condition in the runtime table. Common auth,
+login and Setup options retain accepted-unused/refused contracts. Headless
+images have their own noninteractive admission description. All search fields
+use the text actually rendered, and visible feature links retain their targets.
+No parser, consent, tally, sandbox, budget or feature behavior was relaxed.
+
+The expanded model is still zod-parsed before use. Raw pooled JSON, base-36
+indices and encoded numeric tokens preserve the unchanged bundle caps without
+shipping another English table into the browser page. Whole-model equality
+checks every decoded fact against the committed JSON; reserved strings cannot
+collide with pool or numeric tokens.
+
+### All audit findings
+
+R01–R23 refer to RVHELPREF; B01–B16 refer to RVHELPREF2. “Prevented” here means
+the reviewed bad state is rejected or its old derivation has been removed,
+backed by the regression shown; it is not a proof of arbitrary future prose.
+
+| Finding | Claim                 | Prevention                                                                           | Regression                          |
+| ------- | --------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| R01     | Plan/Auto safety      | Captured backend limits retained; no generic read-only promise                       | Generator R01                       |
+| R02     | Thinking              | Own catalogue field describes requested effort, not a display toggle                 | Generator R02                       |
+| R03     | Setup                 | Operation description names the runtime init event                                   | Generator R03                       |
+| R04     | Paid labels           | Runtime paid identities exclude cache, budget and subscription review                | Generator R04                       |
+| R05     | Paid contexts         | Explicit host/backend pairs and separate admission/ledger facts                      | Generator R05                       |
+| R06     | ACP workflows         | Independent capability inventory distinguishes extension workflows                   | Generator R06                       |
+| R07     | MCP/skills            | Backend-specific registry descriptions preserve ownership                            | Generator R07                       |
+| R08     | Best-of-N             | Separate paid feature and complete requirements; board stays free                    | Generator R08                       |
+| R09     | Tab                   | Contributed Invoke default and either-backend key path retained                      | Generator R09                       |
+| R10     | Voice                 | Actual helper probes and host refusal witnesses retain availability                  | Generator R10                       |
+| R11     | CLI contracts         | Runtime parser table supplies routes, flags, aliases and contracts                   | Generator R11, B12                  |
+| R12     | Slash/skills          | Runtime slash registry supplies grammar; dynamic skill limitation shown              | Generator R12, B07                  |
+| R13     | Actions               | Dedicated translated catalogue fields and runtime action inventory                   | Generator R13                       |
+| R14     | Settings              | Complete contributed schema plus runtime refinement probes                           | Generator R14                       |
+| R15     | Conditions/keys       | Menu resolver and shared handler table retain prerequisites/actions                  | Generator R15, command visibility   |
+| R16     | Surface parity        | Shared generated model rendered by page, terminal and Markdown                       | Entry/Page R16                      |
+| R17     | First ACP help        | Existing refresh-before-help regression retained; no model turn                      | ACP Agent R17                       |
+| R18     | Independent gate      | Runtime tools/actions/capabilities/parser/paid/key sources checked separately        | Generator R18, B06, B08             |
+| R19     | Release placement     | Help remains under Unreleased; history test retained                                 | Generator R19                       |
+| R20     | Unavailable values    | Real producer-to-page empty-values contract retained                                 | Entry/Page R20                      |
+| R21     | Loading failures      | Explicit error/retry and real activation-closure regression retained                 | Entry/Page R21                      |
+| R22     | Terminal localization | Installed NLS resolves command/settings/nested annotations                           | Entry R22                           |
+| R23     | Operation prose       | Command-specific catalogue fields, including auth status/clear                       | Generator R23                       |
+| B01     | Judge default         | Typed enum resolver preserves auto and its NLS meaning; actual on predicate tested   | Generator B01                       |
+| B02     | Headless images       | Own description and parser/admission contracts state flag/mode/budget, no question   | Generator B02                       |
+| B03     | Shortcut prose        | Each handler context owns its text; Tab fallback restricted to inline invoke         | Page B03                            |
+| B04     | Delegation state      | Conditional translated prose; unconditional-state lint rejects old claim             | Generator B04/B05                   |
+| B05     | Sandbox state         | Explicit Windows/use/off conditions; same lint rejects old prerequisite              | Generator B04/B05                   |
+| B06     | Semantic drift        | Paid identity independent of feature settings; raw dispatch rejected; action tests   | Generator B06; Modal/keyboard truth |
+| B07     | Markdown slots        | Grammar code-quoted; description slots escaped                                       | Generator B07                       |
+| B08     | All key contexts      | Recursive webview inventory and 21 runtime contexts; real actions tested             | Generator B08; owning UI suites     |
+| B09     | English facts         | Prose has catalogue/NLS fields; technical fact identifiers; raw prose lint           | Generator B09; localization gate    |
+| B10     | Search                | Localized displayed fields, key text, schema/default/current values searched         | Page B10                            |
+| B11     | Links                 | Visible feature relationships retain their command anchors under filtering           | Page B11                            |
+| B12     | Auth flags            | All six common-parser routes share the actual option table                           | Generator B12; ACP Runtime          |
+| B13     | Fixture regression    | Existing fixture builds reference; emitted referencePage script expected             | Deferred Bundles/Webview Bundle     |
+| B14     | Tab choices           | Own translated Snooze/Menu fields list all durations and conditional Copilot choices | Generator B14/B15                   |
+| B15     | Board prose           | Own translated field describes filtering/state/changes/approvals/activation          | Generator B14/B15                   |
+| B16     | Exec option prose     | Exhaustive typed operation-description map; failure-key reuse rejected               | Generator B16                       |

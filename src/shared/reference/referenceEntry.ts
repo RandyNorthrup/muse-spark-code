@@ -45,7 +45,7 @@ export function createReference(table: UiText, locale: string) {
           `${referenceName(f.name, REFERENCE, nls, UI_TEXT)}: ${referenceText(f.summary, REFERENCE, nls, UI_TEXT)}`,
           referenceText(f.description, REFERENCE, nls, UI_TEXT),
           ...f.details.map((text) => referenceText(text, REFERENCE, nls, UI_TEXT)),
-          JSON.stringify(f.facts),
+          JSON.stringify(referenceSchema(f.facts, nls)),
           f.surfaces.join(', '),
           ...(f.paid ? [UI_TEXT.referencePaid] : []),
           ...f.commands,

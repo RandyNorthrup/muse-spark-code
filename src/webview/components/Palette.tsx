@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The "/" command palette: a filter box over grouped rows, some carrying a
 // value, a toggle or the effort slider, plus the model list as a second view.
 // Fully keyboard-operable: the filter input keeps focus, Up/Down move,
@@ -282,29 +283,31 @@ export function Palette(props: PaletteProps) {
 
   const didHandleKey = (event: KeyboardEvent<HTMLElement>): boolean => {
     const active = rows[activeIndex]
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('palette', event)) {
+      case 'next': {
         move(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         move(-1)
         break
       }
-      case 'ArrowRight':
-      case 'ArrowLeft': {
+      case 'increase':
+      case 'decrease': {
         if (active?.step === undefined || active.widget?.kind !== 'slider') {
           return false
         }
         const { levels, current } = active.widget
-        active.step(effortIndex(levels, current) + (event.key === 'ArrowRight' ? 1 : -1))
+        active.step(
+          effortIndex(levels, current) + (webviewKey('palette', event) === 'increase' ? 1 : -1),
+        )
         break
       }
-      case 'Enter': {
+      case 'accept': {
         active?.activate()
         break
       }
-      case 'Escape': {
+      case 'close': {
         if (view === 'models') {
           onBack()
         } else {
@@ -413,7 +416,7 @@ export function Palette(props: PaletteProps) {
   }
   // Escape from the list; the filter box handles its own.
   const onPaletteKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key !== 'Escape' || event.target === filterBox.current) {
+    if (webviewKey('palette', event) !== 'close' || event.target === filterBox.current) {
       return
     }
     event.preventDefault()

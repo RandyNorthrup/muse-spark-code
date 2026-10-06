@@ -119,98 +119,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
 ]
 export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capabilityPairs)
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
-export function referenceKeyboardActions() {
-  return [
-    {
-      command: 'composer.send',
-      key: 'Enter / Ctrl+Enter / Cmd+Enter',
-      when: 'useCtrlEnterToSend',
-      text: {
-        ui: 'referenceSendKeys',
-      },
-    },
-    {
-      command: 'composer.newline',
-      key: 'Shift+Enter',
-      when: 'composer',
-      text: {
-        ui: 'referenceNewlineKeys',
-      },
-    },
-    {
-      command: 'composer.dictation',
-      key: 'Ctrl+D / Cmd+D',
-      when: 'composer; tap/hold',
-      text: {
-        ui: 'referenceDictationKeys',
-      },
-    },
-    {
-      command: 'composer.permission',
-      key: 'Shift+Tab',
-      when: 'composer',
-      text: {
-        ui: 'referenceModeKeys',
-      },
-    },
-    {
-      command: 'history.archive',
-      key: 'Delete',
-      when: 'history selected row',
-      text: {
-        ui: 'referenceArchiveKeys',
-      },
-    },
-    {
-      command: 'composer.select',
-      key: 'ArrowUp / ArrowDown / Enter / Tab / Escape',
-      when: 'slash/mention menu',
-      text: {
-        ui: 'referenceMenuKeys',
-      },
-    },
-    {
-      command: 'palette.effort',
-      key: 'ArrowLeft / ArrowRight',
-      when: 'effort row',
-      text: {
-        ui: 'referenceEffortKeys',
-      },
-    },
-    {
-      command: 'row.menu',
-      key: 'ContextMenu / Shift+F10',
-      when: 'focused row',
-      text: {
-        ui: 'referenceRowKeys',
-      },
-    },
-    {
-      command: 'radial.menu',
-      key: 'ArrowUp / ArrowDown / Home / End / Enter / Space / Escape',
-      when: 'radial menu',
-      text: {
-        ui: 'referenceRadialKeys',
-      },
-    },
-    {
-      command: 'header.rename',
-      key: 'Enter / Escape',
-      when: 'rename field',
-      text: {
-        ui: 'referenceRenameKeys',
-      },
-    },
-    {
-      command: 'modal.focus',
-      key: 'Escape / Tab / Shift+Tab',
-      when: 'modal',
-      text: {
-        ui: 'referenceModalKeys',
-      },
-    },
-  ]
-}
+export { referenceKeyboardActions, WEBVIEW_KEYBINDINGS, webviewKey } from '../keybindings'
 export const REFERENCE_ACTION_FEATURES = {
   openSettings: 'support',
   openKeybindings: 'support',
@@ -406,3 +315,12 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
 }
 
 export { LINUX_RECORDERS } from '../constants'
+
+export { CLI_OPTION_REGISTRY, CLI_OPTION_TEXT } from '../../runtime/cliOptions'
+export { SLASH_REFERENCE } from '../slashCommands'
+
+export { PAID_USE_REGISTRY, isPaidSettingOn } from '../paid'
+
+export { resolveSettingDefault, resolveCommandCondition } from './resolvers'
+
+export { REFERENCE_POOL_RADIX } from '../constants'

@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Help derives keyboard actions, CLI options and paid identities from the tables
+  used at runtime, preserves enum defaults and meanings, and describes conditional
+  availability explicitly. All descriptions have catalogue translations. Search
+  includes displayed shortcut text and keeps related command targets visible.
+  Headless image help states its flag, mode and budget admission without promising
+  an interactive price question. Deferred reference-bundle fixtures are complete.
+
 - Help now distinguishes host/backend combinations, subscription and key billing,
   paid defaults and actual voice/Tab availability. It retains setting schemas,
   command prerequisites and CLI/slash syntax, refreshes skills on first ACP help,

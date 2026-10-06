@@ -18204,6 +18204,29 @@ joined with M57, M58 and PR #49's sign-in
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
 
+### REDHELPREF — Runtime-owned reference facts (2026-10-05)
+
+Scope authorized by FIXHELPREF.rig.md: replace heuristic reference facts with
+typed runtime registries for CLI options, webview keys, slash grammar and paid
+identity. Settings retain the complete contributed schema; command conditions
+retain the contributed menus. Human descriptions live in the catalogue and all
+14 translations, never in generated fact strings or failure-message lookups.
+Conditional state is expressed as conditions, with a rejecting catalogue lint.
+The independent gate inventories all keyboard handlers and parser routes,
+regenerates every committed output in both directions, and tests actual actions,
+defaults, paid registry identity and route option acceptance. Preserve all
+existing audits' regressions, add the second audit's 16 regressions and repair
+deferred build fixtures. Search includes every displayed field and retains
+visible relationship targets. No native/phone implementation is added; ACP and
+CLI consume the same lazy reference through their existing bridges.
+
+- [x] Runtime-owned typed sources and translated catalogue descriptions.
+- [ ] Complete action coverage, independent truth tests and red drills.
+- [ ] Search/navigation, fixtures and scoped static/build validation.
+
+The rig brief forbids aggregate quality, merge, rebase and push. Hook-on local
+commits follow scoped green checks. Receipts: docs/certification/help-reference.md.
+
 ### FIXHELPREF — Reference truth audit repairs (2026-10-05)
 
 Scope: resolve RVHELPREF findings 1–23 in the existing help lane. Derive paid

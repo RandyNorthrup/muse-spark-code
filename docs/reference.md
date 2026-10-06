@@ -10,22 +10,23 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
 
-Offers best-of-N as a separate explicit action. Ordinary turns use one model unless you choose more attempts. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
+Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget prevents this workflow until candidate budgets can be shared. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.
 
-Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
-
-Best-of-N cannot start under a session budget until its attempts share the originating budget.
-
-Best-of-N requires Git 2.36 or newer and cannot run with configured filter or hook programs.
+Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
   "workspace": "trusted",
-  "attempts": "separate worktrees",
+  "attempts": "separateWorktrees",
   "controls": ["attempts", "requestsPerAttempt", "compare", "cancel", "take"],
+  "paidFeature": "bestOfN",
   "paidSettings": ["museSpark.modelApiBestOfN"],
   "configuredDefaults": {
     "museSpark.modelApiBestOfN": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -47,9 +48,12 @@ Best-of-N requires Git 2.36 or newer and cannot run with configured filter or ho
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -64,15 +68,15 @@ Commands: —. Settings: `museSpark.modelApiBestOfN`. [Documentation](https://gi
 
 On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session. Turn it off with museSpark.museCodeAutoReviewer.
 
-On by default. In Auto on Muse Code, only approvals for the running turn that no rule settles are eligible: one short Muse Code turn on your subscription in a hidden Plan session. Protected writes, paid calls, child tasks, questions, replayed or escalated requests, unknown subjects, requests without allow-once and sessions shared by panels are never reviewed. A successful review may allow once; declines, failures, busy sessions, timeouts or a tripped breaker show the approval card. Host exit recreates the side session.
-
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.museCodeAutoReviewer`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#permission-modes)
 
 ### /agents
 
-Muse Code’s subagent delegation is off (its default), so the model has no agent tools in this conversation. Set run.subagent_delegation_mode to "auto" in the Muse Code settings file to enable it; the extension never edits that file. Agent transcript Agent controls Interrupt Stop Resume Close agent Reopen agent Mark result read Send message Follow-up task Launched: it runs in the background and reports back to this conversation. Set run.workflow_trigger_mode to "auto", "explicit" or "off" in the Muse Code settings file to change it; the extension never edits that file.
+When run.subagent_delegation_mode="auto", Muse Code can delegate to agents. When it is "off", delegation tools are unavailable. run.workflow_trigger_mode: auto / explicit / off.
+
+Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
@@ -88,7 +92,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Attachments
 
-mentions a file; drag files or paste images to attach them Only PNG, JPEG, GIF and WebP images can be attached. Images must be 10 MB or smaller. At most 20 files per message. PDF attachments require the Model API backend. This private file cannot be attached.
+Attach files by selecting or dropping them, and paste images into the composer. PNG, JPEG, GIF and WebP images require a selected model with vision. PDF attachments require Model API. Trusted indexed workspace text files can be attached; protected or confidential files are refused. The limits below apply before sending.
 
 ```json
 {
@@ -115,14 +119,14 @@ mentions a file; drag files or paste images to attach them Only PNG, JPEG, GIF a
     ".ps1",
     ".sh"
   ],
-  "textSources": "trusted indexed workspace paths",
+  "textSources": "trustedIndexedWorkspacePaths",
   "modelApiTextAllowanceBytes": 786432,
   "imageBytes": 10485760,
   "pdfBytes": 32000000,
   "textBytes": 1048576,
   "encodedMediaChars": 48000000,
   "requestMedia": 50,
-  "vision": "selected model capability",
+  "vision": "modelCapability",
   "museCodeMessageBytes": 10485760,
   "museCodeAttachmentBudgetBytes": 8388608,
   "pdfPageImages": 50,
@@ -177,7 +181,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Conversation
 
-Rename this conversation Fork conversation from here Rewind conversation to here Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered, and Restore files does not undo it either: it is left as it is; check version control. Restore the files and rewind the conversation to before this message? Side chat Side chats stay in Plan mode. Take the message out of the queue and back into the prompt box This message already reached the model, so it can no longer be edited. This conversation cannot take a queued message back, so it cannot be edited. Reply to this output Ask about this Comment on this Copy
+Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#30, #31).
 
@@ -185,9 +189,9 @@ Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#3
 {
   "sideChat": {
     "mode": "plan",
-    "context": "completed turns",
+    "context": "completedTurns",
     "goal": "cleared",
-    "museCode": "file tools may edit"
+    "museCode": "fileToolsMayEdit"
   },
   "messageWhileRunning": "steer",
   "rewind": {
@@ -198,8 +202,8 @@ Muse Code cannot rename or fork sessions on Windows (meta-models/muse-code-sdk#3
     "forkRewind": "newConversationAndRecordedMuseEdits"
   },
   "withdrawal": {
-    "modelApi": "before next request",
-    "museCode": "queued messages only; steer delivered immediately"
+    "modelApi": "beforeNextRequest",
+    "museCode": "queuedOnly"
   }
 }
 ```
@@ -223,7 +227,7 @@ Submit Answer in your own words instead of choosing; Muse reads it and decides a
 ```json
 {
   "actions": ["submit", "explain", "cancel"],
-  "elicitation": "modelApi only"
+  "elicitation": "modelApi"
 }
 ```
 
@@ -331,7 +335,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Session board
 
-Session board
+Filter conversations by title or branch, inspect their state, changes and approvals, and activate a conversation.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -364,11 +368,9 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Open a new Muse Spark conversation in an editor tab.
 
-Where Muse Spark: New Conversation opens a conversation when none is active.
-
 Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.
 
-Rename this conversation Fork conversation from here Rewind conversation to here Muse’s recorded edits after this message are undone, newest first; a file changed since is left as it is. What commands changed is not covered, and Restore files does not undo it either: it is left as it is; check version control. Restore the files and rewind the conversation to before this message? Side chat Side chats stay in Plan mode. Take the message out of the queue and back into the prompt box This message already reached the model, so it can no longer be edited. This conversation cannot take a queued message back, so it cannot be edited. Reply to this output Ask about this Comment on this Copy
+Rename, fork or rewind a conversation. Rewind can restore recorded edits as well as history; changed files are left alone, and shell changes are not covered. While a turn runs, new messages steer it. Model API messages can be withdrawn before the next request; Muse Code permits withdrawal only while queued, because steering is delivered immediately. Side chat copies completed turns, clears the goal and stays in Plan; Muse Code file tools may still edit in Plan. Select transcript text to reply, ask, comment or copy.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -378,15 +380,13 @@ Commands: `museSpark.openInSidebar`, `museSpark.openInNewTab`, `museSpark.focusI
 
 Subscription usage, this conversation's tokens, the backend.
 
-Which backend hosts conversations. The pasted Model API key is never handed to the Muse Code CLI, so subscription work is never billed to the key.
-
 Shows an approval code here; open the sign-in page to approve it.
 
 Paste a key from dev.meta.ai; it is stored in VS Code secret storage.
 
 The Muse Code CLI hosts conversations for this extension. Install it here, then sign in.
 
-This prompt contains a secret A secret was detected. The transcript shows it redacted. Send it anyway, or go back and edit the prompt.
+When a prompt contains a detected secret, the transcript redacts it and asks whether to send it anyway or return to editing.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -395,8 +395,6 @@ Commands: `museSpark.signOut`, `museSpark.restartMuseCode`, `museSpark.openInTer
 ### Permission mode
 
 Choose how Muse asks before it acts.
-
-Permission mode for new conversations.
 
 museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking
 museCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands
@@ -416,8 +414,6 @@ Commands: `museSpark.setUpSandbox`. Settings: `museSpark.initialPermissionMode`,
 
 Pick a previous conversation in this workspace.
 
-Hide sessions idle for this many days from the History dialog (they stay on disk; Show archived lists them).
-
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.archiveInactiveSessions`, `museSpark.cleanupPeriodDays`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-panel)
@@ -426,15 +422,13 @@ Commands: —. Settings: `museSpark.archiveInactiveSessions`, `museSpark.cleanup
 
 Mention a file from this project in your message.
 
-Exclude .gitignore patterns from file searches and @-mentions.
-
 Click to compact now Summarise older context to free the window Cannot rewind before the latest compaction.
 
 ```json
 {
   "meter": ["tokensUsed", "contextWindow", "pressure"],
   "pressureThresholds": [0.7, 0.9],
-  "compaction": "summary replaces older context; rewind cannot precede latest compaction"
+  "compaction": "summaryReplacesOlderContext"
 }
 ```
 
@@ -498,8 +492,6 @@ Commands: `museSpark.mcpServers`. Settings: —. [Documentation](https://github.
 
 Where Muse Code’s hooks come from
 
-On by default; inert without a hooks file. Runs your configured commands outside the agent sandbox, only in trusted workspaces. Review them in Muse Spark: Hooks. Provider credentials are withheld.
-
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `museSpark.retryPluginHooks`. Settings: `museSpark.modelApiHooks`, `museSpark.hookHttpAllowedHosts`, `museSpark.modelApiShellKeepsDirectory`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#hooks)
@@ -515,8 +507,6 @@ Commands: `museSpark.newWorktree`, `museSpark.removeWorktree`, `museSpark.openPu
 ### Background tasks
 
 Keep this command running in the background and let Muse carry on
-
-Show a notification when a long turn ends, or a turn waits for your approval or answer, while the VS Code window is unfocused. Nothing is ever shown while the window is focused.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -550,14 +540,6 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 ### Plans…
 
 Saved plans in .agents/plans: open one or implement it.
-
-.agents is a protected folder: what is in it guides the agents that work here. The plan is saved as a new file; no file is replaced.
-
-Only the latest reply in Plan mode can be saved as a plan.
-
-A new conversation with this plan as its brief, out of Plan mode
-
-Implement a plan from the main conversation; a side chat stays in Plan mode.
 
 Only the latest reply in Plan mode can be saved as a plan. A new conversation with this plan as its brief, out of Plan mode Implement a plan from the main conversation; a side chat stays in Plan mode.
 
@@ -617,8 +599,6 @@ Commands: —. Settings: `museSpark.modelApiCommandRules`, `museSpark.modelApiPe
 
 How the browser check gets its browser: Google’s Chrome for Testing headless shell, pinned to this extension version and downloaded from storage.googleapis.com into the extension’s storage (about 100 to 120 MB for each pinned version). Only you can change this, never a repository’s settings.
 
-Hosts beyond this computer that the browser check may open and reach, as plain host names or IP addresses, with no port, path or wildcard; listing a loopback name also lets a local page use https and WebSockets. Empty means plain-http local pages only, unless you allow a host on a card or in the confirmation, for that one check. https and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer’s account (on Windows in particular). Only you can widen this, never the model, and a repository’s settings cannot.
-
 The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts. The browser check is off in Restricted Mode. Trust the workspace to use it.
 
 ```json
@@ -650,10 +630,14 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "platforms": ["win32", "darwin", "linux"],
   "remote": false,
   "linuxRecorders": ["arecord", "parec"],
+  "paidFeature": "voice",
   "paidSettings": ["museSpark.modelApiVoice"],
   "configuredDefaults": {
-    "museSpark.dictationEngine": "system",
     "museSpark.modelApiVoice": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -675,10 +659,10 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:museCode": {
-      "enabledByDefault": false,
+      "configuredDefault": false,
       "key": "SecretStorage",
       "explicitOptIn": true,
-      "consent": true,
+      "consent": "use",
       "ledger": false
     }
   }
@@ -693,15 +677,18 @@ Commands: —. Settings: `museSpark.dictationEngine`, `museSpark.modelApiVoice`.
 
 Turn paid web search on or off.
 
-Hosted web search ($2.50 per 1,000 searches); unavailable under a finite budget because no hard query bound is verified. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
-
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
+  "paidFeature": "webSearch",
   "paidSettings": ["museSpark.modelApiWebSearch"],
   "configuredDefaults": {
     "museSpark.modelApiWebSearch": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -723,15 +710,18 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     },
     "acp:modelApi": {
-      "enabledByDefault": false,
-      "flag": ["web-search"],
-      "consent": "editor permission",
+      "configuredDefault": false,
+      "flag": "web-search",
+      "consent": "editorPermission",
       "ledger": false
     }
   }
@@ -746,15 +736,18 @@ Commands: —. Settings: `museSpark.modelApiWebSearch`. [Documentation](https://
 
 Turn paid image generation on or off.
 
-Image generation and editing ($0.01 per image). Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
-
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
+  "paidFeature": "imageGeneration",
   "paidSettings": ["museSpark.modelApiImageGeneration"],
   "configuredDefaults": {
     "museSpark.modelApiImageGeneration": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -776,22 +769,25 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:museCode": {
-      "enabledByDefault": false,
+      "configuredDefault": false,
       "key": "SecretStorage",
       "explicitOptIn": true,
-      "consent": true,
+      "consent": "use",
       "ledger": false
     },
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     },
     "acp:modelApi": {
-      "enabledByDefault": false,
-      "flag": ["image-generation"],
-      "consent": "editor permission",
+      "configuredDefault": false,
+      "flag": "image-generation",
+      "consent": "editorPermission",
       "ledger": false
     }
   }
@@ -806,8 +802,6 @@ Commands: —. Settings: `museSpark.modelApiImageGeneration`. [Documentation](ht
 
 Schedule a prompt in this Model API conversation.
 
-Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
-
 ```json
 {
   "defaultIntervalMs": 600000,
@@ -815,10 +809,15 @@ Explicit scheduled Model API runs at the selected model’s token prices. Availa
   "maximumIntervalMs": 604800000,
   "maximumPromptChars": 4000,
   "maximumJobs": 100,
-  "admission": "due run requires explicit dispatch and consent",
+  "admission": "explicitDispatchAndConsent",
+  "paidFeature": "scheduledPrompts",
   "paidSettings": ["museSpark.modelApiScheduledPrompts"],
   "configuredDefaults": {
     "museSpark.modelApiScheduledPrompts": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -840,9 +839,12 @@ Explicit scheduled Model API runs at the selected model’s token prices. Availa
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -857,15 +859,18 @@ Commands: —. Settings: `museSpark.modelApiScheduledPrompts`. [Documentation](h
 
 Turn paid subagents on or off.
 
-Bounded paid child agents, with up to four requests per task including retries. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
-
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
+  "paidFeature": "subagents",
   "paidSettings": ["museSpark.modelApiSubagents"],
   "configuredDefaults": {
     "museSpark.modelApiSubagents": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -887,9 +892,12 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -904,15 +912,18 @@ Commands: —. Settings: `museSpark.modelApiSubagents`. [Documentation](https://
 
 Turn the paid Auto reviewer on or off.
 
-In Auto, a paid review judges unresolved risky actions; it cannot override forbidden commands, protected writes or required questions. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.
-
 Interactive Model API extras ask before spending and use the shared daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; that daily ledger does not cover them. ACP paid features default off, require Model API flags and editor permission; ordinary ACP has no mandatory hard budget. Headless images require acceptEdits, the flag and a hard budget. Account & usage can forget workspace paid-use grants.
 
 ```json
 {
+  "paidFeature": "autoReviewer",
   "paidSettings": ["museSpark.modelApiAutoReviewer"],
   "configuredDefaults": {
     "museSpark.modelApiAutoReviewer": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -934,9 +945,12 @@ Interactive Model API extras ask before spending and use the shared daily budget
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -951,13 +965,16 @@ Commands: —. Settings: `museSpark.modelApiAutoReviewer`. [Documentation](https
 
 Turn paid model hooks on or off.
 
-Paid, on by default. On the Model API backend, prompt and agent hooks each ask the model before they answer. Each run asks once with its price, in every permission mode including Bypass, unless you allow model hooks always in this workspace. A hook's answer can only refuse, narrow or add context. Never billed to the subscription.
-
 ```json
 {
+  "paidFeature": "hookModels",
   "paidSettings": ["museSpark.modelApiHookModels"],
   "configuredDefaults": {
     "museSpark.modelApiHookModels": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -979,9 +996,12 @@ Paid, on by default. On the Model API backend, prompt and agent hooks each ask t
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -1034,20 +1054,14 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
       "output": 0.2
     }
   },
+  "paidFeature": "tab",
   "paidSettings": ["museSpark.modelApiTab"],
   "configuredDefaults": {
-    "museSpark.modelApiTab": true,
-    "museSpark.tabModel": "muse-spark-1.3",
-    "museSpark.tabDailyBudgetUsd": 1,
-    "museSpark.tabLanguages": {
-      "*": true,
-      "plaintext": false,
-      "markdown": false,
-      "scminput": false
-    },
-    "museSpark.tabMultiline": "auto",
-    "museSpark.tabTrigger": "onInvoke",
-    "museSpark.tabWithCopilot": "yield"
+    "museSpark.modelApiTab": true
+  },
+  "defaultState": {
+    "type": "boolean",
+    "value": true
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -1069,16 +1083,19 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:museCode": {
-      "enabledByDefault": true,
+      "configuredDefault": true,
       "key": "SecretStorage",
       "explicitOptIn": false,
-      "consent": true,
+      "consent": "window",
       "ledger": "tabDailyBudgetUsd"
     },
     "vscode:modelApi": {
-      "enabledByDefault": true,
+      "defaultState": {
+        "type": "boolean",
+        "value": true
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "window",
       "ledger": "tabDailyBudgetUsd"
     }
   }
@@ -1093,13 +1110,18 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 
 Turn paid Judge advice on or off.
 
-`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.
-
 ```json
 {
+  "paidFeature": "judge",
   "paidSettings": ["museSpark.judge.engine"],
   "configuredDefaults": {
     "museSpark.judge.engine": "auto"
+  },
+  "defaultState": {
+    "type": "enum",
+    "value": "auto",
+    "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+    "meaningKey": "config.judge.engine.enumDescriptions.auto"
   },
   "pricesUsd": {
     "webSearchPerThousand": 2.5,
@@ -1121,9 +1143,14 @@ Turn paid Judge advice on or off.
   "billing": "storedModelApiKey",
   "effectiveAvailability": {
     "vscode:modelApi": {
-      "enabledByDefault": false,
+      "defaultState": {
+        "type": "enum",
+        "value": "auto",
+        "meaning": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+        "meaningKey": "config.judge.engine.enumDescriptions.auto"
+      },
       "key": "SecretStorage",
-      "consent": true,
+      "consent": "use",
       "ledger": "paidDailyBudgetUsd"
     }
   }
@@ -1138,8 +1165,6 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.
 
-`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.
-
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
@@ -1147,8 +1172,6 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 ### Support
 
 Report an issue.
-
-On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.
 
 Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
@@ -1160,32 +1183,32 @@ Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProble
 
 Availability depends on the backend. Installed skills also add their own slash commands.
 
-- **/resume**: museCode: Pick a previous conversation in this workspace; modelApi: Pick a previous conversation in this workspace
-- **/commit**: museCode: Commit the changes in this workspace; a message is written only when you ask; modelApi: Commit the changes in this workspace; a message is written only when you ask
-- **/push**: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
-- **/pr**: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
-- **/checkout-pr**: museCode: Check a pull request out in its own worktree and window; modelApi: Check a pull request out in its own worktree and window
-- **/model**: museCode: Switch model…; modelApi: Switch model…
-- **/permissions**: museCode: Permission mode; modelApi: Permission mode
-- **/mcp**: museCode: What Muse Code connects to; sign in to a server; modelApi: The servers in Muse Code’s settings, run by this window
-- **/hooks**: museCode: Where Muse Code’s hooks come from; modelApi: Where Muse Code’s hooks come from
-- **/memory**: museCode: The notes Muse keeps for later sessions; modelApi: The notes Muse keeps for later sessions
-- **/config**: museCode: Open settings…; modelApi: Open settings…
-- **/hook run <name>**: museCode: Run a Manual hook from spark-hooks.json; modelApi: Run a Manual hook from spark-hooks.json
-- **/agents**: museCode: Show the agent map; modelApi: Show the agent map
-- **/compact**: museCode: Summarise older context to free the window; modelApi: Summarise older context to free the window
-- **/handoff [goal]**: museCode: Distil this conversation into a brief for a fresh one; modelApi: Distil this conversation into a brief for a fresh one
-- **/goal <objective> | /goal edit <objective> | /goal pause | /goal resume | /goal clear**: museCode: Set a goal Muse keeps working toward: /goal <objective>; modelApi: Set a goal Muse keeps working toward: /goal <objective>
-- **/export**: museCode: Save this conversation as a Markdown file; modelApi: Save this conversation as a Markdown file
-- **/clear**: museCode: Clear conversation; modelApi: Clear conversation
-- **/logout**: museCode: Sign out; modelApi: Sign out
-- **/usage**: museCode: Show account usage; modelApi: Show account usage
-- **/cost**: museCode: Show this conversation’s token totals; modelApi: Show this conversation’s token totals
-- **/review | /review branch [base] | /review commit [revision] | /review <instructions> | /review security …**: museCode: Review the uncommitted changes, a branch, a commit, or what you describe; modelApi: Review the uncommitted changes, a branch, a commit, or what you describe
-- **/security-review**: museCode: The uncommitted changes, for injection, secrets, authentication and unsafe APIs; modelApi: The uncommitted changes, for injection, secrets, authentication and unsafe APIs
-- **/changes**: museCode: Accept or revert each change, and comment on a line; modelApi: Accept or revert each change, and comment on a line
-- **/help**: museCode: Commands, settings and features, with descriptions and documentation.; modelApi: Commands, settings and features, with descriptions and documentation.
-- **/loop <prompt> | /loop <interval: 5m|1h|1d> <prompt> | /loop "<cron>" <prompt> | /loop list | /loop cancel <id>**: modelApi: Schedule a prompt in this Model API conversation
+- `/resume`: museCode: Pick a previous conversation in this workspace; modelApi: Pick a previous conversation in this workspace
+- `/commit`: museCode: Commit the changes in this workspace; a message is written only when you ask; modelApi: Commit the changes in this workspace; a message is written only when you ask
+- `/push`: museCode: Push this branch; always asks, never forces; modelApi: Push this branch; always asks, never forces
+- `/pr`: museCode: On GitHub, as a draft or ready, linked to this conversation; modelApi: On GitHub, as a draft or ready, linked to this conversation
+- `/checkout-pr`: museCode: Check a pull request out in its own worktree and window; modelApi: Check a pull request out in its own worktree and window
+- `/model`: museCode: Switch model…; modelApi: Switch model…
+- `/permissions`: museCode: Permission mode; modelApi: Permission mode
+- `/mcp`: museCode: What Muse Code connects to; sign in to a server; modelApi: The servers in Muse Code’s settings, run by this window
+- `/hooks`: museCode: Where Muse Code’s hooks come from; modelApi: Where Muse Code’s hooks come from
+- `/memory`: museCode: The notes Muse keeps for later sessions; modelApi: The notes Muse keeps for later sessions
+- `/config`: museCode: Open settings…; modelApi: Open settings…
+- `/hook run <name>`: museCode: Run a Manual hook from spark-hooks.json; modelApi: Run a Manual hook from spark-hooks.json
+- `/agents`: museCode: Show the agent map; modelApi: Show the agent map
+- `/compact`: museCode: Summarise older context to free the window; modelApi: Summarise older context to free the window
+- `/handoff [goal]`: museCode: Distil this conversation into a brief for a fresh one; modelApi: Distil this conversation into a brief for a fresh one
+- `/goal <objective>` | `/goal edit <objective>` | `/goal pause` | `/goal resume` | `/goal clear`: museCode: Set a goal Muse keeps working toward: /goal &lt;objective&gt;; modelApi: Set a goal Muse keeps working toward: /goal &lt;objective&gt;
+- `/export`: museCode: Save this conversation as a Markdown file; modelApi: Save this conversation as a Markdown file
+- `/clear`: museCode: Clear conversation; modelApi: Clear conversation
+- `/logout`: museCode: Sign out; modelApi: Sign out
+- `/usage`: museCode: Show account usage; modelApi: Show account usage
+- `/cost`: museCode: Show this conversation’s token totals; modelApi: Show this conversation’s token totals
+- `/review` | `/review branch [base]` | `/review commit [revision]` | `/review <instructions>` | `/review security …`: museCode: Review the uncommitted changes, a branch, a commit, or what you describe; modelApi: Review the uncommitted changes, a branch, a commit, or what you describe
+- `/security-review`: museCode: The uncommitted changes, for injection, secrets, authentication and unsafe APIs; modelApi: The uncommitted changes, for injection, secrets, authentication and unsafe APIs
+- `/changes`: museCode: Accept or revert each change, and comment on a line; modelApi: Accept or revert each change, and comment on a line
+- `/help`: museCode: Commands, settings and features, with descriptions and documentation.; modelApi: Commands, settings and features, with descriptions and documentation.
+- `/loop <prompt>` | `/loop <interval: 5m|1h|1d> <prompt>` | `/loop "<cron>" <prompt>` | `/loop list` | `/loop cancel <id>`: modelApi: Schedule a prompt in this Model API conversation
 
 ## Commands
 
@@ -1223,7 +1246,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Set Up Shell Sandbox
 
-`museSpark.setUpSandbox` — Muse Code cannot run shell commands until its Windows sandbox is set up. Run "Muse Spark: Set Up Shell Sandbox" (one administrator approval), then start a new conversation.
+`museSpark.setUpSandbox` — On Windows, when this window uses the Muse Code shell sandbox, set it up with one administrator approval, then start a new conversation. shellSandbox="off" does not require setup.
 
 Available when: `isWindows || remoteName`.
 
@@ -1371,11 +1394,11 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 ### Muse Spark: Snooze Tab
 
-`museSpark.tabSnooze` — Snooze for 15 minutes
+`museSpark.tabSnooze` — Snooze for 15 minutes; Snooze for an hour; Snooze until restart.
 
 ### Muse Spark: Tab Menu
 
-`museSpark.tabMenu` — Account & usage; Tab languages…; Multi-line mode…; Turn Tab off.
+`museSpark.tabMenu` — Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.
 
 ### Muse Spark: Tab Languages
 
@@ -2445,17 +2468,27 @@ These are defaults; editor customizations take precedence.
 - `museSpark.newConversation`: `ctrl+n` (macOS: `cmd+n`); when `config.museSpark.enableNewConversationShortcut && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')`
 - `museSpark.moveToBackground`: `ctrl+b` (macOS: `ctrl+b`); when `museSpark.canMoveToBackground && (activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView')`
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
-- `composer.send`: `Enter / Ctrl+Enter / Cmd+Enter`; when `useCtrlEnterToSend`; useCtrlEnterToSend=false: Enter; true: Ctrl+Enter / Cmd+Enter. Send
-- `composer.newline`: `Shift+Enter`; when `composer`; Shift+Enter: New line.
-- `composer.dictation`: `Ctrl+D / Cmd+D`; when `composer; tap/hold`; records your voice into the composer (tap to toggle, hold to talk)
-- `composer.permission`: `Shift+Tab`; when `composer`; cycles the permission mode while the composer has focus
-- `history.archive`: `Delete`; when `history selected row`; Delete: Archive / Unarchive
-- `composer.select`: `ArrowUp / ArrowDown / Enter / Tab / Escape`; when `slash/mention menu`; ArrowUp / ArrowDown: Current Enter / Tab; Escape
-- `palette.effort`: `ArrowLeft / ArrowRight`; when `effort row`; Choose how much effort Muse puts into each reply.
-- `row.menu`: `ContextMenu / Shift+F10`; when `focused row`; ContextMenu / Shift+F10: More actions
-- `radial.menu`: `ArrowUp / ArrowDown / Home / End / Enter / Space / Escape`; when `radial menu`; More actions: ArrowUp / ArrowDown / ArrowLeft / ArrowRight / Home / End; Enter; Escape.
-- `header.rename`: `Enter / Escape`; when `rename field`; Rename this conversation Enter; Escape
-- `modal.focus`: `Escape / Tab / Shift+Tab`; when `modal`; Keyboard shortcuts: Escape; Tab / Shift+Tab.
+- `composer.send`: `Enter / Ctrl+Enter / Cmd+Enter`; when `Enter: useCtrlEnterToSend=false; Ctrl/Cmd+Enter: useCtrlEnterToSend=true`; Send the draft using the gesture selected by useCtrlEnterToSend.
+- `composer.newline`: `Shift+Enter`; when `composer.newline`; Insert a new line in the draft.
+- `composer.dictation`: `Ctrl+D / Cmd+D`; when `composer.dictation`; records your voice into the composer (tap to toggle, hold to talk)
+- `composer.permission`: `Shift+Tab`; when `composer.permission`; cycles the permission mode while the composer has focus
+- `composer.mention`: `ArrowDown / ArrowUp / Enter / Tab / Escape`; when `composer.mention`; Navigate items, choose or complete a selection, or close the list.
+- `composer.slash`: `ArrowDown / ArrowUp / Enter / Tab / Escape`; when `composer.slash`; Navigate items, choose or complete a selection, or close the list.
+- `composer.mic`: `Enter / Space`; when `composer.mic`; records your voice into the composer (tap to toggle, hold to talk)
+- `history.archive`: `Delete`; when `history.archive`; Archive / Unarchive
+- `palette`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Escape`; when `palette`; Navigate items, choose or complete a selection, or close the list. Choose how much effort Muse puts into each reply.
+- `popover`: `ArrowDown / ArrowUp / ArrowRight / ArrowLeft / Enter / Space / Escape`; when `popover`; Navigate options, adjust a value, choose an option or close the popover.
+- `dialog`: `ArrowDown / ArrowUp / Enter / Escape`; when `dialog`; Browse matches, activate the selected conversation or close the dialog.
+- `row.menu`: `ContextMenu / Shift+F10`; when `row.menu`; ContextMenu / Shift+F10: More actions
+- `radial.menu`: `ArrowDown / ArrowRight / ArrowUp / ArrowLeft / Home / End / Enter / Space / Escape`; when `radial.menu`; Navigate actions, jump to the first or last, activate an action, or close or return to the parent menu.
+- `header.rename`: `Enter / Escape`; when `header.rename`; Confirm or cancel renaming this conversation.
+- `modal.focus`: `Tab / Escape`; when `modal.focus`; Close the dialog or move focus within it.
+- `agent.message`: `Enter`; when `agent.message`; Send message
+- `output.open`: `Enter / Space`; when `output.open`; Open output
+- `goal.edit`: `Escape`; when `goal.edit`; Cancel
+- `elicitation`: `Escape`; when `elicitation`; Cancel
+- `deferred.close`: `Escape`; when `deferred.close`; Close the dialog or move focus within it.
+- `bestOfN.close`: `Escape`; when `bestOfN.close`; Close the dialog or move focus within it.
 
 ## ACP / CLI commands
 
@@ -2464,77 +2497,123 @@ These are defaults; editor customizations take precedence.
 - `auth set`: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.
 - `auth status`: Check whether a Model API key is stored.
 - `auth clear`: Remove the stored Model API key.
-- `setup`: muse-spark-code-acp --trust-workspace setup [--maintenance] Run the Setup hooks and exit
-- `exec`: muse-spark-code-acp exec [options] <prompt> Run one headless turn
-- `scan-secrets`: muse-spark-code-acp scan-secrets <file> [--key-stdin] Count likely secrets in one file (prints only the number)
-- `report`: muse-spark-code-acp report [options] Print a scrubbed problem report (starts no backend, opens no browser)
+- `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
+- `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
+- `scan-secrets`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
+- `report`: Usage:
+  muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
+  Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
+  Starts no backend, signs in nowhere, and opens no browser.
+  Options:
+  --out &lt;file&gt; Write the report to a file instead of stdout
+  --description &lt;text&gt; What was happening, in your own words
+  --no-facts Leave the support facts out
+  --no-events Leave the recent events out
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
 - `--version / -v`: Print the installed agent version.
-- `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
-- `scan-secrets: --help / -h`: --help, --version `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
+- `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false}`
+- `serve: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
+- `serve: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto"}`
+- `serve: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `login: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `login: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false}`
+- `login: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
+- `login: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `login: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `setup: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `setup: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
+- `setup: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","repeatable":false,"default":false,"event":"maintenance"}`
+- `setup: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `setup: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
+- `setup: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `setup: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authSet: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
+- `authSet: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authSet: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `authSet: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `authStatus: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authStatus: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authStatus: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
+- `authStatus: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authStatus: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `authStatus: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
+- `authClear: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
+- `authClear: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authClear: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
+- `authClear: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
+- `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"backend"}`
-- `exec: --cwd <value>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
-- `exec: --prompt-file <value>`: Choose exactly one prompt source. `{"type":"string","repeatable":false,"maximumBytes":262144,"purpose":"prompt"}`
-- `exec: --untrusted-file <value>`: The input file cannot be read. `{"type":"string","repeatable":true,"maxItems":8,"perFileMaxBytes":1048576,"totalMaxBytes":2097152,"purpose":"untrustedFiles"}`
-- `exec: --permission-mode <value>`: Headless runs permit only plan or acceptEdits. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
-- `exec: --model <value>`: This model is not available for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
-- `exec: --effort <value>`: This effort is not available for this model. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
-- `exec: --output <value>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
-- `exec: --max-budget-usd <value>`: Model API requires --max-budget-usd. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
-- `exec: --max-requests <value>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
-- `exec: --timeout <value>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
-- `exec: --muse-binary <value>`: --muse-binary <path> The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
+- `exec: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
+- `exec: --prompt-file <value>`: Read the prompt from this file. `{"type":"string","repeatable":false,"maximumBytes":262144,"purpose":"prompt"}`
+- `exec: --untrusted-file <value>`: Attach this file as untrusted data; repeat the option for more files. `{"type":"string","repeatable":true,"maxItems":8,"perFileMaxBytes":1048576,"totalMaxBytes":2097152,"purpose":"untrustedFiles"}`
+- `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
+- `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
+- `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
+- `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
+- `exec: --max-budget-usd <value>`: Set the hard spending limit in USD for this run. `{"type":"string","repeatable":false,"exclusiveMinimum":0,"maximum":20,"decimals":6,"required":"modelApi","unit":"USD","purpose":"max-budget-usd"}`
+- `exec: --max-requests <value>`: Set the maximum number of model requests. `{"type":"string","repeatable":false,"default":30,"minimum":1,"maximum":500,"purpose":"maxRequests"}`
+- `exec: --timeout <value>`: Set the run deadline in seconds. `{"type":"string","repeatable":false,"default":1800,"minimum":10,"maximum":21600,"unit":"seconds","purpose":"timeoutMs"}`
+- `exec: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"muse-binary"}`
 - `exec: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"shell-sandbox"}`
 - `exec: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"allow-contributor-models"}`
-- `exec: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"paidFeatures:imageGeneration"}`
-- `exec: --fail-on-denial`: An approval denial stopped this run. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
-- `exec: --ephemeral`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
+- `exec: --image-generation`: Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused. `{"type":"boolean","repeatable":false,"default":false,"purpose":"paidFeatures:imageGeneration"}`
+- `exec: --fail-on-denial`: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
+- `exec: --ephemeral`: Keep the session in memory without saving it. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
 - `exec: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"keyFromStdin"}`
 - `exec: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"verbose"}`
-- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. `{"type":"boolean","repeatable":false,"default":false,"purpose":"trust-workspace"}`
-- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. `{"type":"boolean","repeatable":false,"default":false,"purpose":"allow-dangerously-skip-permissions"}`
-- `exec: --web-search`: Hosted web search has no bounded allowance and is refused. `{"type":"boolean","repeatable":false,"default":false,"purpose":"web-search"}`
-- `exec: --help / -h`: --help, --version `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
-- `report: --out <value>`: --out <file> Write the report to a file instead of stdout `{"type":"string","repeatable":false}`
-- `report: --description <value>`: --description <text> What was happening, in your own words `{"type":"string","repeatable":false}`
+- `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
+- `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`
+- `exec: --web-search`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"web-search"}`
+- `exec: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
+- `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
+- `scan-secrets: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `report: --out <value>`: --out &lt;file&gt; Write the report to a file instead of stdout `{"type":"string","repeatable":false}`
+- `report: --description <value>`: --description &lt;text&gt; What was happening, in your own words `{"type":"string","repeatable":false}`
 - `report: --no-facts`: --no-facts Leave the support facts out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --no-events`: --no-events Leave the recent events out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
-- `login: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
-- `setup: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
-- `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --maintenance`: muse-spark-code-acp --trust-workspace setup [--maintenance] Run the Setup hooks and exit `{"type":"boolean","repeatable":false,"default":false,"event":"maintenance"}`
-- `serve: --muse-binary <value>`: --muse-binary <path> The Muse Code CLI to run `{"type":"string","repeatable":false}`
-- `login: --muse-binary <value>`: --muse-binary <path> The Muse Code CLI to run `{"type":"string","repeatable":false}`
-- `setup: --muse-binary <value>`: --muse-binary <path> The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
-- `serve: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto"}`
-- `login: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
-- `setup: --shell-sandbox <value>`: --shell-sandbox auto|muse|off Muse Code’s shell sandbox `{"type":"string","repeatable":false,"enum":["auto","muse","off"],"default":"auto","purpose":"acceptedUnused"}`
-- `serve: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --allow-dangerously-skip-permissions`: --allow-dangerously-skip-permissions Offer the Bypass permissions mode `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `serve: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `serve: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --web-search`: --web-search Offer paid web search (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `serve: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `setup: --image-generation`: --image-generation Offer paid image generation (Model API backend; its price is asked first) `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
-- `serve: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --help / -h`: --help, --version `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --help / -h`: --help, --version `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --help / -h`: --help, --version `{"type":"boolean","repeatable":false,"default":false}`
-- `serve: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `login: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `setup: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 

@@ -1,4 +1,3 @@
-import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
@@ -112,7 +111,7 @@ import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTo
 import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
+import { usablePaidFeatures, isPaidSettingOn } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -913,9 +912,8 @@ async function activateWindow(
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) =>
-      feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
-    isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
+    isSettingOn: (feature) => feature !== 'judge' && isPaidSettingOn(feature, currentSettings()),
+    isJudgeOn: () => isPaidSettingOn('judge', currentSettings()),
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
     isDefaultOn: isDefaultPaidOn,

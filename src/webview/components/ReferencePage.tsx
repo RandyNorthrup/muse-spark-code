@@ -99,30 +99,62 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         referenceText(f.summary, model, nls, UI_TEXT),
         referenceText(f.description, model, nls, UI_TEXT),
         ...f.details.map((text) => referenceText(text, model, nls, UI_TEXT)),
-        JSON.stringify(f.facts),
+        JSON.stringify(referenceSchema(f.facts, nls)),
         ...f.surfaces,
+        ...(f.paid ? [UI_TEXT.referencePaid] : []),
+        f.docs,
         ...f.settings,
         ...f.commands,
       ),
     )
-    const commands = model.commands.filter((c) =>
-      isMatch(c.id, translated(c.nameKey, c.name), referenceText(c.text, model, nls, UI_TEXT)),
+    const relationshipTargets = new Set(features.flatMap((f) => f.commands))
+    const commands = model.commands.filter(
+      (c) =>
+        relationshipTargets.has(c.id) ||
+        isMatch(
+          c.id,
+          translated(c.nameKey, c.name),
+          translated(c.categoryKey, c.category),
+          referenceText(c.text, model, nls, UI_TEXT),
+          c.enablement ?? '',
+          ...(c.canRun ? [UI_TEXT.referenceRun] : []),
+        ),
     )
     const settingsRows = model.settings.filter((s) =>
       isMatch(
         s.id,
         translated(s.nameKey, s.name),
         translated(s.descriptionKey, s.description),
-        JSON.stringify(s.schema),
+        JSON.stringify(referenceSchema(s.schema, nls)),
+        valueText(s.default),
+        values?.values[s.id] ?? '—',
+        Array.isArray(s.type) ? s.type.join(' | ') : String(s.type),
+        s.scope,
+        ...s.refinements,
+        ...(s.enum ?? []).flatMap((v, i) => [
+          valueText(v),
+          translated(s.enumDescriptionKeys?.[i], s.enumDescriptions?.[i] ?? ''),
+        ]),
       ),
     )
     const slashRows = model.slash.filter((c) =>
       isMatch(
         c.name,
+        ...c.backends,
         ...c.syntax,
         ...Object.values(c.descriptions).map((text) => referenceText(text, model, nls, UI_TEXT)),
       ),
     )
+    const shortcutDescription = (k: (typeof model.shortcuts)[number]) => {
+      const command = model.commands.find((c) => c.id === k.command)
+      const ref =
+        k.text ??
+        command?.text ??
+        (k.command === 'editor.action.inlineSuggest.trigger'
+          ? { setting: 'tabTrigger' }
+          : undefined)
+      return ref === undefined ? '' : referenceText(ref, model, nls, UI_TEXT)
+    }
     const shortcuts = model.shortcuts.filter((k) =>
       isMatch(
         k.command,
@@ -130,7 +162,9 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
         k.mac ?? '',
         k.win ?? '',
         k.linux ?? '',
-        model.commands.find((c) => c.id === k.command)?.description ?? '',
+        k.when ?? '',
+        shortcutDescription(k),
+        translated(model.commands.find((c) => c.id === k.command)?.nameKey, k.command),
       ),
     )
     const cliDescription = (entry: (typeof model.cli)[number]) =>
@@ -200,7 +234,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                   <p key={index}>{referenceText(text, model, nls, UI_TEXT)}</p>
                 ))}
                 {Object.keys(f.facts).length === 0 ? null : (
-                  <pre>{JSON.stringify(f.facts, null, 2)}</pre>
+                  <pre>{JSON.stringify(referenceSchema(f.facts, nls), null, 2)}</pre>
                 )}
                 <div className="reference-links">
                   {f.settings.map((id) => (
@@ -346,16 +380,7 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                 <h4>
                   {translated(model.commands.find((c) => c.id === k.command)?.nameKey, k.command)}
                 </h4>
-                <p>
-                  {referenceText(
-                    model.commands.find((c) => c.id === k.command)?.text ?? {
-                      setting: 'tabTrigger',
-                    },
-                    model,
-                    nls,
-                    UI_TEXT,
-                  )}
-                </p>
+                <p>{shortcutDescription(k)}</p>
                 <p>
                   <kbd>{k.key}</kbd>
                   {k.mac === undefined ? null : (
@@ -375,7 +400,6 @@ export function createReferencePage(runtime: ReferencePageRuntime) {
                     Linux: <kbd>{k.linux}</kbd>
                   </p>
                 )}
-                {k.text === undefined ? null : <p>{referenceText(k.text, model, nls, UI_TEXT)}</p>}
                 {k.when === undefined ? null : <code className="reference-meta">{k.when}</code>}
               </article>
             ))}

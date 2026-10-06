@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // A centred modal over the transcript with the chat dimmed behind it, as
 // Claude Code's Account & Usage and Agent map dialogs are (PLAN.md D17).
 // Escape, the close button and a click on the backdrop dismiss it; the close
@@ -48,11 +49,11 @@ export function Modal({ title, titleId, isWide = false, onClose, children }: Mod
     closeButton.current?.focus()
   }, [])
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Tab') {
+    if (webviewKey('modal.focus', event) === 'focus') {
       trapTab(event)
       return
     }
-    if (event.key !== 'Escape') {
+    if (webviewKey('modal.focus', event) !== 'close') {
       return
     }
     event.preventDefault()

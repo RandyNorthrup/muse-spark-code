@@ -1,9 +1,11 @@
+import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, PAID_FEATURE_SETTINGS } from './constants'
+import { COMMAND_IDS } from './constants'
 import type { UiText } from './l10n/en'
 
 export type ReferenceText =
+  | { readonly cli: keyof UiText['referenceCliOptions'] }
   | { readonly ui: { [K in keyof UiText]: UiText[K] extends string ? K : never }[keyof UiText] }
   | { readonly tip: keyof UiText['paletteTips'] }
   | { readonly setting: string }
@@ -72,7 +74,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showWhatsNew: { description: { tip: 'whatsNew' }, canRun: true },
   tabTurnOn: { description: { ui: 'referenceTabOn' }, canRun: false },
   tabTurnOff: { description: { ui: 'referenceTabOff' }, canRun: false },
-  tabSnooze: { description: { ui: 'tabMenuSnoozeShort' }, canRun: false },
+  tabSnooze: { description: { ui: 'referenceTabSnooze' }, canRun: false },
   tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
   tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
@@ -94,7 +96,7 @@ function feature(
     id,
     name,
     summary,
-    description: settings[0] === undefined ? summary : { setting: settings[0] },
+    description: summary,
     commands: commands.map((key) => COMMAND_IDS[key]),
     settings: settings.map((key) => `museSpark.${key}`),
     docs: `https://github.com/RandyNorthrup/muse-spark-code#${docs}`,
@@ -600,15 +602,7 @@ export function featureCatalog(): readonly Feature[] {
           ),
         ),
       ],
-      paid:
-        Object.values(PAID_FEATURE_SETTINGS).some((setting) =>
-          entry.settings.includes(`museSpark.${setting}`),
-        ) &&
-        entry.id !== 'auto-subscription' &&
-        entry.id !== 'judge-subscription',
-      description: ['tab', 'voice', 'skills'].includes(entry.id)
-        ? entry.summary
-        : entry.description,
+      paid: Object.values(PAID_USE_REGISTRY).some((paid) => paid.featureId === entry.id),
       details: (REFERENCE_DETAILS[entry.id] ?? []).map((ui) => ({ ui })),
       facts: {},
     }
@@ -626,6 +620,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   permissions: ['referencePermissionLimits'],
+  'native-agents': ['referenceAgentControls'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],
   'code-intelligence': ['referenceCodeIntelExtra'],
   chat: ['referenceThinking', 'referenceConversationActions'],
@@ -633,13 +628,7 @@ const REFERENCE_DETAILS: Readonly<
   skills: ['referenceBundled'],
   exports: ['referenceExports'],
   imports: ['agentImportDetailEvery', 'referenceResumeAgents'],
-  plans: [
-    'planSaveConfirmDetail',
-    'planReplyNotLatest',
-    'planImplementDetail',
-    'planImplementSideChat',
-    'referencePlanModes',
-  ],
+  plans: ['referencePlanModes'],
   browser: ['referenceBrowser'],
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
@@ -647,13 +636,9 @@ const REFERENCE_DETAILS: Readonly<
   voice: ['referencePaidContexts'],
   auto: ['referencePaidContexts'],
   subagents: ['referencePaidContexts'],
-  'best-of-n': [
-    'bestOfNTakeExplanation',
-    'bestOfNBudgetUnavailable',
-    'bestOfNGitProgramsUnavailable',
-  ],
+  'best-of-n': ['referenceBestOfNRequirements', 'referencePaidContexts'],
   support: ['referenceAcp'],
   cache: ['referenceCache'],
   'custom-agents': ['referencePaidContexts'],
-  'conversation-actions': ['sessionEditsUnsupported'],
+  'conversation-actions': ['referenceWindowsSessions'],
 }

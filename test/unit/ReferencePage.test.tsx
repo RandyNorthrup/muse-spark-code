@@ -233,3 +233,51 @@ describe('RVHELPREF page parity and errors', () => {
     expect(screen.getByRole('button', { name: EN.retryAction })).toBeInTheDocument()
   })
 })
+
+describe('RVHELPREF2 presentation truth', () => {
+  it('B03 every webview shortcut uses its own description, with Tab prose only on inline suggestions', () => {
+    page()
+    const section = screen.getByRole('region', { name: EN.referenceShortcuts })
+    for (const shortcut of referenceModel().shortcuts) {
+      if (shortcut.text === undefined) continue
+      const heading = within(section).getByRole('heading', { name: shortcut.command })
+      const row = heading.closest('article')
+      expect(row).not.toHaveTextContent(EN.referenceCliOptions.output)
+      expect(row).not.toHaveTextContent(
+        referenceModel().settings.find((s) => s.id === 'museSpark.tabTrigger')?.description ?? '',
+      )
+      expect(row?.querySelectorAll('p')).toHaveLength(2)
+    }
+  })
+  it.each(['New line', 'records your voice', 'ArrowRight', 'modal.focus', 'useCtrlEnterToSend'])(
+    'B10 searches displayed shortcut field %s',
+    (query) => {
+      page()
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+      const section = screen.getByRole('region', { name: EN.referenceShortcuts })
+      expect(section.querySelectorAll('article').length).toBeGreaterThan(0)
+    },
+  )
+  it.each(['support', 'account', 'tasks'])(
+    'B11 search %s keeps every visible relationship anchor reachable',
+    (query) => {
+      page()
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+      const links = document.querySelectorAll<HTMLAnchorElement>('a[href^="#reference-command-"]')
+      expect(links.length).toBeGreaterThan(0)
+      for (const link of links)
+        expect(
+          document.querySelector(`[id="${CSS.escape(link.hash.slice(1))}"]`),
+          link.textContent,
+        ).toBeInTheDocument()
+    },
+  )
+  it('B10 matches setting values, scope, refinements and localized enum meanings', () => {
+    page()
+    const section = screen.getByRole('region', { name: EN.referenceSettings })
+    for (const query of ['machine', 'unique:name', 'onInvoke', 'false']) {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+      expect(section.querySelectorAll('article').length, query).toBeGreaterThan(0)
+    }
+  })
+})

@@ -3207,11 +3207,15 @@ reference in the installed language without a model call. `exec --help`,
 `report --help` and `scan-secrets --help` also print it; `--help` prints concise
 ACP usage. Terminal help states that VS Code current values are unavailable.
 
-Maintainers run `npm run reference:generate` after changes. `npm run
-check:reference` checks feature/action coverage, paid registry membership,
-reviewed host capabilities and admission wiring, parser flags/contracts,
-keyboard handlers, manifest schemas/defaults/enums, descriptions, relationships
-and generated-file freshness. Installed skills are dynamic and are refreshed
+Maintainers run `npm run reference:generate` after changes. The reference reads
+the complete contributed setting schema and palette conditions. The CLI parser,
+webview keyboard handlers, slash registry, paid tally and paid-use popup share
+typed tables with the generator. Enum defaults retain their value and meaning.
+`npm run check:reference` checks source coverage, reviewed host capabilities and
+admission wiring, option contracts, catalogue descriptions and generated-file
+freshness. Independent tests exercise parser acceptance and keyboard actions.
+Search includes displayed descriptions and keeps related command links reachable.
+Installed skills are dynamic and are refreshed
 when ACP answers help. Native shared-webview and phone companion integrations
 remain planned; this reference does not claim those hosts implement the page.
 

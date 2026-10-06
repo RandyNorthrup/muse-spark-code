@@ -782,6 +782,8 @@ export const PAID_PRICES_USD = {
   voicePerHour: 0.18,
 } as const
 export const PAID_PRICES_VERIFIED_ON = '2026-09-24'
+// Lossless reference token indices use a compact, browser-safe alphabet.
+export const REFERENCE_POOL_RADIX = 36
 export const SEARCHES_PER_PRICE_UNIT = 1000
 export const SECONDS_PER_HOUR = 3600
 

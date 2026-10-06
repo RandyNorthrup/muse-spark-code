@@ -8,6 +8,7 @@ export function referenceText(
   nls: Readonly<Record<string, string>>,
   table: UiText,
 ): string {
+  if ('cli' in ref) return table.referenceCliOptions[ref.cli]
   if ('ui' in ref) return table[ref.ui]
   if ('tip' in ref) return table.paletteTips[ref.tip]
   if ('command' in ref) {

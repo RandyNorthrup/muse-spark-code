@@ -10,6 +10,36 @@ const MODULE = 'src/shared/reference/reference.generated.ts'
 const DOC = 'docs/reference.md'
 const JSON_MODEL = 'src/shared/reference/reference.generated.json'
 
+// Catalogue lint: descriptions explain operations and conditions. UI notices
+// asserting the current session's state are not reusable reference descriptions.
+export function lintReferenceDescription(text, identity) {
+  if (typeof text !== 'string') return []
+  return /\b(?:delegation is (?:off|disabled)|is off \(its default\)|has no agent tools in this conversation|cannot run shell commands until|this message already reached|this private file cannot|this prompt contains a secret|a secret was detected)/i.test(
+    text,
+  )
+    ? [`Catalogue asserts conditional state: ${identity}`]
+    : []
+}
+
+export function lintReferenceFacts(value, identity = 'facts') {
+  if (Array.isArray(value)) return value.flatMap((entry) => lintReferenceFacts(entry, identity))
+  if (typeof value !== 'object' || value === null) return []
+  return Object.entries(value).flatMap(([key, entry]) => {
+    return typeof entry === 'string' && /\s/.test(entry) && typeof value[`${key}Key`] !== 'string'
+      ? [`Unlocalized reference fact: ${identity}.${key}`]
+      : lintReferenceFacts(entry, `${identity}.${key}`)
+  })
+}
+
+function lintDescriptionReference(ref) {
+  return 'ui' in ref &&
+    /(?:Failed|Error|Unavailable|Unreadable|Denied|Blocked|Refused|NotLatest|SideChat)$/.test(
+      ref.ui,
+    )
+    ? [`Failure message used as catalogue description: ${ref.ui}`]
+    : []
+}
+
 export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
@@ -32,9 +62,9 @@ export async function referenceSources(root) {
     'src/runtime/backends.ts',
     'src/extension.ts',
     'src/acp/agent.ts',
-    ...['Composer', 'HistoryDialog', 'Palette', 'GooeyMenu', 'Header', 'Modal'].map(
-      (name) => `src/webview/components/${name}.tsx`,
-    ),
+    ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
+      .filter((name) => /\.tsx?$/.test(name))
+      .map((name) => `src/webview/${name}`),
   ]
   return {
     ...source,
@@ -63,7 +93,13 @@ function settingSchema(value, nls) {
   return Object.fromEntries(
     Object.entries(value).flatMap(([key, entry]) => {
       if (
-        ['description', 'markdownDescription', 'title'].includes(key) &&
+        [
+          'description',
+          'markdownDescription',
+          'title',
+          'deprecationMessage',
+          'markdownDeprecationMessage',
+        ].includes(key) &&
         keyOf(entry) !== undefined
       )
         return [
@@ -75,76 +111,15 @@ function settingSchema(value, nls) {
   )
 }
 
-// The option inventory comes from node:util parseArgs, including its aliases.
-export function parserOptions(runtimeSource, source) {
-  const tree = ts.createSourceFile('cliArgs.ts', runtimeSource, ts.ScriptTarget.Latest, true)
-  const result = []
-  const read = (object, routes) => {
-    for (const property of object.properties) {
-      if (!ts.isPropertyAssignment(property) || !ts.isObjectLiteralExpression(property.initializer))
-        continue
-      const name = ts.isComputedPropertyName(property.name)
-        ? source.ACP_PAID_FLAGS[property.name.expression.getText(tree).split('.').at(-1)]
-        : property.name.text
-      const fields = Object.fromEntries(
-        property.initializer.properties
-          .filter((field) => ts.isPropertyAssignment(field))
-          .map((field) => [
-            field.name.getText(tree),
-            field.initializer.getText(tree).replaceAll("'", ''),
-          ]),
-      )
-      result.push({ name, routes, ...fields })
-    }
-  }
-  const visit = (node, functionName = '') => {
-    if (ts.isFunctionDeclaration(node)) functionName = node.name?.text ?? ''
-    if (ts.isPropertyAssignment(node) && node.name.getText(tree) === 'options') {
-      if (ts.isConditionalExpression(node.initializer)) {
-        read(node.initializer.whenTrue, ['scan-secrets'])
-        read(node.initializer.whenFalse, ['exec'])
-      } else if (ts.isObjectLiteralExpression(node.initializer)) {
-        if (functionName === 'parseReport') read(node.initializer, ['report'])
-        else if (functionName === 'parseCommandLineStrictly')
-          read(node.initializer, ['serve', 'login', 'setup'])
-      }
-    }
-    ts.forEachChild(node, (child) => visit(child, functionName))
-  }
-  visit(tree)
-  return result
-}
-
-const OPTION_KEYS = {
-  'trust-workspace': 'execTrustRefused',
-  'allow-dangerously-skip-permissions': 'execTrustRefused',
-  'web-search': 'execWebSearchUnbounded',
-  'image-generation': 'execPaidNeedsEdits',
-  'prompt-file': 'execPromptTwice',
-  'untrusted-file': 'execFileUnreadable',
-  'key-stdin': 'referenceKeyStdin',
-  'max-budget-usd': 'execBudgetRequired',
-  'permission-mode': 'execModeRefused',
-  model: 'execUnknownModel',
-  effort: 'execEffortUnavailable',
-  'max-requests': 'referenceExecContract',
-  timeout: 'referenceExecContract',
-  output: 'referenceExecContract',
-  cwd: 'referenceExecContract',
-  ephemeral: 'referenceExecContract',
-  'fail-on-denial': 'execDeniedStop',
-  'muse-binary': 'cliNotFound',
-  'shell-sandbox': 'sandboxNotNeeded',
-  'allow-contributor-models': 'subagentContributorBlocked',
-  verbose: 'referenceIntro',
-  help: 'referenceBriefHelp',
-  version: 'referenceVersion',
-  maintenance: 'referenceSetup',
-  backend: 'referenceIntro',
-  out: 'reportUsage',
-  description: 'reportUsage',
-  'no-facts': 'reportUsage',
-  'no-events': 'reportUsage',
+// Read the exact tables passed to parseArgs by each runtime route.
+export function parserOptions(_runtimeSource, source) {
+  return Object.entries(source.CLI_OPTION_REGISTRY).flatMap(([route, definition]) =>
+    Object.entries(definition.options).map(([name, option]) => ({
+      name,
+      routes: [route],
+      ...option,
+    })),
+  )
 }
 
 const platformProbe = (platform, remoteName) => ({
@@ -206,9 +181,9 @@ export function referenceFacts(source) {
     'conversation-actions': {
       sideChat: {
         mode: 'plan',
-        context: 'completed turns',
+        context: 'completedTurns',
         goal: 'cleared',
-        museCode: 'file tools may edit',
+        museCode: 'fileToolsMayEdit',
       },
       messageWhileRunning: 'steer',
       rewind: {
@@ -219,21 +194,21 @@ export function referenceFacts(source) {
         forkRewind: 'newConversationAndRecordedMuseEdits',
       },
       withdrawal: {
-        modelApi: 'before next request',
-        museCode: 'queued messages only; steer delivered immediately',
+        modelApi: 'beforeNextRequest',
+        museCode: 'queuedOnly',
       },
     },
     attachments: {
       maxAttachments: source.MAX_ATTACHMENTS_PER_MESSAGE,
       textExtensions: [...source.TEXT_ATTACHMENT_EXTENSIONS],
-      textSources: 'trusted indexed workspace paths',
+      textSources: 'trustedIndexedWorkspacePaths',
       modelApiTextAllowanceBytes: source.MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
       imageBytes: source.MAX_IMAGE_BYTES,
       pdfBytes: source.MAX_DOCUMENT_BYTES,
       textBytes: source.MAX_TEXT_ATTACHMENT_BYTES,
       encodedMediaChars: source.MAX_ENCODED_MEDIA_CHARS,
       requestMedia: source.MODEL_API_MEDIA_PER_REQUEST,
-      vision: 'selected model capability',
+      vision: 'modelCapability',
       museCodeMessageBytes: source.MSP_FRAME_LIMIT_BYTES,
       museCodeAttachmentBudgetBytes: source.MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
       pdfPageImages: source.MODEL_API_PDF_PAGE_IMAGES,
@@ -243,9 +218,9 @@ export function referenceFacts(source) {
     context: {
       meter: ['tokensUsed', 'contextWindow', 'pressure'],
       pressureThresholds: [source.CONTEXT_PRESSURE_MEDIUM, source.CONTEXT_PRESSURE_HIGH],
-      compaction: 'summary replaces older context; rewind cannot precede latest compaction',
+      compaction: 'summaryReplacesOlderContext',
     },
-    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi only' },
+    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi' },
     effort: {
       default: source.DEFAULT_EFFORT,
       tiers: source.MODEL_EFFORT_LEVELS,
@@ -265,7 +240,7 @@ export function referenceFacts(source) {
     },
     'best-of-n': {
       workspace: 'trusted',
-      attempts: 'separate worktrees',
+      attempts: 'separateWorktrees',
       controls: ['attempts', 'requestsPerAttempt', 'compare', 'cancel', 'take'],
     },
     'code-intelligence': {
@@ -278,7 +253,7 @@ export function referenceFacts(source) {
       maximumIntervalMs: source.SCHEDULE_MAX_INTERVAL_MS,
       maximumPromptChars: source.SCHEDULE_MAX_PROMPT_CHARS,
       maximumJobs: source.SCHEDULE_MAX_JOBS_PER_SESSION,
-      admission: 'due run requires explicit dispatch and consent',
+      admission: 'explicitDispatchAndConsent',
     },
     tab: {
       trigger: source.SETTING_DEFAULTS.tabTrigger,
@@ -342,43 +317,67 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     if (feature === undefined || !source.REFERENCE_FEATURE_IDS.includes(feature))
       errors.push(`Uncovered model tool: ${name}`)
   }
-  const keys = new Set(
-    source
-      .referenceKeyboardActions()
-      .flatMap((row) => row.key.split(/[ /]+/).flatMap((key) => key.split('+'))),
-  )
+  // Every event key dispatch must use the runtime registry, including new
+  // components. Unlike a union of observed key names, this ties context/action
+  // identity to the very call which selects the handler branch.
+  const usedContexts = new Set()
   for (const [file, text] of Object.entries(source.evidence)) {
-    if (!file.endsWith('.tsx')) continue
+    if (!/\.tsx?$/.test(file) || !file.startsWith('src/webview/')) continue
     const tree = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
-    const keyboardKeys = new Set()
-    const visit = (node) => {
+    const visit = (node, functionName = '', keyboardParameters = new Set()) => {
+      if (ts.isFunctionDeclaration(node)) functionName = node.name?.text ?? ''
+      if (ts.isFunctionLike(node)) {
+        keyboardParameters = new Set(keyboardParameters)
+        const attribute = node.parent?.parent
+        const isKeyHandler =
+          attribute !== undefined &&
+          ts.isJsxAttribute(attribute) &&
+          ['onKeyDown', 'onKeyUp'].includes(attribute.name.getText(tree))
+        for (const parameter of node.parameters) {
+          const isKeyboardParameter =
+            parameter.type !== undefined &&
+            ts.isTypeReferenceNode(parameter.type) &&
+            parameter.type.typeName.getText(tree).split('.').at(-1) === 'KeyboardEvent'
+          if (isKeyHandler || isKeyboardParameter) {
+            if (ts.isIdentifier(parameter.name)) keyboardParameters.add(parameter.name.text)
+            else errors.push(`Keyboard dispatch bypasses registry: ${file}`)
+          }
+        }
+      }
+      const isKeyboardAccess =
+        ((ts.isPropertyAccessExpression(node) && ['key', 'code'].includes(node.name.text)) ||
+          (ts.isElementAccessExpression(node) &&
+            ts.isStringLiteral(node.argumentExpression) &&
+            ['key', 'code'].includes(node.argumentExpression.text))) &&
+        ts.isIdentifier(node.expression) &&
+        keyboardParameters.has(node.expression.text)
+      const isImeAccess =
+        file === 'src/webview/components/Composer.tsx' &&
+        functionName === 'isComposing' &&
+        ts.isBinaryExpression(node.parent) &&
+        node.parent.right.getText(tree) === 'IME_PROCESS_KEY'
       if (
-        ts.isCaseClause(node) &&
-        ts.isStringLiteral(node.expression) &&
-        ts.isSwitchStatement(node.parent.parent) &&
-        node.parent.parent.expression.getText(tree).endsWith('.key')
+        !isImeAccess &&
+        (isKeyboardAccess ||
+          (ts.isPropertyAccessExpression(node) && node.getText(tree) === 'event.key'))
       )
-        keyboardKeys.add(node.expression.text)
-      if (
-        ts.isBinaryExpression(node) &&
-        node.left.getText(tree).endsWith('.key') &&
-        ts.isStringLiteral(node.right)
-      )
-        keyboardKeys.add(node.right.text)
-      if (
-        ts.isVariableDeclaration(node) &&
-        node.name.getText(tree).endsWith('_KEY') &&
-        node.initializer &&
-        ts.isStringLiteral(node.initializer)
-      )
-        keyboardKeys.add(node.initializer.text)
-      ts.forEachChild(node, visit)
+        errors.push(`Keyboard dispatch bypasses registry: ${file}`)
+      if (ts.isCallExpression(node) && node.expression.getText(tree) === 'webviewKey') {
+        const context = node.arguments[0]
+        if (
+          !context ||
+          !ts.isStringLiteral(context) ||
+          !Object.hasOwn(source.WEBVIEW_KEYBINDINGS, context.text)
+        )
+          errors.push(`Unknown keyboard context: ${file}`)
+        else usedContexts.add(context.text)
+      }
+      ts.forEachChild(node, (child) => visit(child, functionName, keyboardParameters))
     }
     visit(tree)
-    for (const key of keyboardKeys)
-      if (!['Control', 'Meta'].includes(key) && !keys.has(key === ' ' ? 'Space' : key))
-        errors.push(`Undocumented keyboard action: ${file}: ${key}`)
   }
+  for (const context of Object.keys(source.WEBVIEW_KEYBINDINGS))
+    if (!usedContexts.has(context)) errors.push(`Keyboard context has no handler: ${context}`)
   // Adapter and admission witnesses invalidate the reviewed capability table if
   // host wiring changes. These are semantic source guards, not wire guesses.
   const witnesses = {
@@ -398,62 +397,68 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       if (!source.evidence[file].replaceAll(/\s+/g, ' ').includes(fragment.replaceAll(/\s+/g, ' ')))
         errors.push(`Host capability witness changed: ${file}`)
 
-  const features = source.featureCatalog().map((feature) => ({
-    ...feature,
-    facts: {
-      ...referenceFacts(source)[feature.id],
-      ...(feature.paid && {
-        paidSettings: feature.settings.filter((setting) =>
-          Object.values(source.PAID_FEATURE_SETTINGS).some((key) => setting === `museSpark.${key}`),
-        ),
-        configuredDefaults: Object.fromEntries(
-          feature.settings.map((setting) => [setting, properties[setting]?.default]),
-        ),
-        pricesUsd: source.PAID_PRICES_USD,
-        tokenRatesPerMillion: source.MODEL_API_PRICES_PER_MILLION,
-        billing: 'storedModelApiKey',
-        effectiveAvailability: Object.fromEntries(
-          feature.surfaces.map((surface) => {
-            if (surface === 'vscode:modelApi')
+  const features = source.featureCatalog().map((feature) => {
+    const paidId = source.PAID_FEATURES.find(
+      (id) => source.PAID_USE_REGISTRY[id].featureId === feature.id,
+    )
+    const settingId =
+      paidId === undefined ? undefined : `museSpark.${source.PAID_FEATURE_SETTINGS[paidId]}`
+    const schema = properties[settingId]
+    // Retain enum values and their schema meanings; never treat a string enum
+    // as a boolean default. Runtime predicate truth is tested separately.
+    const defaultState =
+      schema === undefined ? undefined : source.resolveSettingDefault(schema, nls)
+    return {
+      ...feature,
+      paid: paidId !== undefined,
+      facts: {
+        ...referenceFacts(source)[feature.id],
+        ...(paidId !== undefined && {
+          paidFeature: paidId,
+          paidSettings: [settingId],
+          configuredDefaults: { [settingId]: schema?.default },
+          defaultState,
+          pricesUsd: source.PAID_PRICES_USD,
+          tokenRatesPerMillion: source.MODEL_API_PRICES_PER_MILLION,
+          billing: 'storedModelApiKey',
+          effectiveAvailability: Object.fromEntries(
+            feature.surfaces.map((surface) => {
+              if (surface === 'vscode:modelApi')
+                return [
+                  surface,
+                  {
+                    defaultState,
+                    key: 'SecretStorage',
+                    consent: source.PAID_USE_REGISTRY[paidId].once,
+                    ledger: paidId === 'tab' ? 'tabDailyBudgetUsd' : 'paidDailyBudgetUsd',
+                  },
+                ]
+              if (surface === 'acp:modelApi')
+                return [
+                  surface,
+                  {
+                    configuredDefault: false,
+                    flag: source.ACP_PAID_FLAGS[paidId],
+                    consent: 'editorPermission',
+                    ledger: false,
+                  },
+                ]
               return [
                 surface,
                 {
-                  enabledByDefault: feature.settings.some(
-                    (setting) => properties[setting]?.default === true,
-                  ),
+                  configuredDefault: paidId === 'tab',
                   key: 'SecretStorage',
-                  consent: true,
-                  ledger: feature.id === 'tab' ? 'tabDailyBudgetUsd' : 'paidDailyBudgetUsd',
+                  explicitOptIn: paidId !== 'tab',
+                  consent: source.PAID_USE_REGISTRY[paidId].once,
+                  ledger: paidId === 'tab' && 'tabDailyBudgetUsd',
                 },
               ]
-            if (surface === 'acp:modelApi')
-              return [
-                surface,
-                {
-                  enabledByDefault: false,
-                  flag: source.PAID_FEATURES.filter((paid) =>
-                    feature.settings.includes(`museSpark.${source.PAID_FEATURE_SETTINGS[paid]}`),
-                  ).map((paid) => source.ACP_PAID_FLAGS[paid]),
-                  consent: 'editor permission',
-                  ledger: false,
-                },
-              ]
-            return [
-              surface,
-              {
-                enabledByDefault: feature.id === 'tab',
-                key: 'SecretStorage',
-                explicitOptIn: feature.id !== 'tab',
-                consent: true,
-                ledger: feature.id === 'tab' && 'tabDailyBudgetUsd',
-              },
-            ]
-          }),
-        ),
-      }),
-    },
-    paid: feature.paid,
-  }))
+            }),
+          ),
+        }),
+      },
+    }
+  })
   // A separate inventory is retained even for features without a manifest contribution.
   for (const id of source.REFERENCE_FEATURE_IDS)
     if (features.every((feature) => feature.id !== id)) errors.push(`Missing feature: ${id}`)
@@ -471,9 +476,17 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       /* Warnings above collect validation failures. */
     },
   }
-  for (const feature of source.PAID_FEATURES)
+  for (const feature of source.PAID_FEATURES) {
     if (source.PAID_FEATURE_SETTINGS[feature] === undefined)
       errors.push(`Undocumented paid feature: ${feature}`)
+    const identity = source.PAID_USE_REGISTRY[feature].featureId
+    if (
+      source.PAID_FEATURES.filter((paid) => source.PAID_USE_REGISTRY[paid].featureId === identity)
+        .length !== 1 ||
+      features.every((entry) => entry.id !== identity)
+    )
+      errors.push(`Paid registry identity is missing or duplicated: ${feature}`)
+  }
   for (const [id, schema] of Object.entries(properties)) {
     const key = id.slice('museSpark.'.length)
     const canonical = source.SETTING_DEFAULTS[key]
@@ -530,6 +543,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     errors.push('Runtime refinement mismatch: valid:host')
 
   const descriptionFor = (ref) => {
+    if ('cli' in ref) return source.EN.referenceCliOptions[ref.cli]
     if ('ui' in ref) return source.EN[ref.ui]
     if ('tip' in ref) return source.EN.paletteTips[ref.tip]
     if ('command' in ref)
@@ -591,28 +605,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       categoryKey: keyOf(c.category),
       description: entry === undefined ? '' : descriptionFor(entry.description),
       text: entry?.description,
-      enablement:
-        [
-          c.enablement,
-          ...(manifest.contributes.menus?.commandPalette ?? [])
-            .filter((menu) => menu.command === c.command)
-            .map((menu) => menu.when),
-        ]
-          .filter(Boolean)
-          .join(' && ') || undefined,
+      enablement: source.resolveCommandCondition(
+        c,
+        manifest.contributes.menus?.commandPalette ?? [],
+      ),
       canRun: entry?.canRun === true,
     }
   })
-  const slashText = (description) => {
-    const ui = Object.entries(source.EN).find(
-      ([, text]) => typeof text === 'string' && text === description,
-    )?.[0]
-    if (ui !== undefined) return { ui }
-    const tip = Object.entries(source.EN.paletteTips).find(([, text]) => text === description)?.[0]
-    if (tip !== undefined) return { tip }
-    errors.push(`Missing localized slash description: ${description}`)
-    return { ui: 'referenceIntro' }
-  }
   const slash = new Map()
   for (const backend of ['museCode', 'modelApi']) {
     const groups = source.buildPalette({
@@ -630,11 +629,16 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       isKeyStored: true,
     })
     for (const c of source.slashCommandsOf(groups)) {
+      if (c.reference?.[backend] === undefined)
+        errors.push(`Missing localized slash description: ${c.name}`)
       const old = slash.get(c.name)
       slash.set(c.name, {
         name: c.name,
         description: c.detail ?? c.tip,
-        descriptions: { ...old?.descriptions, [backend]: slashText(c.detail ?? c.tip) },
+        descriptions: {
+          ...old?.descriptions,
+          [backend]: c.reference?.[backend] ?? { ui: 'referenceIntro' },
+        },
         backends: [...(old?.backends ?? []), backend],
       })
     }
@@ -657,9 +661,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     context: {
       meter: ['tokensUsed', 'contextWindow', 'pressure'],
       pressureThresholds: [source.CONTEXT_PRESSURE_MEDIUM, source.CONTEXT_PRESSURE_HIGH],
-      compaction: 'summary replaces older context; rewind cannot precede latest compaction',
+      compaction: 'summaryReplacesOlderContext',
     },
-    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi only' },
+    questions: { actions: ['submit', 'explain', 'cancel'], elicitation: 'modelApi' },
     effort: { enum: source.EFFORT_LEVELS },
     'max-requests': {
       default: source.EXEC_DEFAULT_MAX_REQUESTS,
@@ -681,43 +685,38 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     },
   }
   for (const option of parserOptions(runtimeSource, source)) {
-    if (OPTION_KEYS[option.name] === undefined)
+    if (source.CLI_OPTION_TEXT[option.name] === undefined)
       errors.push(`CLI option lacks contract: --${option.name}`)
-    const routes = option.name === 'maintenance' ? ['setup'] : option.routes
+    const routes = option.routes
     for (const route of routes) {
-      const usageKey = route === 'report' ? 'reportUsage' : 'acpUsage'
-      const usageLine =
+      let text = { cli: source.CLI_OPTION_TEXT[option.name] }
+      if (route === 'exec' && option.name === 'image-generation')
+        text = { ui: 'referenceExecImages' }
+      else if (
         route === 'exec' &&
-        [
-          'trust-workspace',
-          'allow-dangerously-skip-permissions',
-          'web-search',
-          'key-stdin',
-        ].includes(option.name)
-          ? -1
-          : source.EN[usageKey]
-              .split('\n')
-              .findLastIndex(
-                (line) =>
-                  line.trim().startsWith(`--${option.name}`) ||
-                  (option.name === 'maintenance' && line.includes('--maintenance')),
-              )
+        ['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
+          option.name,
+        )
+      )
+        text = { ui: 'referenceExecContract' }
+
       cli.push({
         route,
         name: `${route}: --${option.name}${option.short ? ` / -${option.short}` : ''}${option.type === 'string' ? ' <value>' : ''}`,
-        description:
-          usageLine < 0
-            ? (source.EN[OPTION_KEYS[option.name]] ?? '')
-            : source.EN[usageKey].split('\n')[usageLine].trim(),
-        text: { ui: OPTION_KEYS[option.name] ?? 'referenceIntro' },
-        ...(!(usageLine < 0) && { usageKey, usageLine }),
+        description: descriptionFor(text),
+        text,
         contract: {
           type: option.type,
-          repeatable: option.multiple === 'true',
+          ...(option.name === 'maintenance' && route !== 'setup' && { refused: true }),
+          repeatable: option.multiple === true,
           ...optionFacts[option.name],
           ...(option.type === 'boolean' && { default: false }),
-          ...(route === 'login' &&
-            !['muse-binary', 'verbose', 'help', 'version'].includes(option.name) && {
+          ...(['login', 'authSet', 'authStatus', 'authClear'].includes(route) &&
+            !(
+              route === 'login'
+                ? ['muse-binary', 'verbose', 'help', 'version']
+                : ['help', 'version']
+            ).includes(option.name) && {
               purpose: 'acceptedUnused',
             }),
           ...(route === 'setup' &&
@@ -728,6 +727,9 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
             }),
           ...(route === 'setup' && option.name === 'maintenance' && { event: 'maintenance' }),
           ...(route === 'exec' && {
+            ...(['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
+              option.name,
+            ) && { refused: true }),
             purpose:
               {
                 'max-requests': 'maxRequests',
@@ -800,6 +802,14 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   )
   const visitDirectFlags = (node) => {
     if (
+      ts.isPropertyAssignment(node) &&
+      node.name.getText(runtimeTree) === 'options' &&
+      ts.isCallExpression(node.parent.parent) &&
+      node.parent.parent.expression.getText(runtimeTree) === 'parseArgs' &&
+      !node.initializer.getText(runtimeTree).includes('CLI_OPTION_REGISTRY')
+    )
+      errors.push('CLI parser bypasses registry')
+    if (
       ts.isStringLiteral(node) &&
       /^--[a-z-]+$/.test(node.text) &&
       !declaredFlags.has(node.text) &&
@@ -836,32 +846,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   for (const name of runtimeNames) {
     if (name !== 'invalid' && !names.has(name)) errors.push(`CLI command lacks entry: ${name}`)
   }
-  const syntax = {
-    goal: [
-      '/goal <objective>',
-      '/goal edit <objective>',
-      '/goal pause',
-      '/goal resume',
-      '/goal clear',
-    ],
-    review: [
-      '/review',
-      '/review branch [base]',
-      '/review commit [revision]',
-      '/review <instructions>',
-      '/review security …',
-    ],
-    handoff: ['/handoff [goal]'],
-    'hook run': ['/hook run <name>'],
-    loop: [
-      '/loop <prompt>',
-      '/loop <interval: 5m|1h|1d> <prompt>',
-      '/loop "<cron>" <prompt>',
-      '/loop list',
-      '/loop cancel <id>',
-    ],
-  }
-  for (const row of slash.values()) row.syntax = syntax[row.name] ?? [`/${row.name}`]
+  for (const row of slash.values())
+    row.syntax = source.SLASH_REFERENCE[row.name]?.syntax ?? [`/${row.name}`]
   if (
     source.parseGoalPrompt('/goal pause')?.verb !== 'pause' ||
     source.parseGoalPrompt('/goal edit objective')?.verb !== 'edit' ||
@@ -880,15 +866,20 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   for (const f of features) {
     if (ids.has(f.id)) errors.push(`Duplicate feature: ${f.id}`)
     ids.add(f.id)
-    const expectedPaid =
-      Object.values(source.PAID_FEATURE_SETTINGS).some((key) =>
-        f.settings.includes(`museSpark.${key}`),
-      ) && !['auto-subscription', 'judge-subscription'].includes(f.id)
-    if (f.paid !== expectedPaid) errors.push(`Paid claim mismatch: ${f.id}`)
+    errors.push(...lintReferenceFacts(f.facts, f.id))
+    const original = source.featureCatalog().find((entry) => entry.id === f.id)
+    const paidId = source.PAID_FEATURES.find(
+      (id) => source.PAID_USE_REGISTRY[id].featureId === f.id,
+    )
+    const isPaid = paidId !== undefined
+    if (original.paid !== isPaid) errors.push(`Paid claim mismatch: ${f.id}`)
+    if (
+      paidId !== undefined &&
+      !original.settings.includes(`museSpark.${source.PAID_FEATURE_SETTINGS[paidId]}`)
+    )
+      errors.push(`Paid setting relationship missing: ${f.id}`)
     for (const surface of f.surfaces) {
-      const paidIds = source.PAID_FEATURES.filter((paid) =>
-        f.settings.includes(`museSpark.${source.PAID_FEATURE_SETTINGS[paid]}`),
-      )
+      const paidIds = paidId === undefined ? [] : [paidId]
       if (
         surface === 'vscode:museCode' &&
         f.paid &&
@@ -908,6 +899,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`Host capability mismatch: ${f.id}`)
     for (const text of [f.name, f.summary, f.description, ...f.details]) {
       if (!descriptionFor(text)?.trim()) errors.push(`Feature lacks text: ${f.id}`)
+      errors.push(
+        ...lintReferenceDescription(descriptionFor(text), f.id),
+        ...lintDescriptionReference(text),
+      )
     }
     for (const id of f.commands)
       if (commands.every((c) => c.id !== id)) errors.push(`Unknown feature command: ${f.id}: ${id}`)
@@ -921,6 +916,8 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   }
   for (const entry of [...commands, ...settings, ...slash.values(), ...cli]) {
     if (!entry.description?.trim()) errors.push(`Missing description: ${entry.id ?? entry.name}`)
+    errors.push(...lintReferenceDescription(entry.description, entry.id ?? entry.name))
+    if (entry.text !== undefined) errors.push(...lintDescriptionReference(entry.text))
   }
   for (const entry of [...commands, ...settings]) {
     const group = 'canRun' in entry ? 'commands' : 'settings'
@@ -947,6 +944,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
 
 export function referenceMarkdown(model, source, nls, manifest) {
   const text = (ref) => {
+    if ('cli' in ref) return source.EN.referenceCliOptions[ref.cli]
     if ('ui' in ref) return source.EN[ref.ui]
     if ('tip' in ref) return source.EN.paletteTips[ref.tip]
     if ('command' in ref) return model.commands.find((c) => c.id === ref.command)?.name
@@ -986,8 +984,11 @@ export function referenceMarkdown(model, source, nls, manifest) {
   )
   for (const c of model.slash)
     lines.push(
-      `- **${c.syntax.join(' | ')}**: ${Object.entries(c.descriptions)
-        .map(([backend, ref]) => `${backend}: ${text(ref)}`)
+      `- ${c.syntax.map((syntax) => `\`${syntax}\``).join(' | ')}: ${Object.entries(c.descriptions)
+        .map(
+          ([backend, ref]) =>
+            `${backend}: ${text(ref).replaceAll('<', '&lt;').replaceAll('>', '&gt;')}`,
+        )
         .join('; ')}`,
     )
   lines.push('', '## Commands', '')
@@ -1032,7 +1033,7 @@ export function referenceMarkdown(model, source, nls, manifest) {
   lines.push('', '## ACP / CLI commands', '')
   for (const c of model.cli)
     lines.push(
-      `- \`${c.name}\`: ${source.fill(c.description, { command: model.executable })}${c.contract === undefined ? '' : ` \`${JSON.stringify(c.contract)}\``}`,
+      `- \`${c.name}\`: ${source.fill(c.description, { command: model.executable }).replaceAll('<', '&lt;').replaceAll('>', '&gt;')}${c.contract === undefined ? '' : ` \`${JSON.stringify(c.contract)}\``}`,
     )
   lines.push(
     '',
@@ -1080,7 +1081,7 @@ export async function generateReference(root, isCheck = false) {
     ),
   ]
   const schema = `
-    const textSchema = z.union([z.object({ ui: z.enum(${JSON.stringify(uiKeys)}) }), z.object({ tip: z.enum(${JSON.stringify(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
+    const textSchema = z.union([z.object({ cli: z.enum(${JSON.stringify(Object.keys(source.EN.referenceCliOptions))}) }), z.object({ ui: z.enum(${JSON.stringify(uiKeys)}) }), z.object({ tip: z.enum(${JSON.stringify(tipKeys)}) }), z.object({ setting: z.string() }), z.object({ command: z.string() })])
     const strings = z.array(z.string())
     const schema = z.object({ executable: z.string(),
       features: z.array(z.object({ id: z.string(), name: textSchema, summary: textSchema, description: textSchema, commands: strings, settings: strings, docs: z.string(), editors: z.array(z.enum(['vscode', 'acp'])), backends: z.array(z.enum(['museCode', 'modelApi'])), paid: z.boolean(), surfaces: z.array(z.enum(['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'])), details: z.array(textSchema), facts: z.record(z.string(), z.unknown()) })),
@@ -1094,14 +1095,23 @@ export async function generateReference(root, isCheck = false) {
   `
   // Intern repeated JSON tokens without adding a browser/Node compression dependency.
   // The same expanded model is still parsed by zod before either host uses it.
-  const modelJson = JSON.stringify(model)
+  const numericPrefix = '~n:'
+  const serialize = (value) =>
+    JSON.stringify(value, (_key, entry) =>
+      typeof entry === 'number' ? `${numericPrefix}${entry}` : entry,
+    )
+  const modelJson = serialize(model)
   const tokens = /"(?:[^"\\]|\\.)*"/g
-  if (modelJson.match(tokens).some((token) => /^"~[0-9]+"$/.test(token)))
+  if (
+    JSON.stringify(model)
+      .match(tokens)
+      .some((token) => /^"~(?:[0-9a-z]+"$|n:)/.test(token))
+  )
     throw new Error('Reserved reference token')
   const fragments = new Map()
   const collect = (value) => {
     if (typeof value !== 'object' || value === null) return
-    const fragment = JSON.stringify(value)
+    const fragment = serialize(value)
     fragments.set(fragment, (fragments.get(fragment) ?? 0) + 1)
     for (const child of Object.values(value)) collect(child)
   }
@@ -1113,7 +1123,7 @@ export async function generateReference(root, isCheck = false) {
     .toSorted(([a], [b]) => b.length - a.length)
   for (const [fragment] of candidates) {
     const parts = packed.split(fragment)
-    const token = JSON.stringify(`~${pool.length}`)
+    const token = JSON.stringify(`~${pool.length.toString(source.REFERENCE_POOL_RADIX)}`)
     const uses = parts.length - 1
     if (uses <= 1 || uses * (fragment.length - token.length) <= JSON.stringify(fragment).length)
       continue
@@ -1123,28 +1133,61 @@ export async function generateReference(root, isCheck = false) {
   const counts = new Map()
   for (const token of [packed, ...pool].join(' ').match(tokens))
     counts.set(token, (counts.get(token) ?? 0) + 1)
-  const referenceLength = JSON.stringify(`~${pool.length + counts.size}`).length
+  const referenceLength = JSON.stringify(
+    `~${(pool.length + counts.size).toString(source.REFERENCE_POOL_RADIX)}`,
+  ).length
   const repeatedTokens = [...counts]
     .filter(
       ([token, count]) =>
         count > 1 &&
-        !/^"~[0-9]+"$/.test(token) &&
+        !/^"~[0-9a-z]+"$/.test(token) &&
         count * (token.length - referenceLength) > JSON.stringify(token).length,
     )
     .map(([token]) => token)
   const indices = new Map(repeatedTokens.map((token, index) => [token, index + pool.length]))
   const encodeTokens = (json) =>
     json.replaceAll(tokens, (token) =>
-      indices.has(token) ? JSON.stringify(`~${indices.get(token)}`) : token,
+      indices.has(token)
+        ? JSON.stringify(`~${indices.get(token).toString(source.REFERENCE_POOL_RADIX)}`)
+        : token,
     )
   for (const [index, fragment] of pool.entries()) pool[index] = encodeTokens(fragment)
   pool.push(...repeatedTokens)
   packed = packed.replaceAll(tokens, (token) =>
-    indices.has(token) ? JSON.stringify(`~${indices.get(token)}`) : token,
+    indices.has(token)
+      ? JSON.stringify(`~${indices.get(token).toString(source.REFERENCE_POOL_RADIX)}`)
+      : token,
   )
   const formatting = await resolveConfig(path.join(root, MODULE))
   const module = await format(
-    `// Generated by scripts/gen-reference.mjs; do not edit.\nimport * as z from 'zod/mini'\nimport type { ReferenceModel } from './types'\nexport function referenceModel(): ReferenceModel { const pool = ${JSON.stringify(pool)}; const expand = (text: string): string => text.replaceAll(/"~([0-9]+)"/g, (_match: string, index: string) => { const token = pool[Number(index)]; if (token === undefined) throw new RangeError(index); return expand(token) }); return parseReferenceModel(JSON.parse(expand(${JSON.stringify(packed)}))) }\n${schema}\n`,
+    `// Generated by scripts/gen-reference.mjs; do not edit.
+import * as z from 'zod/mini'
+import type { ReferenceModel } from './types'
+export function referenceModel(): ReferenceModel {
+  const referenceRadix = ${source.REFERENCE_POOL_RADIX}
+  const numericPrefix = ${JSON.stringify(numericPrefix)}
+  const pool: readonly unknown[] = ${JSON.stringify(pool.map((fragment) => JSON.parse(fragment)))}
+  const expand = (value: unknown): unknown => {
+    if (typeof value === 'string') {
+      if (value.startsWith(numericPrefix)) return Number(value.slice(numericPrefix.length))
+      const match = /^~([0-9a-z]+)$/.exec(value)
+      if (match === null) return value
+      const token = pool[Number.parseInt(match[1] ?? '', referenceRadix)]
+      if (token === undefined) throw new RangeError(value)
+      return expand(token)
+    }
+    if (Array.isArray(value)) return value.map((entry: unknown) => expand(entry))
+    if (typeof value !== 'object' || value === null) return value
+    return Object.fromEntries(Object.entries(value).map(([key, entry]) => {
+      const name = expand(key)
+      if (typeof name !== 'string') throw new TypeError(key)
+      return [name, expand(entry)]
+    }))
+  }
+  return parseReferenceModel(expand(${packed}))
+}
+${schema}
+`,
     { ...formatting, filepath: MODULE },
   )
   const markdown = await format(referenceMarkdown(model, source, nls, manifest), {

@@ -1,20 +1,13 @@
 // Public runtime command table. The localized usage table owns descriptions.
 import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from './constants'
 
-import { fill } from './l10n/text'
-
 export function cliCommands() {
-  const lines = fill(UI_TEXT.acpUsage, { command: ACP_AGENT_NAME }).split('\n')
-  const description = (syntax: string): string =>
-    lines.find((line) => line.includes(syntax))?.trim() ?? ''
   return [
     {
       route: 'serve',
       name: '[options]',
-      description: description('[options]              '),
-      text: { ui: 'acpUsage' },
-      usageKey: 'acpUsage',
-      usageLine: 1,
+      description: UI_TEXT.referenceServe,
+      text: { ui: 'referenceServe' },
     },
     {
       route: 'login',
@@ -43,27 +36,25 @@ export function cliCommands() {
     {
       route: 'setup',
       name: 'setup',
-      description: description(' setup '),
+      description: UI_TEXT.referenceSetup,
       text: { ui: 'referenceSetup' },
-      usageKey: 'acpUsage',
-      usageLine: lines.findIndex((line) => line.includes(' setup ')),
     },
     {
       route: 'exec',
       name: 'exec',
-      description: description(' exec '),
+      description: UI_TEXT.referenceExecContract,
       text: { ui: 'referenceExecContract' },
     },
     {
       route: 'scan-secrets',
       name: 'scan-secrets',
-      description: description(' scan-secrets '),
+      description: UI_TEXT.referenceKeyStdin,
       text: { ui: 'referenceKeyStdin' },
     },
     {
       route: 'report',
       name: 'report',
-      description: description(' report '),
+      description: UI_TEXT.reportUsage,
       text: { ui: 'reportUsage' },
     },
     {

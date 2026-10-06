@@ -6,6 +6,8 @@ import {
   generateReference,
   referenceSources,
   referenceMarkdown,
+  lintReferenceDescription,
+  lintReferenceFacts,
 } from '../../scripts/lib/reference.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -212,7 +214,7 @@ describe('RVHELPREF truth regressions', () => {
     expect(feature('best-of-n')).toMatchObject({
       paid: true,
       surfaces: ['vscode:modelApi'],
-      facts: { workspace: 'trusted', attempts: 'separate worktrees' },
+      facts: { workspace: 'trusted', attempts: 'separateWorktrees' },
     })
     expect(feature('best-of-n').settings).toEqual(['museSpark.modelApiBestOfN'])
     expect(feature('subagents').settings).not.toContain('museSpark.modelApiBestOfN')
@@ -250,10 +252,12 @@ describe('RVHELPREF truth regressions', () => {
     ])
       expect(rows.some((row) => row.name.includes(name))).toBe(true)
     expect(rows.find((row) => row.name.startsWith('exec: --web-search')).description).toBe(
-      source.EN.execWebSearchUnbounded,
+      source.EN.referenceExecContract,
     )
     expect(
-      rows.filter((row) => row.name.includes('--maintenance')).map((row) => row.route),
+      rows
+        .filter((row) => row.name.includes('--maintenance') && row.contract.refused !== true)
+        .map((row) => row.route),
     ).toEqual(['setup'])
     expect(rows.find((row) => row.name.startsWith('exec: --max-requests')).contract).toMatchObject({
       default: 30,
@@ -330,18 +334,18 @@ describe('RVHELPREF truth regressions', () => {
     expect(source.EN.referenceNativeSearch).toContain('no MSP schedule controls')
     expect(feature('conversation-actions').facts.sideChat).toMatchObject({
       mode: 'plan',
-      context: 'completed turns',
+      context: 'completedTurns',
       goal: 'cleared',
     })
     expect(feature('conversation-actions').facts.rewind.restoreBoth).toBe(
       'checkpointFilesAndHistory',
     )
-    expect(source.EN.referenceConversationActions).toContain(source.EN.forkFromHere)
-    expect(source.EN.referenceConversationActions).toContain(source.EN.replyToOutput)
+    expect(source.EN.referenceConversationActions).toContain('fork or rewind')
+    expect(source.EN.referenceConversationActions).toContain('Select transcript text to reply')
     expect(source.EN.referenceQuestions).toContain(source.EN.questionCancel)
     for (const detail of feature('questions').details)
       expect(source.EN[detail.ui]).not.toContain('{server}')
-    expect(feature('questions').facts.elicitation).toBe('modelApi only')
+    expect(feature('questions').facts.elicitation).toBe('modelApi')
     expect(feature('plans').details).toContainEqual({ ui: 'referencePlanModes' })
     expect(feature('exports').facts.sessionLog).toBe('museCode')
     expect(feature('imports').details).toContainEqual({ ui: 'referenceResumeAgents' })
@@ -359,9 +363,7 @@ describe('RVHELPREF truth regressions', () => {
     expect(source.EN.referenceResumeAgents).toContain('unfinished Claude Code')
     expect(source.EN.agentImportDetailEvery).toContain('Gemini CLI')
     expect(source.EN.referenceCodeOutput).toContain('selection')
-    expect(feature('conversation-actions').facts.withdrawal.museCode).toContain(
-      'queued messages only',
-    )
+    expect(feature('conversation-actions').facts.withdrawal.museCode).toContain('queuedOnly')
     expect(feature('browser').facts.screenshot).toEqual({ modelApi: 'PNG', museCode: false })
   })
   it('R14 retains nested setting structures and runtime refinements', () => {
@@ -409,16 +411,17 @@ describe('RVHELPREF truth regressions', () => {
       }),
     ).toThrow('Host capability mismatch: code-intelligence')
     expect(() =>
-      buildReference(
-        manifest,
-        nls,
-        source,
-        runtime.replace(
-          "backend: { type: 'string' },",
-          "undocumented: { type: 'boolean' }, backend: { type: 'string' },",
-        ),
-        readme,
-      ),
+      build(manifest, {
+        CLI_OPTION_REGISTRY: {
+          ...source.CLI_OPTION_REGISTRY,
+          serve: {
+            options: {
+              ...source.CLI_OPTION_REGISTRY.serve.options,
+              undocumented: { type: 'boolean' },
+            },
+          },
+        },
+      }),
     ).toThrow('CLI option lacks contract: --undocumented')
   })
   it('R18 rejects source drift in defaults, scalar enums, actions, keyboards and adapters', () => {
@@ -437,8 +440,8 @@ describe('RVHELPREF truth regressions', () => {
     evidence['src/shared/protocol.ts'] = source.evidence['src/shared/protocol.ts']
     evidence['src/webview/components/Header.tsx'] = evidence[
       'src/webview/components/Header.tsx'
-    ].replace("event.key === 'Enter'", "event.key === 'F9'")
-    expect(() => build(manifest, { evidence })).toThrow('Undocumented keyboard action')
+    ].replace("webviewKey('header.rename', event) === 'accept'", "event.key === 'F9'")
+    expect(() => build(manifest, { evidence })).toThrow('Keyboard dispatch bypasses registry')
     evidence['src/webview/components/Header.tsx'] =
       source.evidence['src/webview/components/Header.tsx']
     evidence['src/runtime/backends.ts'] = evidence['src/runtime/backends.ts'].replace(
@@ -489,5 +492,302 @@ describe('RVHELPREF truth regressions', () => {
     expect(commandText('tabTurnOn')).toContain('modelApiTab=true')
     expect(commandText('tabMenu')).toContain(source.EN.tabMenuMultiline)
     expect(commandText('tabLanguages')).toContain('switch Tab suggestions on or off')
+  })
+})
+
+describe('RVHELPREF2 runtime truth regressions', () => {
+  it('command visibility retains each contributed condition and combines alternate menu paths', () => {
+    const model = build()
+    for (const menu of manifest.contributes.menus.commandPalette) {
+      if (menu.when !== undefined)
+        expect(model.commands.find((command) => command.id === menu.command).enablement).toContain(
+          menu.when,
+        )
+    }
+    expect(
+      source.resolveCommandCondition({ command: 'probe', enablement: 'trusted' }, [
+        { command: 'probe', when: 'editor' },
+        { command: 'probe', when: 'panel' },
+      ]),
+    ).toBe('trusted && ((editor) || (panel))')
+    expect(
+      source.resolveCommandCondition({ command: 'probe' }, [
+        { command: 'probe', when: 'editor' },
+        { command: 'probe' },
+      ]),
+    ).toBeUndefined()
+  })
+  it('B01 preserves typed defaults and enum meanings, including enabled Judge auto', () => {
+    for (const [id, schema] of Object.entries(manifest.contributes.configuration.properties)) {
+      const actual = source.resolveSettingDefault(schema, nls)
+      expect(actual.value, id).toEqual(schema.default)
+      expect(actual.type, id).toEqual(schema.enum === undefined ? schema.type : 'enum')
+      if (schema.enum !== undefined)
+        expect(actual.meaning, id).toBe(
+          nls[
+            (schema.markdownEnumDescriptions ?? schema.enumDescriptions)?.[
+              schema.enum.indexOf(schema.default)
+            ]?.slice(1, -1)
+          ],
+        )
+    }
+    expect(source.isPaidSettingOn('judge', source.SETTING_DEFAULTS)).toBe(true)
+    expect(
+      source.isPaidSettingOn('judge', { ...source.SETTING_DEFAULTS, 'judge.engine': 'off' }),
+    ).toBe(false)
+    expect(feature('judge').facts.defaultState).toMatchObject({ type: 'enum', value: 'auto' })
+    expect(JSON.stringify(feature('judge').facts)).not.toContain('enabledByDefault')
+  })
+  it('B02 gives headless images their flag/mode/budget admission without a price question', () => {
+    const image = build().cli.find((row) => row.name === 'exec: --image-generation')
+    expect(image.text).toEqual({ ui: 'referenceExecImages' })
+    expect(image.description).toContain('No price question')
+    expect(image.description).not.toContain('its price is asked first')
+    expect(
+      source.parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--permission-mode',
+        'acceptEdits',
+        '--image-generation',
+        'prompt',
+      ]),
+    ).toMatchObject({ command: 'exec', options: { paidFeatures: ['imageGeneration'] } })
+    expect(
+      source.parseCommandLine([
+        'exec',
+        '--backend',
+        'modelApi',
+        '--max-budget-usd',
+        '1',
+        '--image-generation',
+        'prompt',
+      ]).command,
+    ).toBe('invalid')
+  })
+  it('B04/B05 rejects catalogue claims about current delegation, sandbox and message state', () => {
+    for (const [key, text] of Object.entries(source.EN)) {
+      if (!key.startsWith('reference')) continue
+      expect(lintReferenceDescription(text, key), key).toEqual([])
+    }
+    for (const text of [
+      'Delegation is off (its default), so the model has no agent tools in this conversation.',
+      'Muse Code cannot run shell commands until its Windows sandbox is set up.',
+      'This message already reached the model.',
+    ])
+      expect(lintReferenceDescription(text, 'audit')).toHaveLength(1)
+    expect(source.EN.referenceNativeAgents).toContain('When run.subagent_delegation_mode="auto"')
+    expect(source.EN.referenceSandbox).toContain('when this window uses')
+    expect(source.EN.referenceSandbox).toContain('shellSandbox="off"')
+    const catalogue = source
+      .featureCatalog()
+      .map((f) =>
+        f.id === 'native-agents' ? { ...f, summary: { ui: 'referenceNativeAgents' } } : f,
+      )
+    expect(() =>
+      build(manifest, {
+        featureCatalog: () => catalogue,
+        EN: { ...source.EN, referenceNativeAgents: 'Delegation is off (its default)' },
+      }),
+    ).toThrow('Catalogue asserts conditional state')
+  })
+  it('B06 rejects free Judge even after its relationship is removed', () => {
+    expect(() =>
+      build(manifest, {
+        featureCatalog: () =>
+          source
+            .featureCatalog()
+            .map((f) => (f.id === 'judge' ? { ...f, paid: false, settings: [] } : f)),
+      }),
+    ).toThrow('Paid claim mismatch: judge')
+    for (const id of source.PAID_FEATURES) {
+      const paid = feature(source.PAID_USE_REGISTRY[id].featureId)
+      expect(paid.paid, id).toBe(true)
+      expect(paid.facts.paidFeature, id).toBe(id)
+      expect(paid.facts.paidSettings, id).toEqual([`museSpark.${source.PAID_FEATURE_SETTINGS[id]}`])
+    }
+    const evidence = {
+      ...source.evidence,
+      'src/webview/components/Modal.tsx': source.evidence[
+        'src/webview/components/Modal.tsx'
+      ].replace("webviewKey('modal.focus', event) !== 'close'", "event.key !== 'Delete'"),
+    }
+    expect(() => build(manifest, { evidence })).toThrow('Keyboard dispatch bypasses registry')
+  })
+  it('B07 renders slash grammar and description slots literally in Markdown', () => {
+    const markdown = referenceMarkdown(build(), source, nls, manifest)
+    for (const row of build().slash)
+      for (const syntax of row.syntax) expect(markdown).toContain(`\`${syntax}\``)
+    expect(markdown).not.toMatch(/\*\*\/goal <objective>/)
+    expect(markdown).not.toMatch(/:.*<instructions>/)
+  })
+  it('B08 inventories every runtime keyboard context, including previously omitted handlers', () => {
+    const rows = build().shortcuts
+    for (const context of Object.keys(source.WEBVIEW_KEYBINDINGS))
+      expect(
+        rows.find((row) => row.command === context),
+        context,
+      ).toBeDefined()
+    for (const context of [
+      'popover',
+      'dialog',
+      'agent.message',
+      'output.open',
+      'composer.mic',
+      'goal.edit',
+      'elicitation',
+      'palette',
+    ]) {
+      const row = rows.find((entry) => entry.command === context)
+      expect(row.text).toHaveProperty('ui')
+    }
+    expect(rows.find((row) => row.command === 'palette').key).toContain('Enter')
+    expect(rows.find((row) => row.command === 'composer.send').key).toContain('Ctrl+Enter')
+    expect(rows.find((row) => row.command === 'radial.menu').key).toContain('ArrowRight')
+    const evidence = {
+      ...source.evidence,
+      'src/webview/components/NewDialog.tsx':
+        "export const handle = (event) => event.key === 'Enter'",
+    }
+    expect(() => build(manifest, { evidence })).toThrow(
+      'Keyboard dispatch bypasses registry: src/webview/components/NewDialog.tsx',
+    )
+    const renamedEvent = {
+      ...source.evidence,
+      'src/webview/nested/NewDialog.tsx':
+        "export const handle = (evt: KeyboardEvent) => evt['key'] === 'Enter'",
+    }
+    expect(() => build(manifest, { evidence: renamedEvent })).toThrow(
+      'Keyboard dispatch bypasses registry: src/webview/nested/NewDialog.tsx',
+    )
+  })
+  it('B09 explanatory facts use catalogue/NLS fields in every locale, never raw English sentences', () => {
+    expect(lintReferenceFacts({ withdrawal: 'queued messages only' })).toEqual([
+      'Unlocalized reference fact: facts.withdrawal',
+    ])
+    const json = JSON.stringify(build().features.map((f) => f.facts))
+    for (const prose of [
+      'completed turns',
+      'file tools may edit',
+      'queued messages only; steer delivered immediately',
+      'summary replaces older context',
+    ])
+      expect(json).not.toContain(prose)
+    for (const language of [
+      'cs',
+      'de',
+      'es',
+      'fr',
+      'hu',
+      'it',
+      'ja',
+      'ko',
+      'pl',
+      'pt-br',
+      'ru',
+      'tr',
+      'zh-cn',
+      'zh-tw',
+    ]) {
+      const table = JSON.parse(readFileSync(path.join(root, `l10n/ui.${language}.json`), 'utf8'))
+      for (const key of [
+        'referenceConversationActions',
+        'referenceAttachments',
+        'referenceNativeAgents',
+        'referenceSandbox',
+        'referenceExecImages',
+      ]) {
+        expect(table[key], `${language}:${key}`).toBeTruthy()
+        expect(table[key], `${language}:${key}`).not.toBe(source.EN[key])
+      }
+      expect(Object.keys(table.referenceCliOptions)).toEqual(
+        Object.keys(source.EN.referenceCliOptions),
+      )
+    }
+  })
+  it('B12 accepts or explicitly refuses every parser option on its documented route', () => {
+    const samples = {
+      backend: 'modelApi',
+      'muse-binary': '/tmp/muse',
+      'shell-sandbox': 'off',
+      cwd: '/tmp',
+      'prompt-file': '/tmp/prompt',
+      'untrusted-file': '/tmp/data',
+      'permission-mode': 'acceptEdits',
+      model: 'muse-spark-1.3',
+      effort: 'high',
+      output: 'json',
+      'max-budget-usd': '1',
+      'max-requests': '2',
+      timeout: '10',
+      out: '/tmp/report',
+      description: 'description',
+    }
+    const rows = build().cli
+    for (const [route, definition] of Object.entries(source.CLI_OPTION_REGISTRY)) {
+      for (const [name, option] of Object.entries(definition.options)) {
+        const row = rows.find(
+          (entry) => entry.route === route && entry.name.startsWith(`${route}: --${name}`),
+        )
+        expect(row, `${route}: --${name}`).toBeDefined()
+        const flag = [`--${name}`, ...(option.type === 'string' ? [samples[name]] : [])]
+        let command = [route]
+        if (route === 'serve') command = []
+        else if (route.startsWith('auth'))
+          command = ['auth', { authSet: 'set', authStatus: 'status', authClear: 'clear' }[route]]
+        let args = [...command]
+        if (['serve', 'login', 'setup', 'authSet', 'authStatus', 'authClear'].includes(route)) {
+          args.push('--backend', 'modelApi', ...(route === 'setup' ? ['--trust-workspace'] : []))
+        } else if (route === 'exec') {
+          args.push(
+            '--backend',
+            ['muse-binary', 'shell-sandbox'].includes(name) ? 'museCode' : 'modelApi',
+          )
+          if (!['muse-binary', 'shell-sandbox'].includes(name)) args.push('--max-budget-usd', '1')
+          if (name === 'image-generation') args.push('--permission-mode', 'acceptEdits')
+        }
+        args.push(...flag)
+        if (route === 'exec' && name !== 'prompt-file') args.push('prompt')
+        if (route === 'scan-secrets') args.push('/tmp/patch')
+        const parsed = source.parseCommandLine(args)
+        let expected = route
+        if (row.contract.refused === true) expected = 'invalid'
+        else if (name === 'help') expected = 'help'
+        else if (name === 'version') expected = 'version'
+        expect(parsed.command, `${route}: --${name}: ${parsed.reason ?? ''}`).toBe(expected)
+        if (option.short === undefined) continue
+        const aliasArgs = args.map((arg) => (arg === `--${name}` ? `-${option.short}` : arg))
+        expect(source.parseCommandLine(aliasArgs).command, `${route}: -${option.short}`).toBe(
+          parsed.command,
+        )
+      }
+    }
+  })
+  it('B14/B15 describe Tab menu choices and the session board actions', () => {
+    expect(commandText('tabSnooze')).toContain(source.EN.tabMenuSnoozeLong)
+    expect(commandText('tabSnooze')).toContain(source.EN.tabMenuSnoozeRestart)
+    expect(commandText('tabMenu')).toContain('When Copilot')
+    expect(source.EN.referenceBoardDetail).toContain('title or branch')
+    expect(source.EN.referenceBoardDetail).toContain('state, changes and approvals')
+    expect(source.EN.referenceBoardDetail).toContain('activate a conversation')
+  })
+  it('B16 CLI options describe operations rather than failures', () => {
+    const rows = build().cli
+    for (const name of ['untrusted-file', 'model', 'fail-on-denial']) {
+      const row = rows.find((entry) => entry.name.startsWith(`exec: --${name}`))
+      expect(row.text).toEqual({ cli: name })
+      expect(row.description).not.toBe(
+        source.EN[
+          {
+            'untrusted-file': 'execFileUnreadable',
+            model: 'execUnknownModel',
+            'fail-on-denial': 'execDeniedStop',
+          }[name]
+        ],
+      )
+    }
   })
 })
