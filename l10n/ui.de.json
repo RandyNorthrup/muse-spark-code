@@ -2762,5 +2762,16 @@
     "one": "{count} weitere Zeile",
     "other": "{count} weitere Zeilen"
   },
-  "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "Die Quelldatei oder das Repository fehlt.",
+    "invalid": "Die Quelle hat ein nicht unterstütztes Format oder ungültige Daten.",
+    "limit": "Die Quelle überschreitet das Leselimit des Berichts.",
+    "cancelled": "Das Lesen der Quelle wurde abgebrochen oder hat das Zeitlimit überschritten.",
+    "failed": "Die Quelle konnte nicht vollständig gelesen werden.",
+    "refused": "Der Quellpfad ist privat oder liegt außerhalb des erlaubten Ordners.",
+    "disabled": "Diese Quelle für die Agentennutzung ist nicht aktiviert.",
+    "unbound": "Diese Quellenintegration ist noch nicht verfügbar.",
+    "history": "Der Verlauf der ausgewählten Sitzung ist nicht verfügbar."
+  }
 }

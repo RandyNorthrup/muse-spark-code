@@ -2667,5 +2667,16 @@
   "reportRowsMore": {
     "other": "另外 {count} 列"
   },
-  "reportCliUsage": "從具名來源產生確定性報告，不呼叫模型。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "從具名來源產生確定性報告，不呼叫模型。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "來源檔案或儲存庫不存在。",
+    "invalid": "來源的格式不受支援或資料無效。",
+    "limit": "來源超過報告讀取上限。",
+    "cancelled": "來源讀取已取消或逾時。",
+    "failed": "無法完整讀取來源。",
+    "refused": "來源路徑屬於私密路徑或位於允許的資料夾之外。",
+    "disabled": "此代理程式用量來源未啟用。",
+    "unbound": "此來源整合尚無法使用。",
+    "history": "所選工作階段的歷程記錄無法使用。"
+  }
 }

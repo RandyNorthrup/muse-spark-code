@@ -2762,5 +2762,16 @@
     "one": "{count} satır daha",
     "other": "{count} satır daha"
   },
-  "reportCliUsage": "Model çağrısı yapmadan, adlandırılmış kaynaklardan belirlenimci bir rapor oluşturun.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Model çağrısı yapmadan, adlandırılmış kaynaklardan belirlenimci bir rapor oluşturun.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "Kaynak dosya veya depo eksik.",
+    "invalid": "Kaynağın biçimi desteklenmiyor veya verileri geçersiz.",
+    "limit": "Kaynak, rapor okuma sınırını aşıyor.",
+    "cancelled": "Kaynak okuma iptal edildi veya zaman aşımına uğradı.",
+    "failed": "Kaynağın tamamı okunamadı.",
+    "refused": "Kaynak yolu özeldir veya izin verilen klasörün dışındadır.",
+    "disabled": "Bu aracı kullanım kaynağı etkin değil.",
+    "unbound": "Bu kaynak tümleştirmesi henüz kullanılamıyor.",
+    "history": "Seçili oturumun geçmişi kullanılamıyor."
+  }
 }

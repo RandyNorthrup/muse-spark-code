@@ -2667,5 +2667,16 @@
   "reportRowsMore": {
     "other": "ほか {count} 行"
   },
-  "reportCliUsage": "名前付きのデータソースから、モデルを呼び出さずに決定的なレポートを生成します。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "名前付きのデータソースから、モデルを呼び出さずに決定的なレポートを生成します。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "ソースファイルまたはリポジトリがありません。",
+    "invalid": "ソースの形式が未対応か、データが無効です。",
+    "limit": "ソースがレポートの読み取り上限を超えています。",
+    "cancelled": "ソースの読み取りがキャンセルされたか、タイムアウトしました。",
+    "failed": "ソース全体を読み取れませんでした。",
+    "refused": "ソースのパスは非公開か、許可されたフォルダーの外にあります。",
+    "disabled": "このエージェント使用量ソースは有効になっていません。",
+    "unbound": "このソースの統合はまだ利用できません。",
+    "history": "選択したセッションの履歴は利用できません。"
+  }
 }

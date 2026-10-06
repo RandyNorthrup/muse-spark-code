@@ -2857,5 +2857,16 @@
     "other": "{count} filas más",
     "many": "{count} filas más"
   },
-  "reportCliUsage": "Generar un informe determinista a partir de fuentes identificadas, sin llamar a un modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Generar un informe determinista a partir de fuentes identificadas, sin llamar a un modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "Falta el archivo de origen o el repositorio.",
+    "invalid": "El origen tiene un formato no compatible o datos no válidos.",
+    "limit": "El origen supera el límite de lectura del informe.",
+    "cancelled": "Se canceló la lectura del origen o se agotó el tiempo.",
+    "failed": "No se pudo leer el origen completo.",
+    "refused": "La ruta del origen es privada o está fuera de su carpeta permitida.",
+    "disabled": "Este origen de uso del agente no está activado.",
+    "unbound": "La integración de este origen aún no está disponible.",
+    "history": "El historial de la sesión seleccionada no está disponible."
+  }
 }

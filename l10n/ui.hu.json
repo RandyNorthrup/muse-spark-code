@@ -2762,5 +2762,16 @@
     "one": "További {count} sor",
     "other": "További {count} sor"
   },
-  "reportCliUsage": "Determinisztikus jelentés készítése megnevezett forrásokból modellhívás nélkül.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Determinisztikus jelentés készítése megnevezett forrásokból modellhívás nélkül.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "A forrásfájl vagy az adattár hiányzik.",
+    "invalid": "A forrás formátuma nem támogatott, vagy érvénytelen adatokat tartalmaz.",
+    "limit": "A forrás meghaladja a jelentés olvasási korlátját.",
+    "cancelled": "A forrás olvasása megszakadt, vagy lejárt az időkorlát.",
+    "failed": "A forrást nem sikerült teljesen beolvasni.",
+    "refused": "A forrás elérési útja bizalmas, vagy az engedélyezett mappán kívül van.",
+    "disabled": "Ez az ügynökhasználati forrás nincs bekapcsolva.",
+    "unbound": "A forrás integrációja még nem érhető el.",
+    "history": "A kiválasztott munkamenet előzményei nem érhetők el."
+  }
 }

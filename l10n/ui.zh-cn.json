@@ -2667,5 +2667,16 @@
   "reportRowsMore": {
     "other": "另外 {count} 行"
   },
-  "reportCliUsage": "从具名来源生成确定性报告，不调用模型。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "从具名来源生成确定性报告，不调用模型。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "源文件或仓库不存在。",
+    "invalid": "来源的格式不受支持或数据无效。",
+    "limit": "来源超过报告读取上限。",
+    "cancelled": "来源读取已取消或超时。",
+    "failed": "无法完整读取来源。",
+    "refused": "来源路径属于私密路径或位于允许的文件夹之外。",
+    "disabled": "此代理用量来源未启用。",
+    "unbound": "此来源集成尚不可用。",
+    "history": "所选会话的历史记录不可用。"
+  }
 }

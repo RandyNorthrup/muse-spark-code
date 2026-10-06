@@ -2857,5 +2857,16 @@
     "other": "Mais {count} linhas",
     "many": "Mais {count} linhas"
   },
-  "reportCliUsage": "Gerar um relatório determinístico de fontes identificadas, sem chamar um modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n"
+  "reportCliUsage": "Gerar um relatório determinístico de fontes identificadas, sem chamar um modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+  "reportSourceReasons": {
+    "missing": "O arquivo de origem ou o repositório está ausente.",
+    "invalid": "A origem tem um formato não compatível ou dados inválidos.",
+    "limit": "A origem excede o limite de leitura do relatório.",
+    "cancelled": "A leitura da origem foi cancelada ou excedeu o tempo limite.",
+    "failed": "Não foi possível ler toda a origem.",
+    "refused": "O caminho da origem é privado ou está fora da pasta permitida.",
+    "disabled": "Esta origem de uso do agente não está ativada.",
+    "unbound": "A integração desta origem ainda não está disponível.",
+    "history": "O histórico da sessão selecionada está indisponível."
+  }
 }
