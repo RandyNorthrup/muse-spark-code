@@ -34,8 +34,11 @@ separate gate; visual equality alone makes no accessibility claim.
 
 `npm run check:visual` verifies archived bytes and compares the current render
 using **pixelmatch 7.1.0**, ISC, pinned unmodified under `vendor/pixelmatch/`.
-Policy: per-pixel threshold **0**, `includeAA: true`, maximum changed pixels
-**0**. One visible pixel, even a one-channel increment, fails. Mismatches save
+Policy (lead decision, 2026-10-06): colour threshold **0.1**,
+`includeAA: false` uses pixelmatch's antialiasing detection. Each image allows
+at most **0.01% of its pixels or 12 pixels**, whichever is smaller, rounded
+down. The observed 2/5-pixel focus raster differences are rendering noise.
+Border/outline, token colour, layout and missing-icon regressions still fail. Mismatches save
 the candidate PNG under ignored `temp/m114-visual-failures/` and name its key.
 Normal checks never modify the manifest.
 
@@ -47,7 +50,11 @@ compares the candidate against those generated baseline pixels. The committed
 hashes certify the original archive; they are not expected to match another
 OS's font rasterization. Missing Git objects, baseline images, altered archive
 bytes, missing components or changed state applicability fail explicitly.
-CI needs the recorded revision available (fetch it in a shallow checkout).
+The reusable CI workflow runs the visual job in both tiers, checks the
+size-bounded manifest, and supplies full Git history with an explicit fetch
+of the recorded revision if needed. Its required aggregate rejects a failed,
+cancelled or skipped visual job. PNGs regenerate on the Ubuntu runner with
+its installed Chrome/fonts; only the comparison receipt is uploaded.
 Both full capture sets stay size-bounded; temporary reconstructed sources and
 PNGs are cleaned after comparison. No golden download or silent skip exists.
 

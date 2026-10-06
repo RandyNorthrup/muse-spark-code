@@ -18,7 +18,7 @@ beforeAll(async () => {
   })
 })
 
-it('repeats the exact scene prefix and focus raster with zero changed pixels', () => {
+it('repeats the exact scene prefix and focus raster within the lead tolerance', () => {
   expect(frames.size).toBe(18)
   expect(repeated.size).toBe(18)
   for (const [key, before] of frames)

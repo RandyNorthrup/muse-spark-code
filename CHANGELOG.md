@@ -18,12 +18,17 @@ happened, not what was planned; superseded entries are kept.
   ligature preferences, and font notice/package guards. Editor fonts remain
   controlled by their host.
 
-- Add strict pixelmatch visual regression across the complete audited panel,
+- Add pixelmatch visual regression across the complete audited panel,
   Tasks and What's New inventory, six themes, six control states and 320/690 px
   widths. Track size-bounded external PNG archives by hashes and dimensions;
   CI rebuilds the reviewed source revision in its own rendering environment.
 
 ### Changed
+
+- Apply the lead's rendering-noise policy to visual checks: antialiasing
+  detection, colour threshold 0.1, and a per-image allowance capped at 0.01%
+  or 12 pixels. Require source-reconstructed visual comparisons in both CI
+  tiers, plus token checks in the static gates.
 
 - Polish conversation cards, tools, composer, chips, dock, menus, pickers,
   dialogs, Account & usage, History, task windows and What's New with shared

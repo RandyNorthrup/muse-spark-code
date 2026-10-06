@@ -27575,7 +27575,8 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   environment in `test/harness/goldens/`. `check:visual` uses pinned pixelmatch
   7.1.0 (ISC), vendored unmodified for the development gate so the shared
   `node_modules` installation is never changed. The comparison threshold is
-  zero changed pixels, with per-pixel threshold zero and AA filtering off.
+  initially zero changed pixels, with per-pixel threshold zero and AA
+  filtering off; the dated lead decision below supersedes that policy.
   Missing local archives are regenerated from the recorded Git revision in
   ignored `temp/`, in the candidate's browser/environment; missing revisions
   or captures fail. Updates require a named review; normal checks never
@@ -27583,6 +27584,20 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   regenerate its record, refresh curated README media, document tokens/fonts
   and gates, and record equivalent editor bindings with C/N/D awaiting their
   milestones. No live/paid calls or new shipping bundle code.
+
+- **Lane S continuation contract (lead decision, 2026-10-06):** the observed
+  2/5-pixel focus raster differences are antialiasing/subpixel noise. Use
+  pixelmatch's AA detection (`includeAA: false`) and colour threshold 0.1,
+  with a named per-image tolerance of the smaller of 0.01% of pixels and
+  12 pixels (rounded down). Prove a 1 px border/outline change, one token
+  colour change, a 1 px layout shift and a missing icon fail; require two
+  consecutive complete comparisons to pass. Complete the missing captured
+  `contrastActiveBorder` observation and bind the token/visual gates into
+  the existing reusable CI workflow, including the recorded baseline Git
+  history and the required-check aggregate. Regenerate PNGs from that source
+  on the runner under the existing 512 MiB budget; commit no full PNG sets.
+  Startup-growth compaction remains assigned to integration. The two-fix
+  stop is lifted only for the rendering-noise repair. No model calls.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
@@ -29092,6 +29107,14 @@ the failing strict gate/test and does not waive AA, pixels or coverage.
 Browser raster stability and a fully green normal/source-reconstructed visual
 receipt remain with the lead before release. See S's certification for the
 exact cases and attempted repairs; no certified baseline is claimed.
+
+**M114 S continuation (lead authorization, 2026-10-06).** The rendering-noise
+stop above is lifted for the dated 0.1/AA-detection/0.01%-or-12-pixel policy.
+S now owns the missing captured theme observation and CI binding previously
+handed to the lead. Validate both local and reconstructed comparisons,
+record the four actual UI red drills and two consecutive complete passes;
+startup compaction remains assigned to P1/P2/lane 0 and integration. The
+historical failed receipts above remain evidence of the superseded policy.
 
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'

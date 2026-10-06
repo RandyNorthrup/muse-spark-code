@@ -90,13 +90,54 @@ jobs:
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
       # Same static/build/audit gates as quality:gates; tests run separately.
-      - run: npx run-s format:check lint typecheck check:badges check:l10n check:host-api deadcode cycles duplication build security:audit
+      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:host-api deadcode cycles duplication build security:audit
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.os == 'ubuntu-latest' && !inputs.fast
         with:
           name: production-webview
           path: dist/webview
           if-no-files-found: error
+
+  # M114: rebuild the reviewed Git source in this runner's browser/fonts;
+  # only the size-bounded manifest is tracked, never a downloaded PNG set.
+  visual:
+    name: visual regression (six themes, all states)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: require the reviewed baseline source object
+        shell: bash
+        run: |
+          revision="$(node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { validateManifest } from './scripts/lib/visualManifest.mjs'
+          const read = (file) => JSON.parse(readFileSync(file, 'utf8'))
+          const manifest = validateManifest(read('test/harness/goldens/manifest.json'), read('docs/certification/m114-audit.json'), read('test/harness/visual-matrix.json'))
+          console.log(manifest.revision)
+          JS
+          )"
+          if ! git cat-file -e "$revision^{commit}"; then
+            git fetch --no-tags origin "$revision"
+          fi
+          git cat-file -e "$revision^{commit}"
+      - name: compare every capture under the 512 MiB archive budget
+        run: npm run check:visual
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: visual-comparison-receipt
+          path: temp/m114-visual-result.json
+          if-no-files-found: ignore
+          retention-days: 30
 
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
@@ -236,7 +277,18 @@ jobs:
     name: ${{ matrix.check }}
     if: always()
     needs:
-      [checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast]
+      [
+        checks,
+        visual,
+        unit,
+        coverage,
+        accessibility,
+        integration,
+        native-build,
+        packages,
+        secrets,
+        sast,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -254,6 +306,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           CHECKS: ${{ needs.checks.result }}
+          VISUAL: ${{ needs.visual.result }}
           UNIT: ${{ needs.unit.result }}
           COVERAGE: ${{ needs.coverage.result }}
           ACCESSIBILITY: ${{ needs.accessibility.result }}
@@ -264,6 +317,7 @@ jobs:
           SAST: ${{ needs.sast.result }}
         run: |
           test "$CHECKS" = success
+          test "$VISUAL" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success

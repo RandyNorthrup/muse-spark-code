@@ -5,7 +5,17 @@ import pixelmatch from '../../vendor/pixelmatch/index.js'
 
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex')
 export const ARCHIVE_BUDGET = 512 * 1024 * 1024
-export const PIXEL_POLICY = Object.freeze({ threshold: 0, includeAA: true, maxChangedPixels: 0 })
+// Lead decision, 2026-10-06 (M114S.rig.md): 2/5-pixel focus differences are
+// antialiasing/subpixel noise. Each image gets at most 0.01% or 12 pixels.
+const COLOUR_THRESHOLD = 0.1
+const MAX_CHANGED_PIXEL_RATIO = 0.0001
+const MAX_CHANGED_PIXELS = 12
+export const PIXEL_POLICY = Object.freeze({
+  threshold: COLOUR_THRESHOLD,
+  includeAA: false,
+  maxChangedPixelRatio: MAX_CHANGED_PIXEL_RATIO,
+  maxChangedPixels: MAX_CHANGED_PIXELS,
+})
 const SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
 
 function pngPredictor(filter, left, above, corner) {
@@ -84,8 +94,9 @@ export function decodePng(bytes, width, height) {
 
 export function comparePixels(before, after, width, height) {
   const changed = pixelmatch(before, after, null, width, height, PIXEL_POLICY)
-  if (changed > PIXEL_POLICY.maxChangedPixels)
-    throw new Error(`Visual regression: ${changed} changed pixel(s)`)
+  const allowed = Math.floor(Math.min(width * height * MAX_CHANGED_PIXEL_RATIO, MAX_CHANGED_PIXELS))
+  if (changed > allowed)
+    throw new Error(`Visual regression: ${changed} changed pixel(s), allowance ${allowed}`)
   return changed
 }
 

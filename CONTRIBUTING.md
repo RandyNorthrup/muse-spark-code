@@ -32,8 +32,10 @@ Use the 120/180/240 ms motion tokens only for meaningful changes, inside
 `prefers-reduced-motion: no-preference`; streamed text stays still.
 
 Run `npm run check:visual` for a visual change. The complete audited component
-inventory is rendered in six themes at 320 and 690 px. The strict pixelmatch
-policy permits **zero changed pixels**, including antialiasing. Goldens are
+inventory is rendered in six themes at 320 and 690 px. Pixelmatch uses colour
+threshold **0.1** and antialiasing detection (`includeAA: false`). The dated
+lead decision (2026-10-06) permits per image at most **0.01% of pixels or 12
+pixels**, whichever is smaller, rounded down. Goldens are
 PNG archives outside git, capped at 512 MiB; only the reviewed source revision,
 hashes, dimensions, render/state coverage and environment are tracked.
 On CI or another rasterization environment the recorded Git revision is
@@ -166,10 +168,14 @@ Use this order for a candidate branch:
 `ci.yml` calls `build.yml` with `fast: true` only for a `pull_request` while
 the repository variable `CI_MERGE_QUEUE` is `on`. That tier runs formatting,
 ESLint/stylelint, all five compiler projects, localization, host API, knip,
-cycles, duplication, the production build and its size/split/host-global/
+cycles, duplication, token checks, the production build and its size/split/host-global/
 notices checks, audit, and every unit/process-e2e test on Ubuntu (no
-coverage). Gitleaks and semgrep also run. Expected wall time is at most about
-12 minutes, pending hosted measurement.
+coverage). Gitleaks and semgrep also run. Both tiers require the six-theme visual job:
+its validated manifest supplies the reviewed Git revision, fetched explicitly
+if absent from the full checkout history. It rebuilds baseline PNGs in the
+runner's Chrome/font environment under the 512 MiB limit, compares every
+scene/state/width, and uploads only the receipt. A failed, cancelled or skipped
+visual job fails the required aggregate. Visual replay adds a bounded browser job (45-minute deadline); hosted wall time awaits measurement.
 
 Everything else selects the full tier: `merge_group`, manual dispatch, the
 release workflow's fallback build, and every PR while `CI_MERGE_QUEUE` is not

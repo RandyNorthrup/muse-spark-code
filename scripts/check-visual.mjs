@@ -142,6 +142,8 @@ async function main() {
   let sourceRoot
   const expected = new Map(manifest.captures.map((capture) => [captureKey(capture), capture]))
   let checked = 0
+  let changedPixels = 0
+  let maxImageChangedPixels = 0
   try {
     // A stored archive is verified before any use, including on another OS.
     if (existsSync(archive))
@@ -199,12 +201,14 @@ async function main() {
         baseline,
       )
       try {
-        comparePixels(
+        const changed = comparePixels(
           before,
           decodePng(bytes, capture.width, capture.height),
           capture.width,
           capture.height,
         )
+        changedPixels += changed
+        maxImageChangedPixels = Math.max(maxImageChangedPixels, changed)
       } catch (error) {
         await saveCapture(path.join(root, 'temp/m114-visual-failures'), capture, bytes)
         throw new Error(`${captureKey(capture)}: ${error.message}`, { cause: error })
@@ -217,6 +221,8 @@ async function main() {
         {
           revision: manifest.revision,
           checked,
+          changedPixels,
+          maxImageChangedPixels,
           regenerated: regenerated !== undefined,
           policy: PIXEL_POLICY,
         },
@@ -224,7 +230,9 @@ async function main() {
         2,
       ) + '\n',
     )
-    console.log(`visual: ${checked} captures passed; zero changed pixels; manifest unchanged`)
+    console.log(
+      `visual: ${checked} captures passed; ${changedPixels} changed pixels within per-image tolerance; manifest unchanged`,
+    )
   } finally {
     if (sourceRoot !== undefined) await rm(sourceRoot, { recursive: true, force: true })
     if (regenerated !== undefined) await rm(regenerated, { recursive: true, force: true })

@@ -353,3 +353,63 @@ No capture PNG exists under the repository's golden/evidence directories.
 The final theme/import, README/media and real-capture suites pass **18/18**
 (default timeouts); the gate/source/repeat batch passes **9/9** intermittently.
 The failed complete normal/reconstructed visual receipts remain controlling.
+
+## Continuation: lead rendering-noise decision (2026-10-06)
+
+The continuation brief supersedes the strict-repeat stop above: the lead
+classifies the 2/5-pixel differences as antialiasing/subpixel rendering noise.
+The named constants in `visualImages.mjs` now specify colour threshold **0.1**,
+`includeAA: false`, and a per-image allowance of
+`floor(min(width * height * 0.0001, 12))`: **at most 0.01% or 12 pixels**.
+The manifest records this dated review decision; all 4,824 original capture
+hashes, dimensions, source revision and bytes are retained. No baseline PNG
+set is committed, downloaded or substituted. Comparisons report counted
+changed pixels and the maximum for one image rather than claiming exact equality.
+
+The updated tolerance test failed under the original policy before the fix.
+The restored gate/source/repeat batch passes **9/9** with the repository's
+default timeout. Actual complete CLI red drills all exit 1 in the first
+`panel/agents-details/default/light/320` capture, with allowance 12:
+
+| Deliberate product change                     | Changed pixels | Result |
+| --------------------------------------------- | -------------: | ------ |
+| Header border grows from 1 px to 2 px         |          2,252 | FAIL   |
+| One generated border-colour token becomes red |          1,659 | FAIL   |
+| Header shifts horizontally by 1 px            |            434 | FAIL   |
+| New-conversation icon hidden, button retained |             54 | FAIL   |
+
+[The UI drill receipt](m114-s-after/tolerance-drills.json) records each
+source and its byte-exact restored SHA-256. Ten additional owning-suite
+red drills cover the area/cap policy, CI visual command, required aggregate,
+history, token binding and the missing theme observation; every named test
+fails and every file is SHA-256-restored. Their durable receipt is
+[continuation-guard-drills.json](m114-s-after/continuation-guard-drills.json).
+
+The missing theme observation is now captured, completing that handoff.
+S verifies both supplied VSIX archives and selected theme members against
+the existing full SHA-256 pins. Only each actual JSON theme is loaded through
+a temporary data-only development contribution in installed VS Code 1.130.0,
+under Xvfb, with an isolated profile and empty extensions directory. The
+existing CDP schemas and settle logic check the active theme's real class
+and read its computed variables. Both archives omit `contrastActiveBorder`;
+both active workbenches leave `--vscode-contrastActiveBorder` **unset**.
+Each fixture adds it to `absentInArchive` and `unset`; every previous colour
+and its resolved-colour digest is unchanged. [The capture receipt](m114-s-after/missing-theme.json)
+names the workspace, classes, source/member pins, raw-capture hashes and
+**zero model attempts**. Temporary theme JSON/profile directories are deleted;
+raw observations and the reused capture driver remain in ignored lane scratch.
+No extension code from either archive executes and no network call occurs.
+
+The existing reusable `build.yml` now runs `check:tokens` in static gates
+and a dedicated **visual** job on Ubuntu in **both tiers**. It checks the
+manifest's full coverage and 512 MiB budget, supplies complete history and
+fetches the recorded SHA only when absent, then runs the real visual CLI.
+Baseline PNGs regenerate from that source in the runner's Chrome/fonts and
+are cleaned afterwards. Only the small comparison receipt is uploaded.
+The unchanged seven required names reject failed/cancelled/skipped visual
+jobs. The job has a 45-minute deadline; hosted duration/execution is not
+claimed by this local lane. Actionlint passes; no workflow is dispatched
+and nothing is pushed. Startup-growth compaction remains the integration
+handoff at **12,741 bytes**; its 4 KiB target and all bundle caps stay unchanged.
+
+Complete consecutive comparisons and final scoped checks are recorded below.

@@ -40,9 +40,10 @@ const manifestSchema = z
       .strict(),
     policy: z
       .object({
-        threshold: z.literal(0),
-        includeAA: z.literal(true),
-        maxChangedPixels: z.literal(0),
+        threshold: z.literal(PIXEL_POLICY.threshold),
+        includeAA: z.literal(PIXEL_POLICY.includeAA),
+        maxChangedPixelRatio: z.literal(PIXEL_POLICY.maxChangedPixelRatio),
+        maxChangedPixels: z.literal(PIXEL_POLICY.maxChangedPixels),
       })
       .strict(),
     captures: z.array(captureSchema),

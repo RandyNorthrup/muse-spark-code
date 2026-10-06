@@ -41,7 +41,8 @@
       "--vscode-progressBar-background",
       "--vscode-sideBar-background"
     ],
-    "hostVersion": "1.130.0"
+    "hostVersion": "1.130.0",
+    "supplementalCapture": "docs/certification/m114-s-after/missing-theme.json"
   },
   "variables": {
     "--vscode-badge-background": "#44475A",
@@ -100,6 +101,7 @@
   },
   "unset": [
     "--vscode-button-border",
+    "--vscode-contrastActiveBorder",
     "--vscode-contrastBorder",
     "--vscode-editor-font-family",
     "--vscode-editor-font-size",
@@ -114,6 +116,7 @@
     "--vscode-button-hoverBackground",
     "--vscode-charts-red",
     "--vscode-checkbox-border",
+    "--vscode-contrastActiveBorder",
     "--vscode-contrastBorder",
     "--vscode-debugTokenExpression-number",
     "--vscode-debugTokenExpression-string",

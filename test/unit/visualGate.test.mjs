@@ -1,6 +1,8 @@
 import { Buffer } from 'node:buffer'
+import { spawnSync } from 'node:child_process'
 import { deflateSync } from 'node:zlib'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parseVisualArgs } from '../../scripts/check-visual.mjs'
 import {
@@ -99,14 +101,44 @@ function manifest() {
   }
 }
 
-describe('M114 strict pixelmatch visual gate', () => {
-  it('fails a planted single visible pixel and an antialiased pixel with no tolerance', () => {
-    const before = Buffer.from([20, 40, 60, 255, 80, 100, 120, 255])
-    expect(comparePixels(before, before, 2, 1)).toBe(0)
+describe('M114 bounded pixelmatch visual gate', () => {
+  it('detects visible differences and limits each image to 0.01 percent or 12 pixels', () => {
+    expect(PIXEL_POLICY).toEqual({
+      threshold: 0.1,
+      includeAA: false,
+      maxChangedPixelRatio: 0.0001,
+      maxChangedPixels: 12,
+    })
+    for (const [width, height, allowed] of [
+      [2, 1, 0],
+      [100, 100, 1],
+      [320, 760, 12],
+    ]) {
+      const before = Buffer.alloc(width * height * 4, 255)
+      const after = Buffer.from(before)
+      expect(comparePixels(before, after, width, height)).toBe(0)
+      after[0] -= 1
+      expect(comparePixels(before, after, width, height)).toBe(0)
+      for (let pixel = 0; pixel < allowed; pixel += 1) after[pixel * 4] = 0
+      expect(comparePixels(before, after, width, height)).toBe(allowed)
+      after[allowed * 4] = 0
+      expect(() => comparePixels(before, after, width, height)).toThrow(
+        `${allowed + 1} changed pixel`,
+      )
+    }
+  })
+
+  it('filters an antialiased edge while retaining a visible colour regression', () => {
+    const before = Buffer.from(
+      Array.from({ length: 5 }, () => [0, 0, 128, 255, 255])
+        .flat()
+        .flatMap((v) => [v, v, v, 255]),
+    )
     const after = Buffer.from(before)
-    after[0] += 1
-    expect(() => comparePixels(before, after, 2, 1)).toThrow('1 changed pixel')
-    expect(PIXEL_POLICY).toEqual({ threshold: 0, includeAA: true, maxChangedPixels: 0 })
+    for (let channel = 0; channel < 3; channel += 1) after[48 + channel] = 200
+    expect(comparePixels(before, after, 5, 5)).toBe(0)
+    after[0] = 255
+    expect(() => comparePixels(before, after, 5, 5)).toThrow('changed pixel')
   })
 
   it('decodes Chromium PNG filters and refuses dimensions, unsupported encoding, truncation and corrupt data', () => {
@@ -183,10 +215,16 @@ describe('M114 strict pixelmatch visual gate', () => {
         value.captures[0].bytes = 0.5
       },
       (value) => {
-        value.policy.threshold = 0.1
+        value.policy.threshold = 0.2
       },
       (value) => {
-        value.policy.maxChangedPixels = 1
+        value.policy.maxChangedPixels = 13
+      },
+      (value) => {
+        value.policy.includeAA = true
+      },
+      (value) => {
+        value.policy.maxChangedPixelRatio = 0.0002
       },
       (value) => {
         value.captures[0].bytes = 512 * 1024 * 1024
@@ -209,5 +247,54 @@ describe('M114 strict pixelmatch visual gate', () => {
     const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts
     expect(scripts['check:visual']).toBe('node scripts/check-visual.mjs')
     expect(scripts['quality:gates'].split(' ')).toContain('check:visual')
+  })
+  it('requires visual source replay and tokens in both CI tiers and the required aggregate', () => {
+    const workflow = readFileSync('.github/workflows/build.yml', 'utf8')
+    const visual = workflow.slice(workflow.indexOf('  visual:'), workflow.indexOf('  unit:'))
+    expect(visual).toContain('fetch-depth: 0')
+    expect(visual).toContain('persist-credentials: false')
+    expect(visual).toContain('validateManifest(')
+    expect(visual).toContain('git fetch --no-tags origin "$revision"')
+    expect(visual).toContain('git cat-file -e "$revision^{commit}"')
+    expect(visual).toContain('run: npm run check:visual')
+    expect(visual).not.toContain('inputs.fast')
+    expect(workflow).toContain('check:badges check:tokens check:l10n')
+    const required = workflow.slice(
+      workflow.indexOf('  required:'),
+      workflow.indexOf('  native-build:'),
+    )
+    expect(required).toMatch(/checks,\s+visual,\s+unit/)
+    expect(required).toContain('VISUAL: ${{ needs.visual.result }}')
+    expect(required).toContain('test "$VISUAL" = success')
+    const shell = required.match(/ {8}run: \|\n((?: {10}[^\n]*\n)+)/)?.[1]
+    expect(shell).toBeDefined()
+    const results = Object.fromEntries(
+      [
+        'CHECKS',
+        'UNIT',
+        'COVERAGE',
+        'ACCESSIBILITY',
+        'INTEGRATION',
+        'HELPER',
+        'PACKAGES',
+        'SECRETS',
+        'SAST',
+      ].map((job) => [job, 'success']),
+    )
+    const bash =
+      process.platform === 'win32'
+        ? path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git', 'bin', 'bash.exe')
+        : 'bash'
+    for (const fast of ['true', 'false'])
+      for (const visual of ['success', 'failure', 'cancelled', 'skipped']) {
+        const child = spawnSync(bash, ['--noprofile', '--norc', '-e', '-c', shell], {
+          env: { ...results, FAST: fast, VISUAL: visual },
+          encoding: 'utf8',
+        })
+        expect(child.error).toBeUndefined()
+        expect(child.status, `${fast}/${visual}: ${child.stderr}`).toBe(
+          visual === 'success' ? 0 : 1,
+        )
+      }
   })
 })
