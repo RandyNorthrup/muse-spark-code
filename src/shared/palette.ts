@@ -526,11 +526,16 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           label: `${UI_TEXT.effortItem} (${effortLabel(context.effort)})`,
           widget: {
             kind: 'slider',
-            levels: effortLevelsFor(context.currentModel?.modelId),
+            levels:
+              context.models.find((model) => model.modelId === context.currentModel?.modelId)
+                ?.effortLevels ?? effortLevelsFor(context.currentModel?.modelId),
             current: context.effort,
           },
           action: { type: 'setEffort', effort: context.effort },
           isSlider: true,
+          isDisabled:
+            context.models.find((model) => model.modelId === context.currentModel?.modelId)
+              ?.effortLevels?.length === 0,
         },
         {
           id: 'thinking',

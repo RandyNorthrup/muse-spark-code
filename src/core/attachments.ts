@@ -29,6 +29,7 @@ import type { AttachmentSummary } from '../shared/protocol'
 import { readImageInfo } from './imageDimensions'
 import { isPdf, pdfPageCount } from './pdf'
 import type { TurnPart } from './agent/agentBackend'
+import type { ModelCapabilityRecord } from './providers/capabilityRecord'
 import { textFileInput } from './textAttachment'
 
 export type AddAttachmentResult =
@@ -124,11 +125,33 @@ export class AttachmentStore {
     )
   }
 
-  private addDocument(name: string, bytes: Uint8Array): AddAttachmentResult {
-    if (bytes.byteLength > MAX_DOCUMENT_BYTES) {
-      return { ok: false, reason: UI_TEXT.documentTooLarge }
+  private addDocument(
+    name: string,
+    bytes: Uint8Array,
+    record?: ModelCapabilityRecord,
+  ): AddAttachmentResult {
+    const policy = record?.modalities.pdf
+    if (policy !== undefined && policy.state !== 'yes')
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    const isMeta = record === undefined || record.identity.provider === 'meta'
+    const maxBytes = isMeta ? MAX_DOCUMENT_BYTES : policy?.value.maxBytes
+    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.documentTooLarge : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     const pageCount = pdfPageCount(bytes)
+    if (
+      !isMeta &&
+      policy?.state === 'yes' &&
+      policy.value.maxPages !== undefined &&
+      (pageCount === undefined || pageCount > policy.value.maxPages)
+    )
+      return {
+        ok: false,
+        reason: UI_TEXT.modelAttachmentOverLimit,
+      }
     const summary: AttachmentSummary = {
       id: this.newId(),
       name,
@@ -137,8 +160,11 @@ export class AttachmentStore {
       ...(pageCount !== undefined && { pageCount }),
     }
     // A message Meta would refuse whole (more than 50 images) is refused here, with the reason.
-    if (this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
-      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    if (isMeta && this.weight() + imageWeight(summary) > MODEL_API_MEDIA_PER_REQUEST) {
+      return {
+        ok: false,
+        reason: UI_TEXT.documentsOverBudget,
+      }
     }
     if (!this.fitsMediaBytes(bytes, PDF_MEDIA_TYPE)) {
       return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
@@ -151,16 +177,40 @@ export class AttachmentStore {
     name: string,
     bytes: Uint8Array,
     shouldCheckMspBudget: boolean,
+    record?: ModelCapabilityRecord,
   ): AddAttachmentResult {
-    if (bytes.byteLength > MAX_IMAGE_BYTES) {
-      return { ok: false, reason: UI_TEXT.attachmentTooLarge }
+    const policy = record?.modalities.image
+    if (policy !== undefined && policy.state !== 'yes')
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    const isMeta = record === undefined || record.identity.provider === 'meta'
+    const maxBytes = isMeta ? MAX_IMAGE_BYTES : policy?.value.maxBytes
+    if (maxBytes !== undefined && bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.attachmentTooLarge : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     const info = readImageInfo(bytes)
     if (info === undefined) {
       return { ok: false, reason: UI_TEXT.attachmentUnsupported }
     }
-    if (this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST) {
-      return { ok: false, reason: UI_TEXT.documentsOverBudget }
+    if (policy?.state === 'yes' && !policy.value.mimes.includes(info.mediaType))
+      return { ok: false, reason: UI_TEXT.modelAttachmentUnsupported }
+    let imageCount = 0
+    for (const entry of this.entries.values()) {
+      if (entry.summary.mediaType.startsWith('image/')) imageCount++
+    }
+    if (
+      isMeta
+        ? this.weight() + 1 > MODEL_API_MEDIA_PER_REQUEST
+        : policy?.state === 'yes' &&
+          policy.value.maxCount !== undefined &&
+          imageCount + 1 > policy.value.maxCount
+    ) {
+      return {
+        ok: false,
+        reason: isMeta ? UI_TEXT.documentsOverBudget : UI_TEXT.modelAttachmentOverLimit,
+      }
     }
     if (!this.fitsMediaBytes(bytes, info.mediaType)) {
       return { ok: false, reason: UI_TEXT.mediaTotalTooLarge }
@@ -257,13 +307,14 @@ export class AttachmentStore {
     bytes: Uint8Array,
     canAcceptDocuments = false,
     canAcceptText = false,
+    capabilityRecord?: ModelCapabilityRecord,
   ): AddAttachmentResult {
     if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE) {
       return { ok: false, reason: UI_TEXT.attachmentLimit }
     }
     if (isPdf(bytes)) {
       return canAcceptDocuments
-        ? this.addDocument(name, bytes)
+        ? this.addDocument(name, bytes, capabilityRecord)
         : { ok: false, reason: UI_TEXT.pdfNeedsModelApi }
     }
     if (name.toLowerCase().endsWith(PDF_EXTENSION)) {
@@ -271,7 +322,7 @@ export class AttachmentStore {
     }
     return canAcceptText && TEXT_ATTACHMENT_EXTENSIONS.has(path.extname(name).toLowerCase())
       ? this.addText(name, bytes, !canAcceptDocuments)
-      : this.addImage(name, bytes, !canAcceptDocuments)
+      : this.addImage(name, bytes, !canAcceptDocuments, capabilityRecord)
   }
 
   public remove(id: string): boolean {

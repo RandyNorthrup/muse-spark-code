@@ -1857,9 +1857,12 @@ export function App({
   const runningAgentCount =
     agents.filter((agent) => agent.status === 'inProgress').length +
     workflowAgents.filter((child) => isChildRunning(child)).length
-  const effortLevels = effortLevelsFor(state.model?.modelId)
+  const effortLevels =
+    state.models.find((model) => model.modelId === state.model?.modelId)?.effortLevels ??
+    effortLevelsFor(state.model?.modelId)
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {
+      if (effortLevels.length === 0) return false
       onSelectEffort(effortAt(effortLevels, effortIndex(effortLevels, state.effort) + direction))
       return true
     },
@@ -2073,16 +2076,18 @@ export function App({
           entries={modeEntries}
           align="right"
           footer={
-            <div className="effort-row">
-              <span className="effort-row-label">
-                {UI_TEXT.effortItem} ({effortLabel(state.effort)})
-              </span>
-              <EffortSlider
-                levels={effortLevels}
-                current={state.effort}
-                onSelect={onSelectEffort}
-              />
-            </div>
+            effortLevels.length === 0 ? undefined : (
+              <div className="effort-row">
+                <span className="effort-row-label">
+                  {UI_TEXT.effortItem} ({effortLabel(state.effort)})
+                </span>
+                <EffortSlider
+                  levels={effortLevels}
+                  current={state.effort}
+                  onSelect={onSelectEffort}
+                />
+              </div>
+            )
           }
           onSelect={onSelectMode}
           onStep={onStepEffort}

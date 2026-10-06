@@ -261,6 +261,8 @@ const modelOptionSchema = z.object({
   isPinned: z.optional(z.boolean()),
   /** The provider or route may train on the content (hidden when confidential). */
   trainsOnContent: z.optional(z.boolean()),
+  /** Registry projection of this model's supported native effort tiers (M95 N/I). */
+  effortLevels: z.optional(z.array(z.enum(EFFORT_LEVELS))),
 })
 export type ModelOption = z.infer<typeof modelOptionSchema>
 

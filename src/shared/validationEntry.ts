@@ -2,6 +2,7 @@
 // Browser and integration builds retain their inline parser. The split gate
 // checks new member reads against these exports before the package can ship.
 export {
+  _default,
   array,
   boolean,
   discriminatedUnion,
@@ -16,6 +17,7 @@ export {
   int,
   iso,
   lazy,
+  json,
   literal,
   looseObject,
   lte,
@@ -30,6 +32,7 @@ export {
   number,
   object,
   optional,
+  partial,
   pipe,
   positive,
   prettifyError,

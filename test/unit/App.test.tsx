@@ -760,6 +760,47 @@ describe('App conversation', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 
+  it('uses the selected model record tiers in the Modes menu', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        {
+          modelId: 'anthropic/claude-sonnet-5-5',
+          displayLabel: 'Sonnet',
+          isDefault: false,
+          effortLevels: ['low', 'high'],
+        },
+      ],
+    })
+    deliver({
+      type: 'sessionInfo',
+      modelId: 'anthropic/claude-sonnet-5-5',
+      contextLimit: 1_000_000,
+    })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByTitle('Max')).toBeNull()
+    expect(screen.queryByTitle('Medium')).toBeNull()
+    fireEvent.click(screen.getByTitle('Low'))
+    expect(postMessage).toHaveBeenLastCalledWith({ type: 'setEffort', effort: 'low' })
+  })
+
+  it('keeps empty native effort lists from posting fallback tiers', () => {
+    const postMessage = renderReady()
+    deliver({
+      type: 'modelList',
+      models: [
+        { modelId: 'anthropic/haiku', displayLabel: 'Haiku', isDefault: false, effortLevels: [] },
+      ],
+    })
+    deliver({ type: 'sessionInfo', modelId: 'anthropic/haiku', contextLimit: 200_000 })
+    fireEvent.click(screen.getByLabelText('Permission mode: Manual'))
+    expect(screen.queryByText('Effort (High)')).toBeNull()
+    postMessage.mockClear()
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowRight' })
+    expect(postMessage).not.toHaveBeenCalled()
+  })
+
   it('opens the Modes menu from the palette row', () => {
     renderReady()
     const filter = openPalette()

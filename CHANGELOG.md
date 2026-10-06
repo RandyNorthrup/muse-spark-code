@@ -13,6 +13,22 @@ happened, not what was planned; superseded entries are kept.
   release notes. Compact staged translation and manifest JSON preserves every
   value, and the strict localization gate validates the exact packaged data.
   Source docs and tables remain complete; the VSIX size cap stays unchanged.
+- M95 capability review repairs keep enabled thinking above zero, omit
+  unsupported effort without disabling supported thinking, and derive the
+  reasoning mode from native/catalogue effort evidence. Sparse Anthropic and
+  Gemini list rows retain native metadata; Anthropic image admission enforces
+  its documented 10 MB bound. Gemini 2.5 fallback mode cites research rather
+  than an uncaptured wire claim. Media refusals explain capability, MIME and
+  individual limits separately from exhausted replay budgets.
+
+- M95 model capabilities now retain evidence sources and distinguish unknown
+  from unsupported. Native model lists retain reasoning, limits, modalities,
+  structured-output and sampling metadata; custom model overrides are validated
+  and stored as user evidence. Haiku 4.5 uses manual budgeted thinking, while
+  captured Sonnet/Opus and Gemini models use their supported reasoning mode.
+  Composer effort tiers and image/PDF admission accept the resolved model
+  policy. Meta request bytes and existing media limits remain unchanged.
+  Final host dispatch and pricing composition remain assigned to lane I.
 
 - M95 integration shares the Node validation runtime and the provider-setup
   schema, so Models host stays within its existing size budget. Account & usage

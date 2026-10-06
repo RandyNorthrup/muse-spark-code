@@ -21,6 +21,10 @@
 // and lane T adapts these functions to `WireCodec` without changing them.
 
 import * as z from 'zod/mini'
+import {
+  nativeModelMetadataSchema,
+  type NativeModelMetadata,
+} from '../../../providers/modelMetadata'
 
 import {
   HTTP_TOO_MANY_REQUESTS,
@@ -648,6 +652,13 @@ export async function* decodeOllamaStream(
  * is the server's own text, or the status line when the body is not an
  * error envelope.
  */
+/** Tags retain their native details. No local route is certified without its capture. */
+export function parseOllamaModelsList(body: unknown): readonly NativeModelMetadata[] {
+  const rows = z.object({ models: z.array(nativeModelMetadataSchema) }).parse(body).models
+  for (const row of rows) z.string().check(z.minLength(1)).parse(row['name'])
+  return rows
+}
+
 export function parseOllamaError(status: number, body: unknown, statusText: string): ModelApiError {
   const rawError = isRecord(body) ? body['error'] : undefined
   const serverMessage = typeof rawError === 'string' && rawError !== '' ? rawError : undefined

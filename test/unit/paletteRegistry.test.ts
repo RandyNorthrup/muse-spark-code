@@ -38,6 +38,36 @@ const context: PaletteContext = {
   isKeyStored: false,
 }
 
+it('uses record effort tiers in the composer palette', () => {
+  const groups = buildPalette({
+    ...context,
+    models: [
+      {
+        modelId: 'muse-spark-1.3',
+        displayLabel: 'Muse',
+        isDefault: true,
+        effortLevels: ['low', 'high'],
+      },
+    ],
+  })
+  expect(flattenPalette(groups).find((item) => item.id === 'effort')?.widget).toMatchObject({
+    levels: ['low', 'high'],
+  })
+})
+
+it('disables the effort palette row when the record has no effort tiers', () => {
+  const groups = buildPalette({
+    ...context,
+    models: [
+      { modelId: 'muse-spark-1.3', displayLabel: 'Muse', isDefault: true, effortLevels: [] },
+    ],
+  })
+  expect(
+    groups.flatMap((group) => group.items).find((item) => item.id === 'effort')?.isDisabled,
+  ).toBe(true)
+  expect(flattenPalette(groups).some((item) => item.id === 'effort')).toBe(false)
+})
+
 describe('formatTokenWindow', () => {
   afterEach(() => {
     setUiText(EN, 'en')
