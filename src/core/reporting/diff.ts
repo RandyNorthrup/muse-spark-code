@@ -1,0 +1,182 @@
+import { createHash } from 'node:crypto'
+import { REPORT_MAX_ROWS, REPORT_SECTION_ROWS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import {
+  reportDiffSchema,
+  reportDocumentSchema,
+  reportSectionSchema,
+  type ReportDocument,
+  type ReportRow,
+  type ReportSection,
+  type ReportValue,
+} from '../../shared/reportSchema'
+
+type ReportDiff = ReturnType<typeof reportDiffSchema.parse>
+
+function compareKey(left: string, right: string): number {
+  if (left < right) return -1
+  return left > right ? 1 : 0
+}
+
+/** Object order is not a field change; array order (including source references) is. */
+function canonical(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => canonical(item)).join(',')}]`
+  if (typeof value === 'object' && value !== null)
+    return `{${Object.entries(value)
+      .toSorted(([a], [b]) => compareKey(a, b))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
+      .join(',')}}`
+  return JSON.stringify(value)
+}
+
+/** Pure comparison of already scrubbed, hash-verified inputs supplied by R/history. */
+export function compareReports(before: ReportDocument, after: ReportDocument): ReportDiff {
+  const from = reportDocumentSchema.parse(before)
+  const to = reportDocumentSchema.parse(after)
+  if (from.header.kind !== to.header.kind || from.header.scope !== to.header.scope)
+    throw new Error(UI_TEXT.reportUi.generationFailed)
+  const left = new Map([from.needsYou, ...from.sections].map((section) => [section.id, section]))
+  const right = new Map([to.needsYou, ...to.sections].map((section) => [section.id, section]))
+  const ids = [...new Set([...left.keys(), ...right.keys()])].toSorted(compareKey)
+  const sections: ReportDiff['sections'] = []
+  for (const id of ['needsYou', ...ids.filter((id) => id !== 'needsYou')]) {
+    const oldSection = left.get(id)
+    const newSection = right.get(id)
+    const section = newSection ?? oldSection
+    if (section === undefined) continue
+    const oldRows = new Map(oldSection?.rows.map((row) => [row.key, row]))
+    const newRows = new Map(newSection?.rows.map((row) => [row.key, row]))
+    const added: ReportRow[] = []
+    const removed: ReportRow[] = []
+    const changed: ReportDiff['sections'][number]['changed'] = []
+    let unchangedRows = 0
+    for (const key of [...new Set([...oldRows.keys(), ...newRows.keys()])].toSorted(compareKey)) {
+      const oldRow = oldRows.get(key)
+      const newRow = newRows.get(key)
+      if (oldRow === undefined && newRow !== undefined) added.push(newRow)
+      else if (newRow === undefined && oldRow !== undefined) removed.push(oldRow)
+      else if (oldRow !== undefined && newRow !== undefined) {
+        if (canonical(oldRow) === canonical(newRow)) unchangedRows += 1
+        else changed.push({ key, before: oldRow, after: newRow })
+      }
+    }
+    sections.push({ id, label: section.label, added, removed, changed, unchangedRows })
+  }
+  return reportDiffSchema.parse({ from: from.header, to: to.header, sections })
+}
+
+/** The display sentence stays outside report-v1's untranslated data. Read at render time. */
+export function reportDiffNotice(diff: ReportDiff): string | undefined {
+  const parsed = reportDiffSchema.parse(diff)
+  return parsed.from.contentHash === parsed.to.contentHash
+    ? fill(UI_TEXT.reportUi.noChange, { asOf: parsed.from.asOf })
+    : undefined
+}
+
+/** An ordinary typed section for every renderer; columns retain each field's display type. */
+export function reportDiffSection(input: ReportDiff, isFull = false): ReportSection {
+  const diff = reportDiffSchema.parse(input)
+  const rows: ReportRow[] = []
+  const maximum = REPORT_MAX_ROWS
+  let total = 0
+  const absent: ReportValue = { type: 'label', value: 'notApplicable' }
+  const add = (
+    section: ReportDiff['sections'][number],
+    key: string,
+    field: string,
+    outcome: 'added' | 'removed' | 'changed' | 'unchanged',
+    before: ReportValue,
+    after: ReportValue,
+  ) => {
+    total += 1
+    if (rows.length >= maximum) return
+    rows.push({
+      key: createHash('sha256')
+        .update(JSON.stringify([section.id, key, field]))
+        .digest('hex'),
+      cells: {
+        section: { type: 'label', value: section.label },
+        row: { type: 'text', value: key },
+        field: { type: 'text', value: field },
+        outcome: { type: 'label', value: outcome },
+        before,
+        after,
+      },
+      sourceIds: [],
+    })
+  }
+  const sections = diff.sections.toSorted((a, b) => compareKey(a.id, b.id))
+  for (const section of sections) {
+    for (const outcome of ['added', 'removed'] as const) {
+      const orderedRows = section[outcome].toSorted((a, b) => compareKey(a.key, b.key))
+      for (const row of orderedRows) {
+        const cells = Object.entries(row.cells).toSorted(([a], [b]) => compareKey(a, b))
+        for (const [field, value] of cells)
+          add(
+            section,
+            row.key,
+            field,
+            outcome,
+            outcome === 'removed' ? value : absent,
+            outcome === 'added' ? value : absent,
+          )
+        if (row.sourceIds.length === 0) continue
+        const sources: ReportValue = { type: 'textList', value: row.sourceIds }
+        add(
+          section,
+          row.key,
+          'sourceIds',
+          outcome,
+          outcome === 'removed' ? sources : absent,
+          outcome === 'added' ? sources : absent,
+        )
+      }
+    }
+    const changed = section.changed.toSorted((a, b) => compareKey(a.key, b.key))
+    for (const row of changed) {
+      const fields = [
+        ...new Set([...Object.keys(row.before.cells), ...Object.keys(row.after.cells)]),
+      ].toSorted(compareKey)
+      for (const field of fields) {
+        const before = row.before.cells[field] ?? absent
+        const after = row.after.cells[field] ?? absent
+        if (canonical(before) !== canonical(after))
+          add(section, row.key, field, 'changed', before, after)
+      }
+      if (canonical(row.before.sourceIds) !== canonical(row.after.sourceIds))
+        add(
+          section,
+          row.key,
+          'sourceIds',
+          'changed',
+          { type: 'textList', value: row.before.sourceIds },
+          { type: 'textList', value: row.after.sourceIds },
+        )
+    }
+    add(
+      section,
+      section.id,
+      'unchangedRows',
+      'unchanged',
+      { type: 'count', value: section.unchangedRows },
+      { type: 'count', value: section.unchangedRows },
+    )
+  }
+  const ordered = rows.toSorted((a, b) => compareKey(a.key, b.key))
+  const visible = isFull ? ordered : ordered.slice(0, REPORT_SECTION_ROWS)
+  return reportSectionSchema.parse({
+    id: 'diff',
+    label: 'diff',
+    sortKey: 'key',
+    columns: [
+      { key: 'section', label: 'scope' },
+      { key: 'row', label: 'name' },
+      { key: 'field', label: 'name' },
+      { key: 'outcome', label: 'outcome' },
+      { key: 'before', label: 'removed' },
+      { key: 'after', label: 'added' },
+    ],
+    rows: visible,
+    omittedRows: total - visible.length,
+  })
+}

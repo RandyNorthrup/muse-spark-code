@@ -947,6 +947,8 @@ function newHookEffects(): HookEffects {
 
 /** A check or then_run command, before its hooks and its permission path (M68). */
 interface VerifyCommand {
+  /** Only configured checks enter the report journal; then_run stays a shell command. */
+  readonly checkName?: string
   readonly line: string
   /** What "always allow in this session" is keyed on. */
   readonly ruleCommand: string
@@ -7487,11 +7489,35 @@ export class ModelApiSession implements AgentSession {
       return { kind: 'skipped', ...refusal }
     }
     if (!isCurrent()) return { kind: 'skipped', skip: 'refused' }
+    const journal = this.deps.verify?.checkRuns
+    let commit: string | undefined
+    if (journal !== undefined && request.checkName !== undefined) {
+      try {
+        commit = await journal.commit()
+      } catch {
+        this.deps.log.warn('Check-run journal commit unavailable')
+      }
+    }
     const startedAt = this.deps.now()
     const result = await this.runCommand(line, request.timeoutMs, signal, () => {
       if (!isCurrent()) throw new AbortedError()
     })
     if (result.isEntryRefused === true) return { kind: 'skipped', skip: 'refused' }
+    if (commit !== undefined && journal !== undefined && request.checkName !== undefined) {
+      const completedAt = this.deps.now()
+      const outcome = outcomeOf(result)
+      try {
+        await journal.append({
+          check: request.checkName,
+          outcome: outcome === 'timedOut' ? 'failed' : outcome,
+          durationMs: Math.max(0, completedAt - startedAt),
+          commit,
+          at: new Date(completedAt).toISOString(),
+        })
+      } catch {
+        this.deps.log.warn('Check-run journal append unavailable')
+      }
+    }
     if (!isCurrent())
       return {
         kind: 'ran',
@@ -7619,6 +7645,7 @@ export class ModelApiSession implements AgentSession {
       itemId,
       {
         line: built.line,
+        checkName: check.name,
         ruleCommand: check.command,
         description: check.name,
         timeoutMs,
