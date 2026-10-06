@@ -27,6 +27,17 @@ describe('M114 imported host theme inventory', () => {
     }
   })
 
+  it('refuses stylesheet traversal outside the repository', () => {
+    mkdirSync('temp', { recursive: true })
+    const root = mkdtempSync(path.resolve('temp/m114-theme-'))
+    try {
+      writeFileSync(path.join(root, 'main.css'), '@import "../outside.css";')
+      expect(() => collectThemeVariables(['main.css'], root)).toThrow('escapes repository')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
   it('records the real generated host roles imported by both polished surfaces', () => {
     const variables = collectThemeVariables([
       'src/webview/styles.css',

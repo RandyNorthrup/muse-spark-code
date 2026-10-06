@@ -29048,13 +29048,15 @@ dead-code, duplication and production build checks directly on Kubuntu.
 The existing S-owned host-API inventory and final integrated quality/visual
 certification remain explicit handoffs; no gate is weakened.
 
-**M114 lane 0 host-API record handoff to S.** `check:host-api` exits 1 only
-because the source list for the same 61 theme variables now includes the
-generated `src/webview/tokens.css`. The API counts and policy are unchanged.
-M114's file table assigns `docs/ide-compatibility/**` to S, so this lane
-leaves that generated document untouched. S runs
-`npm run check:host-api -- --write`, reviews the source-path-only row and
-reruns the gate. This documentation gate is deferred, never claimed green.
+**M114 host-API inventory handoff resolved by S (2026-10-06).**
+The scanner now follows local CSS imports, including generated host roles,
+and normalizes Windows separators. The reviewed record contains 62 theme
+variables with their actual source paths, 332 VS Code APIs, 31 import files
+and 25 Node built-ins (including F's new uses). The read-only gate exits 0;
+the import traversal guard was deliberately disabled and both regressions
+failed, then the source was restored byte-exact. The separate lane-0
+`visualMatrix.test.mjs` source scan still needs its owner's matching imported
+stylesheet binding; S does not change another lane's owned test.
 
 **M114 P1 forced-colors repair scoped gates (RVM114P12, 2026-10-06).**
 The rig/shared brief forbids full quality/full unit runs and other lanes'
@@ -29676,9 +29678,9 @@ before a repaired one loads (2026-09-30).
 | `test/unit/modelApiHost.test.ts`   | `as ModelApiSession` in `resumeWithChild` and the custom-agent fork regression | The fake host constructs Model API sessions, but the shared resume/fork interface returns `AgentSession`; these two test-only casts expose `history()` for child-result assertions. Inline comments name that invariant. Production mode narrowing now selects a member of `APPROVAL_MODES` without a cast. | 2026-09-30 |
 | `test/unit/flightRecorder.test.ts` | `as never` on a hostile event kind and backend                                 | The refusal branches are reachable only with values outside `REPORT_EVENT_KINDS`/`BACKEND_KINDS`, which a typed test cannot spell; the two test-only casts feed them in. Inline comments name that invariant. Lane R product code holds no cast.                                                            | 2026-10-05 |
 
-| File                                                                  | Construct                                                                   | Reason                                                                                                                                                                                                                        | Added      |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (two ranges) | The owner's request keeps the pen's `--angle`, `--offset`, `--amplitude` and `--scale` names so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
+| File                                                                  | Construct                                                                              | Reason                                                                                                                                                                                                                                                                                           | Added      |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/webview/styles.css`, status-mark section and reduced-motion pose | `stylelint-disable`/`stylelint-enable custom-property-pattern` (one polar-angle range) | The owner's request keeps the pen's `--angle` and `--offset` names; obsolete amplitude/scale keyframes and the separate reduced-motion range were removed in P1 so the keyframes read against the original; the repo's own custom properties take an `ms-` prefix. Inline comments name the pen. | 2026-10-04 |
 
 | File                                                                                | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -29702,13 +29704,12 @@ before a repaired one loads (2026-09-30).
   inherited lane 0/S imported-role inventories, shared changelog/goldens,
   4 KiB startup-growth compaction target and lead aggregate quality keep
   their existing owners. No guard, permission or paid-call scope changes.
-- **M114-P2-HOST-API / integrated certification (inherited, 2026-10-06).**
-  The theme-variable inventory scanner misses imported generated host roles,
-  leaving S's host-API document stale. This does not alter host calls or
-  permissions; the unchanged gate still rejects release. S must fix the
-  scanner/inventory and the lead must run integrated quality and reviewed
-  visual goldens. RVM114P2's header, pressed-state and History-claim findings
-  are all fixed; none is accepted as a residual.
+- **M114-P2-HOST-API resolved / integrated certification pending (2026-10-06).**
+  S fixed the imported-role scanner and regenerated/reviewed the host-API
+  inventory; the unchanged gate now exits 0. The remaining lane-0 test-source
+  inventory binding, C/N/D surfaces and lead aggregate quality retain their
+  named owners. RVM114P2's header, pressed-state and History-claim findings
+  are fixed; none is accepted as a residual.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

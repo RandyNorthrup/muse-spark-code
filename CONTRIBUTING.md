@@ -19,6 +19,35 @@ extension loaded; `npm run watch` rebuilds on save. The Muse Code CLI and a
 Meta Model API key are optional: the unit tests run against fakes, and the
 sign-in gate explains what is missing.
 
+## Design tokens and visual changes
+
+Read [the token contract](design/tokens/README.md). Edit only
+`design/tokens/muse.tokens.json`, then run `npm run build:tokens` and
+`npm run check:tokens`. Generated CSS is not hand edited. Colours belong
+only in that source: stylelint and ESLint reject raw paint elsewhere. Use
+`--ms-radius-xs/sm/md/lg/xl/pill` and the flat/raised/popover/overlay elevation
+scale; host colours and fonts come through the mapped roles. High contrast
+must remain opaque and shadowless, with contrast borders. Never blur a control.
+Use the 120/180/240 ms motion tokens only for meaningful changes, inside
+`prefers-reduced-motion: no-preference`; streamed text stays still.
+
+Run `npm run check:visual` for a visual change. The complete audited component
+inventory is rendered in six themes at 320 and 690 px. The strict pixelmatch
+policy permits **zero changed pixels**, including antialiasing. Goldens are
+PNG archives outside git, capped at 512 MiB; only the reviewed source revision,
+hashes, dimensions, render/state coverage and environment are tracked.
+On CI or another rasterization environment the recorded Git revision is
+rendered beside the candidate. Fetch that revision if a shallow checkout does
+not have it; a missing source or screenshot fails, never skips.
+
+Commit capture inputs, run an update with a named review and a fresh external
+archive directory, inspect the candidate images, then commit the manifest.
+Normal checks never rewrite it. Keep full-resolution capture sets out of git;
+README media comes only from the existing curated `scripts/readme-shots.mjs`
+list (2 MiB total budget, banner included). The
+[visual contract](test/harness/goldens/README.md) explains grouped scenes,
+CSS pseudo-states and the real-interaction/accessibility companion checks.
+
 ## Before you open a pull request
 
 Use this order for a candidate branch:
@@ -96,7 +125,7 @@ Use this order for a candidate branch:
 - A visible change gets a harness scenario (`test/harness/index.html`, its
   name listed in `scripts/lib/harnessServer.mjs` beside the related one),
   rendered with `npm run harness:shots -- <names>` (`--theme=dark`, `light`,
-  `hc-dark` or `hc-light`; `--lang=pseudo` for clipping) and checked with
+  `hc-dark`, `hc-light`, `one-dark-pro` or `dracula`; `--lang=pseudo` for clipping) and checked with
   `node scripts/a11y.mjs <names>` in the four themes. The M87 scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,

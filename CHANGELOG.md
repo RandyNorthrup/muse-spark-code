@@ -18,6 +18,11 @@ happened, not what was planned; superseded entries are kept.
   ligature preferences, and font notice/package guards. Editor fonts remain
   controlled by their host.
 
+- Add strict pixelmatch visual regression across the complete audited panel,
+  Tasks and What's New inventory, six themes, six control states and 320/690 px
+  widths. Track size-bounded external PNG archives by hashes and dimensions;
+  CI rebuilds the reviewed source revision in its own rendering environment.
+
 ### Changed
 
 - Polish conversation cards, tools, composer, chips, dock, menus, pickers,

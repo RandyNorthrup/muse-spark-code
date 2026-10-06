@@ -1212,7 +1212,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:visual check:l10n check:host-api deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1223,7 +1223,8 @@
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
     "build:tokens": "node scripts/build-tokens.mjs",
-    "check:tokens": "node scripts/check-tokens.mjs"
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "check:visual": "node scripts/check-visual.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [

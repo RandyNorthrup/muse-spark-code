@@ -32,6 +32,11 @@ checkout. Fork runners separately verify VSIX installation and listing, then
 run that development-extension integration suite. These are distinct proofs;
 code-server and Theia's packaged browser checks keep their recorded scope.
 
+M114's [design rows](m114-design.md) record the shared theme/font contract,
+S's six-theme panel evidence and the named C/N/D bindings for native,
+companion, node and desktop surfaces. Existing support statuses below do not
+change merely because their shared panel styles are polished.
+
 ## The most used
 
 | Editor                                             | Route                                         | Milestone | Status    | Evidence and notes                                                                                                                                                                                                                                                |
