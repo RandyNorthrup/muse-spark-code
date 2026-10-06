@@ -19617,6 +19617,17 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**Lane T review repair (FIXM107T, 2026-10-05).** Address all three P2s in
+RVM107T within the tree readers and their owning suites: freshly revalidate
+the root or an existing orphan witness before committing POSIX witnesses;
+invalidate in-flight reader epochs when a ticket retires; and treat a Linux
+process row that disappears between stat and cgroup reads as absent while
+keeping other read failures unknown. Add a failing regression and a deliberate
+guard-break drill for each finding, restoring SHA-256-identical source.
+Record receipts in `docs/certification/m107-t.md`; no dependency, new surface,
+guard relaxation, branch merge or full quality run in this rig lane. The
+integration lead retains the existing W/native/full-gate handoffs.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.

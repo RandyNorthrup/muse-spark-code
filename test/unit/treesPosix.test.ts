@@ -112,6 +112,7 @@ describe('POSIX group and start-time proof', () => {
       row(process.pid),
     ]
     const reader = new PosixResourceTreeReader({
+      containsNow: () => Promise.resolve(true),
       snapshot: () => Promise.resolve({ rows, cpuSeconds: null }),
     })
     const registry = new ResourceTreeRegistry(reader)
@@ -135,6 +136,7 @@ describe('POSIX group and start-time proof', () => {
   it('continues an observed orphan group, but never admits an unanchored or recycled group', async () => {
     let rows = [row(710), row(711, '1001')]
     const reader = new PosixResourceTreeReader({
+      containsNow: () => Promise.resolve(true),
       snapshot: () => Promise.resolve({ rows, cpuSeconds: null }),
     })
     expect(await reader.contains(ticket, ticket.root)).toBe(true)
@@ -145,6 +147,7 @@ describe('POSIX group and start-time proof', () => {
     expect(await reader.usage(ticket)).toBeNull()
     expect(
       await new PosixResourceTreeReader({
+        containsNow: () => Promise.resolve(true),
         snapshot: () => Promise.resolve({ rows, cpuSeconds: null }),
       }).members(ticket),
     ).toEqual([])
@@ -155,6 +158,7 @@ describe('POSIX group and start-time proof', () => {
 
   it('refuses a group that the registered root did not lead', async () => {
     const reader = new PosixResourceTreeReader({
+      containsNow: () => Promise.resolve(true),
       snapshot: () => Promise.resolve({ rows: [row(710, '1000', 888)], cpuSeconds: null }),
     })
     expect(await reader.usage({ ...ticket, scope: { type: 'group', pgid: 888 } })).toBeNull()
@@ -165,7 +169,10 @@ describe('POSIX group and start-time proof', () => {
       rows: [row(710), row(711, '1001')],
       cpuSeconds: null,
     }
-    const reader = new PosixResourceTreeReader({ snapshot: () => Promise.resolve(snapshot) })
+    const reader = new PosixResourceTreeReader({
+      snapshot: () => Promise.resolve(snapshot),
+      containsNow: () => Promise.resolve(true),
+    })
     expect(await reader.usage(ticket)).toEqual({ cpuSeconds: 4, residentBytes: 8192 })
     snapshot = { rows: [{ ...row(710), cpuSeconds: 3 }], cpuSeconds: null }
     expect(await reader.usage(ticket)).toEqual({ cpuSeconds: 5, residentBytes: 4096 })
@@ -222,6 +229,69 @@ function linuxWorld(scope?: string, overrides: Partial<LinuxTreeDeps> = {}) {
   files.set(`${cg}/cpu.stat`, 'usage_usec 12500000\nuser_usec 10000000\nsystem_usec 2500000\n')
   return { reader, samples, files, read, run, cg }
 }
+
+describe('POSIX authority during mixed-time scans', () => {
+  it.each([
+    { platform: 'linux', orphan: false },
+    { platform: 'linux', orphan: true },
+    { platform: 'darwin', orphan: false },
+    { platform: 'darwin', orphan: true },
+  ])(
+    'revalidates the existing anchor before saving witnesses ($platform, orphan=$orphan)',
+    async ({ platform, orphan }) => {
+      const world = linuxWorld(undefined, {
+        list: () => Promise.resolve(['710', '711', '712', '999']),
+      })
+      let isMixedScan = false
+      const anchorPid = orphan ? 711 : 710
+      const foreignPid = orphan ? 712 : 711
+      const recycle = (pid: number) => {
+        if (!(isMixedScan && pid === foreignPid)) {
+          return
+        }
+
+        world.samples.set(anchorPid, row(anchorPid, '3000'))
+        world.samples.set(foreignPid, row(foreignPid, '3001'))
+      }
+      const original = world.read.getMockImplementation()!
+      world.read.mockImplementation((file) => {
+        const pid = /\/proc\/(\d+)\/stat$/.exec(file)?.[1]
+        if (pid !== undefined) recycle(Number(pid))
+        return original(file)
+      })
+      const reader =
+        platform === 'linux'
+          ? world.reader
+          : new MacResourceTreeReader({
+              run: () =>
+                Promise.resolve('710 710 0:02.00 4\n711 710 0:02.00 4\n712 710 0:02.00 4\n'),
+              inspect: (pid) => {
+                recycle(pid)
+                const sample = world.samples.get(pid)
+                return Promise.resolve(
+                  sample === undefined
+                    ? null
+                    : {
+                        pid,
+                        pgid: sample.pgid,
+                        startTime: sample.startTime,
+                      },
+                )
+              },
+            })
+      const registry = new ResourceTreeRegistry(reader)
+      await registry.register(ticket)
+      if (orphan) world.samples.delete(710)
+      isMixedScan = true
+      expect(await registry.members(ticket)).toEqual([])
+      isMixedScan = false
+      world.samples.delete(anchorPid)
+      const foreign = { pid: foreignPid, startTime: '3001' }
+      expect(await registry.contains(ticket, foreign)).toBe(false)
+      expect(await registry.usage(ticket)).toBeNull()
+    },
+  )
+})
 
 describe('Linux OS reader', () => {
   it('queries units only on demand, proves groups and uses delegated cgroup CPU without counting outsiders', async () => {

@@ -18,8 +18,8 @@ export interface PosixTreeSnapshot {
 /** The adapter reads current membership, never a cached action-time table. */
 export interface PosixTreeSource {
   snapshot(ticket: ResourceTicket): Promise<PosixTreeSnapshot | null>
-  /** Fresh targeted read after a potentially slow accounting-table scan. */
-  containsNow?(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean>
+  /** Fresh proof for the authority anchor and each action after the accounting scan. */
+  containsNow(ticket: ResourceTicket, identity: ResourceProcessIdentity): Promise<boolean>
 }
 
 /** Common group/start proof and accounting, with no editor or actuator dependency. */
@@ -58,14 +58,13 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
         ? prior
         : { signature, known: new Map<number, string>(), cpu: new Map<string, number>() }
     const root = rows.find((row) => row.pid === ticket.root.pid)
-    const hasAnchor =
-      root === undefined
-        ? rows.some((row) => state.known.get(row.pid) === row.startTime)
-        : root.startTime === ticket.root.startTime
-    if (!hasAnchor) {
+    const anchor = root ?? rows.find((row) => state.known.get(row.pid) === row.startTime)
+    if (anchor === undefined || (root !== undefined && root.startTime !== ticket.root.startTime)) {
       this.states.delete(ticket.id)
       return null
     }
+    // A scan can span group reuse; only a still-current authority may introduce witnesses.
+    if (!(await this.source.containsNow(ticket, anchor))) return null
     const members = rows.filter((row) => BigInt(row.startTime) >= BigInt(ticket.root.startTime))
     state.known = new Map(members.map((row) => [row.pid, row.startTime]))
     for (const member of members) {
@@ -93,7 +92,7 @@ export class PosixResourceTreeReader implements ResourceTreeReader {
     return snapshot?.rows.some(
       (row) => row.pid === identity.pid && row.startTime === identity.startTime,
     )
-      ? this.source.containsNow === undefined || (await this.source.containsNow(ticket, identity))
+      ? await this.source.containsNow(ticket, identity)
       : false
   }
 
