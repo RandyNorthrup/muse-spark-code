@@ -16,6 +16,7 @@ using Microsoft.VisualStudio.Text.Editor;
 using Microsoft.VisualStudio.Text.Operations;
 using Microsoft.VisualStudio.TextManager.Interop;
 using MuseSpark.VisualStudio.Protocol;
+using MuseSpark.VisualStudio.Panel;
 using Newtonsoft.Json.Linq;
 
 namespace MuseSpark.VisualStudio.Editor
@@ -29,6 +30,8 @@ namespace MuseSpark.VisualStudio.Editor
     private readonly IVsRunningDocumentTable rdt;
     private readonly IVsTextManager textManager;
     private readonly TabCompletion completion;
+    private readonly NativeSurfaces surfaces;
+    private readonly NativeUi ui;
     private readonly IVsTaskList? errors;
     private readonly DispatcherTimer diagnosticTimer;
     private readonly Dictionary<string, JArray> lastDiagnostics = new Dictionary<string, JArray>(StringComparer.OrdinalIgnoreCase);
@@ -36,15 +39,17 @@ namespace MuseSpark.VisualStudio.Editor
     private readonly uint cookie;
     private readonly HashSet<IWpfTextView> views = new HashSet<IWpfTextView>();
     public MhpPeer? Peer { private get; set; }
-    public IReadOnlyCollection<string> Capabilities => errors == null ? new[] { "lifecycle", "documents", "editor", "tab", "window" } : new[] { "lifecycle", "documents", "editor", "diagnostics", "tab", "window" };
+    public IReadOnlyCollection<string> Capabilities => errors == null ? new[] { "lifecycle", "documents", "editor", "commands", "tab", "ui", "window" } : new[] { "lifecycle", "documents", "editor", "diagnostics", "commands", "tab", "ui", "window" };
 
-    public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors)
+    public VisualStudioHost(AsyncPackage package, IComponentModel components, IVsRunningDocumentTable rdt, IVsTextManager textManager, TabCompletion completion, IVsTaskList? errors, NativeSurfaces surfaces, NativeUi ui)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       this.package = package;
       this.rdt = rdt;
       this.textManager = textManager;
       this.completion = completion;
+      this.surfaces = surfaces;
+      this.ui = ui;
       this.errors = errors;
       diagnosticTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(500) };
       diagnosticTimer.Tick += DiagnosticTick;
@@ -60,6 +65,9 @@ namespace MuseSpark.VisualStudio.Editor
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync(cancellation);
       cancellation.ThrowIfCancellationRequested();
+      if (method.StartsWith("surfaces/", StringComparison.Ordinal)) return await surfaces.InvokeAsync(method, parameters, cancellation);
+      if (method.StartsWith("ui/", StringComparison.Ordinal)) return await ui.InvokeAsync(method, parameters, cancellation);
+      if (method == "commands/register") return await ui.InvokeAsync(method, parameters, cancellation);
       Refresh();
       switch (method)
       {

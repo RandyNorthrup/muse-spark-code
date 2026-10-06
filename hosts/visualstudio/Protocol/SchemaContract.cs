@@ -11,19 +11,22 @@ namespace MuseSpark.VisualStudio.Protocol
   // Validate the committed export itself: no hand-maintained copy of wire types.
   public sealed class SchemaContract
   {
-    public const int MaximumFrameChars = 1048576;
+    // MHP 1.2's panel envelopes carry attachments; the frozen byte cap is authoritative.
+    public const int MaximumFrameChars = 16777216;
     public const int MaximumJsonDepth = 64;
     private static readonly TimeSpan PatternTimeout = TimeSpan.FromSeconds(1);
+    private static readonly Lazy<SchemaContract> Installed = new Lazy<SchemaContract>(ReadInstalled);
     public JObject Export { get; }
     public string Version => Export.Value<string>("protocol") ?? throw Invalid();
     public JObject Methods => Export["methods"] as JObject ?? throw Invalid();
 
     public SchemaContract(JObject export) { Export = export; }
 
-    public static SchemaContract Load()
+    public static SchemaContract Load() => Installed.Value;
+    private static SchemaContract ReadInstalled()
     {
       var assembly = Assembly.GetExecutingAssembly();
-      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.schema.json", StringComparison.Ordinal));
+      var name = assembly.GetManifestResourceNames().Single(n => n.EndsWith("mhp-v1.1.schema.json", StringComparison.Ordinal));
       using (var stream = assembly.GetManifestResourceStream(name) ?? throw Invalid())
       using (var reader = new StreamReader(stream))
         return new SchemaContract(ParseObject(reader.ReadToEnd()));
@@ -32,6 +35,7 @@ namespace MuseSpark.VisualStudio.Protocol
     public static JObject ParseObject(string json)
     {
       if (json.Length > MaximumFrameChars) throw Invalid();
+      if (System.Text.Encoding.UTF8.GetByteCount(json) > MaximumFrameChars) throw Invalid();
       JsonSyntax.Validate(json);
       using (var reader = new JsonTextReader(new StringReader(json)) { MaxDepth = MaximumJsonDepth, DateParseHandling = DateParseHandling.None })
       {
@@ -46,6 +50,17 @@ namespace MuseSpark.VisualStudio.Protocol
     public void ValidateCall(string method, JObject frame) => Validate(frame, Method(method)["call"] ?? throw Invalid());
     public void ValidateResult(string method, JObject frame) => Validate(frame, Method(method)["result"] ?? throw Invalid());
     public void ValidateFailure(JObject frame) => Validate(frame, Export["failure"] ?? throw Invalid());
+    public void ValidatePanel(JToken frame, string kind) => Validate(frame, Export["panel"]?[kind] ?? throw Invalid());
+    public void ValidatePayload(JToken payload, string direction, string surfaceKind)
+    {
+      var envelope = Export["panel"]?["envelope"]?["oneOf"] as JArray ?? throw Invalid();
+      var rules = envelope.Single(s => s["properties"]?["direction"]?.Value<string>("const") == direction)["properties"]?["payload"] ?? throw Invalid();
+      Validate(payload, rules);
+      var type = payload.Value<string>("type") ?? throw Invalid();
+      var tasks = type == "tasksReady" || type == "moveTasksToWindow" || type == "tasksState";
+      var news = type == "openLink" || type == "tryIt" || type == "hideOnUpdate";
+      if ((surfaceKind == "tasks") != tasks || (surfaceKind == "whatsNew") != news) throw Invalid();
+    }
 
     public static void Validate(JToken value, JToken schema) { Check(value, schema, schema); }
 
@@ -62,6 +77,7 @@ namespace MuseSpark.VisualStudio.Protocol
         Check(value, target, root);
       }
       if (rules["anyOf"] is JArray alternatives && !alternatives.Any(s => Matches(value, s, root))) throw Invalid();
+      if (rules["oneOf"] is JArray exclusive && exclusive.Count(s => Matches(value, s, root)) != 1) throw Invalid();
       if (rules["const"] is JToken constant && !Equal(value, constant)) throw Invalid();
       if (rules["enum"] is JArray values && !values.Any(v => Equal(value, v))) throw Invalid();
       var type = rules.Value<string>("type");

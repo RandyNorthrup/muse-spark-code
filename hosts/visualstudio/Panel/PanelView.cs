@@ -21,6 +21,8 @@ namespace MuseSpark.VisualStudio.Panel
     private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
     private readonly PanelInbox inbox;
     private string? bootstrapId;
+    private bool disposed;
+    private bool loaded;
 
     public PanelView(IPanelChannel channel, JoinableTaskFactory taskFactory)
     {
@@ -29,12 +31,14 @@ namespace MuseSpark.VisualStudio.Panel
       Children.Add(browser);
     }
 
-    public async Task InitializeAsync(string assets, UiText text)
+    public async Task InitializeAsync(string assets, UiText text, string kind = "chat")
     {
       await taskFactory.SwitchToMainThreadAsync(lifetime.Token);
       var userData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MuseSparkCode", "VisualStudio", "WebView2");
       var environment = await CoreWebView2Environment.CreateAsync(null, userData);
+      lifetime.Token.ThrowIfCancellationRequested();
       await browser.EnsureCoreWebView2Async(environment);
+      lifetime.Token.ThrowIfCancellationRequested();
       var core = browser.CoreWebView2;
       core.Settings.AreDevToolsEnabled = false;
       core.Settings.AreDefaultContextMenusEnabled = false;
@@ -52,11 +56,18 @@ namespace MuseSpark.VisualStudio.Panel
       core.WebMessageReceived += WebMessage;
       core.NavigationCompleted += NavigationComplete;
       bootstrapId = await core.AddScriptToExecuteOnDocumentCreatedAsync(channel.DocumentBootstrap);
+      lifetime.Token.ThrowIfCancellationRequested();
       channel.MessageReceived += RuntimeMessage;
-      core.Navigate(AssetPolicy.Origin + "/webview/index." + text.Locale + ".html");
+      core.Navigate(AssetPolicy.Origin + "/webview/" + (kind == "tasks" ? "tasks." : "index.") + text.Locale + ".html");
     }
 
-    private void Navigating(object? sender, CoreWebView2NavigationStartingEventArgs args) { if (!AssetPolicy.IsAssetUri(args.Uri)) args.Cancel = true; else inbox.Navigating(); }
+    private void Navigating(object? sender, CoreWebView2NavigationStartingEventArgs args)
+    {
+      if (!AssetPolicy.IsAssetUri(args.Uri)) { args.Cancel = true; return; }
+      inbox.Navigating();
+      if (loaded && channel is PanelChannel relay)
+        taskFactory.RunAsync(async () => { await relay.ReloadAsync(); }).FileAndForget("MuseSpark/PanelReload");
+    }
     private static void NewWindow(object? sender, CoreWebView2NewWindowRequestedEventArgs args) { args.Handled = true; }
     private static void Permission(object? sender, CoreWebView2PermissionRequestedEventArgs args) { args.State = CoreWebView2PermissionState.Deny; }
     private static void Download(object? sender, CoreWebView2DownloadStartingEventArgs args) { args.Cancel = true; }
@@ -68,6 +79,7 @@ namespace MuseSpark.VisualStudio.Panel
     private void NavigationComplete(object? sender, CoreWebView2NavigationCompletedEventArgs args)
     {
       inbox.Loaded(args.IsSuccess);
+      loaded = args.IsSuccess;
     }
 
     private void WebMessage(object? sender, CoreWebView2WebMessageReceivedEventArgs args)
@@ -100,6 +112,7 @@ namespace MuseSpark.VisualStudio.Panel
     public void Dispose()
     {
       ThreadHelper.ThrowIfNotOnUIThread();
+      if (disposed) return; disposed = true;
       lifetime.Cancel();
       inbox.Clear();
       channel.MessageReceived -= RuntimeMessage;

@@ -17,7 +17,7 @@ namespace MuseSpark.VisualStudio.Test
   [TestClass]
   public sealed class RuntimeAndPackageTests
   {
-    private static string PluginRoot()
+    internal static string PluginRoot()
     {
       var directory = new DirectoryInfo(AppContext.BaseDirectory);
       while (directory != null)
@@ -59,7 +59,16 @@ namespace MuseSpark.VisualStudio.Test
         using (var context = new JoinableTaskContext())
         using (var runtime = new RuntimeProcess(Path.Combine(stage, "node.exe"), Path.Combine(root, "Test", "fake-runtime.mjs"), stage, new FakeHost(), context.Factory))
         {
-          using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10))) await runtime.Peer.WaitUntilReadyAsync(deadline.Token);
+          using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10))) await runtime.Peer.InitializeAsync(new JObject
+          {
+            ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = "fixture" },
+            ["protocolRange"] = SchemaContract.Load().Export["range"]?.DeepClone(),
+            ["capabilities"] = new JArray("lifecycle", "documents"),
+            ["locale"] = "en",
+            ["theme"] = new JObject { ["kind"] = "dark", ["tokens"] = new JObject() },
+            ["folders"] = new JArray(),
+            ["trusted"] = false
+          }, deadline.Token);
           for (var attempt = 0; attempt < 100 && (!File.Exists(marker) || !File.Exists(marker + ".pid")); attempt++) await Task.Delay(50);
           Assert.IsTrue(File.Exists(marker), "Fake runtime did not complete its MHP exchange.");
           Assert.IsTrue(File.Exists(marker + ".pid"), "Fake runtime did not create its descendant.");
@@ -92,7 +101,7 @@ namespace MuseSpark.VisualStudio.Test
       using (var archive = ZipFile.OpenRead(Path.Combine(root, "bin", "Release", "net48", "MuseSpark.VisualStudio.vsix")))
       {
         var names = archive.Entries.Select(e => e.FullName).ToArray();
-        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/main.js", "assets/webview/main.css", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.schema.json", "LICENSE", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
+        foreach (var required in new[] { "MuseSpark.VisualStudio.dll", "MuseSpark.VisualStudio.pkgdef", "assets/webview/portable/main.js", "assets/webview/portable/main.css", "assets/runtime/muse-panel-job.exe", "assets/mhp-v1.1.schema.json", "LICENSE", "assets/licenses/microsoft.web.webview2/1.0.4258.31/LICENSE.txt", "assets/licenses/system.text.encodings.web/9.0.0/LICENSE.TXT" })
           Assert.IsTrue(names.Contains(required), required);
         Assert.IsTrue(names.Any(n => n.EndsWith("WebView2Loader.dll", StringComparison.Ordinal)));
         Assert.IsFalse(names.Any(n => n.Contains("fake-runtime") || n.Contains("Test.dll")));
@@ -111,7 +120,7 @@ namespace MuseSpark.VisualStudio.Test
           Assert.IsTrue(names.Contains("assets/l10n/ui." + locale + ".json"));
           Assert.IsTrue(names.Contains("assets/l10n/package.nls." + locale + ".json"));
         }
-        using (var reader = new StreamReader((archive.GetEntry("assets/mhp-v1.schema.json") ?? throw new InvalidOperationException()).Open()))
+        using (var reader = new StreamReader((archive.GetEntry("assets/mhp-v1.1.schema.json") ?? throw new InvalidOperationException()).Open()))
           Assert.IsTrue(JToken.DeepEquals(SchemaContract.ParseObject(reader.ReadToEnd()), SchemaContract.Load().Export));
       }
     }

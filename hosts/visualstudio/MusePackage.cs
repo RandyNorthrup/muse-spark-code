@@ -12,12 +12,15 @@ using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.TextManager.Interop;
 using MuseSpark.VisualStudio.Editor;
 using MuseSpark.VisualStudio.Panel;
+using MuseSpark.VisualStudio.Protocol;
+using Newtonsoft.Json.Linq;
+using Microsoft.VisualStudio.PlatformUI;
 
 namespace MuseSpark.VisualStudio
 {
   [PackageRegistration(UseManagedResourcesOnly = true, AllowsBackgroundLoading = true)]
   [ProvideMenuResource("Menus.ctmenu", 1)]
-  [ProvideToolWindow(typeof(MuseToolWindow), Style = VsDockStyle.Tabbed, Window = ToolWindowGuids80.SolutionExplorer)]
+  [ProvideToolWindow(typeof(MuseToolWindow), MultiInstances = true, Style = VsDockStyle.Tabbed, Window = ToolWindowGuids80.SolutionExplorer)]
   [Guid(PackageId)]
   public sealed class MusePackage : AsyncPackage
   {
@@ -26,7 +29,8 @@ namespace MuseSpark.VisualStudio
     private const int OpenCommandId = 0x0100;
     private VisualStudioHost? host;
     private RuntimeProcess? runtime;
-    private PanelView? panel;
+    private NativeSurfaces? surfaces;
+    private NativeUi? ui;
     private UiText? text;
     private TabCompletion? completion;
     private bool opening;
@@ -49,38 +53,49 @@ namespace MuseSpark.VisualStudio
       text = text ?? new UiText(assets);
       var window = await ShowToolWindowAsync(typeof(MuseToolWindow), 0, true, DisposalToken) as MuseToolWindow ?? throw new InvalidOperationException("MHP_TOOL_WINDOW_UNAVAILABLE");
       window.Caption = text.Manifest("displayName");
-      if (panel != null || opening) return;
+      if (runtime != null || opening) return;
       opening = true;
       try
       {
         if (!(await GetServiceAsync(typeof(SComponentModel)) is IComponentModel components)) throw new InvalidOperationException("MHP_COMPONENT_MODEL_UNAVAILABLE");
-        // This factory must be supplied by the integrated runtime's authored UI protocol.
-        var factory = components.GetService<IPanelChannelFactory>();
-        if (factory == null)
-        {
-          window.Content = new TextBlock { Text = text["crashTitle"] + Environment.NewLine + "MHP_PANEL_CHANNEL_UNDEFINED", TextWrapping = System.Windows.TextWrapping.Wrap };
-          return;
-        }
         if (!(await GetServiceAsync(typeof(SVsRunningDocumentTable)) is IVsRunningDocumentTable rdt) || !(await GetServiceAsync(typeof(SVsTextManager)) is IVsTextManager textManager))
           throw new InvalidOperationException("MHP_EDITOR_SERVICE_UNAVAILABLE");
         completion = components.GetService<TabCompletion>() ?? throw new InvalidOperationException("MHP_TAB_SERVICE_UNAVAILABLE");
         var errorList = await GetServiceAsync(typeof(SVsErrorList)) as IVsTaskList;
-        host = new VisualStudioHost(this, components, rdt, textManager, completion, errorList);
+        ui = new NativeUi(JoinableTaskFactory, text, identifier => ActivityLog.LogError("Muse Spark Code (Unofficial)", identifier));
+        surfaces = new NativeSurfaces(this, assets, text, ui);
+        host = new VisualStudioHost(this, components, rdt, textManager, completion, errorList, surfaces, ui);
         var workspace = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MuseSparkCode", "VisualStudio", "scratch");
         if (await GetServiceAsync(typeof(SVsSolution)) is IVsSolution solution && solution.GetSolutionInfo(out var directory, out _, out _) == VSConstants.S_OK && !string.IsNullOrEmpty(directory)) workspace = directory;
         Directory.CreateDirectory(workspace);
         runtime = new RuntimeProcess(Path.Combine(assets, "runtime", "node.exe"), Path.Combine(assets, "runtime", "dist", "acp.js"), workspace, host, JoinableTaskFactory);
         host.Peer = runtime.Peer;
+        surfaces.Peer = runtime.Peer;
+        ui.Peer = runtime.Peer;
         completion.Attach(runtime.Peer, () => text["insertCode"]);
         using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(DisposalToken))
         {
           deadline.CancelAfter(TimeSpan.FromSeconds(30));
-          await runtime.Peer.WaitUntilReadyAsync(deadline.Token);
+          var background = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowBackgroundColorKey);
+          var foreground = VSColorTheme.GetThemedColor(EnvironmentColors.ToolWindowTextColorKey);
+          var isLight = background.GetBrightness() > 0.5;
+          var version = (await GetServiceAsync(typeof(EnvDTE.DTE)) as EnvDTE.DTE)?.Version ?? throw new InvalidOperationException("MHP_HOST_VERSION_UNAVAILABLE");
+          await runtime.Peer.InitializeAsync(new JObject
+          {
+            ["host"] = new JObject { ["id"] = "visual-studio", ["version"] = version },
+            ["protocolRange"] = SchemaContract.Load().Export["range"]?.DeepClone(),
+            ["capabilities"] = new JArray(host.Capabilities),
+            ["locale"] = text.Locale,
+            ["theme"] = new JObject
+            {
+              ["kind"] = System.Windows.SystemParameters.HighContrast ? (isLight ? "highContrastLight" : "highContrastDark") : (isLight ? "light" : "dark"),
+              ["tokens"] = new JObject { ["--muse-bg"] = Color(background), ["--muse-fg"] = Color(foreground) }
+            },
+            ["folders"] = new JArray(new JObject { ["uri"] = new Uri(workspace + Path.DirectorySeparatorChar).AbsoluteUri, ["name"] = new DirectoryInfo(workspace).Name }),
+            // No implicit solution-trust grant; a native trust adapter is a separate checkpoint.
+            ["trusted"] = false
+          }, deadline.Token);
         }
-        var channel = await factory.CreateAsync(runtime.Peer, "visual-studio:chat", DisposalToken);
-        panel = new PanelView(channel, JoinableTaskFactory);
-        window.Content = panel;
-        await panel.InitializeAsync(assets, text);
       }
       catch (Exception)
       {
@@ -95,7 +110,7 @@ namespace MuseSpark.VisualStudio
     private void Release()
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      try { completion?.Attach(null, null); panel?.Dispose(); }
+      try { completion?.Attach(null, null); surfaces?.Dispose(); ui?.Dispose(); }
       finally
       {
         try { host?.Dispose(); }
@@ -103,10 +118,12 @@ namespace MuseSpark.VisualStudio
         {
           try { runtime?.Dispose(); }
           catch (Exception) { ActivityLog.LogError("Muse Spark Code (Unofficial)", "MHP_RUNTIME_CLOSE_FAILED"); }
-          finally { completion = null; panel = null; host = null; runtime = null; }
+          finally { completion = null; surfaces = null; ui = null; host = null; runtime = null; }
         }
       }
     }
+
+    private static string Color(System.Drawing.Color value) => "#" + value.R.ToString("x2", System.Globalization.CultureInfo.InvariantCulture) + value.G.ToString("x2", System.Globalization.CultureInfo.InvariantCulture) + value.B.ToString("x2", System.Globalization.CultureInfo.InvariantCulture);
 
     protected override void Dispose(bool disposing)
     {

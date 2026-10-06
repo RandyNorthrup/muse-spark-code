@@ -4,19 +4,22 @@ This is the M104c in-process VSSDK host for Visual Studio 2022 and 2026.
 It targets .NET Framework 4.8 and embeds the shared React bundle in WPF
 WebView2. The status is **Prototype, qualification pending**.
 
-The frozen host-services contract is
-[`mhp-v1.schema.json`](../../src/shared/hostApi/mhp-v1.schema.json), consumed
-directly by the C# validator. The launcher expects the lane-B runtime's panel
+The reviewed MHP 1.2 contract is
+[`mhp-v1.1.schema.json`](../../src/shared/hostApi/mhp-v1.1.schema.json), consumed
+directly by the C# validator (the filename is retained from the replaced contract).
+The editor initiates initialization with its installed version, display language,
+theme, solution folder, trust and implemented capability groups. The launcher expects the shared runtime's panel
 entry and lane-I verified Node distribution under `assets/runtime`. Those
 distribution inputs are not present in this standalone prototype. The plugin
 does not collect or store API keys.
 
-The React relay is not specified by that frozen export. Integration must
-provide `IPanelChannelFactory` through the Visual Studio component model,
-with the runtime's authored relay and both zod message parsers. The extension
-reports `MHP_PANEL_CHANNEL_UNDEFINED` while that provider is absent. This is
-an explicit integration boundary, not a production fake or a guessed wire
-method. See [the certification](../../docs/certification/m104-f.md).
+The in-process relay uses the export's panel envelopes, immutable surface bindings,
+direction checks and independent sequence numbers. WebView2 loads the portable
+React entry. Chat and Tasks have native containers; the surfaces capability remains
+undeclared until all auxiliary kinds and placements are implemented. The runtime
+therefore refuses an assembled native panel at this checkpoint. Solution trust
+starts false; native trust transitions still need their adapter. See
+[the Windows parity record](../../docs/certification/m104-pd.md).
 
 Build from the repository root on Windows with the VS 2022 extension-development
 workload, .NET SDK and .NET Framework 4.8 targeting pack. These commands have
@@ -51,6 +54,13 @@ edit/completion planners, message inbox and asset/environment policy. A fake
 runtime runs through the production Windows job helper and creates a real
 descendant; shutdown must terminate both. Tests inspect the built VSIX and its
 localized pages. All fakes are confined to `Test/`.
+
+The Windows namespace also exercises real WPF consent dialogs: the supplied
+price/budget and all choices are visible, Deny preserves its opaque ID, there
+is no default Allow button, and cancellation closes the dialog. UI services
+include input, selection, clipboard, external links, status and progress;
+runtime command registration owns removable native key bindings and a menu.
+These are component receipts, not installed-editor or paid-ledger qualification.
 
 Native editing and undo, ghost text, Error List integration, rendering,
 accessibility and reload qualification require a VS experimental instance.
