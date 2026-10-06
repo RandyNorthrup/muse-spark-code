@@ -22497,7 +22497,7 @@ Each joins when its dependency merges, and none blocks the others.
 strings, test fakes and phase-scoped threat model are implemented and locally verified;
 the service and listener remain other lanes' work. The threat-model review
 is recorded in `docs/certification/m110-threat-model.md` (Codex review;
-lead/Claude acceptance pending before listener code). Platform receipts and
+lead acceptance recorded below for M110a0 listener code). Platform receipts and
 named bindings are in `docs/certification/m110-captures.md`, tests/drills in
 `docs/certification/m110-0.md`. This base has no frozen M104 MHP definitions:
 the node method catalog is an independently validated extension behind an
@@ -22505,6 +22505,24 @@ injected `NodeMethodPort`, bound by M104 lane 0 at integration. No production
 fake, MHP envelope guess or new dependency is authorized by that seam.
 Lane 0 adds no executable commands or manifest entries; the integration
 help-reference handoff lists the features once their owning lanes wire them.
+
+**Lead acceptance (2026-10-06).**
+
+Accepted for M110a0 by the lead on 2026-10-06, with two additions. H19 — physical and maker actions (D83) reached through the node require a fresh action-bound user-verification step-up for EACH action, bound to the exact payload digest (this is the node's form of OS user presence, matching the M103 lane R redesign); Stop is never gated and works over any authenticated session and from the console. H20 — sign-in lockout (H09) can never permanently lock the owner out: recovery is a new console setup code (H04 rules), and the lockout state is visible on the console. The listener may now be implemented within this table.
+
+**M110N continuation scope.** Implement the selected-interface HTTPS listener
+inside H01/H02/H06–H09/H19. A1 supplies an injected bearer verifier and atomic
+action-bound step-up consumption; no bound verifier means privileged routes
+refuse. N loads the configured pinned leaf and reports its full fingerprint
+to console/TUI. HTTP routes carry the existing catalog params directly,
+without guessing M104's absent envelope. Terminal frames use the shared
+method port (add write/resize/attach contracts), and a generic maker-action
+contract enforces H19 even before M103's runtime is integrated. All method
+params and results are parsed; no editor-specific dispatch. A1 owns H20's
+console recovery and lockout state, T its display, C/S0 the OS bind/firewall
+and issuance receipts. Tests cover binding, origin/metadata, header-only
+auth, first-frame deadline, size/admission limits, payload binding and Stop;
+every guard is deliberately broken and restored. No paid/live calls.
 
 **RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
 close all three review findings: require a closed, service-owned Git
@@ -22526,9 +22544,10 @@ permission grants. Config/state/audit reject unknown fields and expose no
 credential-valued fields; filesystem containment, cryptographic verification, expiry and hash-chain
 verification still require their runtime bindings and acceptance drills.
 
-**Status 2026-10-05: lane 0 contract groundwork.** The service, sign-in,
-listener, images and user surfaces remain unimplemented on this base.
-No downstream lane is launched by this record. The research is
+**Status 2026-10-06: M110a0 threat model accepted.** N's service core is
+implemented (`docs/certification/m110-n-node-service.md`); the listener is
+authorized within the accepted table. Production sign-in, images and user
+surfaces still require their named lane bindings and platform receipts. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
 model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses

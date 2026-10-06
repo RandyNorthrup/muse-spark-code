@@ -5,10 +5,13 @@ one container with `muse-node` and `muse-tools` (or two native units),
 and browsers on the LAN. This is a design review, not a certification of
 the listener, operating system, WebAuthn verifier or image.
 
-Codex reviewed the contracts against this table. **Lead/Claude acceptance
-is pending. No listener may be implemented from this record before that
-review accepts it** (PLAN M110's ordering rule). Later phases must extend
-and review this table before their listeners are written.
+Codex reviewed the contracts against this table. Lead acceptance for M110a0
+is recorded below. Later phases must extend and review this table before
+their listeners are written.
+
+## Lead acceptance
+
+Accepted for M110a0 by the lead on 2026-10-06, with two additions. H19 — physical and maker actions (D83) reached through the node require a fresh action-bound user-verification step-up for EACH action, bound to the exact payload digest (this is the node's form of OS user presence, matching the M103 lane R redesign); Stop is never gated and works over any authenticated session and from the console. H20 — sign-in lockout (H09) can never permanently lock the owner out: recovery is a new console setup code (H04 rules), and the lockout state is visible on the console. The listener may now be implemented within this table.
 
 The source of the requirements is PLAN D90.3, .11–15, .18, .23 and Q-M110,
 and [the research](../research/muse-node-2026-10-05.md), especially §2.5,
@@ -100,6 +103,9 @@ they do not certify this unimplemented OS runner.
 | H15 | Power loss/restart silently replays work or loses audit ordering | Versioned state; newer version refused. Keys sealed and sessions dropped on boot. Reconcile durable work, leave uncertain attempts blocked. Append-only hash chain, sequence and previous digest checked; cap/rotation retains a verified anchor.                                                                                                    | L0 schemas; N persistence/restart, corrupt state, chain tamper and uncertain-attempt drills. Parsing a digest is not chain verification.                      |
 | H16 | Compromised host/root, tool kernel exploit or physical theft     | Two users share a kernel/container. Root and host administrators can read service memory and disk. Sealed encrypted store protects unused provider/deploy keys at rest; boot TLS/session keys remain readable to their owner. Never claim container isolation protects against the host.                                                             | Explicit residual; N/C document actual permissions. M110b adds workspace sandboxes, not protection from root.                                                 |
 | H17 | Malicious image/update/CLI or unsupported subscription path      | No credentials or Muse Code in shipped layers. Signed digest, SBOM, provenance and notices. Muse Code remains unavailable until bubblewrap AND headless sign-in captures pass; never `--yolo`.                                                                                                                                                       | C image tamper/layer canary; A0-BWRAP/A0-LOGIN captures. No guessed Muse/MSP frames in L0.                                                                    |
+
+| H19 | Stolen session or unattended model actuates physical hardware | Fresh UV step-up for EACH physical/maker action, atomically consumed and bound to the exact method/payload digest. Stop has session access only and also works from the console. | A1/N/M103: alter payload, reuse proof, omit UV; fake action must not run; Stop succeeds without step-up. |
+| H20 | Sign-in flood permanently locks out the owner | Console displays lockout state. Recovery issues a new console setup code under H04 (hashed, one-use, 15-minute expiry, atomic enrollment); no remote recovery grant. | A1/T/C: hit lockout, inspect console, recover using fresh code; expired/replayed codes fail. N admission backoff must expire without bypassing A1. |
 
 ## Deliberate limits and phase exclusions
 
