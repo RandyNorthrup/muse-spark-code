@@ -21,9 +21,11 @@ absolute path; regenerate if you move it. `--agent` and `--python` can name
 installed executables at paths with spaces. For Windows npm installations
 that need Node instead of the `.cmd` wrapper, use `--agent` for `node.exe`
 and `--agent-script` for the installed absolute `dist/acp.js` path. ACP and
-panel launch preserve that argv prefix. The bootstrap is tested; native Zed
-task execution, including shell quoting, remains unqualified. The script
-installs nothing.
+panel launch preserve that argv prefix. ACP uses literal argv. Tasks select
+`/bin/sh` on macOS/Linux and PowerShell on Windows, with every executable
+and argument quoted for that shell. A real `/bin/sh` receipt verifies literal
+spaces, quotes, semicolons and command substitutions; Windows PowerShell
+and Zed's native task runner remain unqualified. The script installs nothing.
 
 Select **Muse Spark Code (Unofficial)** in Zed's Agent Panel for ACP. Use
 the `Muse Spark Code (Unofficial): panel` task through `task::Spawn` to

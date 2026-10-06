@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import shlex
 import sys
 from pathlib import Path
 
@@ -14,6 +15,17 @@ def configuration(agent, python, agent_script=None):
         if not agent_script:
             raise ValueError("EPANEL_ARGUMENTS")
         agent_args.extend(["--agent-script", agent_script])
+    # Native tasks build shell text; custom ACP commands remain exec argv.
+    if sys.platform == "win32":
+        def quote(part):
+            return "'" + part.replace("'", "''") + "'"
+        task_command = "& " + quote(python)
+        task_shell = {"program": "powershell.exe"}
+    else:
+        quote = shlex.quote
+        task_command = quote(python)
+        task_shell = {"program": "/bin/sh"}
+    task_args = [quote(part) for part in ["-I", launcher, "panel", *agent_args]]
     return {
         "settings": {
             "agent_servers": {
@@ -28,8 +40,9 @@ def configuration(agent, python, agent_script=None):
         "tasks": [
             {
                 "label": "Muse Spark Code (Unofficial): panel",
-                "command": python,
-                "args": ["-I", launcher, "panel", *agent_args],
+                "command": task_command,
+                "args": task_args,
+                "shell": task_shell,
                 "allow_concurrent_runs": False,
                 "use_new_terminal": True,
                 "reveal": "never",

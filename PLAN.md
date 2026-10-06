@@ -15440,6 +15440,15 @@ of the unfinished MHP shim adapters, LSP broker/server and Zed completion
 endpoint; they require a separate M104e implementation after B/C composition
 and are not transferred or accepted as complete by these launcher repairs.
 
+**H2 follow-up (macmini, 2026-10-05):** implement native Zed task quoting
+and shared runtime supervision with authenticated out-of-band Stop, bounded
+TERM-to-tree-kill cleanup and preserved stdio. Wire the five shim launchers
+through supervision and certify with fake children and byte-exact drills.
+The assigned `c38ef8a5` base contains neither M94's Tab engine nor B/C's
+composed panel runtime. LSP/Tab and full MHP parity must use those real
+implementations; no fake production engine or guessed provider request is
+permitted. H2 checks these dependencies before claiming editor capabilities.
+
 | Milestone | Delivers                                                                                                                                  | Depends on                                   |
 | --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
