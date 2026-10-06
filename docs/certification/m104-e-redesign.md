@@ -65,24 +65,136 @@ replacement session, then leaves a further fake connection attached until
 framework project teardown and checks its termination afterward. Tests treat
 Linux zombie state as stopped, distinguishing a reparented process that still
 runs from one awaiting its OS reaper. Emergency fake-worker cleanup happens
-only after assertions, so a containment red drill cannot leave a running orphan.
+only after assertions. The first containment drill exposed missing emergency
+cleanup in the two metadata cases; that fixture cleanup was corrected. One
+fake Python sleep worker left by that first drill was terminated after matching
+its exact command and this worktree as its cwd. The final containment drill
+uses the corrected cleanup; no other lane process was touched.
 
-## Initial verification
+## Native verification
 
 - Headless: **62/62 passed, zero failures/errors/skips**, ktlint, detekt and
   `buildPlugin` exit 0 (`temp/exit-after-fix.log`). The two separate-JVM tests
   failed before the hook with workers still running (`temp/exit-before-fix.log`).
-- Xvfb/JCEF before the final aggregate-byte test: **59/59 passed**, ktlint,
-  detekt and ZIP build exit 0 (`temp/native-ui-green.log`). Includes the shared
-  composer, approvals, Stop, native Tab and actual project lifetime tests.
-- Shared production build exits 0 (`temp/build.log`). Native main is
-  **913.0/950 KiB**, notes **0.7/25 KiB**; unchanged native gates pass.
+- Final restored Xvfb/JCEF: **62/62 passed, zero failures/errors/skips**,
+  ktlint, detekt and ZIP build exit 0 (`temp/native-ui-final.log`). Includes
+  the shared composer, approvals, Stop, native Tab, actual project lifetime
+  and separate-JVM exit tests. No restored stream/thread leak was reported.
+  Fresh [panel](m104-e-redesign-panel-ui.png) and
+  [approval](m104-e-redesign-panel-approval.png) screenshots contain fake traffic only.
+- Shared production build exits 0 (`temp/scoped-build.log`). Native main is
+  **913.0/950 KiB**, notes **0.7/25 KiB**; the actual generated entries were
+  checked again (`temp/native-inline-final.log`); unchanged native gates pass.
 
-Thirteen deliberate regressions have failed and restored source bytes exactly
-(`temp/red-drills.json`); final hook/containment drills, restored UI run,
-scoped repository checks and fresh three-IDE
-Plugin Verifier receipts follow in the verification commit. Existing receipts
-in `m104-e3.md` are historical and do not certify this new ZIP.
+## Deliberate failures and restoration
+
+All **15** drills ran the entire owned native JVM suite without test filters
+(60 tests initially, 62 after the separate-JVM regressions). Every run exited
+1 and fired its named expected regression. Each mutation was restored in a
+`finally` block; the before/after SHA-256 values matched. Full observed failure
+names and hashes are preserved in [the drill receipts](m104-e-redesign-drills.json).
+The final containment drill also exposed expected stream/thread leaks while
+containment was deliberately disabled; the restored UI run reported none.
+
+| Mutation                                     | Expected failing regression                                                                                                |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `cancel-correlation` in `MhpConnection.kt`   | `cancelledTabLateSuccessAndFailureLeaveOtherRequestsAndPanelsAlive`                                                        |
+| `metadata-monitor` in `MhpConnection.kt`     | `metadataHandoffDoesNotHoldTheMonitorAndShutdownWins`                                                                      |
+| `metadata-deadline` in `MhpConnection.kt`    | `metadataHandoffHasADeadlineAndRejectsLateInitialization`                                                                  |
+| `metadata-owner` in `MhpConnection.kt`       | `testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects`                                                    |
+| `closed-epoch` in `MhpConnection.kt`         | `closedEpochDropsQueuedInboundReplyInsteadOfSendingIntoReplacement`                                                        |
+| `raw-tab-error` in `MhpConnection.kt`        | `runtimeFailureTextCannotBecomeAnIdeLoggerException`, `testR2RawTabFailureExposesOnlyFixedTextAndReconnects`               |
+| `coordinate-wrap` in `DocumentServices.kt`   | `testWireIntegersCannotWrapIntoValidEditCoordinates`, `testR2OutOfRangeWireEditCannotChangeTheNativeDocumentAndReconnects` |
+| `write-deadline` in `MhpPipe.kt`             | `testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects`                                                                   |
+| `queue-failure` in `MhpPipe.kt`              | `countsInFlightFramesAndReleasesAllReservationsWhenClosed`, `boundsWriterQueueAndDropsOnlyTheClosingSurface`               |
+| `process-group` in `RuntimeProcess.kt`       | `testR2ParentFirstDeathKillsReparentedWorkerAndReconnects`                                                                 |
+| `parent-exit` in `RuntimeConnection.kt`      | `testR2ParentFirstDeathKillsReparentedWorkerAndReconnects`                                                                 |
+| `mailbox-bytes` in `RuntimeConnection.kt`    | `testAggregateMailboxBytesFailBeforeTheActorCanDrainThem`                                                                  |
+| `blocking-close` in `MhpPipe.kt`             | `testR2BlockedStdinCannotFreezeProjectDisposal`, `testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects`                  |
+| `jvm-shutdown-hook` in `RuntimeProcess.kt`   | `testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker`, `testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited`            |
+| `final-process-group` in `RuntimeProcess.kt` | `testR2ParentFirstDeathKillsReparentedWorkerAndReconnects`, `testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited`    |
+
+`RuntimeProcess.kt` first used hash
+`4a718691c938c6c991464155731cca10167e76a21d5862aa5effc9561a93ec1b`;
+its final JVM-hook revision used
+`9625d0df9cc86cf5ccdfd622fea3481cadf5d3b36b4db7482f1bd7fb5a1673ac`.
+The original first-round glob/diagnostic/inline-size drills in `m104-e3.md`
+remain historical receipts of unchanged implementations, not new executions.
+
+## Scoped repository checks and artifact
+
+Source commits: `eee668af3` (owner/epochs) and `8b4b70b30` (JVM exit).
+All checks ran directly on Kubuntu, sequentially. No test filter, severity,
+timeout, cap or configuration was relaxed.
+
+- `npm run typecheck`: all five projects pass.
+- Scoped ESLint: the four owned native resource/bridge/size `.mjs` files pass
+  with zero warnings. Kotlin uses ktlint/detekt, both pass.
+- Prettier on changed Markdown/JSON, plain `npm run deadcode` (`knip`),
+  `npx --no-install jscpd`, `npm run check:l10n`, `npm run check:host-api`
+  and `git diff --check`: exit 0. Localization checks 14 tables, 131 manifest
+  strings and 481 source files with zero problems.
+- `npx --no-install vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3 --testTimeout=120000 --no-cache --configLoader runner`:
+  **55/55 passed** (`temp/scoped-mhp-contract.log`).
+- `node --test hosts/jetbrains/test/embedded.test.mjs hosts/jetbrains/test/bundle-size.test.mjs`: **8/8 passed, zero skips**
+  (`temp/scoped-native-node.log`).
+- `npm run build`: size, split, host-global and bundled-notice gates pass.
+  Activation **582.3/600 KiB**, Model API **429.5/475**, checkpoint store
+  **89.2/225**, ACP **804.4/850**, shared startup **877.5/900**, deferred
+  **38.6/50**. No dependency or shared source was changed.
+- Source-commit `gitleaks git --redact --no-banner --log-opts=c59a483a..HEAD .`: two commits scanned, zero leaks
+  (`temp/gitleaks-source-commits.log`); every commit also runs staged gitleaks.
+
+Final development ZIP: `hosts/jetbrains/build/distributions/muse-spark-code-jetbrains-0.1.0.zip`, **3,330,772 bytes**, SHA-256
+`9734641bb86ad5b0fa681a269a96ad3f04a9c103d81c52064bb8671877b63b19`.
+This exact hash matched before and after Plugin Verifier.
+
+## Fresh Plugin Verifier
+
+`verifyPlugin --offline --no-daemon` used pinned verifier **1.410**,
+unchanged **FailureLevel.ALL** and the three declared installed IDEA releases
+via `verificationIdePaths`; build SDK `privateIdePath=temp/idea-sdk`.
+**Exit 0**, no dependency downloads (0 bytes), no suppressions. IDE layout
+warnings about optional modules appeared in the tool log; all plugin verdicts
+were Compatible and no failure level was removed. This certifies API
+compatibility, not running the installed IDE after accepting its agreement.
+
+| Declared release | Build            | Fresh verdict receipt                                       |
+| ---------------- | ---------------- | ----------------------------------------------------------- |
+| IDEA 2025.3.3    | IU-253.31033.145 | [Compatible](m104-e-redesign-verifier/IU-253.31033.145.txt) |
+| IDEA 2026.1.5    | IU-261.27258.48  | [Compatible](m104-e-redesign-verifier/IU-261.27258.48.txt)  |
+| IDEA 2026.2.3    | IU-262.10968.63  | [Compatible](m104-e-redesign-verifier/IU-262.10968.63.txt)  |
+
+The cached 2025.3.3 SDK was copied to `temp/idea-sdk` before tests so bootstrap
+resources could not modify the shared installation. No package/tool was added,
+no agreement accepted and no user/machine setting changed. Earlier verifier
+receipts in `m104-e3.md` remain historical.
+
+## Frozen boundaries
+
+The four MHP schema/lock files have no diff and retain these SHA-256 values:
+
+| File under `src/shared/hostApi/` | SHA-256                                                            |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `mhp-v1.schema.json`             | `84f1436f57fa920d11e37fadb2f71dc7516998b1615bd0f6898329b6896614ec` |
+| `mhp-v1.1.schema.json`           | `857992408e9f92ac6af7c65897672a7d3a2e0a09140c19f851b931439f9c2a70` |
+| `mhp-v1.lock.json`               | `c8105960ebff9517703022fe0cbbdce4fede4ec61018d0b9021abf83b9a2e3b8` |
+| `mhp-v1.1.lock.json`             | `e95e6a6f9dc144e9312c520dd8584ebae488ce0c6dbf0a7acf82753bfcd23068` |
+
+All stress frames use the existing frozen contract/proposal. No model wire
+shape, request prefix, provider decision, paid default, shared implementation,
+other host or golden fixture changed.
+
+## Local hook incident
+
+Both source commits ran hooks. During `eee668af3`, lint-staged nevertheless
+created and automatically removed its backup stash (`70e17e5e`), contrary to
+the lane's no-stash rule. The first preload matched its canonical CLI filename
+but missed the `.bin/lint-staged` entry. No manual stash or history rewrite
+was run. The corrected worktree-local preload covers both filenames and
+adds `--no-stash --no-hide-partially-staged`; its probe and the `8b4b70b30`
+hook log explicitly show backup and hiding skipped. No hook or Git config was
+changed, and both staged gitleaks scans reported no leaks.
 
 ## Evidence limits
 

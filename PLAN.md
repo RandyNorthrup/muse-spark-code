@@ -16277,6 +16277,20 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **REDM104E / RVM104E2 (2026-10-05):** the generation owner replaces the
+  first-round split lifecycle. Native stress tests cover blocked process
+  stdin, output flooding, parent-first death, shutdown hangs, late cancellation,
+  overflowing coordinates, fixed Tab failures, metadata handoff/deadline,
+  mailbox admission, project teardown and reconnect. Separate-JVM tests cover
+  whole-IDE exit, including a reparented worker. POSIX containment is proved
+  on Kubuntu; Windows job and macOS execution still require their rigs.
+  Private I/O pumps belong to the actor; no IDE callback closes a process
+  stream synchronously. Installed-IDE qualification remains blocked by the
+  owner's User Agreement, and companion/controller assembly remains an
+  integration item. This does not promote product support or parity status.
+  The final ZIP, strict three-release verifier receipts and byte-exact drills
+  are recorded in `docs/certification/m104-e-redesign.md`.
+
 - **FIXM104E / RVM104E (2026-10-05, first-round record):** all six numbered review findings
   are fixed in the JetBrains lane; no P1/P2/P3 finding is retained as a
   residual. Cancelled outbound requests retain only their existing bounded
