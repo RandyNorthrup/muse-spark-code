@@ -142,14 +142,17 @@ export class VaultChannelServer {
         return requester ? { kind: 'items', items: [...(await broker.list(requester))] } : denied
       }
       case 'requestUse': {
-        return requester
-          ? await broker.request(
-              requester,
-              request.proposal.handle,
-              request.proposal.use,
-              await this.deps.taint(requester),
-            )
-          : denied
+        if (!requester) return denied
+        const taint = await this.deps.taint(requester)
+        // Cancellation closes this incarnation's socket, including while provenance is loading.
+        if (socket.destroyed) return denied
+        const result = await broker.request(
+          requester,
+          request.proposal.handle,
+          request.proposal.use,
+          taint,
+        )
+        return socket.writable ? result : denied
       }
       case 'answer': {
         return identity.peer.ui && identity.manage

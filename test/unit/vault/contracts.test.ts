@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { spawnSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import * as z from 'zod/mini'
@@ -602,6 +603,14 @@ describe('M109 strict contracts', () => {
       ),
     )
     expect(committed).toEqual(z.toJSONSchema(protocol.vaultAuthorizationResultSchema))
+  })
+
+  it('P2-4 the source schema generator checks every committed vault schema for drift', () => {
+    const result = spawnSync(process.execPath, ['scripts/vault-schema.mjs', '--check'], {
+      cwd: new URL('../../../', import.meta.url),
+      encoding: 'utf8',
+    })
+    expect(result.status).toBe(0)
   })
 
   it('V10: device protocol permits only bound signatures and codes', () => {

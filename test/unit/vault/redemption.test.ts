@@ -66,12 +66,22 @@ describe('broker-owned approved material', () => {
         fixture.lifetime,
       )
       await entered.promise
-      if (action === 'expiry') fixture.clock.advance(VAULT_APPROVAL_TTL_MS)
-      else {
-        await fixture.broker.revoke(fixture.peer, fixture.grant.id)
-        if (action === 'reuse') await fixture.broker.register(fixture.peer, fixture.identity, 'ask')
+      let revoked: Promise<void> | undefined, registered: Promise<void> | undefined
+      try {
+        if (action === 'expiry') fixture.clock.advance(VAULT_APPROVAL_TTL_MS)
+        else {
+          revoked = fixture.broker.revoke(fixture.peer, fixture.grant.id)
+          await vi.waitFor(() => {
+            expect(fixture.deps.onRevoked).toHaveBeenCalled()
+          })
+          if (action === 'reuse')
+            registered = fixture.broker.register(fixture.peer, fixture.identity, 'ask')
+        }
+      } finally {
+        waiting.resolve(undefined)
       }
-      waiting.resolve(undefined)
+      await revoked
+      await registered
       const result = await admission
       expect(result.kind).toBe('denied')
       await expectMaterialDenied(fixture)

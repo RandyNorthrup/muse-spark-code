@@ -8,7 +8,11 @@ export class VaultBrokerQueue {
   /** JS transitions are synchronous. Safety barriers preempt a suspended transaction,
    * so an awaited store/presence/termination cannot delay invalidation. */
   invalidate<T>(operation: () => T, shouldAdvance = false): T {
-    if (shouldAdvance) this.currentGeneration += 1
+    if (shouldAdvance) {
+      this.currentGeneration += 1
+      // New generations must not wait behind an invalidated operation's external I/O.
+      this.tail = Promise.resolve()
+    }
     return operation()
   }
   async run<T>(operation: () => Promise<T>): Promise<T> {

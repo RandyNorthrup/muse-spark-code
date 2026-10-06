@@ -40,17 +40,13 @@
                   "oneOf": [
                     {
                       "type": "object",
-                      "properties": {
-                        "kind": { "type": "string", "const": "orchestrator" }
-                      },
+                      "properties": { "kind": { "type": "string", "const": "orchestrator" } },
                       "required": ["kind"],
                       "additionalProperties": false
                     },
                     {
                       "type": "object",
-                      "properties": {
-                        "kind": { "type": "string", "const": "subagent" }
-                      },
+                      "properties": { "kind": { "type": "string", "const": "subagent" } },
                       "required": ["kind"],
                       "additionalProperties": false
                     },
@@ -98,9 +94,7 @@
                     },
                     {
                       "type": "object",
-                      "properties": {
-                        "kind": { "type": "string", "const": "headless" }
-                      },
+                      "properties": { "kind": { "type": "string", "const": "headless" } },
                       "required": ["kind"],
                       "additionalProperties": false
                     }
@@ -180,10 +174,7 @@
                   "maxLength": 4096,
                   "pattern": "^[^\\0\\r\\n]*$"
                 },
-                "handle": {
-                  "type": "string",
-                  "pattern": "^secret:\\/\\/[a-z][a-z0-9-]{0,47}$"
-                },
+                "handle": { "type": "string", "pattern": "^secret:\\/\\/[a-z][a-z0-9-]{0,47}$" },
                 "label": {
                   "type": "string",
                   "minLength": 1,
@@ -311,10 +302,7 @@
                             "required": ["executable", "argv", "cwd"],
                             "additionalProperties": false
                           },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          },
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
                           "sudoPath": {
                             "type": "string",
                             "minLength": 1,
@@ -357,10 +345,7 @@
                             "required": ["executable", "argv", "cwd"],
                             "additionalProperties": false
                           },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          },
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
                           "sudoPath": {
                             "type": "string",
                             "minLength": 1,
@@ -396,10 +381,7 @@
                         "type": "object",
                         "properties": {
                           "kind": { "type": "string", "const": "environment" },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          },
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
                           "names": {
                             "minItems": 1,
                             "maxItems": 128,
@@ -419,10 +401,7 @@
                         "type": "object",
                         "properties": {
                           "kind": { "type": "string", "const": "stdin" },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          }
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
                         },
                         "required": ["kind", "commandDigest"],
                         "additionalProperties": false
@@ -431,10 +410,7 @@
                         "type": "object",
                         "properties": {
                           "kind": { "type": "string", "const": "totp" },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          }
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
                         },
                         "required": ["kind", "commandDigest"],
                         "additionalProperties": false
@@ -449,10 +425,7 @@
                             "maxLength": 4096,
                             "pattern": "^[^\\0\\r\\n]*$"
                           },
-                          "commandDigest": {
-                            "type": "string",
-                            "pattern": "^[a-f0-9]{64}$"
-                          },
+                          "commandDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
                           "names": {
                             "minItems": 1,
                             "maxItems": 128,
@@ -511,12 +484,7 @@
                         "type": "object",
                         "properties": {
                           "kind": { "type": "string", "const": "disclosure" },
-                          "recipient": {
-                            "type": "string",
-                            "minLength": 1,
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0\\r\\n]*$"
-                          }
+                          "recipient": { "type": "string", "const": "person" }
                         },
                         "required": ["kind", "recipient"],
                         "additionalProperties": false
@@ -543,38 +511,22 @@
                 "dates": {
                   "type": "object",
                   "properties": {
-                    "createdAt": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "maximum": 9007199254740991
-                    },
+                    "createdAt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                     "rotatedAt": {
                       "anyOf": [
-                        {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
+                        { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                         { "type": "null" }
                       ]
                     },
                     "expiresAt": {
                       "anyOf": [
-                        {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
+                        { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                         { "type": "null" }
                       ]
                     },
                     "lastUsedAt": {
                       "anyOf": [
-                        {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 9007199254740991
-                        },
+                        { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
                         { "type": "null" }
                       ]
                     }
@@ -694,10 +646,7 @@
                       ]
                     },
                     "namespace": { "type": "string", "const": "git" },
-                    "dataDigest": {
-                      "type": "string",
-                      "pattern": "^[a-f0-9]{64}$"
-                    }
+                    "dataDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
                   },
                   "required": ["kind", "keyFingerprint", "namespace", "dataDigest"],
                   "additionalProperties": false
@@ -718,11 +667,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -760,11 +705,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -802,11 +743,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -851,11 +788,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -898,11 +831,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -934,11 +863,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -970,11 +895,7 @@
                         "argv": {
                           "maxItems": 256,
                           "type": "array",
-                          "items": {
-                            "type": "string",
-                            "maxLength": 4096,
-                            "pattern": "^[^\\0]*$"
-                          }
+                          "items": { "type": "string", "maxLength": 4096, "pattern": "^[^\\0]*$" }
                         },
                         "cwd": {
                           "type": "string",
@@ -1086,15 +1007,9 @@
                       "maxLength": 4096,
                       "pattern": "^[^\\0\\r\\n]*$"
                     },
-                    "browserId": {
-                      "type": "string",
-                      "pattern": "^[a-f0-9]{32}$"
-                    },
+                    "browserId": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
                     "certificateValid": { "type": "boolean", "const": true },
-                    "field": {
-                      "type": "string",
-                      "enum": ["username", "password", "totp"]
-                    }
+                    "field": { "type": "string", "enum": ["username", "password", "totp"] }
                   },
                   "required": [
                     "kind",
@@ -1119,10 +1034,7 @@
                       "format": "starts_with",
                       "allOf": [{ "pattern": "^[^\\0\\r\\n]*$" }, { "pattern": "^https:\\/\\/.*" }]
                     },
-                    "browserId": {
-                      "type": "string",
-                      "pattern": "^[a-f0-9]{32}$"
-                    }
+                    "browserId": { "type": "string", "pattern": "^[a-f0-9]{32}$" }
                   },
                   "required": ["kind", "origin", "browserId"],
                   "additionalProperties": false
@@ -1131,12 +1043,7 @@
                   "type": "object",
                   "properties": {
                     "kind": { "type": "string", "const": "disclosure" },
-                    "recipient": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 4096,
-                      "pattern": "^[^\\0\\r\\n]*$"
-                    }
+                    "recipient": { "type": "string", "const": "person" }
                   },
                   "required": ["kind", "recipient"],
                   "additionalProperties": false
@@ -1145,21 +1052,9 @@
             },
             "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "nonce": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
-            "createdAt": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "expiresAt": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "lockEpoch": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
+            "createdAt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "expiresAt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "lockEpoch": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
             "taint": {
               "type": "object",
               "properties": {
@@ -1231,21 +1126,9 @@
             "itemId": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
             "digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
             "nonce": { "type": "string", "pattern": "^[a-f0-9]{32}$" },
-            "issuedAt": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "expiresAt": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
-            "lockEpoch": {
-              "type": "integer",
-              "minimum": 0,
-              "maximum": 9007199254740991
-            },
+            "issuedAt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "expiresAt": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+            "lockEpoch": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
             "maxUses": { "type": "number", "const": 1 }
           },
           "required": [

@@ -49,7 +49,8 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
         return store
       },
       grants: () => Promise.resolve(Array.from(grants.values(), (entry) => structuredClone(entry))),
-      saveGrant: (entry) => {
+      saveGrant: (entry, authorize) => {
+        authorize()
         grants.set(entry.id, structuredClone(entry))
         return Promise.resolve()
       },
@@ -129,6 +130,7 @@ export async function brokerFixture(options: Partial<VaultBrokerDeps> = {}) {
     firstPartyOnly: false,
     onApproval: vi.fn(),
     onLocked: vi.fn(),
+    onAuditFailure: vi.fn(),
     onRevoked: vi.fn(),
     scrub: (text) => Promise.resolve(text),
     ...options,

@@ -20624,6 +20624,17 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109B2 review repair (2026-10-06).** Close all four RVM109B2 findings:
+bind each continuation to the requester's fresh registration incarnation and
+the broker generation, including channel provenance loading before broker entry;
+own authorization/audit and cancellation cleanup tasks
+through bounded Lock draining and terminal audit settlement; serialize every
+management operation and revalidate after I/O; generate the authorization JSON
+schema from its source and check drift. Add fake-only regression tests and
+byte-exact red drills, then inventory every broker await and its boundary.
+No dependencies, live calls, integration merge or aggregate quality run in this
+rig lane; the lead retains the joined-tree gates.
+
 **FIXM109B review repair (2026-10-06).** All nine RVM109B findings are in
 scope: forbid model disclosure; serialize authorization state with immediate
 lock/revoke/cancellation barriers and a local generation; use one validation
@@ -20948,6 +20959,18 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
         14 tables; budgets measured; full gate green
 
 ## 7. Gates
+
+**FIXM109B2 / RVM109B2 (2026-10-06, Mac mini).** All four findings are
+fixed with fake-only regressions and byte-exact red drills. Direct default-timeout
+vault suites pass 259 tests; all five typechecks, changed-file static checks,
+schema drift and production build pass. Seventeen red drills and the reviewed
+source baseline restore byte-exact; all 279 awaits have recorded boundaries. Aggregate
+`npm run quality` is prohibited by the rig/shared brief and remains lead-owned;
+no threshold, timeout or ignore is weakened. The existing six Node-total
+`B-W-host-api` differences and its W-owned applicable patch remain the sole
+inventory deferral. Evidence: `docs/certification/m109-b.md` and its round-2
+receipts/await inventory. The grant writer's commit callback and value-free
+audit failure notification are named C/W integration bindings.
 
 **FIXM109B review repair (2026-10-06, Mac mini).** RVM109B's five P1 and
 four P2 findings have regression tests and failing/restored red drills; no
@@ -22166,6 +22189,20 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM109B2 / RVM109B2 (2026-10-06).** All four review findings are fixed;
+  no P1/P2/P3 is accepted as a residual. Every request retains its registration
+  incarnation and broker generation, including the channel's provenance await.
+  Lock owns audit/cleanup tasks from their start, bounds settlement, writes
+  terminal outcomes and surfaces writer failure rather than reporting success.
+  All management mutations use the same owner and post-await validator; C must
+  invoke the supplied grant authorization callback at its exact commit boundary.
+  The authorization schema is generated and drift-checked from source.
+  B's existing unbound C/P/T/route, Windows, all-editor and W/full-quality
+  handoffs remain open. The new `B-C-save-authorization` and
+  `B-W-audit-failure` bindings are mandatory before integration; no shipped
+  support or real-platform certification is implied. Evidence and every await's
+  boundary: `docs/certification/m109-b.md` and `m109-b-round2-awaits.md`.
 
 - **FIXM109B / RVM109B (2026-10-06).** All five P1 and four P2 findings
   are fixed; none is deferred as an accepted residual. Disclosure recipients

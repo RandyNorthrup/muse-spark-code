@@ -63,11 +63,24 @@ export class VaultAuditLog implements VaultAuditPort {
     return createHmac('sha256', this.key).update(hash).digest('hex')
   }
   private async serial<T>(run: () => Promise<T>): Promise<T> {
-    return await this.queue.run(() => this.anchors.transaction(run))
+    const generation = this.queue.generation
+    return await this.queue.run(() =>
+      this.anchors.transaction(async () => {
+        this.check(generation)
+        const result = await run()
+        this.check(generation)
+        return result
+      }),
+    )
+  }
+  private check(generation: number): void {
+    if (!this.key || generation !== this.queue.generation) throw new Error(UI_TEXT.vault.locked)
   }
   private async verify(): Promise<void> {
-    if (!this.key) throw new Error(UI_TEXT.vault.locked)
+    const current = this.queue.generation
+    this.check(current)
     const anchor = anchorSchema.parse(await this.anchors.read())
+    this.check(current)
     let bytes: Buffer
     try {
       bytes = await this.files.read(this.path, this.maxBytes)
@@ -75,6 +88,7 @@ export class VaultAuditLog implements VaultAuditPort {
       if (!isVaultFileMissing(error)) throw error
       bytes = Buffer.alloc(0)
     }
+    this.check(current)
     const text = bytes.toString('utf8')
     if (bytes.length > 0 && (!text.endsWith('\n') || text.includes('\n\n')))
       throw new Error(UI_TEXT.vault.noAccess)
@@ -102,7 +116,9 @@ export class VaultAuditLog implements VaultAuditPort {
     this.size = bytes.byteLength
   }
   private async appendRecord(input: Parameters<VaultAuditPort['append']>[0]): Promise<void> {
+    const current = this.queue.generation
     await this.verify()
+    this.check(current)
     const anchor = this.anchor
     if (!anchor || !this.key) throw new Error(UI_TEXT.vault.locked)
     const record = vaultAuditRecordSchema.parse({
@@ -125,8 +141,10 @@ export class VaultAuditLog implements VaultAuditPort {
       next.baseHash = anchor.hash
       await this.files.replace(this.path, line)
     } else await this.files.append(this.path, line)
+    this.check(current)
     try {
       await this.anchors.write(next)
+      this.check(current)
     } catch (error: unknown) {
       this.close()
       throw error
@@ -142,7 +160,9 @@ export class VaultAuditLog implements VaultAuditPort {
       this.maxBytes > VAULT_AUDIT_MAX_BYTES
     )
       throw new Error(UI_TEXT.vault.noAccess)
+    const generation = this.queue.generation
     await this.files.directory(this.directory)
+    if (generation !== this.queue.generation) throw new Error(UI_TEXT.vault.locked)
     const derived = new Uint8Array(
       hkdfSync('sha256', vaultKey, Buffer.alloc(0), 'muse-vault-audit-v1', VAULT_KEY_BYTES),
     )
@@ -171,10 +191,12 @@ export class VaultAuditLog implements VaultAuditPort {
     })
   }
   close(): void {
-    this.key?.fill(0)
-    this.key = null
-    this.anchor = null
-    this.records = []
-    this.size = 0
+    this.queue.invalidate(() => {
+      this.key?.fill(0)
+      this.key = null
+      this.anchor = null
+      this.records = []
+      this.size = 0
+    }, true)
   }
 }

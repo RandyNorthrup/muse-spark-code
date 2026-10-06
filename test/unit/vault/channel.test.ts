@@ -190,6 +190,48 @@ async function closedOrReply(socket: Socket): Promise<'closed' | 'reply'> {
   }
 }
 describe('native authenticated broker channel', () => {
+  it('P1 a requester connection closed during taint lookup cannot create a late UI card for its replacement', async () => {
+    const fixture = await channelSetup()
+    workerConnection(fixture)
+    const entered = Promise.withResolvers<undefined>(),
+      waiting = Promise.withResolvers<{ tainted: false; reasons: [] }>()
+    fixture.deps.taint = () => {
+      entered.resolve(undefined)
+      return waiting.promise
+    }
+    const requested = vi.spyOn(fixture.broker, 'request'),
+      ended = vi.spyOn(fixture.broker, 'endRequester'),
+      client = await openClient(fixture)
+    const pending = client.send({
+        kind: 'requestUse',
+        proposal: {
+          handle: fixture.stored.metadata.handle,
+          use: use(),
+          taint: { tainted: false, reasons: [] },
+        },
+      }),
+      observed = expect(pending).rejects.toThrow()
+    await entered.promise
+    await fixture.broker.endRequester(fixture.identity.id)
+    await observed
+    await vi.waitFor(() => {
+      expect(ended.mock.calls.length).toBeGreaterThan(1)
+    })
+    await fixture.broker.register(
+      { ...fixture.peer, processId: process.pid, userId: processIdentity.userId },
+      fixture.identity,
+      'ask',
+    )
+    waiting.resolve({ tainted: false, reasons: [] })
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+    expect(requested.mock.calls.length).toBe(0)
+    expect(fixture.brokerDeps.onApproval).not.toHaveBeenCalled()
+    expect(fixture.deps.perform).not.toHaveBeenCalled()
+    client.close()
+  })
+
   it('P2-7 closing a private connection cancels presence and erases its pending material', async () => {
     const fixture = await channelSetup(),
       open = fixture.brokerDeps.repository.open

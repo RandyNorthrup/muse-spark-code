@@ -270,8 +270,9 @@ describe('broker-owned approvals', () => {
         fixture.standing()
       }
       const { waiting, requested } = await waitForAudit(fixture)
-      await fixture.broker.lock()
+      const locked = fixture.broker.lock()
       waiting.resolve(undefined)
+      await locked
       expect(await requested).toEqual({ kind: 'denied', reason: 'locked' })
       expect(fixture.deps.onApproval).not.toHaveBeenCalled()
       await fixture.broker.unlock()

@@ -18,7 +18,8 @@ import { type VaultCeiling } from './policy'
 export interface VaultBrokerRepository {
   open(key: Uint8Array): Promise<VaultStorePort>
   grants(): Promise<readonly VaultGrant[]>
-  saveGrant(grant: VaultGrant): Promise<void>
+  /** The single writer calls authorize after its awaits, immediately before its commit. */
+  saveGrant(grant: VaultGrant, authorize: () => void): Promise<void>
   removeGrant(id: string): Promise<void>
   /** Atomic across brokers; returns false without spending when exhausted/revoked. */
   consumeGrant(id: string, now: number): Promise<boolean>
@@ -77,6 +78,8 @@ export interface VaultBrokerDeps {
   firstPartyOnly: boolean
   onApproval(request: VaultApprovalRequest): void
   onLocked(epoch: number): void
+  /** Trusted host surfaces audit settlement failure without forwarding exception text. */
+  onAuditFailure(): void
   onRevoked(requesterId: string, grantId: string | null): void
   /** T binds the real scrub service; every persisted target passes through it. */
   scrub(text: string): Promise<string>

@@ -5288,6 +5288,8 @@ export const CONVERSATION_MODEL_TEXT = {
 export const VAULT_FORMAT_VERSION = 1
 export const VAULT_PROTOCOL_VERSION = 1
 export const VAULT_APPROVAL_TTL_MS = 120_000
+// Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
+export const VAULT_LOCK_DRAIN_MS = 1000
 export const VAULT_ASKPASS_USES = 3
 export const VAULT_ASKPASS_TTL_MS = 600_000
 export const VAULT_SESSION_MAX_DAYS = 30
