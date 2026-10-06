@@ -19172,6 +19172,25 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**M104PF parity lane F (2026-10-06, macmini).** Own Xcode/macOS, exact
+native distribution and aggregate qualification documentation. Adopt A's
+editor-initiated MHP 1.2 bootstrap through an owning stdio relay before
+editor services and per-row scenarios. Use the reviewed schema snapshot,
+host locale/theme/folders/trust, bounded correlation and generation-fenced
+callbacks; preserve process-group Stop, dirty/stale UTF-16 edit refusal,
+ephemeral browser state and same-origin confinement. Implement available
+native UI/navigation services; omit incomplete capability groups explicitly.
+Fix the primary carrier guide and verify exact packaged inventories against
+the frozen protocol. New tests live in `test/m104/mac/**`; native regressions
+and distribution tests remain owned by F. Record component/fake evidence
+separately from installed editor/backend/provider receipts for F1–F56.
+Xcode 26.3/Intel is installed; 26.6/27, Apple Silicon and other OS rigs need
+named receipts. No live/paid calls, credentials, network installs, support
+promotion, other-lane edits or unrequested merge. Scoped sequential gates
+replace forbidden aggregate quality; integrated qualification stays with the
+lead. Checkpoints and concrete cross-lane requests are in
+`docs/certification/m104-pf.md` and `m104-pf-requests.md`.
+
 **FIXM104PA2 / RVM104PA2 (2026-10-06).** Consume the engine's contributed
 `ensureHost` in the real portable controller, including refusal and selected
 host delegation. Keep the existing one-time session adoption and registry/ACP
@@ -20799,6 +20818,10 @@ remain available.
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
 ## 8. Escape hatches register
+
+| M104PF location                                                                       | Escape hatch                                        | Reason                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hosts/xcode/Shared/{MhpSchema,MhpSession}.swift`, native UI service and native tests | Swift `Any` at JSONSerialization/service boundaries | Foundation's JSONSerialization exposes heterogeneous JSON as Any. The native validator checks A's reviewed schema and narrows each member before use; correlated results are validated again before writing. No key or credential enters this boundary. |
 
 | M104 B2 location                     | Escape hatch                                       | Reason                                                                                                                                                                                                         |
 | ------------------------------------ | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -2,7 +2,8 @@
 
 A macOS 14+ SwiftUI companion app with a WKWebView and an embedded Xcode
 Source Editor Extension. This is a native-host prototype awaiting M104's
-runtime panel/UI/Tab integration. It is not a supported Xcode release.
+complete runtime feature/editor-service/Tab qualification. Its owning relay
+now adopts the reviewed MHP 1.2 contract. It is not a supported Xcode release.
 There are no model calls in its tests.
 
 Build and package on a Mac with the accepted Xcode license:
@@ -12,9 +13,9 @@ bash hosts/xcode/Scripts/build.sh
 ```
 
 The zip is `temp/m104x/Muse-Spark-for-Xcode.zip`. Build products and generated
-resources remain untracked. The build uses Xcode's selected personal team
-when its public selected-team preference is available, or local ad-hoc signing.
-An explicit team can be supplied with `--team TEAM_ID`. The script never
+resources remain untracked. The default build uses local ad-hoc signing and
+does not select an account or provision implicitly. An explicit development
+team can be supplied with `--team TEAM_ID`. The script never
 accepts a license or terms. Personal-team/local signing is not notarized
 Developer ID distribution.
 
@@ -34,16 +35,38 @@ and `--workspace <path>`; equivalent startup variables are
 `MUSE_XCODE_RUNTIME` and `MUSE_XCODE_WORKSPACE`. Credentials are never startup
 arguments or variables for this app.
 
-The runtime must implement lane H's `panel --companion` convention: stdout
-starts with one loopback launch-link line from `startCompanionServer.launchUrl()`.
-The current base's CLI does not implement `panel`. An older runtime therefore
-fails visibly instead of showing a fake conversation. Its launch-link fragment
-is consumed by the shared companion bootstrap; the bearer stays in that page's
-fetch closure. WKWebView uses an ephemeral data store, blocks navigation to other
-origins, and requires a fresh runtime launch after Stop/reopen. Runtime output
-and stderr are never logged or stored by the app. Stop in the menu bar, app
-menu, toolbar, or Cmd+. terminates the whole runtime process group independently
-of the panel or an approval. Closing the app also stops the runtime.
+The app spawns `panel --companion` in the selected workspace with private
+stdin/stdout pipes. The editor initiates MHP 1.2 with the app's product version,
+installed language, current light/dark appearance, workspace folder and explicit
+trust state. Only a validated, correlated `ui/openExternal` request supplies the
+one-use loopback launch link. Older versions and raw-URL launchers fail visibly.
+The app validates native traffic against the reviewed schema snapshot generated
+from `src/shared/hostApi/mhp-v1.schema.json`; that legacy filename carries 1.2.
+
+The authenticated portable browser renderer and UI bridge are implemented.
+WKWebView uses an ephemeral data store, confines navigation to the current
+origin, and consumes its launch fragment into the shared bootstrap's private
+fetch closure. New/fork/switch/trust transitions may open fresh links on the
+same origin; every link gets a fresh native generation and reload. Runtime
+output and stderr are never logged or stored by the app. Stop in the menu bar,
+app menu, toolbar, or Cmd+. terminates the runtime process group independently
+of the panel or a permission dialog. Closing the app also stops the runtime.
+
+The native relay advertises lifecycle, UI and window services. Notifications,
+clipboard, external HTTPS/HTTP links, status/progress and attention are native;
+confirm/pick/input are cancellable AppKit sheets. Paid choices return the
+runtime's opaque ids once: the runtime owns price, consent persistence and the
+hard daily ledger. Cancellation or Stop dismisses the sheet and rejects late
+answers. A status item requiring an unimplemented command refuses explicitly.
+Other capability groups are omitted until their complete adapters qualify.
+The companion's paid popup still uses the shared browser UI, without a second
+native consent prompt.
+
+Trust starts off and applies only to the selected workspace. The native Trust
+control confirms the existing project-rules/hooks/MCP warning before granting
+it, sends a validated `workspace/didChangeTrust` notification when connected,
+and can revoke it. Choosing another workspace clears the grant. Signing in
+separately never grants workspace trust.
 
 The Xcode Editor menu offers:
 
@@ -55,10 +78,11 @@ The Xcode Editor menu offers:
 | Insert Tab completion    | Refuses explicitly until the shared Tab endpoint and budget protocol land. It never substitutes another model request.                                                                                                   |
 | Open panel               | Opens/focuses the companion app; select a workspace if none is open.                                                                                                                                                     |
 
-Ask/Explain/Fix dispatch requires the runtime to admit the repository's existing
-`sendMessage` payload at `/post`; MHP wrapping remains an integration decision
-for lanes B/D. The native host does not define another controller protocol.
-No production model result or runtime launch receipt is claimed here.
+Ask/Explain/Fix sends the existing shared `sendMessage` through the portable
+page's `window.musePanel.postMessage` bridge, which wraps and authenticates it
+for `/panel/message`. The native app defines no second conversation protocol.
+Current app-hosted receipts use a fake runtime; they do not qualify all shared
+features or either production model backend.
 
 XcodeKit does not disclose the current file URL or workspace, expose a panel,
 observe background editor changes, or implement a completion provider. The app
@@ -100,5 +124,5 @@ and the real Stop menu action. The `NativeCore` Xcode scheme runs the complete
 core suite independently for regression drills. A separate ad-hoc XCUITest runner
 was attempted and failed its library signature check; no test is skipped in the
 final scheme and no product entitlement is widened. Receipts, limitations and
-feature parity are in [the certification record](../../docs/certification/m104-h.md).
+feature parity are in [the parity certification record](../../docs/certification/m104-pf.md).
 Apple feedback text is in [apple-feedback.md](apple-feedback.md).

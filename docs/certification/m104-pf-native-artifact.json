@@ -1,0 +1,68 @@
+{
+  "rig": "macmini",
+  "date": "2026-10-06",
+  "macOS": "15.7.4 (24G517)",
+  "xcode": "26.3 (17C529)",
+  "executedArchitecture": "x86_64",
+  "version": "0.14.1",
+  "protocol": "mhp/1.2.0",
+  "snapshotSha256": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+  "zip": {
+    "name": "Muse-Spark-for-Xcode.zip",
+    "bytes": 1166998,
+    "sha256": "f7bbc713975a6308e733aefe488167aeca441f06cdf580e14f7a474ef3391ebc"
+  },
+  "architectures": [
+    {
+      "bundle": ".",
+      "architectures": "x86_64 arm64"
+    },
+    {
+      "bundle": "Contents/PlugIns/MuseSparkEditor.appex",
+      "architectures": "x86_64 arm64"
+    }
+  ],
+  "signing": "ad-hoc",
+  "qualifiedScope": "Release build, product/schema/table identity, architectures and code-signature verification only. XCTest uses the Debug app; installed XcodeKit enablement, bundled production runtime, notarization and backend/provider qualification are missing.",
+  "files": {
+    "Contents/Info.plist": "ad3901f97f7bd0436c163e740bba5861637eb5cb0af73cf8c2537a582453cb5f",
+    "Contents/MacOS/Muse Spark for Xcode": "5ab53ee5f0cd36fecf851e1c03b7d0992c3ac8cb83fad2f7e4d025618108ed93",
+    "Contents/PkgInfo": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Info.plist": "2bff3661e87ebc29835d3cac1da41690abba730431fc364e89e7c79f25ee91db",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor": "a67828adc8e566db18c1c90e8c9beca4bae3102e34da0bc0ce31af2e6e499e6f",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/mhp.json": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.cs.json": "66c41ae5e49d3acb90d76155288ee80b8d4e72daf3ed0dc77106309382617a86",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.de.json": "af349aa3b697675b792abdb46291de4bb6b03119bb051195dc2cfda34ef7f206",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.en.json": "8b609e67da554d2b38bb970bf1ff53e1090e78862d5e7ee6641e5ac80651d60c",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.es.json": "cd838144aac9f26f418c1d0e7b549cdd70eccac86d02f38a71de59d7c93d832b",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.fr.json": "a798b903c7cc9eab8c679abd768e72b6fda8fe4a466b3219d3cd783c5bdb45ca",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.hu.json": "8eb01580c4716848d57732fff58db8e1256d1a9b0aab44c3d95c4d2da62ca531",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.it.json": "78eafbe5d9b8aec4a1bdfb5b4811a482edddcbf37d165f8a8a26b46500c6a305",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ja.json": "c7ab310f38c00b35ec2c7b22fad183bae414b358084998258f4b22d49820a5a3",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ko.json": "a87bdadbf8e7e252cadf4434e617ece0569cc6ab60478ff7b611a88238a6139c",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.pl.json": "79fbaa8dd64720ae87055fccd03b8db30a87e53fbd0e488d6eb1eca60e34adff",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.pt-br.json": "cb7a56c4dce0a9735c89b8db8938d65ce53284e4cdb8def9bb503a8d0f2bb3e6",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ru.json": "c81cafbdf6bb4beb1800a400e2445b7ea6067546145a385976cf27b7fc7659c3",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.tr.json": "037f4a45dbc9aa9c90927ddf76e25c36179eb7452c11d71335ef1a707b1b63bb",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-cn.json": "e2368a2dbc8e044037debaa143d9899d59f75ab318878029c09972734d45e399",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-tw.json": "b6572239c6325fe11d44d10f2b4027cbc174e5977727c5acd4fd2ead2cecc7fc",
+    "Contents/PlugIns/MuseSparkEditor.appex/Contents/_CodeSignature/CodeResources": "e2339734fd32b47ee52898f4a4695e6277f292e089da31317e25521c4e3dfa77",
+    "Contents/Resources/mhp.json": "a3e69a78f4ac934373b6e17b0de753f1c76e1a9fa85fdee5cf169f166c9b7fd4",
+    "Contents/Resources/ui.cs.json": "66c41ae5e49d3acb90d76155288ee80b8d4e72daf3ed0dc77106309382617a86",
+    "Contents/Resources/ui.de.json": "af349aa3b697675b792abdb46291de4bb6b03119bb051195dc2cfda34ef7f206",
+    "Contents/Resources/ui.en.json": "8b609e67da554d2b38bb970bf1ff53e1090e78862d5e7ee6641e5ac80651d60c",
+    "Contents/Resources/ui.es.json": "cd838144aac9f26f418c1d0e7b549cdd70eccac86d02f38a71de59d7c93d832b",
+    "Contents/Resources/ui.fr.json": "a798b903c7cc9eab8c679abd768e72b6fda8fe4a466b3219d3cd783c5bdb45ca",
+    "Contents/Resources/ui.hu.json": "8eb01580c4716848d57732fff58db8e1256d1a9b0aab44c3d95c4d2da62ca531",
+    "Contents/Resources/ui.it.json": "78eafbe5d9b8aec4a1bdfb5b4811a482edddcbf37d165f8a8a26b46500c6a305",
+    "Contents/Resources/ui.ja.json": "c7ab310f38c00b35ec2c7b22fad183bae414b358084998258f4b22d49820a5a3",
+    "Contents/Resources/ui.ko.json": "a87bdadbf8e7e252cadf4434e617ece0569cc6ab60478ff7b611a88238a6139c",
+    "Contents/Resources/ui.pl.json": "79fbaa8dd64720ae87055fccd03b8db30a87e53fbd0e488d6eb1eca60e34adff",
+    "Contents/Resources/ui.pt-br.json": "cb7a56c4dce0a9735c89b8db8938d65ce53284e4cdb8def9bb503a8d0f2bb3e6",
+    "Contents/Resources/ui.ru.json": "c81cafbdf6bb4beb1800a400e2445b7ea6067546145a385976cf27b7fc7659c3",
+    "Contents/Resources/ui.tr.json": "037f4a45dbc9aa9c90927ddf76e25c36179eb7452c11d71335ef1a707b1b63bb",
+    "Contents/Resources/ui.zh-cn.json": "e2368a2dbc8e044037debaa143d9899d59f75ab318878029c09972734d45e399",
+    "Contents/Resources/ui.zh-tw.json": "b6572239c6325fe11d44d10f2b4027cbc174e5977727c5acd4fd2ead2cecc7fc",
+    "Contents/_CodeSignature/CodeResources": "37b2fc2537eaa01a5babb3e998f4541c10b06adb13e70c7396a724b9259f3beb"
+  }
+}

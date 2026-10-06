@@ -423,9 +423,12 @@ carrier through that host's `ui/openExternal` service. Exactly one transport
 is required. Both accept the agent's existing backend, trust and paid-use
 flags; the Model API key stays in the OS credential store. The native host
 must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
-correlated service requests. These commands stream the shared conversation;
-the browser renderer/bridge and full editor parity are pending. See
-[the tested features and integration handoff](docs/certification/m104-b2.md).
+correlated service requests. These commands stream the shared conversation
+through the authenticated portable browser renderer and UI bridge. Native
+MHP 1.2 adoption, auxiliary surfaces, feature adapters and assembled editor
+qualification remain incomplete. See
+[the integration evidence and remaining gaps](docs/certification/m104-int.md)
+and [macOS qualification](docs/certification/m104-pf.md).
 
 Portable session changes retire previous surface IDs and open fresh bindings.
 Settings and storage are owned by the runtime; initialization selects the

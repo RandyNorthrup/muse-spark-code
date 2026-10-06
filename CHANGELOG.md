@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Xcode's companion app initiates the reviewed MHP 1.2 contract and validates
+  correlated native traffic instead of reading a raw launch URL. It preserves
+  bounded transport, cancellation, process-group Stop and private browser state.
+  Native package versions follow the product manifest. Installed-editor parity
+  remains experimental and requires the recorded qualification receipts.
+- The standalone carrier guide now describes the shipped authenticated browser
+  renderer and UI bridge and names the remaining native integration gaps.
+
 - Portable controllers honor contributed host readiness and host selection
   during restore and login model warm-up, preserving session ownership fences
   and refusing late admission after release.

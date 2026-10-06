@@ -3,10 +3,12 @@ import Foundation
 // Runtime reads mirror UI_TEXT; generated JSON uses the repository's installed-language tables.
 @dynamicMemberLookup
 struct NativeText {
-  subscript(dynamicMember key: String) -> String {
-    let language =
-      ProcessInfo.processInfo.environment["MUSE_UI_LANGUAGE"]
+  static var locale: String {
+    ProcessInfo.processInfo.environment["MUSE_UI_LANGUAGE"]
       ?? Locale.preferredLanguages.first ?? "en"
+  }
+  subscript(dynamicMember key: String) -> String {
+    let language = Self.locale
     let installed = language.lowercased()
     let scriptLanguage =
       installed.hasPrefix("zh-hans")

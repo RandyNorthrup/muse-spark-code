@@ -37,6 +37,9 @@ final class NativeHostTests: XCTestCase {
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
     return url
   }
+  private var handshake: String {
+    "IFS= read -r initialize\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":\"xcode-initialize\",\"result\":{\"protocolVersion\":\"mhp/1.2.0\",\"capabilities\":[\"lifecycle\",\"settings\",\"storage\"]}}'\nprintf '%s\\n' '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ui/openExternal\",\"params\":{\"uri\":\"http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\"}}'\n"
+  }
   func testApprovedEditReplacesOnlySelection() throws {
     let request = request()
     XCTAssertEqual(
@@ -256,7 +259,7 @@ final class NativeHostTests: XCTestCase {
   func testRuntimeLaunchUsesWorkspaceAndScrubbedEnvironment() throws {
     let receipt = directory.appendingPathComponent("receipt")
     let runtime = try script(
-      "printf '%s\\n' \"$PWD|$1|$2|${META_API_KEY-unset}|${OPENAI_KEY-unset}\" > '\(receipt.path)'\nprintf 'http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\\n'\nsleep 30\n"
+      "printf '%s\\n' \"$PWD|$1|$2|${META_API_KEY-unset}|${OPENAI_KEY-unset}\" > '\(receipt.path)'\n\(handshake)sleep 30\n"
     )
     let started = expectation(description: "launch")
     let launcher = RuntimeLauncher()
@@ -288,6 +291,21 @@ final class NativeHostTests: XCTestCase {
     wait(for: [failed], timeout: 5)
     XCTAssertFalse(launcher.isRunning)
   }
+  func testRuntimeEOFEndsTheOwningConnectionAfterLaunch() throws {
+    let runtime = try script(handshake + "IFS= read -r reply\nexit 0\n")
+    let started = expectation(description: "validated launch")
+    let closed = expectation(description: "connection ended")
+    let launcher = RuntimeLauncher()
+    try launcher.start(
+      executable: runtime, workspace: directory,
+      launched: { result in
+        if case .failure = result { XCTFail("valid launch failed") }
+        started.fulfill()
+      }, exited: { closed.fulfill() })
+    wait(for: [started, closed], timeout: 5)
+    XCTAssertFalse(launcher.isRunning)
+    launcher.stop()
+  }
   func testMissingRuntimeExplicitlyFails() {
     XCTAssertThrowsError(
       try RuntimeLauncher().start(
@@ -297,7 +315,7 @@ final class NativeHostTests: XCTestCase {
   func testStopIsOutOfBandAndKillsProcessGroup() throws {
     let receipt = directory.appendingPathComponent("child")
     let runtime = try script(
-      "trap '' TERM\nsleep 30 &\nprintf '%s' $! > '\(receipt.path)'\nprintf 'http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\\n'\nwait\n"
+      "trap '' TERM\nsleep 30 &\nprintf '%s' $! > '\(receipt.path)'\n\(handshake)wait\n"
     )
     let started = expectation(description: "launch")
     let launcher = RuntimeLauncher()
@@ -541,7 +559,7 @@ final class NativeHostTests: XCTestCase {
       try? handle.close()
     }
     let runtime = try script(
-      "if [ -e /dev/fd/\(descriptor) ]; then printf inherited; else printf closed; fi > '\(receipt.path)'\nprintf 'http://127.0.0.1:1234/#k=\(String(repeating: "a", count: 64))\\n'\nsleep 30\n"
+      "if [ -e /dev/fd/\(descriptor) ]; then printf inherited; else printf closed; fi > '\(receipt.path)'\n\(handshake)sleep 30\n"
     )
     let started = expectation(description: "descriptor-safe launch")
     let launcher = RuntimeLauncher()

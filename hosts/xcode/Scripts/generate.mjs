@@ -18,6 +18,18 @@ await build({
   logLevel: 'silent',
 })
 const { nativeTables } = await import(pathToFileURL(modulePath).href)
+const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'))
+const contract = await readFile(path.join(root, 'src/shared/hostApi/mhp-v1.schema.json'), 'utf8')
+if (JSON.parse(contract).protocol !== nativeTables.mhp.version) throw new Error('MHP_VERSION_LOCK')
+await writeFile(path.join(generated, 'mhp.json'), contract)
+await writeFile(
+  path.join(generated, 'NativeMhp.swift'),
+  `// Generated from the reviewed MHP constants and product manifest.\nimport Foundation\nenum NativeMhp {\n${Object.entries(
+    nativeTables.mhp,
+  )
+    .map(([key, value]) => `  static let ${key} = ${JSON.stringify(value)}`)
+    .join('\n')}\n  static let productVersion = ${JSON.stringify(manifest.version)}\n}\n`,
+)
 const keys = [
   'xcodeTitle',
   'xcodeOpenWorkspace',
@@ -42,6 +54,10 @@ const keys = [
   'questionCancel',
   'companionLaunchFailed',
   'linkOutsideWorkspace',
+  'worktreeTrustAction',
+  'worktreeTrustConfirm',
+  'worktreeTrustDetail',
+  'fallbackContinue',
 ]
 const tables = { en: nativeTables.english }
 for (const language of [
@@ -93,7 +109,7 @@ const xmlEscape = (value) =>
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
 const header =
   '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict>'
-const base = `<key>CFBundleDevelopmentRegion</key><string>en</string><key>CFBundleDisplayName</key><string>${brand}</string><key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string><key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleName</key><string>${brand}</string><key>CFBundleShortVersionString</key><string>0.1.0</string><key>CFBundleVersion</key><string>1</string>`
+const base = `<key>CFBundleDevelopmentRegion</key><string>en</string><key>CFBundleDisplayName</key><string>${brand}</string><key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string><key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string><key>CFBundleName</key><string>${brand}</string><key>CFBundleShortVersionString</key><string>${xmlEscape(manifest.version)}</string><key>CFBundleVersion</key><string>1</string>`
 await writeFile(
   path.join(generated, 'App-Info.plist'),
   `${header}${base}<key>CFBundlePackageType</key><string>APPL</string><key>LSMinimumSystemVersion</key><string>14.0</string><key>NSPrincipalClass</key><string>NSApplication</string><key>CFBundleURLTypes</key><array><dict><key>CFBundleURLSchemes</key><array><string>muse-spark-xcode</string></array></dict></array><key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/></dict></dict></plist>\n`,
