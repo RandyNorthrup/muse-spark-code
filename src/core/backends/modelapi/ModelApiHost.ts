@@ -1,4 +1,5 @@
 import { redactDiagnosticEvent } from '../../redact'
+import { notify } from '../../events/notify'
 import { isParallelRead, scheduleTools } from './toolScheduler'
 import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
@@ -2045,7 +2046,9 @@ export class ModelApiSession implements AgentSession {
     ) {
       throw new ChildTaskRefusedError('webSearchOff')
     }
-    this.deps.notePaidUse('subagents', 1)
+    this.notifyUsage(() => {
+      this.deps.notePaidUse('subagents', 1)
+    })
   }
   private active: ActiveTurn | undefined
   private readonly interruptedWork = new WeakSet<AbortController>()
@@ -2244,14 +2247,22 @@ export class ModelApiSession implements AgentSession {
 
   private emit(event: AgentEvent): void {
     const safe = redactDiagnosticEvent(event)
-    for (const listener of this.listeners) {
-      listener(safe)
-    }
+    notify(this.listeners, safe, this.deps.log, 'modelApi.event', (diagnostic) => {
+      notify(this.listeners, diagnostic, this.deps.log, 'backend.diagnostic')
+    })
+  }
+
+  private notifyUsage(observer: () => void): void {
+    notify([observer], undefined, this.deps.log, 'modelApi.usage', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   private touch(): void {
     this.lastActivityAt = new Date(this.deps.now()).toISOString()
-    this.onChanged()
+    notify([this.onChanged], undefined, this.deps.log, 'modelApi.changed', (event) => {
+      this.emit(event)
+    })
   }
 
   private hookPayload(
@@ -2467,9 +2478,13 @@ export class ModelApiSession implements AgentSession {
             this.askingSessionId,
           ),
         noteHookModelRun: () => {
-          this.deps.notePaidUse('hookModels', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('hookModels', 1)
+          })
         },
-        noteHookModelUsage: this.deps.noteHookModelUsage,
+        noteHookModelUsage: (modelId, usage) => {
+          this.notifyUsage(() => this.deps.noteHookModelUsage?.(modelId, usage))
+        },
         modelId: this.modelId,
       },
       adapter,
@@ -3794,7 +3809,9 @@ export class ModelApiSession implements AgentSession {
     )
     this.settleReservation(usage)
     if (this.isSubagent) {
-      this.deps.noteSubagentUsage(this.sendingModelId ?? this.modelId, billable)
+      this.notifyUsage(() => {
+        this.deps.noteSubagentUsage(this.sendingModelId ?? this.modelId, billable)
+      })
     } else {
       const shown = this.unshownUsage
       this.unshownUsage = {
@@ -3810,7 +3827,7 @@ export class ModelApiSession implements AgentSession {
     }
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
-    this.deps.noteResponseUsage?.(sentModelId, billable)
+    this.notifyUsage(() => this.deps.noteResponseUsage?.(sentModelId, billable))
     this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
@@ -3938,7 +3955,9 @@ export class ModelApiSession implements AgentSession {
       return
     }
     const units = searchUnits(item)
-    this.deps.notePaidUse('webSearch', units)
+    this.notifyUsage(() => {
+      this.deps.notePaidUse('webSearch', units)
+    })
     const costUsd = (units * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
     this.budgetSpentUsd += costUsd
     this.turnCostUsd += costUsd
@@ -4788,7 +4807,9 @@ export class ModelApiSession implements AgentSession {
               ? this.deps.sessionBudgetUsd() === 0
               : budgetScope.isStillAllowed(keyDigest)),
           onRequestStarted: () => {
-            this.deps.notePaidUse('autoReviewer', 1)
+            this.notifyUsage(() => {
+              this.deps.notePaidUse('autoReviewer', 1)
+            })
           },
         },
         budgetScope,
@@ -5639,7 +5660,9 @@ export class ModelApiSession implements AgentSession {
         ),
         onBilled: () => {
           imageState.isBilled = true
-          this.deps.notePaidUse('imageGeneration', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('imageGeneration', 1)
+          })
         },
       })
       hasReturned = true
@@ -10040,12 +10063,21 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
-  private queuedSteered(turn: ActiveTurn): QueuedTurn[] {
-    return turn.steered.splice(0).map(({ parts, userMessageId }) => {
-      const turnId = this.deps.newId()
+  private promoteSteered(turn: ActiveTurn): void {
+    const promoted = turn.steered.map(({ parts, userMessageId }) => ({
+      turnId: this.deps.newId(),
+      parts,
+      displayText: undefined,
+      userMessageId,
+      isGoalWake: false,
+    }))
+    // Prepare ids without consuming anything; then transfer all ownership before
+    // any public callback can throw, withdraw a message, or inspect the queues.
+    this.queuedTurns.unshift(...promoted)
+    turn.steered.splice(0, promoted.length)
+    for (const { userMessageId, turnId } of promoted) {
       this.emit({ type: 'userMessageTurnChanged', userMessageId, turnId })
-      return { turnId, parts, displayText: undefined, userMessageId, isGoalWake: false }
-    })
+    }
   }
 
   /** The queued turn `ref` names, out of the queue and withdrawn; undefined once it started. */
@@ -10372,7 +10404,7 @@ export class ModelApiSession implements AgentSession {
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.goalBudgetReached)
         this.appendHookContexts(turn.turnId, postContexts)
-        this.queuedTurns.unshift(...this.queuedSteered(turn))
+        this.promoteSteered(turn)
         return
       }
       if (streamed.incompleteReason !== undefined) {
@@ -10598,13 +10630,10 @@ export class ModelApiSession implements AgentSession {
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them
     // before separately queued messages; a goal cue follows them.
-    const overflow = this.queuedSteered(turn)
     if (turn.goalWakePending && isGoalActive(this.goal)) {
-      overflow.push(this.queuedGoalWake())
+      this.queuedTurns.unshift(this.queuedGoalWake())
     }
-    if (overflow.length > 0) {
-      this.queuedTurns.unshift(...overflow)
-    }
+    this.promoteSteered(turn)
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
@@ -10866,7 +10895,7 @@ export class ModelApiSession implements AgentSession {
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
     // Every exit preserves input the last request did not admit, including
     // incomplete replies and steering accepted while finalization awaited.
-    this.queuedTurns.unshift(...this.queuedSteered(turn))
+    this.promoteSteered(turn)
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
@@ -11318,7 +11347,9 @@ export class ModelApiSession implements AgentSession {
           }
           this.recordTranscript(turnId, item)
           this.emit({ type: 'itemCompleted', item })
-          this.deps.notePaidUse('scheduledPrompts', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('scheduledPrompts', 1)
+          })
           this.touch()
         },
       }
@@ -11558,14 +11589,35 @@ export class ModelApiSession implements AgentSession {
     return scope
   }
 
+  /** @internal Host observer failures are diagnostics, with no recursive reporting. */
+  public reportListenerFailure(event: AgentEvent): void {
+    notify(this.listeners, event, this.deps.log, 'backend.diagnostic')
+  }
+
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
     for (const request of this.pendingApprovalEvents.values()) {
-      listener({ ...request, isReplayed: true })
+      notify(
+        [listener],
+        { ...request, isReplayed: true },
+        this.deps.log,
+        'modelApi.replay',
+        (event) => {
+          this.emit(event)
+        },
+      )
     }
     for (const child of this.children.values()) {
       for (const request of child.session.pendingApprovalEvents.values()) {
-        listener({ ...request, isReplayed: true })
+        notify(
+          [listener],
+          { ...request, isReplayed: true },
+          this.deps.log,
+          'modelApi.replay',
+          (event) => {
+            this.emit(event)
+          },
+        )
       }
     }
     return () => {
@@ -12184,7 +12236,9 @@ export class ModelApiSession implements AgentSession {
       adapter?.dispose?.()
     })
     this.listeners.clear()
-    this.onDispose()
+    notify([this.onDispose], undefined, this.deps.log, 'modelApi.disposed', (event) => {
+      this.emit(event)
+    })
   }
 
   /** The host is closing: the session goes whoever still holds it. */
@@ -12684,9 +12738,15 @@ export class ModelApiHost implements AgentHost {
   }
 
   private announce(session: ModelApiSession): void {
-    for (const listener of this.listListeners) {
-      listener({ type: 'changed', record: session.record() })
-    }
+    notify<SessionListEvent>(
+      this.listListeners,
+      { type: 'changed', record: session.record() },
+      this.deps.log,
+      'modelApi.list',
+      (event) => {
+        session.reportListenerFailure(event)
+      },
+    )
   }
 
   private assertBudgetHostOpen(): void {

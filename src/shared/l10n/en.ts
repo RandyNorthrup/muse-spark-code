@@ -2299,6 +2299,8 @@ export const EN = {
   permissionModeChangeFailed: 'Could not change the permission mode',
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
+  backendListenerFailed:
+    'A backend event listener failed. The operation continued; see the log for details.',
   contributorResumeFallbackTo:
     'The resumed conversation was on a contributor-tier model; it now uses {model}.',
   // Edit review's outcomes, per file (M5).

@@ -19407,6 +19407,18 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**L2 third review repair (FIXM106L23, 2026-10-06).** Close RVM106L23's
+single P2 with synchronous steering ownership transfer before reassignment
+notifications and one shared guarded notification utility for Model API and
+Muse Code hosts/sessions. Every listener gets its own exception boundary;
+fixed-label logs and a localized backend diagnostic report failures without
+interrupting state transitions or later listeners. Diagnostic delivery is
+guarded without recursive reporting. Include the required English key and
+all fourteen translations, fault-injection regressions for reassignment,
+turn start/end, items, steering, settlement, replay and host observers, and
+byte-exact red drills. No request bytes, dependency or gate changes. The
+existing W documentation/split-gate handoffs and bounded rig checks remain.
+
 **L2 second review repair (FIXM106L22, 2026-10-06).** Close both
 RVM106L22 P2 findings by construction. The steering buffer owns each accepted
 message until admission or a definitive refusal recorded against its id;
@@ -20081,7 +20093,7 @@ Each joins when its dependency merges, and none blocks the others.
 
 ## 7. Gates
 
-**FIXM106L2 / FIXM106L22 bounded review repairs (2026-10-06).** The rig/shared brief
+**FIXM106L2 / FIXM106L22 / FIXM106L23 bounded review repairs (2026-10-06).** The rig/shared brief
 prohibits aggregate `npm run quality` and requires scoped tests, at most
 three files/three workers per run, with the repository timeout. Run the
 focused regressions, typecheck, changed-file lint/format, localization,
@@ -21266,8 +21278,11 @@ before a repaired one loads (2026-09-30).
 ## 9. Security assumptions and accepted residual risk
 
 - **FIXM106L2-W-integration (lane L2, 2026-10-06).** All four RVM106L2 P2
-  findings and both RVM106L22 P2 findings are repaired, with fake-only regressions and byte-exact red
-  drills. No review finding is left. The original W handoffs remain:
+  findings, both RVM106L22 P2 findings and RVM106L23's observer-exception P2
+  are repaired, with fake-only regressions and byte-exact red drills. Steering
+  ownership now transfers before notifications, and shared guarded delivery
+  isolates host/session listeners and diagnostic callbacks. No review finding
+  is left. The original W handoffs remain:
   capability/settings bindings across hosts, the trusted-witness policy
   decision, integrated CHANGELOG/README/feature-reference updates, and
   split-gate classifications for `toolScheduler.ts`/`repeatGuard.ts`.

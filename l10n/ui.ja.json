@@ -1418,6 +1418,7 @@
   "permissionModeNotApplied": "権限モードを適用できませんでした",
   "permissionModeChangeFailed": "権限モードを変更できませんでした",
   "hostActionFailed": "{action} が失敗しました",
+  "backendListenerFailed": "バックエンドのイベントリスナーでエラーが発生しました。処理は続行されました。詳細はログをご確認ください。",
   "contributorResumeFallbackTo": "再開した会話はコントリビューター ティアのモデルを使用していました。現在は {model} を使用しています。",
   "editRevertedPath": "{path} を元に戻しました。",
   "editCreatedRemovedPath": "{path}: ごみ箱に移動しました (Muse が作成したファイル)。",

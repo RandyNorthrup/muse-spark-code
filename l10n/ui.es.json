@@ -1508,6 +1508,7 @@
   "permissionModeNotApplied": "No se pudo aplicar el modo de permisos",
   "permissionModeChangeFailed": "No se pudo cambiar el modo de permisos",
   "hostActionFailed": "Error en {action}",
+  "backendListenerFailed": "Un receptor de eventos del backend falló. La operación continuó; consulta el registro para ver los detalles.",
   "contributorResumeFallbackTo": "La conversación reanudada usaba un modelo del nivel colaborador; ahora usa {model}.",
   "editRevertedPath": "Se revirtió {path}.",
   "editCreatedRemovedPath": "{path}: se movió a la papelera (lo creó Muse).",

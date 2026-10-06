@@ -1463,6 +1463,7 @@
   "permissionModeNotApplied": "İzin modu uygulanamadı",
   "permissionModeChangeFailed": "İzin modu değiştirilemedi",
   "hostActionFailed": "{action} başarısız oldu",
+  "backendListenerFailed": "Bir arka uç olay dinleyicisi hata verdi. İşlem devam etti; ayrıntılar için günlüğe bakın.",
   "contributorResumeFallbackTo": "Sürdürülen konuşma bir katkı katmanı modelindeydi; artık {model} modelini kullanıyor.",
   "editRevertedPath": "{path} geri alındı.",
   "editCreatedRemovedPath": "{path}: Çöp kutusuna taşındı (Muse oluşturmuştu).",

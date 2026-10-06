@@ -1,5 +1,6 @@
 // M106 L2: synthetic loop faults use the existing fake wire; no new provider shapes.
 import { Buffer } from 'node:buffer'
+import type { AgentEvent } from '../../src/shared/agentEvents'
 import { describe, expect, it, vi } from 'vitest'
 import { parseHookConfig } from '../../src/core/backends/modelapi/hooks'
 import { parseSparkHooksConfig } from '../../src/core/backends/modelapi/extensionHooks'
@@ -55,7 +56,7 @@ async function setup(overrides: Partial<ModelApiHostDeps> = {}) {
     ...overrides,
   })
   const watched = await startWatchedSession(host, ROOT, 'allowAll')
-  return { api, io, host, rawBodies, ...watched }
+  return { api, io, host, log, rawBodies, ...watched }
 }
 
 async function setupSkillSteering() {
@@ -172,6 +173,161 @@ function normalizeBodies(raw: readonly string[]): string[] {
 }
 
 describe('M106 loop guarantees', () => {
+  it('transfers both steering messages before a throwing reassignment listener and finishes queued work', async () => {
+    const rig = await setup({ outputContinuation: () => false })
+    const held = Promise.withResolvers<undefined>()
+    const requested = Promise.withResolvers<undefined>()
+    rig.api.script(
+      {
+        text: 'Partial.',
+        incomplete: { reason: 'max_output_tokens' },
+        hold: held.promise,
+        onRequest: () => {
+          requested.resolve(undefined)
+        },
+      },
+      { text: 'One.' },
+      { text: 'Two.' },
+      { text: 'Queued.' },
+    )
+    const submitted = await rig.session.sendTurn([{ type: 'text', text: 'Work.' }])
+    await requested.promise
+    const steering = await Promise.all(
+      ['STEER_ONE', 'STEER_TWO'].map((text) =>
+        rig.session.steer(submitted.turnId, [{ type: 'text', text }]),
+      ),
+    )
+    const queued = await rig.session.sendTurn([{ type: 'text', text: 'QUEUED_WORK' }])
+    let ownership: unknown
+    rig.session.onEvent((event) => {
+      if (ownership !== undefined || event.type !== 'userMessageTurnChanged') return
+      ownership = structuredClone(Reflect.get(rig.session, 'queuedTurns'))
+      throw new Error('private callback detail')
+    })
+    const later = vi.fn()
+    rig.session.onEvent(later)
+    held.resolve(undefined)
+    await rig.session.settled()
+    expect(ownership).toEqual(
+      expect.arrayContaining(
+        steering.map(({ userMessageId }): unknown => expect.objectContaining({ userMessageId })),
+      ),
+    )
+    expect(rig.api.responseBodies()).toHaveLength(4)
+    for (const [index, text] of ['STEER_ONE', 'STEER_TWO', 'QUEUED_WORK'].entries()) {
+      expect(JSON.stringify(rig.api.responseBodies()[index + 1]?.['input'])).toContain(text)
+    }
+    expect(
+      rig.session
+        .history()
+        .items.filter((item) =>
+          steering.some(({ userMessageId }) => item.itemId === userMessageId),
+        ),
+    ).toHaveLength(2)
+    expect(rig.session.record()).toMatchObject({ status: 'idle' })
+    expect(rig.events.filter((event) => event.type === 'turnCompleted')).toHaveLength(4)
+    expect(rig.events).toContainEqual({ type: 'turnStarted', turnId: queued.turnId })
+    expect(later).toHaveBeenCalledWith(expect.objectContaining({ type: 'userMessageTurnChanged' }))
+    expect(rig.log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: modelApi.event',
+    )
+    expect(notices(rig)).toContain(UI_TEXT.backendListenerFailed)
+    await rig.host.close()
+  })
+
+  it.each([
+    'turnStarted',
+    'turnCompleted',
+    'itemStarted',
+    'itemCompleted',
+    'textDelta',
+    'sessionStatus',
+    'tokenUsage',
+    'messageAdmitted',
+    'approvalResolved',
+  ])('continues the turn and later listeners after a throwing %s observer', async (type) => {
+    const rig = await setup({ showReplyUsage: () => true })
+    if (type === 'approvalResolved') await rig.session.setApprovalMode('promptUnmatched')
+    const throwing = vi.fn((event: { type: string }) => {
+      if (event.type === type || event.type === 'backendNotice')
+        throw new Error('private callback detail')
+    })
+    rig.session.onEvent(throwing)
+    const later = vi.fn()
+    rig.session.onEvent(later)
+    const replay = vi.fn((event: AgentEvent) => {
+      if (event.type === 'approvalRequested' && event.isReplayed === true)
+        throw new Error('private replay detail')
+    })
+    const approvals: Promise<void>[] = []
+    rig.session.onEvent((event) => {
+      if (event.type !== 'approvalRequested' || event.isReplayed === true) return
+      rig.session.onEvent(replay)
+      approvals.push(
+        rig.session.decideApproval({
+          approvalId: event.approvalId,
+          requirementId: event.requirementId,
+          choiceId: 'allow_once',
+        }),
+      )
+    })
+    const pending = await beginHeldReply(rig, { text: 'Steering answered.' })
+    await rig.session.steer(pending.turnId, [{ type: 'text', text: 'STEERING' }])
+    pending.release()
+    await rig.session.settled()
+    if (type === 'approvalResolved') {
+      rig.api.script(
+        { calls: [{ name: 'bash', arguments: '{"command":"pwd"}', callId: 'shell' }] },
+        { text: 'Tool answered.' },
+      )
+      await send(rig)
+    }
+    await Promise.all(approvals)
+    if (type === 'approvalResolved') {
+      expect(replay).toHaveBeenCalledWith(expect.objectContaining({ isReplayed: true }))
+      expect(rig.log.error).toHaveBeenCalledWith(
+        'Backend notification listener failed: modelApi.replay',
+      )
+    }
+    expect(throwing).toHaveBeenCalledWith(expect.objectContaining({ type }))
+    expect(later).toHaveBeenCalledWith(expect.objectContaining({ type }))
+    expect(rig.session.record()).toMatchObject({ status: 'idle' })
+    expect(notices(rig)).toContain(UI_TEXT.backendListenerFailed)
+    expect(rig.log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: modelApi.event',
+    )
+    await rig.host.close()
+  })
+
+  it('keeps usage and list observer failures out of turn state transitions', async () => {
+    const rig = await setup({
+      noteResponseUsage: () => {
+        throw new Error('private usage detail')
+      },
+    })
+    rig.log.error.mockImplementation(() => {
+      throw new Error('broken log sink')
+    })
+    rig.host.onSessionListEvent(() => {
+      throw new Error('private list detail')
+    })
+    const later = vi.fn()
+    rig.host.onSessionListEvent(later)
+    rig.api.script({ text: 'Answered.' })
+    await send(rig)
+    await rig.session.settled()
+    expect(later).toHaveBeenCalled()
+    expect(rig.session.record()).toMatchObject({ status: 'idle' })
+    expect(rig.log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: modelApi.list',
+    )
+    expect(rig.log.error).toHaveBeenCalledWith(
+      'Backend notification listener failed: modelApi.usage',
+    )
+    expect(notices(rig)).toContain(UI_TEXT.backendListenerFailed)
+    await rig.host.close()
+  })
+
   it('uses the selected per-model output cap and fixes it for that model', async () => {
     const cap = vi.fn((modelId: string) =>
       modelId === 'muse-spark-1.3' ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : 4096,

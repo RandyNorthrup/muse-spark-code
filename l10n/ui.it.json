@@ -1508,6 +1508,7 @@
   "permissionModeNotApplied": "Non è stato possibile applicare la modalità di autorizzazione",
   "permissionModeChangeFailed": "Non è stato possibile cambiare la modalità di autorizzazione",
   "hostActionFailed": "{action} non riuscito",
+  "backendListenerFailed": "Un gestore degli eventi del backend ha riscontrato un errore. L’operazione è proseguita; consulta il registro per i dettagli.",
   "contributorResumeFallbackTo": "La conversazione ripresa usava un modello di livello contributore; ora usa {model}.",
   "editRevertedPath": "{path} ripristinato.",
   "editCreatedRemovedPath": "{path}: spostato nel cestino (creato da Muse).",

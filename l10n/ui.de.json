@@ -1463,6 +1463,7 @@
   "permissionModeNotApplied": "Der Berechtigungsmodus konnte nicht angewendet werden",
   "permissionModeChangeFailed": "Der Berechtigungsmodus konnte nicht geändert werden",
   "hostActionFailed": "{action} fehlgeschlagen",
+  "backendListenerFailed": "Ein Listener für Backend-Ereignisse ist fehlgeschlagen. Der Vorgang wurde fortgesetzt; Details stehen im Protokoll.",
   "contributorResumeFallbackTo": "Die fortgesetzte Unterhaltung lief auf einem Modell der Contributor-Stufe; sie verwendet jetzt {model}.",
   "editRevertedPath": "{path} rückgängig gemacht.",
   "editCreatedRemovedPath": "{path}: In den Papierkorb verschoben (von Muse erstellt).",

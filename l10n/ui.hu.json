@@ -1463,6 +1463,7 @@
   "permissionModeNotApplied": "Az engedélyezési módot nem sikerült alkalmazni",
   "permissionModeChangeFailed": "Az engedélyezési módot nem sikerült módosítani",
   "hostActionFailed": "{action}: sikertelen",
+  "backendListenerFailed": "A háttérrendszer egyik eseményfigyelője hibát észlelt. A művelet folytatódott; a részletek a naplóban találhatók.",
   "contributorResumeFallbackTo": "A folytatott beszélgetés contributor-szintű modellen futott; mostantól ezt használja: {model}.",
   "editRevertedPath": "{path} visszaállítva.",
   "editCreatedRemovedPath": "{path}: áthelyezve a Lomtárba (a Muse hozta létre).",

@@ -92,6 +92,7 @@ import {
   SteerRefusedError,
 } from '../../agent/agentBackend'
 import type { CoreLogger } from '../../logging'
+import { notify } from '../../events/notify'
 import {
   MALFORMED_PARAMS,
   mapNotification,
@@ -693,16 +694,18 @@ export class MuseSession implements AgentSession {
     this.log.warn(
       `Muse Code reported session ${this.sessionId}'s event log failed (${failureForLog(error)}); the session takes no new message`,
     )
-    for (const listener of this.logDamagedListeners) {
-      listener()
-    }
+    notify(this.logDamagedListeners, undefined, this.log, 'museCode.logDamaged', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   private finishDispose(): void {
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
-    this.onDispose()
+    notify([this.onDispose], undefined, this.log, 'museCode.disposed', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   /**
@@ -898,7 +901,15 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
-      listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
+      notify(
+        [listener],
+        isPendingPrompt(event) ? { ...event, isReplayed: true } : event,
+        this.log,
+        'museCode.replay',
+        (diagnostic) => {
+          this.reportListenerFailure(diagnostic)
+        },
+      )
     }
     return () => {
       this.listeners.delete(listener)
@@ -930,9 +941,14 @@ export class MuseSession implements AgentSession {
       this.early.push(admitted)
       return
     }
-    for (const listener of this.listeners) {
-      listener(admitted)
-    }
+    notify(this.listeners, admitted, this.log, 'museCode.event', (event) => {
+      this.reportListenerFailure(event)
+    })
+  }
+
+  /** @internal Diagnostic delivery cannot recursively report a broken observer. */
+  public reportListenerFailure(event: AgentEvent): void {
+    notify(this.listeners, event, this.log, 'backend.diagnostic')
   }
 
   /** Submit one user turn; queued behind a running turn by host default. */
@@ -1300,9 +1316,15 @@ export class MuseCodeHost implements AgentHost {
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
         () => {
-          for (const listener of this.unresponsiveListeners) {
-            listener()
-          }
+          notify(
+            this.unresponsiveListeners,
+            undefined,
+            this.log,
+            'museCode.unresponsive',
+            (event) => {
+              this.reportListenerFailure(event)
+            },
+          )
         },
       ),
     }
@@ -1363,10 +1385,16 @@ export class MuseCodeHost implements AgentHost {
       } else {
         this.log.warn(`muse serve exited (${described.description})`)
       }
-      for (const listener of this.exitListeners) {
-        listener(described)
-      }
+      notify(this.exitListeners, described, this.log, 'museCode.exit', (event) => {
+        this.reportListenerFailure(event)
+      })
     })
+  }
+
+  private reportListenerFailure(event: AgentEvent): void {
+    for (const session of this.sessions.values()) {
+      session.reportListenerFailure(event)
+    }
   }
 
   /** One notification: a host-level event, or a session's. */
@@ -1475,9 +1503,9 @@ export class MuseCodeHost implements AgentHost {
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
-        for (const listener of this.usageListeners) {
-          listener(parsed.data)
-        }
+        notify(this.usageListeners, parsed.data, this.log, 'museCode.usage', (event) => {
+          this.reportListenerFailure(event)
+        })
       } else {
         this.warnShape(method)
       }
@@ -1491,9 +1519,9 @@ export class MuseCodeHost implements AgentHost {
       this.warnShape(method)
       return true
     }
-    for (const listener of this.listListeners) {
-      listener(event)
-    }
+    notify(this.listListeners, event, this.log, 'museCode.list', (diagnostic) => {
+      this.reportListenerFailure(diagnostic)
+    })
     return true
   }
 
