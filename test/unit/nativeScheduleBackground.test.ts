@@ -2,11 +2,14 @@ import { copyFile, mkdtemp, readFile, stat, writeFile, rm } from 'node:fs/promis
 import { ChildProcess, type SpawnOptions } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
+import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import {
   NativeScheduleBackground,
   type BackgroundProcessResult,
   type NativeBackgroundDeps,
+  type BackgroundFilePort,
 } from '../../src/runtime/schedules/nativeBackground'
 import {
   backgroundProcessRunner,
@@ -17,6 +20,12 @@ import {
   beginScheduleWake,
 } from '../../src/runtime/schedules/nodeBackgroundIo'
 import { SCHEDULE_WAKE_WAIT_MS, UI_TEXT } from '../../src/shared/constants'
+import {
+  backgroundDefinitionPaths,
+  backgroundRecordPath,
+  backgroundRegistrationId,
+  backgroundWakeRecordSchema,
+} from '../../src/runtime/schedules/registration'
 
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {
   return { exitCode, stdout, stderr }
@@ -29,6 +38,49 @@ function fileInfo(uid = 0, mode = 0o755, isDirectory = true, isSymbolicLink = fa
     isDirectory: () => isDirectory,
     isSymbolicLink: () => isSymbolicLink,
   }
+}
+function ordinaryWindowsIdentity(script: string): string {
+  // The elevated rig uses fake identity metadata; no token or ACL is changed.
+  return script
+    .replace(
+      '[Security.Principal.WindowsIdentity]::GetCurrent()',
+      '[pscustomobject]@{ User = [pscustomobject]@{ Value = $user }; Groups = @(); IsSystem = $false }',
+    )
+    .replace(
+      '([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)',
+      '$false',
+    )
+}
+async function windowsPolicyFixture(fixture: string): Promise<readonly boolean[]> {
+  const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
+  const output = await run('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-EncodedCommand',
+    Buffer.from(fixture, 'utf16le').toString('base64'),
+  ])
+  expect(output.exitCode).toBe(0)
+  return output.stdout
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => z.boolean().parse(JSON.parse(line)))
+}
+function verifyRegisteredWake(deps: NativeBackgroundDeps) {
+  return verifyScheduleWake(
+    deps.executable,
+    deps.agentFile,
+    {
+      platform: deps.platform,
+      uid: deps.uid,
+      effectiveUid: deps.effectiveUid ?? deps.uid,
+      homeDir: deps.homeDir,
+      dataDir: deps.dataDir,
+      trustedPath: deps.files.trustedPath,
+      read: deps.files.read,
+      hash: deps.files.hash,
+    },
+    backgroundRegistrationId(deps.homeDir),
+  )
 }
 async function expectLaunchdMaintenanceRefusal(
   entry: NativeScheduleBackground,
@@ -59,6 +111,7 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     sid: 'S-1-5-21-1-2-3-1000',
     active: false,
     refusesStop: false,
+    wakeActive: false,
   }
   const run = vi.fn((file: string, args: readonly string[]): Promise<BackgroundProcessResult> => {
     if (
@@ -114,8 +167,12 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     return Promise.resolve(result())
   })
   const isWindows = platform === 'win32'
-  const trustedPath = vi.fn((file: string) => Promise.resolve(file))
-  const entry = new NativeScheduleBackground({
+  const trustedPath = vi
+    .fn<BackgroundFilePort['trustedPath']>()
+    .mockImplementation((file) => Promise.resolve(file))
+  const prepare = vi.fn().mockResolvedValue(undefined)
+  const authorization = vi.fn().mockResolvedValue({ scheduledPrompts: false })
+  const deps: NativeBackgroundDeps = {
     platform,
     isWakeProcess: false,
     homeDir: isWindows ? String.raw`C:\Users\rig` : '/home/rig',
@@ -125,9 +182,24 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     uid: 1000,
     effectiveUid: 1000,
     now: () => 1000,
+    authorization,
     files: {
       trustedPath,
-      waitForWake: () => Promise.resolve(),
+      prepare,
+      hash: (file) => {
+        const text = files.get(file)
+        return Promise.resolve(
+          text === undefined
+            ? undefined
+            : createHash('sha256')
+                .update(file.endsWith('.xml') ? Buffer.from(`\u{FEFF}${text}`, 'utf16le') : text)
+                .digest('hex'),
+        )
+      },
+      waitForWake: (_dataDir, shouldWait) =>
+        shouldWait === false && state.wakeActive
+          ? Promise.reject(new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable))
+          : Promise.resolve(),
       read: (file) => Promise.resolve(files.get(file)),
       write: (file, text) => {
         files.set(file, text)
@@ -140,10 +212,191 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     },
     run,
     ...overrides,
-  })
-  return { entry, files, state, run, trustedPath }
+  }
+  const entry = new NativeScheduleBackground(deps)
+  return { entry, files, state, run, trustedPath, prepare, authorization, deps }
 }
 describe('native background lifecycle', () => {
+  it.each(['win32', 'darwin', 'linux'] as const)(
+    'refuses a definition replaced or linked after publication before %s OS import',
+    async (platform) => {
+      for (const change of ['replacement', 'symlink']) {
+        const { entry, deps, files, trustedPath, run } = setup(platform)
+        const definition = backgroundDefinitionPaths(platform, deps.homeDir, deps.dataDir)[0]!
+        if (change === 'replacement') {
+          const write = deps.files.write
+          vi.spyOn(deps.files, 'write').mockImplementation(async (file, text, encoding) => {
+            await write(file, text, encoding)
+            if (file === definition) files.set(file, `${text}\nreplaced`)
+          })
+        } else
+          trustedPath.mockImplementation((file, _platform, _uid, kind) =>
+            file === definition && kind === 'definition'
+              ? Promise.reject(new Error(`unsafe ${file}`))
+              : Promise.resolve(file),
+          )
+        await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+          definition,
+        )
+        expect(
+          run.mock.calls.some(
+            ([, args]) =>
+              args.includes('/Create') || args.includes('bootstrap') || args.includes('enable'),
+          ),
+        ).toBe(false)
+      }
+    },
+  )
+  it.each(['win32', 'darwin', 'linux'] as const)(
+    'trusts every definition and record at registration and refuses replacement or unsafe paths at a %s fire',
+    async (platform) => {
+      const { entry, files, deps, prepare, trustedPath, run } = setup(platform)
+      const definitions = backgroundDefinitionPaths(platform, deps.homeDir, deps.dataDir)
+      const recordFile = backgroundRecordPath(platform, deps.dataDir)
+      prepare.mockRejectedValueOnce(new Error('unsafe definition directory'))
+      await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        'unsafe definition directory',
+      )
+      expect(files.size).toBe(0)
+      expect(
+        run.mock.calls.some(
+          ([, args]) =>
+            args.includes('/Create') || args.includes('bootstrap') || args.includes('enable'),
+        ),
+      ).toBe(false)
+      await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+      for (const file of [...definitions, recordFile]) {
+        expect(prepare).toHaveBeenCalledWith(file, platform, 1000)
+        expect(trustedPath).toHaveBeenCalledWith(file, platform, 1000, 'definition')
+      }
+      const fire = () => verifyRegisteredWake(deps)
+      expect(await fire()).toEqual({ scheduledPrompts: false })
+      for (const definition of definitions) {
+        const original = files.get(definition)!
+        files.set(definition, `${original}\nreplaced`)
+        await expect(fire()).rejects.toThrow(definition)
+        files.set(definition, original)
+      }
+      for (const unsafe of [...definitions, recordFile]) {
+        trustedPath.mockImplementation((file) =>
+          file === unsafe
+            ? Promise.reject(new Error(`symlink or writable ancestor: ${file}`))
+            : Promise.resolve(file),
+        )
+        await expect(fire()).rejects.toThrow(unsafe)
+      }
+      trustedPath.mockImplementation((file) => Promise.resolve(file))
+      const originalRecord = files.get(recordFile)!
+      const record: unknown = JSON.parse(originalRecord)
+      // Boundary parses rather than trusting test-created JSON.
+      const parsed = backgroundWakeRecordSchema.parse(record)
+      if (platform === 'win32') {
+        files.set(
+          recordFile,
+          JSON.stringify({
+            ...parsed,
+            executable: parsed.executable.replaceAll('\\', '/').toUpperCase(),
+            agentFile: parsed.agentFile.replaceAll('\\', '/'),
+            files: parsed.files.map((file) => ({ ...file, path: file.path.replaceAll('\\', '/') })),
+          }),
+        )
+        expect(await fire()).toEqual({ scheduledPrompts: false })
+      }
+      for (const changed of [
+        { files: [] },
+        { id: 'other' },
+        { agentFile: 'other' },
+        { files: parsed.files.map((file) => ({ ...file, path: 'other' })) },
+      ]) {
+        files.set(recordFile, JSON.stringify({ ...parsed, ...changed }))
+        await expect(fire()).rejects.toThrow()
+      }
+      files.set(recordFile, originalRecord)
+      expect(await fire()).toEqual({ scheduledPrompts: false })
+    },
+  )
+  it.each(['win32', 'darwin', 'linux'] as const)(
+    'reads paid flag and hard budget only from the verified %s record and turns paid features off without the flag',
+    async (platform) => {
+      const { entry, files, deps, authorization } = setup(platform)
+      authorization.mockResolvedValue({ scheduledPrompts: true, maxBudgetUsd: 1 })
+      await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+      const fire = () => verifyRegisteredWake(deps)
+      expect(await fire()).toEqual({ scheduledPrompts: true, maxBudgetUsd: 1 })
+      for (const definition of backgroundDefinitionPaths(platform, deps.homeDir, deps.dataDir)) {
+        expect(files.get(definition)).not.toMatch(/scheduled-prompts|max-budget-usd/)
+      }
+      const recordFile = backgroundRecordPath(platform, deps.dataDir)
+      const record = backgroundWakeRecordSchema.parse(JSON.parse(files.get(recordFile)!))
+      const { scheduledPrompts: _flag, ...withoutFlag } = record
+      files.set(recordFile, JSON.stringify(withoutFlag))
+      expect(await fire()).toEqual({ scheduledPrompts: false })
+      const { maxBudgetUsd: _budget, ...withoutBudget } = record
+      files.set(recordFile, JSON.stringify(withoutBudget))
+      await expect(fire()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
+      for (const maxBudgetUsd of [undefined, 0, NaN, Infinity]) {
+        authorization.mockResolvedValue({ scheduledPrompts: true, maxBudgetUsd })
+        await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+          UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
+        )
+      }
+    },
+  )
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'rejects symlinks, reparse points and writable directory chains for %s definitions',
+    async (platform) => {
+      const p = platform === 'win32' ? path.win32 : path.posix
+      const file = platform === 'win32' ? String.raw`C:\owned\task.xml` : '/owned/job.plist'
+      const parent = p.dirname(file)
+      const nodes = new Map([
+        [file, fileInfo(1000, 0o600, false)],
+        [parent, fileInfo(1000)],
+        [p.dirname(parent), fileInfo()],
+      ])
+      const run = vi.fn<NativeBackgroundDeps['run']>().mockResolvedValue(result(0, 'true'))
+      const io = {
+        realpath: vi.fn().mockResolvedValue(file),
+        lstat: vi.fn((target: string) => Promise.resolve(nodes.get(target)!)),
+        run,
+      }
+      await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).resolves.toBe(
+        file,
+      )
+      for (const target of [file, parent]) {
+        const original = nodes.get(target)!
+        nodes.set(target, fileInfo(1000, 0o777, false, true))
+        await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).rejects.toThrow(
+          target === file ? file : parent,
+        )
+        nodes.set(target, original)
+      }
+      if (platform === 'win32') {
+        const scripts = run.mock.calls.map(([, args]) =>
+          Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le'),
+        )
+        if (process.platform === 'win32') {
+          const script = ordinaryWindowsIdentity(scripts[0] ?? '')
+          const fixture = `function Get-Acl { param([string]$LiteralPath); $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($user)); return $acl }; function Get-Item { param([switch]$Force, [string]$LiteralPath); return [pscustomobject]@{ Attributes = $global:testAttributes } }; $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach ($attributes in @([IO.FileAttributes]::Normal, [IO.FileAttributes]::ReparsePoint, ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint))) { $global:testAttributes = $attributes; ${script} }`
+          expect(await windowsPolicyFixture(fixture)).toEqual([true, false, false])
+        }
+        run.mockImplementation((_file, args) =>
+          Promise.resolve(
+            result(
+              0,
+              Buffer.from(args.at(-1) ?? '', 'base64')
+                .toString('utf16le')
+                .includes(`Get-Acl -LiteralPath '${parent}'`)
+                ? 'false'
+                : 'true',
+            ),
+          ),
+        )
+      } else nodes.set(parent, fileInfo(1000, 0o1777))
+      await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).rejects.toThrow(
+        parent,
+      )
+    },
+  )
   it('publishes the wake identity before launching detached after-exit maintenance through canonical trusted paths', async () => {
     const child = new ChildProcess()
     const unref = vi.spyOn(child, 'unref').mockImplementation(() => undefined)
@@ -184,22 +437,19 @@ describe('native background lifecycle', () => {
     deps.identity.mockResolvedValue(undefined)
     await expect(beginScheduleWake('/data', '/node', '/acp.js', deps)).rejects.toThrow()
   })
-  it('defers every macOS host until the wake lock releases and refuses a starting launchd process', async () => {
-    const held = Promise.withResolvers<undefined>()
-    const files = {
-      trustedPath: vi.fn((file: string) => Promise.resolve(file)),
-      waitForWake: vi.fn().mockReturnValue(held.promise),
-      read: vi.fn(),
-      write: vi.fn(),
-      remove: vi.fn(),
-    }
-    const { entry, run } = setup('darwin', { files })
-    const registration = entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
-    await Promise.resolve()
-    expect(files.write).not.toHaveBeenCalled()
+  it('refuses a live macOS wake immediately and also protects a starting launchd process', async () => {
+    const { entry, run, state, files, deps } = setup('darwin')
+    state.wakeActive = true
+    const probe = vi.spyOn(deps.files, 'waitForWake')
+    await expectLaunchdMaintenanceRefusal(entry, 61_000)
+    expect(probe.mock.calls).toEqual([
+      ['/data', false],
+      ['/data', false],
+    ])
+    expect(files.size).toBe(0)
     expect(run).not.toHaveBeenCalled()
-    held.resolve(undefined)
-    await registration
+    state.wakeActive = false
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
     run.mockImplementation(() => Promise.resolve(result(0, 'state = running\n pid = 123\n')))
     await expectLaunchdMaintenanceRefusal(entry, 121_000)
     expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
@@ -276,7 +526,9 @@ describe('native background lifecycle', () => {
     )
     expect(files.size).toBe(0)
     expect(run).not.toHaveBeenCalled()
-    trustedPath.mockImplementation((file) => Promise.resolve(`/real${file}`))
+    trustedPath.mockImplementation((file, _platform, _uid, kind) =>
+      Promise.resolve(kind === undefined ? `/real${file}` : file),
+    )
     await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
     expect(trustedPath.mock.calls).toContainEqual(['/agent/dist/acp.js', 'linux', 1000])
     let service: string | undefined
@@ -362,35 +614,19 @@ describe('native background lifecycle', () => {
       Buffer.from(call[1].at(-1) ?? '', 'base64').toString('utf16le'),
     )
     if (process.platform === 'win32') {
-      const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
       // The rig runs elevated; fake only the identity so the real ACL operations
       // exercise an ordinary user's policy. Token refusal is tested separately.
-      const ordinaryScript = (scripts[0] ?? '')
-        .replace(
-          '[Security.Principal.WindowsIdentity]::GetCurrent()',
-          '[pscustomobject]@{ User = [pscustomobject]@{ Value = $user }; Groups = @(); IsSystem = $false }',
-        )
-        .replace(
-          '([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)',
-          '$false',
-        )
+      const ordinaryScript = ordinaryWindowsIdentity(scripts[0] ?? '')
       const fixture = `function Get-Acl { param([string]$LiteralPath); $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($global:testOwner)); if ($global:testWriter) { $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($global:testWriter), $global:testRights, 'Allow')) }; return $acl }; $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach ($case in @(@($user,$user,'Write'), @('S-1-5-18',$null,'Read'), @('S-1-5-32-544',$null,'Read'), @('S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464',$null,'Read'), @('S-1-5-32-545',$null,'Read'), @($user,'S-1-1-0','Write'), @($user,'S-1-1-0','ReadAndExecute'))) { $global:testOwner = $case[0]; $global:testWriter = $case[1]; $global:testRights = $case[2]; ${ordinaryScript} }`
-      const output = await run('powershell.exe', [
-        '-NoProfile',
-        '-NonInteractive',
-        '-EncodedCommand',
-        Buffer.from(fixture, 'utf16le').toString('base64'),
+      expect(await windowsPolicyFixture(fixture)).toEqual([
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+        true,
       ])
-      expect(output.exitCode).toBe(0)
-      expect(
-        output.stdout
-          .trim()
-          .split(/\r?\n/)
-          .map((line) => {
-            const value: unknown = JSON.parse(line)
-            return value
-          }),
-      ).toEqual([true, true, true, true, false, false, true])
     }
     expect(scripts.some((script) => script.includes(String.raw`Get-Acl -LiteralPath 'C:\'`))).toBe(
       true,
@@ -413,6 +649,8 @@ describe('native background lifecycle', () => {
         remove: vi.fn(),
         trustedPath: vi.fn(),
         waitForWake: vi.fn(),
+        prepare: vi.fn(),
+        hash: vi.fn(),
       }
     const entry = new NativeScheduleBackground({
       platform: 'darwin',
@@ -423,6 +661,7 @@ describe('native background lifecycle', () => {
       uid: 1000,
       now: () => 1000,
       isWakeProcess: true,
+      authorization: () => Promise.resolve({ scheduledPrompts: false }),
       files,
       run,
     })
@@ -539,6 +778,8 @@ describe('native background lifecycle', () => {
       const xmlBytes = await readFile(xmlFile)
       expect([...xmlBytes.subarray(0, 2)]).toEqual([0xff, 0xfe])
       expect(xmlBytes.toString('utf16le')).toContain('日本語')
+      expect(await files.hash(xmlFile)).toBe(createHash('sha256').update(xmlBytes).digest('hex'))
+      expect(await files.hash(path.join(directory, 'missing.xml'))).toBeUndefined()
       if (process.platform !== 'win32') {
         const info = await stat(file)
         expect(info.mode & 0o777).toBe(0o600)

@@ -2490,7 +2490,8 @@
       "unsafeLauncher": "不安全的计划启动程序路径：{path}",
       "paidAuthorizationRequired": "付费计划需要 --scheduled-prompts 和明确指定的 --max-budget-usd，预算必须涵盖两项费用上限。",
       "cleanupFailed": "计划请求已完成，但清理失败。请保留已接受的 ID；退出代码 3 表示清理需要处理。",
-      "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。"
+      "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。",
+      "wakeBarrierTimeout": "计划执行在等待后台同步时超时。未启动任何计划任务。"
     }
   }
 }

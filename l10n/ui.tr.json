@@ -2586,7 +2586,8 @@
       "unsafeLauncher": "Güvenli olmayan zamanlama başlatıcısı yolu: {path}",
       "paidAuthorizationRequired": "Ücretli zamanlamalar --scheduled-prompts ve her iki harcama sınırını da karşılayan açık bir --max-budget-usd gerektirir.",
       "cleanupFailed": "Zamanlama isteği tamamlandı ancak temizlik başarısız oldu. Kabul edilen kimliği saklayın; çıkış kodu 3, temizliğin müdahale gerektirdiğini belirtir.",
-      "hostUnavailable": "Bu çalışma alanı için zamanlama sunucusu başlatılamadı. Zamanlama denetimleri kullanılamıyor; normal sohbet kullanılabilir."
+      "hostUnavailable": "Bu çalışma alanı için zamanlama sunucusu başlatılamadı. Zamanlama denetimleri kullanılamıyor; normal sohbet kullanılabilir.",
+      "wakeBarrierTimeout": "Zamanlanmış çalıştırma, arka plan eşitlemesini beklerken zaman aşımına uğradı. Hiçbir zamanlanmış iş başlatılmadı."
     }
   }
 }

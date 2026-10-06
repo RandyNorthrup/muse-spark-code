@@ -13,6 +13,21 @@ function control() {
   return fakeRuntimeScheduleControl({ kind: 'accepted', id: 'schedule-1' })
 }
 describe('schedule terminal commands', () => {
+  it('allows only a native record id on run-due and rejects paid authority or record paths in arguments', () => {
+    const id = `muse-spark-code-schedules-${'a'.repeat(64)}`
+    expect(parseScheduleCommand(['run-due', '--registration', id, '--json'])).toEqual({
+      ok: true,
+      options: { operation: 'run-due', isJson: true, registrationId: id },
+    })
+    for (const argv of [
+      ['run-due', '--registration', '../record'],
+      ['run-due', '--registration', id, '--scheduled-prompts'],
+      ['run-due', '--registration', id, '--max-budget-usd', '1'],
+      ['list', '--registration', id],
+      ['add', '--draft', '{}', '--registration', id],
+    ])
+      expect(parseScheduleCommand(argv).ok).toBe(false)
+  })
   it('parses explicit paid creation flags for CLI and ACP launch and rejects malformed budgets', () => {
     expect(
       parseScheduleCommand([

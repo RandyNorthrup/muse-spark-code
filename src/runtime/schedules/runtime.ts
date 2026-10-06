@@ -12,6 +12,7 @@ import type { RuntimeSchedulesBinding } from './binding'
 import type { RuntimeScheduleHost } from './host'
 import type { ScheduleBackgroundCoordinator } from './background'
 import type { ScheduleSurface } from './surface'
+import { scheduleLauncherReason, type ScheduleWakeAuthorization } from './registration'
 
 export interface ScheduleRuntimeDeps {
   /** S supplies a scoped control, with a real close for that invocation. */
@@ -24,6 +25,8 @@ export interface ScheduleRuntimeDeps {
   /** S's validated persisted workspace registry, never an untrusted event path. */
   readonly dueWorkspaces: () => Promise<readonly string[]>
   readonly close: () => Promise<void>
+  /** Re-read and verify the native definition/record before each engine admission. */
+  readonly verifyWake: (registrationId?: string) => Promise<ScheduleWakeAuthorization>
   readonly platform?: NodeJS.Platform
 }
 
@@ -88,12 +91,34 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
   ): Promise<ScheduleCommandResult> {
     this.isMacWake =
       options.operation === 'run-due' && (this.deps.platform ?? process.platform) === 'darwin'
-    if (this.isMacWake) await this.deps.background.wakeBarrier()
+    let authorization: ScheduleWakeAuthorization = {
+      scheduledPrompts: options.scheduledPrompts === true,
+      ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+    }
+    if (options.operation === 'run-due') {
+      try {
+        if (this.isMacWake) await this.deps.background.wakeBarrier()
+      } catch {
+        const reason = UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout
+        return {
+          exitCode: 1,
+          output: options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        }
+      }
+      try {
+        authorization = await this.deps.verifyWake(options.registrationId)
+      } catch (error: unknown) {
+        const reason = scheduleLauncherReason(error) ?? UI_TEXT.scheduleV2.runtime.invalidRequest
+        return {
+          exitCode: 1,
+          output: options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        }
+      }
+    }
     const control = await this.control(cwd, {
       source: 'cli',
       isInteractive,
-      scheduledPrompts: options.scheduledPrompts === true,
-      ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+      ...authorization,
     })
     return await settleScheduleCommand(
       () => runScheduleCommand(options, cwd, control),

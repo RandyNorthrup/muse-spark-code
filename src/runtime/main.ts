@@ -533,7 +533,12 @@ async function main(): Promise<number> {
           command.options.operation === 'background-maintain'
         ) {
           try {
-            await verifyScheduleWake(process.execPath, __filename)
+            await verifyScheduleWake(
+              process.execPath,
+              __filename,
+              undefined,
+              command.options.registrationId,
+            )
             if (process.platform === 'darwin') {
               const dataDir = agentDataFolder({
                 platform: process.platform,

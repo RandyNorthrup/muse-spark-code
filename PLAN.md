@@ -6844,6 +6844,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXM115X3 — RVM115X2 repair (2026-10-06)
+
+Fix all four round-two findings in X's existing files. Trust-check native
+definition files, their complete directory chains and the registration record
+before OS import and every wake; bind the exact definition content hashes to
+that record. Native arguments carry only its id, while the verified record
+supplies the explicit paid flag and hard budget to engine admission. Make
+macOS reconciliation refuse a live wake immediately rather than waiting under
+the consent lock; bound and report the wake startup barrier. Preserve ACP's
+accepted id together with its cleanup warning. Use complete owned suites with
+default deadlines, per-fix failing regressions and byte-exact red drills. No
+new dependency, real OS entry, merge, push or widened guard is authorized.
+
 ### FIXM115X — Repair runtime schedule review findings (2026-10-06)
 
 Repair RVM115X's P1 launcher trust and seven P2 findings in X's adapters:
@@ -19614,6 +19627,26 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM115X3 round-two review repair.** All four RVM115X2 findings are
+  repaired; none is deferred. Native definitions and the registration record
+  require trusted owners, no untrusted writable ancestor, and no symlink,
+  junction or reparse point. Parent chains are checked before creation;
+  published bytes are hashed and checked before OS import and at every native
+  fire. The record id must match the per-user registration; the record must
+  name the exact platform definitions and running canonical launcher/script.
+  Native arguments carry only that id. Paid flags and the finite hard budget
+  come from S's explicit persisted authorization at registration and from the
+  verified record at each fire; a missing flag leaves paid features off.
+  W must bind the required authorization and wake-verification ports, including
+  the same home/data folder in every host, before shipping the scheduler.
+  Reconciliation probes a live macOS wake without waiting under the consent
+  lock; it reports busy and releases the lock. The startup barrier has a named
+  five-second deadline and refuses before acquiring controls on failure. Only
+  independent after-exit maintenance waits for kernel exit. ACP preserves both
+  the accepted id and the translated cleanup warning. The existing named
+  OS-receipt and W-binding/help-reference handoffs below remain unchanged in
+  scope; there is still no production schedules bundle or paid-call receipt.
 
 - **FIXM115X review repair.** RVM115X's P1 and all seven P2 findings are
   repaired in the internal adapters; no review finding is deferred. Paid

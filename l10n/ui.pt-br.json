@@ -2682,7 +2682,8 @@
       "unsafeLauncher": "Caminho inseguro do inicializador de agendamentos: {path}",
       "paidAuthorizationRequired": "Agendamentos pagos exigem --scheduled-prompts e um --max-budget-usd explícito que cubra ambos os limites de gasto.",
       "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",
-      "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível."
+      "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível.",
+      "wakeBarrierTimeout": "A execução agendada excedeu o tempo de espera da sincronização em segundo plano. Nenhuma tarefa agendada foi iniciada."
     }
   }
 }

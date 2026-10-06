@@ -26,6 +26,7 @@ describe('one-shot OS schedule manifests', () => {
     const value = input('win32'),
       r = backgroundRegistration(value),
       text = r.files[0]!.text
+    expect(text).toContain(`&quot;--registration&quot; &quot;${r.id}&quot;`)
     expect(text).toContain(
       `<StartBoundary>${new Date(value.nextWakeAtMs).toISOString()}</StartBoundary>`,
     )
@@ -44,6 +45,7 @@ describe('one-shot OS schedule manifests', () => {
     expect(r.domain).toBe('gui/1000')
     expect(r.files[0]!.path).toMatch(/\/Library\/LaunchAgents\/.*\.plist$/)
     expect(text).toContain('<key>ProgramArguments</key>')
+    expect(text).toContain(`<string>--registration</string><string>${r.id}</string>`)
     expect(text).toContain(
       '<string>schedule</string><string>run-due</string><string>--json</string>',
     )
@@ -56,6 +58,7 @@ describe('one-shot OS schedule manifests', () => {
     const r = backgroundRegistration(value),
       [service, timer] = r.files
     expect(service!.text).toContain('Type=oneshot')
+    expect(service!.text).toContain(`"--registration" "${r.id}"`)
     expect(service!.text).toContain(String.raw`%%h/$$HOME/\"Agent\"`)
     expect(service!.text).toContain('"schedule" "run-due" "--json"')
     expect(timer!.text).toContain('OnCalendar=2026-10-06 09:05:16 UTC')

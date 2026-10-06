@@ -1,37 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
-import type * as z from 'zod/mini'
-import {
-  ScheduleBackgroundCoordinator,
-  type BackgroundConsentStore,
-} from '../../src/runtime/schedules/background'
-import type { scheduleBackgroundConsentSchema } from '../../src/shared/scheduleV2'
+import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
 import { FakeScheduleBackground } from './helpers/schedules/background'
-
-type Consent = z.infer<typeof scheduleBackgroundConsentSchema>
-function consentStore() {
-  let consent: Consent | undefined
-  let tail = Promise.resolve(undefined)
-  const store: BackgroundConsentStore = {
-    async exclusive(work) {
-      const previous = tail,
-        next = Promise.withResolvers<undefined>()
-      tail = next.promise
-      await previous
-      try {
-        return await work(consent, (value) => {
-          consent = structuredClone(value)
-          return Promise.resolve()
-        })
-      } finally {
-        next.resolve(undefined)
-      }
-    },
-  }
-  return { store, current: () => consent }
-}
+import { serializedBackgroundConsent } from './helpers/schedules/runtimeFixtures'
+import { SCHEDULE_WAKE_BARRIER_TIMEOUT_MS, UI_TEXT } from '../../src/shared/constants'
 function setup() {
   const entry = new FakeScheduleBackground(),
-    consent = consentStore()
+    consent = serializedBackgroundConsent()
   const nextWakeAtMs = vi.fn<() => Promise<number | undefined>>().mockResolvedValue(2000)
   const coordinator = new ScheduleBackgroundCoordinator({
     entry,
@@ -42,6 +16,26 @@ function setup() {
   return { entry, consent, coordinator, nextWakeAtMs }
 }
 describe('schedule background consent', () => {
+  it('bounds a stuck wake barrier with a named timeout and reports that no work started', async () => {
+    vi.useFakeTimers()
+    try {
+      const { coordinator, consent } = setup()
+      const held = Promise.withResolvers<undefined>()
+      const holding = consent.store.exclusive(() => held.promise)
+      const barrier = coordinator.wakeBarrier()
+      const assertion = expect(barrier).rejects.toThrow(
+        UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout,
+      )
+      await vi.advanceTimersByTimeAsync(SCHEDULE_WAKE_BARRIER_TIMEOUT_MS)
+      await assertion
+      held.resolve(undefined)
+      await holding
+      await coordinator.wakeBarrier()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
   it.each(['notNow', 'never'] as const)(
     'remembers %s across hosts without registering or asking again',
     async (choice) => {

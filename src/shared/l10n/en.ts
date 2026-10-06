@@ -38,6 +38,8 @@ export const EN = {
         'The schedule host could not start for this workspace. Schedule controls are unavailable; ordinary chat remains available.',
       backgroundRearmUnavailable:
         'This launchd wake cannot reconfigure its own entry. An external rearm helper is required.',
+      wakeBarrierTimeout:
+        'The schedule wake timed out waiting for background reconciliation. No scheduled work started.',
     },
     settings: {
       enabled:

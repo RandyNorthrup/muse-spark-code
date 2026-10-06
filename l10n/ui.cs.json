@@ -2778,7 +2778,8 @@
       "unsafeLauncher": "Nebezpečná cesta ke spouštěči plánů: {path}",
       "paidAuthorizationRequired": "Placené plány vyžadují --scheduled-prompts a výslovné --max-budget-usd pokrývající oba finanční limity.",
       "cleanupFailed": "Požadavek na plán byl dokončen, ale úklid selhal. Uchovejte přijaté ID; návratový kód 3 znamená, že úklid vyžaduje pozornost.",
-      "hostUnavailable": "Hostitel plánů se pro tento pracovní prostor nespustil. Ovládání plánů není dostupné; běžný chat zůstává dostupný."
+      "hostUnavailable": "Hostitel plánů se pro tento pracovní prostor nespustil. Ovládání plánů není dostupné; běžný chat zůstává dostupný.",
+      "wakeBarrierTimeout": "Plánované spuštění překročilo časový limit čekání na synchronizaci běhu na pozadí. Žádná plánovaná práce nezačala."
     }
   }
 }

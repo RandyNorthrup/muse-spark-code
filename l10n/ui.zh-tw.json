@@ -2490,7 +2490,8 @@
       "unsafeLauncher": "不安全的排程啟動程式路徑：{path}",
       "paidAuthorizationRequired": "付費排程需要 --scheduled-prompts 與明確指定的 --max-budget-usd，預算必須涵蓋兩項費用上限。",
       "cleanupFailed": "排程請求已完成，但清理失敗。請保留已接受的 ID；結束代碼 3 表示清理需要處理。",
-      "hostUnavailable": "無法為此工作區啟動排程服務。排程控制無法使用；一般聊天仍可使用。"
+      "hostUnavailable": "無法為此工作區啟動排程服務。排程控制無法使用；一般聊天仍可使用。",
+      "wakeBarrierTimeout": "排程執行在等待背景同步時逾時。未啟動任何排程工作。"
     }
   }
 }

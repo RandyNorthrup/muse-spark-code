@@ -1,19 +1,22 @@
 import { describe, expect, it, vi } from 'vitest'
-import { ScheduleRuntime } from '../../src/runtime/schedules/runtime'
+import { ScheduleRuntime, type ScheduleRuntimeDeps } from '../../src/runtime/schedules/runtime'
 import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { ScheduleSurface } from '../../src/runtime/schedules/surface'
 import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { UI_TEXT } from '../../src/shared/constants'
 import { FakeScheduleBackground } from './helpers/schedules/background'
+import type { ScheduleWakeAuthorization } from '../../src/runtime/schedules/registration'
+import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
 import type { ScheduleControlPort } from '../../src/runtime/schedules/command'
 import {
   fakeRuntimeScheduleControl,
   fakeScheduleDraft,
   transientBackgroundConsent,
+  serializedBackgroundConsent,
 } from './helpers/schedules/runtimeFixtures'
 
-function setup(platform?: NodeJS.Platform) {
+function setup(platform?: NodeJS.Platform, overrides: Partial<ScheduleRuntimeDeps> = {}) {
   const control = fakeRuntimeScheduleControl()
   const host = new RuntimeScheduleHost({ deliver: vi.fn() }),
     entry = new FakeScheduleBackground()
@@ -40,6 +43,9 @@ function setup(platform?: NodeJS.Platform) {
     })
   const controlFor = vi.fn().mockResolvedValue(control),
     dueWorkspaces = vi.fn<() => Promise<readonly string[]>>().mockResolvedValue(['/one', '/two'])
+  const verifyWake = vi
+    .fn<(id?: string) => Promise<ScheduleWakeAuthorization>>()
+    .mockResolvedValue({ scheduledPrompts: false })
   const runtime = new ScheduleRuntime({
     controlFor,
     host,
@@ -48,7 +54,9 @@ function setup(platform?: NodeJS.Platform) {
     watchWorkspace,
     dueWorkspaces,
     close,
+    verifyWake,
     ...(platform !== undefined && { platform }),
+    ...overrides,
   })
   return {
     runtime,
@@ -61,9 +69,139 @@ function setup(platform?: NodeJS.Platform) {
     entry,
     reconcile,
     background,
+    verifyWake,
   }
 }
 describe('schedule runtime lifecycle', () => {
+  it('breaks the macOS cycle when a wake publishes its marker during reconciliation next-fire lookup', async () => {
+    vi.useFakeTimers()
+    const lookup = Promise.withResolvers<number | undefined>(),
+      entered = Promise.withResolvers<undefined>(),
+      wakeExit = Promise.withResolvers<undefined>()
+    let isWakeLive = false
+    const waitForWake = vi.fn((_dataDir: string, shouldWait = true) => {
+      if (!isWakeLive) return Promise.resolve()
+      return shouldWait
+        ? wakeExit.promise
+        : Promise.reject(new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable))
+    })
+    const entry = new NativeScheduleBackground({
+      platform: 'darwin',
+      homeDir: '/home/rig',
+      dataDir: '/data',
+      executable: '/node',
+      agentFile: '/acp.js',
+      uid: 1000,
+      effectiveUid: 1000,
+      now: () => 1000,
+      isWakeProcess: false,
+      authorization: () => Promise.resolve({ scheduledPrompts: false }),
+      files: {
+        trustedPath: (file) => Promise.resolve(file),
+        prepare: vi.fn(),
+        hash: vi.fn(),
+        waitForWake,
+        read: vi.fn(),
+        write: vi.fn(),
+        remove: vi.fn(),
+      },
+      run: vi.fn().mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' }),
+    })
+    const background = new ScheduleBackgroundCoordinator({
+      entry,
+      consent: serializedBackgroundConsent().store,
+      now: () => 1000,
+      nextWakeAtMs: () => {
+        entered.resolve(undefined)
+        return lookup.promise
+      },
+    })
+    const { runtime, controlFor, control } = setup('darwin', { background })
+    let hasMutationSettled = false
+    const mutation = (async () => {
+      try {
+        await background.decide({ choice: 'yes', decidedAtMs: 1000 })
+      } catch {
+        hasMutationSettled = true
+      }
+    })()
+    await entered.promise
+    isWakeLive = true
+    const command = runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    lookup.resolve(61_000)
+    try {
+      await vi.advanceTimersByTimeAsync(0)
+      expect(hasMutationSettled).toBe(true)
+      expect(waitForWake).toHaveBeenCalledWith('/data', false)
+      expect(controlFor).toHaveBeenCalledOnce()
+      expect(control.runDue).toHaveBeenCalledOnce()
+      expect(await command).toMatchObject({ exitCode: 0 })
+    } finally {
+      isWakeLive = false
+      wakeExit.resolve(undefined)
+      await mutation
+      await command
+      await runtime.close()
+      vi.useRealTimers()
+    }
+  })
+  it('uses verified native authorization for each fire and ignores unverified run-due flags', async () => {
+    for (const authorization of [
+      { scheduledPrompts: false },
+      { scheduledPrompts: true, maxBudgetUsd: 1 },
+    ]) {
+      const { runtime, controlFor, control, verifyWake } = setup()
+      verifyWake.mockResolvedValue(authorization)
+      expect(
+        await runtime.command(
+          {
+            operation: 'run-due',
+            isJson: true,
+            registrationId: 'verified-record',
+            scheduledPrompts: true,
+            maxBudgetUsd: 100,
+          },
+          '/launcher',
+        ),
+      ).toMatchObject({ exitCode: 0 })
+      expect(verifyWake).toHaveBeenCalledWith('verified-record')
+      expect(controlFor).toHaveBeenCalledWith('/launcher', {
+        source: 'cli',
+        isInteractive: false,
+        ...authorization,
+      })
+      expect(control.runDue).toHaveBeenCalledOnce()
+    }
+  })
+  it('refuses a tampered native wake before acquiring controls or starting work', async () => {
+    const { runtime, verifyWake, controlFor, control } = setup()
+    verifyWake.mockRejectedValue(new Error('untrusted record'))
+    expect(
+      await runtime.command(
+        { operation: 'run-due', isJson: true, registrationId: 'record' },
+        '/launcher',
+      ),
+    ).toMatchObject({ exitCode: 1 })
+    expect(controlFor).not.toHaveBeenCalled()
+    expect(control.runDue).not.toHaveBeenCalled()
+    await runtime.close()
+  })
+  it('reports a failed macOS wake barrier without acquiring controls or starting work', async () => {
+    const { runtime, background, controlFor, verifyWake, control } = setup('darwin')
+    vi.spyOn(background, 'wakeBarrier').mockRejectedValue(
+      new Error(UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout),
+    )
+    const result = await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
+    expect(JSON.parse(result.output)).toEqual({
+      kind: 'refused',
+      reason: UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout,
+    })
+    expect(result.exitCode).toBe(1)
+    expect(controlFor).not.toHaveBeenCalled()
+    expect(verifyWake).not.toHaveBeenCalled()
+    expect(control.runDue).not.toHaveBeenCalled()
+    await runtime.close()
+  })
   it('blocks macOS engine startup behind a mutator that already holds the shared consent lock', async () => {
     const { runtime, control, controlFor, background } = setup('darwin')
     const held = Promise.withResolvers<undefined>()

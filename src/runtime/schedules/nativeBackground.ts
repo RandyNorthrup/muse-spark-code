@@ -1,4 +1,4 @@
-import path from 'node:path'
+import { createHash } from 'node:crypto'
 import process from 'node:process'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/constants'
@@ -9,12 +9,24 @@ import {
 import {
   backgroundRegistration,
   backgroundRegistrationId,
+  backgroundDefinitionPaths,
+  backgroundRecordPath,
+  backgroundWakeRecordSchema,
+  unsafeScheduleLauncher,
+  type ScheduleWakeAuthorization,
   type BackgroundRegistrationInput,
 } from './registration'
 
 export interface BackgroundFilePort {
-  trustedPath(file: string, platform: NodeJS.Platform, uid: number): Promise<string>
-  waitForWake(dataDir: string): Promise<void>
+  readonly trustedPath: (
+    file: string,
+    platform: NodeJS.Platform,
+    uid: number,
+    kind?: 'definition' | 'directory',
+  ) => Promise<string>
+  prepare(file: string, platform: NodeJS.Platform, uid: number): Promise<void>
+  hash(file: string): Promise<string | undefined>
+  waitForWake(dataDir: string, shouldWait?: boolean): Promise<void>
   read(file: string): Promise<string | undefined>
   write(file: string, text: string, encoding?: 'utf16le'): Promise<void>
   remove(file: string): Promise<void>
@@ -32,9 +44,10 @@ export interface NativeBackgroundDeps extends Omit<
   /** Set by the trusted runtime command, never by a schedule or event payload. */
   readonly isWakeProcess: boolean
   readonly files: BackgroundFilePort
+  /** S supplies persisted explicit authorization, never a draft or native argument. */
+  readonly authorization: () => Promise<ScheduleWakeAuthorization>
   readonly run: (file: string, args: readonly string[]) => Promise<BackgroundProcessResult>
 }
-const wakeSchema = z.strictObject({ nextWakeAtMs: z.int().check(z.gte(0)) })
 
 /** All mutating calls are serialized by BackgroundCoordinator's durable lock. */
 export class NativeScheduleBackground implements ScheduleBackgroundPort {
@@ -43,16 +56,8 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
   private readonly paths: readonly string[]
   constructor(private readonly deps: NativeBackgroundDeps) {
     this.id = backgroundRegistrationId(deps.homeDir)
-    const p = deps.platform === 'win32' ? path.win32 : path.posix
-    this.stateFile = p.join(deps.dataDir, 'background-wake.json')
-    const unixPaths =
-      deps.platform === 'darwin'
-        ? [p.join(deps.homeDir, 'Library', 'LaunchAgents', `${this.id}.plist`)]
-        : [
-            p.join(deps.homeDir, '.config', 'systemd', 'user', `${this.id}.service`),
-            p.join(deps.homeDir, '.config', 'systemd', 'user', `${this.id}.timer`),
-          ]
-    this.paths = deps.platform === 'win32' ? [p.join(deps.dataDir, `${this.id}.xml`)] : unixPaths
+    this.stateFile = backgroundRecordPath(deps.platform, deps.dataDir)
+    this.paths = backgroundDefinitionPaths(deps.platform, deps.homeDir, deps.dataDir)
   }
   private async succeeded(file: string, args: readonly string[]): Promise<void> {
     const result = await this.deps.run(file, args)
@@ -129,7 +134,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     const stored = await this.deps.files.read(this.stateFile)
     if (stored === undefined) return { registered: true }
     const input: unknown = JSON.parse(stored)
-    return { registered: true, nextWakeAtMs: wakeSchema.parse(input).nextWakeAtMs }
+    return { registered: true, nextWakeAtMs: backgroundWakeRecordSchema.parse(input).nextWakeAtMs }
   }
   async register(
     nextWakeAtMs: number,
@@ -145,29 +150,80 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     if ((effectiveUid === 0 || this.deps.uid === 0) && this.deps.platform !== 'win32')
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     if (this.deps.platform === 'darwin') {
-      await this.deps.files.waitForWake(this.deps.dataDir)
+      await this.deps.files.waitForWake(this.deps.dataDir, false)
       await this.assertLaunchdIdle()
     }
+    const windowsUserId = this.deps.platform === 'win32' ? await this.windowsOwnerId() : undefined
+    const executable = await this.deps.files.trustedPath(
+      this.deps.executable,
+      this.deps.platform,
+      this.deps.uid,
+    )
+    const agentFile = await this.deps.files.trustedPath(
+      this.deps.agentFile,
+      this.deps.platform,
+      this.deps.uid,
+    )
     const registration = backgroundRegistration({
       ...this.deps,
-      ...(this.deps.platform === 'win32' && { windowsUserId: await this.windowsOwnerId() }),
-      executable: await this.deps.files.trustedPath(
-        this.deps.executable,
-        this.deps.platform,
-        this.deps.uid,
-      ),
-      agentFile: await this.deps.files.trustedPath(
-        this.deps.agentFile,
-        this.deps.platform,
-        this.deps.uid,
-      ),
+      ...(windowsUserId !== undefined && { windowsUserId }),
+      executable,
+      agentFile,
       nowMs: this.deps.now(),
       nextWakeAtMs,
     })
     const firstFile = registration.files[0]
     if (firstFile === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    const authorization = await this.deps.authorization()
+    if (
+      authorization.scheduledPrompts &&
+      (authorization.maxBudgetUsd === undefined ||
+        !Number.isFinite(authorization.maxBudgetUsd) ||
+        authorization.maxBudgetUsd <= 0)
+    )
+      throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
+    const record = backgroundWakeRecordSchema.parse({
+      id: this.id,
+      nextWakeAtMs: registration.wakeAtMs,
+      executable,
+      agentFile,
+      scheduledPrompts: authorization.scheduledPrompts,
+      ...(authorization.maxBudgetUsd !== undefined && { maxBudgetUsd: authorization.maxBudgetUsd }),
+      files: registration.files.map((file) => ({
+        path: file.path,
+        sha256: createHash('sha256')
+          .update(
+            file.encoding === 'utf16le'
+              ? Buffer.from(`\u{FEFF}${file.text}`, 'utf16le')
+              : file.text,
+          )
+          .digest('hex'),
+      })),
+    })
+    for (const file of [...this.paths, this.stateFile])
+      await this.deps.files.prepare(file, this.deps.platform, this.deps.uid)
     for (const file of registration.files)
       await this.deps.files.write(file.path, file.text, file.encoding)
+    await this.deps.files.write(this.stateFile, JSON.stringify(record))
+    const verify = async () => {
+      for (const file of [
+        ...record.files,
+        {
+          path: this.stateFile,
+          sha256: createHash('sha256').update(JSON.stringify(record)).digest('hex'),
+        },
+      ]) {
+        await this.deps.files.trustedPath(
+          file.path,
+          this.deps.platform,
+          this.deps.uid,
+          'definition',
+        )
+        if ((await this.deps.files.hash(file.path)) !== file.sha256)
+          throw unsafeScheduleLauncher(file.path)
+      }
+    }
+    await verify()
     switch (this.deps.platform) {
       case 'win32': {
         await this.succeeded('schtasks.exe', [
@@ -199,16 +255,13 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       }
     }
     if (!(await this.isRegistered())) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    await this.deps.files.write(
-      this.stateFile,
-      JSON.stringify({ nextWakeAtMs: registration.wakeAtMs }),
-    )
+    await verify()
   }
   async remove(): Promise<void> {
     if (this.deps.platform === 'darwin' && this.deps.isWakeProcess)
       throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
     if (this.deps.platform === 'darwin') {
-      await this.deps.files.waitForWake(this.deps.dataDir)
+      await this.deps.files.waitForWake(this.deps.dataDir, false)
       await this.assertLaunchdIdle()
     }
     if (this.deps.platform === 'linux') {

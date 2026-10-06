@@ -57,6 +57,7 @@ const entry = new NativeScheduleBackground({
   uid: 0,
   now: Date.now,
   isWakeProcess: false,
+  authorization: () => Promise.resolve({ scheduledPrompts: false }),
   files: nodeBackgroundFiles(),
   run,
 })

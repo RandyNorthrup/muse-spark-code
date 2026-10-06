@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Close the second M115 adapter review: trust-check and hash native definition
+  files and their directory chains at registration and every fire, recover paid
+  authorization from the verified registration record, break the macOS wake
+  reconciliation lock cycle with immediate busy refusals and a bounded startup
+  barrier, and show ACP cleanup warnings alongside accepted IDs. Production
+  scheduler integration and native platform receipts remain with M115 W.
+
 - Harden the internal M115 schedule adapters after review: verify canonical
   launcher permissions at registration and wake, reject privileged identities,
   require explicit paid authorization and budget, start ACP Stop independently

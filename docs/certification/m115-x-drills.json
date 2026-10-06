@@ -1602,5 +1602,235 @@
     "sha256": "0bf00c73c054570ce377b0712263f57db48dfea4edb75cae73771158e4b5c873",
     "restoredByteExact": true,
     "sha256AfterRestore": "0bf00c73c054570ce377b0712263f57db48dfea4edb75cae73771158e4b5c873"
+  },
+  {
+    "id": "FX32",
+    "file": "src/acp/schedules.ts",
+    "test": "test/unit/acpSchedules.test.ts",
+    "named": "returns the accepted id together with a cleanup warning after removal commits",
+    "from": "return result.warning === undefined ? result.output : `${result.output}\\n${result.warning}`",
+    "to": "return result.output",
+    "exitCode": 1,
+    "sha256": "0f7ef1924ed3b87db901b69b9d2cbd927a6d24603a6c448dfe9d8fc640ffd25a",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "0f7ef1924ed3b87db901b69b9d2cbd927a6d24603a6c448dfe9d8fc640ffd25a",
+    "failedTests": [
+      "test/unit/acpSchedules.test.ts > ACP schedule adapter > returns the accepted id together with a cleanup warning after removal commits"
+    ]
+  },
+  {
+    "id": "FX33",
+    "file": "src/runtime/schedules/nativeBackground.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "trusts every definition and record at registration and refuses replacement or unsafe paths",
+    "from": "await this.deps.files.prepare(file, this.deps.platform, this.deps.uid)",
+    "to": "await Promise.resolve()",
+    "exitCode": 1,
+    "sha256": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a win32 fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a darwin fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a linux fire"
+    ]
+  },
+  {
+    "id": "FX34",
+    "file": "src/runtime/schedules/nativeBackground.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "refuses a definition replaced or linked after publication",
+    "from": "await this.deps.files.trustedPath(\n          file.path,\n          this.deps.platform,\n          this.deps.uid,\n          'definition',\n        )",
+    "to": "await Promise.resolve()",
+    "exitCode": 1,
+    "sha256": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before win32 OS import",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before darwin OS import",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before linux OS import",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a win32 fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a darwin fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a linux fire"
+    ]
+  },
+  {
+    "id": "FX35",
+    "file": "src/runtime/schedules/nodeBackgroundIo.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "trusts every definition and record at registration and refuses replacement or unsafe paths",
+    "from": "if ((await (io.hash ?? files.hash)(definition)) !== expected.sha256)",
+    "to": "if (false)",
+    "exitCode": 1,
+    "sha256": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a win32 fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a darwin fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a linux fire"
+    ]
+  },
+  {
+    "id": "FX36",
+    "file": "src/runtime/schedules/nodeBackgroundIo.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "rejects symlinks, reparse points and writable directory chains",
+    "from": "if (kind !== undefined && info.isSymbolicLink()) throw unsafeScheduleLauncher(target)",
+    "to": "if (false) throw unsafeScheduleLauncher(target)",
+    "exitCode": 1,
+    "sha256": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > rejects symlinks, reparse points and writable directory chains for darwin definitions",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > rejects symlinks, reparse points and writable directory chains for linux definitions",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > rejects symlinks, reparse points and writable directory chains for win32 definitions"
+    ]
+  },
+  {
+    "id": "FX37",
+    "file": "src/runtime/schedules/nodeBackgroundIo.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "rejects symlinks, reparse points and writable directory chains",
+    "from": "const reparseCheck =\n            kind === undefined",
+    "to": "const reparseCheck =\n            true",
+    "exitCode": 1,
+    "sha256": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > rejects symlinks, reparse points and writable directory chains for win32 definitions"
+    ]
+  },
+  {
+    "id": "FX38",
+    "file": "src/runtime/schedules/nodeBackgroundIo.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "reads paid flag and hard budget only from the verified",
+    "from": "if (record.scheduledPrompts !== true) return { scheduledPrompts: false }",
+    "to": "if (false) return { scheduledPrompts: false }",
+    "exitCode": 1,
+    "sha256": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a win32 fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a darwin fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > trusts every definition and record at registration and refuses replacement or unsafe paths at a linux fire",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > reads paid flag and hard budget only from the verified win32 record and turns paid features off without the flag",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > reads paid flag and hard budget only from the verified darwin record and turns paid features off without the flag",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > reads paid flag and hard budget only from the verified linux record and turns paid features off without the flag"
+    ]
+  },
+  {
+    "id": "FX39",
+    "file": "src/runtime/schedules/runtime.ts",
+    "test": "test/unit/scheduleRuntime.test.ts",
+    "named": "uses verified native authorization for each fire and ignores unverified run-due flags",
+    "from": "authorization = await this.deps.verifyWake(options.registrationId)",
+    "to": "await this.deps.verifyWake(options.registrationId)",
+    "exitCode": 1,
+    "sha256": "b20c68476f792cf5b07a1d7b00757bbe79dcb6aa1174ef4aab90f609b0a105c3",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "b20c68476f792cf5b07a1d7b00757bbe79dcb6aa1174ef4aab90f609b0a105c3",
+    "failedTests": [
+      "test/unit/scheduleRuntime.test.ts > schedule runtime lifecycle > uses verified native authorization for each fire and ignores unverified run-due flags"
+    ]
+  },
+  {
+    "id": "FX40",
+    "file": "src/runtime/schedules/nativeBackground.ts",
+    "test": "test/unit/scheduleRuntime.test.ts",
+    "named": "breaks the macOS cycle when a wake publishes its marker during reconciliation next-fire lookup",
+    "from": "await this.deps.files.waitForWake(this.deps.dataDir, false)",
+    "to": "await this.deps.files.waitForWake(this.deps.dataDir, true)",
+    "exitCode": 1,
+    "sha256": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "failedTests": [
+      "test/unit/scheduleRuntime.test.ts > schedule runtime lifecycle > breaks the macOS cycle when a wake publishes its marker during reconciliation next-fire lookup"
+    ]
+  },
+  {
+    "id": "FX41",
+    "file": "src/runtime/schedules/background.ts",
+    "test": "test/unit/scheduleBackground.test.ts",
+    "named": "bounds a stuck wake barrier with a named timeout and reports that no work started",
+    "from": "}, SCHEDULE_WAKE_BARRIER_TIMEOUT_MS)",
+    "to": "}, SCHEDULE_WAKE_BARRIER_TIMEOUT_MS + 1)",
+    "exitCode": 1,
+    "sha256": "d9f03a56e885cea14a0a8155f9be259fad0ff0f888d3b22f677b5dcf9b4655b5",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "d9f03a56e885cea14a0a8155f9be259fad0ff0f888d3b22f677b5dcf9b4655b5",
+    "failedTests": [
+      "test/unit/scheduleBackground.test.ts > schedule background consent > bounds a stuck wake barrier with a named timeout and reports that no work started"
+    ]
+  },
+  {
+    "id": "FX42",
+    "file": "src/runtime/schedules/args.ts",
+    "test": "test/unit/scheduleCommand.test.ts",
+    "named": "allows only a native record id on run-due and rejects paid authority or record paths in arguments",
+    "from": "values.registration !== undefined &&\n      (operation !== 'run-due' ||\n        !/^muse-spark-code-schedules-[a-f0-9]{64}$/.test(values.registration))",
+    "to": "false",
+    "exitCode": 1,
+    "sha256": "1f64a7b1f80c9f0de46d019fa361f95e8ff1f7ce47e0e1d6df5bce8d27b43660",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "1f64a7b1f80c9f0de46d019fa361f95e8ff1f7ce47e0e1d6df5bce8d27b43660",
+    "failedTests": [
+      "test/unit/scheduleCommand.test.ts > schedule terminal commands > allows only a native record id on run-due and rejects paid authority or record paths in arguments"
+    ]
+  },
+  {
+    "id": "FX43",
+    "file": "src/runtime/schedules/registration.ts",
+    "test": "test/unit/scheduleRegistration.test.ts",
+    "named": "uses a least-privilege, nonrepeating Task Scheduler time trigger and quoted fixed arguments",
+    "from": "[input.agentFile, 'schedule', 'run-due', '--json', '--registration', id]",
+    "to": "[input.agentFile, 'schedule', 'run-due', '--json']",
+    "exitCode": 1,
+    "sha256": "b4d00d96c6431a73aa4103b70f3e7f26d238398286b8b210d2139fcac8e93cda",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "b4d00d96c6431a73aa4103b70f3e7f26d238398286b8b210d2139fcac8e93cda",
+    "failedTests": [
+      "test/unit/scheduleRegistration.test.ts > one-shot OS schedule manifests > uses a least-privilege, nonrepeating Task Scheduler time trigger and quoted fixed arguments",
+      "test/unit/scheduleRegistration.test.ts > one-shot OS schedule manifests > uses a launchd calendar with no KeepAlive or RunAtLoad, rounding up to the minute",
+      "test/unit/scheduleRegistration.test.ts > one-shot OS schedule manifests > uses a systemd user oneshot with one absolute UTC calendar and no credential or path expansion"
+    ]
+  },
+  {
+    "id": "FX44",
+    "file": "src/runtime/schedules/nativeBackground.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "refuses a definition replaced or linked after publication",
+    "from": "if ((await this.deps.files.hash(file.path)) !== file.sha256)",
+    "to": "if (false)",
+    "exitCode": 1,
+    "sha256": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "cf219e93fcbd21ed57fb78713bf59e00953d1e868076ec6c93b263b89ce451bc",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before win32 OS import",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before darwin OS import",
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > refuses a definition replaced or linked after publication before linux OS import"
+    ]
+  },
+  {
+    "id": "FX45",
+    "file": "src/runtime/schedules/nodeBackgroundIo.ts",
+    "test": "test/unit/nativeScheduleBackground.test.ts",
+    "named": "rejects symlinks, reparse points and writable directory chains",
+    "from": "const reparseCheck =\n            kind === undefined",
+    "to": "const reparseCheck =\n            true",
+    "exitCode": 1,
+    "sha256": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "restoredByteExact": true,
+    "sha256AfterRestore": "608409198848b4bfbd4246440c119b4d9382d3139e401b5ba4e8e8737ba0a50c",
+    "failedTests": [
+      "test/unit/nativeScheduleBackground.test.ts > native background lifecycle > rejects symlinks, reparse points and writable directory chains for win32 definitions"
+    ]
   }
 ]

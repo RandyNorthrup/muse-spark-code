@@ -2490,7 +2490,8 @@
       "unsafeLauncher": "안전하지 않은 예약 실행기 경로: {path}",
       "paidAuthorizationRequired": "유료 예약에는 --scheduled-prompts와 두 요금 한도를 모두 충족하는 명시적 --max-budget-usd가 필요합니다.",
       "cleanupFailed": "예약 요청은 완료되었지만 정리에 실패했습니다. 승인된 ID를 보관하세요. 종료 코드 3은 정리에 주의가 필요함을 뜻합니다.",
-      "hostUnavailable": "이 작업 영역의 예약 호스트를 시작하지 못했습니다. 예약 제어는 사용할 수 없지만 일반 채팅은 계속 사용할 수 있습니다."
+      "hostUnavailable": "이 작업 영역의 예약 호스트를 시작하지 못했습니다. 예약 제어는 사용할 수 없지만 일반 채팅은 계속 사용할 수 있습니다.",
+      "wakeBarrierTimeout": "예약 실행이 백그라운드 동기화를 기다리다가 시간 초과되었습니다. 예약된 작업은 시작되지 않았습니다."
     }
   }
 }

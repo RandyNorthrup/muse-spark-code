@@ -2778,7 +2778,8 @@
       "unsafeLauncher": "Niebezpieczna ścieżka programu uruchamiającego harmonogram: {path}",
       "paidAuthorizationRequired": "Płatne harmonogramy wymagają --scheduled-prompts oraz jawnego --max-budget-usd pokrywającego oba limity kosztów.",
       "cleanupFailed": "Żądanie harmonogramu zakończono, ale sprzątanie nie powiodło się. Zachowaj przyjęty identyfikator; kod wyjścia 3 oznacza problem ze sprzątaniem.",
-      "hostUnavailable": "Nie udało się uruchomić hosta harmonogramów dla tego obszaru roboczego. Sterowanie harmonogramami jest niedostępne; zwykły czat pozostaje dostępny."
+      "hostUnavailable": "Nie udało się uruchomić hosta harmonogramów dla tego obszaru roboczego. Sterowanie harmonogramami jest niedostępne; zwykły czat pozostaje dostępny.",
+      "wakeBarrierTimeout": "Zaplanowane uruchomienie przekroczyło limit oczekiwania na synchronizację w tle. Żadna zaplanowana praca nie została rozpoczęta."
     }
   }
 }

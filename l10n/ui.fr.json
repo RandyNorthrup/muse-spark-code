@@ -2682,7 +2682,8 @@
       "unsafeLauncher": "Chemin non sûr du lanceur de tâches planifiées : {path}",
       "paidAuthorizationRequired": "Les tâches payantes nécessitent --scheduled-prompts et un --max-budget-usd explicite couvrant les deux plafonds de dépenses.",
       "cleanupFailed": "La demande de planification est terminée, mais le nettoyage a échoué. Conservez l’identifiant accepté ; le code de sortie 3 indique que le nettoyage nécessite une intervention.",
-      "hostUnavailable": "Le service de planification n’a pas pu démarrer pour cet espace de travail. Les commandes de planification sont indisponibles ; le chat habituel reste disponible."
+      "hostUnavailable": "Le service de planification n’a pas pu démarrer pour cet espace de travail. Les commandes de planification sont indisponibles ; le chat habituel reste disponible.",
+      "wakeBarrierTimeout": "Le lancement planifié a dépassé le délai d’attente de la synchronisation en arrière-plan. Aucune tâche planifiée n’a démarré."
     }
   }
 }

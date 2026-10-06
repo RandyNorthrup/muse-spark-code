@@ -1,6 +1,7 @@
 // OS manifests contain only the trusted installed launcher and fixed arguments.
 import { createHash } from 'node:crypto'
 import path from 'node:path'
+import * as z from 'zod/mini'
 import {
   ACP_AGENT_TITLE,
   MILLISECONDS_PER_SECOND,
@@ -54,6 +55,42 @@ export interface BackgroundRegistration {
   }[]
 }
 
+export interface ScheduleWakeAuthorization {
+  readonly scheduledPrompts: boolean
+  readonly maxBudgetUsd?: number
+}
+
+export const backgroundWakeRecordSchema = z.strictObject({
+  id: z.string(),
+  nextWakeAtMs: z.int().check(z.gte(0)),
+  executable: z.string(),
+  agentFile: z.string(),
+  files: z.array(
+    z.strictObject({ path: z.string(), sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/)) }),
+  ),
+  scheduledPrompts: z.optional(z.boolean()),
+  maxBudgetUsd: z.optional(z.number().check(z.gt(0))),
+})
+
+export function backgroundDefinitionPaths(
+  platform: NodeJS.Platform,
+  homeDir: string,
+  dataDir: string,
+): readonly string[] {
+  const p = platform === 'win32' ? path.win32 : path.posix
+  const id = backgroundRegistrationId(homeDir)
+  if (platform === 'win32') return [p.join(dataDir, `${id}.xml`)]
+  return platform === 'darwin'
+    ? [p.join(homeDir, 'Library', 'LaunchAgents', `${id}.plist`)]
+    : ['service', 'timer'].map((extension) =>
+        p.join(homeDir, '.config', 'systemd', 'user', `${id}.${extension}`),
+      )
+}
+
+export function backgroundRecordPath(platform: NodeJS.Platform, dataDir: string): string {
+  return (platform === 'win32' ? path.win32 : path.posix).join(dataDir, 'background-wake.json')
+}
+
 export function backgroundRegistrationId(homeDir: string): string {
   return `muse-spark-code-schedules-${createHash('sha256').update(homeDir).digest('hex')}`
 }
@@ -100,7 +137,7 @@ export function backgroundRegistration(input: BackgroundRegistrationInput): Back
   )
     throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
   const id = backgroundRegistrationId(input.homeDir)
-  const args = [input.agentFile, 'schedule', 'run-due', '--json']
+  const args = [input.agentFile, 'schedule', 'run-due', '--json', '--registration', id]
   if (input.platform === 'win32') {
     const text = `<?xml version="1.0" encoding="UTF-16"?><Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task"><Triggers><TimeTrigger><StartBoundary>${new Date(input.nextWakeAtMs).toISOString()}</StartBoundary><Enabled>true</Enabled></TimeTrigger></Triggers><Principals><Principal id="Owner"><UserId>${xml(input.windowsUserId ?? '')}</UserId><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals><Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><StartWhenAvailable>true</StartWhenAvailable></Settings><Actions Context="Owner"><Exec><Command>${xml(input.executable)}</Command><Arguments>${xml(args.map((arg) => windowsArgument(arg)).join(' '))}</Arguments></Exec></Actions></Task>`
     return {

@@ -35,7 +35,7 @@ export function acpSchedules(
         return UI_TEXT.scheduleV2.runtime.usage
       const control = await controlFor(context)
       const result = await runScheduleCommand(parsed.options, context.cwd, control)
-      return result.output
+      return result.warning === undefined ? result.output : `${result.output}\n${result.warning}`
     },
   }
 }

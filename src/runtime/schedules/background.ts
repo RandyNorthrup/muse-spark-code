@@ -1,5 +1,5 @@
 import type * as z from 'zod/mini'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_WAKE_BARRIER_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import {
   scheduleBackgroundConsentSchema,
   scheduleBackgroundStatusSchema,
@@ -29,11 +29,22 @@ export class ScheduleBackgroundCoordinator {
     if (next === undefined) await this.deps.entry.remove()
     else await this.deps.entry.register(next, consent)
   }
-  /** The CLI published its wake marker first. A mutator already holding this
-   * lock must finish before the wake starts an engine; later mutators see the
-   * marker and wait for kernel exit. Never hold the consent lock across a turn. */
+  /** Mutators must refuse a live marker without waiting while holding this lock.
+   * Never hold the consent lock across a turn or wait forever to acquire it. */
   async wakeBarrier(): Promise<void> {
-    await this.deps.consent.exclusive(() => Promise.resolve())
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        this.deps.consent.exclusive(() => Promise.resolve()),
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(() => {
+            reject(new Error(UI_TEXT.scheduleV2.runtime.wakeBarrierTimeout))
+          }, SCHEDULE_WAKE_BARRIER_TIMEOUT_MS)
+        }),
+      ])
+    } finally {
+      clearTimeout(timer)
+    }
   }
   async firstSchedule(ask: () => Promise<unknown>): Promise<void> {
     await this.deps.consent.exclusive(async (current, save) => {

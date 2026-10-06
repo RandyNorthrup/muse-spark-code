@@ -2586,7 +2586,8 @@
       "unsafeLauncher": "Nem biztonságos ütemezőindító elérési út: {path}",
       "paidAuthorizationRequired": "A fizetős ütemezésekhez --scheduled-prompts és mindkét költségkorlátot fedező, kifejezett --max-budget-usd szükséges.",
       "cleanupFailed": "Az ütemezési kérés befejeződött, de a takarítás sikertelen. Őrizze meg az elfogadott azonosítót; a 3-as kilépési kód takarítási problémát jelez.",
-      "hostUnavailable": "Az ütemező gazdafolyamata nem indult el ehhez a munkaterülethez. Az ütemezési vezérlők nem érhetők el; a szokásos csevegés továbbra is elérhető."
+      "hostUnavailable": "Az ütemező gazdafolyamata nem indult el ehhez a munkaterülethez. Az ütemezési vezérlők nem érhetők el; a szokásos csevegés továbbra is elérhető.",
+      "wakeBarrierTimeout": "Az ütemezett indítás túllépte a háttérbeli egyeztetésre várás időkorlátját. Nem indult el ütemezett munka."
     }
   }
 }

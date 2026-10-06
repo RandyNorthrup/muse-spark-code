@@ -23,6 +23,7 @@ export interface ScheduleCommandOptions {
   readonly hours?: string
   readonly scheduledPrompts?: boolean
   readonly maxBudgetUsd?: number
+  readonly registrationId?: string
 }
 
 /** Trusted host metadata, never read from a schedule draft or transport frame. */
@@ -61,13 +62,21 @@ export function parseScheduleCommand(argv: readonly string[]): ScheduleCommandPa
         hours: { type: 'string' },
         'scheduled-prompts': { type: 'boolean' },
         'max-budget-usd': { type: 'string' },
+        registration: { type: 'string' },
       },
     })
     const [operation, argument, ...extra] = positionals
     if (extra.length > 0 || values.cwd === '') return refused()
+    if (
+      values.registration !== undefined &&
+      (operation !== 'run-due' ||
+        !/^muse-spark-code-schedules-[a-f0-9]{64}$/.test(values.registration))
+    )
+      return refused()
     const common = {
       isJson: values.json === true,
       ...(values.cwd !== undefined && { cwd: values.cwd }),
+      ...(values.registration !== undefined && { registrationId: values.registration }),
     }
     if (operation === 'add') {
       const budget =

@@ -2682,7 +2682,8 @@
       "unsafeLauncher": "Ruta insegura del lanzador de tareas programadas: {path}",
       "paidAuthorizationRequired": "Las tareas de pago requieren --scheduled-prompts y un --max-budget-usd explícito que cubra ambos límites de gasto.",
       "cleanupFailed": "La solicitud de programación terminó, pero la limpieza falló. Conserve el ID aceptado; el código de salida 3 indica que la limpieza necesita atención.",
-      "hostUnavailable": "No se pudo iniciar el servicio de programación en este espacio de trabajo. Los controles no están disponibles; el chat habitual sigue disponible."
+      "hostUnavailable": "No se pudo iniciar el servicio de programación en este espacio de trabajo. Los controles no están disponibles; el chat habitual sigue disponible.",
+      "wakeBarrierTimeout": "La ejecución programada agotó el tiempo de espera de la sincronización en segundo plano. No se inició ninguna tarea programada."
     }
   }
 }
