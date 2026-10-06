@@ -13,7 +13,6 @@ import {
   vaultUseSchema,
   vaultOriginSchema,
   type VaultApprovalAnswer,
-  type VaultApprovalRequest,
   type VaultClockPort,
   type VaultItemMetadata,
   type VaultRequester,
@@ -84,6 +83,46 @@ export const vaultBrokerRequestSchema = z.strictObject({
 })
 export type VaultBrokerRequest = z.infer<typeof vaultBrokerRequestSchema>
 
+/** A ticket states which authority authorized it; a grant always names its audit id. */
+export const vaultApprovalResultSchema = z.discriminatedUnion('kind', [
+  z.strictObject({
+    kind: z.literal('ticket'),
+    ticket: vaultTicketSchema,
+    authority: z.discriminatedUnion('kind', [
+      z.strictObject({ kind: z.literal('mode') }),
+      z.strictObject({ kind: z.literal('grant'), grantId: id }),
+      z.strictObject({ kind: z.literal('user') }),
+    ]),
+  }),
+  z.strictObject({
+    kind: z.literal('denied'),
+    reason: z.enum([
+      'locked',
+      'policy',
+      'unattended',
+      'presence',
+      'tainted',
+      'ceiling',
+      'scope',
+      'expired',
+      'replay',
+      'digest',
+      'peer',
+      'firstPartyOnly',
+      'disclosure',
+      'remoteUse',
+    ]),
+  }),
+])
+export type VaultApprovalResult = z.infer<typeof vaultApprovalResultSchema>
+
+/** request returns a pending UI approval, an authorized use, or a fail-closed denial. */
+export const vaultAuthorizationResultSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('approval'), request: vaultApprovalRequestSchema }),
+  ...vaultApprovalResultSchema.def.options,
+])
+export type VaultAuthorizationResult = z.infer<typeof vaultAuthorizationResultSchema>
+
 export const vaultBrokerResponseSchema = z.strictObject({
   v: z.literal(VAULT_PROTOCOL_VERSION),
   sequence: counter,
@@ -94,8 +133,7 @@ export const vaultBrokerResponseSchema = z.strictObject({
       kind: z.literal('items'),
       items: z.array(publicItem).check(z.maxLength(VAULT_LIMITS.items)),
     }),
-    z.strictObject({ kind: z.literal('approval'), request: vaultApprovalRequestSchema }),
-    z.strictObject({ kind: z.literal('ticket'), ticket: vaultTicketSchema }),
+    ...vaultAuthorizationResultSchema.def.options,
     z.strictObject({
       kind: z.literal('audit'),
       records: z.array(vaultAuditRecordSchema).check(z.maxLength(VAULT_LIMITS.items)),
@@ -105,25 +143,6 @@ export const vaultBrokerResponseSchema = z.strictObject({
       text: z.string().check(z.maxLength(VAULT_LIMITS.frameBytes)),
     }),
     z.strictObject({ kind: z.literal('ok') }),
-    z.strictObject({
-      kind: z.literal('denied'),
-      reason: z.enum([
-        'locked',
-        'policy',
-        'unattended',
-        'presence',
-        'tainted',
-        'ceiling',
-        'scope',
-        'expired',
-        'replay',
-        'digest',
-        'peer',
-        'firstPartyOnly',
-        'disclosure',
-        'remoteUse',
-      ]),
-    }),
   ]),
 })
 export type VaultBrokerResponse = z.infer<typeof vaultBrokerResponseSchema>
@@ -213,7 +232,7 @@ export interface VaultBrokerPort {
     handle: string,
     use: VaultUse,
     taint: VaultTaint,
-  ): Promise<VaultApprovalRequest>
-  answer(peer: VaultAuthenticatedPeer, answer: VaultApprovalAnswer): Promise<boolean>
+  ): Promise<VaultAuthorizationResult>
+  answer(peer: VaultAuthenticatedPeer, answer: VaultApprovalAnswer): Promise<VaultApprovalResult>
   lock(): Promise<void>
 }

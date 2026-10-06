@@ -19,6 +19,9 @@ happened, not what was planned; superseded entries are kept.
 - M109's preparation contracts now accept complete HTTPS OAuth issuer
   identifiers, including tenant paths and trailing slashes, while preserving
   exact issuer identity in grants, token material and use digests.
+- M109's broker port now returns auditable approval, ticket or denial results,
+  including tickets after UI approval. Pending test approvals own their input
+  snapshots, so caller mutation cannot change their host or resolved use.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

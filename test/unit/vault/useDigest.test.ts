@@ -104,6 +104,7 @@ describe('canonical vault uses', () => {
       'https://auth.example.test/realms/team/',
       'https://auth.example.test/realms/%74eam',
       'https://AUTH.example.test/realms/team',
+      'HTTPS://auth.example.test/realms/team',
       'https://auth.example.test:443/realms/team',
       'https://auth.example.test',
       'https://auth.example.test/',

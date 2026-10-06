@@ -12,12 +12,14 @@ import {
   type VaultUse,
   type VaultTaint,
   type VaultApprovalAnswer,
+  type VaultApprovalRequest,
 } from '../../../../src/shared/vault'
 import {
   type VaultAuthenticatedPeer,
   type VaultChannelPort,
   type VaultBrokerPort,
   type VaultStatus,
+  type VaultApprovalResult,
 } from '../../../../src/shared/vaultProtocol'
 import { vaultUseDigest } from '../../../../src/core/vault/useDigest'
 import { VAULT_APPROVAL_TTL_MS, VAULT_FORMAT_VERSION } from '../../../../src/shared/constants'
@@ -139,7 +141,7 @@ export class FakeVaultSlot implements VaultSlotPort {
 export class FakeVaultBroker implements VaultBrokerPort {
   private epoch = 0
   private locked = false
-  private readonly pending = new Map<string, Awaited<ReturnType<VaultBrokerPort['request']>>>()
+  private readonly pending = new Map<string, VaultApprovalRequest>()
   readonly accepted: string[] = []
   constructor(
     private readonly store: VaultStorePort,
@@ -167,39 +169,53 @@ export class FakeVaultBroker implements VaultBrokerPort {
     taint: VaultTaint,
   ): ReturnType<VaultBrokerPort['request']> {
     if (this.locked) throw new Error('fake broker: locked')
-    const items = await this.list(requester)
+    const proposal = structuredClone({ requester, use, taint })
+    const items = await this.list(proposal.requester)
     const item = items.find((item) => item.handle === handle)
     if (!item) throw new Error('fake broker: item unavailable')
     const request = {
+      ...proposal,
       id: randomBytes(16).toString('hex'),
-      requester,
-      item,
-      use: structuredClone(use),
-      digest: vaultUseDigest(use),
+      item: structuredClone(item),
+      digest: vaultUseDigest(proposal.use),
       nonce: randomBytes(16).toString('hex'),
       createdAt: this.clock.now(),
       expiresAt: this.clock.now() + VAULT_APPROVAL_TTL_MS,
       lockEpoch: this.epoch,
-      taint,
     }
     this.pending.set(request.id, request)
-    return structuredClone(request)
+    return { kind: 'approval', request: structuredClone(request) }
   }
-  answer(peer: VaultAuthenticatedPeer, answer: VaultApprovalAnswer): Promise<boolean> {
+  answer(peer: VaultAuthenticatedPeer, answer: VaultApprovalAnswer): Promise<VaultApprovalResult> {
     const request = this.pending.get(answer.requestId)
-    if (
-      !request ||
-      !peer.ui ||
-      peer.hostId !== request.requester.hostId ||
-      this.locked ||
-      request.lockEpoch !== this.epoch ||
-      request.digest !== answer.digest ||
-      this.clock.now() >= request.expiresAt
-    )
-      return Promise.resolve(false)
+    if (!request) return Promise.resolve({ kind: 'denied', reason: 'replay' })
+    if (!peer.ui || peer.hostId !== request.requester.hostId)
+      return Promise.resolve({ kind: 'denied', reason: 'peer' })
+    if (this.locked || request.lockEpoch !== this.epoch)
+      return Promise.resolve({ kind: 'denied', reason: 'locked' })
+    if (request.digest !== answer.digest)
+      return Promise.resolve({ kind: 'denied', reason: 'digest' })
+    const issuedAt = this.clock.now()
+    if (issuedAt >= request.expiresAt) return Promise.resolve({ kind: 'denied', reason: 'expired' })
     this.pending.delete(request.id)
-    if (answer.decision !== 'deny') this.accepted.push(request.id)
-    return Promise.resolve(true)
+    if (answer.decision === 'deny') return Promise.resolve({ kind: 'denied', reason: 'policy' })
+    this.accepted.push(request.id)
+    return Promise.resolve({
+      kind: 'ticket',
+      ticket: {
+        id: randomBytes(16).toString('hex'),
+        requestId: request.id,
+        requesterId: request.requester.id,
+        itemId: request.item.id,
+        digest: request.digest,
+        nonce: request.nonce,
+        issuedAt,
+        expiresAt: request.expiresAt,
+        lockEpoch: request.lockEpoch,
+        maxUses: 1,
+      },
+      authority: { kind: 'user' },
+    })
   }
   lock(): Promise<void> {
     this.epoch += 1

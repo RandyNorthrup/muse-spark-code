@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { Buffer } from 'node:buffer'
 import {
@@ -13,6 +13,15 @@ import { FakeSshClient, FakeSshServer } from '../helpers/vault/sshPair'
 import { item, metadata, requester, use } from '../helpers/vault/fixtures'
 import { vaultUseDigest } from '../../../src/core/vault/useDigest'
 import { vaultSlotRecordSchema, type VaultUse } from '../../../src/shared/vault'
+import {
+  vaultApprovalResultSchema,
+  type VaultAuthorizationResult,
+} from '../../../src/shared/vaultProtocol'
+
+function pendingApproval(result: VaultAuthorizationResult) {
+  if (result.kind !== 'approval') throw new Error('expected a pending approval')
+  return result.request
+}
 
 describe('vault test doubles (not runtime certification)', () => {
   it('owns private byte copies and returns metadata only', async () => {
@@ -77,25 +86,41 @@ describe('vault test doubles (not runtime certification)', () => {
     await store.write(item())
     const clock = new FakeVaultClock()
     const broker = new FakeVaultBroker(store, clock)
-    const req = await broker.request(requester(), metadata().handle, use(), {
-      tainted: false,
-      reasons: [],
-    })
+    const req = pendingApproval(
+      await broker.request(requester(), metadata().handle, use(), {
+        tainted: false,
+        reasons: [],
+      }),
+    )
     const peer = { hostId: requester().hostId, processId: 100, userId: 'test-user', ui: true }
     const answer = { requestId: req.id, digest: req.digest, decision: 'allowOnce' as const }
-    expect(await broker.answer(peer, { ...answer, digest: '0'.repeat(64) })).toBe(false)
-    expect(await broker.answer({ ...peer, hostId: '0'.repeat(32) }, answer)).toBe(false)
-    expect(await broker.answer({ ...peer, ui: false }, answer)).toBe(false)
-    expect(await broker.answer(peer, answer)).toBe(true)
-    expect(await broker.answer(peer, answer)).toBe(false)
-    const expired = await broker.request(requester(), metadata().handle, use(), {
-      tainted: true,
-      reasons: [{ source: 'web', label: 'fake page' }],
+    expect(await broker.answer(peer, { ...answer, digest: '0'.repeat(64) })).toEqual({
+      kind: 'denied',
+      reason: 'digest',
     })
+    expect(await broker.answer({ ...peer, hostId: '0'.repeat(32) }, answer)).toEqual({
+      kind: 'denied',
+      reason: 'peer',
+    })
+    expect(await broker.answer({ ...peer, ui: false }, answer)).toEqual({
+      kind: 'denied',
+      reason: 'peer',
+    })
+    expect(await broker.answer(peer, answer)).toMatchObject({
+      kind: 'ticket',
+      authority: { kind: 'user' },
+    })
+    expect(await broker.answer(peer, answer)).toEqual({ kind: 'denied', reason: 'replay' })
+    const expired = pendingApproval(
+      await broker.request(requester(), metadata().handle, use(), {
+        tainted: true,
+        reasons: [{ source: 'web', label: 'fake page' }],
+      }),
+    )
     clock.advance(120_000)
     expect(
       await broker.answer(peer, { ...answer, requestId: expired.id, digest: expired.digest }),
-    ).toBe(false)
+    ).toEqual({ kind: 'denied', reason: 'expired' })
     await broker.lock()
     const status = await broker.status()
     expect(status.state).toBe('locked')
@@ -115,6 +140,109 @@ describe('vault test doubles (not runtime certification)', () => {
     expect(await channel.authenticate()).not.toBe(peer)
     channel.close()
     await expect(channel.authenticate()).rejects.toThrow('closed')
+  })
+
+  it('RVM109L0 P3 ownership: caller mutation cannot transfer a pending approval to another host', async () => {
+    const store = new InMemoryVault()
+    await store.write(item())
+    const broker = new FakeVaultBroker(store, new FakeVaultClock())
+    const original = requester()
+    const req = pendingApproval(
+      await broker.request(original, metadata().handle, use(), { tainted: false, reasons: [] }),
+    )
+    const ownerHost = req.requester.hostId
+    original.hostId = '0'.repeat(32)
+    req.requester.hostId = original.hostId
+    const peer = { hostId: original.hostId, processId: 100, userId: 'test-user', ui: true }
+    const answer = { requestId: req.id, digest: req.digest, decision: 'allowOnce' as const }
+    expect(await broker.answer(peer, answer)).toEqual({ kind: 'denied', reason: 'peer' })
+    expect(await broker.answer({ ...peer, hostId: ownerHost }, answer)).toMatchObject({
+      kind: 'ticket',
+      authority: { kind: 'user' },
+    })
+  })
+
+  it('RVM109L0 P3 ownership: requester, use and taint are snapshotted before awaiting the store', async () => {
+    const store = new InMemoryVault()
+    await store.write(item())
+    const broker = new FakeVaultBroker(store, new FakeVaultClock())
+    const original = requester()
+    original.role = { kind: 'role', name: 'original-role' }
+    const target = use()
+    const reason = { source: 'web' as const, label: 'original-page' }
+    const taint = { tainted: true, reasons: [reason] }
+    const expected = structuredClone({ requester: original, use: target, taint })
+    const pending = broker.request(original, metadata().handle, target, taint)
+    original.hostId = '0'.repeat(32)
+    original.role.name = 'changed-role'
+    target.command.argv.push('--changed')
+    target.names.push('CHANGED_TOKEN')
+    taint.tainted = false
+    reason.label = 'changed-page'
+    const req = pendingApproval(await pending)
+    expect(req).toMatchObject(expected)
+    expect(req.digest).toBe(vaultUseDigest(expected.use))
+  })
+
+  it('RVM109L0 P2 broker: a UI answer returns its bound single-use ticket or consumes a denial', async () => {
+    const store = new InMemoryVault()
+    await store.write(item())
+    const clock = new FakeVaultClock()
+    const broker = new FakeVaultBroker(store, clock)
+    const peer = { hostId: requester().hostId, processId: 100, userId: 'test-user', ui: true }
+    for (const decision of ['allowOnce', 'allowSession', 'deny'] as const) {
+      const req = pendingApproval(
+        await broker.request(requester(), metadata().handle, use(), {
+          tainted: false,
+          reasons: [],
+        }),
+      )
+      clock.advance(1)
+      const result = await broker.answer(peer, { requestId: req.id, digest: req.digest, decision })
+      expect(vaultApprovalResultSchema.parse(result)).toEqual(result)
+      if (decision === 'deny') {
+        expect(result).toEqual({ kind: 'denied', reason: 'policy' })
+        expect(broker.accepted).not.toContain(req.id)
+      } else {
+        expect(result).toMatchObject({
+          kind: 'ticket',
+          authority: { kind: 'user' },
+          ticket: {
+            requestId: req.id,
+            requesterId: req.requester.id,
+            itemId: req.item.id,
+            digest: req.digest,
+            nonce: req.nonce,
+            issuedAt: clock.now(),
+            expiresAt: req.expiresAt,
+            lockEpoch: req.lockEpoch,
+            maxUses: 1,
+          },
+        })
+        expect(broker.accepted).toContain(req.id)
+      }
+      expect(
+        await broker.answer(peer, { requestId: req.id, digest: req.digest, decision }),
+      ).toEqual({ kind: 'denied', reason: 'replay' })
+    }
+  })
+
+  it('RVM109L0 P3 ownership: pending item metadata is detached from the store list', async () => {
+    const store = new InMemoryVault()
+    const listed = metadata()
+    const originalId = listed.id
+    vi.spyOn(store, 'list').mockResolvedValue([listed])
+    const broker = new FakeVaultBroker(store, new FakeVaultClock())
+    const req = pendingApproval(
+      await broker.request(requester(), listed.handle, use(), { tainted: false, reasons: [] }),
+    )
+    listed.id = '0'.repeat(32)
+    req.item.id = listed.id
+    const result = await broker.answer(
+      { hostId: req.requester.hostId, processId: 100, userId: 'test-user', ui: true },
+      { requestId: req.id, digest: req.digest, decision: 'allowOnce' },
+    )
+    expect(result).toMatchObject({ kind: 'ticket', ticket: { itemId: originalId } })
   })
 
   it('broker fake hides private items and refuses absent handles', async () => {

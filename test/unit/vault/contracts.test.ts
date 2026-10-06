@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import * as z from 'zod/mini'
@@ -17,9 +17,15 @@ import {
   metadata,
   panel,
   requester,
+  ticket as ticketFixture,
   use,
 } from '../helpers/vault/fixtures'
-import { FakeVaultSlot } from '../helpers/vault/core'
+import {
+  FakeVaultBroker,
+  FakeVaultClock,
+  FakeVaultSlot,
+  InMemoryVault,
+} from '../helpers/vault/core'
 import * as constants from '../../../src/shared/constants'
 
 describe('M109 strict contracts', () => {
@@ -265,6 +271,7 @@ describe('M109 strict contracts', () => {
       'https://auth.example.test/',
       'https://auth.example.test/realms/team',
       'https://AUTH.example.test:443/realms/%74eam/',
+      'HTTPS://auth.example.test/realms/team',
     ]) {
       for (const [schema, value] of [
         [vault.vaultUseSchema, oauth],
@@ -522,6 +529,79 @@ describe('M109 strict contracts', () => {
     expect(protocol.vaultBrokerEventSchema.parse({ kind: 'locked', v: 1, lockEpoch: 1 }).kind).toBe(
       'locked',
     )
+  })
+
+  it('RVM109L0 P2 broker: the port delivers auditable automatic tickets alongside approval and denial', async () => {
+    const broker: protocol.VaultBrokerPort = new FakeVaultBroker(
+      new InMemoryVault(),
+      new FakeVaultClock(),
+    )
+    const scriptedRequest = vi.spyOn(broker, 'request')
+    const results: protocol.VaultAuthorizationResult[] = [
+      { kind: 'approval', request: approvalFixture() },
+      { kind: 'ticket', ticket: ticketFixture(), authority: { kind: 'mode' } },
+      {
+        kind: 'ticket',
+        ticket: ticketFixture(),
+        authority: { kind: 'grant', grantId: grant().id },
+      },
+      { kind: 'denied', reason: 'policy' },
+    ]
+    for (const result of results) {
+      scriptedRequest.mockResolvedValueOnce(result)
+      const received = await broker.request(requester(), metadata().handle, use(), {
+        tainted: false,
+        reasons: [],
+      })
+      expect(
+        protocol.vaultBrokerResponseSchema.parse({ v: 1, sequence: 0, response: received })
+          .response,
+      ).toEqual(result)
+      if (received.kind !== 'ticket') continue
+      expect(received.ticket).toEqual(ticketFixture())
+      expect(received.authority).toEqual(result.kind === 'ticket' && result.authority)
+    }
+    for (const authority of [
+      undefined,
+      { kind: 'grant' },
+      { kind: 'mode', grantId: grant().id },
+      { kind: 'user', grantId: grant().id },
+      { kind: 'model' },
+    ])
+      expect(
+        protocol.vaultBrokerResponseSchema.safeParse({
+          v: 1,
+          sequence: 0,
+          response: { kind: 'ticket', ticket: ticketFixture(), authority },
+        }).success,
+      ).toBe(false)
+    const scriptedAnswer = vi.spyOn(broker, 'answer')
+    const answered: protocol.VaultApprovalResult = {
+      kind: 'ticket',
+      ticket: ticketFixture(),
+      authority: { kind: 'user' },
+    }
+    scriptedAnswer.mockResolvedValueOnce(answered)
+    expect(
+      await broker.answer(
+        { hostId: requester().hostId, processId: 100, userId: 'test-user', ui: true },
+        {
+          requestId: answered.ticket.requestId,
+          digest: answered.ticket.digest,
+          decision: 'allowOnce',
+        },
+      ),
+    ).toEqual(answered)
+  })
+
+  it('RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary', () => {
+    const committed: unknown = JSON.parse(
+      readFileSync(
+        new URL('../../../docs/schemas/vault-authorization-result-v1.schema.json', import.meta.url),
+        'utf8',
+      ),
+    )
+    expect(committed).toEqual(z.toJSONSchema(protocol.vaultAuthorizationResultSchema))
   })
 
   it('V10: device protocol permits only bound signatures and codes', () => {

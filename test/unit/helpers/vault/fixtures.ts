@@ -7,6 +7,7 @@ import {
   type VaultItem,
   type VaultItemMetadata,
   type VaultRequester,
+  type VaultTicket,
   type VaultUse,
 } from '../../../../src/shared/vault'
 import { type VaultPanelState } from '../../../../src/shared/modelsPanel'
@@ -65,6 +66,21 @@ export function approval(): VaultApprovalRequest {
     expiresAt: 120_000,
     lockEpoch: 0,
     taint: { tainted: false, reasons: [] },
+  }
+}
+export function ticket(): VaultTicket {
+  const request = approval()
+  return {
+    id: 'e'.repeat(32),
+    requestId: request.id,
+    requesterId: request.requester.id,
+    itemId: request.item.id,
+    digest: request.digest,
+    nonce: request.nonce,
+    issuedAt: request.createdAt,
+    expiresAt: request.expiresAt,
+    lockEpoch: request.lockEpoch,
+    maxUses: 1,
   }
 }
 export function grant(): VaultGrant {

@@ -56,5 +56,196 @@
     "failures": [
       " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: the committed issuer JSON Schema matches its runtime boundary"
     ]
+  },
+  {
+    "name": "broker-ticket-result",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the port delivers auditable automatic tickets alongside approval and denial",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary"
+    ]
+  },
+  {
+    "name": "broker-mode-authority",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the port delivers auditable automatic tickets alongside approval and denial",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary"
+    ]
+  },
+  {
+    "name": "broker-grant-id",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the port delivers auditable automatic tickets alongside approval and denial",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary"
+    ]
+  },
+  {
+    "name": "broker-authority-strictness",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the port delivers auditable automatic tickets alongside approval and denial"
+    ]
+  },
+  {
+    "name": "fake-requester-ownership",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: caller mutation cannot transfer a pending approval to another host",
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: requester, use and taint are snapshotted before awaiting the store"
+    ]
+  },
+  {
+    "name": "fake-taint-ownership",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: requester, use and taint are snapshotted before awaiting the store"
+    ]
+  },
+  {
+    "name": "fake-use-ownership",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: requester, use and taint are snapshotted before awaiting the store"
+    ]
+  },
+  {
+    "name": "fake-return-ownership",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: caller mutation cannot transfer a pending approval to another host"
+    ]
+  },
+  {
+    "name": "fake-answer-boolean",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > V11 V13: fake approval refuses changed digests, foreign hosts, non-UI answers, replay and expiry",
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: caller mutation cannot transfer a pending approval to another host",
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P2 broker: a UI answer returns its bound single-use ticket or consumes a denial"
+    ]
+  },
+  {
+    "name": "fake-ticket-binding",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P2 broker: a UI answer returns its bound single-use ticket or consumes a denial"
+    ]
+  },
+  {
+    "name": "fake-denial-consumption",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P2 broker: a UI answer returns its bound single-use ticket or consumes a denial"
+    ]
+  },
+  {
+    "name": "broker-json-drift",
+    "sourcePath": "docs/schemas/vault-authorization-result-v1.schema.json",
+    "sha256Before": "d12ff80fbde210d4bda7b11b1b4e1c77203c2b12a597e9584adaa0b13b5825cb",
+    "sha256After": "d12ff80fbde210d4bda7b11b1b4e1c77203c2b12a597e9584adaa0b13b5825cb",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary"
+    ]
+  },
+  {
+    "name": "broker-request-type",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx tsc --noEmit -p test/unit/tsconfig.json",
+    "exitCode": 2,
+    "failures": [
+      "test/unit/helpers/vault/core.ts(187,14): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type '{ id: string; requester: { id: string; hostId: string; conversationId: string | null; taskId: string | null; role: { kind: \"orchestrator\"; } | { kind: \"subagent\"; } | { kind: \"role\"; name: string; } | { ...; } | { ...; } | { ...; }; ... 5 more ...; source: \"goal\" | ... 10 more ... | \"device\"; }; ... 7 more ...; tain...'.",
+      "test/unit/vault/contracts.test.ts(550,45): error TS2345: Argument of type '{ kind: \"ticket\"; ticket: { id: string; requestId: string; requesterId: string; itemId: string; digest: string; nonce: string; issuedAt: number; expiresAt: number; lockEpoch: number; maxUses: 1; }; authority: { ...; } | ... 1 more ... | { ...; }; } | { ...; } | { ...; }' is not assignable to parameter of type '{ id: string; requester: { id: string; hostId: string; conversationId: string | null; taskId: string | null; role: { kind: \"orchestrator\"; } | { kind: \"subagent\"; } | { kind: \"role\"; name: string; } | { ...; } | { ...; } | { ...; }; ... 5 more ...; source: \"goal\" | ... 10 more ... | \"device\"; }; ... 7 more ...; tain...'.",
+      "test/unit/vault/contracts.test.ts(559,20): error TS2339: Property 'kind' does not exist on type '{ id: string; requester: { id: string; hostId: string; conversationId: string | null; taskId: string | null; role: { kind: \"orchestrator\"; } | { kind: \"subagent\"; } | { kind: \"role\"; name: string; } | { ...; } | { ...; } | { ...; }; ... 5 more ...; source: \"goal\" | ... 10 more ... | \"device\"; }; ... 7 more ...; tain...'.",
+      "test/unit/vault/contracts.test.ts(560,25): error TS2339: Property 'ticket' does not exist on type '{ id: string; requester: { id: string; hostId: string; conversationId: string | null; taskId: string | null; role: { kind: \"orchestrator\"; } | { kind: \"subagent\"; } | { kind: \"role\"; name: string; } | { ...; } | { ...; } | { ...; }; ... 5 more ...; source: \"goal\" | ... 10 more ... | \"device\"; }; ... 7 more ...; tain...'.",
+      "test/unit/vault/contracts.test.ts(561,25): error TS2339: Property 'authority' does not exist on type '{ id: string; requester: { id: string; hostId: string; conversationId: string | null; taskId: string | null; role: { kind: \"orchestrator\"; } | { kind: \"subagent\"; } | { kind: \"role\"; name: string; } | { ...; } | { ...; } | { ...; }; ... 5 more ...; source: \"goal\" | ... 10 more ... | \"device\"; }; ... 7 more ...; tain...'."
+    ]
+  },
+  {
+    "name": "broker-answer-type",
+    "sourcePath": "src/shared/vaultProtocol.ts",
+    "sha256Before": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "sha256After": "5738cbb0dcf767236c2d8f7b9b86aa68e0ccd3ef29ec4e8d0d1866972d2508f6",
+    "command": "npx tsc --noEmit -p test/unit/tsconfig.json",
+    "exitCode": 2,
+    "failures": [
+      "test/unit/helpers/vault/core.ts(189,3): error TS2416: Property 'answer' in type 'FakeVaultBroker' is not assignable to the same property in base type 'VaultBrokerPort'.",
+      "test/unit/vault/contracts.test.ts(534,11): error TS2322: Type 'FakeVaultBroker' is not assignable to type 'VaultBrokerPort'.",
+      "test/unit/vault/contracts.test.ts(584,42): error TS2345: Argument of type '{ kind: \"ticket\"; ticket: { id: string; requestId: string; requesterId: string; itemId: string; digest: string; nonce: string; issuedAt: number; expiresAt: number; lockEpoch: number; maxUses: 1; }; authority: { ...; } | ... 1 more ... | { ...; }; }' is not assignable to parameter of type 'boolean'."
+    ]
+  },
+  {
+    "name": "fake-item-ownership",
+    "sourcePath": "test/unit/helpers/vault/core.ts",
+    "sha256Before": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "sha256After": "74c264872ad0e901d13a6513f7ecd64d5822c9ffbbddfb0bf40ceaa1378658cd",
+    "command": "npx vitest run test/unit/vault/fakes.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/fakes.test.ts > vault test doubles (not runtime certification) > RVM109L0 P3 ownership: pending item metadata is detached from the store list"
+    ]
+  },
+  {
+    "name": "issuer-scheme-case",
+    "sourcePath": "src/shared/vault.ts",
+    "sha256Before": "ec8674c5659d8cebfe96680d137927ce38fc43a3166fd3c04ceab743b2039cb0",
+    "sha256After": "ec8674c5659d8cebfe96680d137927ce38fc43a3166fd3c04ceab743b2039cb0",
+    "command": "npx vitest run test/unit/vault/contracts.test.ts test/unit/vault/useDigest.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exitCode": 1,
+    "failures": [
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: OAuth contracts preserve complete HTTPS issuer identifiers",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 issuer: the committed issuer JSON Schema matches its runtime boundary",
+      " FAIL  test/unit/vault/contracts.test.ts > M109 strict contracts > RVM109L0 P2 broker: the committed authorization JSON Schema matches the port and wire boundary",
+      " FAIL  test/unit/vault/useDigest.test.ts > canonical vault uses > RVM109L0 P2 issuer: OAuth digests distinguish tenants and exact issuer spellings"
+    ]
   }
 ]

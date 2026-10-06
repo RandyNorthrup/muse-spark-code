@@ -20935,17 +20935,19 @@ Each joins when its dependency merges, and none blocks the others.
 ## 7. Gates
 
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
-contract findings and its P3 fake ownership finding are all in scope: use a
-distinct HTTPS issuer identifier schema (paths allowed; no query, fragment or
-credentials; preserve the complete string for exact comparison), expose
-approval/ticket/denial authorization results and the ticket returned by a UI
-answer with its audit authority, and snapshot pending fake inputs before an
-asynchronous boundary. Supply committed issuer/authorization JSON Schemas
-(none exist on this base), refresh the wave-1 handoff, and prove each fix with
-a before-fix regression and byte-exact red drill in
-`docs/certification/m109-l0.md`. No runtime, dependency or gate change. The
-rig brief prohibits aggregate quality and merges; focused gates run directly,
-hooks remain enabled, and the existing host API record stays W-owned.
+contract findings and its P3 fake ownership finding are fixed. A distinct
+HTTPS issuer identifier schema allows paths and preserves exact spelling,
+without query, fragment or credentials. The broker port and wire share
+approval/ticket/denial results, with ticket handoff and audit authority; fake
+approvals own their snapshots before an asynchronous boundary. Committed
+issuer/authorization JSON Schemas and the wave-1 handoff accompany 100 focused
+tests and 21 failed, byte-exact red drills (including two compiler drills).
+Typecheck, changed-file lint/format, localization, deadcode, duplication,
+cycles, exec schema and production build checks pass. The host API failure
+is unchanged: node:crypto imports 46 → 47, still W-owned as below. No review
+finding is left as a residual; no runtime, dependency or gate is changed.
+Receipts: `docs/certification/m109-l0.md`. The rig brief prohibits aggregate
+quality and merges; focused gates run directly and hooks remain enabled.
 
 **M109 lane 0 contract slice (2026-10-05, Kubuntu).** The item/material,
 binding, policy, grant, requester, approval, ticket, audit, slot and broker

@@ -48,6 +48,51 @@ use again at dispatch. Clock is injected; the schema validates relative TTL,
 while B enforces the current deadline. Approval answers cannot express Always.
 The supplied broker fake always asks and does not implement runtime policy.
 
+## Wave-1 broker results (FIXM109L0)
+
+`VaultBrokerPort.request` returns `VaultAuthorizationResult`, validated by
+`vaultAuthorizationResultSchema`, with exactly three outcomes:
+
+| `kind`     | Fields                             | Consumer action                                                                                  |
+| ---------- | ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `approval` | `request: VaultApprovalRequest`    | Display the broker-owned snapshot to the authenticated UI; answer before its deadline.           |
+| `ticket`   | `ticket: VaultTicket`, `authority` | Hand the ticket to the use route through its private channel, without fabricating a UI approval. |
+| `denied`   | `reason`                           | Fail closed with the supplied reason; there is no usable ticket.                                 |
+
+`VaultBrokerPort.answer` returns `VaultApprovalResult`: ticket or denial,
+never a boolean or another pending approval. A valid UI Deny consumes the
+answered request; invalid peers/digests remain refused, and replay/expiry stays refused.
+Both result schemas are reused by `vaultBrokerResponseSchema`.
+
+Ticket `authority` is a strict discriminated object: `{ kind: 'mode' }` for
+an automatically authorized item mode, `{ kind: 'grant', grantId }` for a
+standing or approved-session grant, and `{ kind: 'user' }` for this UI answer.
+B records the corresponding audit authority and grant id before dispatch;
+the result reports the broker's decision and never lets a requester supply
+authority. An automatic use gets its own broker-minted operation id as
+`ticket.requestId`; this does not require a visible approval request.
+Every ticket remains bound to requester, item, digest, nonce, deadline, epoch
+and one use. B still enforces policy, taint, presence, ceilings, counters,
+revocation, authentication and redemption; this contract enables no runtime.
+
+The committed projection is
+`docs/schemas/vault-authorization-result-v1.schema.json`. Contract tests check
+it against Zod. JSON Schema describes structure, not Zod's cross-field
+refinements or runtime enforcement; consumers must use the Zod boundaries and
+the live broker's checks. To regenerate either new artifact, bundle its
+export plus `zod/mini` with esbuild (`write:false`), serialize `z.toJSONSchema`,
+add `format: 'uri'` for the standalone issuer artifact, and format with
+Prettier. `npm run schema:exec -- --check` confirms the existing exec schemas
+remain unchanged; H owns their eventual runtime integration.
+
+The fake holds deep copies of requester, resolved use and taint before its
+first await, copies item metadata at minting and returns a separate approval
+snapshot. Caller mutation and returned-card mutation cannot transfer a
+pending request's host identity or alter its approved digest. It returns a
+user-authorized ticket on Allow once/Allow session and a consumed denial on
+Deny. Automatic mode/grant outcomes are scripted through the typed port in
+contract tests; the fake still implements no policy engine or ticket redeemer.
+
 Slot `wrappedKey` is an opaque bounded base64 provider container. P validates
 its provider-specific fields and exact cryptographic lengths before unwrap;
 the lane-0 schema does not pretend to know a captured OS-helper shape. Private

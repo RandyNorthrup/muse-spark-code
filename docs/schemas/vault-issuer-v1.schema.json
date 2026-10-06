@@ -2,6 +2,6 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "string",
   "maxLength": 4096,
-  "pattern": "^https:\\/\\/[^/?#\\\\\\s@]+(?:\\/[^?#\\\\\\s\\0]*)?$",
+  "pattern": "^[hH][tT][tT][pP][sS]:\\/\\/[^/?#\\\\\\s@]+(?:\\/[^?#\\\\\\s\\0]*)?$",
   "format": "uri"
 }
