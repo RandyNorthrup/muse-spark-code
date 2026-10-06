@@ -1,4 +1,10 @@
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { createHash } from 'node:crypto'
+import * as fsPromises from 'node:fs/promises'
+import { setTimeout as delay } from 'node:timers/promises'
+import { build } from 'esbuild'
+import { withoutCredentials } from '../../src/core/credentialEnvironment'
 import {
   link,
   lstat,
@@ -12,7 +18,7 @@ import {
   writeFile,
 } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeAll, describe, expect, it, onTestFinished, vi } from 'vitest'
 import {
   ReportHistory,
   ReportStorage,
@@ -20,13 +26,43 @@ import {
 } from '../../src/core/reporting/history'
 import { reportDocumentSchema, type ReportDocument } from '../../src/shared/reportSchema'
 import { reportsMethods } from '../../src/shared/hostApi/reports'
-import { REPORT_MAX_SOURCES, REPORT_MAX_TEXT_CHARS } from '../../src/shared/constants'
+import {
+  REPORT_MAX_SOURCES,
+  REPORT_MAX_TEXT_CHARS,
+  REPORT_WRITER_LOCK_WAIT_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import * as fileIdentity from '../../src/core/fs/fileIdentity'
 import { reportDocument } from './helpers/reporting/snapshot'
 import { removeFolder } from './helpers/temporaryFolders'
 
+vi.mock('node:fs/promises', async () => {
+  const actual = await vi.importActual<typeof fsPromises>('node:fs/promises')
+  return { ...actual }
+})
+
 const TEMP = path.resolve(import.meta.dirname, '../../temp')
 const CANARY = 'private-history-canary'
+const writerFixture: { script?: string } = {}
+beforeAll(async () => {
+  const bundled = await build({
+    stdin: {
+      contents: `import { ReportStorage } from './src/core/reporting/history';
+        await new ReportStorage(process.argv[2]).transaction(['checks'], true, async () => {
+          process.stdout.write('locked');
+          await new Promise(() => { setInterval(() => {}, 1000) });
+        });`,
+      resolveDir: path.resolve(import.meta.dirname, '../..'),
+    },
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    write: false,
+  })
+  const output = bundled.outputFiles[0]
+  if (output === undefined) throw new Error('Expected writer fixture bundle')
+  writerFixture.script = output.text
+})
 
 function hash(document: ReportDocument): string {
   const { asOf: _asOf, contentHash: _contentHash, ...header } = document.header
@@ -77,7 +113,253 @@ function at(index: number): ReportDocument {
   return document
 }
 
+// Seed old artifacts as fixture files: fsync belongs to the save being tested,
+// not fifty artificial prior saves (which exhaust the CI deadline on busy disks).
+async function seedReports(folder: string, count: number): Promise<void> {
+  await mkdir(folder, { recursive: true })
+  await Promise.all(
+    Array.from({ length: count }, async (_, index) => {
+      const text = codec.encode(at(index))
+      await writeFile(
+        path.join(folder, `${createHash('sha256').update(text).digest('hex')}.json`),
+        text,
+      )
+    }),
+  )
+}
+
+async function heldWriter(after?: Parameters<ReportStorage['transaction']>[2]) {
+  const t = await fixture()
+  const ready = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<undefined>()
+  const held = t.storage.transaction(['checks'], true, async (files) => {
+    ready.resolve(undefined)
+    await release.promise
+    await after?.(files)
+  })
+  await ready.promise
+  const lock = path.join(t.directory, 'reports/v1/checks/writer.lock')
+  const owner = await readFile(lock, 'utf8')
+  return { ...t, release, held, lock, owner }
+}
+
 describe('report history', () => {
+  it('recovers the writer lock after killing its owner process', async () => {
+    const t = await fixture()
+    if (writerFixture.script === undefined) throw new Error('Expected writer fixture')
+    const script = path.join(t.directory, 'writer-fixture.mjs')
+    await writeFile(script, writerFixture.script)
+    const child = spawn(process.execPath, [script, t.directory], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: withoutCredentials(process.env),
+    })
+    onTestFinished(async () => {
+      if (child.exitCode !== null || child.signalCode !== null) return
+      const exited = once(child, 'exit')
+      child.kill('SIGKILL')
+      await exited
+    })
+    await once(child.stdout, 'data')
+    const lock = path.join(t.directory, 'reports/v1/checks/writer.lock')
+    const owner: unknown = JSON.parse(await readFile(lock, 'utf8'))
+    expect(owner).toMatchObject({ pid: child.pid, startedAt: expect.any(String) })
+    const exited = once(child, 'exit')
+    child.kill('SIGKILL')
+    await exited
+    const restarted = new ReportStorage(t.directory)
+    await restarted.transaction(['checks'], true, (files) => files.write('restarted.json', '{}'))
+    expect(await readFile(path.join(path.dirname(lock), 'restarted.json'), 'utf8')).toBe('{}')
+    expect(await readdir(path.dirname(lock))).toEqual(['restarted.json'])
+  })
+
+  it('recovers a reused PID with a mismatched process start time and an unfinished lock', async () => {
+    const t = await fixture()
+    const text = await t.storage.transaction(['checks'], true, (files) => files.read('writer.lock'))
+    if (text === undefined) throw new Error('Expected owner record')
+    const owner: unknown = JSON.parse(text)
+    const lock = path.join(t.directory, 'reports/v1/checks/writer.lock')
+    expect(owner).toMatchObject({ pid: process.pid, startedAt: expect.any(String) })
+    await writeFile(lock, JSON.stringify({ pid: process.pid, startedAt: 'a-previous-process' }))
+    await t.storage.transaction(['checks'], true, (files) => files.write('reused.json', '{}'))
+    // A kill between exclusive creation and the owner-record write leaves no JSON.
+    await writeFile(lock, '')
+    await t.storage.transaction(['checks'], true, (files) => files.write('unfinished.json', '{}'))
+    expect(await readdir(path.dirname(lock))).toEqual(['reused.json', 'unfinished.json'])
+  })
+
+  it('waits for a live writer held longer than the old 100 ms contention budget', async () => {
+    const t = await fixture()
+    const ready = Promise.withResolvers<undefined>()
+    const first = t.storage.transaction(['checks'], true, async (files) => {
+      ready.resolve(undefined)
+      await delay(250)
+      await files.write('first.json', '{}')
+    })
+    await ready.promise
+    const second = new ReportStorage(t.directory).transaction(['checks'], true, (files) =>
+      files.write('second.json', '{}'),
+    )
+    await Promise.all([first, second])
+    expect(await readdir(path.join(t.directory, 'reports/v1/checks'))).toEqual([
+      'first.json',
+      'second.json',
+    ])
+  })
+
+  it('fails a live-owner timeout honestly without running or deleting its lock', async () => {
+    const t = await heldWriter()
+    const work = vi.fn(() => Promise.resolve())
+    const started = performance.now()
+    try {
+      await expect(
+        new ReportStorage(t.directory).transaction(['checks'], true, work),
+      ).rejects.toThrow()
+      expect(performance.now() - started).toBeGreaterThanOrEqual(REPORT_WRITER_LOCK_WAIT_MS)
+      expect(work).not.toHaveBeenCalled()
+      expect(await readFile(t.lock, 'utf8')).toBe(t.owner)
+    } finally {
+      t.release.resolve(undefined)
+      await t.held
+    }
+    expect(await readdir(path.dirname(t.lock))).toEqual([])
+  })
+
+  it('retries a lock record that changes while its creator is initializing it', async () => {
+    const t = await heldWriter((files) => files.write('first.json', '{}'))
+    const reading = vi.spyOn(fileIdentity, 'handleIdentity').mockImplementationOnce(() => {
+      t.release.resolve(undefined)
+      return Promise.reject(new Error(UI_TEXT.reportUi.generationFailed))
+    })
+    try {
+      await new ReportStorage(t.directory).transaction(['checks'], true, (files) =>
+        files.write('second.json', '{}'),
+      )
+    } finally {
+      reading.mockRestore()
+      t.release.resolve(undefined)
+      await t.held
+    }
+    expect(await readdir(path.join(t.directory, 'reports/v1/checks'))).toEqual([
+      'first.json',
+      'second.json',
+    ])
+  })
+
+  it('keeps lock-read races inside the total contention deadline', async () => {
+    const t = await heldWriter()
+    let tick = 0
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => {
+      tick += REPORT_WRITER_LOCK_WAIT_MS
+      return tick
+    })
+    const original = fsPromises.open
+    let reads = 0
+    const racingRead = vi
+      .spyOn(fsPromises, 'open')
+      .mockImplementation(async (...args: Parameters<typeof fsPromises.open>) => {
+        if (
+          typeof args[1] === 'number' &&
+          String(args[0]).replaceAll('\\', '/').endsWith('/writer.lock')
+        ) {
+          reads += 1
+          if (reads === 1)
+            throw Object.assign(new Error('Lock vanished during open'), { code: 'ENOENT' })
+        }
+        return await original(...args)
+      })
+    const work = vi.fn(() => Promise.resolve())
+    try {
+      await expect(
+        new ReportStorage(t.directory).transaction(['checks'], true, work),
+      ).rejects.toThrow()
+      expect(reads).toBe(1)
+      expect(work).not.toHaveBeenCalled()
+      expect(await readFile(t.lock, 'utf8')).toBe(t.owner)
+    } finally {
+      clock.mockRestore()
+      racingRead.mockRestore()
+      t.release.resolve(undefined)
+      await t.held
+    }
+  })
+
+  it('refuses work by a creator paused before its recovered lock was initialized', async () => {
+    const t = await fixture()
+    const ready = Promise.withResolvers<undefined>()
+    const resume = Promise.withResolvers<undefined>()
+    const original = fsPromises.open
+    let isFirst = true
+    const paused = vi
+      .spyOn(fsPromises, 'open')
+      .mockImplementation(async (...args: Parameters<typeof fsPromises.open>) => {
+        const handle = await original(...args)
+        if (
+          isFirst &&
+          args[1] === 'wx' &&
+          String(args[0]).replaceAll('\\', '/').endsWith('/writer.lock')
+        ) {
+          isFirst = false
+          ready.resolve(undefined)
+          await resume.promise
+        }
+        return handle
+      })
+    const work = vi.fn(() => Promise.resolve())
+    const first = t.storage.transaction(['checks'], true, work)
+    await ready.promise
+    try {
+      await new ReportStorage(t.directory).transaction(['checks'], true, (files) =>
+        files.write('recovered.json', '{}'),
+      )
+    } finally {
+      paused.mockRestore()
+      resume.resolve(undefined)
+    }
+    await expect(first).rejects.toThrow()
+    expect(work).not.toHaveBeenCalled()
+    expect(await readdir(path.join(t.directory, 'reports/v1/checks'))).toEqual(['recovered.json'])
+  })
+
+  it.each([50, 51])(
+    'reports failed pruning without growing %i artifacts and retries next write',
+    async (count) => {
+      const t = await fixture()
+      await seedReports(t.folder, count)
+      const original = fsPromises.unlink
+      const denied = vi.spyOn(fsPromises, 'unlink').mockImplementation((file) => {
+        return String(file).replaceAll('\\', '/').endsWith('.json')
+          ? Promise.reject(Object.assign(new Error('Prune denied'), { code: 'EPERM' }))
+          : original(file)
+      })
+      try {
+        for (const index of [51, 52, 53]) {
+          await expect(t.history.save('workspace', at(index))).rejects.toThrow()
+          const names = await readdir(t.folder)
+          expect(names.filter((name) => name.endsWith('.json'))).toHaveLength(count)
+        }
+        const listed = await t.history.history({ workspaceKey: 'workspace', kind: 'project' })
+        expect(listed.status).toBe(count > 50 ? 'failed' : 'listed')
+        if (count > 50) {
+          const text = codec.encode(at(0))
+          const id = createHash('sha256').update(text).digest('hex')
+          expect(
+            await t.history.get({ workspaceKey: 'workspace', kind: 'project', id }),
+          ).toMatchObject({ status: 'failed' })
+        }
+      } finally {
+        denied.mockRestore()
+      }
+      const saved = await t.history.save('workspace', at(54))
+      expect(saved.status).toBe('saved')
+      const names = await readdir(t.folder)
+      expect(names.filter((name) => name.endsWith('.json'))).toHaveLength(50)
+      const listed = await t.history.history({ workspaceKey: 'workspace', kind: 'project' })
+      if (listed.status !== 'listed') throw new Error('Expected repaired history')
+      expect(listed.entries).toHaveLength(50)
+      expect(listed.entries[0]?.header.asOf).toBe(at(54).header.asOf)
+    },
+  )
+
   it('refuses a file whose held native identity differs from the checked leaf', async () => {
     const t = await fixture()
     await t.storage.transaction(['checks'], true, (files) => files.write('identity.json', '{}'))
@@ -195,12 +477,7 @@ describe('report history', () => {
   })
   it('drops the oldest on the 51st report, retains each kind separately and lists newest first', async () => {
     const t = await fixture()
-    await t.storage.transaction(['history', 'workspace', 'project'], true, async (files) => {
-      for (let index = 0; index < 50; index += 1) {
-        const text = codec.encode(at(index))
-        await files.write(`${createHash('sha256').update(text).digest('hex')}.json`, text)
-      }
-    })
+    await seedReports(t.folder, 50)
     await t.history.save('workspace', at(50))
     await t.history.save('workspace', reportDocument('quality'))
     const result = reportsMethods['reports/history'].result.parse(
@@ -399,7 +676,7 @@ describe('report history', () => {
     expect(await readFile(target, 'utf8')).toBe(text)
   })
 
-  it('serializes simultaneous writers, leaves no partial files and fails a held lock honestly', async () => {
+  it('serializes simultaneous writers and leaves no partial files', async () => {
     const t = await fixture()
     await Promise.all([t.history.save('workspace', at(1)), t.history.save('workspace', at(2))])
     expect(await t.history.history({ workspaceKey: 'workspace', kind: 'project' })).toMatchObject({
@@ -408,9 +685,5 @@ describe('report history', () => {
     })
     const names = await readdir(t.folder)
     expect(names.every((name) => name.endsWith('.json'))).toBe(true)
-    await writeFile(path.join(t.folder, 'writer.lock'), '')
-    await expect(t.history.save('workspace', at(3))).rejects.toThrow()
-    const retained = await readdir(t.folder)
-    expect(retained.filter((name) => name.endsWith('.json'))).toHaveLength(2)
   })
 })

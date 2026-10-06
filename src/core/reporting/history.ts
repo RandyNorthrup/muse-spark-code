@@ -1,13 +1,23 @@
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import * as z from 'zod/mini'
 import { createHash, randomUUID } from 'node:crypto'
 import { constants } from 'node:fs'
-import { lstat, mkdir, open, readdir, realpath, rename, unlink } from 'node:fs/promises'
+import { lstat, mkdir, open, readFile, readdir, realpath, rename, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {
-  ATOMIC_RENAME_ATTEMPTS,
-  ATOMIC_RENAME_DELAY_MS,
   CHECKPOINT_STORAGE_MODE,
   REPORT_HISTORY_MAX_PER_KIND,
+  REPORT_MAX_ID_CHARS,
+  REPORT_PROCESS_START_FIELD_INDEX,
+  REPORT_WRITER_LOCK_WAIT_MS,
+  REPORT_WRITER_LOCK_BACKOFF_MS,
+  REPORT_WRITER_LOCK_BACKOFF_MAX_MS,
+  REPORT_WRITER_LOCK_INITIALIZE_MS,
+  REPORT_WRITER_LOCK_PROBE_MS,
+  WINDOWS_POWERSHELL_COMMAND_ARGS,
+  WINDOWS_POWERSHELL_RELATIVE_PATH,
   REPORT_MAX_SOURCES,
   REPORT_MAX_TEXT_CHARS,
   REPORT_STORAGE_FILE_MODE,
@@ -22,6 +32,7 @@ import {
   type ReportKind,
 } from '../../shared/reportSchema'
 import { handleIdentity, lstatIdentity, sameFile } from '../fs/fileIdentity'
+import { withoutCredentials } from '../credentialEnvironment'
 import { compareReports } from './diff'
 
 /** R supplies canonical, scrubbed JSON and verifies the saved content hash on decode. */
@@ -55,6 +66,66 @@ function hasCode(error: unknown, code: string): boolean {
 
 function validName(name: string): void {
   if (!REPORT_STORAGE_KEY_PATTERN.test(name)) throw new Error(UI_TEXT.reportUi.generationFailed)
+}
+
+const lockOwnerSchema = z.strictObject({
+  pid: z.int().check(z.positive()),
+  startedAt: z.string().check(z.minLength(1), z.maxLength(REPORT_MAX_ID_CHARS)),
+})
+const execFileAsync = promisify(execFile)
+const processBirth: { own?: Promise<string | undefined> } = {}
+
+/** OS birth identity, so a reused PID never keeps an abandoned writer lock alive. */
+async function processStart(pid: number, probeBudgetMs: number): Promise<string | undefined> {
+  try {
+    process.kill(pid, 0)
+  } catch (error: unknown) {
+    if (hasCode(error, 'ESRCH')) return
+    throw error
+  }
+  if (process.platform === 'linux') {
+    try {
+      const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
+      const fields = stat
+        .slice(stat.lastIndexOf(')') + 1)
+        .trim()
+        .split(/\s+/)
+      const startedAt = fields[REPORT_PROCESS_START_FIELD_INDEX]
+      if (startedAt === undefined || !/^\d+$/.test(startedAt))
+        throw new Error(UI_TEXT.reportUi.saveFailed)
+      return startedAt
+    } catch (error: unknown) {
+      if (hasCode(error, 'ENOENT') || hasCode(error, 'ESRCH')) return
+      throw error
+    }
+  }
+  const env = { ...withoutCredentials(process.env), LC_ALL: 'C', TZ: 'UTC' }
+  let file = '/bin/ps'
+  let args = ['-o', 'lstart=', '-p', String(pid)]
+  if (process.platform === 'win32') {
+    const systemRoot = process.env['SystemRoot']
+    if (systemRoot === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
+    file = path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
+    args = [
+      ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+      `$owner = Get-Process -Id ${String(pid)} -ErrorAction SilentlyContinue; if ($null -ne $owner) { $owner.StartTime.ToFileTimeUtc() }`,
+    ]
+  }
+  const { stdout } = await execFileAsync(file, args, {
+    env,
+    windowsHide: true,
+    timeout: Math.min(REPORT_WRITER_LOCK_PROBE_MS, probeBudgetMs),
+  })
+  return stdout.trim() || undefined
+}
+
+function startOf(
+  pid: number,
+  probeBudgetMs = REPORT_WRITER_LOCK_PROBE_MS,
+): Promise<string | undefined> {
+  if (pid !== process.pid) return processStart(pid, probeBudgetMs)
+  processBirth.own ??= processStart(pid, probeBudgetMs)
+  return processBirth.own
 }
 
 /** Shared owner-only storage for history and checks; all mutations hold a bucket lock. */
@@ -213,25 +284,76 @@ export class ReportStorage {
     }
     if (!isWriting) return await work(files)
     const lock = fileFor('writer.lock')
+    const startedAt = await startOf(process.pid)
+    if (startedAt === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
+    const owner = lockOwnerSchema.parse({ pid: process.pid, startedAt })
+    const deadline = performance.now() + REPORT_WRITER_LOCK_WAIT_MS
+    let backoff = REPORT_WRITER_LOCK_BACKOFF_MS
+    let unfinishedIdentity
+    let unfinishedSince = performance.now()
     let handle
-    for (let attempt = 0; attempt < ATOMIC_RENAME_ATTEMPTS; attempt += 1) {
+    while (handle === undefined) {
       await confined()
       try {
         handle = await open(lock, 'wx', REPORT_STORAGE_FILE_MODE)
-        break
       } catch (error: unknown) {
-        if (!hasCode(error, 'EEXIST') || attempt + 1 === ATOMIC_RENAME_ATTEMPTS) throw error
-        await delay(ATOMIC_RENAME_DELAY_MS)
+        if (!hasCode(error, 'EEXIST')) throw error
+        try {
+          const held = await regular(lock)
+          const text = await files.read('writer.lock')
+          if (text !== undefined) {
+            let recorded
+            try {
+              recorded = lockOwnerSchema.safeParse(JSON.parse(text))
+            } catch {
+              // A crash can interrupt the initial owner-record write.
+            }
+            let isStale = false
+            if (recorded?.success === true) {
+              isStale =
+                (await startOf(recorded.data.pid, Math.max(1, deadline - performance.now()))) !==
+                recorded.data.startedAt
+            } else {
+              if (unfinishedIdentity === undefined || !sameFile(unfinishedIdentity, held)) {
+                unfinishedIdentity = held
+                unfinishedSince = performance.now()
+              }
+              isStale = performance.now() - unfinishedSince >= REPORT_WRITER_LOCK_INITIALIZE_MS
+            }
+            if (isStale) {
+              await confined()
+              if (sameFile(held, await regular(lock))) await unlink(lock)
+            }
+          }
+        } catch {
+          // A growing owner record can fail the bounded reader's identity/size check.
+          // Failed checks never supply an owner or authorize deletion; retry within the deadline.
+        }
+        const remaining = deadline - performance.now()
+        if (remaining <= 0) throw new Error(UI_TEXT.reportUi.saveFailed, { cause: error })
+        await delay(Math.min(backoff, remaining))
+        backoff = Math.min(backoff * 2, REPORT_WRITER_LOCK_BACKOFF_MAX_MS)
       }
     }
-    if (handle === undefined) throw new Error(UI_TEXT.reportUi.saveFailed)
     const identity = await handleIdentity(handle)
+    const release = async () => {
+      await confined()
+      try {
+        if (sameFile(identity, await regular(lock))) await unlink(lock)
+      } catch (error: unknown) {
+        if (!hasCode(error, 'ENOENT')) throw error
+      }
+    }
     try {
+      await handle.writeFile(JSON.stringify(owner), 'utf8')
+      await handle.sync()
+      await confined()
+      // A creator paused before initializing its record may have been recovered.
+      if (!sameFile(identity, await regular(lock))) throw new Error(UI_TEXT.reportUi.saveFailed)
       return await work(files)
     } finally {
       await handle.close()
-      await confined()
-      if (sameFile(identity, await regular(lock))) await unlink(lock)
+      await release()
     }
   }
 }
@@ -268,6 +390,13 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
     return entries.toSorted(compareSavedReports)
   }
 
+  private async retainedEntries(files: ReportFiles, kind: ReportKind) {
+    const saved = await this.entries(files, kind)
+    if (saved.length > REPORT_HISTORY_MAX_PER_KIND)
+      throw new Error(UI_TEXT.reportUi.generationFailed)
+    return saved
+  }
+
   public async save(workspaceKey: string, input: ReportDocument) {
     if (!this.deps.keepHistory()) return { status: 'disabled' as const }
     const document = reportDocumentSchema.parse(input)
@@ -286,15 +415,18 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
       async (files) => {
         // Refuse a corrupt bucket before a failed save can grow it.
         const previous = await this.entries(files, scope.kind)
-        await files.write(`${id}.json`, text)
         const entries = [
           ...previous.filter((entry) => entry.id !== id),
           { id, document: verified },
         ].toSorted(compareSavedReports)
-        for (const entry of entries.slice(REPORT_HISTORY_MAX_PER_KIND))
-          await files.remove(`${entry.id}.json`)
-        if (entries.slice(0, REPORT_HISTORY_MAX_PER_KIND).every((entry) => entry.id !== id))
-          throw new Error(UI_TEXT.reportUi.saveFailed)
+        const retained = entries.slice(0, REPORT_HISTORY_MAX_PER_KIND)
+        if (retained.every((entry) => entry.id !== id)) throw new Error(UI_TEXT.reportUi.saveFailed)
+        const retainedIds = new Set(retained.map((entry) => entry.id))
+        // Prune before publishing: a denied deletion cannot grow the bucket.
+        // This also retries any excess artifacts left by an older writer.
+        for (const entry of previous)
+          if (!retainedIds.has(entry.id)) await files.remove(`${entry.id}.json`)
+        await files.write(`${id}.json`, text)
       },
     )
     return { status: 'saved' as const, entry: { id, header: verified.header } }
@@ -310,7 +442,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
         ['history', scope.workspaceKey, scope.kind],
         false,
         async (files) => {
-          const saved = await this.entries(files, scope.kind)
+          const saved = await this.retainedEntries(files, scope.kind)
           return saved
             .slice(0, REPORT_HISTORY_MAX_PER_KIND)
             .map(({ id, document }) => ({ id, header: document.header }))
@@ -332,7 +464,7 @@ export class ReportHistory implements Pick<ReportsHostPort, 'history' | 'get' | 
         ['history', scope.workspaceKey, scope.kind],
         false,
         async (files) => {
-          const saved = await this.entries(files, scope.kind)
+          const saved = await this.retainedEntries(files, scope.kind)
           return saved.find((entry) => entry.id === scope.id)?.document
         },
       )

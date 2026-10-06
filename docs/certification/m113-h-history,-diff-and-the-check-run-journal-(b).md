@@ -277,3 +277,121 @@ and restored the source bytes with SHA-256 equality:
 | 1       | `head-before-final-guard`  | refuses a folder swapped to an outside link during journal HEAD capture           | `098f4afcf6f95c95f8b3b61fd527eece1e5bcf4a371b08934df9611cb724ee78` |
 | 5       | `diff-identity-namespace`  | namespaces metadata identities apart from sourceIds and unchangedRows cells       | `2f8e583dc140c49079fd1b485e2b1d51e99b3d9778534c80d2ec568c103f82b1` |
 | 6       | `journal-append-retention` | retains the incoming check and append sequence after a backwards clock correction | `7b25f1fc387302234b4b85f862f783a46e305ec9009de759a5ee2b4fd6c78683` |
+
+## RVM113H corrections — storage and final certification (2026-10-06)
+
+All six P2 findings are fixed, with no review residual; PLAN §9 records that
+outcome. No P1 or P3 was reported. The following replaces the earlier lock
+and journal-order limitations, without claiming the pending W integrations
+or other rigs' native receipts.
+
+- **Finding 2:** each exclusive writer lock records a validated PID and OS
+  process start time before work. Linux reads the kernel start ticks; Windows
+  reads the process's FILETIME through bounded, profile-free PowerShell;
+  macOS uses the process's start stamp with fixed locale/timezone. The own
+  process identity is cached, so ordinary writes do not launch a probe each
+  time. Probe children receive `withoutCredentials(process.env)`. Dead or
+  mismatched owners are recovered, with confinement and native-identity
+  checks before removal. An interrupted/unfinished record gets a monotonic
+  250 ms initialization grace, tied to its inode; a creator that resumes
+  after recovery must verify that its lock still exists before work. The
+  child-process regression kills the actual bundled storage writer after
+  lock creation and its owner record, then writes through a fresh instance.
+- **Finding 3:** contention has its own two-second monotonic total and
+  exponential 25–100 ms backoff. External owner probes use the smaller of
+  their two-second bound and remaining wait time. A live owner is preserved;
+  exhaustion throws an explicit save failure, with no callback or silent
+  success. Disappearing locks cannot skip the deadline. A failed or changing
+  owner-record read supplies no ownership or deletion authority and retries
+  within that same bound; the general confined reader's guards are unchanged.
+- **Finding 4:** saves validate the bucket and retained incoming id, prune
+  every displaced prior artifact, then publish the new atomic file. Failed
+  deletion therefore adds no artifact. An already over-cap bucket is honest
+  on list/get (failed, rather than hiding excess), and the next save retries
+  its prune. Read paths share `retainedEntries`; save still scans all prior
+  evidence for repair. Failed writes after a successful prune may leave fewer
+  retained reports, but never acknowledge a new id or exceed the cap; there
+  is no separate index to become inconsistent.
+
+The tests seed prior reports directly as fixture files instead of fsyncing
+fifty fake prior saves. Only the real save being tested runs the production
+fsync path. The writer fixture is built once in `beforeAll`; the held-owner
+setup is shared by the timeout and race tests. These changes preserve the
+repository's five-second per-test timeout on a busy disk. Initial retention
+mutation attempts that only timed out were not accepted as semantic drill
+receipts; the final runs below all reached their named assertions.
+
+The duplication gate caught two repeated blocks (the read cap and held-writer
+setup). They now share the same checks/setup, and no gate setting changed.
+An initial typecheck/drill start and a later lint/test start overlapped by
+mistake. The first was interrupted with source restoration; the final gate
+runner runs every heavy command sequentially and uses at most three Vitest
+files and three workers. No timeout override, hook change or environment
+wrapper alters a repository check.
+
+The small Unreleased changelog correction documents these fixes under
+AGENTS rule 10; the full report user docs, reference and surface bindings
+remain the existing W handoffs. No new user entry point, translation,
+feature catalogue row, package pin, dependency, install, credential read,
+network/model/paid call, merge, rebase or push was introduced.
+
+Final storage red drills each ran the complete `reportHistory.test.ts`, exited
+1 at a semantic assertion (no timeout), and restored the original bytes with
+SHA-256 equality. Together with the first piece's three drills, there are
+15 named correction drills:
+
+| Finding | Drill                            | Named failing test                                                                | Restored SHA-256                                                   |
+| ------- | -------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 2       | `lock-dead-owner`                | recovers the writer lock after killing its owner process                          | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 2       | `lock-pid-reuse`                 | recovers a reused PID with a mismatched process start time and an unfinished lock | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 2       | `lock-unfinished-recovery`       | recovers a reused PID with a mismatched process start time and an unfinished lock | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 2       | `lock-creator-identity`          | refuses work by a creator paused before its recovered lock was initialized        | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 3       | `lock-contention-wait`           | waits for a live writer held longer than the old 100 ms contention budget         | `794ae28b2b5793a339a800de9533fbca485e23bbb5cee45dad561fe6fcb94095` |
+| 3       | `lock-contention-timeout`        | fails a live-owner timeout honestly without running or deleting its lock          | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 3       | `lock-read-race-deadline`        | keeps lock-read races inside the total contention deadline                        | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 3       | `lock-initialization-read-retry` | retries a lock record that changes while its creator is initializing it           | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 4       | `history-prune-before-publish`   | reports failed pruning without growing 50/51 artifacts and retries next write     | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 4       | `history-list-cap`               | reports failed pruning without growing 51 artifacts and retries next write        | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 4       | `history-get-cap`                | reports failed pruning without growing 51 artifacts and retries next write        | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+| 4       | `history-shared-read-cap`        | reports failed pruning without growing 51 artifacts and retries next write        | `7a549ea47116c0a14da2555fbd28713cbd8f4321cd6fe749a56c9cc0ec7e0dfc` |
+
+Final sequential receipts on Kubuntu (repository default test timeout;
+`--maxWorkers=3`, at most three files per run):
+
+| Command / scope                                                                                                                                      | Result                                                                                                             |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `npx --no-install vitest run test/unit/reportHistory.test.ts test/unit/reportDiff.test.ts test/unit/checkRuns.test.ts --maxWorkers=3`                | Exit 0: 24 history + 8 diff + 9 journal = 41 tests                                                                 |
+| `npx --no-install vitest run test/unit/verifyLoop.test.ts test/unit/modelApiGoldenRequests.test.ts test/unit/modelApiPacking.test.ts --maxWorkers=3` | Exit 0: 113 tests, including the complete 77-test verify loop; feature-off bytes/cache-prefix invariants preserved |
+| `npm run typecheck`                                                                                                                                  | Exit 0: all five projects                                                                                          |
+| Scoped `npx --no-install eslint --max-warnings=0`                                                                                                    | Exit 0: all nine changed TypeScript files                                                                          |
+| `npm run deadcode`                                                                                                                                   | Exit 0: only the two pre-existing configuration hints                                                              |
+| `npx --no-install jscpd`                                                                                                                             | Exit 0: 1,198 files, zero clones                                                                                   |
+| `npm run check:reference`                                                                                                                            | Exit 0: 53 features, 44 commands, 59 settings, 26 slash and 116 CLI entries, current                               |
+| `npm run build`                                                                                                                                      | Exit 0: size, split, host globals and notices (83 bundled packages)                                                |
+| `npm run check:l10n`                                                                                                                                 | Exit 1: the same seven pre-existing W-owned unused manifest keys; 14 UI tables valid                               |
+| `npm run check:host-api`                                                                                                                             | Exit 1: W-owned generated inventory refresh; 332 VS Code APIs unchanged                                            |
+
+Exactly 154 final tests passed. No filtered test names, skipped test or raised
+timeout was used. The full `npm run quality` / fleet gate remains the lead's
+explicit responsibility under the shared brief; it was not run on this lane.
+The final runner and outputs are ignored local receipts under `temp/`.
+
+Final production sizes remain extension 439.5/600 KiB, Model API 447.4/475
+KiB, ACP 821.5/850 KiB, checkpoint store 76.9/225 KiB; all other build caps
+passed unchanged too. This does not certify the future reporting engine's
+bundle: its registration, measurement and consumer wiring remain W-owned.
+
+The final host inventory deltas against the generated document are
+`node:child_process` 13 → 14, `node:crypto` 46 → 48, `node:fs` 33 → 34,
+`node:fs/promises` 47 → 48, `node:path` 84 → 85, `node:timers/promises`
+3 → 4, and `node:util` 5 → 6. H's recovery adds the child-process and
+promisify imports; W regenerates the inventory during integration. The
+seven manifest keys are exactly the earlier recorded list. Neither failure
+is suppressed or misreported as green. No review finding remains deferred.
+
+The first correction commit is `ab80211f3`, with the configured hooks and
+zero gitleaks findings. The initial commit attempt was rejected by the normal
+lint hook (array reversal style, await/member style and an untyped JSON test
+return); those were corrected before the successful commit. Hooks remain
+unchanged and enabled for the storage correction too. Final changed-file
+Prettier (all twelve files) and `git diff --check` passed before that commit.

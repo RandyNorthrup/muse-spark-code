@@ -30088,6 +30088,20 @@ before a repaired one loads (2026-09-30).
 
 ## 9. Security assumptions and accepted residual risk
 
+- **M113-H-review-RVM113H (2026-10-06).** All six P2 findings are fixed,
+  with no review residual. HEAD capture precedes the final path guard;
+  writer ownership records PID and OS process start time, recovering dead,
+  reused and unfinished owners while retaining live owners. Contention uses
+  a separate two-second monotonic wait with bounded backoff and an explicit
+  failure on exhaustion. History prunes before publishing, refuses an
+  over-cap read and retries pruning on the next write. Diff metadata and
+  ordinary cells have separate identities; check retention follows append
+  sequence across clock corrections. Tests and byte-exact red drills are in
+  `docs/certification/m113-h-history,-diff-and-the-check-run-journal-(b).md`.
+  Existing W-owned codec/surface/bundle/documentation bindings and aggregate
+  fleet gates remain integration handoffs; this lane changes no command,
+  setting, dependency, wire contract, credential policy or guard threshold.
+
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
   actual document section schemas, including Needs you and both inputs'
