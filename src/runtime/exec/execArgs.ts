@@ -45,6 +45,8 @@ export interface ExecOptions {
   readonly effort: EffortLevel | undefined
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
+  readonly outputSchema?: string
+  readonly outputSchemaOutside?: boolean
   /** Display conversion only; admission retains budgetMicroUsd (F1). */
   readonly budgetUsd: number | undefined
   readonly budgetMicroUsd: number | undefined
@@ -71,6 +73,7 @@ const BOOLEAN_OPTIONS = new Set([
   'trust-workspace',
   'allow-dangerously-skip-permissions',
   'web-search',
+  'output-schema-outside',
 ])
 const STRING_OPTIONS = new Set([
   'backend',
@@ -80,6 +83,7 @@ const STRING_OPTIONS = new Set([
   'model',
   'effort',
   'output',
+  'output-schema',
   'max-budget-usd',
   'max-requests',
   'timeout',
@@ -176,10 +180,21 @@ export function parseExec(
   if (backend === 'modelApi' && budgetMicroUsd === undefined)
     return invalid(UI_TEXT.execBudgetRequired)
   if (
+    values['output-schema'] === '' ||
+    (values['output-schema-outside'] === true && values['output-schema'] === undefined)
+  )
+    return invalid(UI_TEXT.execUsage)
+  if (
     backend === 'museCode' &&
-    ['max-budget-usd', 'max-requests', 'ephemeral', 'key-stdin', 'image-generation'].some(
-      (key) => values[key] !== undefined && values[key] !== false,
-    )
+    [
+      'max-budget-usd',
+      'max-requests',
+      'ephemeral',
+      'key-stdin',
+      'image-generation',
+      'output-schema',
+      'output-schema-outside',
+    ].some((key) => values[key] !== undefined && values[key] !== false)
   )
     return invalid(UI_TEXT.execModelApiOnly)
   if (
@@ -210,6 +225,7 @@ export function parseExec(
   if (prompt.kind === 'text' && Buffer.byteLength(prompt.text) > EXEC_PROMPT_MAX_BYTES)
     return invalid(UI_TEXT.execFileTooLarge)
   const stringValue = (key: string) => (typeof values[key] === 'string' ? values[key] : undefined)
+  const outputSchema = stringValue('output-schema')
   return {
     ok: true,
     options: {
@@ -222,6 +238,8 @@ export function parseExec(
       effort,
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,
+      ...(outputSchema !== undefined && { outputSchema }),
+      ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetMicroUsd,
       budgetUsd: budgetMicroUsd === undefined ? undefined : budgetMicroUsd / EXEC_USD_UNITS,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,

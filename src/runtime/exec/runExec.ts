@@ -1,7 +1,13 @@
 import * as acp from '@agentclientprotocol/sdk'
-import { stat } from 'node:fs/promises'
+import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
+import {
+  handleIdentity,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
 import { createAcpAgent } from '../../acp/agent'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
@@ -13,6 +19,7 @@ import {
   EXEC_EXIT,
   EXEC_ENDPOINTS,
   EXEC_PROMPT_MAX_BYTES,
+  EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
   EXEC_MAX_BUDGET_USD,
   EXEC_STOP_GRACE_MS,
@@ -52,6 +59,22 @@ import { memorySecretStore, type MemorySecretStore, readKeyLine, readPromptStdin
 import { createRunLedger } from './runLedger'
 import { observeBackend, type SessionTap } from './sessionTap'
 import { readUntrustedInputs } from './untrustedInput'
+import { compileOutputSchema, type OutputSchema } from './outputSchema'
+
+/** Bind to M95's selected output.formats and the backend's session-fixed encoder at integration. */
+export interface ExecOutputSchemaPort {
+  /** Only values from an evidence-bearing `state: 'yes'` capability record. */
+  formatsFor(model: string): Promise<readonly ('strict_schema' | 'json_schema' | 'forced_tool')[]>
+  /** Set the session's format only: no dispatch, permission change or cached-prefix mutation. */
+  configure(input: {
+    runtime: RuntimeBackend
+    sessionId: string
+    model: string
+    mode: 'strict_schema' | 'json_schema' | 'forced_tool'
+    schema: Readonly<Record<string, unknown>>
+    signal: AbortSignal
+  }): Promise<void>
+}
 
 export interface ExecDeps {
   options: ExecOptions
@@ -73,6 +96,56 @@ export interface ExecDeps {
   readFile: (path: string, maxBytes: number, signal: AbortSignal) => Promise<Uint8Array>
   randomHex: (bytes: number) => string
   log: Logger
+  outputSchema?: ExecOutputSchemaPort
+  /** Filesystem seam for races and Windows junctions; production uses the native filesystem. */
+  schemaFileIo?: {
+    open: (file: string, flags: number) => Promise<FileHandle>
+    realpath: (file: string) => Promise<string>
+    lstat: (file: string) => Promise<FileIdentity>
+  }
+}
+
+/** Open first, verify the held target, then read exclusively through that handle. */
+async function readSchemaFile(
+  deps: ExecDeps,
+  cwd: string,
+  signal: AbortSignal,
+  log: Logger,
+): Promise<Uint8Array> {
+  signal.throwIfAborted()
+  const io = deps.schemaFileIo ?? { open, realpath, lstat: lstatIdentity }
+  const file = path.resolve(cwd, deps.options.outputSchema ?? '')
+  // Windows has no O_NOFOLLOW; handle identity and realpath confinement still apply.
+  const flags = fileFlags.O_RDONLY | (deps.platform === 'win32' ? 0 : fileFlags.O_NOFOLLOW)
+  const handle = await io.open(file, flags)
+  try {
+    signal.throwIfAborted()
+    const [info, target, workspace] = await Promise.all([
+      handleIdentity(handle),
+      io.realpath(file),
+      io.realpath(cwd),
+    ])
+    const paths = deps.platform === 'win32' ? path.win32 : path
+    const relative = paths.relative(workspace, target).replaceAll('\\', '/')
+    const isOutside = relative === '..' || relative.startsWith('../') || paths.isAbsolute(relative)
+    if (isOutside && deps.options.outputSchemaOutside !== true)
+      throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+    const current = await io.lstat(target)
+    if (!info.isFile() || !sameFile(info, current)) throw new Error(UI_TEXT.execFileUnreadable)
+    if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
+    if (info.size > BigInt(EXEC_PROMPT_MAX_BYTES)) throw new Error(UI_TEXT.execFileTooLarge)
+    const bytes = new Uint8Array(EXEC_PROMPT_MAX_BYTES + 1)
+    let offset = 0
+    for (;;) {
+      signal.throwIfAborted()
+      const part = await handle.read(bytes, offset, bytes.length - offset, null)
+      offset += part.bytesRead
+      if (offset > EXEC_PROMPT_MAX_BYTES) throw new Error(UI_TEXT.execFileTooLarge)
+      if (part.bytesRead === 0) return bytes.subarray(0, offset)
+    }
+  } finally {
+    await handle.close()
+  }
 }
 
 function stopMessage(cause: StopCause, maxRequests: number): string {
@@ -199,6 +272,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let closeSession: (() => Promise<unknown>) | undefined
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
+  let outputSchema: OutputSchema | undefined
+  let outputValidation: 'provider' | 'local' = 'provider'
   const emitted = new Set<string>()
   const sink = createExecSink({
     format: options.output,
@@ -211,6 +286,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     onStalled: () => {
       lifecycle.latch({ kind: 'output_stalled' })
     },
+    outputSchema: () => outputSchema,
+    outputValidation: () => outputValidation,
   })
   const drain = (target: ExecSink) => {
     const messages = tap?.releasedMessages() ?? []
@@ -301,6 +378,19 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   try {
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
+    if (options.outputSchema !== undefined) {
+      let bytes: Uint8Array
+      try {
+        bytes = await lifecycle.race(readSchemaFile(deps, cwd, lifecycle.signal, log))
+      } catch (error: unknown) {
+        if (error instanceof Error && error.message === UI_TEXT.outputSchemaOutsideRefused)
+          throw error
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }), { cause: error })
+      }
+      outputSchema = compileOutputSchema(bytes)
+      if (deps.outputSchema === undefined)
+        throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+    }
     let prompt: string
     try {
       if (options.prompt.kind === 'text') prompt = options.prompt.text
@@ -544,6 +634,36 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               effort = options.effort
             }
             const tier = modelApiPaidTier(model ?? '')
+            if (outputSchema !== undefined) {
+              setup.isUsageError = true
+              const port = deps.outputSchema
+              if (port === undefined || runtime === undefined || model === null)
+                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
+              const formats = await lifecycle.race(port.formatsFor(model))
+              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                (candidate) => formats.includes(candidate),
+              )
+              if (mode === undefined) {
+                outputValidation = 'local'
+                blocks.push({
+                  type: 'text',
+                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                    schema: JSON.stringify(outputSchema.schema),
+                  }),
+                })
+              } else
+                await lifecycle.race(
+                  port.configure({
+                    runtime,
+                    sessionId: created.sessionId,
+                    model,
+                    mode,
+                    schema: outputSchema.schema,
+                    signal: lifecycle.signal,
+                  }),
+                )
+              setup.isUsageError = false
+            }
             if (ledger !== undefined) {
               if (tier === undefined) {
                 setup.isUsageError = true
@@ -804,7 +924,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       )
       const code =
         lifecycle.cause === null
-          ? result.exitCode
+          ? (sink.resultExitCode ?? result.exitCode)
           : exitCodeFor(
               statusForStop(lifecycle.cause),
               lifecycle.cause.kind === 'signal' ? lifecycle.cause.signal : null,

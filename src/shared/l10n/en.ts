@@ -29,6 +29,14 @@ export const EN = {
     'The structured answer could not be validated. Using the text fallback.',
   outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
   outputSchemaMismatch: 'The final answer does not match the output schema: {detail}',
+  outputSchemaTooComplex: 'Output schema too complex: {count} expanded nodes.',
+  outputSchemaWorkBudget: 'Output schema validation work budget exceeded: {count} steps.',
+  outputSchemaOutsideRefused:
+    'The output schema resolves outside the workspace. Use --output-schema-outside to authorise this read.',
+  outputSchemaOutsideAllowed:
+    'Reading an output schema outside the workspace (--output-schema-outside).',
+  outputSchemaLocalValidation:
+    'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
   modelApiStatusLabel: 'Meta API status',
   modelApiStatusUnavailable: 'Status unavailable',

@@ -27522,6 +27522,34 @@ mapping is **M106T-CAPTURE-BINDING** (M95/W); the feature catalog/docs update
 is **M106T-HELP-REFERENCE** (W); the forbidden-in-T counted live pair remains
 **M106T-LIVE-M75** (lead/W). No default, price or paid-use policy is changed
 in this lane. These handoffs do not certify the setting or live default yet.
+**O2 round-two repair (FIXM106O22, 2026-10-06).** Refuse own
+`__proto__`, `constructor` and `prototype` keys before any record parser can
+normalise them, at every nesting level in schemas, answers and additive exec
+records. All O2 record readers share the same null-prototype record parser.
+Workspace-confined schema reads open first (final-component no-follow where
+supported), verify the held file's device/inode against lstat of the path's
+realpath and workspace containment, and read only that handle. One helper
+owns every O2 confined read; seams exercise file swaps, symlink parents and
+Windows junctions. Both RVM106O22 P2 findings require regressions and
+SHA-256-equal restored red drills. Default test timeouts and existing ownership
+handoffs remain in force.
+
+**O2 review repair (FIXM106O2, 2026-10-06).** Address all six RVM106O2
+findings within O2 ownership: compile local references once with memoised
+expansion counts and named preflight/answer work budgets; resolve the schema
+and workspace with realpath before reading, requiring an explicit
+`--output-schema-outside` for outside targets; scrub decoded values before
+serialising JSONL messages and final output; use `Number.isInteger`, including
+enums (JSON transport can lose precision beyond 2^53); include `$defs` names
+in the string budget; and request schema-conforming JSON as prompt text when
+the selected capability record offers no schema format or forced tool,
+reporting `output.validation = 'local'` in both the result and human summary.
+The structured result becomes `output: { value, validation }`, with validation
+`'provider'` for a declared wire format and `'local'` for the text fallback.
+Existing schema-free records remain byte-identical. Each finding gets a
+regression and a byte-exact restored red drill in `docs/certification/m106-o2.md`.
+Production CLI/provider/canonical result wiring and public help remain W's
+named handoffs; scoped gates run on this rig, aggregate quality stays with lead.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
@@ -32867,9 +32895,10 @@ aggregate certification record.
 
 ## 8. Escape hatches register
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                       | Escape hatch                            | Reason                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/exec/outputSchema.ts` (FIXM106O2) | `unicorn/prefer-number-is-safe-integer` | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented. |
+| `src/shared/l10n/text.ts` (ACTDIET)            | `as UiText` on the descriptor clone     | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                           |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -33065,6 +33094,39 @@ before a repaired one loads (2026-09-30).
   payloads; existing OpenAI/xAI non-strict streams qualify only the shared
   decoder. Lead must capture and count a complete strict Meta stream before
   claiming that wire receipt. No new live/paid call is authorized here.
+- **FIXM106O22 (2026-10-06).** Both RVM106O22 P2 findings are fixed;
+  neither is deferred. O2's shared record parser refuses own `__proto__`,
+  `constructor` and `prototype` keys at every depth before strict grammar or
+  answer validation, preserving null-prototype records. Its single confined
+  schema reader opens first, uses final-component no-follow where supported,
+  compares the held file's exact BigInt device/inode with lstat of the path's
+  realpath, enforces workspace containment, and reads only that handle.
+  Regression seams cover file/parent swaps and Windows junctions; regular-file,
+  stat-size, growth, close and outside-disclosure controls remain enforced.
+  No new P2/P3 residual is accepted. Existing O2-CLI-W, O2-FORMAT-W-M95,
+  O2-RESULT-W and O2-HELP-DOC-W ownership handoffs below remain in force.
+  Follow-up: W adopts the same record preflight in canonical readers and
+  downstream contracts and publishes the help/CHANGELOG note after its fake
+  CLI smoke and the lead's certification. Suggested note: “Headless schema
+  validation refuses reserved record keys instead of dropping them; confined
+  schema reads verify the opened file before reading.” No supported public
+  feature or Windows-native execution is inferred from the scoped seam tests.
+
+- **O2-CLI-W / O2-FORMAT-W-M95 / O2-RESULT-W / O2-HELP-DOC-W
+  (FIXM106O2, 2026-10-06).** All six RVM106O2 P2 findings are fixed in O2's
+  shared runtime and fake-only tests; none is left as a finding residual.
+  Integration still must register both `--output-schema` (string) and
+  `--output-schema-outside` (boolean), supply the evidence-backed capability
+  port and captured provider encoder, adopt `output: { value, validation }`
+  and the digest pairing in the canonical result/event contracts, generator
+  and downstream consumers (including Action parity), and update README,
+  ACP/CI guides and the feature catalog/reference absent on this base.
+  Safe for now: absent production binding refuses before inference; the
+  public parser does not advertise/accept these flags; schema-free requests
+  and results remain byte-identical. Follow-up: W owns those bindings and
+  fake CLI smoke, then the lead's full gate and counted live receipts before
+  any supported-feature claim. Local fallback is shared runtime behavior,
+  independent of editor/vendor, and costs one ordinarily budgeted request.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
