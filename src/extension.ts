@@ -3682,7 +3682,7 @@ async function activateWindow(
     ...(['next', 'previous'] as const).map((direction) =>
       registerLoggedCommand(
         log,
-        direction === 'next' ? 'museSpark.nextOpenQuestion' : 'museSpark.previousOpenQuestion',
+        direction === 'next' ? COMMAND_IDS.nextOpenQuestion : COMMAND_IDS.previousOpenQuestion,
         () => {
           const surface = registry.active
           if (surface === undefined) return

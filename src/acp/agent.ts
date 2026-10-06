@@ -945,7 +945,12 @@ class AcpSession {
         sessionUpdate: 'agent_message_chunk',
         content: {
           type: 'text',
-          text: compactReference(this.skills.map((skill) => skill.selector)),
+          text: compactReference([
+            ...this.skills
+              .map((skill) => skill.selector)
+              .filter((name) => !['answer', 'questions'].includes(name)),
+            ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+          ]),
         },
       })
       await this.outbox

@@ -627,6 +627,14 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: expect.stringContaining('docs/reference.md') },
     })
+    // M112's local question commands are listed with /help (REL0143).
+    expect(h.updates).toContainEqual({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: expect.stringContaining(`${UI_TEXT.groupSlashCommands}: /help, /questions, /answer`),
+      },
+    })
     expect(h.permissions).toHaveLength(0)
   })
 

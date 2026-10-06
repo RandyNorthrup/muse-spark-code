@@ -26,9 +26,6 @@ import {
 } from '../../src/shared/constants'
 import { findBash } from './helpers/shellParsers'
 
-// M112 U owns command/manifest bindings; lane 0 froze the separate setting constants.
-const questionCommands = ['museSpark.nextOpenQuestion', 'museSpark.previousOpenQuestion']
-
 const byText = (a: string, b: string) => a.localeCompare(b)
 
 /** One aggregate case's outcome, named, so a failure says which case flipped. */
@@ -77,7 +74,7 @@ describe('package.json manifest', () => {
 
   it('contributes exactly the commands the extension registers', () => {
     const contributed = manifest.contributes.commands.map((command) => command.command)
-    const registered = [...Object.values(COMMAND_IDS), ...questionCommands]
+    const registered = Object.values(COMMAND_IDS)
     expect(new Set(contributed)).toEqual(new Set(registered))
     expect(contributed).toHaveLength(registered.length)
   })
@@ -119,7 +116,7 @@ describe('package.json manifest', () => {
           when: 'editorTextFocus && museSpark.tabOn',
         })
       } else {
-        expect([...Object.values(COMMAND_IDS), ...questionCommands]).toContain(command)
+        expect(Object.values(COMMAND_IDS)).toContain(command)
       }
     }
   })

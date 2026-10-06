@@ -3272,8 +3272,8 @@ placeholders, and modal focus lists both Tab and Shift+Tab. The page follows
 the editor’s theme and display language.
 
 ACP editors can send `/help` for the current installed-skill list and the
-[generated reference](docs/reference.md). ACP locally handles `/help` and
-installed skills; the linked panel slash commands and settings are extension
+[generated reference](docs/reference.md). ACP locally handles `/help`,
+`/questions`, `/answer` and installed skills; the linked panel slash commands and settings are extension
 workflows. In a terminal, `muse-spark-code-acp help --all` prints the full
 reference in the installed language without a model call. `exec --help`,
 `report --help` and `scan-secrets --help` also print it; `--help` prints concise

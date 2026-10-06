@@ -92,6 +92,9 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openHelp: 'museSpark.openHelp',
+  // M112 (PLAN.md D92): cycle the focused chat's open question cards.
+  nextOpenQuestion: 'museSpark.nextOpenQuestion',
+  previousOpenQuestion: 'museSpark.previousOpenQuestion',
   tabTurnOn: 'museSpark.tabTurnOn',
   tabTurnOff: 'museSpark.tabTurnOff',
   tabSnooze: 'museSpark.tabSnooze',
@@ -349,6 +352,9 @@ export const SETTING_DEFAULTS = {
   museBinaryPath: '',
   environmentVariables: [] as readonly EnvironmentVariable[],
   'shell.passEnvironmentVariables': [] as readonly string[],
+  // M112 (PLAN.md D92): seconds before an unanswered question defers; the
+  // host reads only the user's own value (questionStore.ts).
+  'questions.deferAfterSeconds': 60,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -540,6 +546,8 @@ export const MACHINE_SCOPED_SETTINGS = [
   'museCodeAutoReviewer',
   // A page that opens on its own after an update is the user's choice, never a repository's (M99).
   'showWhatsNewOnUpdate',
+  // How long Muse waits for an answer is the user's choice (M112, D92).
+  'questions.deferAfterSeconds',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.

@@ -735,6 +735,7 @@ describe('M112 through the pinned ACP SDK client', () => {
       expect(h.updates).toContainEqual({
         sessionUpdate: 'available_commands_update',
         availableCommands: [
+          { name: 'help', description: UI_TEXT.referenceIntro, input: null },
           { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
           { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
         ],
@@ -920,8 +921,9 @@ describe('M112 through the pinned ACP SDK client', () => {
       const commands = h.updates.flatMap((update) =>
         update.sessionUpdate === 'available_commands_update' ? update.availableCommands : [],
       )
-      expect(commands.map((command) => command.name)).toEqual(['answer', 'questions'])
+      expect(commands.map((command) => command.name)).toEqual(['help', 'answer', 'questions'])
       expect(commands.map((command) => command.description)).toEqual([
+        UI_TEXT.referenceIntro,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])
