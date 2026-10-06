@@ -19,6 +19,25 @@ describe('M80 args (A1–A10, F1)', () => {
       reason: UI_TEXT.execModelApiOnly,
     })
   })
+  it('requires the outside-schema flag to be explicit and paired with a Model API schema', () => {
+    const values = {
+      backend: 'modelApi',
+      'max-budget-usd': '1',
+      'output-schema': 'answer.json',
+      'output-schema-outside': true,
+    }
+    expect(parseExec(values, ['task'])).toMatchObject({
+      ok: true,
+      options: { outputSchema: 'answer.json', outputSchemaOutside: true },
+    })
+    expect(parseExec({ 'output-schema-outside': true }, ['task']).ok).toBe(false)
+    expect(
+      parseExec({ backend: 'modelApi', 'max-budget-usd': '1', 'output-schema-outside': true }, [
+        'task',
+      ]).ok,
+    ).toBe(false)
+    expect(parseExec({ ...values, 'output-schema-outside': 'true' }, ['task']).ok).toBe(false)
+  })
   it('A1 keeps safe Muse Code defaults and projects an untrusted serve session', () => {
     const parsed = parseExec({}, ['hi'])
     expect(parsed.ok).toBe(true)

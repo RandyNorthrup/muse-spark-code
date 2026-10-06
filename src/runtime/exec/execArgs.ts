@@ -46,6 +46,7 @@ export interface ExecOptions {
   readonly allowsContributorModels: boolean
   readonly output: ExecOutput
   readonly outputSchema?: string
+  readonly outputSchemaOutside?: boolean
   /** Display conversion only; admission retains budgetMicroUsd (F1). */
   readonly budgetUsd: number | undefined
   readonly budgetMicroUsd: number | undefined
@@ -70,6 +71,7 @@ const BOOLEAN_OPTIONS = new Set([
   'trust-workspace',
   'allow-dangerously-skip-permissions',
   'web-search',
+  'output-schema-outside',
 ])
 const STRING_OPTIONS = new Set([
   'backend',
@@ -175,7 +177,11 @@ export function parseExec(
     return invalid(UI_TEXT.execNumberInvalid)
   if (backend === 'modelApi' && budgetMicroUsd === undefined)
     return invalid(UI_TEXT.execBudgetRequired)
-  if (values['output-schema'] === '') return invalid(UI_TEXT.execUsage)
+  if (
+    values['output-schema'] === '' ||
+    (values['output-schema-outside'] === true && values['output-schema'] === undefined)
+  )
+    return invalid(UI_TEXT.execUsage)
   if (
     backend === 'museCode' &&
     [
@@ -185,6 +191,7 @@ export function parseExec(
       'key-stdin',
       'image-generation',
       'output-schema',
+      'output-schema-outside',
     ].some((key) => values[key] !== undefined && values[key] !== false)
   )
     return invalid(UI_TEXT.execModelApiOnly)
@@ -230,6 +237,7 @@ export function parseExec(
       allowsContributorModels: values['allow-contributor-models'] === true,
       output,
       ...(outputSchema !== undefined && { outputSchema }),
+      ...(values['output-schema-outside'] === true && { outputSchemaOutside: true }),
       budgetMicroUsd,
       budgetUsd: budgetMicroUsd === undefined ? undefined : budgetMicroUsd / EXEC_USD_UNITS,
       maxRequests: backend === 'modelApi' ? maxRequests : undefined,

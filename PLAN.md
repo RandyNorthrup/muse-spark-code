@@ -21114,16 +21114,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-- **FIXM106O2 / `outputSchema.ts` / `unicorn/prefer-number-is-safe-integer`.**
-  One inline suppression retains `Number.isInteger` because JSON Schema's
-  integer type includes integral numbers outside JavaScript's safe range.
-  The outgoing schema imposes no safe-integer restriction. RVM106O2 P2-4's
-  regression and restored red drill prove both normal integers and integer
-  enums accept 2^53; transport precision limitations are documented.
-
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                       | Escape hatch                            | Reason                                                                                                                                                                                                                                                                       |
+| ---------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/exec/outputSchema.ts` (FIXM106O2) | `unicorn/prefer-number-is-safe-integer` | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented. |
+| `src/shared/l10n/text.ts` (ACTDIET)            | `as UiText` on the descriptor clone     | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                           |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -21243,6 +21237,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **O2-CLI-W / O2-FORMAT-W-M95 / O2-RESULT-W / O2-HELP-DOC-W
+  (FIXM106O2, 2026-10-06).** All six RVM106O2 P2 findings are fixed in O2's
+  shared runtime and fake-only tests; none is left as a finding residual.
+  Integration still must register both `--output-schema` (string) and
+  `--output-schema-outside` (boolean), supply the evidence-backed capability
+  port and captured provider encoder, adopt `output: { value, validation }`
+  and the digest pairing in the canonical result/event contracts, generator
+  and downstream consumers (including Action parity), and update README,
+  ACP/CI guides and the feature catalog/reference absent on this base.
+  Safe for now: absent production binding refuses before inference; the
+  public parser does not advertise/accept these flags; schema-free requests
+  and results remain byte-identical. Follow-up: W owns those bindings and
+  fake CLI smoke, then the lead's full gate and counted live receipts before
+  any supported-feature claim. Local fallback is shared runtime behavior,
+  independent of editor/vendor, and costs one ordinarily budgeted request.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

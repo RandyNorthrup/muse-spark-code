@@ -94,7 +94,12 @@ describe('M106 O2 strict output schema', () => {
     const base = await read('exec-result-v1')
     const result = await read('exec-result-output-schema-v1')
     const properties = z.record(z.string(), z.unknown()).parse(result['properties'])
-    expect(properties['output']).toEqual({})
+    expect(properties['output']).toEqual({
+      type: 'object',
+      properties: { value: {}, validation: { type: 'string', enum: ['provider', 'local'] } },
+      required: ['value', 'validation'],
+      additionalProperties: false,
+    })
     delete properties['output']
     const ledger = z.record(z.string(), z.unknown()).parse(properties['ledger'])
     const variants = z.array(z.record(z.string(), z.unknown())).parse(ledger['anyOf'])
@@ -245,6 +250,22 @@ describe('M106 O2 strict output schema', () => {
     let deep: unknown = { type: 'string' }
     for (let index = 0; index < 20; index += 1) deep = closed({ a: deep })
     expect(() => compileOutputSchema(encode(deep))).toThrow('depth')
+  })
+  it('bounds reference-only chain traversal before it can overflow the stack', () => {
+    const definitions = Object.fromEntries(
+      Array.from({ length: 5000 }, (_, index) => {
+        const id = 4999 - index
+        return [
+          'd' + String(id),
+          id === 0 ? { type: 'boolean' } : { $ref: '#/$defs/d' + String(id - 1) },
+        ]
+      }),
+    )
+    expect(() =>
+      compileOutputSchema(
+        encode({ ...closed({ a: { $ref: '#/$defs/d4999' } }), $defs: definitions }),
+      ),
+    ).toThrow(/\$ref (?:cycle|depth)/u)
   })
   it('refuses reference-only cycles before parsing an answer', () => {
     expect(() =>

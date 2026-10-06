@@ -219,7 +219,12 @@ export function compileOutputSchema(bytes: Uint8Array): OutputSchema {
   const expand = (node: SchemaNode): { count: number; depth: number } => {
     const cached = expansions.get(node)
     if (cached !== undefined) return cached
-    if (visiting.has(node)) invalid('$ref cycle')
+    if (node.type !== undefined) {
+      const leaf = { count: 1, depth: 0 }
+      expansions.set(node, leaf)
+      return leaf
+    }
+    if (visiting.has(node) || visiting.size > MCP_SCHEMA_LIMITS.depth) invalid('$ref cycle')
     visiting.add(node)
     let count = 1
     let depth = 0

@@ -5,6 +5,8 @@ import {
   readdirSync,
   existsSync,
   writeFileSync,
+  symlinkSync,
+  realpathSync,
 } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -16,7 +18,7 @@ import * as runtimeBackends from '../../src/runtime/backends'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { buildSync } from 'esbuild'
 import * as acp from '@agentclientprotocol/sdk'
-import { runExec, type ExecDeps } from '../../src/runtime/exec/runExec'
+import { runExec, type ExecDeps, type ExecOutputSchemaPort } from '../../src/runtime/exec/runExec'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { createLifecycle } from '../../src/runtime/exec/execLimits'
 import {
@@ -246,11 +248,55 @@ const outputSchemaBytes = new TextEncoder().encode(
   }),
 )
 
+function strictSchemaBinding(): ExecOutputSchemaPort {
+  return {
+    formatsFor: () => Promise.resolve(['strict_schema']),
+    configure: () => Promise.resolve(),
+  }
+}
+async function outsideSchemaHarness(
+  kind: 'symlink' | 'traversal' | 'absolute',
+  isAllowed: boolean,
+) {
+  const h = await harness([], [{ text: '{"ok":true}' }])
+  const outside = path.join(h.homeDir, 'answer.json')
+  writeFileSync(outside, outputSchemaBytes)
+  symlinkSync(h.homeDir, path.join(h.cwd, 'linked'), 'junction')
+  const given = {
+    symlink: path.join('linked', 'answer.json'),
+    traversal: path.relative(h.cwd, outside),
+    absolute: outside,
+  }[kind]
+  h.deps.options = {
+    ...h.deps.options,
+    outputSchema: given,
+    ...(isAllowed && { outputSchemaOutside: true }),
+  }
+  h.deps.readFile = vi.fn(h.deps.readFile)
+  h.deps.outputSchema = strictSchemaBinding()
+  return { h, outside }
+}
+
+async function expectPreflightRefusal(h: Awaited<ReturnType<typeof harness>>): Promise<void> {
+  h.deps.fetch = vi.fn(h.deps.fetch)
+  const create = vi.spyOn(runtimeBackends, 'createRuntimeBackend')
+  try {
+    const run = await h.run()
+    expect(run.code).toBe(2)
+    expect(run.result).toBeUndefined()
+    expect(h.deps.fetch).not.toHaveBeenCalled()
+    expect(create).not.toHaveBeenCalled()
+  } finally {
+    create.mockRestore()
+  }
+}
+
 describe('M106 output schema runtime binding', () => {
   it('refuses invalid/unreadable schemas and an absent binding before backend creation or HTTP', async () => {
     for (const phase of ['invalid', 'unreadable', 'unbound']) {
       const h = await harness()
       h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
       h.deps.readFile = vi.fn(() =>
         phase === 'unreadable'
           ? Promise.reject(new Error('unreadable'))
@@ -258,22 +304,8 @@ describe('M106 output schema runtime binding', () => {
               phase === 'invalid' ? new TextEncoder().encode('{}') : outputSchemaBytes,
             ),
       )
-      if (phase !== 'unbound')
-        h.deps.outputSchema = {
-          formatsFor: () => Promise.resolve(['strict_schema']),
-          configure: () => Promise.resolve(),
-        }
-      h.deps.fetch = vi.fn(h.deps.fetch)
-      const create = vi.spyOn(runtimeBackends, 'createRuntimeBackend')
-      try {
-        const run = await h.run()
-        expect(run.code).toBe(2)
-        expect(run.result).toBeUndefined()
-        expect(h.deps.fetch).not.toHaveBeenCalled()
-        expect(create).not.toHaveBeenCalled()
-      } finally {
-        create.mockRestore()
-      }
+      if (phase !== 'unbound') h.deps.outputSchema = strictSchemaBinding()
+      await expectPreflightRefusal(h)
     }
   })
   it.each([
@@ -285,6 +317,7 @@ describe('M106 output schema runtime binding', () => {
     async (formats, mode) => {
       const h = await harness([], [{ text: '{"ok":true}' }])
       h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+      writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
       h.deps.readFile = vi.fn(() => Promise.resolve(outputSchemaBytes))
       const configure = vi.fn(() => {
         expect(h.api.responseBodies()).toHaveLength(0)
@@ -302,33 +335,109 @@ describe('M106 output schema runtime binding', () => {
       )
       expect(run.code).toBe(0)
       expect(run.result).toMatchObject({
-        output: { ok: true },
+        output: { value: { ok: true }, validation: 'provider' },
         ledger: {
           outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256,
         },
       })
     },
   )
-  it('refuses an unsupported capability record before inference', async () => {
-    const h = await harness()
+  it('uses prompt-text schema fallback and discloses local validation when no wire format is supported', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
     h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
-    h.deps.readFile = () => Promise.resolve(outputSchemaBytes)
     const configure = vi.fn(() => Promise.resolve())
     h.deps.outputSchema = { formatsFor: () => Promise.resolve([]), configure }
     const run = await h.run()
-    expect(run.code).toBe(2)
-    expect(run.result).toBeUndefined()
+    expect(run.code).toBe(0)
     expect(configure).not.toHaveBeenCalled()
-    expect(h.api.responseBodies()).toHaveLength(0)
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(JSON.stringify(h.api.responseBodies()[0]?.['input'])).toContain(
+      JSON.stringify(new TextDecoder().decode(outputSchemaBytes)).slice(1, -1),
+    )
+    expect(run.result).toMatchObject({
+      output: { value: { ok: true }, validation: 'local' },
+      usage: { requests: 1 },
+      ledger: { outputSchemaSha256: compileOutputSchema(outputSchemaBytes).sha256 },
+    })
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('fails a text-fallback schema mismatch locally without a repair or extra billable request', async () => {
+    const h = await harness([], [{ text: '{"ok":"wrong"}' }])
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.outputSchema = {
+      formatsFor: () => Promise.resolve([]),
+      configure: vi.fn(() => Promise.resolve()),
+    }
+    const run = await h.run()
+    expect(run.code).toBe(4)
+    expect(run.result).toMatchObject({
+      status: 'failed',
+      error: { kind: 'output_schema_mismatch' },
+      usage: { requests: 1 },
+    })
+    expect(Object.hasOwn(run.result ?? {}, 'output')).toBe(false)
+    expect(h.api.responseBodies()).toHaveLength(1)
+    expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaLocalValidation)
+  })
+  it('normalises Windows separators before the schema containment comparison', async () => {
+    const h = await harness()
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
+    h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    h.deps.readFile = vi.fn(h.deps.readFile)
+    const relative = vi.spyOn(path, 'relative').mockReturnValue(String.raw`..\outside\answer.json`)
+    try {
+      const run = await h.run()
+      expect(run.code).toBe(2)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    } finally {
+      relative.mockRestore()
+    }
+  })
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'refuses an outside schema target through %s before reading or creating a backend',
+    async (kind) => {
+      const { h } = await outsideSchemaHarness(kind, false)
+      await expectPreflightRefusal(h)
+      expect(h.deps.readFile).not.toHaveBeenCalled()
+      expect(h.err.chunks.join('')).toContain('--output-schema-outside')
+    },
+  )
+  it.each(['symlink', 'traversal', 'absolute'] as const)(
+    'reads and reports an explicitly authorised outside schema through %s',
+    async (kind) => {
+      const { h, outside } = await outsideSchemaHarness(kind, true)
+      const run = await h.run()
+      expect(run.code).toBe(0)
+      expect(h.deps.readFile).toHaveBeenCalledWith(
+        realpathSync(outside),
+        expect.any(Number),
+        h.life.signal,
+      )
+      expect(h.err.chunks.join('')).toContain(UI_TEXT.outputSchemaOutsideAllowed)
+      expect(JSON.stringify(run.result?.ledger)).not.toContain(outside)
+    },
+  )
+  it('accepts an absolute inside schema and a symlinked workspace by their real paths', async () => {
+    const h = await harness([], [{ text: '{"ok":true}' }])
+    const inside = path.join(h.cwd, 'answer.json')
+    writeFileSync(inside, outputSchemaBytes)
+    const alias = path.join(h.homeDir, 'workspace')
+    symlinkSync(h.cwd, alias, 'junction')
+    h.deps.options = { ...h.deps.options, cwd: alias, outputSchema: inside }
+    h.deps.outputSchema = strictSchemaBinding()
+    const run = await h.run()
+    expect(run.code).toBe(0)
+    expect(h.err.chunks.join('')).not.toContain('--output-schema-outside')
   })
   it('propagates a final schema mismatch to the process code while retaining spend and digest', async () => {
     const h = await harness([], [{ text: '{"ok":"wrong"}' }])
     h.deps.options = { ...h.deps.options, outputSchema: 'answer.json' }
+    writeFileSync(path.join(h.cwd, 'answer.json'), outputSchemaBytes)
     h.deps.readFile = () => Promise.resolve(outputSchemaBytes)
-    h.deps.outputSchema = {
-      formatsFor: () => Promise.resolve(['strict_schema']),
-      configure: () => Promise.resolve(),
-    }
+    h.deps.outputSchema = strictSchemaBinding()
     const run = await h.run()
     expect(run.code).toBe(4)
     expect(run.result).toMatchObject({

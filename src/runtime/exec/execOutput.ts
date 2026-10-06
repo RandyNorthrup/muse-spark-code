@@ -25,7 +25,7 @@ import { outputJsonSchema, type OutputSchema } from './outputSchema'
 
 /** Optional M106 fields; callers without a schema retain M80's exact result. */
 export type SchemaExecResult = ExecResult & {
-  output?: z.core.util.JSONType
+  output?: { value: z.core.util.JSONType; validation: 'provider' | 'local' }
   ledger: (NonNullable<ExecResult['ledger']> & { outputSchemaSha256?: string }) | null
 }
 
@@ -48,7 +48,14 @@ export function validateSchemaResult(value: unknown): SchemaExecResult {
     : undefined
   return {
     ...result,
-    ...(hasOutput && { output: outputJsonSchema.parse(output) }),
+    ...(hasOutput && {
+      output: z
+        .strictObject({
+          value: outputJsonSchema,
+          validation: z.enum(['provider', 'local']),
+        })
+        .parse(output),
+    }),
     ledger:
       result.ledger === null
         ? null
@@ -63,9 +70,21 @@ export type SchemaExecEvent =
   | Exclude<ExecEvent, { type: 'result' }>
   | (Extract<ExecEvent, { type: 'result' }> & { result: SchemaExecResult })
 
-export function validateSchemaEvent(value: unknown): SchemaExecEvent {
+export function validateSchemaEvent(value: unknown, schema?: OutputSchema): SchemaExecEvent {
   const record = z.record(z.string(), z.unknown()).parse(value)
-  if (record['type'] !== 'result') return execEventSchema.parse(record)
+  if (record['type'] !== 'result') {
+    const event = execEventSchema.parse(record)
+    if (
+      schema !== undefined &&
+      event.type === 'message' &&
+      event.kind === 'agentMessage' &&
+      event.complete &&
+      event.text !== UI_TEXT.execMessageWithheld &&
+      !schema.parseAnswer(event.text).ok
+    )
+      throw new Error(UI_TEXT.execRequestShape)
+    return event
+  }
   const result = validateSchemaResult(record['result'])
   const { output: _output, ledger, ...base } = result
   const { outputSchemaSha256: _digest, ...baseLedger } = ledger ?? {}
@@ -122,6 +141,7 @@ export function createExecSink(input: {
   summary: (line: string) => void
   onStalled: () => void
   outputSchema?: () => OutputSchema | undefined
+  outputValidation?: () => 'provider' | 'local'
 }): ExecSink {
   let seq = 0
   let isFinished = false
@@ -151,30 +171,33 @@ export function createExecSink(input: {
   const emit = (event: ExecEventBody) => {
     if (isFinished) throw new Error(UI_TEXT.execOutputStalled)
     if (event.type === 'result') throw new Error(UI_TEXT.execRequestShape)
-    let normalized =
+    const normalized =
       event.type === 'message' && !event.complete
         ? { ...event, text: UI_TEXT.execMessageWithheld }
         : event
     const schema = input.outputSchema?.()
-    if (
-      schema !== undefined &&
-      normalized.type === 'message' &&
-      normalized.kind === 'agentMessage'
-    ) {
-      const answer = normalized.complete ? answerForEgress(normalized.text, schema) : undefined
-      normalized = {
-        ...normalized,
-        text: answer?.ok === true ? JSON.stringify(answer.value) : UI_TEXT.execMessageWithheld,
-      }
-    }
+    const isSchemaMessage =
+      schema !== undefined && normalized.type === 'message' && normalized.kind === 'agentMessage'
+    const answer =
+      isSchemaMessage && normalized.complete ? answerForEgress(normalized.text, schema) : undefined
     const raw = {
       ...normalized,
+      // Scrub metadata with a harmless placeholder. A serialised JSON answer
+      // must never pass through the text redactor again.
+      ...(isSchemaMessage && { text: UI_TEXT.execMessageWithheld }),
       v: EXEC_PROTOCOL_VERSION,
       seq: seq + 1,
       time: new Date(input.now()).toISOString(),
     }
     execEventSchema.parse(raw)
-    const redacted = execEventSchema.parse(redactValue(raw, input.literals()))
+    const metadata = execEventSchema.parse(redactValue(raw, input.literals()))
+    const redacted = validateSchemaEvent(
+      {
+        ...metadata,
+        ...(answer?.ok === true && { text: JSON.stringify(answer.value) }),
+      },
+      schema,
+    )
     seq += 1
     if (input.format === 'jsonl') write(`${JSON.stringify(redacted)}\n`)
   }
@@ -184,8 +207,13 @@ export function createExecSink(input: {
         ? result
         : { ...result, finalMessage: lastMessage },
     )
-    const redactedBase = validateResult(redactValue(raw, input.literals()))
     const schema = input.outputSchema?.()
+    const redactedBase = validateResult(
+      redactValue(
+        schema === undefined ? raw : { ...raw, finalMessage: UI_TEXT.execMessageWithheld },
+        input.literals(),
+      ),
+    )
     let schemaResult: SchemaExecResult = redactedBase
     if (schema !== undefined && redactedBase.ledger !== null) {
       // Validate the exact data that leaves egress. Redaction may invalidate an
@@ -196,7 +224,7 @@ export function createExecSink(input: {
         ...redactedBase,
         ledger: { ...redactedBase.ledger, outputSchemaSha256: schema.sha256 },
         ...(answer?.ok === true && {
-          output: answer.value,
+          output: { value: answer.value, validation: input.outputValidation?.() ?? 'provider' },
           finalMessage: JSON.stringify(answer.value),
         }),
         ...(answer?.ok === false && {
@@ -204,7 +232,7 @@ export function createExecSink(input: {
           exitCode: EXEC_EXIT.failed,
           finalMessage: UI_TEXT.execMessageWithheld,
           error: {
-            kind: 'output_schema_mismatch',
+            kind: answer.kind ?? 'output_schema_mismatch',
             message: fill(UI_TEXT.outputSchemaMismatch, { detail: answer.detail }),
           },
         }),
@@ -239,6 +267,8 @@ export function createExecSink(input: {
       },
     )
     input.summary(redactWhole(summary, input.literals()))
+    if (schema !== undefined && input.outputValidation?.() === 'local')
+      input.summary(UI_TEXT.outputSchemaLocalValidation)
   }
   return {
     emit,

@@ -1,5 +1,5 @@
 import * as acp from '@agentclientprotocol/sdk'
-import { stat } from 'node:fs/promises'
+import { stat, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
 import { createAcpAgent } from '../../acp/agent'
@@ -12,6 +12,7 @@ import {
   EXEC_EXIT,
   EXEC_ENDPOINTS,
   EXEC_PROMPT_MAX_BYTES,
+  EXEC_MODEL_TEXT,
   EXEC_PROTOCOL_VERSION,
   EXEC_MAX_BUDGET_USD,
   EXEC_STOP_GRACE_MS,
@@ -214,6 +215,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
   let cancelSession: (() => void) | undefined
   let latestTokens: Partial<TokenTotals> | undefined
   let outputSchema: OutputSchema | undefined
+  let outputValidation: 'provider' | 'local' = 'provider'
   const emitted = new Set<string>()
   const sink = createExecSink({
     format: options.output,
@@ -227,6 +229,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       lifecycle.latch({ kind: 'output_stalled' })
     },
     outputSchema: () => outputSchema,
+    outputValidation: () => outputValidation,
   })
   const drain = (target: ExecSink) => {
     const messages = tap?.releasedMessages() ?? []
@@ -318,14 +321,24 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
     const folder = await lifecycle.race(stat(cwd))
     if (!folder.isDirectory()) throw new Error(UI_TEXT.execFileUnreadable)
     if (options.outputSchema !== undefined) {
+      let resolved: [string, string]
+      try {
+        resolved = await lifecycle.race(
+          Promise.all([realpath(cwd), realpath(path.resolve(cwd, options.outputSchema))]),
+        )
+      } catch {
+        throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }))
+      }
+      const [workspacePath, schemaPath] = resolved
+      const relative = path.relative(workspacePath, schemaPath).replaceAll('\\', '/')
+      const isOutside = relative === '..' || relative.startsWith('../') || path.isAbsolute(relative)
+      if (isOutside && options.outputSchemaOutside !== true)
+        throw new Error(UI_TEXT.outputSchemaOutsideRefused)
+      if (isOutside) log.info(UI_TEXT.outputSchemaOutsideAllowed)
       let bytes: Uint8Array
       try {
         bytes = await lifecycle.race(
-          deps.readFile(
-            path.resolve(cwd, options.outputSchema),
-            EXEC_PROMPT_MAX_BYTES,
-            lifecycle.signal,
-          ),
+          deps.readFile(schemaPath, EXEC_PROMPT_MAX_BYTES, lifecycle.signal),
         )
       } catch {
         throw new Error(fill(UI_TEXT.outputSchemaReadFailed, { detail: 'file' }))
@@ -584,18 +597,25 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
                 (candidate) => formats.includes(candidate),
               )
-              if (mode === undefined)
-                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'output.formats' }))
-              await lifecycle.race(
-                port.configure({
-                  runtime,
-                  sessionId: created.sessionId,
-                  model,
-                  mode,
-                  schema: outputSchema.schema,
-                  signal: lifecycle.signal,
-                }),
-              )
+              if (mode === undefined) {
+                outputValidation = 'local'
+                blocks.push({
+                  type: 'text',
+                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                    schema: JSON.stringify(outputSchema.schema),
+                  }),
+                })
+              } else
+                await lifecycle.race(
+                  port.configure({
+                    runtime,
+                    sessionId: created.sessionId,
+                    model,
+                    mode,
+                    schema: outputSchema.schema,
+                    signal: lifecycle.signal,
+                  }),
+                )
               setup.isUsageError = false
             }
             if (ledger !== undefined) {

@@ -1116,7 +1116,18 @@
                 }
               ]
             },
-            "output": {}
+            "output": {
+              "type": "object",
+              "properties": {
+                "value": {},
+                "validation": {
+                  "type": "string",
+                  "enum": ["provider", "local"]
+                }
+              },
+              "required": ["value", "validation"],
+              "additionalProperties": false
+            }
           },
           "required": [
             "v",
@@ -1470,7 +1481,7 @@
             "Cached tokens <= input tokens; reasoning tokens <= output tokens; counters are safe nonnegative integers.",
             "Paid returned + refunded + uncertain units <= admitted image attempts.",
             "Workspace-relative forward-slash paths are deduplicated; input names are basenames.",
-            "M106: output is JSON validated against the exact user schema after secret redaction; outputSchemaSha256 digests exact input bytes. A mismatch is failed/4 with error.kind output_schema_mismatch and no output. Schema-free results have neither additive field."
+            "M106: output.value is JSON validated against the exact user schema after decoded secret redaction; output.validation is provider for a capability-backed format or local for prompt-text fallback. outputSchemaSha256 digests exact input bytes. A mismatch is failed/4 with error.kind output_schema_mismatch; work exhaustion is output_schema_validation_budget. Neither has output. Schema-free results have neither additive field."
           ]
         },
         "v": {

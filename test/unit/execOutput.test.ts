@@ -43,6 +43,61 @@ const answerSchema = (properties?: Record<string, unknown>) => {
 }
 
 describe('M106 structured exec egress', () => {
+  it.each(['META_API_KEY=opaque-value', 'password="quoted-value"'])(
+    'serialises decoded redaction once and keeps message/result JSON identical: %s',
+    async (note) => {
+      const schema = answerSchema({ note: { type: 'string' } })
+      const h = harness('jsonl', schema)
+      h.sink.message({
+        itemId: 'final',
+        kind: 'agentMessage',
+        text: JSON.stringify({ note }),
+        complete: true,
+      })
+      await h.sink.finish(resultRecord())
+      const message = validateSchemaEvent(JSON.parse(h.out.chunks[0] ?? ''), schema)
+      const final = validateSchemaEvent(JSON.parse(h.out.chunks.at(-1) ?? ''), schema)
+      if (message.type !== 'message' || final.type !== 'result') throw new Error('missing events')
+      expect(schema.parseAnswer(message.text).ok).toBe(true)
+      expect(message.text).toBe(final.result.finalMessage)
+      expect(JSON.parse(message.text)).toEqual(final.result.output?.value)
+      expect(h.sink.resultExitCode).toBe(0)
+      expect(h.out.chunks.join('')).not.toContain('opaque-value')
+      expect(h.out.chunks.join('')).not.toContain('quoted-value')
+      expect(() => validateSchemaEvent({ ...message, text: '{"note":"broken' }, schema)).toThrow()
+    },
+  )
+  it('retains integral large-number output and accounting at egress', async () => {
+    const h = harness('json', answerSchema({ n: { type: 'integer' } }))
+    h.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: '{"n":9007199254740992}',
+      complete: true,
+    })
+    await h.sink.finish(resultRecord())
+    expect(h.sink.resultExitCode).toBe(0)
+    expect(validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))).toMatchObject({
+      output: { value: { n: 9_007_199_254_740_992 }, validation: 'provider' },
+      usage: resultRecord().usage,
+    })
+  })
+  it('reports answer validation work exhaustion as its named failure while retaining accounting', async () => {
+    const h = harness('json', answerSchema({ a: { type: 'array', items: { type: 'integer' } } }))
+    h.sink.message({
+      itemId: 'final',
+      kind: 'agentMessage',
+      text: JSON.stringify({ a: Array.from({ length: 20_000 }, (_, i) => i) }),
+      complete: true,
+    })
+    await h.sink.finish(resultRecord())
+    expect(h.sink.resultExitCode).toBe(4)
+    expect(validateSchemaResult(JSON.parse(h.out.chunks[0] ?? ''))).toMatchObject({
+      status: 'failed',
+      error: { kind: 'output_schema_validation_budget' },
+      usage: resultRecord().usage,
+    })
+  })
   it.each(['text', 'json', 'jsonl'] as const)(
     'returns validated output and exact digest in %s',
     async (format) => {
@@ -63,13 +118,13 @@ describe('M106 structured exec egress', () => {
         expect(result).toMatchObject(
           format === 'json'
             ? {
-                output: { ok: true },
+                output: { value: { ok: true }, validation: 'provider' },
                 ledger: { outputSchemaSha256: schema.sha256 },
               }
             : {
                 type: 'result',
                 result: {
-                  output: { ok: true },
+                  output: { value: { ok: true }, validation: 'provider' },
                   ledger: { outputSchemaSha256: schema.sha256 },
                 },
               },
@@ -113,7 +168,7 @@ describe('M106 structured exec egress', () => {
     expect(event).toMatchObject({
       type: 'result',
       result: {
-        output: { password: '[redacted]', note: 'safe' },
+        output: { value: { password: '[redacted]', note: 'safe' }, validation: 'provider' },
         finalMessage: '{"password":"[redacted]","note":"safe"}',
       },
     })
@@ -163,13 +218,20 @@ describe('M106 structured exec egress', () => {
     const base = resultRecord()
     const good = {
       ...base,
-      output: { ok: true },
+      output: { value: { ok: true }, validation: 'provider' },
       ledger: { ...base.ledger, outputSchemaSha256: answerSchema().sha256 },
     }
     expect(validateSchemaResult(good)).toEqual(good)
+    expect(
+      validateSchemaResult({ ...good, output: { value: { ok: true }, validation: 'local' } }).output
+        ?.validation,
+    ).toBe('local')
     for (const value of [
       { ...good, output: undefined },
-      { ...good, output: { ok: NaN } },
+      { ...good, output: { value: { ok: NaN }, validation: 'provider' } },
+      { ...good, output: { value: { ok: true } } },
+      { ...good, output: { value: { ok: true }, validation: 'unverified' } },
+      { ...good, output: { value: { ok: true }, validation: 'local', extra: true } },
       { ...good, ledger: base.ledger },
       { ...base, ledger: good.ledger },
       { ...good, ledger: { ...good.ledger, outputSchemaSha256: 'wrong' } },
