@@ -15620,7 +15620,12 @@ directly on the rig. The existing generated Node import inventory is stale;
 lane W owns regeneration after combining Maker lanes. Full quality,
 coverage, installed-editor/surface acceptance and simulator MCU success
 remain unclaimed. No rule, threshold, budget or ignore is weakened. Receipts
-and named residuals are in `docs/certification/m103-m.md` and §9.
+and named residuals are in `docs/certification/m103-m.md` and §9. FIXM103M2
+resolves all three round-two findings, proves 16 byte-exact red drills and
+passes 189 owning tests, all type checks, changed-file lint/format, dead code,
+duplication, localization and production build. The host API inventory gate
+still reports only its previously assigned generated Node-reader drift;
+regeneration remains lane W's integration work.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
