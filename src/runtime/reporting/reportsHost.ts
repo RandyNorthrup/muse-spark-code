@@ -18,6 +18,7 @@ export function createReportsHost(
     return reportScrubber(deps.redaction)(text) === text
   }
   const authorized = async (key: string) => {
+    deps.signal?.throwIfAborted()
     if (key !== deps.workspaceKey || !(await deps.authorize(key)))
       throw new Error(deps.text.reportUi.generationFailed)
     deps.signal?.throwIfAborted()
@@ -38,6 +39,7 @@ export function createReportsHost(
         const generate = deps.services.generate
         if (generate === undefined) return failed()
         const result = await generate(options, deps.signal)
+        await authorized(workspaceKey)
         if (result.status !== 'generated') return failed()
         const document = verifyReport(result.document, deps.redaction)
         if (
@@ -46,10 +48,10 @@ export function createReportsHost(
           document.header.asOf !== options.asOf
         )
           return failed()
-        await authorized(workspaceKey)
         if (deps.keepHistory) {
           if (deps.services.history === undefined) return failed()
           await deps.services.history.save(document)
+          await authorized(workspaceKey)
         }
         return reportsMethods['reports/run'].result.parse({ status: 'generated', document })
       } catch {

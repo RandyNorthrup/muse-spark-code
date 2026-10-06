@@ -27544,6 +27544,21 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane X review repairs RVM113X (2026-10-06).** Fix all four P2 findings
+within X's runtime/ACP/bridge files, with no dependency or guard weakening.
+Use one whitespace/quote tokenizer for the slash boundary and runtime
+arguments (space, tab, CR, LF, CRLF and Unicode whitespace); MHP continues
+using its frozen structured options and the same reporting engine. Recheck
+authorization and cancellation after generation and history saving before
+returning a document. Preserve explicit formats on capable transports and
+refuse unsupported ones; a text-only ACP adapter defaults to text and refuses
+an explicit Markdown/HTML/JSON request. Select previous history by descending
+`asOf`, including equality, then saved sequence: the history port supplies
+newest-saved-first entries, and a stable timestamp sort preserves that order
+for ties without inventing a wire field. Add default-timeout regressions and
+byte-exact red drills to X's certification. W retains the existing shared
+docs/reference/build handoffs and full integrated quality gate.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -28711,6 +28726,15 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ## 7. Gates
+
+**M113-X-RVM113X bounded rig certification (2026-10-06).** The lane brief
+reserves aggregate quality for the lead and forbids merges/pushes. Run the
+complete owned report/ACP/CLI test files at the repository timeout (three files
+and workers maximum), focused lint/format, typecheck, deadcode, duplication,
+localization, host API, reference/schema freshness and production build on
+Kubuntu. Certify every repaired guard with a named failing test and SHA-256
+restoration. Existing unused manifest keys, host API freshness and reporting
+bundle registration remain the named W handoffs; no gate is weakened.
 
 **M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
 reserves aggregate quality for the lead. Run complete owned unit files with
@@ -30079,6 +30103,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-X-review-RVM113X (2026-10-06).** All four P2 findings are fixed;
+  there were no P1/P3 findings and no review finding is deferred. CRLF/lone-CR
+  and Unicode-whitespace report commands stay local; revoked/cancelled runs
+  refuse the document after history saving; explicit formats are honored or
+  refused; equal-`asOf` comparisons use the latest saved sequence. The frozen
+  history payload has no sequence field, so H's port must list newest saved
+  first and X preserves that sequence with stable timestamp sorting. Existing
+  S/K/H bindings, actual native/companion/TUI/desktop receipts, and W's
+  manifest/docs/reference/build integration remain named handoffs rather than
+  claims of shipped functionality. Evidence and exact-restoration drills:
+  `docs/certification/m113-x-the-runtime,-acp,-the-companion,-mhp.md`.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the

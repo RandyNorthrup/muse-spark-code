@@ -108,6 +108,25 @@ describe('MHP 1.2 reports through native and companion bridges', () => {
     expect(h.open).not.toHaveBeenCalled()
   })
 
+  it('refuses a cancelled run before awaiting authorization or generation', async () => {
+    const abort = new AbortController()
+    abort.abort()
+    const h = reportsHarness({ signal: abort.signal })
+    const authorize = vi.fn(() => Promise.resolve(true))
+    const port = createReportsHost({
+      ...h.deps,
+      workspaceKey,
+      authorize,
+      open: () => Promise.resolve(),
+    })
+    expect(await port.run({ workspaceKey, options })).toEqual({
+      status: 'failed',
+      reason: UI_TEXT.reportUi.generationFailed,
+    })
+    expect(authorize).not.toHaveBeenCalled()
+    expect(h.generate).not.toHaveBeenCalled()
+  })
+
   it('compares saved inputs only, with the same authorization and verified headers', async () => {
     const h = reportsHarness()
     const compare = vi.fn<NonNullable<ReportsServices['compare']>>((before, after) => ({
@@ -160,8 +179,11 @@ describe('MHP 1.2 reports through native and companion bridges', () => {
 
   it('opens each format using the same renderer and rejects unredacted data', async () => {
     const h = bridge()
+    const request = reportsBridge(h.port)
     for (const format of REPORT_FORMATS) {
-      expect(await h.port.open({ document: h.document, format })).toMatchObject({
+      expect(
+        await request('reports/open', JSON.stringify({ document: h.document, format })),
+      ).toMatchObject({
         status: 'opened',
       })
       expect(h.open.mock.lastCall).toEqual([
@@ -180,6 +202,53 @@ describe('MHP 1.2 reports through native and companion bridges', () => {
       }),
     ).toMatchObject({ status: 'failed' })
     expect(h.open).toHaveBeenCalledTimes(4)
+    h.open.mockRejectedValue(new Error('Unsupported host format'))
+    expect(
+      await request('reports/open', JSON.stringify({ document: h.document, format: 'html' })),
+    ).toEqual({
+      status: 'failed',
+      reason: UI_TEXT.reportUi.generationFailed,
+    })
+  })
+
+  it('refuses a document when authorization is revoked while history saving awaits', async () => {
+    const h = reportsHarness({ keepHistory: true })
+    const saving = Promise.withResolvers<undefined>()
+    h.history.save.mockImplementation(() => saving.promise)
+    const authorize = vi.fn(() => Promise.resolve(true))
+    const port = createReportsHost({
+      ...h.deps,
+      workspaceKey,
+      authorize,
+      open: vi.fn(),
+    })
+    const running = port.run({ workspaceKey, options })
+    await vi.waitFor(() => {
+      expect(h.history.save).toHaveBeenCalledTimes(1)
+    })
+    authorize.mockResolvedValue(false)
+    saving.resolve(undefined)
+    expect(await running).toEqual({ status: 'failed', reason: UI_TEXT.reportUi.generationFailed })
+  })
+
+  it('refuses a document when cancellation occurs while history saving awaits', async () => {
+    const abort = new AbortController()
+    const h = reportsHarness({ keepHistory: true, signal: abort.signal })
+    const saving = Promise.withResolvers<undefined>()
+    h.history.save.mockImplementation(() => saving.promise)
+    const port = createReportsHost({
+      ...h.deps,
+      workspaceKey,
+      authorize: () => Promise.resolve(true),
+      open: vi.fn(),
+    })
+    const running = port.run({ workspaceKey, options })
+    await vi.waitFor(() => {
+      expect(h.history.save).toHaveBeenCalledTimes(1)
+    })
+    abort.abort()
+    saving.resolve(undefined)
+    expect(await running).toEqual({ status: 'failed', reason: UI_TEXT.reportUi.generationFailed })
   })
 
   it('rejects unredacted history headers before returning bridge replies', async () => {

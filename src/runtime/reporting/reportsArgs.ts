@@ -11,12 +11,15 @@ import { fill } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { reportOptionsSchema, type ReportKind, type ReportOptions } from '../../shared/reportSchema'
 
+export { reportArguments } from '../../acp/reports'
+
 export interface ReportsRequest {
   readonly kind: ReportKind | undefined
   readonly history: boolean
   readonly options: Omit<ReportOptions, 'kind' | 'asOf'>
   readonly asOf: string | undefined
   readonly format: (typeof REPORT_FORMATS)[number]
+  readonly formatExplicit: boolean
   readonly locale: string | undefined
   readonly out: string | undefined
   readonly from: string | undefined
@@ -165,37 +168,11 @@ export function parseReportsArguments(argv: readonly string[]): ReportsRequest {
     options,
     asOf: values['as-of'],
     format,
+    formatExplicit: values.format !== undefined,
     locale: values.lang,
     out: values.out,
     from: values.from,
     diff: values.diff,
     save: values.save === true,
   }
-}
-
-/** Shell-like quotes without expansion, substitution, or starting a shell. */
-export function reportArguments(text: string): string[] {
-  const args: string[] = []
-  let token = ''
-  let quote = ''
-  let isStarted = false
-  for (const char of text) {
-    if (quote !== '') {
-      if (char === quote) quote = ''
-      else token += char
-    } else if (char === '"' || char === "'") {
-      quote = char
-      isStarted = true
-    } else if (/\s/.test(char)) {
-      if (isStarted) args.push(token)
-      token = ''
-      isStarted = false
-    } else {
-      token += char
-      isStarted = true
-    }
-  }
-  if (quote !== '') throw new Error(reportsUsage())
-  if (isStarted) args.push(token)
-  return args
 }

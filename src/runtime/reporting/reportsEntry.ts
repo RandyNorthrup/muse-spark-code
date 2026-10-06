@@ -150,8 +150,13 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         } catch {
           return { code: REPORT_EXIT_CODES.usage, text: reportsUsage(UI_TEXT) }
         }
-        // Text-only clients always receive text; file output cannot consume the agent message.
-        if (request.out !== undefined || (request.format !== 'md' && request.format !== 'text'))
+        const format = request.formatExplicit ? request.format : context.format
+        // Refuse unsupported formats before any source/history access or paid/model dispatch.
+        if (
+          request.out !== undefined ||
+          (format !== 'text' && format !== 'md') ||
+          (format !== 'text' && context.format === 'text')
+        )
           return {
             code: REPORT_EXIT_CODES.usage,
             text: reportsUsage(UI_TEXT),
@@ -163,7 +168,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         )
           argv.push('--session', context.sessionId)
         const code = await run(
-          [...argv, '--format', context.format],
+          [...argv, '--format', format],
           context.cwd,
           context.sessionId,
           capture,

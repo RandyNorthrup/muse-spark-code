@@ -123,6 +123,16 @@ describe('M113 CLI routing and parsing', () => {
     ])
     expect(() => reportArguments(`project --out 'unfinished`)).toThrow()
   })
+
+  it('tokenizes report arguments with every slash-command whitespace separator', () => {
+    for (const separator of ['\r\n', '\r', '\n', '\t', ' ', '\u{00A0}']) {
+      expect(reportArguments(`project${separator}--format${separator}text`)).toEqual([
+        'project',
+        '--format',
+        'text',
+      ])
+    }
+  })
 })
 
 describe('M113 reports command', () => {
@@ -327,5 +337,71 @@ describe('M113 reports command', () => {
         readSaved: () => Promise.resolve(h.document),
       }),
     ).toBe(1)
+  })
+
+  it('includes equal-asOf reports and selects by timestamp then latest saved sequence', async () => {
+    const h = reportsHarness({ keepHistory: true })
+    const first = finalizeReport({
+      ...h.document,
+      header: { ...h.document.header, scope: '', asOf: REPORT_AS_OF },
+    })
+    const second = finalizeReport({ ...first, sections: [] })
+    const saved = new Map([
+      ['a-first', first],
+      ['z-second', second],
+    ])
+    const entries = [
+      {
+        id: 'earlier-time-last-save',
+        header: { ...first.header, asOf: '2026-10-05T12:00:00+00:00' },
+      },
+      { id: 'z-second', header: second.header },
+      { id: 'a-first', header: first.header },
+      { id: 'future', header: { ...first.header, asOf: '2026-10-07T12:00:00+00:00' } },
+      { id: 'foreign', header: { ...first.header, scope: 'other' } },
+    ]
+    const compare = vi.fn<NonNullable<typeof h.deps.services.compare>>((from, to) => ({
+      from: from.header,
+      to: to.header,
+      sections: [],
+    }))
+    const history = {
+      ...h.history,
+      list: () => Promise.resolve(entries),
+      get: vi.fn((_kind: string, id: string) => {
+        const document = saved.get(id)
+        if (document === undefined) throw new Error('Unexpected saved id')
+        return Promise.resolve(document)
+      }),
+      save: vi.fn(() => {
+        expect(history.get).toHaveBeenCalledWith('project', 'z-second')
+        return Promise.resolve()
+      }),
+    }
+    const deps = {
+      ...h.deps,
+      services: {
+        ...h.deps.services,
+        history,
+        compare,
+        renderDiff: () => 'Compared saved sequence\n',
+      },
+    }
+    expect(
+      await runReportsCommand(['project', '--as-of', REPORT_AS_OF, '--diff', 'previous'], deps),
+    ).toBe(0)
+    expect(compare.mock.calls[0]?.[0]).toEqual(second)
+    expect(history.save).toHaveBeenCalledTimes(1)
+    entries.splice(1, 1)
+    history.save.mockResolvedValue()
+    deps.services.renderDiff = () => `${UI_TEXT.reportUi.noChange}\n`
+    expect(
+      await runReportsCommand(['project', '--as-of', REPORT_AS_OF, '--diff', 'previous'], deps),
+    ).toBe(0)
+    expect(history.get.mock.lastCall).toEqual(['project', 'a-first'])
+    expect(compare.mock.lastCall?.[0].header.contentHash).toBe(
+      compare.mock.lastCall?.[1].header.contentHash,
+    )
+    expect(h.stdout.mock.lastCall?.[0]).toContain('No change since')
   })
 })

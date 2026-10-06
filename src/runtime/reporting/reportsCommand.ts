@@ -27,10 +27,8 @@ type HistoryEntry = z.infer<typeof reportHistoryEntrySchema>
 type ReportDiff = z.infer<typeof reportDiffSchema>
 
 function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
-  return (
-    Date.parse(b.header.asOf) - Date.parse(a.header.asOf) ||
-    Number(a.id > b.id) - Number(a.id < b.id)
-  )
+  // Stable sort retains the port's newest-saved-first sequence for equal timestamps.
+  return Date.parse(b.header.asOf) - Date.parse(a.header.asOf)
 }
 
 async function historyEntries(
@@ -57,6 +55,7 @@ export interface ReportsServices {
     | { readonly status: 'notFound'; readonly id: string; readonly nearest: readonly string[] }
   >
   readonly history?: {
+    /** Newest saved first; array order carries the saved sequence for equal asOf stamps. */
     list(kind: ReportOptions['kind']): Promise<readonly HistoryEntry[]>
     get(kind: ReportOptions['kind'], id: string): Promise<ReportDocument>
     save(document: ReportDocument): Promise<void>
@@ -147,7 +146,7 @@ async function comparison(
         (entry) =>
           entry.header.kind === document.header.kind &&
           entry.header.scope === document.header.scope &&
-          Date.parse(entry.header.asOf) < Date.parse(document.header.asOf),
+          Date.parse(entry.header.asOf) <= Date.parse(document.header.asOf),
       )
       .toSorted(newestFirst)
     const entry = entries[0]

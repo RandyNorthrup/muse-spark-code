@@ -15,20 +15,52 @@ export interface AcpReportsPort {
   ): Promise<{ readonly code: number; readonly text: string }>
 }
 
+/** One quote-aware tokenizer for the local slash boundary and CLI report arguments. */
+function* reportTokens(text: string) {
+  let token = ''
+  let quote = ''
+  let isStarted = false
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text.charAt(index)
+    if (quote !== '') {
+      if (char === quote) quote = ''
+      else token += char
+    } else if (char === '"' || char === "'") {
+      quote = char
+      isStarted = true
+    } else if (/\s/.test(char)) {
+      if (isStarted) yield { value: token, end: index }
+      token = ''
+      isStarted = false
+    } else {
+      token += char
+      isStarted = true
+    }
+  }
+  if (quote !== '') throw new Error(UI_TEXT.reportUi.generationFailed)
+  if (isStarted) yield { value: token, end: text.length }
+}
+
+/** Shell-like quotes without expansion, substitution, or starting a shell. */
+export function reportArguments(text: string): string[] {
+  return [...reportTokens(text)].map((token) => token.value)
+}
+
 /** Reserve the whole command, including malformed/attached invocations, before any model turn. */
 export function acpReportArguments(blocks: readonly ContentBlock[]): string | undefined {
   const first = blocks[0]
   if (first?.type !== 'text') return undefined
   const text = first.text.trim()
   const prefix = `/${SLASH_COMMAND_NAMES.report}`
-  if (
-    text !== prefix &&
-    !text.startsWith(`${prefix} `) &&
-    !text.startsWith(`${prefix}\n`) &&
-    !text.startsWith(`${prefix}\t`)
-  )
+  if (!text.startsWith(prefix)) return undefined
+  // Consume only the head: malformed quotes in the arguments still belong to /report.
+  try {
+    const command = reportTokens(text).next().value
+    if (command === undefined || text.slice(0, command.end) !== prefix) return undefined
+    return blocks.length === 1 ? text.slice(command.end).trim() : '--invalid-report-attachment'
+  } catch {
     return undefined
-  return blocks.length === 1 ? text.slice(prefix.length).trim() : '--invalid-report-attachment'
+  }
 }
 
 /** An absent or failing integration is local failure, never a prompt sent to the backend. */

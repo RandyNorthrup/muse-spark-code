@@ -122,6 +122,35 @@ describe('ACP deterministic reports', () => {
     })
   })
 
+  it('intercepts CR, LF, CRLF, tab, space and NBSP report separators without model dispatch', async () => {
+    const execute = vi.fn<AcpReportsPort['execute']>(() =>
+      Promise.resolve({ code: 0, text: '# Report\n' }),
+    )
+    const h = reportsAgent({ format: 'md', execute })
+    await h.run(async (client) => {
+      const { sessionId } = await newSession(client)
+      const session = h.host.sessions[0]
+      if (session === undefined) throw new Error('Expected fake session')
+      // A dispatch regression fails immediately rather than leaving a fake turn pending.
+      session.sendTurn.mockRejectedValue(new Error('Unexpected report model dispatch'))
+      for (const separator of ['\r\n', '\r', '\n', '\t', ' ', '\u{00A0}']) {
+        let result: unknown
+        try {
+          result = await client.request('session/prompt', {
+            sessionId,
+            prompt: [{ type: 'text', text: `/report${separator}project` }],
+          })
+        } catch (error: unknown) {
+          result = error
+        }
+        expect(session.sendTurn, JSON.stringify(separator)).not.toHaveBeenCalled()
+        expect(result).toEqual({ stopReason: 'end_turn' })
+        expect(execute.mock.lastCall?.[0]).toBe('project')
+      }
+      expect(execute).toHaveBeenCalledTimes(6)
+    })
+  })
+
   it('reserves malformed attachments and fails locally when the engine is absent or throws', async () => {
     expect(
       acpReportArguments([
@@ -130,6 +159,8 @@ describe('ACP deterministic reports', () => {
       ]),
     ).toBe('--invalid-report-attachment')
     expect(acpReportArguments([{ type: 'text', text: '/reporter project' }])).toBeUndefined()
+    expect(acpReportArguments([{ type: 'text', text: '/report"unfinished' }])).toBeUndefined()
+    expect(acpReportArguments([{ type: 'text', text: '/report "unfinished' }])).toBe('"unfinished')
     for (const port of [
       undefined,
       { format: 'md' as const, execute: () => Promise.reject(new Error('CANARY-private')) },

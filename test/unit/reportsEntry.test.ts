@@ -151,4 +151,43 @@ describe('lazy runtime report entry', () => {
       expect(await h.reports.acp.execute(args, context)).toMatchObject({ code: 2 })
     expect(h.writeOut).not.toHaveBeenCalled()
   })
+
+  it('honors explicit ACP text and Markdown formats and refuses unsupported transport formats', async () => {
+    const context = {
+      cwd: '/reports/workspace',
+      sessionId: 'format-session',
+      format: 'md' as const,
+      signal: new AbortController().signal,
+    }
+    for (const format of ['text', 'md'] as const) {
+      for (const option of [`--format ${format}`, `--format=${format}`]) {
+        const h = entry()
+        const result = await h.reports.acp.execute(`--from saved.json ${option}`, context)
+        expect(result).toEqual({
+          code: 0,
+          text: RENDERERS[format](h.document, 'en', REPORT_THEME),
+        })
+        expect(h.servicesFor).not.toHaveBeenCalled()
+      }
+    }
+    const textOnly = entry()
+    expect(
+      await textOnly.reports.acp.execute('--from saved.json', { ...context, format: 'text' }),
+    ).toEqual({ code: 0, text: RENDERERS.text(textOnly.document, 'en', REPORT_THEME) })
+    for (const adapterFormat of ['md', 'text'] as const) {
+      const refusedFormats = adapterFormat === 'text' ? ['md', 'html', 'json'] : ['html', 'json']
+      for (const format of refusedFormats) {
+        const h = entry()
+        expect(
+          await h.reports.acp.execute(`project --format ${format}`, {
+            ...context,
+            format: adapterFormat,
+          }),
+        ).toMatchObject({ code: 2 })
+        expect(h.servicesFor).not.toHaveBeenCalled()
+        expect(h.generate).not.toHaveBeenCalled()
+        expect(h.history.save).not.toHaveBeenCalled()
+      }
+    }
+  })
 })
