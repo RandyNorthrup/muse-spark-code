@@ -1,0 +1,402 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
+import { createHash } from 'node:crypto'
+import {
+  publicReportTransport,
+  ReportResponseCache,
+  type ReportNetworkTransport,
+} from '../../src/core/reporting/sources/cache'
+import {
+  GITHUB_API_VERSION,
+  GITHUB_MEDIA_TYPE,
+  REPORT_SOURCE_TIMEOUT_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import { networkContext, networkRig } from './helpers/reportNetwork'
+
+const schema = z.strictObject({ value: z.string() })
+const request = { url: 'https://api.github.com/repos/fixture/repo' }
+function read(rig: ReturnType<typeof networkRig>, context = networkContext()) {
+  return rig.reader.read(context, 'network', schema, async (query) => ({
+    data: await query(request, schema),
+    reason: null,
+  }))
+}
+afterEach(() => {
+  vi.useRealTimers()
+})
+
+describe('report network policy and cache', () => {
+  it.each(['maxBytes', 'maxPages', 'maxEntries'])(
+    'validates positive injected %s budgets',
+    (name) => {
+      if (name === 'maxEntries')
+        expect(
+          () =>
+            new ReportResponseCache(
+              { read: () => Promise.resolve(undefined), write: () => Promise.resolve() },
+              0,
+            ),
+        ).toThrow()
+      else expect(() => networkRig({ [name]: 0 })).toThrow()
+    },
+  )
+
+  it('refuses oversized query bodies before dispatch', async () => {
+    const rig = networkRig({ maxBytes: 1 })
+    const result = await rig.reader.read(networkContext(), 'network', schema, async (query) => ({
+      data: await query(
+        {
+          url: 'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery',
+          method: 'POST',
+          body: '{}',
+        },
+        schema,
+      ),
+      reason: null,
+    }))
+    expect(result.record.reason).toContain('request-bound')
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { key: 'bad-cache-key', etag: null, observedAt: networkContext().asOf, data: { value: 'ok' } },
+    { key: 'a'.repeat(64), etag: null, observedAt: 'invalid-date', data: { value: 'ok' } },
+  ])('validates persistent cache metadata before dispatch %#', async (entry) => {
+    const rig = networkRig()
+    rig.replaceEntries([entry])
+    expect(await read(rig)).toMatchObject({ data: null, record: { status: 'unavailable' } })
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+  it('refuses credential-shaped request values before dispatch', async () => {
+    const rig = networkRig()
+    const secret = `ghp_${'e'.repeat(36)}`
+    const result = await rig.reader.read(networkContext(), 'network', schema, async (query) => ({
+      data: await query({ url: `${request.url}?ref=${secret}` }, schema),
+      reason: null,
+    }))
+    expect(result.record.reason).toContain('request-secret-refused')
+    expect(JSON.stringify(result)).not.toContain(secret)
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+  it('isolates cached responses by workspace', async () => {
+    const transport = vi
+      .fn<ReportNetworkTransport>()
+      .mockResolvedValueOnce(
+        Response.json({ value: 'private' }, { headers: { etag: '"private"' } }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    const rig = networkRig({ transport })
+    await read(rig)
+    const result = await read(rig, { ...networkContext(), workspaceKey: 'other-workspace' })
+    expect(result.data).toBeNull()
+    expect(transport.mock.calls[1]?.[1]).toBeNull()
+  })
+
+  it('preserves concurrent cache updates', async () => {
+    const rig = networkRig()
+    await Promise.all(
+      Array.from({ length: 4 }, (_value, index) =>
+        rig.reader.read(networkContext(), 'network', schema, async (query) => ({
+          data: await query({ url: `${request.url}?page=${String(index)}` }, schema),
+          reason: null,
+        })),
+      ),
+    )
+    expect(rig.entries()).toHaveLength(4)
+  })
+  it.each([
+    { surface: 'editor', mode: 'off', network: true },
+    { surface: 'terminal', mode: 'always', network: false },
+    { surface: 'terminal', mode: 'whenSignedIn', network: false },
+  ] as const)(
+    'does not dispatch for $surface $mode network=$network',
+    async ({ surface, mode, network }) => {
+      const rig = networkRig()
+      const off = networkRig({ policy: { ...rig.deps.policy, surface, mode } })
+      const result = await read(off, networkContext(network))
+      expect(result).toMatchObject({
+        data: null,
+        record: { status: 'unavailable', reason: UI_TEXT.reportUi.networkOff },
+      })
+      expect(off.transport).not.toHaveBeenCalled()
+      expect(off.storage.read).not.toHaveBeenCalled()
+    },
+  )
+
+  it('permits an explicit terminal request and editor public stores', async () => {
+    const rig = networkRig()
+    const on = networkRig({ policy: { ...rig.deps.policy, surface: 'terminal' } })
+    const observed1 = await read(on)
+    expect(observed1.record.status).toBe('ok')
+    expect(on.transport).toHaveBeenCalledOnce()
+  })
+
+  it('checks egress before cache or dispatch', async () => {
+    const rig = networkRig()
+    const denied = networkRig({
+      policy: { ...rig.deps.policy, allowEgress: vi.fn(() => Promise.resolve(false)) },
+    })
+    const observed2 = await read(denied)
+    expect(observed2.record.reason).toContain('egress-refused')
+    expect(denied.transport).not.toHaveBeenCalled()
+    expect(denied.storage.read).not.toHaveBeenCalled()
+  })
+
+  it('reuses a 304 with the original observation and age', async () => {
+    let observedAt = networkContext().asOf
+    const transport = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ value: 'old' }, { headers: { etag: '"v1"' } }))
+      .mockResolvedValueOnce(new Response(null, { status: 304 }))
+    const rig = networkRig({ transport, now: () => observedAt })
+    const observed3 = await read(rig)
+    expect(observed3.data).toEqual({ value: 'old' })
+    const later = { ...networkContext(), asOf: '2026-10-06T12:02:00Z' }
+    observedAt = later.asOf
+    expect(await read(rig, later)).toMatchObject({
+      data: { value: 'old' },
+      record: { observedAt: networkContext().asOf, freshness: { state: 'stale', ageMs: 120_000 } },
+    })
+    expect(transport.mock.calls[1]?.[1]).toBe('"v1"')
+  })
+
+  it('never fabricates a 304 cache hit', async () => {
+    const rig = networkRig({
+      transport: vi.fn(() => Promise.resolve(new Response(null, { status: 304 }))),
+    })
+    expect(await read(rig)).toMatchObject({ data: null, record: { status: 'unavailable' } })
+    const observed1 = await read(rig)
+    expect(observed1.record.reason).toContain('cache-missing')
+  })
+
+  it('scrubs cache content and identity before persisting or hashing', async () => {
+    const secret = `ghp_${'a'.repeat(36)}`
+    const rig = networkRig({
+      transport: vi.fn(() =>
+        Promise.resolve(Response.json({ value: secret }, { headers: { etag: secret } })),
+      ),
+    })
+    const context = { ...networkContext(), workspaceKey: `workspace-${secret}` }
+    const input = request
+    const result = await rig.reader.read(context, 'network', schema, async (query) => ({
+      data: await query(input, schema),
+      reason: null,
+    }))
+    expect(JSON.stringify(result)).not.toContain(secret)
+    expect(JSON.stringify(rig.entries())).not.toContain(secret)
+    expect(rig.entries()).toEqual([
+      expect.objectContaining({
+        key: createHash('sha256')
+          .update(
+            rig.deps.scrub(JSON.stringify({ workspaceKey: context.workspaceKey, request: input })),
+          )
+          .digest('hex'),
+        etag: null,
+      }),
+    ])
+  })
+
+  it('rescrubs a tampered cache body and refuses its secret ETag', async () => {
+    const secret = `ghp_${'b'.repeat(36)}`
+    const transport = vi.fn<ReportNetworkTransport>(() =>
+      Promise.resolve(new Response(null, { status: 304 })),
+    )
+    const rig = networkRig({ transport })
+    rig.replaceEntries([
+      {
+        key: createHash('sha256')
+          .update(JSON.stringify({ workspaceKey: networkContext().workspaceKey, request }))
+          .digest('hex'),
+        data: { value: secret },
+        etag: secret,
+        observedAt: networkContext().asOf,
+      },
+    ])
+    expect(JSON.stringify(await read(rig))).not.toContain(secret)
+    expect(transport.mock.calls[0]?.[1]).toBeNull()
+  })
+
+  it('validates cached records and refuses oversized indexes', async () => {
+    const rig = networkRig()
+    rig.replaceEntries(
+      Array.from({ length: 5 }, () => ({
+        key: 'a'.repeat(64),
+        etag: null,
+        data: {},
+        observedAt: networkContext().asOf,
+      })),
+    )
+    const observed4 = await read(rig)
+    expect(observed4.record.status).toBe('unavailable')
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+
+  it('prunes the oldest cache entries with a stable tie break', async () => {
+    let entries: unknown = undefined
+    const cache = new ReportResponseCache(
+      {
+        read: () => Promise.resolve(entries),
+        write: (value) => {
+          entries = value
+          return Promise.resolve()
+        },
+      },
+      2,
+    )
+    const signal = new AbortController().signal
+    for (const key of ['c', 'a', 'b'])
+      await cache.set(
+        { key: key.repeat(64), observedAt: networkContext().asOf, etag: null, data: {} },
+        signal,
+      )
+    expect(entries).toEqual([
+      expect.objectContaining({ key: 'b'.repeat(64) }),
+      expect.objectContaining({ key: 'c'.repeat(64) }),
+    ])
+  })
+
+  it.each([
+    ['http:', '//api.github.com/repos/fixture/repo'].join(''),
+    'https://api.github.com:8443/repos/fixture/repo',
+    'https://someone:credential@api.github.com/repos/fixture/repo',
+    'https://localhost/private',
+    'https://api.github.com/repos/fixture/repo#fragment',
+  ])('refuses an unpinned endpoint %s', async (url) => {
+    const rig = networkRig()
+    const observed5 = await rig.reader.read(networkContext(), 'network', schema, async (query) => ({
+      data: await query({ url }, schema),
+      reason: null,
+    }))
+    expect(observed5.record.reason).toContain('endpoint-refused')
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+
+  it('refuses a mutation hidden in a network reader', async () => {
+    const rig = networkRig()
+    const observed6 = await rig.reader.read(networkContext(), 'network', schema, async (query) => ({
+      data: await query({ ...request, method: 'POST', body: '{}' }, schema),
+      reason: null,
+    }))
+    expect(observed6.record.reason).toContain('read-method-refused')
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+
+  it('stops at the rate floor and names the reset without dispatching again', async () => {
+    const transport = vi.fn(() =>
+      Promise.resolve(
+        Response.json(
+          { value: 'ok' },
+          { headers: { 'x-ratelimit-remaining': '10', 'x-ratelimit-reset': '1791288060' } },
+        ),
+      ),
+    )
+    const rig = networkRig({ transport })
+    const observed7 = await read(rig)
+    expect(observed7.record.status).toBe('ok')
+    const observed8 = await read(rig)
+    expect(observed8.record.reason).toContain('2026-10-06T12:01:00.000Z')
+    expect(transport).toHaveBeenCalledOnce()
+  })
+
+  it.each(['60', 'Tue, 06 Oct 2026 12:01:00 GMT'])(
+    'honors Retry-After %s on a refused request',
+    async (retry) => {
+      const transport = vi.fn(() =>
+        Promise.resolve(new Response(null, { status: 429, headers: { 'retry-after': retry } })),
+      )
+      const rig = networkRig({ transport })
+      const observed9 = await read(rig)
+      expect(observed9.record.reason).toContain('2026-10-06T12:01:00.000Z')
+      await read(rig)
+      expect(transport).toHaveBeenCalledOnce()
+    },
+  )
+
+  it('does not leak a thrown transport error or a refused HTTP body', async () => {
+    const secret = `ghp_${'c'.repeat(36)}`
+    const rig = networkRig({ transport: vi.fn(() => Promise.reject(new Error(secret))) })
+    expect(JSON.stringify(await read(rig))).not.toContain(secret)
+    const refused = networkRig({
+      transport: vi.fn(() => Promise.resolve(Response.json({ message: secret }, { status: 500 }))),
+    })
+    expect(JSON.stringify(await read(refused))).not.toContain(secret)
+  })
+
+  it('bounds response bytes and validates HTTP payloads', async () => {
+    const large = networkRig({ maxBytes: 1 })
+    const observed10 = await read(large)
+    expect(observed10.record.reason).toContain('body-bound')
+    const invalid = networkRig({
+      transport: vi.fn(() => Promise.resolve(Response.json({ value: 1 }))),
+    })
+    const observed11 = await read(invalid)
+    expect(observed11.record.status).toBe('unavailable')
+  })
+
+  it('bounds pages rather than following arbitrary pagination forever', async () => {
+    const rig = networkRig({ maxPages: 1 })
+    const result = await rig.reader.read(networkContext(), 'network', schema, async (query) => {
+      await query(request, schema)
+      return { data: await query(request, schema), reason: null }
+    })
+    expect(result.record.reason).toContain('page-bound')
+    expect(rig.transport).toHaveBeenCalledOnce()
+  })
+
+  it('times out ignored cancellation within the repository timeout', async () => {
+    vi.useFakeTimers()
+    const rig = networkRig({ transport: vi.fn(() => new Promise<Response>(() => undefined)) })
+    const pending = read(rig)
+    await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+    const observed12 = await pending
+    expect(observed12.record.reason).toContain('source-deadline')
+  })
+
+  it('refuses an already aborted read', async () => {
+    const rig = networkRig()
+    const controller = new AbortController()
+    controller.abort()
+    const observed13 = await read(rig, { ...networkContext(), signal: controller.signal })
+    expect(observed13.record.status).toBe('unavailable')
+    expect(rig.transport).not.toHaveBeenCalled()
+  })
+
+  it('cancels a stalled response body on the source deadline', async () => {
+    vi.useFakeTimers()
+    const cancel = vi.fn()
+    const response = new Response(new ReadableStream<Uint8Array>({ cancel }))
+    const rig = networkRig({ transport: vi.fn(() => Promise.resolve(response)) })
+    const pending = read(rig)
+    await vi.advanceTimersByTimeAsync(REPORT_SOURCE_TIMEOUT_MS)
+    expect(await pending).toMatchObject({ data: null, record: { status: 'unavailable' } })
+    expect(cancel).toHaveBeenCalledOnce()
+  })
+
+  it('does not manufacture an observation for an unbound source port', async () => {
+    const rig = networkRig()
+    const result = await rig.reader.read(networkContext(), 'network', schema, () =>
+      Promise.resolve({ data: { value: 'fake-success' }, reason: null }),
+    )
+    expect(result.record.status).toBe('unavailable')
+    expect(result.record.reason).toContain('no-observed-source')
+    expect(result.data).toBeNull()
+  })
+
+  it('uses a credential-free, redirect-refusing public fetch', async () => {
+    const fetcher = vi.fn<typeof fetch>(() => Promise.resolve(Response.json({})))
+    await publicReportTransport(fetcher)(request, '"v1"', new AbortController().signal)
+    expect(fetcher).toHaveBeenCalledWith(
+      request.url,
+      expect.objectContaining({
+        redirect: 'error',
+        credentials: 'omit',
+        headers: {
+          'If-None-Match': '"v1"',
+          Accept: GITHUB_MEDIA_TYPE,
+          'X-GitHub-Api-Version': GITHUB_API_VERSION,
+        },
+      }),
+    )
+  })
+})
