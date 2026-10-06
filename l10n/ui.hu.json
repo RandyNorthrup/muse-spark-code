@@ -2582,7 +2582,7 @@
       "invalidResponse": "Az ütemező érvénytelen választ adott.",
       "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges.",
       "backgroundUnavailable": "A háttérben történő ütemezés ezen a gazdagépen nem érhető el.",
-      "backgroundRearmUnavailable": "Ez a launchd-ébresztés nem módosíthatja a saját bejegyzését. Az újbóli ütemezéshez külső segédfolyamat szükséges.",
+      "backgroundRearmUnavailable": "A háttérbeli ütemezés a futás befejezésére vagy a megszüntetés várakozási idejének lejártára vár. Próbálja újra hamarosan.",
       "unsafeLauncher": "Nem biztonságos ütemezőindító elérési út: {path}",
       "paidAuthorizationRequired": "A fizetős ütemezésekhez --scheduled-prompts és mindkét költségkorlátot fedező, kifejezett --max-budget-usd szükséges.",
       "cleanupFailed": "Az ütemezési kérés befejeződött, de a takarítás sikertelen. Őrizze meg az elfogadott azonosítót; a 3-as kilépési kód takarítási problémát jelez.",

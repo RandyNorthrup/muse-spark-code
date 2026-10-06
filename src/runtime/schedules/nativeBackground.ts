@@ -1,7 +1,10 @@
 import { createHash } from 'node:crypto'
 import process from 'node:process'
+import path from 'node:path'
 import * as z from 'zod/mini'
-import { UI_TEXT } from '../../shared/constants'
+import { SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../shared/constants'
+import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
+import { WINDOWS_TRUSTED_ACL_SCRIPT } from '../windowsTrustedPath'
 import {
   scheduleBackgroundConsentSchema,
   type ScheduleBackgroundPort,
@@ -25,9 +28,9 @@ export interface BackgroundFilePort {
     kind?: 'definition' | 'directory',
   ) => Promise<string>
   prepare(file: string, platform: NodeJS.Platform, uid: number): Promise<void>
-  hash(file: string): Promise<string | undefined>
+  readonly hash: (file: string) => Promise<string | undefined>
   waitForWake(dataDir: string, shouldWait?: boolean): Promise<void>
-  read(file: string): Promise<string | undefined>
+  readonly read: (file: string) => Promise<string | undefined>
   write(file: string, text: string, encoding?: 'utf16le'): Promise<void>
   remove(file: string): Promise<void>
 }
@@ -63,6 +66,21 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     const result = await this.deps.run(file, args)
     if (result.exitCode !== 0) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
   }
+  private async writeRecord(record: z.infer<typeof backgroundWakeRecordSchema>): Promise<void> {
+    const text = JSON.stringify(record)
+    await this.deps.files.write(this.stateFile, text)
+    await this.deps.files.trustedPath(
+      this.stateFile,
+      this.deps.platform,
+      this.deps.uid,
+      'definition',
+    )
+    if (
+      (await this.deps.files.hash(this.stateFile)) !==
+      createHash('sha256').update(text).digest('hex')
+    )
+      throw unsafeScheduleLauncher(this.stateFile)
+  }
   private async powershellJson(script: string): Promise<unknown> {
     const result = await this.deps.run('powershell.exe', [
       '-NoProfile',
@@ -73,26 +91,11 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     if (result.exitCode !== 0) throw new Error(UI_TEXT.scheduleV2.runtime.backgroundUnavailable)
     return JSON.parse(result.stdout.trim())
   }
-  private async windowsOwnerId(): Promise<string> {
-    const script =
-      "$ErrorActionPreference = 'Stop'; $identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $principal = [Security.Principal.WindowsPrincipal]::new($identity); ConvertTo-Json -Compress -InputObject @{ sid = $identity.User.Value; elevated = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); service = $identity.IsSystem -or ($identity.Groups.Value -contains 'S-1-5-6') }"
-    const input = await this.powershellJson(script)
-    const identity = z
-      .strictObject({
-        sid: z.string().check(z.regex(/^S-1-(?:5-21|12-1)-\d+(?:-\d+)+$/)),
-        elevated: z.boolean(),
-        service: z.boolean(),
-      })
-      .parse(input)
-    if (identity.elevated || identity.service)
-      throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    return identity.sid
-  }
   private async isRegistered(): Promise<boolean> {
     switch (this.deps.platform) {
       case 'win32': {
         // Only our boolean crosses stdout, never the user's task inventory.
-        const script = `$ErrorActionPreference = 'Stop'; $found = @(Get-ScheduledTask | Where-Object { $_.TaskName -eq '${this.id}' }); ConvertTo-Json -Compress -InputObject ([bool]($found.Count -gt 0))`
+        const script = `$ErrorActionPreference = 'Stop'; $found = @(Get-ScheduledTask | Where-Object { $_.TaskName -eq '${this.id}' -and $_.TaskPath -eq '${path.win32.join(path.win32.sep, this.id)}${path.win32.sep}' }); ConvertTo-Json -Compress -InputObject ([bool]($found.Count -gt 0))`
         return z.boolean().parse(await this.powershellJson(script))
       }
       case 'darwin': {
@@ -118,23 +121,83 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       }
     }
   }
-  private async assertLaunchdIdle(): Promise<void> {
-    // A newly starting wake may not have published its lock yet. Protect it too.
+  private async retireLaunchd(): Promise<boolean> {
+    const stored = await this.deps.files.read(this.stateFile)
+    if (stored === undefined) {
+      if (await this.isRegistered()) throw unsafeScheduleLauncher(this.stateFile)
+      return true
+    }
+    await this.deps.files.trustedPath(
+      this.stateFile,
+      this.deps.platform,
+      this.deps.uid,
+      'definition',
+    )
+    let record = backgroundWakeRecordSchema.parse(JSON.parse(stored))
+    const effective = await this.definition(record.executable)
+    if (
+      record.id !== this.id ||
+      record.definitionSha256 !== effective.sha256 ||
+      JSON.stringify(record.files) !== JSON.stringify(effective.files)
+    )
+      throw unsafeScheduleLauncher(this.stateFile)
+    if (record.disabledAtMs === undefined) {
+      record = { ...record, disabledAtMs: this.deps.now() }
+      await this.writeRecord(record)
+    }
+    // Suppress future starts too. Record publication precedes the OS restriction.
+    if (record.nativeDisabledAtMs === undefined) {
+      await this.succeeded('launchctl', ['disable', `gui/${String(this.deps.uid)}/${this.id}`])
+      record = { ...record, nativeDisabledAtMs: this.deps.now() }
+      await this.writeRecord(record)
+    }
+    const disabledSince = record.nativeDisabledAtMs
+    if (disabledSince === undefined || this.deps.now() - disabledSince < SCHEDULE_MIN_INTERVAL_MS)
+      return false
+    await this.deps.files.waitForWake(this.deps.dataDir, false)
+    // One reconciliation under the caller's durable registration lock; no second
+    // existence query that discards a running/starting state before bootout.
     const result = await this.deps.run('launchctl', [
       'print',
       `gui/${String(this.deps.uid)}/${this.id}`,
     ])
-    if (result.exitCode !== 0 && !result.stderr.includes('Could not find service'))
+    if (result.exitCode !== 0) {
+      if (result.stderr.includes('Could not find service')) return true
       throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    if (/^\s*(?:pid\s*=\s*[1-9]\d*|state\s*=\s*running)\s*$/m.test(result.stdout))
-      throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
+    }
+    if (
+      /^\s*(?:pid\s*=\s*[1-9]\d*|state\s*=\s*(?:running|spawn scheduled|starting))\s*$/m.test(
+        result.stdout,
+      )
+    )
+      return false
+    if (!/^\s*state\s*=\s*(?:not running|waiting|exited)\s*$/m.test(result.stdout))
+      throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    await this.succeeded('launchctl', ['bootout', `gui/${String(this.deps.uid)}/${this.id}`])
+    return true
+  }
+  private definition(executable: string) {
+    return effectiveBackgroundDefinition({
+      platform: this.deps.platform,
+      id: this.id,
+      definitions: this.paths,
+      executable,
+      uid: this.deps.uid,
+      trustedPath: this.deps.files.trustedPath,
+      hash: this.deps.files.hash,
+      read: this.deps.files.read,
+      run: this.deps.run,
+    })
   }
   async status(): Promise<{ registered: boolean; nextWakeAtMs?: number }> {
     if (!(await this.isRegistered())) return { registered: false }
     const stored = await this.deps.files.read(this.stateFile)
     if (stored === undefined) return { registered: true }
     const input: unknown = JSON.parse(stored)
-    return { registered: true, nextWakeAtMs: backgroundWakeRecordSchema.parse(input).nextWakeAtMs }
+    const record = backgroundWakeRecordSchema.parse(input)
+    return record.disabledAtMs === undefined
+      ? { registered: true, nextWakeAtMs: record.nextWakeAtMs }
+      : { registered: true }
   }
   async register(
     nextWakeAtMs: number,
@@ -149,11 +212,21 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       (this.deps.platform === process.platform ? process.geteuid?.() : this.deps.uid)
     if ((effectiveUid === 0 || this.deps.uid === 0) && this.deps.platform !== 'win32')
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    const authorization = await this.deps.authorization()
+    if (
+      authorization.scheduledPrompts &&
+      (authorization.maxBudgetUsd === undefined ||
+        !Number.isFinite(authorization.maxBudgetUsd) ||
+        authorization.maxBudgetUsd <= 0)
+    )
+      throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
     if (this.deps.platform === 'darwin') {
       await this.deps.files.waitForWake(this.deps.dataDir, false)
-      await this.assertLaunchdIdle()
+      if (!(await this.retireLaunchd()))
+        throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
     }
-    const windowsUserId = this.deps.platform === 'win32' ? await this.windowsOwnerId() : undefined
+    const windowsUserId =
+      this.deps.platform === 'win32' ? await scheduleWindowsOwner(this.deps.run) : undefined
     const executable = await this.deps.files.trustedPath(
       this.deps.executable,
       this.deps.platform,
@@ -174,15 +247,7 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     })
     const firstFile = registration.files[0]
     if (firstFile === undefined) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
-    const authorization = await this.deps.authorization()
-    if (
-      authorization.scheduledPrompts &&
-      (authorization.maxBudgetUsd === undefined ||
-        !Number.isFinite(authorization.maxBudgetUsd) ||
-        authorization.maxBudgetUsd <= 0)
-    )
-      throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
-    const record = backgroundWakeRecordSchema.parse({
+    const recordInput = {
       id: this.id,
       nextWakeAtMs: registration.wakeAtMs,
       executable,
@@ -199,20 +264,13 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
           )
           .digest('hex'),
       })),
-    })
+    }
     for (const file of [...this.paths, this.stateFile])
       await this.deps.files.prepare(file, this.deps.platform, this.deps.uid)
     for (const file of registration.files)
       await this.deps.files.write(file.path, file.text, file.encoding)
-    await this.deps.files.write(this.stateFile, JSON.stringify(record))
-    const verify = async () => {
-      for (const file of [
-        ...record.files,
-        {
-          path: this.stateFile,
-          sha256: createHash('sha256').update(JSON.stringify(record)).digest('hex'),
-        },
-      ]) {
+    const verifyStaged = async () => {
+      for (const file of recordInput.files) {
         await this.deps.files.trustedPath(
           file.path,
           this.deps.platform,
@@ -223,28 +281,45 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
           throw unsafeScheduleLauncher(file.path)
       }
     }
-    await verify()
+    const saveRecord = async () => {
+      const effective = await this.definition(executable)
+      const record = backgroundWakeRecordSchema.parse({
+        ...recordInput,
+        files: effective.files,
+        definitionSha256: effective.sha256,
+      })
+      await this.writeRecord(record)
+      return record
+    }
+    await verifyStaged()
+    let record
     switch (this.deps.platform) {
       case 'win32': {
+        // The standard Task Scheduler root permits creation by other users.
+        // Create our fixed per-user folder with a protected, trusted-SID DACL.
+        const folderScript = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -eq 0) { $null = $root.CreateFolder('${this.id}', 'O:${windowsUserId ?? ''}D:P(A;;FA;;;${windowsUserId ?? ''})(A;;FA;;;SY)(A;;FA;;;BA)') }; $folder = $scheduler.GetFolder('${path.win32.join(path.win32.sep, this.id)}'); $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($folder.GetSecurityDescriptor(7)); ConvertTo-Json -Compress -InputObject (Test-TrustedAcl $acl $false $true)`
+        if (!z.boolean().parse(await this.powershellJson(folderScript)))
+          throw unsafeScheduleLauncher(this.id)
         await this.succeeded('schtasks.exe', [
           '/Create',
           '/TN',
-          this.id,
+          path.win32.join(path.win32.sep, this.id, this.id),
           '/XML',
           firstFile.path,
           '/F',
         ])
+        record = await saveRecord()
         break
       }
       case 'darwin': {
-        await this.assertLaunchdIdle()
-        if (await this.isRegistered())
-          await this.succeeded('launchctl', ['bootout', `${registration.domain}/${this.id}`])
+        record = await saveRecord()
+        await this.succeeded('launchctl', ['enable', `${registration.domain}/${this.id}`])
         await this.succeeded('launchctl', ['bootstrap', registration.domain, firstFile.path])
         break
       }
       case 'linux': {
         await this.succeeded('systemctl', ['--user', 'daemon-reload'])
+        record = await saveRecord()
         await this.succeeded('systemctl', ['--user', 'enable', '--now', `${this.id}.timer`])
         // An already active one-shot timer must reread its changed calendar.
         await this.succeeded('systemctl', ['--user', 'restart', `${this.id}.timer`])
@@ -255,14 +330,22 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
       }
     }
     if (!(await this.isRegistered())) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
-    await verify()
+    await verifyStaged()
+    const effective = await this.definition(executable)
+    if (
+      record.definitionSha256 !== effective.sha256 ||
+      JSON.stringify(record.files) !== JSON.stringify(effective.files)
+    )
+      throw unsafeScheduleLauncher(this.stateFile)
   }
   async remove(): Promise<void> {
     if (this.deps.platform === 'darwin' && this.deps.isWakeProcess)
       throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
     if (this.deps.platform === 'darwin') {
-      await this.deps.files.waitForWake(this.deps.dataDir, false)
-      await this.assertLaunchdIdle()
+      if (!(await this.retireLaunchd()))
+        throw new Error(UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable)
+      for (const file of [...this.paths, this.stateFile]) await this.deps.files.remove(file)
+      return
     }
     if (this.deps.platform === 'linux') {
       // Disabled does not mean inactive: stop both units before unlinking either.
@@ -279,11 +362,12 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     } else if (await this.isRegistered()) {
       switch (this.deps.platform) {
         case 'win32': {
-          await this.succeeded('schtasks.exe', ['/Delete', '/TN', this.id, '/F'])
-          break
-        }
-        case 'darwin': {
-          await this.succeeded('launchctl', ['bootout', `gui/${String(this.deps.uid)}/${this.id}`])
+          await this.succeeded('schtasks.exe', [
+            '/Delete',
+            '/TN',
+            path.win32.join(path.win32.sep, this.id, this.id),
+            '/F',
+          ])
           break
         }
         default: {
@@ -291,6 +375,11 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
         }
       }
       if (await this.isRegistered()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+    }
+    if (this.deps.platform === 'win32') {
+      const script = String.raw`$ErrorActionPreference = 'Stop'; ${WINDOWS_TRUSTED_ACL_SCRIPT}; $scheduler = New-Object -ComObject 'Schedule.Service'; $scheduler.Connect(); $root = $scheduler.GetFolder('\'); $found = @($root.GetFolders(0) | Where-Object { $_.Name -eq '${this.id}' }); if ($found.Count -gt 0) { $acl = [Security.AccessControl.DirectorySecurity]::new(); $acl.SetSecurityDescriptorSddlForm($found[0].GetSecurityDescriptor(7)); if (-not (Test-TrustedAcl $acl $false $true)) { throw 'unsafe task folder' }; $root.DeleteFolder('${this.id}', 0) }; ConvertTo-Json -Compress -InputObject $true`
+      if (!z.boolean().parse(await this.powershellJson(script)))
+        throw unsafeScheduleLauncher(this.id)
     }
     for (const file of [...this.paths, this.stateFile]) await this.deps.files.remove(file)
     if (this.deps.platform !== 'linux') {

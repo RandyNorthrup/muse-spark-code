@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Redesign the internal native schedule trust checks: use the shared path
+  verifier, inspect systemd's effective file set, hash Task Scheduler's
+  exported XML and check its folder ACL, and disable launchd records before
+  deferred retirement. Native background IO now loads in its own runtime
+  chunk. POSIX verifier integration and Linux/macOS native receipts remain
+  required before these adapters ship.
+
 - Close the second M115 adapter review: trust-check and hash native definition
   files and their directory chains at registration and every fire, recover paid
   authorization from the verified registration record, break the macOS wake

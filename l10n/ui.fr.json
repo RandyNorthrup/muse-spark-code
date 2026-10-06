@@ -2678,7 +2678,7 @@
       "invalidResponse": "Le planificateur a renvoyé une réponse non valide.",
       "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite.",
       "backgroundUnavailable": "La planification en arrière-plan est indisponible sur cet hôte.",
-      "backgroundRearmUnavailable": "Ce réveil launchd ne peut pas reconfigurer sa propre entrée. Un processus auxiliaire externe est nécessaire pour la reprogrammer.",
+      "backgroundRearmUnavailable": "La planification en arrière-plan attend la fin d’une exécution ou l’expiration du délai de retrait. Réessayez dans un instant.",
       "unsafeLauncher": "Chemin non sûr du lanceur de tâches planifiées : {path}",
       "paidAuthorizationRequired": "Les tâches payantes nécessitent --scheduled-prompts et un --max-budget-usd explicite couvrant les deux plafonds de dépenses.",
       "cleanupFailed": "La demande de planification est terminée, mais le nettoyage a échoué. Conservez l’identifiant accepté ; le code de sortie 3 indique que le nettoyage nécessite une intervention.",

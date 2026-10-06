@@ -1735,6 +1735,13 @@ those are not the Model API jobs shown by this panel. Muse Code 1.3.0 does
 not expose scheduler controls over MSP or a `muse cron` CLI command, so the
 panel cannot present an authoritative native job list or direct cancel.
 
+The cross-editor native background scheduler under development (M115) is
+not enabled by these shipped controls. Its launcher verifies installed paths
+and the effective OS definition on every wake. On macOS, switching it off
+disables its record immediately; removing the native job waits for a full
+calendar wake interval and an idle instance. POSIX shared-verifier binding
+and native Linux/macOS certification remain integration prerequisites.
+
 ## Observation packing (Model API)
 
 On by default (`museSpark.modelApiObservationPacking`, machine-scoped).

@@ -1,7 +1,6 @@
 import { execFile, spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
-import type { Stats } from 'node:fs'
-import { lstat, mkdir, open, readdir, realpath, rename, rm } from 'node:fs/promises'
+import { lstat, mkdir, open, readdir, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { homedir } from 'node:os'
@@ -14,10 +13,9 @@ import {
   REPORT_STORAGE_FILE_MODE,
   SCHEDULE_MAX_PROMPT_CHARS,
   SCHEDULE_POLL_INTERVAL_MS,
-  SCHEDULE_UNTRUSTED_WRITE_MODE,
-  SCHEDULE_STICKY_MODE,
   SCHEDULE_WAKE_WAIT_MS,
   SCHEDULE_WAKE_RETRY_MS,
+  SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
 import { agentDataFolder } from '../dataFolder'
@@ -30,6 +28,9 @@ import {
   type ScheduleWakeAuthorization,
 } from './registration'
 import type { BackgroundFilePort, BackgroundProcessResult } from './nativeBackground'
+import type { TrustedPathVerifier } from '../trustedPathPort'
+import { windowsTrustedPathVerifier } from '../windowsTrustedPath'
+import { effectiveBackgroundDefinition, scheduleWindowsOwner } from './effectiveDefinition'
 
 const wakeLockSchema = z.strictObject({
   pid: z.int().check(z.gte(1)),
@@ -147,72 +148,25 @@ export async function beginScheduleWake(
   }
 }
 
-/** Check both the named chain and the canonical chain, including the root. */
+/** M104/TRUSTED-PATH supplies POSIX verification; missing bindings refuse. */
 export async function trustedBackgroundPath(
   file: string,
   platform: NodeJS.Platform,
-  uid: number,
-  deps?: {
-    realpath: (file: string) => Promise<string>
-    lstat: (
-      file: string,
-    ) => Promise<Pick<Stats, 'uid' | 'mode' | 'isFile' | 'isDirectory' | 'isSymbolicLink'>>
-    run: (file: string, args: readonly string[]) => Promise<BackgroundProcessResult>
-  },
+  _uid: number,
+  verifier?: TrustedPathVerifier,
   kind?: 'definition' | 'directory',
 ): Promise<string> {
-  const io = deps ?? { realpath, lstat, run: backgroundProcessRunner(process.env) }
-  const p = platform === 'win32' ? path.win32 : path.posix
-  if (!p.isAbsolute(file) || /\p{Cc}/u.test(file)) throw unsafeScheduleLauncher(file)
-  let resolved: string
-  try {
-    resolved = await io.realpath(file)
-    const info = await io.lstat(resolved)
-    if (kind === 'directory' ? !info.isDirectory() : !info.isFile())
-      throw unsafeScheduleLauncher(file)
-  } catch {
-    throw unsafeScheduleLauncher(file)
-  }
-  const checked = new Set<string>()
-  for (const initial of [file, resolved]) {
-    for (const target of ancestors(p, initial)) {
-      if (checked.has(target)) {
-        continue
-      }
-
-      checked.add(target)
-      try {
-        const info = await io.lstat(target)
-        if (kind !== undefined && info.isSymbolicLink()) throw unsafeScheduleLauncher(target)
-        if (platform === 'win32') {
-          // Reject every untrusted allow ACE, even if a deny ACE also exists.
-          const literal = target.replaceAll("'", "''")
-          const reparseCheck =
-            kind === undefined
-              ? ''
-              : `; $safe = $safe -and (((Get-Item -Force -LiteralPath '${literal}').Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0)`
-          const script = `$ErrorActionPreference = 'Stop'; $identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $trusted = @($identity.User.Value, 'S-1-5-18', 'S-1-5-32-544', 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'); $acl = Get-Acl -LiteralPath '${literal}'; $owner = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value; $safe = ($trusted -contains $owner) -and ($identity.User.Value -match '^S-1-(?:5-21|12-1)-') -and -not $identity.IsSystem -and -not ($identity.Groups.Value -contains 'S-1-5-6') -and -not ([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)${reparseCheck}; foreach ($ace in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) { if ($ace.AccessControlType -eq 'Allow' -and ([int]$ace.FileSystemRights -band 0x000D0156) -ne 0 -and $trusted -notcontains $ace.IdentityReference.Value) { $safe = $false } }; ConvertTo-Json -Compress -InputObject ([bool]$safe)`
-          const result = await io.run('powershell.exe', [
-            '-NoProfile',
-            '-NonInteractive',
-            '-EncodedCommand',
-            Buffer.from(script, 'utf16le').toString('base64'),
-          ])
-          if (result.exitCode !== 0 || !z.boolean().parse(JSON.parse(result.stdout)))
-            throw unsafeScheduleLauncher(target)
-        } else if (
-          (info.uid !== uid && info.uid !== 0) ||
-          (!info.isSymbolicLink() &&
-            (info.mode & SCHEDULE_UNTRUSTED_WRITE_MODE) !== 0 &&
-            (kind !== undefined || !info.isDirectory() || (info.mode & SCHEDULE_STICKY_MODE) === 0))
-        )
-          throw unsafeScheduleLauncher(target)
-      } catch {
-        throw unsafeScheduleLauncher(target)
-      }
-    }
-  }
-  return resolved
+  const trusted =
+    verifier ??
+    (platform === 'win32'
+      ? windowsTrustedPathVerifier(backgroundProcessRunner(process.env))
+      : undefined)
+  if (trusted === undefined) throw unsafeScheduleLauncher(file)
+  const result = await trusted.verify(file, {
+    leafKind: kind === 'directory' ? 'directory' : 'file',
+  })
+  if ('refused' in result) throw unsafeScheduleLauncher(result.component)
+  return result.path
 }
 
 /** Native wakes reverify the very launcher and script that started this process. */
@@ -228,6 +182,7 @@ export async function verifyScheduleWake(
     dataDir?: string
     read?: BackgroundFilePort['read']
     hash?: BackgroundFilePort['hash']
+    run?: (file: string, args: readonly string[]) => Promise<BackgroundProcessResult>
   },
   registrationId?: string,
 ): Promise<ScheduleWakeAuthorization> {
@@ -239,6 +194,8 @@ export async function verifyScheduleWake(
   }
   if (io.platform !== 'win32' && (io.uid === 0 || io.effectiveUid === 0))
     throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
+  if (io.platform === 'win32')
+    await scheduleWindowsOwner(io.run ?? backgroundProcessRunner(process.env))
   const launcher = await io.trustedPath(executable, io.platform, io.uid)
   const script = await io.trustedPath(agentFile, io.platform, io.uid)
   if (registrationId === undefined) return { scheduledPrompts: false }
@@ -266,16 +223,30 @@ export async function verifyScheduleWake(
     !isSamePath(record.agentFile, script)
   )
     throw unsafeScheduleLauncher(recordFile)
+  if (record.disabledAtMs !== undefined) throw unsafeScheduleLauncher(recordFile)
   const definitions = backgroundDefinitionPaths(io.platform, homeDir, dataDir)
-  if (record.files.length !== definitions.length) throw unsafeScheduleLauncher(recordFile)
-  for (const [index, definition] of definitions.entries()) {
-    const expected = record.files[index]
-    if (expected === undefined || !isSamePath(expected.path, definition))
-      throw unsafeScheduleLauncher(recordFile)
-    await io.trustedPath(definition, io.platform, io.uid, 'definition')
-    if ((await (io.hash ?? files.hash)(definition)) !== expected.sha256)
-      throw unsafeScheduleLauncher(definition)
+  const effective = await effectiveBackgroundDefinition({
+    platform: io.platform,
+    id: registrationId,
+    definitions,
+    executable: launcher,
+    trustedPath: io.trustedPath,
+    uid: io.uid,
+    hash: io.hash ?? files.hash,
+    read: io.read ?? files.read,
+    run: io.run ?? backgroundProcessRunner(process.env),
+  })
+  if (record.files.length !== effective.files.length) throw unsafeScheduleLauncher(recordFile)
+  for (const [index, expected] of record.files.entries()) {
+    const actual = effective.files[index]
+    if (
+      actual === undefined ||
+      !isSamePath(expected.path, actual.path) ||
+      expected.sha256 !== actual.sha256
+    )
+      throw unsafeScheduleLauncher(actual?.path ?? recordFile)
   }
+  if (record.definitionSha256 !== effective.sha256) throw unsafeScheduleLauncher(recordFile)
   if (record.scheduledPrompts !== true) return { scheduledPrompts: false }
   if (record.maxBudgetUsd === undefined || !Number.isFinite(record.maxBudgetUsd))
     throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
@@ -304,7 +275,7 @@ export function backgroundProcessRunner(
         env: withoutCredentials(env),
         windowsHide: true,
         timeout: SCHEDULE_POLL_INTERVAL_MS,
-        maxBuffer: SCHEDULE_MAX_PROMPT_CHARS,
+        maxBuffer: SCHEDULE_NATIVE_MAX_OUTPUT_BYTES,
       })
       return { exitCode: 0, stdout: result.stdout, stderr: result.stderr }
     } catch (error: unknown) {
@@ -355,9 +326,11 @@ async function backgroundBytes(file: string): Promise<Buffer | undefined> {
 const nodeTrustedPath: BackgroundFilePort['trustedPath'] = (file, platform, uid, kind) =>
   trustedBackgroundPath(file, platform, uid, undefined, kind)
 
-export function nodeBackgroundFiles(): BackgroundFilePort {
+export function nodeBackgroundFiles(verifier?: TrustedPathVerifier): BackgroundFilePort {
+  const trustedPath: BackgroundFilePort['trustedPath'] = (file, platform, uid, kind) =>
+    trustedBackgroundPath(file, platform, uid, verifier, kind)
   return {
-    trustedPath: nodeTrustedPath,
+    trustedPath,
     waitForWake: (dataDir, shouldWait) => waitForScheduleWake(dataDir, undefined, shouldWait),
     async prepare(file, platform, uid) {
       const p = platform === 'win32' ? path.win32 : path.posix
@@ -372,14 +345,14 @@ export function nodeBackgroundFiles(): BackgroundFilePort {
           missing.push(directory)
           continue
         }
-        await nodeTrustedPath(directory, platform, uid, 'directory')
+        await trustedPath(directory, platform, uid, 'directory')
         hasTrustedAncestor = true
         break
       }
       if (!hasTrustedAncestor) throw unsafeScheduleLauncher(file)
       for (const directory of missing.toReversed()) {
         await mkdir(directory, { mode: CHECKPOINT_STORAGE_MODE })
-        await nodeTrustedPath(directory, platform, uid, 'directory')
+        await trustedPath(directory, platform, uid, 'directory')
       }
       try {
         await lstat(file)
@@ -387,7 +360,7 @@ export function nodeBackgroundFiles(): BackgroundFilePort {
         if (storeErrorCode(error) === 'ENOENT') return
         throw unsafeScheduleLauncher(file)
       }
-      await nodeTrustedPath(file, platform, uid, 'definition')
+      await trustedPath(file, platform, uid, 'definition')
     },
     async hash(file) {
       const bytes = await backgroundBytes(file)

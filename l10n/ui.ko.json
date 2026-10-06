@@ -2486,7 +2486,7 @@
       "invalidResponse": "스케줄러가 잘못된 응답을 반환했습니다.",
       "consentRequired": "백그라운드 일정 실행에는 명시적으로 예를 선택해야 합니다.",
       "backgroundUnavailable": "이 호스트에서는 백그라운드 일정 실행을 사용할 수 없습니다.",
-      "backgroundRearmUnavailable": "이 launchd 실행은 자신의 항목을 다시 구성할 수 없습니다. 다음 실행을 설정할 외부 도우미가 필요합니다.",
+      "backgroundRearmUnavailable": "백그라운드 예약은 실행이 끝나거나 제거 대기 시간이 지나기를 기다리고 있습니다. 잠시 후 다시 시도하세요.",
       "unsafeLauncher": "안전하지 않은 예약 실행기 경로: {path}",
       "paidAuthorizationRequired": "유료 예약에는 --scheduled-prompts와 두 요금 한도를 모두 충족하는 명시적 --max-budget-usd가 필요합니다.",
       "cleanupFailed": "예약 요청은 완료되었지만 정리에 실패했습니다. 승인된 ID를 보관하세요. 종료 코드 3은 정리에 주의가 필요함을 뜻합니다.",

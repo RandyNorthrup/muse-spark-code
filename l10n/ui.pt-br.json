@@ -2678,7 +2678,7 @@
       "invalidResponse": "O agendador retornou uma resposta inválida.",
       "consentRequired": "O agendamento em segundo plano exige seu Sim explícito.",
       "backgroundUnavailable": "O agendamento em segundo plano não está disponível neste host.",
-      "backgroundRearmUnavailable": "Esta ativação do launchd não pode reconfigurar sua própria entrada. É necessário um processo auxiliar externo para reagendá-la.",
+      "backgroundRearmUnavailable": "O agendamento em segundo plano está aguardando o fim de uma execução ou o intervalo de remoção. Tente novamente em breve.",
       "unsafeLauncher": "Caminho inseguro do inicializador de agendamentos: {path}",
       "paidAuthorizationRequired": "Agendamentos pagos exigem --scheduled-prompts e um --max-budget-usd explícito que cubra ambos os limites de gasto.",
       "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",

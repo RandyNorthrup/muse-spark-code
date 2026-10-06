@@ -89,6 +89,7 @@ beforeAll(async () => {
         checkpointStore: 'src/host/checkpoints/checkpointStoreEntry.ts',
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
+        scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['vscode', '@napi-rs/keyring'],
@@ -430,6 +431,16 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    [
+      'acp',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'on the first native schedule wake or maintenance',
+    ],
+    [
+      'modelApi',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'on the first native schedule wake or maintenance',
+    ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],

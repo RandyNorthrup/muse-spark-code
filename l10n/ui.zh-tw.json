@@ -2486,7 +2486,7 @@
       "invalidResponse": "排程器傳回了無效回應。",
       "consentRequired": "背景排程需要您明確選擇「是」。",
       "backgroundUnavailable": "此主機無法使用背景排程。",
-      "backgroundRearmUnavailable": "此 launchd 喚醒程序無法重新設定自己的項目。需要外部輔助程序安排下一次喚醒。",
+      "backgroundRearmUnavailable": "背景排程正在等待執行結束或停用等待期屆滿。請稍後重試。",
       "unsafeLauncher": "不安全的排程啟動程式路徑：{path}",
       "paidAuthorizationRequired": "付費排程需要 --scheduled-prompts 與明確指定的 --max-budget-usd，預算必須涵蓋兩項費用上限。",
       "cleanupFailed": "排程請求已完成，但清理失敗。請保留已接受的 ID；結束代碼 3 表示清理需要處理。",

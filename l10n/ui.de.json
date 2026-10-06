@@ -2582,7 +2582,7 @@
       "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
       "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja.",
       "backgroundUnavailable": "Hintergrundplanung ist auf diesem Host nicht verfügbar.",
-      "backgroundRearmUnavailable": "Dieser launchd-Aufruf kann seinen eigenen Eintrag nicht neu konfigurieren. Dafür ist ein externer Hilfsprozess erforderlich.",
+      "backgroundRearmUnavailable": "Die Hintergrundplanung wartet auf das Ende eines Aufrufs oder auf die Stilllegungsfrist. Versuchen Sie es in Kürze erneut.",
       "unsafeLauncher": "Unsicherer Pfad zum Zeitplanstarter: {path}",
       "paidAuthorizationRequired": "Kostenpflichtige Zeitpläne erfordern --scheduled-prompts und ein ausdrückliches --max-budget-usd, das beide Kostenlimits abdeckt.",
       "cleanupFailed": "Die Zeitplananfrage wurde abgeschlossen, aber die Bereinigung ist fehlgeschlagen. Behalten Sie die bestätigte ID; Exitcode 3 bedeutet, dass die Bereinigung Aufmerksamkeit erfordert.",

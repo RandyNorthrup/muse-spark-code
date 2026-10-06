@@ -2774,7 +2774,7 @@
       "invalidResponse": "Plánovač vrátil neplatnou odpověď.",
       "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano.",
       "backgroundUnavailable": "Plánování na pozadí není na tomto hostiteli dostupné.",
-      "backgroundRearmUnavailable": "Toto probuzení launchd nemůže upravit vlastní položku. Je nutný externí pomocník pro opětovné nastavení.",
+      "backgroundRearmUnavailable": "Plánování na pozadí čeká na dokončení běhu nebo uplynutí intervalu pro vyřazení. Zkuste to za chvíli znovu.",
       "unsafeLauncher": "Nebezpečná cesta ke spouštěči plánů: {path}",
       "paidAuthorizationRequired": "Placené plány vyžadují --scheduled-prompts a výslovné --max-budget-usd pokrývající oba finanční limity.",
       "cleanupFailed": "Požadavek na plán byl dokončen, ale úklid selhal. Uchovejte přijaté ID; návratový kód 3 znamená, že úklid vyžaduje pozornost.",

@@ -270,6 +270,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | `.vsix`                               | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)                                                                                                                                                                                      |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/scheduleBackground.js`          | ≤ 50 KiB (REDM115X: native schedule IO, effective definitions, registration and Windows shared path rule, loaded on the first wake/maintenance; initially 44.0 KiB, no ACP growth)                                                                                                                                                                                                                     |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
 | `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
@@ -6843,6 +6844,37 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### REDM115X — Native launcher trust redesign (2026-10-06)
+
+Replace X's per-OS ancestry checks with the M104 `TrustedPathVerifier` port:
+`verify(path, { leafKind })` returns a canonical accepted path or a refusal
+with component and reason. X supplies Windows ACL/reparse verification and
+shared JSON vectors; REDM104L3 supplies the POSIX implementation at integration
+(named **M104/TRUSTED-PATH** handoff). Windows drive-root folder-only append
+and inheritance-only ACEs cannot replace an existing child and are safe;
+untrusted intermediate append, write/delete/permission rights and reparse
+points refuse. No unbound verifier returns success.
+
+Ask systemd for FragmentPath, DropInPaths and SourcePath for both units,
+verify every returned path/chain, and record their ordered content digest.
+Unknown additions refuse before activation and on every fire. Export the
+Windows task through its COM API, verify its action and folder security,
+and bind the exported XML digest to the registration. Native definitions
+use a fixed per-user Task Scheduler folder with a protected user/SYSTEM/
+Administrators DACL: the rig's standard scheduler root allows untrusted
+entry creation and cannot itself pass the folder rule. No existing folder's
+ACL is rewritten; an unsafe existing folder refuses. Native definitions
+carry only the launcher and record id; authority remains in the record.
+macOS disables the verified record before removal/replacement and retains
+it until a complete wake interval has elapsed and one locked reconciliation
+finds no starting/running instance. No barrier waits under that lock.
+
+Keep new code outside ACP in a lazy runtime schedules background chunk;
+never raise a cap. Run owned suites with default deadlines, native Windows
+ACL probes, three required byte-exact red drills, scoped static gates and
+build. Kubuntu systemd and Mac mini launchd native receipts remain explicit
+integration handoffs; no model or paid call is authorized.
 
 ### FIXM115X3 — RVM115X2 repair (2026-10-06)
 
@@ -19627,6 +19659,25 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **REDM115X supersedes the native trust/lifecycle claims below.** Native
+  paths use `TrustedPathVerifier`; X supplies the Windows implementation
+  and shared vectors, including the actual Win11 C-drive ACL. M104's POSIX
+  implementation is a named integration binding; an absent verifier refuses.
+  systemd's full manager-reported fragment/drop-in/source set is checked;
+  extra definitions refuse before activation and at fire, and ordered content
+  is hashed. Windows verifies the exported task XML, action path and protected
+  per-user task folder; it never rewrites an existing unsafe folder's ACL.
+  launchd retirement publishes and verifies the disabled record before OS
+  disable. Its grace interval starts only after successful native disable,
+  lasts a full calendar wake quantum, and a locked reconciliation refuses a
+  starting/running instance or unknown print. W must arrange the subsequent
+  reconciliation outside the lock with a fresh next wake; the record remains
+  disabled until then. The bounded startup barrier never waits for retirement.
+  Same-user processes and trusted OS owners remain outside the security
+  boundary. Native Kubuntu, Mac mini and ordinary-token Windows task receipts,
+  M104/POSIX binding, production S/U/W wiring and aggregate quality remain
+  integration requirements, not claims made by this lane's fake suites.
 
 - **FIXM115X3 round-two review repair.** All four RVM115X2 findings are
   repaired; none is deferred. Native definitions and the registration record

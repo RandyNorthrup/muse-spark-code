@@ -60,11 +60,6 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
 import { runtimeSchedulesBinding } from './schedules/binding'
-import {
-  verifyScheduleWake,
-  beginScheduleWake,
-  waitForScheduleWake,
-} from './schedules/nodeBackgroundIo'
 import { settleScheduleCommand } from './schedules/command'
 
 const EXIT_FAILED = 1
@@ -533,6 +528,9 @@ async function main(): Promise<number> {
           command.options.operation === 'background-maintain'
         ) {
           try {
+            const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
+            const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
+              createRuntimeScheduleBackground(UI_TEXT, uiLocale())
             await verifyScheduleWake(
               process.execPath,
               __filename,

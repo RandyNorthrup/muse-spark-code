@@ -2678,7 +2678,7 @@
       "invalidResponse": "Il pianificatore ha restituito una risposta non valida.",
       "consentRequired": "La pianificazione in background richiede un Sì esplicito.",
       "backgroundUnavailable": "La pianificazione in background non è disponibile su questo host.",
-      "backgroundRearmUnavailable": "Questa attivazione di launchd non può riconfigurare la propria voce. È necessario un processo ausiliario esterno per riprogrammarla.",
+      "backgroundRearmUnavailable": "La pianificazione in background attende la fine di un’esecuzione o la scadenza dell’intervallo di rimozione. Riprova tra poco.",
       "unsafeLauncher": "Percorso non sicuro dell’avviatore delle pianificazioni: {path}",
       "paidAuthorizationRequired": "Le pianificazioni a pagamento richiedono --scheduled-prompts e un --max-budget-usd esplicito che copra entrambi i limiti di spesa.",
       "cleanupFailed": "La richiesta di pianificazione è terminata, ma la pulizia non è riuscita. Conserva l’ID accettato; il codice di uscita 3 indica che la pulizia richiede attenzione.",

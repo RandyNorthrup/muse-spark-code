@@ -2774,7 +2774,7 @@
       "invalidResponse": "Harmonogram zwrócił nieprawidłową odpowiedź.",
       "consentRequired": "Harmonogram w tle wymaga wyraźnej odpowiedzi Tak.",
       "backgroundUnavailable": "Harmonogram w tle jest niedostępny na tym hoście.",
-      "backgroundRearmUnavailable": "To wybudzenie launchd nie może zmienić własnego wpisu. Ponowne zaplanowanie wymaga zewnętrznego procesu pomocniczego.",
+      "backgroundRearmUnavailable": "Harmonogram w tle czeka na zakończenie uruchomienia lub upłynięcie okresu wycofania. Spróbuj ponownie za chwilę.",
       "unsafeLauncher": "Niebezpieczna ścieżka programu uruchamiającego harmonogram: {path}",
       "paidAuthorizationRequired": "Płatne harmonogramy wymagają --scheduled-prompts oraz jawnego --max-budget-usd pokrywającego oba limity kosztów.",
       "cleanupFailed": "Żądanie harmonogramu zakończono, ale sprzątanie nie powiodło się. Zachowaj przyjęty identyfikator; kod wyjścia 3 oznacza problem ze sprzątaniem.",

@@ -68,6 +68,9 @@ export const backgroundWakeRecordSchema = z.strictObject({
   files: z.array(
     z.strictObject({ path: z.string(), sha256: z.string().check(z.regex(/^[a-f0-9]{64}$/)) }),
   ),
+  definitionSha256: z.string().check(z.regex(/^[a-f0-9]{64}$/)),
+  disabledAtMs: z.optional(z.int().check(z.gte(0))),
+  nativeDisabledAtMs: z.optional(z.int().check(z.gte(0))),
   scheduledPrompts: z.optional(z.boolean()),
   maxBudgetUsd: z.optional(z.number().check(z.gt(0))),
 })

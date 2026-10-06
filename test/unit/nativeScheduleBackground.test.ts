@@ -1,10 +1,9 @@
-import { copyFile, mkdtemp, readFile, stat, writeFile, rm } from 'node:fs/promises'
+import { copyFile, mkdtemp, mkdir, readFile, stat, writeFile, rm } from 'node:fs/promises'
 import { ChildProcess, type SpawnOptions } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
-import * as z from 'zod/mini'
 import {
   NativeScheduleBackground,
   type BackgroundProcessResult,
@@ -30,41 +29,6 @@ import {
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {
   return { exitCode, stdout, stderr }
 }
-function fileInfo(uid = 0, mode = 0o755, isDirectory = true, isSymbolicLink = false) {
-  return {
-    uid,
-    mode,
-    isFile: () => !isDirectory && !isSymbolicLink,
-    isDirectory: () => isDirectory,
-    isSymbolicLink: () => isSymbolicLink,
-  }
-}
-function ordinaryWindowsIdentity(script: string): string {
-  // The elevated rig uses fake identity metadata; no token or ACL is changed.
-  return script
-    .replace(
-      '[Security.Principal.WindowsIdentity]::GetCurrent()',
-      '[pscustomobject]@{ User = [pscustomobject]@{ Value = $user }; Groups = @(); IsSystem = $false }',
-    )
-    .replace(
-      '([Security.Principal.WindowsPrincipal]::new($identity)).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)',
-      '$false',
-    )
-}
-async function windowsPolicyFixture(fixture: string): Promise<readonly boolean[]> {
-  const run = backgroundProcessRunner({ SystemRoot: process.env['SystemRoot'] })
-  const output = await run('powershell.exe', [
-    '-NoProfile',
-    '-NonInteractive',
-    '-EncodedCommand',
-    Buffer.from(fixture, 'utf16le').toString('base64'),
-  ])
-  expect(output.exitCode).toBe(0)
-  return output.stdout
-    .trim()
-    .split(/\r?\n/)
-    .map((line) => z.boolean().parse(JSON.parse(line)))
-}
 function verifyRegisteredWake(deps: NativeBackgroundDeps) {
   return verifyScheduleWake(
     deps.executable,
@@ -78,6 +42,7 @@ function verifyRegisteredWake(deps: NativeBackgroundDeps) {
       trustedPath: deps.files.trustedPath,
       read: deps.files.read,
       hash: deps.files.hash,
+      run: deps.run,
     },
     backgroundRegistrationId(deps.homeDir),
   )
@@ -112,6 +77,12 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     active: false,
     refusesStop: false,
     wakeActive: false,
+    now: 1000,
+    dropIns: new Array<string>(),
+    sourcePath: '',
+    taskXml: 'exported XML',
+    taskFolderTrusted: true,
+    actionPath: String.raw`C:\node.exe`,
   }
   const run = vi.fn((file: string, args: readonly string[]): Promise<BackgroundProcessResult> => {
     if (
@@ -119,7 +90,7 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
       args.includes('-EncodedCommand') &&
       Buffer.from(args.at(-1) ?? '', 'base64')
         .toString('utf16le')
-        .includes('WindowsIdentity')
+        .includes('$principal =')
     )
       return Promise.resolve(
         state.ownerFails
@@ -133,6 +104,29 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
               }),
             ),
       )
+    if (
+      file === 'powershell.exe' &&
+      Buffer.from(args.at(-1) ?? '', 'base64')
+        .toString('utf16le')
+        .includes('GetTask(')
+    )
+      return Promise.resolve(
+        result(
+          0,
+          JSON.stringify({
+            xml: state.taskXml,
+            actionPath: state.actionPath,
+            folderTrusted: state.taskFolderTrusted,
+          }),
+        ),
+      )
+    if (
+      file === 'powershell.exe' &&
+      Buffer.from(args.at(-1) ?? '', 'base64')
+        .toString('utf16le')
+        .includes('GetSecurityDescriptor')
+    )
+      return Promise.resolve(result(0, JSON.stringify(state.taskFolderTrusted)))
     if (file === 'powershell.exe')
       return Promise.resolve(
         state.queryFails
@@ -142,9 +136,20 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     if (file === 'launchctl' && args[0] === 'print')
       return Promise.resolve(
         args[1]?.includes('/muse-') !== true || state.registered
-          ? result()
+          ? result(0, 'state = not running\n')
           : result(1, '', 'Could not find service'),
       )
+    if (file === 'systemctl' && args[1] === 'show') {
+      const unit = args.at(-1) ?? ''
+      let fragment = ''
+      for (const file of files.keys()) if (file.endsWith(`/${unit}`)) fragment = file
+      return Promise.resolve(
+        result(
+          0,
+          `FragmentPath=${fragment}\nDropInPaths=${unit.endsWith('.service') ? state.dropIns.join(' ') : ''}\nSourcePath=${state.sourcePath}\n`,
+        ),
+      )
+    }
     if (file === 'systemctl' && args[1] === 'is-enabled') {
       const registered = state.registered
         ? result(0, 'enabled')
@@ -160,7 +165,11 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
       if (state.reportsFailureAfterCreate)
         return Promise.resolve(result(1, '', 'Partial OS failure'))
     }
-    if (args.includes('/Delete') || args.includes('bootout') || args.includes('disable')) {
+    if (
+      args.includes('/Delete') ||
+      args.includes('bootout') ||
+      (file === 'systemctl' && args.includes('disable'))
+    ) {
       if (state.deleteFails) return Promise.resolve(result(1, '', 'OS refused'))
       if (!state.staysRegistered) state.registered = false
     }
@@ -181,7 +190,7 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
     agentFile: isWindows ? String.raw`C:\agent\dist\acp.js` : '/agent/dist/acp.js',
     uid: 1000,
     effectiveUid: 1000,
-    now: () => 1000,
+    now: () => state.now,
     authorization,
     files: {
       trustedPath,
@@ -217,6 +226,142 @@ function setup(platform: NodeJS.Platform, overrides: Partial<NativeBackgroundDep
   return { entry, files, state, run, trustedPath, prepare, authorization, deps }
 }
 describe('native background lifecycle', () => {
+  it.each(['drop-in', 'symlinked drop-in', 'writable drop-in directory'])(
+    'refuses a Linux %s before activation and on every fire',
+    async (kind) => {
+      const { entry, state, deps, trustedPath, files, run } = setup('linux')
+      const dropIn = `/home/rig/.config/systemd/user/${backgroundRegistrationId(deps.homeDir)}.service.d/override.conf`
+      files.set(dropIn, '[Service]\nExecStart=\nExecStart=/untrusted/payload\n')
+      state.dropIns = [dropIn]
+      if (kind !== 'drop-in')
+        trustedPath.mockImplementation((file) =>
+          file === dropIn ? Promise.reject(new Error(`${kind}: ${file}`)) : Promise.resolve(file),
+        )
+      await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        dropIn,
+      )
+      expect(
+        run.mock.calls.some(([, args]) => args.includes('enable') || args.includes('restart')),
+      ).toBe(false)
+      expect(trustedPath).toHaveBeenCalledWith(dropIn, 'linux', 1000, 'definition')
+      state.dropIns = []
+      await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+      state.dropIns = [dropIn]
+      await expect(verifyRegisteredWake(deps)).rejects.toThrow(dropIn)
+    },
+  )
+  it('refuses unaccounted systemd SourcePath and missing or malformed manager properties', async () => {
+    const { entry, state, run, deps } = setup('linux')
+    state.sourcePath = '/etc/generated-source'
+    await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+      state.sourcePath,
+    )
+    state.sourcePath = ''
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const original = run.getMockImplementation()!
+    for (const output of [
+      'FragmentPath=/x\nSourcePath=',
+      'DropInPaths=\nSourcePath=\nFragmentPath=',
+      'unexpected',
+    ]) {
+      run.mockImplementation((file, args) =>
+        args[1] === 'show' ? Promise.resolve(result(0, output)) : original(file, args),
+      )
+      await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+    }
+  })
+  it('binds exported Task Scheduler XML, action path and task folder ACL to the record', async () => {
+    const { entry, state, deps, run } = setup('win32')
+    state.taskFolderTrusted = false
+    await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
+    expect(run.mock.calls.some(([, args]) => args.includes('/Create'))).toBe(false)
+    state.taskFolderTrusted = true
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const id = backgroundRegistrationId(deps.homeDir)
+    const create = run.mock.calls.find(([, args]) => args.includes('/Create'))
+    expect(create?.[1]).toContain(path.win32.join(path.win32.sep, id, id))
+    const folderScript = run.mock.calls
+      .map(([, args]) => Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le'))
+      .find((script) => script.includes('CreateFolder('))
+    expect(folderScript).toContain(`GetFolder('${path.win32.join(path.win32.sep, id)}')`)
+    expect(folderScript).toContain(`O:${state.sid}D:P`)
+    expect(folderScript).not.toContain('Set-Acl')
+    expect(await verifyRegisteredWake(deps)).toEqual({ scheduledPrompts: false })
+    state.taskXml += '<Exec>replacement</Exec>'
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+    state.taskXml = 'exported XML'
+    state.actionPath = String.raw`C:\untrusted\payload.exe`
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow(state.actionPath)
+    state.actionPath = deps.executable
+    state.taskFolderTrusted = false
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+  })
+  it('never unloads a macOS wake that starts after the old idle check', async () => {
+    const { entry, state, files, run, deps } = setup('darwin')
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const original = run.getMockImplementation()!
+    let hasStarted = false
+    run.mockImplementation((file, args) => {
+      if (args[0] === 'disable') {
+        const record = backgroundWakeRecordSchema.parse(
+          JSON.parse(files.get(backgroundRecordPath('darwin', deps.dataDir))!),
+        )
+        expect(record.disabledAtMs).toBe(1000)
+        hasStarted = true
+      }
+      return hasStarted && args[0] === 'print'
+        ? Promise.resolve(result(0, 'state = starting\n'))
+        : original(file, args)
+    })
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    expect(files.size).toBeGreaterThan(0)
+    state.now += 60_000
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    await expect(entry.register(181_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
+    expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+  })
+  it('starts the full launchd retirement interval only after native disable succeeds', async () => {
+    const { entry, state, files, deps, run } = setup('darwin')
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const original = run.getMockImplementation()!
+    run.mockImplementation((file, args) =>
+      args[0] === 'disable' ? Promise.resolve(result(1)) : original(file, args),
+    )
+    await expect(entry.remove()).rejects.toThrow()
+    const recordFile = backgroundRecordPath('darwin', deps.dataDir)
+    expect(backgroundWakeRecordSchema.parse(JSON.parse(files.get(recordFile)!))).toMatchObject({
+      disabledAtMs: 1000,
+    })
+    state.now += 60_000
+    run.mockImplementation(original)
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
+    state.now += 60_000
+    await entry.remove()
+    expect(files.size).toBe(0)
+    expect(run.mock.calls.filter(([, args]) => args[0] === 'bootout')).toHaveLength(1)
+  })
+  it('requires the disabled record publication to verify before launchd retirement', async () => {
+    const { entry, files, deps, run } = setup('darwin')
+    await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
+    const recordFile = backgroundRecordPath('darwin', deps.dataDir)
+    const original = files.get(recordFile)!
+    vi.spyOn(deps.files, 'write').mockImplementation((file, text) => {
+      files.set(file, file === recordFile ? original : text)
+      return Promise.resolve()
+    })
+    await expect(entry.remove()).rejects.toThrow(recordFile)
+    expect(run.mock.calls.some(([, args]) => args[0] === 'disable' || args[0] === 'bootout')).toBe(
+      false,
+    )
+  })
   it.each(['win32', 'darwin', 'linux'] as const)(
     'refuses a definition replaced or linked after publication before %s OS import',
     async (platform) => {
@@ -342,61 +487,19 @@ describe('native background lifecycle', () => {
       }
     },
   )
-  it.each(['darwin', 'linux', 'win32'] as const)(
-    'rejects symlinks, reparse points and writable directory chains for %s definitions',
-    async (platform) => {
-      const p = platform === 'win32' ? path.win32 : path.posix
-      const file = platform === 'win32' ? String.raw`C:\owned\task.xml` : '/owned/job.plist'
-      const parent = p.dirname(file)
-      const nodes = new Map([
-        [file, fileInfo(1000, 0o600, false)],
-        [parent, fileInfo(1000)],
-        [p.dirname(parent), fileInfo()],
-      ])
-      const run = vi.fn<NativeBackgroundDeps['run']>().mockResolvedValue(result(0, 'true'))
-      const io = {
-        realpath: vi.fn().mockResolvedValue(file),
-        lstat: vi.fn((target: string) => Promise.resolve(nodes.get(target)!)),
-        run,
-      }
-      await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).resolves.toBe(
-        file,
-      )
-      for (const target of [file, parent]) {
-        const original = nodes.get(target)!
-        nodes.set(target, fileInfo(1000, 0o777, false, true))
-        await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).rejects.toThrow(
-          target === file ? file : parent,
-        )
-        nodes.set(target, original)
-      }
-      if (platform === 'win32') {
-        const scripts = run.mock.calls.map(([, args]) =>
-          Buffer.from(args.at(-1) ?? '', 'base64').toString('utf16le'),
-        )
-        if (process.platform === 'win32') {
-          const script = ordinaryWindowsIdentity(scripts[0] ?? '')
-          const fixture = `function Get-Acl { param([string]$LiteralPath); $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($user)); return $acl }; function Get-Item { param([switch]$Force, [string]$LiteralPath); return [pscustomobject]@{ Attributes = $global:testAttributes } }; $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach ($attributes in @([IO.FileAttributes]::Normal, [IO.FileAttributes]::ReparsePoint, ([IO.FileAttributes]::Directory -bor [IO.FileAttributes]::ReparsePoint))) { $global:testAttributes = $attributes; ${script} }`
-          expect(await windowsPolicyFixture(fixture)).toEqual([true, false, false])
-        }
-        run.mockImplementation((_file, args) =>
-          Promise.resolve(
-            result(
-              0,
-              Buffer.from(args.at(-1) ?? '', 'base64')
-                .toString('utf16le')
-                .includes(`Get-Acl -LiteralPath '${parent}'`)
-                ? 'false'
-                : 'true',
-            ),
-          ),
-        )
-      } else nodes.set(parent, fileInfo(1000, 0o1777))
-      await expect(trustedBackgroundPath(file, platform, 1000, io, 'definition')).rejects.toThrow(
-        parent,
-      )
-    },
-  )
+  it('uses the shared TrustedPathVerifier for launchers and definitions and refuses missing POSIX bindings', async () => {
+    const verify = vi.fn().mockResolvedValue({ ok: true, path: '/canonical/node' })
+    const port = { verify }
+    expect(await trustedBackgroundPath('/named/node', 'linux', 1000, port)).toBe('/canonical/node')
+    expect(verify).toHaveBeenCalledWith('/named/node', { leafKind: 'file' })
+    await trustedBackgroundPath('/private', 'darwin', 1000, port, 'directory')
+    expect(verify).toHaveBeenCalledWith('/private', { leafKind: 'directory' })
+    verify.mockResolvedValue({ refused: true, component: '/writable', reason: 'unsafe ancestor' })
+    await expect(trustedBackgroundPath('/named/node', 'linux', 1000, port)).rejects.toThrow(
+      '/writable',
+    )
+    await expect(trustedBackgroundPath('/node', 'linux', 1000)).rejects.toThrow('/node')
+  })
   it('publishes the wake identity before launching detached after-exit maintenance through canonical trusted paths', async () => {
     const child = new ChildProcess()
     const unref = vi.spyOn(child, 'unref').mockImplementation(() => undefined)
@@ -437,21 +540,29 @@ describe('native background lifecycle', () => {
     deps.identity.mockResolvedValue(undefined)
     await expect(beginScheduleWake('/data', '/node', '/acp.js', deps)).rejects.toThrow()
   })
-  it('refuses a live macOS wake immediately and also protects a starting launchd process', async () => {
+  it('disables a macOS record first and refuses rearm without unloading a running wake', async () => {
     const { entry, run, state, files, deps } = setup('darwin')
     state.wakeActive = true
-    const probe = vi.spyOn(deps.files, 'waitForWake')
-    await expectLaunchdMaintenanceRefusal(entry, 61_000)
-    expect(probe.mock.calls).toEqual([
-      ['/data', false],
-      ['/data', false],
-    ])
+    await expect(entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
     expect(files.size).toBe(0)
-    expect(run).not.toHaveBeenCalled()
     state.wakeActive = false
     await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
-    run.mockImplementation(() => Promise.resolve(result(0, 'state = running\n pid = 123\n')))
-    await expectLaunchdMaintenanceRefusal(entry, 121_000)
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow('background-wake.json')
+    expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
+    state.now += 60_000
+    const originalRun = run.getMockImplementation()!
+    run.mockImplementation((file, args) =>
+      args[0] === 'print'
+        ? Promise.resolve(result(0, 'state = running\n pid = 123\n'))
+        : originalRun(file, args),
+    )
+    await expect(entry.remove()).rejects.toThrow(
+      UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+    )
+    await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
     expect(run.mock.calls.some(([, args]) => args[0] === 'bootout')).toBe(false)
   })
   it('keeps a pid/start-identity lock while live, bounds retry and removes it only after exit or pid reuse', async () => {
@@ -459,7 +570,10 @@ describe('native background lifecycle', () => {
     try {
       const lock = path.join(directory, 'background-wakes', '123-fixture.json')
       const files = nodeBackgroundFiles()
-      await files.write(lock, JSON.stringify({ pid: 123, startIdentity: 'start-a' }))
+      // This tests lock reading/identity/removal; durable publication is covered
+      // separately. Avoid repeated fsyncs competing with CI's bundle builds.
+      await mkdir(path.dirname(lock))
+      await writeFile(lock, JSON.stringify({ pid: 123, startIdentity: 'start-a' }))
       let now = 0
       const identity = vi.fn().mockResolvedValue('start-a')
       const pause = vi.fn((ms: number) => {
@@ -474,11 +588,11 @@ describe('native background lifecycle', () => {
       await waitForScheduleWake(directory, { now: () => now, pause, identity })
       expect(await files.read(lock)).toBeUndefined()
       expect(pause).toHaveBeenCalled()
-      await files.write(lock, JSON.stringify({ pid: 123, startIdentity: 'start-a' }))
+      await writeFile(lock, JSON.stringify({ pid: 123, startIdentity: 'start-a' }))
       identity.mockResolvedValueOnce('start-a').mockResolvedValue(undefined)
       await waitForScheduleWake(directory, { now: () => now, pause, identity })
       expect(await files.read(lock)).toBeUndefined()
-      await files.write(lock, '{invalid')
+      await writeFile(lock, '{invalid')
       await expect(
         waitForScheduleWake(directory, { now: () => now, pause, identity }),
       ).rejects.toThrow()
@@ -559,88 +673,6 @@ describe('native background lifecycle', () => {
       expect(run.mock.calls.some(([file]) => file === 'schtasks.exe')).toBe(false)
     }
   })
-  it('validates POSIX ownership, writable ancestors, sticky directories, links and existence through the root', async () => {
-    const nodes = new Map([
-      ['/opt/node', fileInfo(1000, 0o755, false)],
-      ['/opt', fileInfo()],
-      ['/', fileInfo()],
-      ['/link/node', fileInfo(1000, 0o755, false)],
-      ['/link', fileInfo(1000, 0o777, false, true)],
-    ])
-    const io = {
-      realpath: vi.fn().mockResolvedValue('/opt/node'),
-      lstat: vi.fn((file: string) => {
-        const value = nodes.get(file)
-        return value === undefined ? Promise.reject(new Error('missing')) : Promise.resolve(value)
-      }),
-      run: vi.fn(),
-    }
-    expect(await trustedBackgroundPath('/link/node', 'linux', 1000, io)).toBe('/opt/node')
-    expect(io.lstat).toHaveBeenCalledWith('/')
-    const node = nodes.get('/opt/node')!
-    nodes.set('/opt/node', fileInfo(1000, 0o755, true))
-    await expect(trustedBackgroundPath('/link/node', 'linux', 1000, io)).rejects.toThrow(
-      '/link/node',
-    )
-    nodes.set('/opt/node', node)
-    for (const [target, value] of [
-      ['/opt', fileInfo(0, 0o775)],
-      ['/opt', fileInfo(2000)],
-      ['/link', fileInfo(2000, 0o777, false, true)],
-      ['/opt/node', fileInfo(1000, 0o777, false)],
-      ['/', fileInfo(0, 0o777)],
-    ] as const) {
-      const before = nodes.get(target)!
-      nodes.set(target, value)
-      await expect(trustedBackgroundPath('/link/node', 'linux', 1000, io)).rejects.toThrow(target)
-      nodes.set(target, before)
-    }
-    nodes.set('/opt', fileInfo(0, 0o1777))
-    await expect(trustedBackgroundPath('/link/node', 'darwin', 1000, io)).resolves.toBe('/opt/node')
-    io.realpath.mockRejectedValueOnce(new Error('missing'))
-    await expect(trustedBackgroundPath('/missing', 'linux', 1000, io)).rejects.toThrow('/missing')
-    await expect(trustedBackgroundPath('relative', 'linux', 1000, io)).rejects.toThrow('relative')
-  })
-  it('checks Windows ACLs on the named and resolved ancestors through the drive root and refuses helper failures', async () => {
-    const io = {
-      realpath: vi.fn().mockResolvedValue(String.raw`C:\real\node.exe`),
-      lstat: vi.fn().mockResolvedValue(fileInfo(0, 0o755, false)),
-      run: vi.fn<NativeBackgroundDeps['run']>().mockResolvedValue(result(0, 'true')),
-    }
-    expect(await trustedBackgroundPath(String.raw`C:\link\node.exe`, 'win32', 0, io)).toBe(
-      String.raw`C:\real\node.exe`,
-    )
-    const scripts = io.run.mock.calls.map((call) =>
-      Buffer.from(call[1].at(-1) ?? '', 'base64').toString('utf16le'),
-    )
-    if (process.platform === 'win32') {
-      // The rig runs elevated; fake only the identity so the real ACL operations
-      // exercise an ordinary user's policy. Token refusal is tested separately.
-      const ordinaryScript = ordinaryWindowsIdentity(scripts[0] ?? '')
-      const fixture = `function Get-Acl { param([string]$LiteralPath); $acl = [Security.AccessControl.FileSecurity]::new(); $acl.SetOwner([Security.Principal.SecurityIdentifier]::new($global:testOwner)); if ($global:testWriter) { $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new([Security.Principal.SecurityIdentifier]::new($global:testWriter), $global:testRights, 'Allow')) }; return $acl }; $user = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach ($case in @(@($user,$user,'Write'), @('S-1-5-18',$null,'Read'), @('S-1-5-32-544',$null,'Read'), @('S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464',$null,'Read'), @('S-1-5-32-545',$null,'Read'), @($user,'S-1-1-0','Write'), @($user,'S-1-1-0','ReadAndExecute'))) { $global:testOwner = $case[0]; $global:testWriter = $case[1]; $global:testRights = $case[2]; ${ordinaryScript} }`
-      expect(await windowsPolicyFixture(fixture)).toEqual([
-        true,
-        true,
-        true,
-        true,
-        false,
-        false,
-        true,
-      ])
-    }
-    expect(scripts.some((script) => script.includes(String.raw`Get-Acl -LiteralPath 'C:\'`))).toBe(
-      true,
-    )
-    expect(
-      scripts.some((script) => script.includes(String.raw`Get-Acl -LiteralPath 'C:\real'`)),
-    ).toBe(true)
-    for (const response of [result(0, 'false'), result(1, 'true'), result(0, '"true"')]) {
-      io.run.mockResolvedValueOnce(response)
-      await expect(
-        trustedBackgroundPath(String.raw`C:\link\node.exe`, 'win32', 0, io),
-      ).rejects.toThrow(String.raw`C:\link\node.exe`)
-    }
-  })
   it('refuses self-unloading launchd wake maintenance before changing a file or job', async () => {
     const run = vi.fn(),
       files = {
@@ -685,16 +717,29 @@ describe('native background lifecycle', () => {
         registered: true,
         nextWakeAtMs: platform === 'darwin' ? 120_000 : 61_000,
       })
-      await entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })
+      if (platform === 'darwin') {
+        await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+          UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+        )
+        state.now += 60_000
+      }
+      await entry.register(181_000, { choice: 'yes', decidedAtMs: 1000 })
       const rearmed = await entry.status()
-      expect(rearmed.nextWakeAtMs).toBe(platform === 'darwin' ? 180_000 : 121_000)
+      expect(rearmed.nextWakeAtMs).toBe(platform === 'darwin' ? 240_000 : 181_000)
       if (platform === 'linux')
         expect(run).toHaveBeenCalledWith('systemctl', [
           '--user',
           'restart',
           expect.stringContaining('.timer'),
         ])
-      await entry.remove()
+      if (platform === 'darwin') {
+        await expect(entry.remove()).rejects.toThrow(
+          UI_TEXT.scheduleV2.runtime.backgroundRearmUnavailable,
+        )
+        expect(await entry.status()).toEqual({ registered: true })
+        state.now += 60_000
+        await entry.remove()
+      } else await entry.remove()
       expect(await entry.status()).toEqual({ registered: false })
       expect(files.size).toBe(0)
       await entry.remove()
