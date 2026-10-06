@@ -26,6 +26,7 @@ export const DEVICE_LIMITS = {
   invitationValidityMs: 300_000,
   clockSkewMs: 30_000,
   frameBytes: 131_072,
+  frameFragments: 4096,
   frameDeadlineMs: 10_000,
   handshakeDeadlineMs: 10_000,
   idleConnectionMs: 30_000,
