@@ -32,7 +32,16 @@ import {
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
-import { authClear, type AuthCommandDeps, authSet, authStatus, login } from './authCommands'
+import {
+  authClear,
+  authClearProvider,
+  type AuthCommandDeps,
+  authSet,
+  authSetProvider,
+  authStatus,
+  authStatusProvider,
+  login,
+} from './authCommands'
 import { createRuntimeBackend } from './backends'
 import { parseCommandLine, type ServeOptions } from './cliArgs'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -43,6 +52,16 @@ import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import {
+  providersAdd,
+  providersFilePath,
+  providersList,
+  providersRemove,
+  providersTest,
+  type ProvidersDeps,
+  resolveEndpointHost,
+  userFileIo,
+} from './providersCommands'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -63,11 +82,12 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 
 const EXIT_FAILED = 1
-// The Model API key variable Muse Code reads; the report says only whether it was set.
+// Keep only presence for reports, before credential variables leave the process.
 const META_API_KEY_VARIABLE = 'META_API_KEY'
+const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
-// starts a process; only Muse Code's processes get them back (rule 8).
-const museCodeCredentials = takeCredentials(process.env)
+// starts a process; no child gets them back (FIXM95X).
+takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -231,6 +251,27 @@ async function chatGptDeps() {
   }
 }
 
+/** The runner's own user file (never a repository file). */
+function userProvidersFile() {
+  return userFileIo(
+    providersFilePath({
+      platform: process.platform,
+      homeDir: homedir(),
+      xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    }),
+  )
+}
+
+/** The `providers …` commands' dependencies: the user's own file, the OS store, stdin. */
+function providersDeps(): ProvidersDeps {
+  return {
+    ...authDeps(),
+    ...userProvidersFile(),
+    resolveHost: resolveEndpointHost,
+    fetch: globalThis.fetch.bind(globalThis),
+  }
+}
+
 function signInMethod(options: ServeOptions): SignInMethod {
   if (options.backend === 'modelApi') {
     const { id, args } = ACP_AUTH_METHODS.modelApiKey
@@ -262,7 +303,6 @@ function runtimeFor(options: ServeOptions, log: Logger) {
     homeDir: homedir(),
     secrets,
     runGit: processGitRunner(),
-    museCodeCredentials,
     fetch: globalThis.fetch.bind(globalThis),
     sleep,
     log,
@@ -488,7 +528,6 @@ async function main(): Promise<number> {
         stderr,
         storeSecrets: secrets,
         runGit: processGitRunner(),
-        museCodeCredentials,
         fetch: globalThis.fetch.bind(globalThis),
         sleep,
         now,
@@ -549,13 +588,31 @@ async function main(): Promise<number> {
       })
     }
     case 'authSet': {
-      return await authSet(authDeps())
+      return command.provider === undefined
+        ? await authSet(authDeps())
+        : await authSetProvider(authDeps(), command.provider, userProvidersFile().readUserFile)
     }
     case 'authStatus': {
-      return await authStatus(authDeps())
+      return command.provider === undefined
+        ? await authStatus(authDeps())
+        : await authStatusProvider(authDeps(), command.provider)
     }
     case 'authClear': {
-      return await authClear(authDeps())
+      return command.provider === undefined
+        ? await authClear(authDeps())
+        : await authClearProvider(authDeps(), command.provider)
+    }
+    case 'providersList': {
+      return await providersList(providersDeps())
+    }
+    case 'providersAdd': {
+      return await providersAdd(providersDeps(), command.options)
+    }
+    case 'providersTest': {
+      return await providersTest(providersDeps(), command.provider)
+    }
+    case 'providersRemove': {
+      return await providersRemove(providersDeps(), command.provider)
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped
@@ -595,9 +652,7 @@ async function main(): Promise<number> {
         },
         // The agent took its credential variables out of its environment at
         // start (rule 8): presence is read from what it took.
-        hasEnvironmentApiKey: museCodeCredentials.some(
-          (variable) => variable.name === META_API_KEY_VARIABLE,
-        ),
+        hasEnvironmentApiKey: wasEnvironmentApiKeyPresent,
         readStoredKeyPresence: async () => {
           try {
             const stored = await secrets.get(SECRET_KEYS.modelApiKey)

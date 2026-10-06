@@ -77,10 +77,10 @@ asks for it. Elsewhere, run it yourself once:
 - **Muse Code**: `muse-spark-code-acp login` runs Muse Code's own sign-in.
   The agent tells whether Muse Code is signed in as the VS Code panel
   does: from the structure of the CLI's credential file (the emptied file
-  `muse logout` leaves counts as signed out); `META_API_KEY` in the
-  agent's environment counts too, and is handed to Muse Code only: no
-  command, hook or program the agent itself runs sees it or any other
-  `*_API_KEY` variable. Where only the CLI can say (a macOS
+  `muse logout` leaves counts as signed out). The standalone agent strips
+  credential variables, including `META_API_KEY`, and never restores them
+  to a child. Muse Code receives an explicit allowlist of process, profile,
+  configuration-home, proxy and certificate-path variables. Where only the CLI can say (a macOS
   Keychain sign-in), the agent asks it when the editor checks the sign-in
   again after you sign in (ACP's `authenticate`), and otherwise assumes
   the sign-in holds until a turn says it does not.
@@ -113,8 +113,12 @@ pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's
 captured plan-key preset is marked **plan**, links its limits, and records
 request/token tallies outside USD caps. No Meta key is needed for its
-inference. The general provider credential-management and headless command
-surface is still pending; the existing ChatGPT commands above are unchanged.
+inference. General `providers list|add|test|remove` commands and
+`auth set|status|clear --provider <id>` use the same origin-bound records.
+Free probes use the shared request transport. `exec --provider` validates its
+configuration and key, but refuses before dispatch: its production runner
+still needs provider-aware budget admission and settlement. No supported
+headless provider inference is claimed.
 The npm package includes the shared catalogue and lazy provider bundles.
 Installed-editor and live provider certification remain open.
 
@@ -363,8 +367,8 @@ the agent starts; checked with Node 22.0.0 to 24.20.0), or
 (accepted from Node 22.15; not exercised here, since that needs a root
 installed in the store).
 
-**Muse Code** (`muse serve`, started by the agent) inherits the same
-environment and reads the proxy variables itself, as it does under VS Code
+**Muse Code** (`muse serve`, started by the agent) receives the allowlisted
+proxy variables and reads them itself, as it does under VS Code
 ([the extension's README](https://github.com/RandyNorthrup/muse-spark-code/blob/main/README.md#proxies-and-certificates)):
 `HTTPS_PROXY`, `HTTP_PROXY`, `ALL_PROXY` and `NO_PROXY`, with loopback
 added to `NO_PROXY` whenever a proxy is set. It trusts the operating

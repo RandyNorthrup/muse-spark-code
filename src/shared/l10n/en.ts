@@ -2367,6 +2367,8 @@ export const EN = {
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
+    '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
+    '  {command} providers list|add|test|remove  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
@@ -2456,6 +2458,58 @@ export const EN = {
     one: '{count} secret match',
     other: '{count} secret matches',
   }),
+  // M95 lane X (PLAN.md D74): the ACP agent's provider commands. Every key
+  // below also lives in all 14 `l10n/ui.*.json` tables.
+  // {provider}: the provider id; {store}: where the key lives; {origin}: the bound origin.
+  providerKeyStored: 'The {provider} key is stored in {store}.',
+  providerKeyNotStored: 'No key was entered, so nothing was stored.',
+  providerKeyPresent: 'A {provider} key is stored in {store}, bound to {origin}.',
+  providerKeyAbsent: 'No {provider} key is stored.',
+  providerKeyCleared: 'The {provider} key was removed from this computer’s credential store.',
+  // {provider}: the id as typed; {hint}: the key's shape as a hint.
+  providerUnknown: 'Unknown provider: {provider}.',
+  providerKeyShape: 'That key is not shaped like {provider} keys ({hint}).',
+  providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
+  providerNotConfigured: '{provider} is not configured; add it with providers add first.',
+  providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
+  // {reason}: the technical detail (a file error or a refused write).
+  providerSaveFailed: 'Could not save the providers file ({reason}).',
+  // {stored}: the origin the credential was stored for; {current}: where the provider points now.
+  providerOriginMismatch:
+    'The {provider} credential was stored for {stored} but the provider now points at {current}; enter the key again.',
+  providersNoneFound: 'No providers are configured.',
+  // {origin}: the exact origin the code goes to.
+  providerAdded: 'Added {provider}; code goes to {origin}.',
+  providerAlreadyConfigured: '{provider} is already configured; remove it first to add it again.',
+  // {count}: the models the free check listed.
+  providerTestOk: forms({
+    one: 'Key works · {count} model.',
+    other: 'Key works · {count} models.',
+  }),
+  providerProbeUnreachable: 'The provider could not be reached.',
+  providerProbeUnparseable: 'The model list could not be read.',
+  providerProbeNoKey: 'No key was supplied.',
+  providerProbeRebinding: 'The address changed networks; the request was refused.',
+  providerSaveSecretFailed: 'The credential store operation failed.',
+  providerSaveWriteConflict: 'The file could not be written or changed during saving; retry.',
+  providerSaveBusy: 'Another provider update is running or its lock could not be acquired; retry.',
+  providerSaveRecoveryFailed:
+    'Saving failed and the {provider} credential could not be restored. Check auth status and re-enter or clear its key before retrying.',
+  providerTestOkKey: 'Key works.',
+  // {reason}: why the test failed, in plain words.
+  providerPaidTest:
+    '{provider} has no free check; add it from the Models & Agents panel, where the test cost is asked first.',
+  // {origin}: the private-network address, asked once before it is saved.
+  providerPrivateNeedsConfirm:
+    '{origin} is on a private network; re-run with --private-ok to confirm.',
+  // {reason}: the endpoint policy's refusal.
+  providerEndpointRefused: 'That address cannot be used ({reason}).',
+  providerNoRequestPath: '{provider} cannot run here yet; its wire capture is still pending.',
+  execProviderNeedsModelApi: '--provider needs --backend modelApi.',
+  execProviderModelRequired: 'This provider run needs --model provider/model.',
+  // {provider}: the provider id the run asked for.
+  execProviderNotReady:
+    'Provider runs need the provider transport lane; request validation passed for {provider}.',
   execUsage: 'exec [options] <prompt> | exec [options] --prompt-file <path> | exec [options] -',
   execScanUsage: 'scan-secrets <file> [--key-stdin]',
   execSummary:

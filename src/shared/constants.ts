@@ -5346,6 +5346,11 @@ export const SUGGEST_REFERENCE_SESSION_OUTPUT_TOKENS = 10_000
 // the verifier's random bytes, and the `state` secret's.
 export const PKCE_VERIFIER_BYTES = 32
 export const PKCE_STATE_BYTES = 16
+// How long the ACP agent's free provider test waits for one answer (M95
+// lane X: `providers add|test`).
+export const PROVIDER_PROBE_TIMEOUT_MS = 30_000
+// A bounded free models list, shared by the runtime's captured list parsers.
+export const PROVIDER_PROBE_MODEL_IDS_MAX = 5000
 // The OAuth loopback callback (lane K's one-shot `127.0.0.1` server, reused
 // by M95b): bound to loopback only, one use, codes last this long
 // (OpenRouter's codes are single-use and last ten minutes).

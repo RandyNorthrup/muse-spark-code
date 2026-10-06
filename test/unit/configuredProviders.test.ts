@@ -14,6 +14,7 @@ import {
 import * as configuredEntry from '../../src/host/backend/configuredProvidersEntry'
 import { createSubscriptionFeatures } from '../../src/host/providers/subscriptionFeatures'
 import { runtimeSubscriptionClient } from '../../src/runtime/chatGptProviderCommands'
+import { formatStoredProviderSecret } from '../../src/runtime/keyStore'
 import {
   providerEntrySchema,
   writeProvidersFileAtomic,
@@ -83,7 +84,10 @@ async function fixture() {
   const { values } = secrets
   await secrets.store(
     `${PROVIDER_SECRET_PREFIX}${ENTRY.id}`,
-    JSON.stringify({ v: 1, auth: 'apiKey', origin: ENTRY.address, secret: 'test-owned-key' }),
+    formatStoredProviderSecret(
+      { v: 1, auth: 'apiKey', origin: new URL(ENTRY.address ?? '').origin },
+      'test-owned-key',
+    ),
   )
   const configFile = path.join(root, 'providers.json')
   const written = await writeProvidersFileAtomic(configFile, {

@@ -160,3 +160,4 @@ export function createModelApiClient(
   setUiText(table, locale)
   return new ModelApiClient(deps)
 }
+export { setUiText } from '../../shared/l10n/text'

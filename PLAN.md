@@ -20362,6 +20362,23 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
 ## 7. Gates
 
+**M95R5 integration (2026-10-05).** T's actual transport/codec/auth path
+is joined to configured inference and scans, and X's free terminal probes.
+The sanitized X squash excludes its scanner-flagged history; range scanning
+has zero findings without an ignore. Shared validation's existing `safeParse`
+export resolves X's old split blocker. Runtime provider management uses the
+same credential envelope as the panel and the newer endpoint wizard guards.
+The rig explicitly authorizes hook-enabled local integration checkpoints
+before its single final quality receipt; these do not propose a release.
+Headless `ExecDeps.runProvider` still has no production accounting runner:
+its input assembly is wired, but the current ledger/fetch boundary assumes
+Meta's endpoints, tariffs and context bound. T does not supply that runner.
+Keep the explicit pre-dispatch refusal until T/I implements provider-aware
+admission and settlement; no unbudgeted success. The absent feature-catalog,
+reference generator and check script remain a lead integration prerequisite.
+Actual suites, caps, drills and the final quality tail are recorded in
+`docs/certification/m95-r3.md`, round 5.
+
 **FIXM95N scoped proof and delegation (2026-10-05).** The user-invoked
 FIXM95N/common.md brief forbids a full quality run in this lane and delegates
 combined certification to the lead. All seven review findings are fixed:

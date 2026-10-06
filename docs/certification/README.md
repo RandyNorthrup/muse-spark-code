@@ -117,3 +117,5 @@ The PNGs beside the records are that day's harness renders.
 - [Defaults on](defaults.md): D78 availability, first-use paid consent, shared daily claims and monotonic Stop, with FIXDEF review drills
 - [M92](m92.md): Muse Gadgets guidance, the shared token table, secret prompts and one-time shell approvals, with the M92e review fixes
 - [0.13.0 release train](train-0.13.0.md): ordered history-preserving integration, conflict resolutions, failed full-gate receipt, budget-stop evidence and nine regression drills
+
+- [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.

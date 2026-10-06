@@ -445,7 +445,6 @@ async function engine(reply: ScriptedReply, idle: number, isCancelled = false) {
     homeDir: folder(),
     secrets,
     runGit: vi.fn(() => Promise.resolve('')),
-    museCodeCredentials: [],
     fetch: h.transport.fetch,
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },

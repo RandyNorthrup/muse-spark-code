@@ -531,8 +531,12 @@ attempt. Its key is read from each host's credential store immediately
 before sending. Configured API-key and local providers share the captured
 Responses, Chat Completions, Anthropic, Gemini and Ollama codecs; redirects
 are refused and each request pins checked DNS answers. ACP reads the same
-user-level `providers.json`, using its own OS credential store. The general
-ACP credential-management and headless provider commands remain pending;
+user-level `providers.json`, using its own OS credential store. The terminal
+offers `providers list`, `providers add`, `providers test`, `providers remove`
+and `auth set|status|clear --provider <id>`. Free checks use the shared
+transport; keys are entered through stdin and stored with their origin.
+Headless `exec --provider` validates configuration, credentials and endpoints,
+then refuses before dispatch until its provider-aware accounting runner exists;
 installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
@@ -3837,6 +3841,10 @@ stopped and the next message resumes the same session.
   log says which credential it started with). If the CLI itself holds a
   pay-as-you-go key (`muse auth set`) or `META_API_KEY` is exported in your
   environment, the CLI uses it, exactly as Meta documents.
+  The standalone ACP agent strips credential variables and gives Muse Code
+  only allowlisted process, profile, configuration-home, proxy and
+  certificate-path variables. Its provider keys stay in the OS credential
+  store and are read when used.
 - **The Agent map says delegation is off** — Muse Code hides its subagent
   tools until `run.subagent_delegation_mode` is `"auto"` in its own settings
   file; the map's button opens that file. The extension never edits it.

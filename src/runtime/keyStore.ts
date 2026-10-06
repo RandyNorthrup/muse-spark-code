@@ -8,8 +8,12 @@
 // (found against GNOME Keyring, docs/certification/m63.md), and as
 // undefined everywhere past this file.
 
+import { modelRef, credentialRecord } from '../host/backend/providersEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { KEYRING_SERVICE, UI_TEXT } from '../shared/constants'
+import type { CredentialRecord } from '../core/providers/credentialRecord'
+const { parseCredentialRecord } = credentialRecord
+const { isProviderId } = modelRef
 
 /** The three calls the agent makes on one credential (`@napi-rs/keyring`'s `AsyncEntry`). */
 export interface KeyringEntry {
@@ -53,6 +57,46 @@ export function keyringSecretStore(openEntry: KeyringEntryFactory): SecretStore 
       await storeOperation(() => openEntry(KEYRING_SERVICE, key).deletePassword())
     },
   }
+}
+
+/**
+ * The OS store / SecretStorage account holding a provider's secret (M95,
+ * PLAN.md D74): named after the provider's id. Undefined for anything but
+ * a provider id (`meta` is reserved and never valid).
+ */
+export function providerSecretAccount(providerId: string): string | undefined {
+  return isProviderId(providerId) ? `museSpark.provider.${providerId}` : undefined
+}
+
+/**
+ * A stored provider secret: lane P's credential record (the origin the
+ * credential was obtained for) plus the secret itself under `secret`. D74's
+ * record is `{v, auth, origin, …}`; the `…` is the secret, which lane K
+ * writes beside the record on the VS Code side and this file reads on the
+ * agent's. Parsed by composing lane P's parser (never a divergent schema).
+ */
+export interface StoredProviderSecret {
+  readonly record: CredentialRecord
+  readonly key: string
+}
+
+/** Parse an untrusted stored value; undefined for anything but the envelope. */
+export function parseStoredProviderSecret(value: unknown): StoredProviderSecret | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined
+  }
+  const record = parseCredentialRecord(value)
+  // The envelope carries the secret beside lane P's record; the read is
+  // checked below (a non-empty string) before anything trusts it.
+  let key: unknown
+  if ('secret' in value) key = value.secret
+  else if ('key' in value) key = value.key
+  return record === undefined || typeof key !== 'string' || key === '' ? undefined : { record, key }
+}
+
+/** The envelope to store: the record with the secret beside it, encoded once. */
+export function formatStoredProviderSecret(record: CredentialRecord, key: string): string {
+  return JSON.stringify({ ...record, secret: key })
 }
 
 /** Where the key lives on this platform, as the user knows it. */

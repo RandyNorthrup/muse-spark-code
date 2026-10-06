@@ -569,7 +569,6 @@ describe('createRuntimeBackend', () => {
       homeDir: folder(),
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
-      museCodeCredentials: [],
       fetch,
       sleep: () => Promise.resolve(),
       log,
@@ -837,7 +836,6 @@ describe('createRuntimeBackend', () => {
         homeDir: home,
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [],
         fetch: fakeModelApi().fetch,
         sleep: () => Promise.resolve(),
         log,
@@ -886,7 +884,7 @@ describe('credential variables (AGENTS.md rule 8; Codex on a209130)', () => {
     expect(original['META_API_KEY']).toBe('LLM|1|placeholder')
   })
 
-  it('hands them back to Muse Code only, where META_API_KEY counts as its credential (D1)', () => {
+  it('never hands stripped credentials back to Muse Code (FIXM95X)', () => {
     vi.stubEnv('META_API_KEY', '')
     try {
       const runtime = createRuntimeBackend({
@@ -898,13 +896,12 @@ describe('credential variables (AGENTS.md rule 8; Codex on a209130)', () => {
         homeDir: folder(),
         secrets: memorySecrets(),
         runGit: () => Promise.reject(new Error('no git')),
-        museCodeCredentials: [{ name: 'META_API_KEY', value: 'LLM|1|placeholder' }],
         fetch: fakeModelApi().fetch,
         sleep: () => Promise.resolve(),
         log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
       })
-      expect(runtime.museCode.childEnvironment()['META_API_KEY']).toBe('LLM|1|placeholder')
-      expect(runtime.museCode.hasEnvironmentKey()).toBe(true)
+      expect(runtime.museCode.childEnvironment()['META_API_KEY']).toBeUndefined()
+      expect(runtime.museCode.hasEnvironmentKey()).toBe(false)
     } finally {
       vi.unstubAllEnvs()
     }

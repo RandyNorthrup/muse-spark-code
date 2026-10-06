@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Join general provider management and origin-bound credentials to the ACP
+  runtime. Free terminal probes use the shared transport. Headless provider
+  arguments validate their inputs and explicitly refuse without an accounting
+  runner; they do not dispatch an unbudgeted request.
+  Serialize terminal configuration commits, detect stale snapshots and
+  compensate secret changes on write failure. Retain private-network consent,
+  custom formats/base paths and captured free-probe headers and model lists.
+
 - Join the configured providers to the shared request transport: origin-bound
   credentials, redirect refusal, bounded framing, parser redaction and event
   progress deadlines. Meta's request bytes remain unchanged.
