@@ -50,8 +50,7 @@
 // does, and its package ships that file (scripts/package-acp.mjs), so the
 // backend is built once for both.
 
-import { Buffer } from 'node:buffer'
-import { mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   UI_TEXT_REGIONS,
@@ -509,30 +508,6 @@ const webviewOptions = {
   ...common,
   plugins: [
     ...(isProduction ? [compactBrowserEnglish] : []),
-    {
-      name: 'retryable-browser-imports',
-      setup(build) {
-        build.onEnd((result) => {
-          if (result.errors.length > 0) return
-          // Browsers cache a failed module URL. Each lazy load gets a fresh
-          // URL; React.lazy caches successful loads. Shared static imports
-          // keep their canonical URLs, so React and the language stay single.
-          const outputs = Object.entries(result.metafile?.outputs ?? {})
-          for (const [file, output] of outputs) {
-            if (!file.endsWith('.js')) continue
-            const source = readFileSync(file, 'utf8')
-            const rewritten = source.replaceAll(
-              /\bimport\((["'])(\.[^"']+\.js)\1\)/g,
-              (_match, _quote, target) =>
-                `import(${JSON.stringify(`${target}?load=`)}+Math.random())`,
-            )
-            if (rewritten === source) continue
-            writeFileSync(file, rewritten)
-            output.bytes = Buffer.byteLength(rewritten)
-          }
-        })
-      },
-    },
     {
       name: 'reference-page',
       setup(build) {

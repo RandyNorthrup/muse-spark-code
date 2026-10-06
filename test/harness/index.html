@@ -419,12 +419,25 @@
         },
       }
       window.acquireVsCodeApi = () => ({
-        getState: () => (scenarioName === 'restored' ? restoredState : undefined),
-        setState: () => undefined,
+        getState: () => {
+          const saved = sessionStorage.getItem('harness-webview-state')
+          return saved === null
+            ? scenarioName === 'restored'
+              ? restoredState
+              : undefined
+            : JSON.parse(saved)
+        },
+        setState: (state) => {
+          sessionStorage.setItem('harness-webview-state', JSON.stringify(state))
+        },
         postMessage: (message) => {
           outbox.push(message)
           document.title = `harness: ${message.type}`
           switch (message.type) {
+            case 'hostAction': {
+              if (message.action === 'reload') location.reload()
+              break
+            }
             case 'readReference': {
               Promise.all([
                 fetch('../../src/shared/reference/reference.generated.json').then((response) =>
@@ -489,10 +502,15 @@
               })
               // M25: first, the session and turn the host holds for this surface.
               const isRestored = scenarioName === 'restored'
+              const persisted = sessionStorage.getItem('harness-webview-state')
+              const savedSession = persisted === null ? undefined : JSON.parse(persisted).sessionId
               send(
                 isRestored
                   ? { type: 'surfaceState', sessionId: 'restored-1', activeTurnId: 't7' }
-                  : { type: 'surfaceState' },
+                  : {
+                      type: 'surfaceState',
+                      ...(savedSession === undefined ? {} : { sessionId: savedSession }),
+                    },
               )
               send({ type: 'authState', status: 'signedIn' })
               send({ type: 'composerState', ...composer })

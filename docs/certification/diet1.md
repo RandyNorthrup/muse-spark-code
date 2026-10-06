@@ -34,9 +34,10 @@ browser target is Chrome 128.
 Optional sign-in, goals, schedules, palette, popover and radial menu bodies are
 first-use imports. Account & usage and Agent map retain their public wrappers
 and defer their bodies separately. Transcript, composer, approval cards and
-first-turn tools remain eager. Shared dependencies have one canonical static
-module URL; the emitted dynamic imports get fresh nonsecret query values because
-Chrome caches failed module fetch URLs. React.lazy caches successful loads.
+first-turn tools remain eager. The initial implementation kept canonical static
+module URLs and gave dynamic roots fresh query values. The FIXDIET1 review
+follow-up below supersedes that retry strategy with a complete document rebuild.
+React.lazy still caches successful loads.
 
 The common loader announces loading with `role="status"`, keeps controls
 unavailable, retains current props, accepts Close/Escape when appropriate, and
@@ -168,8 +169,9 @@ uses the same asset-origin contract.
 `node test/e2e/webviewDiet.mjs` serves the production ESM and fake host on
 loopback in Chrome under the exact shared script policy. It proves all eight
 chunks absent from empty-chat startup, each requested on first use, and each
-actual failed network import produces an error row and succeeds after retry in
-the same document. Each wait uses 5 seconds; no Vitest timeout override was used.
+actual failed entry import initially produced an error row and succeeded after
+retry in the same document. FIXDIET1 below replaces this with a fresh document
+and also tests failed static dependencies. Each wait uses 5 seconds; no Vitest timeout override was used.
 Harness menu actions now wait for their real controls to exist before clicking.
 Reply/quote child controls wait inside the opener callback. The quote-chip fixture now chooses the actual Ask action (its previous first row was Copy), and readiness checks require the intended chips, mention options and usage facts. The existing suite assertions remain; cold first use and failures have dedicated
 coverage, while repeat interaction suites share warm setup.
@@ -216,3 +218,71 @@ this override and must check remote badges. No hooks were altered. No full
 `npm run quality`, coverage run, integration host installation, public network,
 model call, merge or push was attempted; integrated quality remains the lead's
 required gate. No tools or dependencies were installed. The standalone browser-smoke program is registered as a real Knip entrypoint; no ignore or issue rule changed. Unused internal type re-exports were removed.
+
+## FIXDIET1 — RVMDIET1 review fixes (2026-10-06, macmini)
+
+All findings are fixed, with no review residual. No P1 was reported. The
+90-minute brief authorizes scoped direct-rig checks and local commits with
+unchanged hooks, and prohibits aggregate quality, network, merges and pushes.
+
+| Finding                                               | Resolution                                                                                                                                                                                                                                                                                                                                                                                           | Regression                                                                                                                                                                                                                                     |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2-1, failed static dependency cannot retry           | The shared retry handler synchronously flushes the existing persister, then asks the host to rebuild its panel document using the existing hostAction/reload contract. Both failed roots and failed static dependencies are fetched in the new document. Remove the emitted dynamic-root query rewrite.                                                                                              | surfaceRetry.test.ts: save precedes rebuild. webviewDiet.mjs: abort Palette's actual paletteDialog static dependency, restore transport, Retry, and assert both requests occur again, the palette opens, and the draft and transcript survive. |
+| P2-2, dismissed cold menu opens late and steals focus | Each deferred open owns an intent. Loading/failure dismissal cancels it; a late import cannot mount. Outside pointer/focus listeners remain active until the fallback unmounts; layout-effect cleanup precedes focus entering loaded content. Loaded bodies retain their existing close/focus policy. All interactive lazy panels, including the legacy App/report wrappers, use the shared factory. | DeferredSurface.test.tsx and Chrome: held row menu dismissed by outside pointer, focus, Escape or navigation; after release, no menu mounts and composer/trigger focus remains correct. Existing App/rowMenus/QuoteMenu behavior also passes.  |
+| P3, failed nonmodal menu ignores Escape               | Loading and failure share the same document Escape handler, and Escape returns focus to the captured connected trigger.                                                                                                                                                                                                                                                                              | DeferredSurface.test.tsx and Chrome: fail radial entry, focus Retry, press Escape; error row closes and focus returns to More actions.                                                                                                         |
+
+The fake host now implements persisted webview state and document reload, and
+confirms the saved live session on ready, as the real host does. Fixtures reuse
+existing capture-backed MSP/protocol shapes. CSP is unchanged; no live or paid
+call was made. Existing translations supply all text. The generated chat
+reference now includes the existing translated conversation-preserving reload
+description. Every interactive shell embedding this React panel uses the same
+loader/retry path; ACP native UI is unchanged.
+
+### Intentional failures
+
+Every owning unit file ran in full with --maxWorkers=3, at repository default
+timeouts. Every mutation exited 1 and was restored in finally; SHA-256 matched
+the original bytes. The browser drill uses unchanged 5-second waits.
+
+| Drill                 | Mutation and named failure                                                                                    | Restored SHA-256                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| open-intent           | Disable the inactive-intent guard: cold pointer/focus/Escape tests and failed-menu closure fail (4 failures). | 1d7d2aae7edeb50d5f72f6e35746d3959e49f8367bc5b573152deec723435a19 |
+| outside-dismissal     | Remove pointer/focus listeners: cold pointer/focus tests fail (2 failures).                                   | 1d7d2aae7edeb50d5f72f6e35746d3959e49f8367bc5b573152deec723435a19 |
+| failed-escape         | Ignore Escape on the failed row: failed-menu Escape/trigger test fails.                                       | 1d7d2aae7edeb50d5f72f6e35746d3959e49f8367bc5b573152deec723435a19 |
+| trigger-focus         | Remove Escape focus return: failed-menu Escape/trigger test fails.                                            | 1d7d2aae7edeb50d5f72f6e35746d3959e49f8367bc5b573152deec723435a19 |
+| state-before-rebuild  | Rebuild before saving: save-before-rebuild ordering test fails.                                               | ba9bb003b544e1f6c0e065742df9c59caa4cd1db8653a31c5628e55df281f751 |
+| import-focus-handover | Use passive effect cleanup: AppLazy loses the cold palette when loaded content takes focus.                   | 1d7d2aae7edeb50d5f72f6e35746d3959e49f8367bc5b573152deec723435a19 |
+| document-rebuild      | Remove the host rebuild: Chrome static-dependency Retry misses the new document load deadline (5 seconds).    | d351c719125c15c5e5e6252090d6018086b4503b0f28570b1606870fec72488c |
+| baseline-size         | Eagerly import Palette: the new 733.8/32.1 KiB baseline test and lazy-placement test fail (2 failures).       | 8ac678817253db1aa84f14f56b0f3049249ea26e4091a7f04ab81b7e50553c2f |
+
+Restored source is verified again after the drills.
+
+### Restored-source receipts
+
+- 21 owning unit files, 483 tests, seven batches of at most three files with
+  --maxWorkers=3: all pass at repository default timeouts. This includes
+  legacy App, row/quote menus, report loading, review, handoff, reference,
+  store/composer and production/codec/budget tests.
+- npm run typecheck: all five projects pass. Scoped ESLint, plain Knip,
+  jscpd, localization, host API and reference checks pass; no rule,
+  exemption, ignored file, dependency or timeout changed.
+- Localization: 14 complete tables, zero problems. Duplication: zero clones.
+  Generated reference is current; host API reports zero problems.
+- npm run build passes size/static-closure, split ownership, host globals
+  and notice gates on restored source. Startup is 750,942 B (733.3 KiB);
+  original deferred is 32,835 B (32.1 KiB). Both meet the brief's exact
+  baseline target assertions. Moved surface closures remain SignIn 3,961 B,
+  Goal 3,258 B, Schedule 1,653 B, Palette 7,727 B, Popover 1,998 B, Gooey
+  5,066 B, Usage 12,954 B and Agent map 8,170 B; every one is below 25 KiB.
+- Chrome fake-host smoke passes failed static dependency recovery with draft
+  and transcript persistence, all eight startup/first-use and entry-failure
+  retries, four cold-menu dismissal paths and failed-menu Escape/focus return.
+  Every browser wait remains 5 seconds. A fresh smoke and the complete
+  accessibility matrix run over the final production build for the closing
+  receipt.
+
+Local commits run the unchanged lint-staged and staged Gitleaks hooks.
+Integrated aggregate quality remains the lead's gate, as required by the lane
+brief. No package, dependency or tool was installed, and no model call, public
+network, merge, rebase or push was attempted.

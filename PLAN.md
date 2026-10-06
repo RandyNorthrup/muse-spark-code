@@ -250,11 +250,14 @@ up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original
 50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback
 stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native
 DecompressionStream before dependent ESM modules run; Node and integration
-fallbacks and all table checks remain unchanged. Failed module URLs are cached
-by browsers, so generated dynamic imports use fresh nonsecret query values;
-React.lazy caches successes and static dependencies retain canonical URLs.
+fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root
+query retries with the existing host document rebuild after a synchronous state
+flush: the browser refetches failed static dependencies too. React.lazy caches
+successes and shared static dependencies retain canonical URLs.
 All editor shells use the shared CSP/asset-origin path. Receipts and final
-before/after sizes: `docs/certification/diet1.md`.
+before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
+at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
+(32.1 KiB), within the review baseline targets.
 
 **TRAIN14A integration size recovery (2026-10-05).** The initial M94 archive
 has insufficient universal-helper headroom, and the prepared M71 join exceeds
@@ -28581,6 +28584,17 @@ anywhere joined it).
   Lane rules prohibit aggregate quality, network, merges and pushes; the
   lead retains integrated quality and hosted checks.
 
+**FIXDIET1 review follow-up (2026-10-06).** RVMDIET1 P2-1 is fixed by
+rebuilding the panel document on Retry; the existing persister flushes state
+before the host rebuilds and the browser refetches the complete module graph,
+including failed static dependencies. The dynamic-root URL rewrite is removed.
+Interactive lazy surfaces use the shared deferred loader. Each open owns
+an intent that is cancelled on dismissal; loading and failed nonmodal menus
+retain outside-pointer/focus, Escape and trigger-focus behavior (P2-2/P3).
+Regression tests and byte-exact red drills certify each fix. Keep startup at most
+733.8 KiB, the original deferred group at most 32.1 KiB and each moved
+surface within 25 KiB. No dependency, gate relaxation, model call or merge.
+
 ## 7. Gates
 
 **DIET1 bounded rig certification (2026-10-06).** The user-provided lane brief
@@ -29958,6 +29972,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
+  fixed; no review finding is deferred. Retry flushes the existing webview
+  snapshot before the host rebuilds the document, so entry and static
+  dependency failures recover together without duplicating React/language
+  state. A cancelled cold-menu intent cannot mount its late import; loading
+  and failed rows retain dismissal and focus return. The same shared React
+  path serves either backend and shells embedding this webview; ACP editors
+  keep their native UI. Existing persistence size/session validation,
+  credential boundaries, CSP, dependencies and bundle caps are unchanged.
+  The lead retains integrated quality and real host/release certification.
+  Tests, exact-restoration drills and rig receipts: docs/certification/diet1.md.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its

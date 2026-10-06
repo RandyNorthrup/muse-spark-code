@@ -79,6 +79,75 @@ try {
     assert.ok(!startup.requests.includes(chunk), `${name} requested at startup`)
   assert.deepEqual(startup.errors, [])
   await startup.page.close()
+  const dependency = Object.entries(outputs)
+    .find(([, output]) =>
+      Object.keys(output.inputs).some((file) =>
+        file.replaceAll('\\', '/').endsWith('/paletteDialog.tsx'),
+      ),
+    )?.[0]
+    .replaceAll('\\', '/')
+  assert.ok(dependency, 'Missing palette static dependency')
+  let shouldRejectDependency = true
+  const failedDependency = await pageFor('empty', dependency, () => shouldRejectDependency)
+  try {
+    const prompt = failedDependency.page.getByLabel('Message Muse', { exact: true })
+    await prompt.fill('Draft survives a failed dependency')
+    await failedDependency.page.evaluate(() => {
+      globalThis.dispatchEvent(
+        new globalThis.MessageEvent('message', {
+          data: {
+            type: 'sessionInfo',
+            modelId: 'muse-spark-1.3',
+            contextLimit: 1_007_997,
+            sessionId: 'diet-retry-session',
+          },
+        }),
+      )
+      globalThis.dispatchEvent(
+        new globalThis.MessageEvent('message', {
+          data: {
+            type: 'agentEvent',
+            event: {
+              type: 'itemCompleted',
+              item: {
+                itemId: 'preserved-reply',
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'Conversation survives a failed dependency',
+              },
+            },
+          },
+        }),
+      )
+    })
+    await failedDependency.page
+      .getByText('Conversation survives a failed dependency', { exact: true })
+      .waitFor()
+    await failedDependency.page.getByLabel('Commands', { exact: true }).click()
+    await failedDependency.page
+      .getByRole('alert')
+      .filter({ hasText: 'This panel could not load.' })
+      .waitFor()
+    shouldRejectDependency = false
+    const loaded = failedDependency.page.waitForEvent('load')
+    await failedDependency.page.getByRole('button', { name: 'Try again', exact: true }).click()
+    await loaded
+    assert.equal(await prompt.inputValue(), 'Draft survives a failed dependency')
+    await failedDependency.page
+      .getByText('Conversation survives a failed dependency', { exact: true })
+      .waitFor()
+    await failedDependency.page.getByLabel('Commands', { exact: true }).click()
+    await failedDependency.page.locator('.palette-filter').waitFor()
+    assert.equal(failedDependency.requests.filter((file) => file === dependency).length, 2)
+    assert.equal(
+      failedDependency.requests.filter((file) => file === chunks.get('Palette')).length,
+      2,
+    )
+    assert.deepEqual(failedDependency.errors, [])
+    console.log('PASS P2-1: failed static dependency refetched after Retry; draft preserved')
+  } finally {
+    await failedDependency.page.close()
+  }
   for (const [name, scenario, selector] of surfaces) {
     const { page, requests, errors } = await pageFor(scenario)
     try {
@@ -91,7 +160,7 @@ try {
       await page.close()
     }
   }
-  // Fail each real import, then retry it in the same document.
+  // Fail each real import, then retry in a fresh document with persisted state.
   for (const [name, scenario, selector] of surfaces) {
     let shouldReject = true
     const failure = await pageFor(scenario, chunks.get(name), () => shouldReject)
@@ -107,6 +176,118 @@ try {
       console.log(`PASS ${name}: honest load failure and successful retry`)
     } finally {
       await failure.page.close()
+    }
+  }
+  const failedMenu = await pageFor('empty', chunks.get('GooeyMenuContent'), () => true)
+  try {
+    await failedMenu.page.getByLabel('Message Muse', { exact: true }).waitFor()
+    await failedMenu.page.evaluate(() => {
+      globalThis.dispatchEvent(
+        new globalThis.MessageEvent('message', {
+          data: {
+            type: 'agentEvent',
+            event: {
+              type: 'itemCompleted',
+              item: {
+                itemId: 'failed-menu',
+                kind: 'agentMessage',
+                status: 'completed',
+                text: 'Failed menu response',
+              },
+            },
+          },
+        }),
+      )
+    })
+    const trigger = failedMenu.page.getByLabel('More actions', { exact: true }).last()
+    await trigger.click()
+    const retry = failedMenu.page.getByRole('button', { name: 'Try again', exact: true })
+    await retry.focus()
+    await failedMenu.page.keyboard.press('Escape')
+    assert.equal(await failedMenu.page.getByRole('alert').count(), 0)
+    assert.ok(await trigger.evaluate((node) => node === globalThis.document.activeElement))
+    console.log('PASS P3: failed row menu closes on Escape and restores trigger focus')
+  } finally {
+    await failedMenu.page.close()
+  }
+  async function dismissColdMenu(page, dismissal) {
+    switch (dismissal) {
+      case 'Escape': {
+        await page.keyboard.press('Escape')
+        return
+      }
+      case 'navigation': {
+        await page.getByLabel('New conversation', { exact: true }).click()
+        return
+      }
+      case 'focus': {
+        await page.getByLabel('Message Muse', { exact: true }).focus()
+        return
+      }
+      default: {
+        await page.getByLabel('Message Muse', { exact: true }).click()
+      }
+    }
+  }
+  for (const dismissal of ['pointer', 'focus', 'Escape', 'navigation']) {
+    const cold = await pageFor('empty')
+    const started = Promise.withResolvers()
+    const released = Promise.withResolvers()
+    const finished = Promise.withResolvers()
+    await cold.page.route(`**/${chunks.get('GooeyMenuContent')}*`, async (route) => {
+      started.resolve()
+      await released.promise
+      await route.continue()
+      finished.resolve()
+    })
+    try {
+      await cold.page.getByLabel('Message Muse', { exact: true }).waitFor()
+      // Use the existing capture-backed itemCompleted fixture shape.
+      await cold.page.evaluate(() => {
+        globalThis.dispatchEvent(
+          new globalThis.MessageEvent('message', {
+            data: {
+              type: 'agentEvent',
+              event: {
+                type: 'itemCompleted',
+                item: {
+                  itemId: 'cold-menu',
+                  kind: 'agentMessage',
+                  status: 'completed',
+                  text: 'Cold menu response',
+                },
+              },
+            },
+          }),
+        )
+      })
+      const trigger = cold.page.getByLabel('More actions', { exact: true }).last()
+      await trigger.click()
+      await started.promise
+      await cold.page.locator('[data-deferred-loading]').waitFor()
+      const prompt = cold.page.getByLabel('Message Muse', { exact: true })
+      await dismissColdMenu(cold.page, dismissal)
+      assert.equal(await cold.page.locator('[data-deferred-loading]').count(), 0)
+      if (dismissal === 'Escape')
+        assert.ok(await trigger.evaluate((node) => node === globalThis.document.activeElement))
+      released.resolve()
+      await finished.promise
+      await cold.page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve)),
+          ),
+      )
+      assert.equal(await cold.page.getByRole('menu').count(), 0)
+      if (dismissal === 'pointer' || dismissal === 'focus')
+        assert.ok(await prompt.evaluate((node) => node === globalThis.document.activeElement))
+      assert.deepEqual(cold.errors, [])
+      console.log(
+        `PASS P2-2: cold row menu dismissed by ${dismissal}; late import cannot take focus`,
+      )
+    } finally {
+      released.resolve()
+      await cold.page.close()
     }
   }
 } finally {

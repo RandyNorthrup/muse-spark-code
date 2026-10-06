@@ -13,6 +13,7 @@ import {
 import path from 'node:path'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
@@ -87,6 +88,18 @@ describe('the production webview chunks (FIX78W)', () => {
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
+  })
+
+  it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
+    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
+    const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
+      (group) => group.name === 'deferred JS',
+    )
+    expect(legacy).toBeDefined()
+    expect(
+      legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
+    ).toBeLessThanOrEqual(32.1 * 1024)
   })
 
   it.each([

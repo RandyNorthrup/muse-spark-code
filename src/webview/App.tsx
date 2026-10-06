@@ -1,7 +1,6 @@
 import { JudgeStatusLine } from './components/JudgeStatusLine'
 import {
   type ReactNode,
-  lazy,
   createElement,
   Fragment,
   useCallback,
@@ -99,7 +98,7 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
-import { deferred, DeferredSurface } from './components/DeferredSurface'
+import { deferred } from './components/DeferredSurface'
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -122,27 +121,27 @@ const PopoverMenu = deferred(async () => {
   return { default: module.PopoverMenu }
 })
 
-const HistoryDialog = lazy(async () => {
+const HistoryDialog = deferred(async () => {
   const module = await import('./components/HistoryDialog')
   return { default: module.HistoryDialog }
 })
-const AgentMap = lazy(async () => {
+const AgentMap = deferred(async () => {
   const module = await import('./components/AgentMap')
   return { default: module.AgentMap }
-})
-const UsageDialog = lazy(async () => {
+}, true)
+const UsageDialog = deferred(async () => {
   const module = await import('./components/UsageDialog')
   return { default: module.UsageDialog }
-})
-const BestOfNDialog = lazy(async () => {
+}, true)
+const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
-})
-const ReviewPane = lazy(async () => {
+}, true)
+const ReviewPane = deferred(async () => {
   const module = await import('./components/ReviewPane')
   return { default: module.ReviewPane }
-})
-const ReferencePage = lazy(async () => {
+}, true)
+const ReferencePage = deferred(async () => {
   const stylesheet = document.createElement('link')
   stylesheet.rel = 'stylesheet'
   stylesheet.href = new URL('referencePage.css', import.meta.url).href
@@ -157,27 +156,27 @@ const ReferencePage = lazy(async () => {
       Modal,
     }),
   }
-})
+}, true)
 
-const HandoffDialog = lazy(async () => {
+const HandoffDialog = deferred(async () => {
   const { HandoffDialog } = await import('./components/HandoffDialog')
   return { default: HandoffDialog }
-})
+}, true)
 
-const SecretPromptDialog = lazy(async () => {
+const SecretPromptDialog = deferred(async () => {
   const { SecretPromptDialog } = await import('./components/SecretPromptDialog')
   return { default: SecretPromptDialog }
-})
+}, true)
 
-const SessionBoardDialog = lazy(async () => {
+const SessionBoardDialog = deferred(async () => {
   const { SessionBoardDialog } = await import('./components/SessionBoardDialog')
   return { default: SessionBoardDialog }
 })
 
-const ShareView = lazy(async () => {
+const ShareView = deferred(async () => {
   const { ShareView } = await import('./components/ShareView')
   return { default: ShareView }
-})
+}, true)
 
 export interface AppProps {
   readonly postMessage: (message: WebviewToHostMessage) => void
@@ -242,7 +241,7 @@ function restoreNoteOf(state: UiState): string | undefined {
 
 // These panels share this runtime's React and installed language; importing
 // them waits for state to show (Git) or the user's Account & usage action.
-const GitPanel = lazy(async () => {
+const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
 })
@@ -2305,6 +2304,7 @@ export function App({
         onChange={onHandoffChanged}
         onConfirm={onHandoffConfirm}
         onCancel={onHandoffCancel}
+        onClose={onHandoffCancel}
       />
     )
   // The report-a-problem preview (M93 lane W): the sealed draft the host
@@ -2330,6 +2330,7 @@ export function App({
         redactedText={state.secretPrompt.redactedText}
         onSendAnyway={onSecretPromptSendAnyway}
         onEdit={onSecretPromptDismiss}
+        onClose={onSecretPromptDismiss}
       />
     )
   // Behind a modal nothing takes focus or clicks (M25): the modal traps Tab,
@@ -2362,12 +2363,10 @@ export function App({
           onOpenAgents={onOpenAgents}
           onOpenSideChat={canOpenSideChat ? onOpenSideChat : undefined}
         />
-        <DeferredSurface onClose={closeOverlay} isModal={false}>
-          {history}
-          {board}
-        </DeferredSurface>
+        {history}
+        {board}
       </div>
-      <DeferredSurface onClose={closeOverlay}>
+      <>
         {overlay === 'help' ? (
           <ReferencePage
             postMessage={postMessage}
@@ -2380,12 +2379,12 @@ export function App({
         {agentMap}
         {reviewPane}
         {bestOfN}
-      </DeferredSurface>
-      <DeferredSurface onClose={onHandoffCancel}>{handoffDialog}</DeferredSurface>
-      <DeferredSurface onClose={onSecretPromptDismiss}>{secretPromptDialog}</DeferredSurface>
+      </>
+      {handoffDialog}
+      {secretPromptDialog}
       {reportDialog}
       {state.share === undefined ? null : (
-        <DeferredSurface onClose={onCloseShare}>
+        <>
           <ShareView
             title={state.share.title}
             exportedAt={state.share.exportedAt}
@@ -2398,7 +2397,7 @@ export function App({
             onCopy={onCopy}
             onSectionError={onShareSectionError}
           />
-        </DeferredSurface>
+        </>
       )}
       <main
         ref={bodyRef}
@@ -2426,7 +2425,7 @@ export function App({
       state.git.state.worktree === undefined &&
       state.git.state.pullRequest === undefined &&
       state.git.state.hold === undefined ? null : (
-        <DeferredSurface onClose={onGitClose} isModal={false}>
+        <>
           <GitPanel
             git={state.git}
             isInert={isModalOpen}
@@ -2439,7 +2438,7 @@ export function App({
             onGenerate={onGitGenerate}
             onOpenLink={onOpenExternal}
           />
-        </DeferredSurface>
+        </>
       )}
       {state.goal === undefined ? null : (
         <GoalPanel
