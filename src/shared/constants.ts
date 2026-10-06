@@ -3161,6 +3161,64 @@ export const SCHEDULE_MAX_PROMPT_CHARS = 4000
 export const SCHEDULE_POLL_INTERVAL_MS = 60 * 1000
 export const SCHEDULE_CLAIM_RETENTION_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_MAX_JOBS_PER_SESSION = 100
+// M115's editor-independent schedule contracts. M52's limits above remain
+// intact for reading and migrating its v1 jobs.
+export const SCHEDULE_MAX_PER_WORKSPACE = 200
+export const SCHEDULE_COLLISION_WINDOW_MS = SCHEDULE_MIN_INTERVAL_MS
+export const SCHEDULE_PAUSE_AFTER_FAILURES = 3
+export const SCHEDULE_PAID_CAP_DEFAULT_USD = 1
+export const SCHEDULE_EVENT_DEBOUNCE_MS = 30_000
+export const SCHEDULE_EVENT_FIELD_MAX_CHARS = 500
+export const SCHEDULE_EVENT_MAX_FIELDS = 20
+export const SCHEDULE_NAME_MAX_CHARS = 200
+export const SCHEDULE_ID_MAX_CHARS = 200
+// Percent-encoded event ids may expand each input code unit; do not truncate
+// the occurrence identity or collapse different events into one claim.
+export const SCHEDULE_RUN_ID_MAX_CHARS =
+  12 * (2 * SCHEDULE_ID_MAX_CHARS + SCHEDULE_EVENT_FIELD_MAX_CHARS) + 2
+export const SCHEDULE_RULE_MAX_CHARS = 1000
+export const SCHEDULE_MAX_GRANT_RULES = 100
+export const SCHEDULE_MAX_DESTINATIONS = 20
+export const SCHEDULE_MAX_WEEKLY_TIMES = 24
+export const SCHEDULE_PREVIEW_COUNT = 5
+export const SCHEDULE_TIMELINE_HOURS = [24, 168] as const
+export const AGENT_SCHEDULES_MAX_ACTIVE = 10
+export const AGENT_SCHEDULE_MIN_INTERVAL_MS = 15 * SCHEDULE_MIN_INTERVAL_MS
+export const AGENT_SCHEDULE_MAX_DEPTH = 1
+export const SCHEDULE_MODES = ['manual', 'plan', 'acceptEdits', 'auto'] as const
+export const SCHEDULE_DELIVERIES = [
+  'steer',
+  'interrupt',
+  'queue',
+  'whenIdle',
+  'newConversation',
+] as const
+export const SCHEDULE_FIRE_OUTCOMES = ['ran', 'refused', 'missed', 'skipped', 'failed'] as const
+export const SCHEDULE_ACTION_CLASSES = [
+  'shell',
+  'edit',
+  'mcp',
+  'webFetch',
+  'paidExtra',
+  'physical',
+  'protectedPath',
+  'requiresAsking',
+] as const
+export const SCHEDULE_BACKGROUND_CHOICES = ['yes', 'notNow', 'never'] as const
+export const SCHEDULE_SETTINGS_DEFAULTS = {
+  enabled: true,
+  defaultDelivery: 'whenIdle',
+  agentCreation: 'ask',
+} as const
+export const SCHEDULE_DEFAULT_POLICY = {
+  whenClosed: 'open',
+  catchUp: 'runOnce',
+  mode: 'manual',
+  parallel: false,
+  depth: 0,
+  allowAgentReschedule: false,
+  pinned: false,
+} as const
 export const MODEL_API_SCHEDULES_DIR = 'modelapi-schedules'
 export const CRON_FIELD_COUNT = 5
 export const CRON_FIELD_SEGMENT_LIMIT = 3

@@ -100,7 +100,7 @@
   "config.hookHttpAllowedHosts.description": "http 鉤子可以呼叫的主機：精確名稱，或僅用於子網域的 *.example.com。預設為空，因此不會執行任何 http 鉤子。僅 HTTPS，無重新導向，且僅在視窗網路設定允許網路時執行。存放庫無法設定此項。",
   "config.modelApiRepoMap.description": "在受信任的工作區中，在 Model API 後端的系統提示詞中加入儲存庫地圖：用 VS Code 語言服務排序的工作區中最常用的檔案與定義，每次對話產生一次，約 1,000 個權杖。預設關閉：它會在每個請求中加入這些權杖，並向您的 Model API 金鑰計費。無論是否開啟，repo_map 工具都可依需求產生一張新地圖。",
   "config.modelApiObservationPacking.description": "預設開啟。兩次請求後壓縮舊的長工具輸出；recall_output 可讀取原文。M75 評估已通過。開始或恢復對話時讀取此設定。",
-  "config.modelApiScheduledPrompts.description": "明確排程的 Model API 執行依所選模型的權杖價格計費。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。",
+  "config.modelApiScheduledPrompts.description": "明確排程的 Model API 執行依所選模型的權杖價格計費。 在 Model API 上預設可用。收費前會顯示價格和共用每日預算，並詢問：允許一次／在此工作區一律允許／拒絕。明確設定 false 會關閉此功能。 共用每日預算設定：museSpark.paidDailyBudgetUsd。",
   "config.sandboxNetwork.description": "Muse Code 的 shell 沙箱給予命令的網路。對命令而言，僅在沙箱開啟時適用（museSpark.shellSandbox）；沒有沙箱時，命令會使用您的網路。變更此設定會重新啟動 Muse Code 主機。設為 restricted 時，無論沙箱是否開啟，Muse Code 也不會取得擴充功能的網頁擷取；Model API 後端的網頁擷取遵循其權限模式。",
   "config.sandboxNetwork.enumDescriptions.default": "不傳遞任何內容：使用 Muse Code 本身的預設值（proxy-only），或系統管理員的受控設定所設定的值。",
   "config.sandboxNetwork.enumDescriptions.proxyOnly": "命令每連線到一個新目的地（主機、連接埠或通訊協定）前先詢問。",

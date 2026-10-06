@@ -2330,5 +2330,152 @@
   "judgeStatusDeclined": "關閉：已拒絕付費使用",
   "judgeStatusSlow": "預設關閉：審核員作出決定時就緒的結果太少",
   "judgeStatusSubscription": "訂閱",
-  "judgeStatusPaid": "付費"
+  "judgeStatusPaid": "付費",
+  "scheduleV2": {
+    "labels": {
+      "title": "排程",
+      "name": "名稱",
+      "action": "動作",
+      "prompt": "提示詞",
+      "report": "報告",
+      "trigger": "觸發條件",
+      "timeZone": "時區",
+      "preview": "接下來五次執行",
+      "end": "結束條件",
+      "target": "目標",
+      "delivery": "傳送方式",
+      "mode": "權限模式",
+      "grant": "長期授權",
+      "paidCap": "排程每日上限",
+      "parallel": "平行執行",
+      "paused": "已暫停",
+      "pause": "暫停排程",
+      "resume": "繼續排程",
+      "remove": "移除排程",
+      "revoke": "撤銷授權",
+      "pin": "固定排程",
+      "timeline": "排程時間軸",
+      "schedulePrompt": "排程此提示詞…",
+      "runNow": "立即執行",
+      "save": "儲存排程",
+      "tools": "允許的工具",
+      "commands": "指令前綴",
+      "paths": "工作區路徑",
+      "creator": "建立者",
+      "depth": "排程建立深度",
+      "background": "背景項目",
+      "whenClosed": "已關閉的目標",
+      "catchUp": "錯過的執行",
+      "unavailable": "無法使用"
+    },
+    "delivery": {
+      "steer": "引導執行中的回合",
+      "interrupt": "中斷後執行",
+      "queue": "在此回合之後排入佇列",
+      "whenIdle": "閒置時開始新回合",
+      "newConversation": "新增對話"
+    },
+    "triggers": {
+      "once": "在指定日期和時間執行一次",
+      "interval": "每隔N分鐘或小時",
+      "daily": "每隔N天",
+      "weekdays": "在平日",
+      "weekly": "每週指定日期和時間",
+      "cron": "自訂cron運算式",
+      "event": "事件發生時",
+      "afterEvent": "事件發生後的指定時間"
+    },
+    "targets": {
+      "conversation": "此對話",
+      "namedConversation": "具名對話",
+      "newConversation": "每次執行新增對話",
+      "worker": "工作代理",
+      "role": "團隊角色",
+      "team": "團隊",
+      "node": "Muse節點"
+    },
+    "destinations": {
+      "save": "儲存到資料夾",
+      "browser": "在瀏覽器開啟",
+      "email": "透過電子郵件傳送給使用者",
+      "post": "發佈到儲存庫",
+      "cloud": "雲端儲存（規劃中）",
+      "sms": "簡訊（規劃中）"
+    },
+    "policies": {
+      "open": "在背景開啟",
+      "skip": "略過執行",
+      "runOnce": "補執行一次"
+    },
+    "outcomes": {
+      "ran": "已執行",
+      "refused": "已拒絕",
+      "missed": "已錯過",
+      "skipped": "已略過",
+      "failed": "失敗"
+    },
+    "events": {
+      "pullRequestOpened": "提取要求已開啟",
+      "pullRequestClosed": "提取要求已關閉",
+      "pullRequestMerged": "提取要求已合併",
+      "reviewRequested": "已要求審查",
+      "ciFinished": "CI執行已完成",
+      "releasePublished": "版本已發佈",
+      "issueLabelled": "議題已加上標籤",
+      "issueOpened": "議題已開啟",
+      "issueReplied": "已收到議題回覆",
+      "branchUpdated": "分支已更新",
+      "tagCreated": "標籤已建立",
+      "milestoneStatusChanged": "里程碑狀態已變更",
+      "milestoneCertified": "里程碑已認證",
+      "turnFinished": "回合已完成",
+      "laneFinished": "工作通道已完成",
+      "taskFinished": "任務已完成",
+      "teamFinished": "團隊工作已完成",
+      "questionAnswered": "問題已回答",
+      "usageThresholdCrossed": "已超過使用量門檻",
+      "resourceLevelChanged": "資源等級已變更",
+      "filesChanged": "監看的檔案已變更",
+      "versionPublished": "商店版本已發佈",
+      "manual": "手動觸發"
+    },
+    "messages": {
+      "interruptWarning": "中斷可能會停止您自己執行中的回合。",
+      "unattendedRefusal": "排程執行遭拒：{action}需要核准，且不在此排程的授權範圍內。",
+      "deferredQuestions": "問題會立即延後，並保持開放以便您稍後回答。",
+      "paidConsent": "使用{model}排程{prompt}：{price}。頻率：{cadence}。每個本地日期的排程上限：{cap}；共用每日預算：{budget}。同意僅涵蓋選取的付費附加功能。",
+      "changedConsent": "模型、金鑰或價格級別已變更。請在下次付費執行前重新同意。",
+      "setBy": "由{agent}在{session}中設定",
+      "migrationConsent": "移轉的排程已暫停。繼續前請檢查模式、授權和付費同意。",
+      "collision": "此目標的執行時間衝突，將依建立順序執行。",
+      "historyUnavailable": "沒有可預覽的歷程。",
+      "eventUntrusted": "事件內容是不受信任的資料，不能變更授權、工具或目標。",
+      "backgroundQuestion": "編輯器關閉時仍執行排程嗎？",
+      "backgroundYes": "是，新增背景項目",
+      "backgroundNotNow": "暫時不要",
+      "backgroundNever": "不再詢問",
+      "backgroundRemove": "移除背景項目",
+      "backgroundRemoved": "背景項目已移除。",
+      "agentConsent": "允許{agent}在自身權限和預算範圍內建立此排程嗎？",
+      "agentAlways": "一律允許此協調代理",
+      "agentNever": "永不允許此協調代理",
+      "grantRevoked": "此排程的授權已撤銷。",
+      "waitingBusy": "等待中：電腦忙碌",
+      "saveRoot": "僅儲存到此排程核准的根目錄內。",
+      "openWhenBack": "我回來時開啟",
+      "plannedDestination": "此目標處於規劃階段，目前無法使用。",
+      "expiredOwner": "此排程隨建立者的工作階段或團隊結束而終止。"
+    },
+    "endAfterRuns": {
+      "other": "執行{count}次後結束"
+    },
+    "historyPreview": {
+      "other": "在{days}天內原本會執行{count}次"
+    },
+    "settings": {
+      "enabled": "在可用後端上啟用排程。預設開啟，每次執行均在長期授權範圍內無人值守執行。",
+      "defaultDelivery": "新排程的預設傳送方式。預設在閒置時開始新回合。",
+      "agentCreation": "代理建立排程的預設權限：詢問、在上限內一律允許或永不允許。預設詢問。"
+    }
+  }
 }
