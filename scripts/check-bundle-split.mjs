@@ -132,6 +132,7 @@ const LAZY_ONLY = [
   // M106: side answers load with the backend, reviewer, judge or Git action.
   'structuredOutput.ts',
   'modelCapabilities.ts',
+  'argumentPreview.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',

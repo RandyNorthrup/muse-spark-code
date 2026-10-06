@@ -2741,6 +2741,7 @@
   "toolArgumentPreviewLabel": "Argumentumok előnézete",
   "toolArgumentPreviewTruncated": "Az előnézet csonkolva.",
   "toolArgumentPreviewPending": "Várakozás a teljes argumentumokra…",
+  "toolArgumentPreviewPreparing": "Argumentumok előkészítése…",
   "modelApiContinuing": "A kimeneti korlát elérve. Egyszeri folytatás…",
   "modelApiContinuationLimit": "A kimeneti korlát ismét elérve. Küldjön üzenetet a folytatáshoz.",
   "modelApiToolStuck": "A kör leállt, mert ugyanaz az eszközhívás újra és újra változatlan eredményt adott. Küldjön üzenetet egy másik megközelítés kipróbálásához.",

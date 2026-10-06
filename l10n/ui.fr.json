@@ -2844,6 +2844,7 @@
   "toolArgumentPreviewLabel": "Aperçu des arguments",
   "toolArgumentPreviewTruncated": "Aperçu tronqué.",
   "toolArgumentPreviewPending": "En attente des arguments complets…",
+  "toolArgumentPreviewPreparing": "Préparation des arguments…",
   "modelApiContinuing": "La limite de sortie a été atteinte. Une seule continuation…",
   "modelApiContinuationLimit": "La limite de sortie a de nouveau été atteinte. Envoyez un message pour continuer.",
   "modelApiToolStuck": "Le tour a été arrêté car le même appel d’outil renvoyait un résultat inchangé. Envoyez un message pour essayer une autre approche.",

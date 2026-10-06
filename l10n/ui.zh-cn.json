@@ -2638,6 +2638,7 @@
   "toolArgumentPreviewLabel": "参数预览",
   "toolArgumentPreviewTruncated": "预览已截断。",
   "toolArgumentPreviewPending": "正在等待完整参数…",
+  "toolArgumentPreviewPreparing": "正在准备参数…",
   "modelApiContinuing": "已达到输出上限。正在继续一次…",
   "modelApiContinuationLimit": "再次达到输出上限。请发送消息以继续。",
   "modelApiToolStuck": "同一工具调用持续返回未变化的结果，因此本轮已停止。请发送消息以尝试其他方法。",

@@ -78,6 +78,39 @@ describe('bundled What’s New content budget', () => {
     },
   )
 
+  it.each([
+    [25 * 1024, 50 * 1024, true],
+    [25 * 1024 + 1, 50 * 1024, false],
+    [25 * 1024, 50 * 1024 + 1, false],
+  ])(
+    'bounds the new preview chunk independently without widening the deferred cap (%s, %s)',
+    async (previewBytes, deferredBytes, allowed) => {
+      readFileSync.mockReturnValue(
+        JSON.stringify({
+          outputs: {
+            'dist/webview/main.js': { imports: [] },
+            'dist/webview/preview.js': {
+              entryPoint: String.raw`src\webview\components\ToolArgumentPreview.tsx`,
+              imports: [],
+            },
+            'dist/webview/deferred.js': { imports: [] },
+          },
+        }),
+      )
+      statSync.mockImplementation((file) => {
+        if (file.endsWith('preview.js')) return { size: previewBytes }
+        const size = file.endsWith('deferred.js') ? deferredBytes : 0
+        return { size }
+      })
+      if (allowed) {
+        await import('../../scripts/check-bundle-size.mjs')
+        expect(process.exit).not.toHaveBeenCalled()
+      } else {
+        await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+      }
+    },
+  )
+
   it('admits exactly 40 KiB of raw JSON', async () => {
     await import('../../scripts/check-bundle-size.mjs')
     expect(console.log).toHaveBeenCalledWith('ok   dist/whatsNew.json: 40.0 KiB (budget 40 KiB)')

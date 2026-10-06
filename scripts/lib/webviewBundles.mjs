@@ -86,6 +86,9 @@ export function webviewDeferredBudgetGroups(meta) {
     for (const file of outputs) if (!legacy.has(file)) assigned.add(file)
     return { ...budget, outputs }
   })
+  const preview = webviewPreviewOutputs(meta).map((file) => normalPath(file))
+  for (const file of preview) assigned.add(file)
+  groups.push({ name: 'argument preview JS', budgetKiB: 25, outputs: preview })
   groups.unshift({
     name: 'deferred JS',
     budgetKiB: 50,
@@ -105,3 +108,15 @@ export const DEFERRED_WEBVIEW_SURFACES = [
   'HistoryDialog',
   'ReportDialog',
 ]
+
+// M106 L1: this new surface has its own measured cap. Shared/static dependencies
+// stay under their existing startup/deferred caps; only its entry moves here.
+export function webviewPreviewOutputs(meta) {
+  return Object.entries(meta.outputs)
+    .filter(
+      ([, output]) =>
+        output.entryPoint?.replaceAll('\\', '/') ===
+        'src/webview/components/ToolArgumentPreview.tsx',
+    )
+    .map(([file]) => file)
+}

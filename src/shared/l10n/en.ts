@@ -20,6 +20,7 @@ export const EN = {
   toolArgumentPreviewLabel: 'Argument preview',
   toolArgumentPreviewTruncated: 'Preview truncated.',
   toolArgumentPreviewPending: 'Waiting for complete arguments…',
+  toolArgumentPreviewPreparing: 'Preparing arguments…',
   modelApiContinuing: 'The output limit was reached. Continuing once…',
   modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
   modelApiToolStuck:

@@ -2844,6 +2844,7 @@
   "toolArgumentPreviewLabel": "Anteprima degli argomenti",
   "toolArgumentPreviewTruncated": "Anteprima troncata.",
   "toolArgumentPreviewPending": "In attesa degli argomenti completi…",
+  "toolArgumentPreviewPreparing": "Preparazione degli argomenti…",
   "modelApiContinuing": "È stato raggiunto il limite di output. Continuazione per una sola volta…",
   "modelApiContinuationLimit": "Il limite di output è stato raggiunto di nuovo. Invia un messaggio per continuare.",
   "modelApiToolStuck": "Il turno è stato interrotto perché la stessa chiamata allo strumento restituiva un risultato invariato. Invia un messaggio per provare un altro approccio.",

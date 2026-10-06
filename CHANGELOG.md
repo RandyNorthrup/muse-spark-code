@@ -41,6 +41,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Streamed argument previews now show only completed, scrubbed strings from
+  each tool's explicit field allowlist. File content, nested values, foreign
+  tool arguments and unfinished strings stay hidden; malformed arguments
+  freeze the safe display, and a running received-byte count remains visible.
+  Reloading a panel clears saved previews even if the same turn is running.
+  The preview remains in its lazy UI bundle; production capability binding
+  and the missing U9 raw-frame capture remain integration prerequisites.
+
 - Hosted-search request validators retire after settlement and conversation
   disposal, so opening and closing chats does not retain their transcripts.
   Live parent/child authorization, remembered grants and dispatched charges

@@ -6,7 +6,7 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
-import { memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -52,6 +52,11 @@ import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+
+const ToolArgumentPreview = lazy(async () => {
+  const module = await import('./ToolArgumentPreview')
+  return { default: module.ToolArgumentPreview }
+})
 
 export interface ToolRowProps {
   readonly entry: ToolEntry
@@ -382,13 +387,19 @@ function ToolRowView({
   onStopTask,
   quoteMenu,
 }: ToolRowProps) {
-  const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
+  const presentation = useMemo(
+    () => describeTool(entry.tool, entry.args, entry.argumentPreview !== undefined),
+    [entry.tool, entry.args, entry.argumentPreview],
+  )
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isWaiting = entry.approval !== undefined || entry.question !== undefined
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
-    presentation.body === 'shell' || presentation.body === 'edit' || imagePaths.length > 0,
+    presentation.body === 'preview' ||
+      presentation.body === 'shell' ||
+      presentation.body === 'edit' ||
+      imagePaths.length > 0,
   )
   // An edit's lines, or a fetched page's size (M69).
   const change =
@@ -473,6 +484,14 @@ function ToolRowView({
   const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   let body: ReactNode
   switch (presentation.body) {
+    case 'preview': {
+      body = (
+        <Suspense fallback={null}>
+          <ToolArgumentPreview preview={entry.argumentPreview} />
+        </Suspense>
+      )
+      break
+    }
     case 'shell': {
       body = <ShellBody entry={entry} command={presentation.command} onOpen={openOutput} />
       break

@@ -316,6 +316,11 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
 | `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
 
+**FIXM106L1 (2026-10-06):** the complete argument-preview UI entry is
+independently bounded at 25 KiB: 648 bytes measured, plus 15%, rounded to
+25 KiB. Only its new entry moves out of the deferred group; shared/static
+dependencies retain their existing startup and deferred caps.
+
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -7496,11 +7501,14 @@ changes nothing (U14).
      search (CAPAUDIT item 6, M95c) reuses the bound.
 
 5. **Loop UX and throughput.**
-   - **Streamed-argument previews** (`tools.streamingArguments`): long
-     write and edit content appears in the tool row as it streams, labelled
-     as a preview and bounded by `TOOL_ARGUMENT_PREVIEW_MAX_CHARS`. Nothing
-     runs, asks or calls a hook before `.done`, and the preview never enters
-     replay.
+   - **Streamed-argument previews** (`tools.streamingArguments`): argument
+     previews are allowlist-only. Each harness tool declares safe top-level
+     string fields; only completed, validated strings are shown, after M84
+     and longest-first registered-literal scrubbing. Other fields and nested
+     values show structure and a running byte count only. Malformed tokens,
+     duplicate keys, non-string allowlisted values and excessive nesting
+     freeze the last safe preview. Nothing runs, asks or calls a hook before
+     `.done`, and the preview never enters replay.
    - **Concurrent read-only calls, in call order.**
      - The set is fixed in code: `read_file`, listing, search, glob, the code
        intelligence queries, the diagnostics read and `recall_output`.
@@ -27659,6 +27667,53 @@ Journal version 2 stores exact decimal strings; version 1 float amounts are
 converted once when parsed, preserving their represented precision. Only
 the owner publishes a migrated claim on its next write; readers never
 rewrite another owner's row and cannot race a settlement.
+**REDM106L1 deny-by-default redesign (2026-10-06).** Supersedes the
+sensitive-key tokenizer and unfinished-prefix holdback below. Tool-local
+`previewFields` metadata stays off the wire; MCP and foreign tools have no
+allowlist. Validate incremental JSON grammar, duplicate keys and a named
+depth bound; display only completed allowlisted top-level strings, scrubbed
+with M84 and longest-first registered literals. Hidden fields, nested
+values and incomplete strings contribute structure and byte counts only.
+Any malformed input freezes the last safe display until authoritative
+arguments validate. Keep processing-time coalescing and interruption's final
+flush. Restored previews are ephemeral: reconciliation clears all saved
+previews in the parent and subagent transcripts, including calls in the
+still-running turn; subsequent live updates
+recover active previews by call ID. This avoids claiming per-call freshness
+from a turn ID. Shared React/ACP behavior is identical in every editor;
+headless replay/final answers still exclude previews. Add every reported
+probe, seeded random JSON/UTF-8 splits, positive controls, lifecycle tests
+and named byte-exact drills. This base has no help catalog or generator;
+add the preview entry in `src/shared/featureCatalog.ts`, extract its marked
+README section into `docs/reference.md` with `scripts/gen-reference.mjs`,
+and expose `check:reference` to detect drift. Update CHANGELOG and certification; keep
+startup at or below 895.5 KiB and the substantive UI lazy. Existing live
+capture and capability-binding handoffs remain explicitly open.
+
+**FIXM106L13 round-two repairs (2026-10-06).** Resolve all five
+RVM106L12 findings inside L1's existing files. Sensitive classification is
+inherited through the tokenizer's container stack: an entire sensitive
+scalar, object or array value, including nested keys, is withheld across
+frames. Registered literals also withhold any unfinished matching suffix,
+including numeric values, until disambiguation or close. Every processed
+preview snapshot updates the rate timestamp even when deduplicated;
+interruption forces a final scrubbed snapshot before settling and clearing;
+reconciliation settles restored previews whose turn differs from the live
+turn. Add split-at-every-byte property cases and named regression/red drills
+in `docs/certification/m106-l1.md`. No finding is deferred; existing capture,
+capability and W-owned product-documentation handoffs remain. No guard,
+wire schema, dependency, timeout, or capability default changes.
+
+**FIXM106L1 review repairs (2026-10-06).** Resolve RVM106L1's four findings
+within the preview lane: an incremental partial-JSON tokenizer decodes and
+normalizes keys and withholds whole sensitive string values using M84's
+existing field rules, then scrubs decoded snapshots; advance only over new
+deltas and coalesce each call to ten previews per second plus final data;
+clear previews on every row-settlement path; move the entire preview UI
+into its lazy component. Preserve existing caps, using a separate measured
+preview chunk budget only if the deferred group cannot fit. Regression
+tests and byte-exact red drills are recorded in `docs/certification/m106-l1.md`.
+No wire shape, dependency, capability default, or execution admission changes.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §3. Strict tools wait for
@@ -31461,6 +31516,15 @@ typechecks, deadcode, duplication, localization, host API, cycles and production
 build. The lead retains integrated quality and the multi-OS matrix. No gate is
 weakened. The v2 headless money contract remains private/unsupported pending
 M80’s hosted/live receipts; this lane uses fake transports only.
+**REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
+shared rules prohibit aggregate `npm run quality`; the lead owns the full
+integration gate. Run all required scoped typechecks, changed-file lint and
+format, localization, help drift, deadcode, duplication, host API, build and
+owned test files directly on Kubuntu. No threshold, timeout, rule or hook is
+weakened. Startup must additionally stay at or below 895.5 KiB for this
+lane. U9 raw argument frames and the production capability binding remain
+explicit evidence/integration handoffs, not passing certification claims.
+Receipts and byte-exact red drills are in `docs/certification/m106-l1.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -33298,6 +33362,26 @@ The journal retains crash liability on the original request row, preserves
 legacy decimal precision at parse, and never migrates another owner's row
 by writing it. Default-timeout regressions and byte-exact drills cover the
 review findings and terminal settlement-pricing failure.
+
+- **M106-L1 review repairs (FIXM106L1 / FIXM106L13, 2026-10-06).**
+  RVM106L1's four findings and RVM106L12's five findings are fixed;
+  no review finding is left as a residual. Sensitive classification is
+  inherited through entire JSON values, including nested keys, containers
+  and scalars. Registered literal prefixes remain private until resolved.
+  The processing bound includes unchanged snapshots; interruption flushes
+  redacted final content before settlement. Validated saved tool rows keep
+  turn identity, so a newer live turn clears only stale restored previews.
+  Remaining integration/evidence handoffs are named separately:
+  **L1-CAPTURE:** U9 lacks argument frames; synthetic regressions prove the
+  existing parser contract only. Safe for now: no guessed wire fields or
+  capture claim. Follow-up: W supplies exact scrubbed frames with provenance.
+  **L1-CAPABILITY:** production factories must bind M95's evidence-bearing
+  resolver in all editors. Safe for now: absent capability leaves previews
+  off. Follow-up: W binds and certifies the factories.
+  **L1-DOCS:** README, CHANGELOG and the new help registry remain W-owned.
+  Safe for now: there is no new command, setting or public support claim.
+  Follow-up: W documents whole-value redaction, processing bounds, final flush and settlement.
+  The previous **L1-BUNDLE** registration handoff is resolved in this repair.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

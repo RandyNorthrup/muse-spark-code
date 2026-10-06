@@ -2638,6 +2638,7 @@
   "toolArgumentPreviewLabel": "引数のプレビュー",
   "toolArgumentPreviewTruncated": "プレビューは省略されています。",
   "toolArgumentPreviewPending": "引数の受信完了を待っています…",
+  "toolArgumentPreviewPreparing": "引数を準備しています…",
   "modelApiContinuing": "出力上限に達しました。一度だけ続行します…",
   "modelApiContinuationLimit": "再び出力上限に達しました。続行するにはメッセージを送信してください。",
   "modelApiToolStuck": "同じツール呼び出しが変わらない結果を繰り返し返したため、ターンを停止しました。別の方法を試すにはメッセージを送信してください。",

@@ -1079,6 +1079,7 @@ function toolEntry(item: ItemSnapshot): TranscriptEntry {
     id: item.itemId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
+    argumentPreview: item.argumentPreview,
     status: item.status,
     output: item.visibleOutput ?? '',
     failureReason: item.failureReason,
@@ -1234,6 +1235,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         ...entry,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
+        argumentPreview: item.argumentPreview,
         status: item.status,
         output: item.visibleOutput ?? entry.output,
         failureReason: item.failureReason ?? entry.failureReason,
@@ -1329,13 +1331,15 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         !isCutOff &&
         entry.approval === undefined &&
         entry.question === undefined &&
-        entry.elicitation === undefined
+        entry.elicitation === undefined &&
+        entry.argumentPreview === undefined
       ) {
         return entry
       }
       return {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        argumentPreview: undefined,
         approval: undefined,
         question: undefined,
         elicitation: undefined,
@@ -1384,8 +1388,16 @@ function unlockQuestions(entries: readonly TranscriptEntry[]): readonly Transcri
     : entries
 }
 
-function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
-  const settled = entries.map((entry) => settleEntry(entry, at))
+function settleAll(
+  entries: readonly TranscriptEntry[],
+  at: number,
+  isPreviewOnly = false,
+): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) =>
+    isPreviewOnly && (entry.kind !== 'tool' || entry.argumentPreview === undefined)
+      ? entry
+      : settleEntry(entry, at),
+  )
   return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
@@ -1853,6 +1865,7 @@ function applyAgentEvent(
         : state
     }
     case 'itemStarted':
+    case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
       const next = applyItem(state, event.item, at)
@@ -2452,7 +2465,7 @@ function reconcile(
   at: number,
 ): UiState {
   const restore = state.pendingRestore
-  const live: UiState = {
+  let live: UiState = {
     ...state,
     attachmentEpoch: Math.max(state.attachmentEpoch, message.attachmentEpoch ?? 0),
     pendingRestore: undefined,
@@ -2471,9 +2484,11 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  return message.activeTurnId === undefined
-    ? { ...live, transcript: settleAll(live.transcript, at) }
-    : live
+  for (const childId of Object.keys(live.childTranscripts)) {
+    live = mapChildEntries(live, childId, (entries) => settleAll(entries, at, true))
+  }
+  const transcript = settleAll(live.transcript, at, message.activeTurnId !== undefined)
+  return transcript === live.transcript ? live : { ...live, transcript }
 }
 
 function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: number): UiState {

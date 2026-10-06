@@ -8,7 +8,23 @@ import { nonnegativeUsdSchema } from './usd'
 
 import * as z from 'zod/mini'
 import { scheduleViewSchema } from './schedule'
-import { CHECK_OUTCOMES, CHECK_SKIPS, PAID_FEATURES, PERMISSION_MODES } from './constants'
+import {
+  CHECK_OUTCOMES,
+  CHECK_SKIPS,
+  PAID_FEATURES,
+  PERMISSION_MODES,
+  TOOL_ARGUMENT_PREVIEW_MAX_CHARS,
+} from './constants'
+
+/** Scrubbed display data, separate from executable arguments and model replay. */
+export const toolArgumentPreviewSchema = z.object({
+  text: z.string().check(z.maxLength(TOOL_ARGUMENT_PREVIEW_MAX_CHARS)),
+  truncated: z.boolean(),
+  /** Optional for saved snapshots produced before deny-by-default previews. */
+  bytes: z.optional(z.number().check(z.int(), z.minimum(0))),
+  frozen: z.optional(z.boolean()),
+})
+export type ToolArgumentPreview = z.infer<typeof toolArgumentPreviewSchema>
 
 /**
  * One check command as a row reports it (M68): its name, how it ended, why
@@ -209,7 +225,11 @@ export const itemSnapshotFields = {
   recordedAt: z.optional(z.string()),
 } as const
 
-const itemSnapshotSchema = z.object(itemSnapshotFields)
+const itemSnapshotSchema = z.object({
+  ...itemSnapshotFields,
+  /** Extension-owned display data, deliberately excluded from MSP's wire fields. */
+  argumentPreview: z.optional(toolArgumentPreviewSchema),
+})
 
 export type ItemSnapshot = z.infer<typeof itemSnapshotSchema>
 
@@ -345,6 +365,15 @@ const agentEventSchema = z.discriminatedUnion('type', [
     turnId: z.string(),
   }),
   z.object({ type: z.literal('itemStarted'), item: itemSnapshotSchema }),
+  z.object({
+    type: z.literal('toolArgumentPreview'),
+    item: z.object({
+      ...itemSnapshotFields,
+      kind: z.literal('toolCall'),
+      args: z.literal(''),
+      argumentPreview: toolArgumentPreviewSchema,
+    }),
+  }),
   z.object({
     type: z.literal('textDelta'),
     itemId: z.string(),
