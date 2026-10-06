@@ -263,6 +263,23 @@ export class DeviceTransport {
     try {
       return await new Promise<DeviceChannel>((resolve, reject) => {
         let isExpired = false
+        let isReady = false
+        const startedAt = performance.now()
+        const wallStartedAt = Date.now()
+        let wallObservedAt = wallStartedAt
+        const isWithinDeadline = () => {
+          const wallNow = Date.now()
+          const isElapsed =
+            performance.now() - startedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||
+            wallNow - wallStartedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||
+            wallNow < wallObservedAt
+          wallObservedAt = wallNow
+          if (!isExpired && !isElapsed) return true
+          isExpired = true
+          socket?.destroy()
+          reject(new Error('blocked-or-unreachable'))
+          return false
+        }
         cancel = () => {
           isExpired = true
           socket?.destroy()
@@ -276,6 +293,7 @@ export class DeviceTransport {
         }, DEVICE_LIMITS.handshakeDeadlineMs)
         void resolveDeviceAddress(hostname, local, this.network.lookup)
           .then((address) => {
+            if (!isWithinDeadline()) return
             if (isExpired || !pair.isActive()) {
               reject(new Error('revoked'))
               return
@@ -312,13 +330,16 @@ export class DeviceTransport {
                 reject(new Error('unpaired'))
                 return
               }
+              if (!isWithinDeadline()) return
               openDeviceChannel(
                 connected,
                 pair.pairId,
                 undefined,
-                () => pair.isActive(),
+                () => pair.isActive() && (isReady || isWithinDeadline()),
                 handler,
                 (channel) => {
+                  if (!isWithinDeadline()) return
+                  isReady = true
                   clearTimeout(timer)
                   resolve(channel)
                 },

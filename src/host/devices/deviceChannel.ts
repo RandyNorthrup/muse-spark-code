@@ -34,7 +34,7 @@ export function openDeviceChannel(
   const queue: DeviceFrame[] = []
   let isRunning = false
   let frameTimer: ReturnType<typeof setTimeout> | undefined
-  let frameStartedAt: number | undefined
+  let frameStartedAt: { monotonic: number; wall: number; observedWall: number } | undefined
   let failure: (typeof DEVICE_FAILURES)[number] = 'blocked-or-unreachable'
   let currentIncarnation = receiverIncarnationId
   const isMatching = (frame: DeviceFrame) =>
@@ -61,6 +61,17 @@ export function openDeviceChannel(
       socket.destroy()
     },
   }
+  function checkFrameDeadline(): void {
+    if (frameStartedAt === undefined) return
+    const wallNow = Date.now()
+    if (
+      performance.now() - frameStartedAt.monotonic >= DEVICE_LIMITS.frameDeadlineMs ||
+      wallNow - frameStartedAt.wall >= DEVICE_LIMITS.frameDeadlineMs ||
+      wallNow < frameStartedAt.observedWall
+    )
+      throw new Error('invalid-frame')
+    frameStartedAt.observedWall = wallNow
+  }
   async function drain(): Promise<void> {
     if (isRunning) return
     isRunning = true
@@ -84,15 +95,12 @@ export function openDeviceChannel(
   socket.on('data', (chunk: Buffer) => {
     try {
       if (!isActive()) throw new Error('revoked')
-      if (
-        frameStartedAt !== undefined &&
-        Date.now() - frameStartedAt >= DEVICE_LIMITS.frameDeadlineMs
-      )
-        throw new Error('invalid-frame')
+      checkFrameDeadline()
       const frames = decoder.push(
         chunk,
         DEVICE_LIMITS.queuedFrames - queue.length - Number(isRunning),
       )
+      checkFrameDeadline()
       const isInitialOffer = currentIncarnation === undefined && frames.length > 0
       if (isInitialOffer) {
         const first = frames[0]
@@ -103,6 +111,7 @@ export function openDeviceChannel(
       if (frames.some((frame) => !isMatching(frame))) throw new Error('invalid-frame')
       queue.push(...frames)
       if (isInitialOffer) {
+        if (!isActive()) throw new Error('revoked')
         port.connected(channel)
         ready(channel)
       }
@@ -114,7 +123,8 @@ export function openDeviceChannel(
         frameStartedAt = undefined
       }
       if (frameTimer === undefined && decoder.incomplete) {
-        frameStartedAt = Date.now()
+        const wall = Date.now()
+        frameStartedAt = { monotonic: performance.now(), wall, observedWall: wall }
         frameTimer = setTimeout(() => {
           failure = 'invalid-frame'
           socket.destroy()

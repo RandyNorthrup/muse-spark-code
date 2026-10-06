@@ -18625,6 +18625,16 @@ Regressions and six red/restored receipts for all three RVM100L0 P2 repairs
 are in `docs/certification/m100-0.md`. The lead retains the full quality,
 coverage, packaged-host and security gates.
 
+**FIXM100T transport/review repair (2026-10-06).** The rig brief requires
+direct Kubuntu owning-file runs (at most three files/workers), scoped static
+checks, normal-hook local commits and no aggregate quality, merge or push.
+The three RVM100T P2s and one P3 are repaired and have named regressions and
+byte-exact red/restored receipts in `docs/certification/m100-t.md`. No gate is
+weakened. The inherited host-API record and `DEVICE_MODEL_TEXT` split-reader
+registration stay I-owned; §9 names that joined-tree handoff. Full quality,
+coverage, installed-host/firewall/multicast, security and packaging evidence
+remain the lead's exact integrated-tree prerequisites.
+
 **DEFLAKE3 test-only lane scope (2026-10-04).** The rig brief requires a
 complete Windows unit inventory in batches of at most three files and
 300 consecutive checkpoint-copy file passes. It explicitly requires full
@@ -19616,6 +19626,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M100-T-JOINED-GATES (inherited integration handoff).** T's transport is
+  unshipped and ordinary chat does not load it. Its inherited generated host
+  API import counts and missing `DEVICE_MODEL_TEXT` split-reader registration
+  still fail their unchanged gates; no runtime or released support is claimed
+  from loopback tests. Safe for this isolated review lane while Devices remains
+  unshipped. Follow-up: I regenerates/reviews the host API inventory, registers
+  the real lazy Devices readers, and runs full quality, packaging and installed
+  four-device qualification before shipment. All four RVM100T findings are
+  repaired; none is deferred. Receipts: `docs/certification/m100-t.md`.
 
 - **M100-LOCAL-ACCOUNT (FIXM100L0).** The OS, logged-in account, extension
   host and installed extensions/helpers are trusted. Another local user can

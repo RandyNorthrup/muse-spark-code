@@ -146,3 +146,10 @@ export function transportHandler(shouldAnnounce = true): DeviceChannelPort {
     disconnected: vi.fn(),
   }
 }
+
+export function transportClock() {
+  const clock = { wall: Date.now(), monotonic: performance.now() }
+  vi.spyOn(Date, 'now').mockImplementation(() => clock.wall)
+  vi.spyOn(performance, 'now').mockImplementation(() => clock.monotonic)
+  return clock
+}

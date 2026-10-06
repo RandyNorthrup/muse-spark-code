@@ -50,10 +50,11 @@ export function encodeDeviceFrame(frame: DeviceFrame): Buffer {
 // One incomplete line and a capped ready queue; oversize bytes are rejected
 // before concatenation, UTF-8 decoding, JSON parsing or zod allocation.
 export class DeviceFrameDecoder {
-  private pending = Buffer.alloc(0)
+  private readonly pending: Buffer[] = []
+  private pendingBytes = 0
 
   get incomplete(): boolean {
-    return this.pending.length > 0
+    return this.pendingBytes > 0
   }
 
   push(chunk: Buffer, available: number): DeviceFrame[] {
@@ -62,16 +63,20 @@ export class DeviceFrameDecoder {
     while (offset < chunk.length) {
       const newline = chunk.indexOf('\n', offset)
       const end = newline === -1 ? chunk.length : newline
-      const length = this.pending.length + end - offset
-      if (length > DEVICE_LIMITS.frameBytes || frames.length >= available) {
+      const length = this.pendingBytes + end - offset
+      if (
+        length > DEVICE_LIMITS.frameBytes ||
+        frames.length >= available ||
+        (end > offset && this.pending.length >= DEVICE_LIMITS.frameFragments)
+      ) {
         throw new Error('invalid-frame')
       }
-      const line = Buffer.concat([this.pending, chunk.subarray(offset, end)], length)
-      this.pending = Buffer.alloc(0)
-      if (newline === -1) {
-        this.pending = line
-        break
-      }
+      if (end > offset) this.pending.push(chunk.subarray(offset, end))
+      this.pendingBytes = length
+      if (newline === -1) break
+      const line = Buffer.concat(this.pending, length)
+      this.pending.length = 0
+      this.pendingBytes = 0
       const text = new TextDecoder('utf-8', { fatal: true }).decode(line)
       rejectDuplicateKeys(text)
       const input: unknown = JSON.parse(text)

@@ -1,13 +1,15 @@
-import { connect as tlsConnect, createServer as tlsServer, type TLSSocket } from 'node:tls'
-import { connect as tcpConnect, createServer as tcpServer, Server } from 'node:net'
+import { connect as tlsConnect, createServer as tlsServer, TLSSocket } from 'node:tls'
+import { connect as tcpConnect, createServer as tcpServer, Server, Socket } from 'node:net'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceTransport, type DeviceTransportPair } from '../../src/host/devices/deviceTransport'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
-import { encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
+import { DeviceFrameDecoder, encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
+import { type DeviceChannel } from '../../src/host/devices/deviceChannel'
 import { type DeviceFrame } from '../../src/shared/devices'
 import {
   deviceTestFrame,
   transportHandler,
+  transportClock,
   transportIdentity,
   transportPair,
   transportPort,
@@ -76,6 +78,157 @@ async function observedTcpClose(port: number): Promise<number> {
 }
 
 describe('pinned device transport with real loopback TLS', () => {
+  it.each(
+    ['DNS', 'TLS', 'offer', 'decoded-offer', 'readiness', 'listen'].flatMap((transition) =>
+      ['wall-forward', 'monotonic', 'wall-backward'].map((clock) => ({ transition, clock })),
+    ),
+  )(
+    'RVM100T-P2-3 refuses delayed $transition on $clock before timer servicing',
+    async ({ transition, clock }) => {
+      const port = await transportPort()
+      const incoming = transportHandler(false)
+      const outgoing = transportHandler()
+      const server = manager()
+      if (transition !== 'listen')
+        await server.listen(transportPair(receiver, source), '127.0.0.1', port, incoming)
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const time = transportClock()
+      const dialing = vi.spyOn(Socket.prototype, 'connect')
+      const idle = vi.spyOn(TLSSocket.prototype, 'setTimeout')
+      const expire = () => {
+        if (clock === 'monotonic') time.monotonic += DEVICE_LIMITS.handshakeDeadlineMs + 1
+        else time.wall += clock === 'wall-forward' ? DEVICE_LIMITS.handshakeDeadlineMs + 1 : -1
+      }
+      const dns = Promise.withResolvers<readonly string[]>()
+      const client = new DeviceTransport({
+        interfaces: () => ['127.0.0.1'],
+        lookup: () => dns.promise,
+      })
+      transports.add(client)
+      let announcement: DeviceChannel | undefined
+      incoming.connected = vi.fn((channel: DeviceChannel) => {
+        announcement = channel
+        if (
+          clock === 'wall-backward' &&
+          (transition === 'decoded-offer' || transition === 'readiness')
+        )
+          time.wall += 2
+        if (transition !== 'offer') channel.send(deviceTestFrame)
+      })
+      switch (transition) {
+        case 'TLS': {
+          const protocol = TLSSocket.prototype.getProtocol
+          vi.spyOn(TLSSocket.prototype, 'getProtocol').mockImplementation(function (
+            this: TLSSocket,
+          ) {
+            const result = protocol.call(this)
+            if (this.remotePort === port) expire()
+            return result
+          })
+
+          break
+        }
+        case 'decoded-offer': {
+          const push = DeviceFrameDecoder.prototype.push
+          vi.spyOn(DeviceFrameDecoder.prototype, 'push').mockImplementation(function (
+            this: DeviceFrameDecoder,
+            chunk,
+            available,
+          ) {
+            const result = push.call(this, chunk, available)
+            if (result.length > 0) expire()
+            return result
+          })
+
+          break
+        }
+        case 'readiness': {
+          outgoing.connected = vi.fn(expire)
+          break
+        }
+        case 'listen': {
+          vi.spyOn(Server.prototype, 'listen').mockImplementation(function (this: Server) {
+            expire()
+            queueMicrotask(() => {
+              this.emit('listening')
+            })
+            return this
+          })
+
+          break
+        }
+        // No default
+      }
+      const waiting =
+        transition === 'listen'
+          ? server.listen(transportPair(receiver, source), '127.0.0.1', port, incoming)
+          : client.connect(
+              transportPair(source, receiver),
+              transition === 'DNS' ? 'peer.local' : '127.0.0.1',
+              port,
+              '127.0.0.1',
+              outgoing,
+            )
+      let failure: string | undefined
+      void waiting.catch((error: unknown) => {
+        if (error instanceof Error) failure = error.message
+      })
+      if (transition === 'DNS') {
+        expire()
+        dns.resolve(['127.0.0.1'])
+      } else if (transition === 'offer') {
+        await vi.waitFor(() => {
+          expect(announcement).toBeDefined()
+        })
+        expire()
+        announcement?.send(deviceTestFrame)
+      }
+      await vi.waitFor(() => {
+        expect(failure).toBe('blocked-or-unreachable')
+      })
+      await expect(waiting).rejects.toThrow('blocked-or-unreachable')
+      expect(outgoing.connected).toHaveBeenCalledTimes(transition === 'readiness' ? 1 : 0)
+      expect(outgoing.receive).not.toHaveBeenCalled()
+      if (transition === 'DNS' || transition === 'listen')
+        expect(incoming.connected).not.toHaveBeenCalled()
+      if (transition === 'DNS') expect(dialing).not.toHaveBeenCalled()
+      else if (transition === 'TLS')
+        expect(
+          idle.mock.contexts.some(
+            (owner, index) =>
+              owner instanceof TLSSocket &&
+              owner.remotePort === port &&
+              idle.mock.calls[index]?.[0] === DEVICE_LIMITS.idleConnectionMs,
+          ),
+        ).toBe(false)
+    },
+  )
+  it('RVM100T-P2-3 keeps established channels usable after the setup deadline', async () => {
+    const port = await transportPort()
+    const incoming = transportHandler()
+    const outgoing = transportHandler()
+    incoming.receive = vi.fn((_frame: DeviceFrame, channel: DeviceChannel) => {
+      channel.send(deviceTestFrame)
+      return Promise.resolve()
+    })
+    await manager().listen(transportPair(receiver, source), '127.0.0.1', port, incoming)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] })
+    const channel = await manager().connect(
+      transportPair(source, receiver),
+      '127.0.0.1',
+      port,
+      '127.0.0.1',
+      outgoing,
+    )
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.handshakeDeadlineMs + 1)
+    channel.send(deviceTestFrame)
+    await vi.waitFor(() => {
+      expect(outgoing.receive).toHaveBeenCalledTimes(2)
+    })
+    expect(outgoing.connected).toHaveBeenCalledTimes(1)
+    expect(outgoing.disconnected).not.toHaveBeenCalled()
+    channel.close()
+  })
   it('RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline', async () => {
     const server = manager()
     const handler = transportHandler()

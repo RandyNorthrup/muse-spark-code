@@ -4,11 +4,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DeviceFrameDecoder, encodeDeviceFrame } from '../../src/core/devices/deviceFraming'
 import { openDeviceChannel } from '../../src/host/devices/deviceChannel'
-import { deviceTestFrame, transportHandler } from './helpers/deviceTransportFixtures'
+import {
+  deviceTestFrame,
+  transportClock,
+  transportHandler,
+} from './helpers/deviceTransportFixtures'
 
 const sockets = new Set<TLSSocket>()
 afterEach(() => {
   vi.useRealTimers()
+  vi.restoreAllMocks()
   for (const socket of sockets) socket.destroy()
   sockets.clear()
 })
@@ -27,6 +32,42 @@ function fixture(isActive = () => true, isSource = false) {
 }
 
 describe('authenticated device channel bounds', () => {
+  it('RVM100T-P2-3 rechecks incomplete-frame expiry after decoding before admission', () => {
+    vi.useFakeTimers()
+    const { socket, handler } = fixture()
+    const bytes = encodeDeviceFrame(deviceTestFrame)
+    socket.emit('data', bytes.subarray(0, 1))
+    const push = DeviceFrameDecoder.prototype.push
+    vi.spyOn(DeviceFrameDecoder.prototype, 'push').mockImplementation(function (
+      this: DeviceFrameDecoder,
+      chunk,
+      available,
+    ) {
+      const result = push.call(this, chunk, available)
+      vi.setSystemTime(Date.now() + DEVICE_LIMITS.frameDeadlineMs)
+      return result
+    })
+    socket.emit('data', bytes.subarray(1))
+    expect(socket.destroyed).toBe(true)
+    expect(handler.receive).not.toHaveBeenCalled()
+  })
+  it.each(['monotonic', 'wall-backwards'])(
+    'RVM100T-P2-3 refuses incomplete frames on %s expiry without timer servicing',
+    (clock) => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      const time = transportClock()
+      const { socket, handler } = fixture()
+      const bytes = encodeDeviceFrame(deviceTestFrame)
+      socket.emit('data', bytes.subarray(0, 1))
+      time.wall += 2
+      socket.emit('data', Buffer.from(' '))
+      if (clock === 'monotonic') time.monotonic += DEVICE_LIMITS.frameDeadlineMs
+      else time.wall -= 1
+      socket.emit('data', bytes.subarray(1))
+      expect(socket.destroyed).toBe(true)
+      expect(handler.receive).not.toHaveBeenCalled()
+    },
+  )
   it('learns current receiver metadata only from initial paired offers and keeps it fixed', () => {
     const { socket, handler, channel } = fixture(() => true, true)
     expect(handler.connected).not.toHaveBeenCalled()

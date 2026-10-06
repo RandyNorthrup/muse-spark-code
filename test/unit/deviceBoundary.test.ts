@@ -83,6 +83,56 @@ describe('device address boundary', () => {
 })
 
 describe('device pre-parse boundary', () => {
+  it('RVM100T-P3 concatenates once per complete frame without copying incomplete prefixes', () => {
+    const bytes = encodeDeviceFrame(transportFrame)
+    const decoder = new DeviceFrameDecoder()
+    const concat = vi.spyOn(Buffer, 'concat')
+    try {
+      for (let offset = 0; offset < bytes.length - 1; offset += 1)
+        expect(decoder.push(bytes.subarray(offset, offset + 1), 1)).toEqual([])
+      expect(concat).not.toHaveBeenCalled()
+      expect(decoder.push(bytes.subarray(-1), 1)).toEqual([transportFrame])
+      expect(concat).toHaveBeenCalledTimes(1)
+    } finally {
+      concat.mockRestore()
+    }
+  })
+  it('RVM100T-P3 refuses 128 KiB in one-byte records at the fragment bound in under one second', () => {
+    const json = Buffer.from(JSON.stringify(transportFrame))
+    const bytes = Buffer.concat([
+      json,
+      Buffer.alloc(DEVICE_LIMITS.frameBytes - json.length, 0x20),
+      Buffer.from('\n'),
+    ])
+    const decoder = new DeviceFrameDecoder()
+    let refusedAt: number | undefined
+    const started = performance.now()
+    for (let offset = 0; offset < bytes.length; offset += 1) {
+      try {
+        decoder.push(bytes.subarray(offset, offset + 1), 1)
+      } catch (error) {
+        expect(error).toEqual(new Error('invalid-frame'))
+        refusedAt = offset
+        break
+      }
+    }
+    expect(refusedAt).toBe(DEVICE_LIMITS.frameFragments)
+    expect(performance.now() - started).toBeLessThan(1000)
+  })
+  it('RVM100T-P3 admits the exact fragment cap and resets it for the next frame', () => {
+    const json = Buffer.from(JSON.stringify(transportFrame))
+    const bytes = Buffer.concat([
+      json,
+      Buffer.alloc(DEVICE_LIMITS.frameFragments - json.length, 0x20),
+    ])
+    const decoder = new DeviceFrameDecoder()
+    for (let frame = 0; frame < 2; frame += 1) {
+      for (let offset = 0; offset < bytes.length; offset += 1)
+        expect(decoder.push(bytes.subarray(offset, offset + 1), 1)).toEqual([])
+      expect(decoder.push(Buffer.from('\n'), 1)).toEqual([transportFrame])
+      expect(decoder.incomplete).toBe(false)
+    }
+  })
   it('reports incompatible protocol versions with a fixed upgrade reason', () => {
     expect(() =>
       new DeviceFrameDecoder().push(
