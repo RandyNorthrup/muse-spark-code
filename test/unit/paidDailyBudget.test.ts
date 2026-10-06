@@ -259,6 +259,24 @@ describe('D78 interactive paid daily budget', () => {
     },
   )
 
+  it.each(['extra', 'judge'] as const)(
+    'refunds a %s account admission factory failure',
+    async (kind) => {
+      const failure = new Error('Account journal unavailable')
+      const bind: AccountBudgetAdmission = () => {
+        throw failure
+      }
+      const daily = boundBudget(bind)
+      await expect(
+        kind === 'extra'
+          ? daily.reserve(IMAGE, 'imageGeneration')
+          : daily.judgeLedger.reserve(0.01),
+      ).rejects.toBe(failure)
+      expect(await claimEntries()).toEqual([expect.objectContaining({ settledUsd: 0 })])
+      expect(confirmModal).not.toHaveBeenCalled()
+    },
+  )
+
   it('rechecks the same bound account before a 429 retry and sends no request after revocation', async () => {
     const stop = new AccountThresholdExceededError({
       kind: 'vendorLimit',

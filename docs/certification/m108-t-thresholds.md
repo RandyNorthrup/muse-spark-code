@@ -38,7 +38,9 @@ commands, casts, suppressions, dependencies or wire codecs are added.
   settled/reserved/uncertain totals without double counting, and pending token
   and request reservations. Keep outstanding liability even across a period
   reset; the reader must conservatively carry unresolved claims into the
-  queried admission period. Reconcile the ISO local-week boundary with D82's
+  queried admission period. Refuse finite account caps when unbounded or
+  unpriced cost cannot supply an authoritative finite liability; never invent
+  zero. Reconcile the ISO local-week boundary with D82's
   implementation when it lands (D82 is also absent here). No substitute
   journal reader is shipped in production.
 - **T-M106-PACING:** pacing.ts is absent. Bind AccountLimitsReader.read(provider,
@@ -185,3 +187,82 @@ named DST test. Both restored byte-exact to SHA-256
 This brings executed deliberate drills to **38**, plus the before-fix
 regression failure. Earlier hashes above identify the earlier committed
 pieces; this hash identifies the final calendar implementation.
+
+## Startup split guard and direct daily composition
+
+The first production build passed every size budget but exited 1 at the
+unchanged split guard: dist/extension.js carried the backend-only
+src/core/backends/modelapi/sessionBudget.ts through the shared wrapper import.
+The daily module now imports only AccountBudgetAdmission's type and directly
+binds/calls its injected guard. The session wrapper stays with the backend.
+No gate, bundle budget or ownership boundary was changed, and no helper module
+or production placeholder was introduced.
+
+Two additional paid tests prove a factory failure itself, as well as a returned
+guard's refusal, refunds the initial extra/Judge claim. The three owning suites
+now contain 60 tests. The direct implementation's guards were drilled again;
+the corrected Judge binding mutation targets its assignment specifically (the
+first broad substring also matched the extra declaration and was discarded).
+The eight verified cases below bring deliberate drill cases to **46**. Every
+case exited 1 at a named assertion and restored byte-exact to SHA-256
+
+`2aeab0218a38d907c66919e37f5ed053bb1f9193470ccbca4e7227008a48740a`
+
+| Deliberately broken final daily guard | Named failing test (first reported)                                                      |
+| ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| direct-extra-binding                  | refunds a refused extra account preflight and preserves its structured trigger           |
+| direct-extra-initial                  | refunds a refused extra account preflight and preserves its structured trigger           |
+| direct-extra-final                    | rechecks image account thresholds after key retrieval, before fetch                      |
+| direct-judge-binding                  | refunds a refused judge account preflight and preserves its structured trigger           |
+| direct-daily-budget-raised            | rechecks the same bound account before a 429 retry and sends no request after revocation |
+| direct-daily-final-budget             | rejects a final send if another window reserved the last funds meanwhile                 |
+| direct-extra-refund                   | refunds a refused extra account preflight and preserves its structured trigger           |
+| direct-judge-refund                   | refunds a refused judge account preflight and preserves its structured trigger           |
+
+## Changed files
+
+- src/core/accounts/thresholds.ts
+- src/core/backends/modelapi/sessionBudget.ts
+- src/host/paid/paidDailyBudget.ts
+- test/unit/thresholds.test.ts
+- test/unit/sessionBudget.test.ts
+- test/unit/paidDailyBudget.test.ts
+- docs/certification/m108-t-thresholds.md
+
+## Final verification and delivery limits
+
+All checks ran directly on macmini (Node 24.21.0), with unchanged gates.
+No exploratory or final invocation raised the repository's 5-second per-test
+timeout. No test filter, skip, credential-store access, live/paid model call,
+new dependency, push, merge or rebase was used. Temporary drill scripts and
+logs are removed after recording their named failures and restoration hashes.
+All local commits use the existing lint-staged and gitleaks hooks.
+
+| Check                                                                                                                          | Final result                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/thresholds.test.ts test/unit/sessionBudget.test.ts test/unit/paidDailyBudget.test.ts --maxWorkers=3` | Exit 0; three complete files, **60 tests passed**, default timeout                                                                            |
+| `TZ=America/Santiago npx vitest run test/unit/thresholds.test.ts --maxWorkers=3`                                               | Exit 0; 19 tests passed, default timeout; both midnight guards deliberately failed and restored                                               |
+| `npm run typecheck`                                                                                                            | Exit 0, all five projects; host and unit refreshed successfully after the type-only split fix                                                 |
+| Changed-file ESLint, `--max-warnings=0`                                                                                        | Exit 0                                                                                                                                        |
+| Changed-file Prettier and `git diff --check`                                                                                   | Exit 0                                                                                                                                        |
+| `npm run deadcode`                                                                                                             | Exit 0; existing vendor/axe-core configuration hints only                                                                                     |
+| `npx jscpd`                                                                                                                    | Exit 0; 1,176 files, **zero clones**, unchanged zero threshold                                                                                |
+| `node scripts/check-l10n.mjs`                                                                                                  | Exit 0; 14 tables, 164 manifest strings, 602 source files, **0 problems**                                                                     |
+| `npm run check:host-api`                                                                                                       | Exit 0; 332 APIs, 31 VS Code importers, 25 Node built-ins, 61 theme variables, **0 problems**                                                 |
+| `npm run build`                                                                                                                | Exit 0; size, split, host-global and 83-package notices checks pass                                                                           |
+| Deliberate guard drills                                                                                                        | **46 verified cases**, named failures, exit 1 and SHA-256 equality after restoration; an additional broad Judge probe was corrected and rerun |
+
+Final production sizes: extension **438.4/600 KiB**, Model API
+**448.3/475 KiB**, checkpoint store **76.9/225 KiB**, webview startup including
+static imports **897.3/900 KiB**, deferred webview JS **49.7/50 KiB**.
+No budget is raised and no new UI chunk ships. The threshold evaluator binds
+into M95/P's lazy provider path when those owners integrate it; no substitute
+registry, aggregate, pacing implementation or host wiring ships here.
+
+Full `npm run quality`, aggregate coverage, cross-editor end-to-end and live
+receipts remain with the lead, as the explicit lane brief requires. M102,
+M106, P and W's named bindings above are integration handoffs, not completed
+features falsely advertised in README or the absent feature catalogue.
+The only calendar choice defaulted locally is an ISO Monday-start week;
+reconcile it with D82 when M102 lands. Paid defaults, consent and all existing
+spend caps retain today's behavior.
