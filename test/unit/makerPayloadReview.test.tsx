@@ -30,6 +30,10 @@ afterEach(() => {
   setUiText(EN, 'en')
 })
 const hash = (content: string | Uint8Array) => createHash('sha256').update(content).digest('hex')
+const UNSAFE_ANALYSIS = {
+  ...uiApproval().analysis,
+  bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 900, y: 0, z: 0 } },
+}
 const prepare = (content: string, encoding: 'text' | 'hex' = 'text', width = 240) =>
   canonicalPayload(
     outgoingPayloadBytes(content, encoding),
@@ -159,10 +163,7 @@ it('dangerous temperature, bounds and disabled safety need extra acknowledgement
     ...uiApproval(),
     payload,
     digest: hash(payload),
-    analysis: {
-      ...uiApproval().analysis,
-      bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 900, y: 0, z: 0 } },
-    },
+    analysis: UNSAFE_ANALYSIS,
   }
   render(
     <ApprovalDialog
@@ -209,6 +210,31 @@ it('summary reports chamber, bed, fan, maximum feed and a supplied time estimate
     feed: 1200,
     seconds: 120,
   })
+})
+it('CR-only lines and padded command codes retain every safety highlight', async () => {
+  const content = 'G01 X900\rM0104 S250\rM0211 S0\r\nM104 S190 M104 S300'
+  const bytes = outgoingPayloadBytes(content, 'text')
+  const payload = await prepare(content)
+  expect(payload.lineCount).toBe(4)
+  const request = {
+    ...uiApproval(),
+    analysis: UNSAFE_ANALYSIS,
+  }
+  const summary = await summarizePayload(
+    bytes,
+    request,
+    { extruder: 200, travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 100 } } },
+    new AbortController().signal,
+  )
+  expect(summary.highlights).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ line: 1, reason: 'travel' }),
+      expect.objectContaining({ line: 2, reason: 'temperature' }),
+      expect.objectContaining({ line: 3, reason: 'safety' }),
+      expect.objectContaining({ line: 4, reason: 'unknown' }),
+    ]),
+  )
+  expect(payload.digest).toBe(hash(content))
 })
 it('firmware summary reads a known ELF entry point and its exact size', async () => {
   const bytes = new Uint8Array(32)

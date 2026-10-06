@@ -11,6 +11,9 @@ and combining marks use `\xNN` byte escapes; a literal backslash is doubled.
 The fixed-width rendering wraps to the measured container width and mounts
 only visible rows. Search includes unmounted rows, and Next highlight reaches
 each highlighted construct.
+CR-only endings also break rows; CRLF remains one line ending. Summary command
+boundaries follow the same rule, and padded numeric command codes are normalized.
+Compound blocks disclose effects the summary cannot fully analyse.
 
 At most 200 rendered rows require reaching the end of the real payload
 scroll container once. Larger payloads require confirming the summary and

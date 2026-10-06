@@ -4,6 +4,7 @@ import {
   MAKER_REVIEW_BATCH_MS,
   MAKER_REVIEW_CONTROL_BASE,
   MAKER_REVIEW_CONTROL_END,
+  MAKER_REVIEW_LF_BYTE,
   MAKER_REVIEW_UTF8_FOUR,
   MAKER_REVIEW_UTF8_THREE,
   MAKER_REVIEW_UTF8_TWO,
@@ -45,7 +46,8 @@ function tokenAt(
     return {
       text: String.fromCodePoint(MAKER_REVIEW_CONTROL_BASE + byte),
       size: 1,
-      newline: character === '\n',
+      newline:
+        character === '\n' || (character === '\r' && bytes[offset + 1] !== MAKER_REVIEW_LF_BYTE),
     }
   if (byte < MAKER_REVIEW_ASCII_END)
     return { text: character === '\\' ? '\\\\' : character, size: 1, newline: false }

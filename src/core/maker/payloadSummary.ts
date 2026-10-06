@@ -49,6 +49,15 @@ export async function summarizePayload(
   let seconds: number | undefined
   let start = 0
   let line = 1
+  const endings = /\r\n?|\n/g
+  const heaters: Readonly<Record<string, 'extruder' | 'bed' | 'chamber'>> = {
+    M104: 'extruder',
+    M109: 'extruder',
+    M140: 'bed',
+    M190: 'bed',
+    M141: 'chamber',
+    M191: 'chamber',
+  }
   let started = performance.now()
   const bounds = analysis?.bounds
   const isTravelUnsafe =
@@ -61,13 +70,15 @@ export async function summarizePayload(
       ))
   while (start < text.length) {
     signal.throwIfAborted()
-    const end = text.indexOf('\n', start)
-    const raw = text.slice(start, end === -1 ? text.length : end)
+    const ending = endings.exec(text)
+    const end = ending?.index ?? text.length
+    const raw = text.slice(start, end)
     const command = raw
       .slice(0, MAKER_REVIEW_SUMMARY_LINE_CHARS)
       .replaceAll(/\([^)]*\)|;.*$/g, '')
       .toUpperCase()
-    const head = /^\s*(?:N\d+\s*)?([GMT]\d+|\$\d+|[A-Z_]+)/.exec(command)?.[1] ?? ''
+    const rawHead = /^\s*(?:N\d+\s*)?([GMT]\d+|\$\d+|[A-Z_]+)/.exec(command)?.[1] ?? ''
+    const head = rawHead.replace(/^([GMT])0+(\d+)$/, '$1$2')
     const parameter = (letter: string) => {
       const value = new RegExp(String.raw`${letter}\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+))`).exec(
         command,
@@ -78,16 +89,8 @@ export async function summarizePayload(
       highlights.push({ line, reason, detail })
       dangers.add(reason)
     }
-    const heaters: Readonly<Record<string, 'extruder' | 'bed' | 'chamber'>> = {
-      M104: 'extruder',
-      M109: 'extruder',
-      M140: 'bed',
-      M190: 'bed',
-      M141: 'chamber',
-      M191: 'chamber',
-    }
     const heater = heaters[head]
-    const temperature = parameter('S') ?? parameter('R')
+    const temperature = heater === undefined ? undefined : (parameter('S') ?? parameter('R'))
     if (heater !== undefined && temperature !== undefined) {
       temperatureSettings[heater].add(temperature)
       temperatures[heater] = Math.max(temperatures[heater] ?? 0, temperature)
@@ -113,13 +116,16 @@ export async function summarizePayload(
       highlight('safety')
     if (
       analysis?.unknown.includes(head) ||
+      analysis?.unknown.includes(rawHead) ||
       analysis?.refused.includes(head) ||
+      analysis?.refused.includes(rawHead) ||
+      /[GM]\d+[\s\S]*?[GM]\d+/.test(command) ||
       raw.length > MAKER_REVIEW_SUMMARY_LINE_CHARS
     )
       highlight('unknown')
     const estimate = /^\s*;\s*TIME:\s*(\d+(?:\.\d+)?)\s*$/i.exec(raw)?.[1]
     if (estimate !== undefined) seconds = Number(estimate)
-    start = end === -1 ? text.length : end + 1
+    start = end + (ending?.[0].length ?? 0)
     line += 1
     if (!(performance.now() - started >= MAKER_REVIEW_BATCH_MS)) {
       continue

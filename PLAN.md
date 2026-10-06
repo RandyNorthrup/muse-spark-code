@@ -267,7 +267,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
 | Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
 | Webview maker surfaces import closure | ≤ 25 KiB (unchanged; REDM103U moves review, fallback and validation into their own second closure)                                                                                                                                                                                                                                                                                                     |
-| Webview maker review import closure   | ≤ 75 KiB (REDM103U: measured 53.9 KiB plus 15 percent, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                                           |
+| Webview maker review import closure   | ≤ 75 KiB (REDM103U: measured 54.1 KiB plus 15 percent, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                                           |
 | Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
@@ -18951,10 +18951,17 @@ receipts only, default test deadlines, scoped rig checks and hooks-on commits;
 no merge, paid/model call or physical operation. Certification follows in
 `docs/certification/m103-u.md`.
 
-Final redesign measurement: maker review **55,201 B / 75 KiB**. Its measured
-53.9 KiB plus 15 percent is 62.0 KiB, rounded up to 75 KiB. The existing
+REDM103U final source review also covers CR-only G-code line endings. Canonical
+rows and summary command boundaries treat CR as a line end, coalescing CRLF;
+otherwise a following heater or safety command could be absent from summary
+highlights. Numeric command spelling is normalized for leading zeros, and
+compound blocks disclose unknown effects. Regression and removal receipts
+belong to the same simulator certification; no wire fields or gates change.
+
+Final redesign measurement: maker review **55,392 B / 75 KiB**. Its measured
+54.1 KiB plus 15 percent is 62.2 KiB, rounded up to 75 KiB. The existing
 maker-surface cap remains 25 KiB (10,612 B used); preview remains 25 KiB
-(23,466 B used). Startup is **814,419 B**, **+817 B (0.10 percent)** over
+(23,466 B used). Startup is **814,434 B**, **+832 B (0.10 percent)** over
 the 813,602 B integration baseline: the lead's revised about-zero target,
 without claiming literal zero or raising an existing cap. The full static
 closure, not just main.js, is counted. DIET1's shared loader and the help

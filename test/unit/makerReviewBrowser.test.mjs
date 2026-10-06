@@ -254,13 +254,22 @@ it.each([5, 10])(
     const toolbarFacts = await stopFacts(p, '.maker-toolbar .maker-stop > button')
     expect(toolbarFacts.visible).toBe(true)
     await p.getByRole('button', { name: 'Devices and machines', exact: true }).click()
+    const dialog = p.getByRole('dialog', { name: 'Devices and machines', exact: true })
+    await dialog.waitFor()
     for (const height of [120, 160, 400, 760]) {
       await p.setViewportSize({ width: 320, height })
       const facts = await stopFacts(p, '.modal .maker-stop > button')
       expect(facts.visible).toBe(true)
       rig.results.push({ probe: 'shared-stop', count, height, ...facts })
-      const list = p.locator('.modal .maker-stop-list')
-      expect(await list.evaluate((node) => node.scrollHeight > node.clientHeight)).toBe(true)
+      const list = dialog.locator('.maker-stop-list')
+      const listFacts = await list.evaluate((node) => ({
+        scrollHeight: node.scrollHeight,
+        clientHeight: node.clientHeight,
+        buttons: node.querySelectorAll('button').length,
+      }))
+      expect(listFacts.buttons).toBe(count)
+      expect(listFacts.scrollHeight).toBeGreaterThan(listFacts.clientHeight)
+      rig.results.push({ probe: 'shared-stop-list', count, height, ...listFacts })
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight
       })

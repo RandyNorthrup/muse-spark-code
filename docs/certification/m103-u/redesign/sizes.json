@@ -2,36 +2,36 @@
   "platform": "win32",
   "node": "v24.21.0",
   "startup": {
-    "bytes": 814419,
+    "bytes": 814434,
     "baselineBytes": 813602,
-    "growthBytes": 817,
+    "growthBytes": 832,
     "budgetBytes": 921600,
     "outputs": [
       "dist/webview/main.js",
-      "dist/webview/chunks/7B26MVBT.js",
+      "dist/webview/chunks/OIEHQGY3.js",
       "dist/webview/chunks/R4SLIWUW.js",
       "dist/webview/chunks/ZXQBZBPZ.js",
-      "dist/webview/chunks/KYGKYB6B.js",
+      "dist/webview/chunks/SU2JFAPY.js",
       "dist/webview/chunks/6H6HIFU7.js",
-      "dist/webview/chunks/RVJWDDSN.js",
+      "dist/webview/chunks/Z6XHWV4O.js",
       "dist/webview/chunks/2TEO5AI5.js",
       "dist/webview/chunks/X4V56C6X.js",
-      "dist/webview/chunks/VLI4ANQA.js",
-      "dist/webview/chunks/EX2L6H2R.js",
-      "dist/webview/chunks/ADSLF6CN.js",
-      "dist/webview/chunks/LE63SZWV.js",
-      "dist/webview/chunks/2IKFJZZJ.js",
-      "dist/webview/chunks/XRLHDXJR.js",
-      "dist/webview/chunks/74NE3IOQ.js",
-      "dist/webview/chunks/RHFDDIAE.js",
-      "dist/webview/chunks/GJLO257G.js",
-      "dist/webview/chunks/FXEITQSL.js",
-      "dist/webview/chunks/PTF5VS3Q.js",
-      "dist/webview/chunks/OJICX27C.js",
-      "dist/webview/chunks/XRTZ3O4X.js",
+      "dist/webview/chunks/MULS5XY6.js",
+      "dist/webview/chunks/FJTK5XAJ.js",
+      "dist/webview/chunks/X7JDNFRR.js",
+      "dist/webview/chunks/O7J4OUWC.js",
+      "dist/webview/chunks/VY5EH2SA.js",
+      "dist/webview/chunks/TGWQRIFP.js",
+      "dist/webview/chunks/WYUKJ7XV.js",
+      "dist/webview/chunks/KG2WOB3E.js",
+      "dist/webview/chunks/VJJSJOPQ.js",
+      "dist/webview/chunks/JQ236KUS.js",
+      "dist/webview/chunks/YQNNZ3T7.js",
+      "dist/webview/chunks/AMSPULKF.js",
+      "dist/webview/chunks/DGJHN5SV.js",
       "dist/webview/chunks/2HVEACRS.js",
-      "dist/webview/chunks/OHAPIMFI.js",
-      "dist/webview/chunks/FDF7DW4W.js",
+      "dist/webview/chunks/WQV5QLOK.js",
+      "dist/webview/chunks/L7JIE677.js",
       "dist/webview/chunks/MQEIEY3K.js"
     ]
   },
@@ -41,13 +41,13 @@
       "bytes": 50891,
       "budgetBytes": 51200,
       "outputs": [
-        "dist/webview/chunks/43Z2YACH.js",
-        "dist/webview/chunks/3V47PHBU.js",
-        "dist/webview/chunks/JTHB7LQV.js",
-        "dist/webview/chunks/36EDRBD5.js",
-        "dist/webview/chunks/34YAQ4F5.js",
-        "dist/webview/chunks/TWAHLL7Q.js",
-        "dist/webview/chunks/62MMVN7B.js"
+        "dist/webview/chunks/ICNZFHLI.js",
+        "dist/webview/chunks/QUKYA2GW.js",
+        "dist/webview/chunks/37Z4VDW2.js",
+        "dist/webview/chunks/CD5PIKGA.js",
+        "dist/webview/chunks/MBVVXJ3N.js",
+        "dist/webview/chunks/SBJE3WD7.js",
+        "dist/webview/chunks/MKQVDEDU.js"
       ]
     },
     {
@@ -55,16 +55,16 @@
       "bytes": 10612,
       "budgetBytes": 25600,
       "outputs": [
-        "dist/webview/chunks/GJ4QK47V.js",
-        "dist/webview/chunks/JYVGYF4E.js",
-        "dist/webview/chunks/D3U7T5KB.js"
+        "dist/webview/chunks/NALONROS.js",
+        "dist/webview/chunks/NZ6AVF7P.js",
+        "dist/webview/chunks/E5INAYYW.js"
       ]
     },
     {
       "name": "maker review",
-      "bytes": 55201,
+      "bytes": 55392,
       "budgetBytes": 76800,
-      "outputs": ["dist/webview/chunks/X6SGJT2E.js"]
+      "outputs": ["dist/webview/chunks/U4MEYDC4.js"]
     },
     {
       "name": "code highlighting",
@@ -77,17 +77,17 @@
       "bytes": 9360,
       "budgetBytes": 25600,
       "outputs": [
-        "dist/webview/chunks/TKB76QFZ.js",
-        "dist/webview/chunks/LGHEYFSI.js",
-        "dist/webview/chunks/7TPCXZ7Y.js",
-        "dist/webview/chunks/E6T65GAF.js"
+        "dist/webview/chunks/QSSE6WEK.js",
+        "dist/webview/chunks/M3DFZQMX.js",
+        "dist/webview/chunks/VDFJYQ5U.js",
+        "dist/webview/chunks/BEQVUSVU.js"
       ]
     },
     {
       "name": "tasks tab",
       "bytes": 1375,
       "budgetBytes": 25600,
-      "outputs": ["dist/webview/chunks/DEO7XFQM.js"]
+      "outputs": ["dist/webview/chunks/BD62OPKI.js"]
     }
   ],
   "standalonePreviewBytes": 23466,

@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Maker summary highlights now follow CR-only line endings and padded numeric
+  command codes. Compound blocks disclose unknown effects. Summary preparation
+  avoids allocating heater maps and irrelevant parameter scans per motion line.
 - Maker approval now binds the exact outgoing-byte digest to a canonical,
   virtualised rendering and structured summary. Control bytes are visible;
   small payloads require reaching the scroll end, and large ones require
