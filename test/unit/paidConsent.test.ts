@@ -38,6 +38,12 @@ function consentWith(
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: 0.0025 }
 
 describe('paidUseQuestion: verified hosted-search tariffs', () => {
+  it('discloses a positive sub-cent per-thousand search price', () => {
+    expect(paidUseQuestion({ feature: 'webSearch', priceUsd: 0.0000002 }).detail).toContain(
+      '$0.00020 per 1,000 searches',
+    )
+  })
+
   it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', (priceUsd) => {
     expect(() => paidUseQuestion({ feature: 'webSearch', priceUsd })).toThrow(
       UI_TEXT.sessionBudgetSearchUnavailable,

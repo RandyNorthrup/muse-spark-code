@@ -3,7 +3,9 @@
 import { USD_DECIMAL_RADIX, USD_DECIMAL_ZERO, USD_DECIMAL_ONE } from './constants'
 
 const DECIMAL = /^(-?\d+)(?:\.(\d+))?(?:e([+-]?\d+))?$/i
-const RADIX = BigInt(USD_DECIMAL_RADIX)
+function radix(): bigint {
+  return BigInt(USD_DECIMAL_RADIX)
+}
 
 export class Usd {
   public static from(amount: number | string): Usd {
@@ -14,7 +16,7 @@ export class Usd {
     const places = fraction.length - Number(match[3] ?? 0)
     const coefficient = BigInt(`${whole}${fraction}`)
     return places < 0
-      ? new Usd(coefficient * RADIX ** BigInt(-places), 0)
+      ? new Usd(coefficient * radix() ** BigInt(-places), 0)
       : new Usd(coefficient, places)
   }
 
@@ -24,7 +26,7 @@ export class Usd {
   ) {}
 
   private aligned(places: number): bigint {
-    return this.coefficient * RADIX ** BigInt(places - this.places)
+    return this.coefficient * radix() ** BigInt(places - this.places)
   }
 
   public add(amount: Usd): Usd {
@@ -66,6 +68,18 @@ export class Usd {
     return numerator < USD_DECIMAL_ZERO && numerator % denominator !== USD_DECIMAL_ZERO
       ? whole - USD_DECIMAL_ONE
       : whole
+  }
+
+  /** Display policy: ceiling to the requested decimal precision, never under-report. */
+  public ceiling(places: number): Usd {
+    if (places >= this.places) return this
+    const divisor = radix() ** BigInt(this.places - places)
+    const quotient = this.coefficient / divisor
+    const remainder = this.coefficient % divisor
+    return new Usd(
+      quotient + (remainder > USD_DECIMAL_ZERO ? USD_DECIMAL_ONE : USD_DECIMAL_ZERO),
+      places,
+    )
   }
 
   public toString(): string {

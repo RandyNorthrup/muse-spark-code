@@ -7,6 +7,8 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Paid prices and retained-charge warnings round upward and keep small positive charges visible, including sub-cent hosted-search tariffs.
+
 ### Added
 
 - M106 development contracts now include captured Meta hosted-search,

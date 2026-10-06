@@ -19407,6 +19407,20 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**H round-2 fixes (FIXM106H2, 2026-10-06).** All four P2s and the P3
+in RVM106H2 are in scope, with no accepted residual. Hosted-search consent
+returns an immutable quote binding feature, provider, model, model revision,
+exact decimal tariff, unit and capture time. Always grants bind provider/model
+and a tariff ceiling; stale open questions are refused and asked again.
+Dispatch and settlement carry that quote without re-reading its price.
+Returned calls become liabilities before fallible observers. Exact decimal
+amounts cross search reservation, journal, session and tally ports, with
+canonical-string persistence and one-time legacy-number migration. Arbitrary
+decimals remain exact (no fixed-unit truncation); display uses a shared ceiling
+formatter with at least two significant digits below a cent. Regression probes,
+random exact-sum agreement and byte-exact red drills certify every finding.
+Existing non-search legacy adapters and W/M95 product handoffs are preserved.
+
 **H review fixes (FIXM106H, 2026-10-06).** Resolve all RVM106H findings:
 preserve sub-cent retained charges with the existing usage formatter; release
 unused hosted allowance only on an authoritative terminal count; settle
