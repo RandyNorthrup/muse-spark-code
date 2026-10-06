@@ -22,6 +22,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Home-node tool requests preserve empty arguments after a nonempty executable,
   including through the scripted tool-host contract.
+- The home-node tool-host contract now supplies ordered terminal output and
+  spontaneous exit delivery, bounded buffering and disconnect disposal.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.

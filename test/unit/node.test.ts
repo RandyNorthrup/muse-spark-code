@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import {
   NODE_AUDIT_MAX_BYTES,
@@ -31,10 +31,12 @@ import {
   nodeRelativePathSchema,
   nodeStateSchema,
   nodeTerminalClientFrameSchema,
+  nodeTerminalHostEventSchema,
   nodeTerminalSizeSchema,
   nodeToolRequestSchema,
   nodeToolResultSchema,
   nodeWorkspaceSchema,
+  type NodeTerminalHostEvent,
 } from '../../src/shared/node'
 import { FakeNodeToolHost } from './helpers/node/toolHost'
 import {
@@ -356,19 +358,126 @@ describe('home node records', () => {
     await expect(host.run(request, controller.signal)).rejects.toThrow('aborted')
     expect(host.requests).toEqual([request])
     await expect(host.run(request, new AbortController().signal)).rejects.toThrow('no scripted')
-    expect(() => host.openTerminal('unknown', { cols: 80, rows: 24 })).toThrow('workspace')
-    expect(() => host.openTerminal('workspace-1', { cols: 0, rows: 24 })).toThrow()
-    const { id, user } = await host.openTerminal('workspace-1', { cols: 80, rows: 24 })
+    const onEvent = vi.fn(() => Promise.resolve())
+    const signal = new AbortController().signal
+    expect(() => host.openTerminal('unknown', { cols: 80, rows: 24 }, onEvent, signal)).toThrow(
+      'workspace',
+    )
+    expect(() => host.openTerminal('workspace-1', { cols: 0, rows: 24 }, onEvent, signal)).toThrow()
+    const { id, user } = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      onEvent,
+      signal,
+    )
     expect(user).toBe('muse-tools')
     await host.writeTerminal(id, 'echo hello\r')
     await host.resizeTerminal(id, { cols: 100, rows: 30 })
     expect(host.terminals.get(id)).toMatchObject({ cols: 100, rows: 30, input: ['echo hello\r'] })
     await host.closeTerminal(id)
     expect(() => host.writeTerminal(id, 'x')).toThrow('terminal')
-    await host.openTerminal('workspace-1', { cols: 80, rows: 24 })
-    await host.stopAll()
+    await host.openTerminal('workspace-1', { cols: 80, rows: 24 }, onEvent, signal)
+    await host.stopAll('stopped')
     expect(host.terminals.size).toBe(0)
     expect(nodeTerminalSizeSchema.parse({ cols: 80, rows: 24 })).toEqual({ cols: 80, rows: 24 })
+  })
+  it('streams PTY output before spontaneous exit with backpressure and final disposal', async () => {
+    const host = new FakeNodeToolHost(new Set(['workspace-1']))
+    const events: NodeTerminalHostEvent[] = []
+    const pending = Promise.withResolvers<undefined>()
+    const { id } = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      async (event) => {
+        events.push(event)
+        if (event.type === 'terminalOutput') await pending.promise
+      },
+      new AbortController().signal,
+    )
+    const output = host.outputTerminal(id, 'hello')
+    const ended = host.endTerminal(id, 7)
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    expect(events).toEqual([{ type: 'terminalOutput', terminalId: id, data: 'hello' }])
+    expect(host.terminals.has(id)).toBe(true)
+    expect(() => host.outputTerminal(id, 'late')).toThrow('terminal')
+    pending.resolve(undefined)
+    await Promise.all([output, ended])
+    expect(events).toEqual([
+      { type: 'terminalOutput', terminalId: id, data: 'hello' },
+      { type: 'terminalEnded', terminalId: id, exitCode: 7, reason: 'exit' },
+    ])
+    for (const event of events) expect(nodeTerminalHostEventSchema.parse(event)).toEqual(event)
+    expect(host.terminals.size).toBe(0)
+    await host.closeTerminal(id)
+    expect(events).toHaveLength(2)
+  })
+  it('disposes PTYs and observers on disconnect, lock and rejected output delivery', async () => {
+    const host = new FakeNodeToolHost(new Set(['workspace-1']))
+    const controller = new AbortController()
+    const events: NodeTerminalHostEvent[] = []
+    const observer = (event: NodeTerminalHostEvent): Promise<void> => {
+      events.push(event)
+      return Promise.resolve()
+    }
+    const { id } = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      observer,
+      controller.signal,
+    )
+    const remove = vi.spyOn(controller.signal, 'removeEventListener')
+    controller.abort()
+    await Promise.resolve()
+    await host.closeTerminal(id)
+    expect(events).toEqual([
+      { type: 'terminalEnded', terminalId: id, exitCode: null, reason: 'lost' },
+    ])
+    expect(host.terminals.size).toBe(0)
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+    await expect(
+      host.openTerminal('workspace-1', { cols: 80, rows: 24 }, observer, controller.signal),
+    ).rejects.toThrow('aborted')
+    const locked = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      observer,
+      new AbortController().signal,
+    )
+    await host.stopAll('locked')
+    expect(events.at(-1)).toEqual({
+      type: 'terminalEnded',
+      terminalId: locked.id,
+      exitCode: null,
+      reason: 'locked',
+    })
+    const rejected = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      () => Promise.reject(new Error('sink lost')),
+      new AbortController().signal,
+    )
+    await expect(host.outputTerminal(rejected.id, 'hello')).rejects.toThrow('sink lost')
+    expect(host.terminals.size).toBe(0)
+  })
+  it('bounds queued PTY output and requires scripts to wait for acknowledgement', async () => {
+    const host = new FakeNodeToolHost(new Set(['workspace-1']))
+    const ack = Promise.withResolvers<undefined>()
+    const onEvent = vi.fn(() => ack.promise)
+    const { id } = await host.openTerminal(
+      'workspace-1',
+      { cols: 80, rows: 24 },
+      onEvent,
+      new AbortController().signal,
+    )
+    const output = host.outputTerminal(id, 'x'.repeat(NODE_TERMINAL_OUTPUT_BYTES))
+    expect(() => host.outputTerminal(id, 'x')).toThrow('backpressure')
+    expect(() => host.outputTerminal(id, '界'.repeat(NODE_TERMINAL_OUTPUT_BYTES))).toThrow()
+    ack.resolve(undefined)
+    await output
+    await host.outputTerminal(id, 'after acknowledgement')
+    await host.closeTerminal(id)
+    expect(onEvent).toHaveBeenCalledTimes(3)
+    expect(host.terminals.size).toBe(0)
   })
   it('versioned JSON schema documents match their canonical parsers', async () => {
     for (const [name, document] of Object.entries(nodeSchemaDocuments())) {

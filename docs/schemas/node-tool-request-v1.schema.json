@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "workspaceId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "argv": {
+      "minItems": 1,
+      "maxItems": 128,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 4096
+      }
+    },
+    "cwd": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 4096,
+          "pattern": "^(?!\\/)(?!.*[\\\\\\x00-\\x1f\\x7f])(?!(?:.*\\/)?\\.\\.?(?:\\/|$))[^/]+(?:\\/[^/]+)*$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": ["id", "workspaceId", "argv", "cwd"],
+  "additionalProperties": false,
+  "$id": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/docs/schemas/node-tool-request-v1.schema.json",
+  "x-node-runtime-validation": "Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, UTF8 byte caps, nonempty executable and NUL-free arguments require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings."
+}

@@ -4,6 +4,8 @@ import {
   nodeConfigSchema,
   nodeEventSchema,
   nodeStateSchema,
+  nodeTerminalHostEventSchema,
+  nodeToolRequestSchema,
 } from '../../../../src/shared/node'
 import { nodeSessionSchema } from '../../../../src/shared/nodeAuth'
 
@@ -16,13 +18,15 @@ export function nodeSchemaDocuments(): Record<string, z.core.JSONSchema.JSONSche
     session: nodeSessionSchema,
     audit: nodeAuditSchema,
     event: nodeEventSchema,
+    'terminal-host-event': nodeTerminalHostEventSchema,
+    'tool-request': nodeToolRequestSchema,
   }
   for (const [name, schema] of Object.entries(schemas)) {
     documents[name] = {
       ...z.toJSONSchema(schema, { unrepresentable: 'any' }),
       $id: `https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/docs/schemas/node-${name}-v1.schema.json`,
       'x-node-runtime-validation':
-        'Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, and UTF8 byte caps require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings.',
+        'Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, UTF8 byte caps, nonempty executable and NUL-free arguments require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings.',
     }
   }
   return documents

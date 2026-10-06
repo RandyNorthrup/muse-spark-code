@@ -242,6 +242,26 @@ const eventFields = {
   time: nodeTimeSchema,
   nodeId: nodeDigestSchema,
 }
+const terminalOutputFields = {
+  type: z.literal('terminalOutput'),
+  terminalId: nodeIdentifierSchema,
+  data: z.string().check(
+    z.maxLength(NODE_TERMINAL_OUTPUT_BYTES),
+    z.refine((data) => new TextEncoder().encode(data).byteLength <= NODE_TERMINAL_OUTPUT_BYTES),
+  ),
+}
+const terminalEndedFields = {
+  type: z.literal('terminalEnded'),
+  terminalId: nodeIdentifierSchema,
+  exitCode: z.nullable(z.int()),
+  reason: z.enum(['exit', 'closed', 'stopped', 'locked', 'lost']),
+}
+/** Tool-host stream payloads; N adds the authenticated event envelope. */
+export const nodeTerminalHostEventSchema = z.discriminatedUnion('type', [
+  z.strictObject(terminalOutputFields),
+  z.strictObject(terminalEndedFields),
+])
+export type NodeTerminalHostEvent = z.infer<typeof nodeTerminalHostEventSchema>
 export const nodeEventSchema = z.discriminatedUnion('type', [
   z.strictObject({ ...eventFields, type: z.literal('dashboard'), dashboard: nodeDashboardSchema }),
   z.strictObject({
@@ -249,22 +269,8 @@ export const nodeEventSchema = z.discriminatedUnion('type', [
     type: z.literal('workspaceChanged'),
     workspace: nodeWorkspaceSchema,
   }),
-  z.strictObject({
-    ...eventFields,
-    type: z.literal('terminalOutput'),
-    terminalId: nodeIdentifierSchema,
-    data: z.string().check(
-      z.maxLength(NODE_TERMINAL_OUTPUT_BYTES),
-      z.refine((data) => new TextEncoder().encode(data).byteLength <= NODE_TERMINAL_OUTPUT_BYTES),
-    ),
-  }),
-  z.strictObject({
-    ...eventFields,
-    type: z.literal('terminalEnded'),
-    terminalId: nodeIdentifierSchema,
-    exitCode: z.nullable(z.int()),
-    reason: z.enum(['exit', 'closed', 'stopped', 'locked', 'lost']),
-  }),
+  z.strictObject({ ...eventFields, ...terminalOutputFields }),
+  z.strictObject({ ...eventFields, ...terminalEndedFields }),
   z.strictObject({ ...eventFields, type: z.literal('audit'), entry: nodeAuditSchema }),
   z.strictObject({ ...eventFields, type: z.literal('stopped') }),
   z.strictObject({ ...eventFields, type: z.literal('locked') }),
@@ -304,17 +310,28 @@ export const nodeToolResultSchema = z.strictObject({
 })
 export interface NodeToolHostPort {
   run(request: NodeToolRequest, signal: AbortSignal): Promise<z.infer<typeof nodeToolResultSchema>>
+  /**
+   * Install the observer before starting the child; events include its ID even
+   * if it exits before open resolves. Await each onEvent acknowledgement in
+   * order, pause the PTY at the output-byte cap, and never drop output. Exactly
+   * one terminalEnded follows acknowledged output, then release the PTY,
+   * descendants and observer. Abort/disconnect ends it as lost; observer
+   * rejection also terminates it. A callback must settle promptly on abort.
+   */
   openTerminal(
     workspaceId: string,
     size: z.infer<typeof nodeTerminalSizeSchema>,
+    onEvent: (event: NodeTerminalHostEvent) => Promise<void>,
+    signal: AbortSignal,
   ): Promise<{
     id: string
     user: typeof NODE_TOOLS_USER
   }>
   writeTerminal(id: string, data: string): Promise<void>
   resizeTerminal(id: string, size: z.infer<typeof nodeTerminalSizeSchema>): Promise<void>
+  /** Close/stop resolve after final delivery and disposal; repeated close is harmless. */
   closeTerminal(id: string): Promise<void>
-  stopAll(): Promise<void>
+  stopAll(reason: 'stopped' | 'locked'): Promise<void>
 }
 export interface NodeClock {
   now(): number

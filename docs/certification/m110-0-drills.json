@@ -525,6 +525,49 @@
         }
       ],
       "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-order",
+      "status": 1,
+      "failedTests": [
+        "home node records streams PTY output before spontaneous exit with backpressure and final disposal",
+        "home node records disposes PTYs and observers on disconnect, lock and rejected output delivery"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-disconnect",
+      "status": 1,
+      "failedTests": [
+        "home node records disposes PTYs and observers on disconnect, lock and rejected output delivery"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-buffer",
+      "status": 1,
+      "failedTests": [
+        "home node records bounds queued PTY output and requires scripts to wait for acknowledgement"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
     }
   ]
 }

@@ -53,6 +53,13 @@ verification belong to A1; a zod schema alone proves neither.
 
 ## Deliberate limits and phase exclusions
 
+**H13 stream lifecycle (RVM110L0-2).** The tool-host observer is installed
+before spawn. Output is acknowledged in order with bounded buffering and
+paused PTY reads; a spontaneous exit follows all output exactly once.
+Disconnect, lock, stop and consumer rejection dispose the PTY, descendants
+and observer. N/U2/T bind this contract and A0-PTY proves it on real hosts;
+L0's scripted output/exit/backpressure/disconnect tests are contract receipts.
+
 **H18 — CLI sign-in versus the tools UID (Q-M110.9).** D90.23 puts agent
 CLIs, terminals and repository tools under `muse-tools`; D90.7 also calls
 for the CLI's owner-only sign-in home. Permissions alone cannot protect a

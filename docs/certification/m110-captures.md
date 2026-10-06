@@ -52,3 +52,16 @@ Muse Code becomes available.
 Unattended and paid policy binds to the existing controller/gates, preserving
 single-model behavior and the owner's once-before-first-charge ruling; no
 separate node consent policy or autonomous approval is introduced.
+
+**M110-N-tools / M110-U2-terminal-dashboard / T stream binding (RVM110L0-2).**
+`openTerminal` takes an observer and an abort signal before the PTY starts.
+`nodeTerminalHostEventSchema` parses output and spontaneous exit payloads;
+N adds the node event envelope and routes only to the authorized session.
+Each callback acknowledgement precedes the next delivery, with at most
+`NODE_TERMINAL_OUTPUT_BYTES` queued; the real host pauses reads, never drops
+output. Exit is delivered exactly once after queued output, then descendants,
+PTY, signal listener and observer are disposed. Disconnect aborts as `lost`;
+lock/stop use `stopAll('locked'/'stopped')`. A rejecting observer terminates
+the PTY; consumers must settle callbacks promptly on abort so teardown cannot
+hang. Close/stop await disposal and close is idempotent. The scripted fake
+supplies output/exit and bounded buffering; it is not the A0-PTY receipt.

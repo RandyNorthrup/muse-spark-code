@@ -55,5 +55,5 @@
   ],
   "additionalProperties": false,
   "$id": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/docs/schemas/node-session-v1.schema.json",
-  "x-node-runtime-validation": "Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, and UTF8 byte caps require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings."
+  "x-node-runtime-validation": "Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, UTF8 byte caps, nonempty executable and NUL-free arguments require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings."
 }
