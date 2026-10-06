@@ -1,7 +1,7 @@
 import { withMakerDeadline } from './machines/deadline'
 import { Buffer } from 'node:buffer'
 import { constants } from 'node:fs'
-import { mkdir, open, realpath, mkdtemp, lstat } from 'node:fs/promises'
+import { mkdir, open, realpath, mkdtemp, lstat, rm } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { redactSecrets } from '../../shared/redact'
@@ -278,39 +278,43 @@ export class CadTools {
     await mkdir(this.outputDirectory, { recursive: true })
     // Unique per invocation: never accept an old success artifact after a failed run.
     const folder = await mkdtemp(path.join(this.outputDirectory, 'render-'))
-    const stlFile = path.join(folder, 'model.stl')
-    await this.run(
-      this.deps.policy.openscad,
-      ['--export-format', 'binstl', '-o', stlFile, file],
-      signal,
-    )
-    const stl = await boundedFile(stlFile, this.deps.policy.stl.maxBytes)
-    const summary = inspectStl(stl, this.deps.policy.stl)
-    let png: Buffer | undefined
-    if (this.deps.canViewImages()) {
-      const pngFile = path.join(folder, 'model.png')
+    try {
+      const stlFile = path.join(folder, 'model.stl')
       await this.run(
         this.deps.policy.openscad,
-        [
-          '--render',
-          `--imgsize=${String(this.deps.policy.imageWidth)},${String(this.deps.policy.imageHeight)}`,
-          '-o',
-          pngFile,
-          file,
-        ],
+        ['--export-format', 'binstl', '-o', stlFile, file],
         signal,
       )
-      const image = await boundedFile(pngFile, this.deps.policy.maxImageBytes)
-      if (
-        image.length < PNG.heightOffset + PNG.dimensionBytes ||
-        image.subarray(0, PNG.signature.length / 2).toString('hex') !== PNG.signature ||
-        image.readUInt32BE(PNG.widthOffset) !== this.deps.policy.imageWidth ||
-        image.readUInt32BE(PNG.heightOffset) !== this.deps.policy.imageHeight
-      )
-        throw new MachineError('cadImage')
-      if (this.deps.canViewImages()) png = image
+      const stl = await boundedFile(stlFile, this.deps.policy.stl.maxBytes)
+      const summary = inspectStl(stl, this.deps.policy.stl)
+      let png: Buffer | undefined
+      if (this.deps.canViewImages()) {
+        const pngFile = path.join(folder, 'model.png')
+        await this.run(
+          this.deps.policy.openscad,
+          [
+            '--render',
+            `--imgsize=${String(this.deps.policy.imageWidth)},${String(this.deps.policy.imageHeight)}`,
+            '-o',
+            pngFile,
+            file,
+          ],
+          signal,
+        )
+        const image = await boundedFile(pngFile, this.deps.policy.maxImageBytes)
+        if (
+          image.length < PNG.heightOffset + PNG.dimensionBytes ||
+          image.subarray(0, PNG.signature.length / 2).toString('hex') !== PNG.signature ||
+          image.readUInt32BE(PNG.widthOffset) !== this.deps.policy.imageWidth ||
+          image.readUInt32BE(PNG.heightOffset) !== this.deps.policy.imageHeight
+        )
+          throw new MachineError('cadImage')
+        if (this.deps.canViewImages()) png = image
+      }
+      return { stl, summary, png }
+    } finally {
+      await rm(folder, { recursive: true, force: true })
     }
-    return { stl, summary, png }
   }
   async checkKicad(
     relative: string,
@@ -320,14 +324,18 @@ export class CadTools {
     const file = await this.source(relative, kind === 'pcb' ? '.kicad_pcb' : '.kicad_sch')
     await mkdir(this.outputDirectory, { recursive: true })
     const folder = await mkdtemp(path.join(this.outputDirectory, 'check-'))
-    const reportFile = path.join(folder, 'report.json')
-    await this.run(
-      this.deps.policy.kicad,
-      [kind, kind === 'pcb' ? 'drc' : 'erc', '--format', 'json', '--output', reportFile, file],
-      signal,
-    )
-    const bytes = await boundedFile(reportFile, this.deps.policy.maxReportBytes)
-    const parsed: unknown = JSON.parse(bytes.toString('utf8'))
-    return summarizeKicadReport(parsed)
+    try {
+      const reportFile = path.join(folder, 'report.json')
+      await this.run(
+        this.deps.policy.kicad,
+        [kind, kind === 'pcb' ? 'drc' : 'erc', '--format', 'json', '--output', reportFile, file],
+        signal,
+      )
+      const bytes = await boundedFile(reportFile, this.deps.policy.maxReportBytes)
+      const parsed: unknown = JSON.parse(bytes.toString('utf8'))
+      return summarizeKicadReport(parsed)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
   }
 }

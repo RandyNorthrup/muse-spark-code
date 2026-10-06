@@ -2,7 +2,7 @@ import capture from '../fixtures/maker/kicad-drc.json'
 import ercCapture from '../fixtures/maker/kicad-erc.json'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
-import { mkdtemp, mkdir, rm, writeFile, symlink } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, symlink, readdir } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -131,6 +131,63 @@ async function fixture(canViewImages = true) {
   return { tools, run, workspace, output, policy }
 }
 describe('maker CAD and EDA runners', () => {
+  it('removes invocation folders after repeated successful renders and EDA checks', async () => {
+    const { tools, output } = await fixture()
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const result = await tools.renderOpenScad('cube.scad', new AbortController().signal)
+      expect(result.stl.byteLength).toBe(134)
+      expect(result.png).toBeDefined()
+      await tools.checkKicad('board.kicad_pcb', 'pcb', new AbortController().signal)
+      await tools.checkKicad('board.kicad_sch', 'sch', new AbortController().signal)
+      const folders = await readdir(output)
+      expect(folders.filter((name) => /^(render|check)-/.test(name))).toEqual([])
+    }
+  })
+  it.each(['render', 'check'])(
+    'removes %s invocation folders after runner failure or cancellation',
+    async (operation) => {
+      const { tools, run, output } = await fixture()
+      const original = run.getMockImplementation()!
+      run.mockImplementation(async (executable, args, options) => {
+        await original(executable, args, options)
+        throw new Error('runnerFailed')
+      })
+      const signal = new AbortController().signal
+      const work =
+        operation === 'render'
+          ? tools.renderOpenScad('cube.scad', signal)
+          : tools.checkKicad('board.kicad_pcb', 'pcb', signal)
+      await expect(work).rejects.toThrow('runnerFailed')
+      const failedFolders = await readdir(output)
+      expect(failedFolders.filter((name) => /^(render|check)-/.test(name))).toEqual([])
+      run.mockImplementation(
+        (_executable, _args, options) =>
+          new Promise((_resolve, reject) => {
+            options.signal.addEventListener(
+              'abort',
+              () => {
+                reject(new Error('cancelled'))
+              },
+              {
+                once: true,
+              },
+            )
+          }),
+      )
+      const controller = new AbortController()
+      const pending =
+        operation === 'render'
+          ? tools.renderOpenScad('cube.scad', controller.signal)
+          : tools.checkKicad('board.kicad_pcb', 'pcb', controller.signal)
+      await vi.waitFor(() => {
+        expect(run).toHaveBeenCalledTimes(2)
+      })
+      controller.abort()
+      await expect(pending).rejects.toThrow('cancelled')
+      const cancelledFolders = await readdir(output)
+      expect(cancelledFolders.filter((name) => /^(render|check)-/.test(name))).toEqual([])
+    },
+  )
   it('runs OpenSCAD without a shell and returns checked STL and PNG only for vision', async () => {
     const { tools, run, output } = await fixture()
     const result = await tools.renderOpenScad('cube.scad', new AbortController().signal)

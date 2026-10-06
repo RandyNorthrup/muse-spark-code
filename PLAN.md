@@ -15151,6 +15151,15 @@ owner's; release assets and install docs ship meanwhile.
 guard ships first and alone if the others slip, because it closes H1–H5 for
 every user.
 
+Lane M review follow-up (FIXM103M): canonicalize G-code once for analysis,
+macro refusal and approved dispatch; move the last approval/access/state
+checks after transport preparation; include the captured active extruder in
+state and limits; fail closed on credential removal; clean CAD invocation
+artifacts. Certify each fix with a failing regression and byte-exact red
+drill in `docs/certification/m103-m.md`. Cross-process registry transactions
+require a host-storage redesign and are tracked as RVM103M-REGISTRY-WRITERS
+in §9; no physical action or live/paid call is authorized by this follow-up.
+
 - **Goal.** Makers get skills, detection, simulation and offline tools that
   work out of the box, and device and machine access that never moves,
   heats, powers or flashes anything without a person approving exactly what
@@ -16170,6 +16179,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **RVM103M-REGISTRY-WRITERS (P2, 2026-10-05):** `MachineRegistry` serializes
+  one instance only. Separate windows/runtimes sharing machine-scoped
+  storage can lose a registration or its pending-removal marker in a
+  read/modify/write race. Fixing this requires a storage transaction/CAS or
+  a cross-process writer lease owned by the host, beyond lane M's storage
+  port and this fix lane. Safe for the current unshipped Maker core and
+  fake-only certification; integration must use one registry writer until
+  that locking is implemented. Follow-up: lanes V/R/W add shared-storage
+  exclusion and a two-runtime regression before enabling machine commands.
+- **RVM103M-JOB-MACROS (acceptance 24 deferral, 2026-10-05):** opaque Klipper
+  `PAUSE`/`CANCEL_PRINT` and job pause/cancel remain refused before approval;
+  their motion cannot be bounded by this analyser. This is conservative
+  and cannot actuate a machine. Follow-up: explicitly defer that part of
+  acceptance 24 at M103 integration or certify a separately bounded path;
+  this lane does not claim the full item passed.
 
 - **M92e-COMMIT-STAGED (architectural skip, 2026-10-04):** the extension
   has no dedicated commit-writing path. A model's `git commit` goes through

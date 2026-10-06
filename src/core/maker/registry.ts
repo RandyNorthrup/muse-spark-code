@@ -20,6 +20,7 @@ export const machineRecordSchema = z.strictObject({
   endpoint: z.string().check(z.minLength(1)),
   allowPlainHttp: z.boolean(),
   limits: limitsSchema,
+  credentialPendingRemoval: z.optional(z.literal(true)),
 })
 export type MachineRecord = z.infer<typeof machineRecordSchema>
 const recordsSchema = z
@@ -66,11 +67,13 @@ export class MachineRegistry {
     const records = await this.list()
     const record = records.find((entry) => entry.id === id)
     if (record === undefined) throw new MachineError('unregisteredMachine')
+    if (record.credentialPendingRemoval) throw new MachineError('credentialPendingRemoval')
     return record
   }
   register(input: unknown, key?: string): Promise<void> {
     return this.mutate(async () => {
       const record = machineRecordSchema.parse(input)
+      if (record.credentialPendingRemoval) throw new MachineError('credentialPendingRemoval')
       if (['grbl', 'fluidnc'].includes(record.kind) && record.category === 'printer') {
         throw new MachineError('machineCategory')
       }
@@ -79,11 +82,16 @@ export class MachineRegistry {
       const records = await this.list()
       if (records.some((entry) => entry.id === record.id))
         throw new MachineError('duplicateMachine')
-      if (key !== undefined) await this.secrets.store(machineSecretName(record.id), key)
+      // Reserve the id durably before touching credentials. Failed cleanup
+      // must leave a blocked record, including after a failed registration.
+      await this.storage.write([...records, { ...record, credentialPendingRemoval: true }])
+      await this.secrets.delete(machineSecretName(record.id))
       try {
+        if (key !== undefined) await this.secrets.store(machineSecretName(record.id), key)
         await this.storage.write([...records, record])
       } catch (error) {
-        if (key !== undefined) await this.secrets.delete(machineSecretName(record.id))
+        await this.secrets.delete(machineSecretName(record.id))
+        await this.storage.write(records)
         throw error
       }
     })
@@ -91,8 +99,13 @@ export class MachineRegistry {
   remove(id: string): Promise<void> {
     return this.mutate(async () => {
       const records = await this.list()
-      await this.storage.write(records.filter((entry) => entry.id !== id))
+      await this.storage.write(
+        records.map((entry) =>
+          entry.id === id ? { ...entry, credentialPendingRemoval: true } : entry,
+        ),
+      )
       await this.secrets.delete(machineSecretName(id))
+      await this.storage.write(records.filter((entry) => entry.id !== id))
     })
   }
 }

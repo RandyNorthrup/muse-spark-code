@@ -60,6 +60,7 @@ function registry() {
       privateLan,
     ),
     values,
+    secrets,
     write,
     setRecords(input: unknown) {
       stored = input
@@ -121,6 +122,71 @@ describe('maker registry boundaries', () => {
     ])
     const captured2 = await records.list()
     expect(captured2).toHaveLength(2)
+  })
+  it('keeps failed credential removal pending, blocks reuse and retries deletion', async () => {
+    const { registry: records, values, secrets, write } = registry()
+    const key = randomUUID()
+    await records.register(machine(), key)
+    const deletion = vi.spyOn(secrets, 'delete').mockRejectedValueOnce(new Error('storeLocked'))
+    await expect(records.remove('printer')).rejects.toThrow('storeLocked')
+    expect(await records.list()).toEqual([{ ...machine(), credentialPendingRemoval: true }])
+    await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
+    await expect(
+      records.register({ ...machine(), endpoint: 'https://second.local' }),
+    ).rejects.toThrow('duplicateMachine')
+    expect(values.has(machineSecretName('printer'))).toBe(true)
+    await records.remove('printer')
+    expect(deletion).toHaveBeenCalledTimes(2)
+    expect(values.size).toBe(0)
+    expect(await records.list()).toEqual([])
+    expect(JSON.stringify(write.mock.calls).includes(key)).toBe(false)
+  })
+  it('does not delete a secret until the pending-removal record is durable', async () => {
+    const { registry: records, values, secrets, write } = registry()
+    await records.register(machine(), randomUUID())
+    const deletion = vi.spyOn(secrets, 'delete')
+    write.mockRejectedValueOnce(new Error('diskFull'))
+    await expect(records.remove('printer')).rejects.toThrow('diskFull')
+    expect(deletion).not.toHaveBeenCalled()
+    expect(values.size).toBe(1)
+    expect(await records.get('printer')).toEqual(machine())
+  })
+  it('clears an orphan credential before keyless registration and refuses on failure', async () => {
+    const { registry: records, values, secrets } = registry()
+    values.set(machineSecretName('printer'), randomUUID())
+    vi.spyOn(secrets, 'delete').mockRejectedValueOnce(new Error('storeLocked'))
+    await expect(records.register(machine())).rejects.toThrow('storeLocked')
+    expect(await records.list()).toEqual([{ ...machine(), credentialPendingRemoval: true }])
+    await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
+    await records.remove('printer')
+    await records.register(machine())
+    expect(values.size).toBe(0)
+  })
+  it('retains the pending record when registration rollback cannot delete its credential', async () => {
+    const { registry: records, values, secrets, write } = registry()
+    const originalWrite = write.getMockImplementation()!
+    write.mockImplementationOnce(originalWrite).mockRejectedValueOnce(new Error('diskFull'))
+    const originalDelete = secrets.delete
+    vi.spyOn(secrets, 'delete')
+      .mockImplementationOnce(originalDelete)
+      .mockRejectedValueOnce(new Error('storeLocked'))
+    await expect(records.register(machine(), randomUUID())).rejects.toThrow('storeLocked')
+    expect(await records.list()).toEqual([{ ...machine(), credentialPendingRemoval: true }])
+    await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
+    expect(values.size).toBe(1)
+    await records.remove('printer')
+    expect(values.size).toBe(0)
+  })
+  it('keeps removal pending when record finalization fails after deleting the key', async () => {
+    const { registry: records, values, write } = registry()
+    await records.register(machine(), randomUUID())
+    const originalWrite = write.getMockImplementation()!
+    write.mockImplementationOnce(originalWrite).mockRejectedValueOnce(new Error('diskFull'))
+    await expect(records.remove('printer')).rejects.toThrow('diskFull')
+    expect(values.size).toBe(0)
+    await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
+    await records.remove('printer')
+    expect(await records.list()).toEqual([])
   })
 })
 async function logFixture(maxBytes = 20_000, maxEntryBytes = 2000) {
