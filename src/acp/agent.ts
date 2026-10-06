@@ -74,6 +74,7 @@ import {
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
+import { resourceStatusText } from '../runtime/resources/text'
 import {
   elicitationSchema,
   elicitationText,
@@ -238,6 +239,7 @@ class AcpSession {
   private preparing: PreparingPrompt | undefined
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
+  private hasShownResourcePause = false
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -262,7 +264,14 @@ class AcpSession {
       this.onEvent(event)
     })
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
-      for (const update of acpResourceUpdates(notice)) this.send(update)
+      const updates = acpResourceUpdates(notice)
+      const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
+      for (const update of updates) {
+        if (isPause && this.hasShownResourcePause && update.sessionUpdate === 'agent_message_chunk')
+          update.content = { type: 'text', text: resourceStatusText(notice.status) }
+        this.send(update)
+      }
+      if (isPause) this.hasShownResourcePause = true
     })
   }
 

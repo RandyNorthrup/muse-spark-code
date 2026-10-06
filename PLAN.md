@@ -19617,6 +19617,17 @@ FIXM101P2; everything else starts against lane 0's contracts.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**FIXM107H review repair, 2026-10-06.** Repair RVM107H's two findings in
+H-owned runtime/ACP files: explicitly forward the injected machine store's
+methods with their receiver intact, and remember the full pause warning
+per ACP conversation. Later pause transitions still deliver current status
+and structured event metadata. Add class-store and repeated-pause regression
+tests, prove both fail on the review base and under deliberate mutations,
+and record exact restoration in `docs/certification/m107-h.md`. No new
+dependency, wire shape, setting, command or translated copy. W/lead retains
+joined wiring and full quality; the rig brief prohibits merges and full
+quality in this lane.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. Lanes S, T, G, A, C1, U and H depend only on main and lane 0's
 contracts. C2 waits for M96 and M96c, R for M100's lanes S and E, J for M102.
@@ -20032,6 +20043,17 @@ Each joins when its dependency merges, and none blocks the others.
         full gate green
 
 ## 7. Gates
+
+**FIXM107H bounded repair certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit aggregate `npm run quality` and full
+test suites here, and prohibit merges. Local hook-on commits use the owning
+resource regressions, byte-exact guard drills, scoped lint/format and all
+five typecheck projects. The final repair receipt also runs the ACP/runtime
+compatibility tests, dead-code, duplication, localization, host API and
+production build checks. W/lead retains the joined full quality, coverage,
+cross-platform and native surface certification. No gate is weakened;
+exact results and inherited integration failures are recorded in
+`docs/certification/m107-h.md`.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct

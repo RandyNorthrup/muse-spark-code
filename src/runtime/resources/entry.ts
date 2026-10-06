@@ -47,12 +47,13 @@ export async function createResources(
       },
     },
     machine: {
-      ...machine,
       async readSettings() {
         const raw = await machine.readSettings()
         settings = resourceSettingsSchema.parse({ ...raw, ...options.overrides })
         return raw
       },
+      readResumeUntil: () => machine.readResumeUntil(),
+      writeResumeUntil: (untilMs) => machine.writeResumeUntil(untilMs),
     },
     sampler: createMachineResourceSampler(() => settings, {
       timeoutMs: RESOURCE_SAMPLE_MS,

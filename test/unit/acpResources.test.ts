@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { acpResourceCommand, acpResourceUpdates } from '../../src/acp/resources'
-import { UI_TEXT } from '../../src/shared/constants'
+import { RESOURCE_EXIT_MS, RESOURCE_GIB_BYTES, UI_TEXT } from '../../src/shared/constants'
+import { fill, formatBytes } from '../../src/shared/l10n/text'
 import { resourceRecordSchema } from '../../src/shared/resources'
 import type { RuntimeResources } from '../../src/runtime/resources/port'
 import { FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
@@ -279,6 +280,71 @@ describe('M107 H ACP resources', () => {
       session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'cancelled' })
       const cancelled = await pending
       expect(cancelled.stopReason).toBe('cancelled')
+    })
+  })
+
+  it('warns once per conversation across repeated pauses while preserving every level update', async () => {
+    const s = await scene()
+    await s.run(async (client, sessionId) => {
+      const running = await s.host.admit(
+        { kind: 'check', class: 'background', priority: 0 },
+        { sessionId },
+      )
+      const permit = await running.ready
+      s.reading.memoryAvailableBytes = 1
+      expect(await s.host.status()).toMatchObject({ level: 'pause' })
+      s.reading.memoryAvailableBytes = 8 * RESOURCE_GIB_BYTES
+      await s.host.status()
+      s.clock.advance(RESOURCE_EXIT_MS)
+      expect(await s.host.status()).toMatchObject({ level: 'throttle' })
+      s.clock.advance(RESOURCE_EXIT_MS)
+      expect(await s.host.status()).toMatchObject({ level: 'normal' })
+
+      const second = await client.request('session/new', { cwd: process.cwd(), mcpServers: [] })
+      const otherRunning = await s.host.admit(
+        { kind: 'check', class: 'background', priority: 0 },
+        { sessionId: second.sessionId },
+      )
+      const otherPermit = await otherRunning.ready
+      s.reading.memoryAvailableBytes = 1
+      expect(await s.host.status()).toMatchObject({ level: 'pause' })
+      const levelUpdates = (id: string) =>
+        s.updates.filter(
+          ({ sessionId: updatedId, update }) =>
+            updatedId === id &&
+            update.sessionUpdate === 'agent_message_chunk' &&
+            update._meta?.['museSpark.resources'] !== undefined,
+        )
+      await vi.waitFor(() => {
+        expect(levelUpdates(sessionId)).toHaveLength(4)
+        expect(levelUpdates(second.sessionId)).toHaveLength(1)
+      })
+      expect(levelUpdates(sessionId)).toMatchObject(
+        ['pause', 'throttle', 'normal', 'pause'].map((level) => ({
+          update: {
+            _meta: { 'museSpark.resources': { event: { to: level }, status: { level } } },
+          },
+        })),
+      )
+      const fullWarnings = (id: string) =>
+        levelUpdates(id).filter(
+          ({ update }) =>
+            update.sessionUpdate === 'agent_message_chunk' &&
+            update.content.type === 'text' &&
+            update.content.text.includes(UI_TEXT.resourceResumeNow),
+        )
+      expect(fullWarnings(sessionId)).toHaveLength(1)
+      expect(fullWarnings(second.sessionId)).toHaveLength(1)
+      expect(JSON.stringify(fullWarnings(sessionId))).toContain(
+        fill(UI_TEXT.resourcePauseNotice, {
+          metric: UI_TEXT.resourceAvailableMemory,
+          reading: formatBytes(1),
+          threshold: formatBytes(RESOURCE_GIB_BYTES),
+        }),
+      )
+      expect(s.permissions).not.toHaveBeenCalled()
+      otherPermit.release()
+      permit.release()
     })
   })
 

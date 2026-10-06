@@ -2,6 +2,7 @@ import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createResources } from '../../src/runtime/resources/entry'
 import { createRuntimeResourceHost } from '../../src/runtime/resources/host'
 import { lazyRuntimeResources } from '../../src/runtime/resources/load'
 import { resourceMachineStore } from '../../src/runtime/resources/settings'
@@ -10,7 +11,11 @@ import {
   resourceNoticeText,
   resourceStatusText,
 } from '../../src/runtime/resources/text'
-import type { RuntimeResources, RuntimeResourceNotice } from '../../src/runtime/resources/port'
+import type {
+  ResourceMachineStore,
+  RuntimeResources,
+  RuntimeResourceNotice,
+} from '../../src/runtime/resources/port'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   RESOURCE_FOREGROUND_WAIT_MS,
@@ -25,6 +30,7 @@ import {
   resourceStatusSchema,
 } from '../../src/shared/resources'
 import { fill, formatBytes, formatPercent } from '../../src/shared/l10n/text'
+import { EN } from '../../src/shared/l10n/en'
 import { FakeResourceMachine, runtimeResources } from './helpers/resources/runtime'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -41,6 +47,61 @@ async function setup() {
 }
 
 describe('M107 H runtime host', () => {
+  it('preserves prototype machine-store methods and their receiver through the real entry', async () => {
+    class PrototypeMachine implements ResourceMachineStore {
+      settings = resourceSettingsSchema.parse({ enabled: false })
+      until: number | null = null
+      readSettings() {
+        return Promise.resolve(this.settings)
+      }
+      readResumeUntil() {
+        return Promise.resolve(this.until)
+      }
+      writeResumeUntil(untilMs: number) {
+        this.until = untilMs
+        return Promise.resolve()
+      }
+    }
+    const machine = new PrototypeMachine()
+    const now = vi.spyOn(Date, 'now').mockReturnValue(0)
+    try {
+      const host = await createResources(
+        {
+          machineDir: process.cwd(),
+          machine,
+          sleep: () => Promise.resolve(),
+          onError: vi.fn(),
+          overrides: { cpuMaxPercent: 75 },
+        },
+        EN,
+        'en',
+      )
+      hosts.push(host)
+      expect(Object.hasOwn(machine, 'readResumeUntil')).toBe(false)
+      expect(Object.hasOwn(machine, 'writeResumeUntil')).toBe(false)
+      expect(await host.status()).toMatchObject({
+        level: 'normal',
+        settings: { enabled: false, cpuMaxPercent: 75 },
+      })
+      machine.settings.enabled = true
+      machine.until = RESOURCE_OVERRIDE_MS
+      expect(await host.status()).toMatchObject({ overrideUntilMs: RESOURCE_OVERRIDE_MS })
+      machine.settings.memoryMaxPercent = 80
+      now.mockReturnValue(1)
+      expect(await host.resume()).toMatchObject({
+        level: 'normal',
+        settings: { enabled: true, memoryMaxPercent: 80 },
+        overrideUntilMs: RESOURCE_OVERRIDE_MS + 1,
+      })
+      expect(machine.until).toBe(RESOURCE_OVERRIDE_MS + 1)
+      const admission = await host.admit({ kind: 'check', class: 'background', priority: 0 })
+      const permit = await admission.ready
+      permit.release()
+    } finally {
+      now.mockRestore()
+    }
+  })
+
   it('starts no sampling on construction or subscription, and starts at first admission', async () => {
     const { host, sampler, clock } = await setup()
     const timers = vi.spyOn(clock, 'setTimeout')
