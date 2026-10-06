@@ -15131,14 +15131,38 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M103 — Makers: boards, firmware and machines (D83)
 
-**FIXM103P2 / RVM103P4 correction scope (2026-10-05).** Fix all three
+**REDM103P serial lease redesign (2026-10-05, lead authorized).** Replace
+mutex-dependent admission with one exclusive hard-link publication of a fully
+written, fsynced generation record. Immutable per-resource claim slots route to
+the next generation; retired slots remain, so delayed unlink can address only
+the sampled generation and cannot erase a replacement. A generation's private
+record is its live marker. Release or proven stale identity first publishes a
+matching immutable retirement receipt, then unlinks only that marker,
+idempotently. Missing live data without a receipt never proves release; an
+unlink failure after retirement cannot strand a stopped session. Admission
+always wins a new exclusive slot. This retained
+routing history is required because portable unlink has no compare-and-delete
+operation on a reusable pathname. No native mutex participates in correctness.
+Holder liveness is PID plus OS process start identity, supplied by the host;
+unknown/corrupt records hold the slot conservatively. Stop uses a separate
+published session endpoint index and never reads the claim chain. Windows
+hosts must validate current-user directory ACLs; POSIX checks owner and 0700.
+Keep the claim/release/Stop entry points; document required process-identity and
+Windows owner-check dependencies, the fresh atomic-v1 namespace and retained
+history in P's certification. Fault each preparation/publication step, kill
+holders across publication, race claims/cleaners, and drill every guard. Full
+quality and final wiring remain assigned to W by the lane's gate deferral.
+
+**Historical FIXM103P2 / RVM103P4 scope (2026-10-05; lease protocol
+superseded by REDM103P above).** Fix all three
 confirmed P2 findings before integration: stale deletion addresses an immutable
 record filename containing the holder ID and a fresh claim generation, so a
 submitted removal cannot address a later holder after native lock loss; failed
 claims settle their pending record write and close/remove their own generation
 before rejecting; Windows enumeration projects the device registry's PortName,
 with only a final parenthesized COM suffix as the text-only fallback. The
-resource mutex and process-plus-endpoint stale checks remain mandatory. These
+resource mutex and process-plus-endpoint stale checks were mandatory at that
+tip; REDM103P replaces them with atomic publication and holder identity. These
 portable P-core changes cover every editor/runtime through LeaseDependencies
 and listSerialPorts; W's host wiring/package and physical qualification remain
 separate. Each finding gets a whole-file regression and byte-exact red drill in
@@ -15228,7 +15252,7 @@ import, and it goes on M60's portable list. The only VS Code code is lane V.
 | G Guard (a)                    | New `src/core/maker/guard/`: `hardwareCommands.ts` (the table below, both esptool spellings) and `actionClass.ts`. `src/core/agent/approvalHardware.ts` (Muse Code approvals, like `approvalSecrets.ts`). In `src/core/backends/modelapi/permissions.ts`, the `hardwareDetected` settle and the `device` class. The settled-ask list in `ModelApiHost.ts` (`askApproval`). `isReviewableApproval` in `approvalRules.ts`. The Bypass refusal in `src/shared/permissionModes.ts`. The subagent, worker, best-of-N, remote-lane and headless refusals at their call sites (one line each). Tests: `hardwareCommands.test.ts`, maker cases in `permissions.test.ts`, `approvalHardware.test.ts`, exec cases.                                                                                                               |
 | S Skills (a)                   | New `first-party-skills/maker_*/**`: each `SKILL.md` plus topic files read on demand. The installer change in `src/host/skills/bundledSkillsInstall.ts` (the first-party folder copied and marked). `.vscodeignore` if needed. Tests: `bundledSkillsInstall.test.ts`, and a skill lint test (front matter, ids, links, no secrets, every recipe command on the recipe-check list).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | D Detection and presets (a, b) | New `src/core/maker/detect/`: `projectKinds.ts` (markers → kinds, bounded file reads), `checkPresets.ts`, and `onPi.ts` (facts from `/proc/device-tree/model`, `vcgencmd`). The catalogue gate in `src/core/context/skills.ts`. A `presetsOffered` event the hosts render. Tests over fixture workspaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through a lock file in the per-user data folder that names the holder's owner-only socket or pipe. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                                                                                                                                             |
+| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through exclusive publication of a fsynced generation record in a private per-user folder; immutable history prevents delayed deletion of a replacement. Stop discovers session sockets/pipes independently of claim records. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                  |
 | M Machines and G-code (b, d)   | New `src/core/maker/gcode/`: tokenizer, analyser, Klipper macro and Marlin/GRBL dialect tables, limits check. New `src/core/maker/machines/`: Moonraker, OctoPrint, PrusaLink, GRBL/FluidNC and Marlin adapters behind one `Machine` interface; limits readers; stop sequences. New `src/core/maker/registry.ts`: machine records with no secrets; the LAN address rule over `endpointPolicy.ts`'s classifier; keys through `MakerHost.secrets`. New `src/core/maker/deviceLog.ts`. New `src/core/maker/cad.ts` (OpenSCAD and `kicad-cli` runners, the STL bounds and size check). Tests against fake Moonraker, OctoPrint and GRBL servers.                                                                                                                                                                           |
 | U Shared UI (a, b, d)          | New `src/webview/maker/**`, all lazy chunks: the approval dialog (surfaces without a native one), the Stop chip, the device panel, the machine wizard, the device log view, and the STL viewer (in-house WebGL, ≤ 25 KiB, its own page entry). Each speaks only `makerProtocol.ts` through `HostBridge`. The panel's mount points in their component regions. Harness scenes, and axe on every new view.                                                                                                                                                                                                                                                                                                                                                                                                               |
 | V VS Code adapter              | New `src/host/maker/`: `vscodeMakerHost.ts` (native modal, notifications, status bar Stop, SecretStorage, `workspaceState`/`globalState`, trust), `makerPreviewPanel.ts` (the webview tab for the preview page), the hardware-switch and machine commands, and the `ide` server's maker tools (`src/host/ide/makerTools.ts`). Tests with the `vscode` mock.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
@@ -15615,7 +15639,7 @@ lane A's first step.
 
 ## 7. Gates
 
-**FIXM103P / FIXM103P2 rig deferral (2026-10-05):** the rig/shared brief prohibits the
+**FIXM103P / FIXM103P2 / REDM103P rig deferral (2026-10-05):** the rig/shared brief prohibits the
 full `quality` command in a lane. Focused P suites and the listed local gates
 run instead. The pre-existing stale host API file-count record is W-owned;
 W must regenerate and review it with the maker entry/package, then run full
@@ -16211,11 +16235,16 @@ before a repaired one loads (2026-09-30).
   additional line-control adapter before admitting it. The unchanged stale
   host API record and final maker/helper packaging remain W-owned integration
   gates; the lane does not claim them or full quality passed.
-  RVM103P4 uses version-2 records in per-resource directories, with immutable
-  holder-ID/generation filenames. Old pre-integration fixed-file records
-  fail closed; none of this maker storage has shipped. Follow-up: W selects
-  a fresh versioned per-user namespace before shipping or qualifies an
-  offline migration only after all old holders are absent. Nonempty registry
+  REDM103P supersedes RVM103P4's mutex protocol with atomic-v1 exclusive
+  hard-link publication, immutable claim slots, retirement receipts and generation live markers
+  directly in the validated private root. Stop has its own fsynced inode.
+  W must supply OS PID/start identity and Windows owner/ACL validation,
+  prepare the Windows private root before admission, and qualify fresh
+  storage or offline migration after all old holders are absent.
+  Retired slots and crashed preparations consume disk; pruning is offline
+  only, after every holder/cleaner is absent. Corrupt slots with no provable
+  holder remain busy/unknown and require trusted offline repair. None of
+  this maker storage has shipped. Nonempty registry
   PortName board captures and the new lease interleavings on real POSIX rigs
   remain part of the same platform qualification. All three RVM103P4 review
   findings are fixed; no P2/P3 review finding is intentionally deferred.

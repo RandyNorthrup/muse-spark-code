@@ -138,6 +138,15 @@ async function isApproved(
   }
 }
 
+async function releaseAfterStop(release: () => Promise<void>, hasStopped: boolean): Promise<void> {
+  try {
+    await release()
+  } catch (error: unknown) {
+    // Stop has acted on the process; its acknowledgement never depends on lease cleanup.
+    if (!hasStopped) throw error
+  }
+}
+
 /** A bounded operation. A new call always mints a new, single-use approval. */
 export async function runSerialAction(
   raw: unknown,
@@ -183,7 +192,8 @@ export async function runSerialAction(
     deps.holder,
     stop,
   )
-  if (claimed.status === 'busy') return { status: 'busy', holder: claimed.holder }
+  if (claimed.status === 'busy')
+    return { status: 'busy', ...(claimed.holder !== undefined && { holder: claimed.holder }) }
   const canProceed = () => stopping === undefined && !deps.signal.aborted && deps.canUseHardware()
   const onAbort = () => {
     void stop()
@@ -288,7 +298,7 @@ export async function runSerialAction(
     try {
       await stopping
     } finally {
-      await claimed.release()
+      await releaseAfterStop(claimed.release, stopping !== undefined)
     }
   }
 }

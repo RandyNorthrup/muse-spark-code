@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -46,7 +46,9 @@ function enteredSignal() {
 }
 
 async function fixture() {
-  const directory = await mkdtemp(path.join(tmpdir(), 'm103-session-'))
+  const directory = await mkdtemp(
+    path.join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'm103-session-'),
+  )
   directories.push(directory)
   const port = path.join(directory, 'fake-port')
   await writeFile(port, '')
@@ -93,6 +95,48 @@ async function fixture() {
 }
 
 describe('host-only serial approval', () => {
+  it('stops the active process with a corrupt lease and keeps cleanup failure out of Stop', async () => {
+    const f = await fixture()
+    const { entered, waiting } = enteredSignal()
+    const captured = Promise.withResolvers<SerialCapture>()
+    f.open.mockResolvedValue({
+      pid: undefined,
+      result: captured.promise,
+      close: f.close,
+      write: f.write,
+    })
+    f.write.mockImplementation(() => {
+      entered.abort()
+      return Promise.resolve()
+    })
+    f.close.mockImplementation(() => {
+      captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      return Promise.resolve()
+    })
+    const resource = await serialLeaseResource(f.input.identity, process.platform)
+    const slot = path.join(
+      f.deps.lease.directory,
+      `claim-v1.${createHash('sha256').update(resource).digest('hex')}.head.claim`,
+    )
+    const running = runSerialAction(f.input, f.deps)
+    await waiting
+    const saved = await readFile(slot)
+    try {
+      await writeFile(slot, '{')
+      expect(await didStopHardwareLease(f.deps.lease, resource)).toBe(true)
+      expect(await running).toEqual({
+        status: 'complete',
+        capture: { bytes: Buffer.alloc(0), reason: 'stopped' },
+      })
+      expect(f.close).toHaveBeenCalled()
+      expect(f.log.mock.calls.at(-1)?.[0].outcome).toBe('stopped')
+    } finally {
+      captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      await writeFile(slot, saved)
+      await running
+    }
+  })
+
   it.each(['Stop', 'turn cancellation'])(
     'waits for cancelled opening cleanup on %s',
     async (method) => {

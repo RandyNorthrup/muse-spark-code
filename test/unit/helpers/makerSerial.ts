@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { killTree, sweepExitedTree } from '../../../src/host/processTree'
 import { prepareWindowsSerialHelper } from '../../../src/core/maker/serial/windowsHelper'
@@ -65,7 +65,93 @@ export async function makerNativeHelper(
 }
 
 export async function makerLeaseDeps(directory: string): Promise<LeaseDependencies> {
+  const run = (file: string, args: readonly string[]) =>
+    new Promise<string>((resolve, reject) =>
+      execFile(
+        file,
+        [...args],
+        { env: makerProcessDeps().env, timeout: 20_000 },
+        (error, stdout) => {
+          if (error === null) resolve(stdout.trim())
+          else reject(new Error('test-process-query-failed', { cause: error }))
+        },
+      ),
+    )
+  const windowsScript = path.join(directory, 'lease-owner.ps1')
+  if (process.platform === 'win32') {
+    await writeFile(
+      windowsScript,
+      `
+param([string]$Operation, [string]$Target)
+$ErrorActionPreference = 'Stop'
+$user = [Security.Principal.WindowsIdentity]::GetCurrent().User
+if ($Operation -eq 'start') {
+  try { [Diagnostics.Process]::GetProcessById([int]$Target).StartTime.ToUniversalTime().Ticks.ToString() }
+  catch [ArgumentException] { 'absent' }
+  exit
+}
+$acl = Get-Acl -LiteralPath $Target
+if ($Operation -eq 'prepare') {
+  $acl.SetOwner($user)
+  $acl.SetAccessRuleProtection($true, $false)
+  $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new($user, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+  Set-Acl -LiteralPath $Target -AclObject $acl
+  $acl = Get-Acl -LiteralPath $Target
+}
+$private = $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -eq $user.Value
+foreach ($rule in $acl.Access) {
+  $sid = $rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value
+  if ($rule.AccessControlType -eq 'Allow' -and $sid -notin @($user.Value, 'S-1-5-18', 'S-1-5-32-544')) { $private = $false }
+}
+if ($private) { 'private' } else { 'public' }
+`,
+    )
+    await run('powershell.exe', [
+      '-NoProfile',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      windowsScript,
+      'prepare',
+      directory,
+    ])
+  }
+  const processStartTime = async (pid: number) => {
+    if (process.platform === 'win32') {
+      const result = await run('powershell.exe', [
+        '-NoProfile',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        windowsScript,
+        'start',
+        String(pid),
+      ])
+      return result === 'absent' ? undefined : result
+    }
+    if (process.platform === 'linux') {
+      try {
+        const stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
+        const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ', 20)
+        return fields[0] === 'Z' ? undefined : fields[19]
+      } catch (error: unknown) {
+        if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
+        throw error
+      }
+    }
+    if (!(await isTestProcessAlive(pid))) return undefined
+    try {
+      const result = await run('/bin/ps', ['-p', String(pid), '-o', 'lstart='])
+      return result === '' ? undefined : result
+    } catch (error: unknown) {
+      if (!(await isTestProcessAlive(pid))) return undefined
+      throw error
+    }
+  }
+  const ownStart = await processStartTime(process.pid)
   const helper = await makerNativeHelper(directory)
+  // Fixtures never change these ACLs after creation; share their concurrent checks.
+  const ownerChecks = new Map<string, Promise<boolean>>()
   return {
     directory,
     platform: process.platform,
@@ -73,6 +159,26 @@ export async function makerLeaseDeps(directory: string): Promise<LeaseDependenci
     maxRecordBytes: 4096,
     exclusive: (file, operation) => withNativeLeaseMutex(helper, file, operation),
     listenOwnerPipe: (endpoint, id, stop) => listenNativeOwnerPipe(helper, endpoint, id, stop),
+    processStartTime: (pid) =>
+      pid === process.pid ? Promise.resolve(ownStart) : processStartTime(pid),
+    isOwnerDirectory: (folder) => {
+      const previous = ownerChecks.get(folder)
+      if (previous !== undefined) return previous
+      const checked = (async () => {
+        const result = await run('powershell.exe', [
+          '-NoProfile',
+          '-ExecutionPolicy',
+          'Bypass',
+          '-File',
+          windowsScript,
+          'check',
+          folder,
+        ])
+        return result === 'private'
+      })()
+      ownerChecks.set(folder, checked)
+      return checked
+    },
   }
 }
 
