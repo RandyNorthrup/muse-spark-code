@@ -7852,6 +7852,15 @@ It builds on:
 
 ## 3. Open questions (need the owner)
 
+- **Q-M109-Windows-DPAPI (2026-10-06, P Windows rig).** Current-user DPAPI
+  initially roundtripped generated material on Win11, then Windows itself
+  returned `0x80070005` in the rig's NTLM logon context, including outside
+  our helper. Local-machine protection works but is never a substitute.
+  The helper reports DPAPI availability in the current session; C/B must
+  offer passphrase/recovery where both hardware and the OS store refuse.
+  Re-capture DPAPI in a stable interactive and an independent SSH logon
+  before claiming network-logon support. No credential or setting is changed
+  to force availability. See `docs/certification/m109-pw.md`.
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
   silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
@@ -20630,6 +20639,19 @@ Each joins when its dependency merges, and none blocks the others.
 - **M** moves each store as its owner milestone merges (D89.14).
 - Every lane certifies on fakes. The rig captures need no model call. The
   Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
+- **P Windows binding (m109/pw).** The shared runtime adapter implements
+  `VaultSlotPort` with C-supplied slot identity/generation metadata and an
+  injected trusted helper transport, matching P's macOS adapter. DPAPI wraps
+  only the vault key, bound to the slot identity. TPM wrapping uses a
+  non-exportable current-user RSA-2048 key and OAEP-SHA-256. Presence requires
+  both a forced-high-protection PCP key and a fresh Hello signature of a
+  challenge bound to the slot and named use, in the helper's own window.
+  Hello padding is verified from the returned signature rather than assumed.
+  Unavailable hardware/Hello fails closed. Named integration handoffs to B/W:
+  bind the transport/compiler lazily, retain slot metadata in C, consume the
+  screen-lock port, ship the native sources in both packages, and include
+  the adapter in the vault bundle. No credential migration or activation
+  wiring is made by this platform-only lane.
 
 - **Goal.** One encrypted vault per user holds API keys, OAuth tokens, SSH
   keys, sudo and other passwords, website logins with their TOTP seeds,
@@ -21544,6 +21566,18 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
+The Windows rig brief and shared lane rules prohibit full quality and the
+full test suite here. Hook-on commits use the three owned test files,
+guard-fire receipts, scoped lint/format and typecheck; final certification
+also runs dead-code, duplication, localization, host API and production build.
+The lead owns full integrated quality and coverage. This VM has no TPM or
+Hello; current-user DPAPI later refused even outside the helper in its NTLM
+logon context. Real PCP/Hello prompts, stable DPAPI isolation/network-logon
+captures and a screen-lock event need the named Windows-capable integration
+rigs. No threshold, rule, scope or OS protection setting is weakened.
+See `docs/certification/m109-pw.md` and Q-M109-Windows-DPAPI in §3.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in

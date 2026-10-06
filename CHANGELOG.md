@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109's Windows vault platform adapter and native helper: current-user DPAPI,
+  non-exportable PCP RSA wrapping with OAEP-SHA-256, forced-protection keys
+  with a fresh Windows Hello signature gate, capability facts and a
+  cancellable screen-lock notification. These are prepared for broker wiring;
+  they do not change existing credential storage or enable vault commands.
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault

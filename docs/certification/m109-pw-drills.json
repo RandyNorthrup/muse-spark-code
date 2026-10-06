@@ -1,0 +1,697 @@
+[
+  {
+    "guard": "context ownership",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 owns context before an external mutation",
+      "Windows vault slots: D89.2 deletes only its own identity even after a caller mutation"
+    ],
+    "elapsedMs": 2172,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "wrap key width",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects wrong key length before starting any helper"
+    ],
+    "elapsedMs": 2094,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "snapshot before await",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 snapshots caller key bytes before the capability await"
+    ],
+    "elapsedMs": 2115,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "capability and fresh-Hello admission",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 refuses unavailable hardware without a software fallback",
+      "Windows vault slots: D89.2 refuses unavailable presence without a software fallback",
+      "Windows vault slots: D89.2 refuses unavailable presence without a software fallback"
+    ],
+    "elapsedMs": 2148,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "returned container identity",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects a helper container for another slot before creating a record"
+    ],
+    "elapsedMs": 2222,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "slot envelope binding",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects each mismatched slot record before reaching a helper",
+      "Windows vault slots: D89.2 rejects foreign, malformed and oversized inner containers"
+    ],
+    "elapsedMs": 2173,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "outer slot size bound",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects foreign, malformed and oversized inner containers"
+    ],
+    "elapsedMs": 2129,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "outer canonical base64",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects noncanonical outer base64 even when it decodes to valid slot JSON"
+    ],
+    "elapsedMs": 2240,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "inner container identity",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects foreign, malformed and oversized inner containers"
+    ],
+    "elapsedMs": 2187,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "slot buffer erasure",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 erases both owned wrap buffers before returning a slot record"
+    ],
+    "elapsedMs": 2227,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "slot diagnostic scrub",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects noncanonical outer base64 even when it decodes to valid slot JSON",
+      "Windows vault slots: D89.2 sanitizes malformed slot JSON before crossing the broker boundary"
+    ],
+    "elapsedMs": 2026,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "per-use random challenge",
+    "source": "src/runtime/vault/slots/windowsVaultSlot.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": ["Windows vault slots: D89.2 uses a fresh challenge for every presence use"],
+    "elapsedMs": 2001,
+    "beforeSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371",
+    "restoredSha256": "550d4a53e17b0bb5be6e8b827b989d56f3ef4281c7754213f46c048fdea2f371"
+  },
+  {
+    "guard": "protocol private input width",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper boundary validates requests and exact private input lengths before exchange"
+    ],
+    "elapsedMs": 2209,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "encoded header byte bound",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper boundary bounds encoded request headers even when individual strings fit their schema"
+    ],
+    "elapsedMs": 2102,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "exact response body width",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper boundary refuses truncated private key bodies instead of padding them with zeros"
+    ],
+    "elapsedMs": 1961,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "strict helper envelopes",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper boundary refuses unknownField responses without relaying their diagnostic"
+    ],
+    "elapsedMs": 2076,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "inner blob canonical encoding",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects inner containers with an invalid tier, format, ciphertext size or encoding"
+    ],
+    "elapsedMs": 2153,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "inner blob size",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects inner containers with an invalid tier, format, ciphertext size or encoding"
+    ],
+    "elapsedMs": 2156,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "tier and RSA ciphertext consistency",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 rejects foreign, malformed and oversized inner containers",
+      "Windows vault slots: D89.2 rejects inner containers with an invalid tier, format, ciphertext size or encoding"
+    ],
+    "elapsedMs": 2126,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "Hello challenge echo",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 refuses a challenge Hello proof and erases the released bytes"
+    ],
+    "elapsedMs": 2017,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "Hello public key binding",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 refuses a publicKey Hello proof and erases the released bytes"
+    ],
+    "elapsedMs": 2050,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "Hello signature verification",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 refuses a signature Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a padding Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a changedUse Hello proof and erases the released bytes"
+    ],
+    "elapsedMs": 2200,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "Hello RSA strength",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 refuses a valid signature from a weak RSA Hello key"
+    ],
+    "elapsedMs": 2106,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "screen-lock fact validation",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 reports screen lock only after a validated helper notification"
+    ],
+    "elapsedMs": 2142,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "invoke input erasure",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 wraps and unwraps osStore with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 wraps and unwraps hardware with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 wraps and unwraps presence with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 erases both owned wrap buffers before returning a slot record",
+      "Windows helper boundary sanitizes thrown transport diagnostics and erases wrap input"
+    ],
+    "elapsedMs": 2267,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "invoke output erasure",
+    "source": "src/runtime/vault/slots/windowsVaultProtocol.ts",
+    "testFile": "test/unit/windowsVaultSlot.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault slots: D89.2 wraps and unwraps osStore with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 wraps and unwraps hardware with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 wraps and unwraps presence with owned bytes and lane-0 metadata",
+      "Windows vault slots: D89.2 refuses a missing Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a challenge Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a publicKey Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a signature Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a padding Hello proof and erases the released bytes",
+      "Windows vault slots: D89.2 refuses a changedUse Hello proof and erases the released bytes",
+      "Windows helper boundary refuses truncated responses without relaying their diagnostic",
+      "Windows helper boundary refuses surplus responses without relaying their diagnostic",
+      "Windows helper boundary refuses zeroLength responses without relaying their diagnostic",
+      "Windows helper boundary refuses oversized responses without relaying their diagnostic",
+      "Windows helper boundary refuses unknownField responses without relaying their diagnostic",
+      "Windows helper boundary refuses error responses without relaying their diagnostic",
+      "Windows helper boundary refuses malformedJson responses without relaying their diagnostic",
+      "Windows helper boundary refuses wrongVersion responses without relaying their diagnostic"
+    ],
+    "elapsedMs": 2088,
+    "beforeSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c",
+    "restoredSha256": "7f3e3e909cfcc02d82dfb4aa0a5743864f110c832b65b3051e4bbc60b2895e0c"
+  },
+  {
+    "guard": "trusted executable path",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport rejects relative paths and non-executable targets"
+    ],
+    "elapsedMs": 2075,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "empty helper environment",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport uses empty argv/environment, hidden console and binary stdin only"
+    ],
+    "elapsedMs": 1872,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "no shell",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport uses empty argv/environment, hidden console and binary stdin only"
+    ],
+    "elapsedMs": 1793,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "hidden helper console",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport uses empty argv/environment, hidden console and binary stdin only"
+    ],
+    "elapsedMs": 1815,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "pre-abort guard",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport refuses malformed headers and pre-aborted calls without spawning"
+    ],
+    "elapsedMs": 1847,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "transport private input width",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport rejects oversized headers and wrong binary key lengths before spawning"
+    ],
+    "elapsedMs": 1794,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "transport stdout ceiling",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport bounds stdout and erases the oversized chunk"
+    ],
+    "elapsedMs": 1846,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "transport chunk erasure",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport uses empty argv/environment, hidden console and binary stdin only",
+      "Windows helper private transport terminates on process failure, erases chunks and keeps diagnostics private",
+      "Windows helper private transport terminates on stdin failure, erases chunks and keeps diagnostics private",
+      "Windows helper private transport terminates on exit failure, erases chunks and keeps diagnostics private",
+      "Windows helper private transport terminates on abort failure, erases chunks and keeps diagnostics private",
+      "Windows helper private transport terminates on timeout failure, erases chunks and keeps diagnostics private",
+      "Windows helper private transport bounds stdout and erases the oversized chunk"
+    ],
+    "elapsedMs": 1795,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "subscription lifetime",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport does not expire a screen-lock subscription at the approval deadline"
+    ],
+    "elapsedMs": 1829,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "raced cancellation",
+    "source": "src/runtime/vault/slots/windowsVaultTransport.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows helper private transport sanitizes synchronous spawn errors and an abort during spawning"
+    ],
+    "elapsedMs": 1790,
+    "beforeSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37",
+    "restoredSha256": "c046a354702658d66bb3b293d9069cd1a340479db821e0e705a5c69d8a830b37"
+  },
+  {
+    "guard": "compiler private environment",
+    "source": "src/host/vault/slots/windowsVaultBuild.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault helper compiler compiles once per source digest with no credential environment and cleans scratch"
+    ],
+    "elapsedMs": 1803,
+    "beforeSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e",
+    "restoredSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e"
+  },
+  {
+    "guard": "content-derived build cache",
+    "source": "src/host/vault/slots/windowsVaultBuild.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault helper compiler compiles once per source digest with no credential environment and cleans scratch"
+    ],
+    "elapsedMs": 1819,
+    "beforeSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e",
+    "restoredSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e"
+  },
+  {
+    "guard": "compiler diagnostic scrub",
+    "source": "src/host/vault/slots/windowsVaultBuild.ts",
+    "testFile": "test/unit/windowsVaultTransport.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows vault helper compiler sanitizes compiler/read errors and rejects non-absolute roots"
+    ],
+    "elapsedMs": 1827,
+    "beforeSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e",
+    "restoredSha256": "400acc8a0e8b8a4e5615dcc9956f4c1c6130265119d5a6daa859a2a6348a037e"
+  },
+  {
+    "guard": "native strict fields",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence",
+      "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+    ],
+    "elapsedMs": 6060,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native integer version",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence",
+      "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+    ],
+    "elapsedMs": 5682,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native identity names and tier",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6418,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native bounded prompt text",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6355,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native canonical material encoding",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6346,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native material byte width",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6425,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native frame byte ceiling",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+    ],
+    "elapsedMs": 6387,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "native private EOF",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+    ],
+    "elapsedMs": 5992,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "DPAPI identity entropy",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence",
+      "Windows native vault capture: generated material only refuses a DPAPI blob rebound to a different slot identity"
+    ],
+    "elapsedMs": 6335,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "PCP key properties and forced-protection validation",
+    "source": "native/windows/MuseSparkVaultCng.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6240,
+    "beforeSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "restoredSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303"
+  },
+  {
+    "guard": "RSA OAEP SHA256 contract",
+    "source": "native/windows/MuseSparkVaultCng.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6433,
+    "beforeSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "restoredSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303"
+  },
+  {
+    "guard": "fail-if-exists creation",
+    "source": "native/windows/MuseSparkVaultCng.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6429,
+    "beforeSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "restoredSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303"
+  },
+  {
+    "guard": "non-exportable key creation",
+    "source": "native/windows/MuseSparkVaultCng.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6844,
+    "beforeSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "restoredSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303"
+  },
+  {
+    "guard": "native unknown-operation refusal",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only rejects malformed native requests and extra private bytes with fixed diagnostics"
+    ],
+    "elapsedMs": 6309,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  },
+  {
+    "guard": "current-user CNG creation scope",
+    "source": "native/windows/MuseSparkVaultCng.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6661,
+    "beforeSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303",
+    "restoredSha256": "56ee239eb9a255b70bf1641251b72047c56e5fd8d1038859441dd3d1c4a30303"
+  },
+  {
+    "guard": "DPAPI current-user scope",
+    "source": "native/windows/MuseSparkVault.cs",
+    "testFile": "test/unit/windowsVaultNative.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "Windows native vault capture: generated material only proves native guards with ephemeral software test keys, never claiming TPM presence"
+    ],
+    "elapsedMs": 6346,
+    "beforeSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee",
+    "restoredSha256": "e9b67561870973ab7b765f8c09cd7f9c4f19574a573e292dbbe73fd2bc89c2ee"
+  }
+]

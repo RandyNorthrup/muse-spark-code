@@ -3914,6 +3914,14 @@ its own installed-language state. The webview is React 19 bundled to one IIFE wi
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+M109's Windows vault helper is prepared for integration with the shared broker.
+It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
+presence uses a forced-protection key plus a fresh Windows Hello signature in
+the helper's own window. Missing TPM or Hello support refuses those slots.
+Existing credential storage is unchanged until the broker and migration lanes
+are integrated. The [Windows certification](docs/certification/m109-pw.md)
+records the generated-material captures and the remaining hardware checks.
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
