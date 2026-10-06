@@ -1,4 +1,5 @@
 {
+  "companionLaunchFailed": "パネルを開けませんでした。エディターに戻り、Muse Spark Code をもう一度開いて、新しい起動リンクを取得してください。",
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",
   "crashDetail": "再読み込みするとパネルが再構築されます。会話はホストに保持されています。",
